@@ -1,0 +1,84 @@
+{
+  "results": [
+    {
+       "name" : "zio.internal.NioSchedulerSpec/NioSchedulerSpec/integration with ZIO runtime/can be used as runtime executor",
+       "status" : "Success",
+       "durationMillis" : "94",
+       "annotations" : "41 ms",
+       "fullyQualifiedClassName" : "zio.internal.NioSchedulerSpec",
+       "labels" : ["NioSchedulerSpec", "integration with ZIO runtime", "can be used as runtime executor"]
+    },
+    {
+       "name" : "zio.internal.NioSchedulerSpec/NioSchedulerSpec/integration with ZIO runtime/fibers run on NioScheduler workers",
+       "status" : "Failure",
+       "durationMillis" : "94",
+       "annotations" : "41 ms",
+       "fullyQualifiedClassName" : "zio.internal.NioSchedulerSpec",
+       "labels" : ["NioSchedulerSpec", "integration with ZIO runtime", "fibers run on NioScheduler workers"]
+    },
+    {
+       "name" : "zio.internal.NioSchedulerSpec/NioSchedulerSpec/integration with ZIO runtime/parallel fibers run correctly",
+       "status" : "Failure",
+       "durationMillis" : "10065",
+       "annotations" : "10 s 17 ms",
+       "fullyQualifiedClassName" : "zio.internal.NioSchedulerSpec",
+       "labels" : ["NioSchedulerSpec", "integration with ZIO runtime", "parallel fibers run correctly"]
+    },
+    {
+       "name" : "zio.internal.NioSchedulerSpec/NioSchedulerSpec/auto-blocking/can create with auto-blocking enabled",
+       "status" : "Success",
+       "durationMillis" : "6",
+       "annotations" : "2 ms",
+       "fullyQualifiedClassName" : "zio.internal.NioSchedulerSpec",
+       "labels" : ["NioSchedulerSpec", "auto-blocking", "can create with auto-blocking enabled"]
+    },
+    {
+       "name" : "zio.internal.NioSchedulerSpec/NioSchedulerSpec/basic functionality/executes multiple tasks",
+       "status" : "Failure",
+       "durationMillis" : "120063",
+       "annotations" : "2 m",
+       "fullyQualifiedClassName" : "zio.internal.NioSchedulerSpec",
+       "labels" : ["NioSchedulerSpec", "basic functionality", "executes multiple tasks"]
+    },
+    {
+       "name" : "zio.internal.NioSchedulerSpec/NioSchedulerSpec/basic functionality/provides metrics",
+       "status" : "Success",
+       "durationMillis" : "94",
+       "annotations" : "41 ms",
+       "fullyQualifiedClassName" : "zio.internal.NioSchedulerSpec",
+       "labels" : ["NioSchedulerSpec", "basic functionality", "provides metrics"]
+    },
+    {
+       "name" : "zio.internal.NioSchedulerSpec/NioSchedulerSpec/basic functionality/metrics report concurrency",
+       "status" : "Success",
+       "durationMillis" : "94",
+       "annotations" : "41 ms",
+       "fullyQualifiedClassName" : "zio.internal.NioSchedulerSpec",
+       "labels" : ["NioSchedulerSpec", "basic functionality", "metrics report concurrency"]
+    },
+    {
+       "name" : "zio.internal.NioSchedulerSpec/NioSchedulerSpec/basic functionality/can be created and used",
+       "status" : "Failure",
+       "durationMillis" : "120063",
+       "annotations" : "2 m",
+       "fullyQualifiedClassName" : "zio.internal.NioSchedulerSpec",
+       "labels" : ["NioSchedulerSpec", "basic functionality", "can be created and used"]
+    },
+    {
+       "name" : "zio.internal.NioSchedulerSpec/NioSchedulerSpec/least-loaded scheduling/distributes tasks across workers",
+       "status" : "Failure",
+       "durationMillis" : "10068",
+       "annotations" : "10 s 17 ms",
+       "fullyQualifiedClassName" : "zio.internal.NioSchedulerSpec",
+       "labels" : ["NioSchedulerSpec", "least-loaded scheduling", "distributes tasks across workers"]
+    },
+    {
+       "name" : "zio.internal.NioSchedulerSpec/NioSchedulerSpec/submitAndYield/works correctly",
+       "status" : "Failure",
+       "durationMillis" : "120064",
+       "annotations" : "2 m",
+       "fullyQualifiedClassName" : "zio.internal.NioSchedulerSpec",
+       "labels" : ["NioSchedulerSpec", "submitAndYield", "works correctly"]
+    }
+  ]
+}

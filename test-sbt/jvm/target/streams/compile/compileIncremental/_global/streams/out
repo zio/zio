@@ -1,0 +1,6 @@
+[debug] [zinc] IncrementalCompile -----------
+[debug] IncrementalCompile.incrementalCompile
+[debug] previous = Stamps for: 17 products, 11 sources, 4 libraries
+[debug] current source = Set(${BASE}/test-sbt/jvm-native/src/main/scala/zio/test/sbt/ZTestTask.scala, ${BASE}/test-sbt/jvm/src/main/scala/zio/test/sbt/ZTestRunner.scala, ${BASE}/test-sbt/shared/src/main/scala/zio/test/sbt/TestTask.scala, ${BASE}/test-sbt/shared/src/main/scala/zio/test/sbt/TestRunner.scala, ${BASE}/test-sbt/shared/src/main/scala/zio/test/sbt/TestFramework.scala, ${BASE}/test-sbt/shared/src/main/scala/zio/test/sbt/Colors.scala, ${BASE}/test-sbt/shared/src/main/scala/zio/test/sbt/ZTestEventHandlerSbt.scala, ${BASE}/test-sbt/shared/src/main/scala/zio/test/sbt/ZioSpecFingerprint.scala, ${BASE}/test-sbt/shared/src/main/scala/zio/test/sbt/ZTestEvent.scala, ${BASE}/test-sbt/shared/src/main/scala/zio/test/sbt/SignalHandlers.scala, ${BASE}/test-sbt/jvm/src/main/scala/zio/test/sbt/ZTestFramework.scala)
+[debug] > initialChanges = InitialChanges(Changes(added = Set(), removed = Set(), changed = Set(), unmodified = ...),Set(),Set(),API Changes: Set())
+[debug] No changes

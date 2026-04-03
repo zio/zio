@@ -1,0 +1,11 @@
+[debug] Created transactional ClassFileManager with tempDir = /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/stacktracer/.jvm/target/scala-2.13/classes.bak
+[debug] About to delete class files:
+[debug] 	BuildInfo.class
+[debug] 	BuildInfo$.class
+[debug] We backup class files:
+[debug] 	BuildInfo.class
+[debug] 	BuildInfo$.class
+[debug] Registering generated classes:
+[debug] 	BuildInfo$.class
+[debug] 	BuildInfo.class
+[debug] Removing the temporary directory used for backing up class files: /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/stacktracer/.jvm/target/scala-2.13/classes.bak

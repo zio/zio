@@ -1,0 +1,10 @@
+[debug] javaOptions: Vector()
+[debug] Forking tests - parallelism = false
+[debug] Create a single-thread test executor
+[debug] Runner for zio.test.sbt.ZTestFramework produced 1 initial tasks for 1 tests.
+[debug]   Running TaskDef(zio.internal.NioSchedulerSpec, sbt.ForkMain$SubclassFingerscan@6504e3b2, false, [SuiteSelector])
+[debug]     Produced 0 nested tasks and 10 events.
+[info] Completed tests
+[error] Failed tests:
+[error] 	zio.internal.NioSchedulerSpec
+[error] (coreTestsJVM / Test / testOnly) sbt.TestsFailedException: Tests unsuccessful

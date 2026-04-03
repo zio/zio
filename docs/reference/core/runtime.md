@@ -277,6 +277,44 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
+### Enabling the NIO Scheduler
+
+ZIO also offers an alternative scheduler based on the Least-Loaded scheduling algorithm. This scheduler assigns new tasks to the worker with the least workload, which can provide better performance in certain scenarios by:
+
+- Eliminating the complexity of work-stealing
+- Reducing contention on shared queues
+- Providing natural load balancing
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  override val bootstrap = 
+    Runtime.enableNioScheduler
+
+  override def run = ZIO.attempt {
+    println(s"Task running on NIO scheduler: ${Thread.currentThread().getName()}")
+  }
+}
+```
+
+You can also enable it with automatic blocking detection:
+
+```scala mdoc:compile-only
+import zio._
+
+object MainApp extends ZIOAppDefault {
+
+  override val bootstrap = 
+    Runtime.enableNioSchedulerWithAutoBlocking
+
+  override def run = ZIO.attempt {
+    println(s"Task running on NIO scheduler with auto-blocking: ${Thread.currentThread().getName()}")
+  }
+}
+```
+
 ## Top-level Runtime Configuration
 
 When we write a ZIO application using the `ZIOAppDefault` trait, a default top-level runtime is created and used to run the application automatically under the hood. Further, we can customize the rest of the ZIO application by providing locally scoped configuration layers using [`provideXYZ` operations](#configuring-runtime-by-providing-configuration-layers) or [`bootstrap` layer](#configuring-runtime-using-bootstrap-layer).

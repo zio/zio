@@ -1,0 +1,131 @@
+[debug] > Exec(early(addDefaultCommands), None, None)
+[debug] > Exec(addDefaultCommands, None, None)
+[debug] > Exec(early(initialize), None, None)
+[debug] > Exec(initialize, None, None)
+[debug] > Exec(boot, None, None)
+[debug] > Exec(writeSbtVersion, None, None)
+[debug] > Exec(reload, None, None)
+[debug] > Exec(sbtStashOnFailure, None, None)
+[debug] > Exec(onFailure loadFailed, None, None)
+[debug] > Exec(loadp, None, None)
+[info] welcome to sbt 1.12.8 (Arch Linux Java 17.0.18)
+[debug] Load.defaultLoad until apply took 41.800492ms
+[debug]           Load.loadUnit: plugins took 29.314697ms
+[debug]           Load.loadUnit: defsScala took 0.184487ms
+[debug] [Loading] Scanning directory /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/project
+[debug]             Load.loadUnit: mkEval took 2.685146ms
+[debug] [Loading] Found non-root projects 
+[debug] [Loading] Done in /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/project, returning: ()
+[debug] deducing auto plugins based on known facts Set(Atom(sbt.plugins.CorePlugin)) and clauses Clauses(Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.IvyPlugin)))
+[debug] Clause(Atom(sbt.ScriptedPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbt.plugins.SbtPlugin),Set(Atom(sbt.ScriptedPlugin)))
+[debug] Clause(Atom(sbt.plugins.SemanticdbPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbt.plugins.JUnitXmlReportPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbt.plugins.MiniDependencyTreePlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.IvyPlugin)))
+[debug] Clause(Atom(sbt.plugins.IvyPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.SemanticdbPlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.JUnitXmlReportPlugin)))
+[debug] Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.Giter8TemplatePlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.MiniDependencyTreePlugin))))
+[debug]   :: deduced result: Matched(sbt.plugins.CorePlugin,sbt.plugins.Giter8TemplatePlugin,sbt.plugins.IvyPlugin,sbt.plugins.JvmPlugin,sbt.plugins.MiniDependencyTreePlugin,sbt.plugins.JUnitXmlReportPlugin,sbt.plugins.SemanticdbPlugin)
+[debug] Plugins.deducer#function took 6.174247 ms
+[info] loading settings for project zio__zio-build from plugins.sbt...
+[debug]               Load.resolveProject(zio__zio-build) took 18.005434ms
+[debug]             Load.loadTransitive: finalizeProject(Project(id zio__zio-build, base: /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/project, plugins: List(<none>))) took 31.582312ms
+[debug] [Loading] Done in /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/project, returning: (zio__zio-build)
+[debug]           Load.loadUnit: loadedProjectsRaw took 247.746881ms
+[debug]           Load.loadUnit: cleanEvalClasses took 4.855875ms
+[debug]         Load.loadUnit(file:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/project/, ...) took 285.16854ms
+[debug]       Load.apply: load took 349.181028ms
+[debug]       Load.apply: resolveProjects took 2.226018ms
+[debug]       Load.apply: finalTransforms took 27.457982ms
+[debug]       Load.apply: config.delegates took 2.718203ms
+[debug]       Load.apply: Def.make(settings)... took 158.802952ms
+[debug]       Load.apply: structureIndex took 46.762269ms
+[debug]       Load.apply: mkStreams took 0.84662ms
+[info] loading project definition from /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/project
+[debug] Running task... Cancel: Signal, check cycles: false, forcegc: true
+[debug]     Load.loadUnit: plugins took 1275.059749ms
+[debug]     Load.loadUnit: defsScala took 0.001888ms
+[debug] [Loading] Scanning directory /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio
+[debug]       Load.loadUnit: mkEval took 0.204572ms
+[debug] [Loading] Found root project root w/ remaining rootJVM,rootJVM212,rootJVM213,rootJVM3,rootJS,rootNative,root212,root213,root3,coreJS,coreJVM,coreNative,coreTestsJS,coreTestsJVM,coreTestsNative,managedJS,managedJVM,managedNative,managedTestsJS,managedTestsJVM,managedTestsNative,macrosJS,macrosJVM,macrosNative,macrosTestsJS,macrosTestsJVM,macrosTestsNative,internalMacrosJS,internalMacrosJVM,internalMacrosNative,streamsJS,streamsJVM,streamsNative,streamsTestsJS,streamsTestsJVM,streamsTestsNative,testsJS,testsJVM,testsNative,testTestsJS,testTestsJVM,testTestsNative,testMagnoliaJVM,testMagnoliaJS,testMagnoliaTestsJVM,testMagnoliaTestsJS,testRefinedJVM,testRefinedJS,testScalaCheckJS,testScalaCheckJVM,testScalaCheckNative,stacktracerJS,stacktracerJVM,stacktracerNative,testRunnerJS,testRunnerJVM,testRunnerNative,testJunitRunner,testJunitRunnerTests,testJunitEngine,testJunitEngineTests,concurrentJS,concurrentJVM,concurrentNative,examplesJVM,examplesJS,examplesNative,benchmarks,jsdocs,scalafixRules,scalafixInput,scalafixOutput,scalafixTests,docs_make_zio_app_configurable,docs
+[debug] deducing auto plugins based on known facts Set(Atom(org.scalajs.sbtplugin.ScalaJSPlugin), Atom(sbt.plugins.CorePlugin), Atom(explicitdeps.ExplicitDepsPlugin)) and clauses Clauses(Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.IvyPlugin)))
+[debug] Clause(Atom(sbt.ScriptedPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbt.plugins.SbtPlugin),Set(Atom(sbt.ScriptedPlugin)))
+[debug] Clause(Atom(sbt.plugins.SemanticdbPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbt.plugins.JUnitXmlReportPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbt.plugins.MiniDependencyTreePlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(scalafix.sbt.ScalafixPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(scalafix.sbt.ScalafixTestkitPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbtassembly.AssemblyPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbtbuildinfo.BuildInfoPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbtunidoc.BaseUnidocPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbtunidoc.GenJavadocPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbtunidoc.JavaUnidocPlugin),Set(Atom(sbtunidoc.BaseUnidocPlugin)))
+[debug] Clause(Atom(sbtunidoc.PublishJavadocPlugin),Set(Atom(sbtunidoc.GenJavadocPlugin)))
+[debug] Clause(Atom(sbtunidoc.ScalaUnidocPlugin),Set(Atom(sbtunidoc.BaseUnidocPlugin)))
+[debug] Clause(Atom(com.geirsson.CiReleasePlugin),Set(Atom(com.github.sbt.git.GitPlugin)))
+[debug] Clause(Atom(com.geirsson.CiReleasePlugin),Set(Atom(sbtdynver.DynVerPlugin)))
+[debug] Clause(Atom(com.geirsson.CiReleasePlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(com.geirsson.CiReleasePlugin),Set(Atom(com.jsuereth.sbtpgp.SbtPgp)))
+[debug] Clause(Atom(com.thoughtworks.sbtApiMappings.ApiMappings),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(com.thoughtworks.sbtApiMappings.BootstrapApiMappings),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(com.thoughtworks.sbtApiMappings.JavadocIoApiMappingRule),Set(Atom(com.thoughtworks.sbtApiMappings.ApiMappings)))
+[debug] Clause(Atom(com.thoughtworks.sbtApiMappings.PlayApiMappingRule),Set(Atom(com.thoughtworks.sbtApiMappings.ApiMappings)))
+[debug] Clause(Atom(com.thoughtworks.sbtApiMappings.ScalaApiMappingRule),Set(Atom(com.thoughtworks.sbtApiMappings.ApiMappings)))
+[debug] Clause(Atom(com.thoughtworks.sbtApiMappings.SonatypeApiMappingRule),Set(Atom(com.thoughtworks.sbtApiMappings.ApiMappings)))
+[debug] Clause(Atom(com.thoughtworks.sbtApiMappings.SonatypeApiMappingRuleForSbtPlugins),Set(Atom(com.thoughtworks.sbtApiMappings.ApiMappings)))
+[debug] Clause(Atom(com.thoughtworks.sbtApiMappings.SparkApiMappingRule),Set(Atom(com.thoughtworks.sbtApiMappings.ApiMappings)))
+[debug] Clause(Atom(com.typesafe.tools.mima.plugin.MimaPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbtheader.AutomateHeaderPlugin),Set(Atom(sbtheader.HeaderPlugin)))
+[debug] Clause(Atom(sbtheader.HeaderPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(scalanativecrossproject.ScalaNativeCrossPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(org.scalajs.sbtplugin.ScalaJSPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(mdoc.DocusaurusPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(mdoc.DocusaurusPlugin),Set(Atom(mdoc.MdocPlugin)))
+[debug] Clause(Atom(mdoc.MdocPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(scala.scalanative.sbtplugin.ScalaNativeJUnitPlugin),Set(Atom(scala.scalanative.sbtplugin.ScalaNativePlugin)))
+[debug] Clause(Atom(scala.scalanative.sbtplugin.ScalaNativePlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(org.scalafmt.sbt.ScalafmtPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(pl.project13.sbt.jcstress.JCStressPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(pl.project13.scala.sbt.JmhPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbtide.ConfigPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbt.plugins.DependencyTreePlugin),Set(Atom(sbt.plugins.MiniDependencyTreePlugin)))
+[debug] Clause(Atom(sbtdynver.DynVerPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(com.github.sbt.git.GitBranchPrompt),Set(Atom(com.github.sbt.git.GitPlugin)))
+[debug] Clause(Atom(com.github.sbt.git.GitVersioning),Set(Atom(sbt.plugins.IvyPlugin)))
+[debug] Clause(Atom(com.github.sbt.git.GitVersioning),Set(Atom(com.github.sbt.git.GitPlugin)))
+[debug] Clause(Atom(com.jsuereth.sbtpgp.SbtPgp),Set(Atom(sbt.plugins.IvyPlugin)))
+[debug] Clause(Atom(sbtcrossproject.CrossPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(org.portablescala.sbtplatformdeps.PlatformDepsPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.IvyPlugin)))
+[debug] Clause(Atom(sbt.plugins.IvyPlugin),Set(Atom(sbt.plugins.JvmPlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.SemanticdbPlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.JUnitXmlReportPlugin)))
+[debug] Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(sbt.plugins.Giter8TemplatePlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbt.plugins.MiniDependencyTreePlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(scalafix.sbt.ScalafixPlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbtassembly.AssemblyPlugin)))
+[debug] Clause(And(Set(Atom(com.github.sbt.git.GitPlugin), Atom(sbtdynver.DynVerPlugin), Atom(sbt.plugins.JvmPlugin), Atom(com.jsuereth.sbtpgp.SbtPgp))),Set(Atom(com.geirsson.CiReleasePlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(com.thoughtworks.sbtApiMappings.ApiMappings)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(com.thoughtworks.sbtApiMappings.BootstrapApiMappings)))
+[debug] Clause(Atom(com.thoughtworks.sbtApiMappings.ApiMappings),Set(Atom(com.thoughtworks.sbtApiMappings.JavadocIoApiMappingRule)))
+[debug] Clause(Atom(com.thoughtworks.sbtApiMappings.ApiMappings),Set(Atom(com.thoughtworks.sbtApiMappings.PlayApiMappingRule)))
+[debug] Clause(Atom(com.thoughtworks.sbtApiMappings.ApiMappings),Set(Atom(com.thoughtworks.sbtApiMappings.ScalaApiMappingRule)))
+[debug] Clause(Atom(com.thoughtworks.sbtApiMappings.ApiMappings),Set(Atom(com.thoughtworks.sbtApiMappings.SonatypeApiMappingRuleForSbtPlugins)))
+[debug] Clause(Atom(com.thoughtworks.sbtApiMappings.ApiMappings),Set(Atom(com.thoughtworks.sbtApiMappings.SparkApiMappingRule)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(com.typesafe.tools.mima.plugin.MimaPlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbtheader.HeaderPlugin)))
+[debug] Clause(Atom(org.scalajs.sbtplugin.ScalaJSPlugin),Set(Atom(scalajscrossproject.ScalaJSCrossPlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(org.scalafmt.sbt.ScalafmtPlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(pl.project13.sbt.jcstress.JCStressPlugin)))
+[debug] Clause(Atom(sbt.plugins.MiniDependencyTreePlugin),Set(Atom(sbt.plugins.DependencyTreePlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbtdynver.DynVerPlugin)))
+[debug] Clause(Atom(sbt.plugins.CorePlugin),Set(Atom(com.github.sbt.git.GitPlugin)))
+[debug] Clause(Atom(sbt.plugins.IvyPlugin),Set(Atom(com.jsuereth.sbtpgp.SbtPgp)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(sbtcrossproject.CrossPlugin)))
+[debug] Clause(Atom(sbt.plugins.JvmPlugin),Set(Atom(org.portablescala.sbtplatformdeps.PlatformDepsPlugin))))
+[debug]   :: deduced result: Matched(explicitdeps.ExplicitDepsPlugin,sbt.plugins.CorePlugin,org.scalajs.sbtplugin.ScalaJSPlugin,com.github.sbt.git.GitPlugin,sbt.plugins.JvmPlugin,sbt.plugins.IvyPlugin,sbt.plugins.Giter8TemplatePlugin,scalajscrossproject.ScalaJSCrossPlugin,org.scalafmt.sbt.ScalafmtPlugin,sbtheader.HeaderPlugin,com.typesafe.tools.mima.plugin.MimaPlugin,org.portablescala.sbtplatformdeps.PlatformDepsPlugin,sbt.plugins.SemanticdbPlugin,sbt.plugins.JUnitXmlReportPlugin,sbtassembly.AssemblyPlugin,pl.project13.sbt.jcstress.JCStressPlugin,sbtcrossproject.CrossPlugin,scalafix.sbt.ScalafixPlugin,com.thoughtworks.sbtApiMappings.BootstrapApiMappings,com.jsuereth.sbtpgp.SbtPgp,com.thoughtworks.sbtApiMappings.ApiMappings,sbtdynver.DynVerPlugin,sbt.plugins.MiniDependencyTreePlugin,com.geirsson.CiReleasePlugin,sbt.plugins.DependencyTreePlugin,com.thoughtworks.sbtApiMappings.JavadocIoApiMappingRule,com.thoughtworks.sbtApiMappings.PlayApiMappingRule,com.thoughtworks.sbtApiMappings.SparkApiMappingRule,com.thoughtworks.sbtApiMappings.ScalaApiMappingRule,com.thoughtworks.sbtApiMappings.SonatypeApiMappingRuleForSbtPlugins)
+[debug] Plugins.deducer#function took 3.601725 ms

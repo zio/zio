@@ -1,0 +1,10 @@
+[error] /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/core-tests/jvm-native/src/test/scala/zio/internal/NioSchedulerSpec.scala:34:70: discarded non-Unit value of type Int
+[error]                         executor.submit(() => counter.incrementAndGet())
+[error]                                                                      ^
+[error] /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/core-tests/jvm-native/src/test/scala/zio/internal/NioSchedulerSpec.scala:46:72: discarded non-Unit value of type Int
+[error]                           executor.submit(() => counter.incrementAndGet())
+[error]                                                                        ^
+[error] /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/core-tests/jvm-native/src/test/scala/zio/internal/NioSchedulerSpec.scala:115:78: discarded non-Unit value of type Int
+[error]                         executor.submitAndYield(() => counter.incrementAndGet())
+[error]                                                                              ^
+[error] three errors found

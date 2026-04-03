@@ -1,0 +1,1623 @@
+[debug] [zinc] IncrementalCompile -----------
+[debug] IncrementalCompile.incrementalCompile
+[debug] previous = Stamps for: 809 products, 109 sources, 5 libraries
+[debug] current source = Set(${BASE}/test/shared/src/main/scala/zio/test/TimeVariants.scala, ${BASE}/test/shared/src/main/scala/zio/test/RenderUtils.scala, ${BASE}/test/shared/src/main/scala/zio/test/Gen.scala, ${BASE}/test/shared/src/main/scala-2.13/zio/test/TestVersion.scala, ${BASE}/test/shared/src/main/scala/zio/test/results/ResultSerializer.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestLens.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestArgs.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestConfig.scala, ${BASE}/test/shared/src/main/scala/zio/test/poly/GenOrderingPoly.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestTimeoutException.scala, ${BASE}/test/shared/src/main/scala/zio/test/laws/package.scala, ${BASE}/test/shared/src/main/scala/zio/test/Restorable.scala, ${BASE}/test/shared/src/main/scala/zio/test/ZTestLogger.scala, ${BASE}/test/shared/src/main/scala/zio/test/ExecutionEventSink.scala, ${BASE}/test/shared/src/main/scala/zio/test/laws/GenF2.scala, ${BASE}/test/shared/src/main/scala-2/zio/test/ZIOSpecVersionSpecific.scala, ${BASE}/test/shared/src/main/scala/zio/test/internal/OptionalImplicit.scala, ${BASE}/test/jvm-native/src/main/scala/zio/test/results/ResultFileOps.scala, ${BASE}/test/shared/src/main/scala/zio/test/Summary.scala, ${BASE}/test/shared/src/main/scala/zio/test/Fun.scala, ${BASE}/test/shared/src/main/scala/zio/test/ZIOSpecDefault.scala, ${BASE}/test/shared/src/main/scala/zio/test/poly/GenPoly.scala, ${BASE}/test/shared/src/main/scala-2/zio/test/SpecLayerMacros.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestSuccess.scala, ${BASE}/test/jvm-native/src/main/scala/zio/test/results/ResultPrinterJson.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestExecutor.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestConstructor.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestFailure.scala, ${BASE}/test/shared/src/main/scala/zio/test/laws/ZLaws.scala, ${BASE}/test/shared/src/main/scala/zio/test/package.scala, ${BASE}/test/shared/src/main/scala/zio/test/ReporterEventRenderer.scala, ${BASE}/test/shared/src/main/scala/zio/test/ErrorMessage.scala, ${BASE}/test/jvm-native/src/main/scala/zio/test/TestDebug.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestAnnotationMap.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestReporters.scala, ${BASE}/test/shared/src/main/scala/zio/test/internal/SmartAssertions.scala, ${BASE}/test/shared/src/main/scala/zio/test/ConsoleIO.scala, ${BASE}/test/shared/src/main/scala/zio/test/laws/ZLaws2.scala, ${BASE}/test/shared/src/main/scala/zio/test/Assertion.scala, ${BASE}/test/shared/src/main/scala-2.13/zio/test/AssertionVariants.scala, ${BASE}/test/shared/src/main/scala-2/zio/test/SmartSpecMacros.scala, ${BASE}/test/shared/src/main/scala/zio/test/Result.scala, ${BASE}/test/shared/src/main/scala/zio/test/poly/GenFractionalPoly.scala, ${BASE}/test/shared/src/main/scala/zio/test/poly/GenNumericPoly.scala, ${BASE}/test/shared/src/main/scala/zio/test/SummaryBuilder.scala, ${BASE}/test/shared/src/main/scala-2/zio/test/Eql.scala, ${BASE}/test/shared/src/main/scala/zio/test/Sized.scala, ${BASE}/test/shared/src/main/scala/zio/test/GenZIO.scala, ${BASE}/test/shared/src/main/scala/zio/test/render/package.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestDuration.scala, ${BASE}/test/shared/src/main/scala/zio/test/SuiteConstructor.scala, ${BASE}/test/shared/src/main/scala/zio/test/results/TestResultPrinter.scala, ${BASE}/test/shared/src/main/scala/zio/test/ZIOSpecAbstract.scala, ${BASE}/test/shared/src/main/scala/zio/test/laws/ZLawful.scala, ${BASE}/test/shared/src/main/scala-2/zio/test/diff/Diff.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestClock.scala, ${BASE}/test/shared/src/main/scala/zio/test/GenFailureDetails.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestTrace.scala, ${BASE}/test/shared/src/main/scala/zio/test/diff/DiffInstances.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestServices.scala, ${BASE}/test/shared/src/main/scala/zio/test/ConcurrentHashMap.scala, ${BASE}/test/shared/src/main/scala-2/zio/test/Macros.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestAnnotationRenderer.scala, ${BASE}/test/shared/src/main/scala/zio/test/render/TestRenderer.scala, ${BASE}/test/shared/src/main/scala/zio/test/laws/ZLawsF2.scala, ${BASE}/test/shared/src/main/scala-2.13+/zio/test/PrettyPrintVersionSpecific.scala, ${BASE}/test/shared/src/main/scala/zio/test/render/ConsoleRenderer.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestArrow.scala, ${BASE}/test/shared/src/main/scala/zio/test/PrettyPrint.scala, ${BASE}/test/shared/src/main/scala-2/zio/test/ZIOSpecAbstractVersionSpecific.scala, ${BASE}/test/shared/src/main/scala-2/zio/test/CompileVariants.scala, ${BASE}/test/shared/src/main/scala/zio/test/ExecutionEventPrinter.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestRunner.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestLogger.scala, ${BASE}/test/shared/src/main/scala/zio/test/render/LogLine.scala, ${BASE}/test/jvm-native/src/main/scala/zio/test/TestClockPlatformSpecific.scala, ${BASE}/test/shared/src/main/scala/zio/test/Spec.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestOutput.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestDebugFileLock.scala, ${BASE}/test/shared/src/main/scala/zio/test/FilteredSpec.scala, ${BASE}/test/shared/src/main/scala/zio/test/poly/GenIntegralPoly.scala, ${BASE}/test/shared/src/main/scala/zio/test/Annotations.scala, ${BASE}/test/shared/src/main/scala/zio/test/render/ExecutionResult.scala, ${BASE}/test/shared/src/main/scala/zio/test/Live.scala, ${BASE}/test/shared/src/main/scala-2/zio/test/SmartAssertMacros.scala, ${BASE}/test/shared/src/main/scala/zio/test/laws/ZLawsF.scala, ${BASE}/test/shared/src/main/scala/zio/test/internal/myers/MyersDiff.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestAspect.scala, ${BASE}/test/shared/src/main/scala/zio/test/SuiteId.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestConsole.scala, ${BASE}/test/shared/src/main/scala/zio/test/ZTestEventHandler.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestAnnotation.scala, ${BASE}/test/shared/src/main/scala/zio/test/FunctionVariants.scala, ${BASE}/test/shared/src/main/scala/zio/test/laws/ZLawfulF2.scala, ${BASE}/test/shared/src/main/scala-2/zio/test/SpecVersionSpecific.scala, ${BASE}/test/shared/src/main/scala/zio/test/ZIOSpec.scala, ${BASE}/test/shared/src/main/scala/zio/test/laws/GenF.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestRandom.scala, ${BASE}/test/shared/src/main/scala/zio/test/ExecutionEvent.scala, ${BASE}/test/shared/src/main/scala/zio/test/render/IntelliJRenderer.scala, ${BASE}/test/shared/src/main/scala/zio/test/laws/ZLawfulF.scala, ${BASE}/test/shared/src/main/scala/zio/test/Sample.scala, ${BASE}/test/shared/src/main/scala/zio/test/CheckConstructor.scala, ${BASE}/test/shared/src/main/scala/zio/test/diff/DiffResult.scala, ${BASE}/test/shared/src/main/scala/zio/test/TestSystem.scala, ${BASE}/test/shared/src/main/scala/zio/test/ExecutionEventConsolePrinter.scala, ${BASE}/test/jvm/src/main/scala/zio/test/TestPlatform.scala, ${BASE}/test/shared/src/main/scala/zio/test/laws/ZLawful2.scala, ${BASE}/test/shared/src/main/scala/zio/test/TimeoutVariants.scala)
+[debug] > initialChanges = InitialChanges(Changes(added = Set(), removed = Set(), changed = Set(), unmodified = ...),Set(),Set(),API Changes: Set(APIChangeDueToMacroDefinition(zio.TagVersionSpecific), APIChangeDueToMacroDefinition(zio.MakeSomePartiallyApplied), APIChangeDueToMacroDefinition(zio.ZLayerCompanionVersionSpecific), APIChangeDueToMacroDefinition(zio.MakePartiallyApplied)))
+[debug] The zio.TagVersionSpecific source file declares a macro.
+[debug] All member reference dependencies will be considered within this context.
+[debug] Files invalidated by inheriting from (external) zio.TagVersionSpecific: Set()
+[debug] Now invalidating by inheritance (internally).
+[debug] Getting direct dependencies of all classes transitively invalidated by inheritance.
+[debug] Getting classes that directly depend on (external) zio.TagVersionSpecific.
+[debug] The following member ref dependencies of zio.TagVersionSpecific are invalidated:
+[debug] 	zio.test.Annotations
+[debug] 	zio.test.ExecutionEventConsolePrinter
+[debug] 	zio.test.ExecutionEventPrinter
+[debug] 	zio.test.ExecutionEventSink
+[debug] 	zio.test.Live
+[debug] 	zio.test.Sized
+[debug] 	zio.test.TestAspect
+[debug] 	zio.test.TestClock
+[debug] 	zio.test.TestConfig
+[debug] 	zio.test.TestConsole
+[debug] 	zio.test.TestExecutor
+[debug] 	zio.test.TestLogger
+[debug] 	zio.test.TestOutput
+[debug] 	zio.test.TestRandom
+[debug] 	zio.test.TestSystem
+[debug] 	zio.test.ZIOSpecAbstract
+[debug] 	zio.test.ZTestLogger
+[debug] 	zio.test.package
+[debug] 	zio.test.results.ResultFileOps
+[debug] 	zio.test.results.ResultPrinterJson
+[debug] 	zio.test.results.ResultSerializer
+[debug] The zio.MakeSomePartiallyApplied source file declares a macro.
+[debug] All member reference dependencies will be considered within this context.
+[debug] Files invalidated by inheriting from (external) zio.MakeSomePartiallyApplied: Set()
+[debug] Now invalidating by inheritance (internally).
+[debug] Getting direct dependencies of all classes transitively invalidated by inheritance.
+[debug] Getting classes that directly depend on (external) zio.MakeSomePartiallyApplied.
+[debug] The following member ref dependencies of zio.MakeSomePartiallyApplied are invalidated:
+[debug] 	zio.test.Spec
+[debug] 	zio.test.Spec.ProvideSomeLayerShared
+[debug] The zio.ZLayerCompanionVersionSpecific source file declares a macro.
+[debug] All member reference dependencies will be considered within this context.
+[debug] Files invalidated by inheriting from (external) zio.ZLayerCompanionVersionSpecific: Set()
+[debug] Now invalidating by inheritance (internally).
+[debug] Getting direct dependencies of all classes transitively invalidated by inheritance.
+[debug] Getting classes that directly depend on (external) zio.ZLayerCompanionVersionSpecific.
+[debug] The following member ref dependencies of zio.ZLayerCompanionVersionSpecific are invalidated:
+[debug] 	zio.test.ExecutionEventPrinter
+[debug] 	zio.test.ExecutionEventSink
+[debug] 	zio.test.Spec
+[debug] 	zio.test.Spec.ProvideSomeLayerShared
+[debug] 	zio.test.results.ResultPrinterJson
+[debug] The zio.MakePartiallyApplied source file declares a macro.
+[debug] All member reference dependencies will be considered within this context.
+[debug] Files invalidated by inheriting from (external) zio.MakePartiallyApplied: Set()
+[debug] Now invalidating by inheritance (internally).
+[debug] Getting direct dependencies of all classes transitively invalidated by inheritance.
+[debug] Getting classes that directly depend on (external) zio.MakePartiallyApplied.
+[debug] The following member ref dependencies of zio.MakePartiallyApplied are invalidated:
+[debug] 	zio.test.ExecutionEventPrinter
+[debug] 	zio.test.ExecutionEventSink
+[debug] 	zio.test.results.ResultPrinterJson
+[debug] 
+[debug] Initial source changes:
+[debug] 	removed: Set()
+[debug] 	added: Set()
+[debug] 	modified: Set()
+[debug] Invalidated products: Set()
+[debug] External API changes: API Changes: Set(APIChangeDueToMacroDefinition(zio.TagVersionSpecific), APIChangeDueToMacroDefinition(zio.MakeSomePartiallyApplied), APIChangeDueToMacroDefinition(zio.ZLayerCompanionVersionSpecific), APIChangeDueToMacroDefinition(zio.MakePartiallyApplied))
+[debug] Modified binary dependencies: Set()
+[debug] Initial directly invalidated classes: Set()
+[debug] Sources indirectly invalidated by:
+[debug] 	product: Set()
+[debug] 	binary dep: Set()
+[debug] 	external source: Set(zio.test.TestOutput, zio.test.ExecutionEventConsolePrinter, zio.test.Sized, zio.test.Spec, zio.test.TestAspect, zio.test.ZIOSpecAbstract, zio.test.ZTestLogger, zio.test.ExecutionEventSink, zio.test.TestClock, zio.test.TestLogger, zio.test.TestConfig, zio.test.results.ResultSerializer, zio.test.TestExecutor, zio.test.TestConsole, zio.test.Live, zio.test.Annotations, zio.test.Spec.ProvideSomeLayerShared, zio.test.TestRandom, zio.test.package, zio.test.TestSystem, zio.test.results.ResultPrinterJson, zio.test.ExecutionEventPrinter, zio.test.results.ResultFileOps)
+[debug] All initially invalidated classes: Set(zio.test.TestOutput, zio.test.ExecutionEventConsolePrinter, zio.test.Sized, zio.test.Spec, zio.test.TestAspect, zio.test.ZIOSpecAbstract, zio.test.ZTestLogger, zio.test.ExecutionEventSink, zio.test.TestClock, zio.test.TestLogger, zio.test.TestConfig, zio.test.results.ResultSerializer, zio.test.TestExecutor, zio.test.TestConsole, zio.test.Live, zio.test.Annotations, zio.test.Spec.ProvideSomeLayerShared, zio.test.TestRandom, zio.test.package, zio.test.TestSystem, zio.test.results.ResultPrinterJson, zio.test.ExecutionEventPrinter, zio.test.results.ResultFileOps)
+[debug] All initially invalidated sources:Set()
+[debug] Initial set of included nodes: zio.test.TestOutput.TestOutputLive, zio.test.ZTest, zio.test.TestLensAnyOps, zio.test.TestConsole.Test, zio.test.TestLensExitOps, zio.test.TestSystem.Test, zio.test.TestRandom.Data, zio.test.Spec.SpecCase, zio.test.Spec.MultipleCase, zio.test.Annotations.Test, zio.test.TestOutput, zio.test.ExecutionEventConsolePrinter, zio.test.CheckVariants.CheckN, zio.test.Sized, zio.test.TestClock.WarningData.Start, zio.test.CheckVariants, zio.test.Spec, zio.test.ExecutionEventConsolePrinter.Live, zio.test.SmartAssertionOps, zio.test.Annotations.UnsafeAPI, zio.test.TestAspect, zio.test.Spec.ProvideSomeLayer, zio.test.ZIOSpecAbstract, zio.test.TestResultZIOOps, zio.test.TestClock.SuspendedWarningData, zio.test.TestRandom.Buffer, zio.test.ZTestLogger, zio.test.TestClock.Data, zio.test.TestConfig.Test, zio.test.TestClock.WarningData.Pending, zio.test.ExecutionEventSink, zio.test.TestClock, zio.test.TestLogger, zio.test.TestAspect.PerTest, zio.test.Live.Test, zio.test.results.ResultFileOps.Json, zio.test.Spec.ScopedPartiallyApplied, zio.test.Spec.ExecCase, zio.test.Sized.Test, zio.test.TestClock.SuspendedWarningData.Start, zio.test.TestConfig, zio.test.results.ResultSerializer, zio.test.TestExecutor, zio.test.TestConsole, zio.test.Live, zio.test.TestRandom.Test, zio.test.TestClock.Test, zio.test.TestConfig.TestV2, zio.test.results.ResultSerializer.Json, zio.test.Spec.UpdateServiceAt, zio.test.TestConsole.Data, zio.test.TestClock.WarningData, zio.test.Annotations, zio.test.TestClock.WarningData.Done, zio.test.TestLensOptionOps, zio.test.Spec.ProvideSomeLayerShared, zio.test.ExecutionEventPrinter.Live, zio.test.TestClock.Sleep, zio.test.TestClock.SuspendedWarningData.Pending, zio.test.TestLensEitherOps, zio.test.TestRandom, zio.test.Spec.LabeledCase, zio.test.Spec.TestCase, zio.test.package, zio.test.Spec.ScopedCase, zio.test.TestLensTryOps, zio.test.TestSystem, zio.test.Spec.UpdateService, zio.test.TestLensCauseOps, zio.test.results.ResultPrinterJson, zio.test.ExecutionEventPrinter, zio.test.TestEnvironment, zio.test.TestSystem.Data, zio.test.results.ResultPrinterJson.LiveImpl, zio.test.TestClock.SuspendedWarningData.Done, zio.test.results.ResultFileOps, zio.test.ZTestLogger.LogEntry
+[debug] Including zio.test.Spec.MultipleCase by zio.test.Spec.SpecCase
+[debug] Including zio.test.Spec.ExecCase by zio.test.Spec.SpecCase
+[debug] Including zio.test.Spec.LabeledCase by zio.test.Spec.SpecCase
+[debug] Including zio.test.Spec.TestCase by zio.test.Spec.SpecCase
+[debug] Including zio.test.Spec.ScopedCase by zio.test.Spec.SpecCase
+[debug] Including zio.test.ZIOSpecAbstract by zio.test.TestOutput
+[debug] Including zio.test.ZIOSpec by zio.test.ZIOSpecAbstract
+[debug] Including zio.test.ZIOSpecDefault by zio.test.ZIOSpec
+[debug] Including zio.test.ExecutionEventConsolePrinter.Live by zio.test.ExecutionEventConsolePrinter
+[debug] Including zio.test.Sized.Test by zio.test.Sized
+[debug] Including zio.test.package by zio.test.Sized
+[debug] Including zio.test.TestAspect.PerTest by zio.test.TestAspect
+[debug] Including zio.test.TestClock.SuspendedWarningData.Start by zio.test.TestClock.SuspendedWarningData
+[debug] Including zio.test.TestClock.SuspendedWarningData.Pending by zio.test.TestClock.SuspendedWarningData
+[debug] Including zio.test.TestClock.SuspendedWarningData.Done by zio.test.TestClock.SuspendedWarningData
+[debug] Including zio.test.TestClock.Test by zio.test.TestClock
+[debug] Including zio.test.TestConfig.TestV2 by zio.test.TestConfig
+[debug] Including zio.test.results.ResultSerializer.Json by zio.test.results.ResultSerializer
+[debug] Including zio.test.TestClock.WarningData.Done by zio.test.TestClock.WarningData
+[debug] compilation cycle 1
+[info] compiling 22 Scala sources to /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/test/jvm/target/scala-2.13/classes ...
+[debug] Returning already retrieved and compiled bridge: /home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala2-sbt-bridge/2.13.18/scala2-sbt-bridge-2.13.18.jar.
+[debug] [zinc] Running cached compiler 246c33d2 for Scala compiler version 2.13.18
+[debug] [zinc] The Scala compiler is invoked with:
+[debug] 	-deprecation
+[debug] 	-encoding
+[debug] 	UTF-8
+[debug] 	-feature
+[debug] 	-unchecked
+[debug] 	-release
+[debug] 	11
+[debug] 	-Xfatal-warnings
+[debug] 	-Ywarn-unused:params,-implicits
+[debug] 	-Ybackend-parallelism:4
+[debug] 	-language:higherKinds
+[debug] 	-language:existentials
+[debug] 	-explaintypes
+[debug] 	-Yrangepos
+[debug] 	-Xlint:_,-missing-interpolator,-type-parameter-shadow,-infer-any
+[debug] 	-Ywarn-numeric-widen
+[debug] 	-Ywarn-value-discard
+[debug] 	-language:experimental.macros
+[debug] 	-Ymacro-annotations
+[debug] 	-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent
+[debug] 	-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent
+[debug] 	-classpath
+[debug] 	/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/test/jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/core/jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/internal-macros/.jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/stacktracer/.jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/streams/jvm/target/scala-2.13/classes:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.18/scala-library-2.13.18.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.13.18/scala-reflect-2.13.18.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.13.18/scala-compiler-2.13.18.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/portable-scala/portable-scala-reflect_2.13/1.1.3/portable-scala-reflect_2.13-1.1.3.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/dev/zio/izumi-reflect_2.13/3.0.9/izumi-reflect_2.13-3.0.9.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.14.0/scala-collection-compat_2.13-2.14.0.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/io/github/java-diff-utils/java-diff-utils/4.16/java-diff-utils-4.16.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/jline/jline/3.29.0/jline-3.29.0-jdk8.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/dev/zio/izumi-reflect-thirdparty-boopickle-shaded_2.13/3.0.9/izumi-reflect-thirdparty-boopickle-shaded_2.13-3.0.9.jar
+[debug] Scala compilation took 1.99990122 s
+[info] done compiling
+[debug] New invalidations:
+[debug] Initial set of included nodes: 
+[debug] Previously invalidated, but (transitively) depend on new invalidations:
+[debug] Final step, transitive dependencies:
+[debug] 	Set()
+[debug] Initial set of included nodes: zio.test.TestOutput.TestOutputLive, zio.test.ZTest, zio.test.TestLensAnyOps, zio.test.TestConsole.Test, zio.test.TestLensExitOps, zio.test.TestSystem.Test, zio.test.TestRandom.Data, zio.test.Spec.SpecCase, zio.test.Spec.MultipleCase, zio.test.Annotations.Test, zio.test.TestOutput, zio.test.ExecutionEventConsolePrinter, zio.test.CheckVariants.CheckN, zio.test.Sized, zio.test.TestClock.WarningData.Start, zio.test.CheckVariants, zio.test.Spec, zio.test.ExecutionEventConsolePrinter.Live, zio.test.SmartAssertionOps, zio.test.Annotations.UnsafeAPI, zio.test.TestAspect, zio.test.Spec.ProvideSomeLayer, zio.test.ZIOSpecAbstract, zio.test.TestResultZIOOps, zio.test.TestClock.SuspendedWarningData, zio.test.TestRandom.Buffer, zio.test.ZTestLogger, zio.test.TestClock.Data, zio.test.TestConfig.Test, zio.test.TestClock.WarningData.Pending, zio.test.ExecutionEventSink, zio.test.TestClock, zio.test.TestLogger, zio.test.TestAspect.PerTest, zio.test.Live.Test, zio.test.results.ResultFileOps.Json, zio.test.Spec.ScopedPartiallyApplied, zio.test.Spec.ExecCase, zio.test.Sized.Test, zio.test.TestClock.SuspendedWarningData.Start, zio.test.TestConfig, zio.test.results.ResultSerializer, zio.test.TestExecutor, zio.test.TestConsole, zio.test.Live, zio.test.TestRandom.Test, zio.test.TestClock.Test, zio.test.TestConfig.TestV2, zio.test.results.ResultSerializer.Json, zio.test.Spec.UpdateServiceAt, zio.test.TestConsole.Data, zio.test.TestClock.WarningData, zio.test.Annotations, zio.test.TestClock.WarningData.Done, zio.test.TestLensOptionOps, zio.test.Spec.ProvideSomeLayerShared, zio.test.ExecutionEventPrinter.Live, zio.test.TestClock.Sleep, zio.test.TestClock.SuspendedWarningData.Pending, zio.test.TestLensEitherOps, zio.test.TestRandom, zio.test.Spec.LabeledCase, zio.test.Spec.TestCase, zio.test.package, zio.test.Spec.ScopedCase, zio.test.TestLensTryOps, zio.test.TestSystem, zio.test.Spec.UpdateService, zio.test.TestLensCauseOps, zio.test.results.ResultPrinterJson, zio.test.ExecutionEventPrinter, zio.test.TestEnvironment, zio.test.TestSystem.Data, zio.test.results.ResultPrinterJson.LiveImpl, zio.test.TestClock.SuspendedWarningData.Done, zio.test.results.ResultFileOps, zio.test.ZTestLogger.LogEntry
+[debug] Including zio.test.TestAspect by zio.test.ZTest
+[debug] Including zio.test.TestServices by zio.test.TestAspect
+[debug] Including zio.test.package by zio.test.TestServices
+[debug] Including zio.test.TestConstructorLowPriority3 by zio.test.package
+[debug] Including zio.test.laws.ZLawsF2.Divariant.Law1 by zio.test.package
+[debug] Including zio.test.laws.LawsF2.Divariant by zio.test.laws.ZLawsF2.Divariant.Law1
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law1 by zio.test.package
+[debug] Including zio.test.laws.LawsF.Contravariant by zio.test.laws.ZLawsF.Contravariant.Law1
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law1ZIO by zio.test.package
+[debug] Including zio.test.ZIOSpecDefault by zio.test.package
+[debug] Including zio.test.TestConstructor by zio.test.package
+[debug] Including zio.test.ZIOSpec by zio.test.TestConstructor
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law2 by zio.test.package
+[debug] Including zio.test.laws.LawsF.Invariant by zio.test.laws.ZLawsF.Invariant.Law2
+[debug] Including zio.test.Sized by zio.test.package
+[debug] Including zio.test.Spec by zio.test.Sized
+[debug] Including zio.test.SuiteConstructorLowPriority1 by zio.test.Spec
+[debug] Including zio.test.ProvideSomeSharedPartiallyApplied by zio.test.Spec
+[debug] Including zio.test.TestRunner.UnsafeAPI by zio.test.Spec
+[debug] Including zio.test.SuiteConstructorLowPriority2 by zio.test.Spec
+[debug] Including zio.test.SpecVersionSpecific by zio.test.Spec
+[debug] Including zio.test.SuiteConstructor by zio.test.Spec
+[debug] Including zio.test.ZIOSpecAbstract by zio.test.Spec
+[debug] Including zio.test.ZIOSpecVersionSpecific by zio.test.Spec
+[debug] Including zio.test.TestAspect.PerTest by zio.test.Spec
+[debug] Including zio.test.TimeoutVariants by zio.test.Spec
+[debug] Including zio.test.FilteredSpec by zio.test.Spec
+[debug] Including zio.test.ProvideSomePartiallyApplied by zio.test.Spec
+[debug] Including zio.test.SpecLayerMacros by zio.test.Spec
+[debug] Including zio.test.ZIOSpecAbstractVersionSpecific by zio.test.SpecLayerMacros
+[debug] Including zio.test.TestExecutor by zio.test.Spec
+[debug] Including zio.test.TestRunner by zio.test.TestExecutor
+[debug] Including zio.test.SuiteConstructorLowPriority3 by zio.test.Spec
+[debug] Including zio.test.TestConstructorLowPriority1 by zio.test.Spec
+[debug] Including zio.test.SuiteConstructorLowPriority4 by zio.test.Spec
+[debug] Including zio.test.SmartSpecMacros by zio.test.Spec
+[debug] Including zio.test.TestConstructorLowPriority2 by zio.test.Spec
+[debug] Including zio.test.Gen by zio.test.Sized
+[debug] Including zio.test.poly.GenIntegralPoly by zio.test.Gen
+[debug] Including zio.test.poly.GenPoly by zio.test.poly.GenIntegralPoly
+[debug] Including zio.test.poly.GenFractionalPoly by zio.test.poly.GenPoly
+[debug] Including zio.test.poly.GenNumericPoly by zio.test.poly.GenFractionalPoly
+[debug] Including zio.test.poly.GenOrderingPoly by zio.test.poly.GenNumericPoly
+[debug] Including zio.test.laws.GenF by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF.Invariant.Both by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant by zio.test.laws.GenF
+[debug] Including zio.test.laws.LawsF by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawfulF.Covariant by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.LawfulF by zio.test.laws.ZLawfulF.Covariant
+[debug] Including zio.test.laws.package by zio.test.laws.ZLawfulF.Covariant
+[debug] Including zio.test.laws.LawsF.Covariant by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law2ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law3 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawfulF.Contravariant by zio.test.laws.ZLawsF.Contravariant
+[debug] Including zio.test.laws.ZLawsF.Invariant by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawfulF.Invariant by zio.test.laws.ZLawsF.Invariant
+[debug] Including zio.test.laws.ZLawsF.Covariant.FlattenLaw by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law1 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law2 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.ComposeLaw by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law2ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law3ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law1ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law3 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law3ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law2ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law3ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law3 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law1 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law2 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law1ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Both by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Both by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.ComposeLaw by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLaws2 by zio.test.Gen
+[debug] Including zio.test.laws.ZLawful2 by zio.test.laws.ZLaws2
+[debug] Including zio.test.laws.Laws2 by zio.test.laws.ZLaws2
+[debug] Including zio.test.laws.GenF2 by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF2.Divariant by zio.test.laws.GenF2
+[debug] Including zio.test.laws.LawsF2 by zio.test.laws.ZLawsF2.Divariant
+[debug] Including zio.test.laws.ZLawfulF2.Divariant by zio.test.laws.ZLawsF2.Divariant
+[debug] Including zio.test.laws.LawfulF2 by zio.test.laws.ZLawfulF2.Divariant
+[debug] Including zio.test.laws.ZLawsF2.Divariant.Both by zio.test.laws.GenF2
+[debug] Including zio.test.laws.ZLawsF2.Divariant.ComposeLaw by zio.test.laws.GenF2
+[debug] Including zio.test.CheckVariants.CheckN by zio.test.Gen
+[debug] Including zio.test.FunctionVariants by zio.test.Gen
+[debug] Including zio.test.GenZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Both by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws2.Both by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law1 by zio.test.Gen
+[debug] Including zio.test.laws.Laws by zio.test.laws.ZLaws.Law1
+[debug] Including zio.test.laws.ZLaws.Law3ZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law2ZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws2.Law1Right by zio.test.Gen
+[debug] Including zio.test.TimeVariants by zio.test.Gen
+[debug] Including zio.test.Sized.Test by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law3 by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws by zio.test.Gen
+[debug] Including zio.test.laws.ZLawful by zio.test.laws.ZLaws
+[debug] Including zio.test.laws.ZLaws.Law2 by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws2.Law1Left by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law1ZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF2 by zio.test.Gen
+[debug] Including zio.test.TestEnvironment by zio.test.Sized
+[debug] Including zio.test.TestClock by zio.test.package
+[debug] Including zio.test.TestClockPlatformSpecific by zio.test.TestClock
+[debug] Including zio.test.TestClock.Test by zio.test.TestClockPlatformSpecific
+[debug] Including zio.test.TestConfig by zio.test.package
+[debug] Including zio.test.TestConsole by zio.test.package
+[debug] Including zio.test.Live by zio.test.package
+[debug] Including zio.test.TestConsole.Test by zio.test.Live
+[debug] Including zio.test.internal.SmartAssertions by zio.test.package
+[debug] Including zio.test.Assertion by zio.test.internal.SmartAssertions
+[debug] Including zio.test.TestArrow by zio.test.Assertion
+[debug] Including zio.test.FailureCase by zio.test.TestArrow
+[debug] Including zio.test.render.TestRenderer by zio.test.FailureCase
+[debug] Including zio.test.TestArgs by zio.test.render.TestRenderer
+[debug] Including zio.test.ExecutionEventSink by zio.test.TestArgs
+[debug] Including zio.test.results.ResultPrinter by zio.test.TestArgs
+[debug] Including zio.test.results.ResultPrinterJson by zio.test.results.ResultPrinter
+[debug] Including zio.test.results.ResultPrinterJson.LiveImpl by zio.test.results.ResultPrinter
+[debug] Including zio.test.ExecutionEventPrinter.Live by zio.test.results.ResultPrinter
+[debug] Including zio.test.ExecutionEventPrinter by zio.test.results.ResultPrinter
+[debug] Including zio.test.TestOutput by zio.test.ExecutionEventPrinter
+[debug] Including zio.test.ReporterEventRenderer.ConsoleEventRenderer by zio.test.render.TestRenderer
+[debug] Including zio.test.render.ConsoleRenderer by zio.test.render.TestRenderer
+[debug] Including zio.test.ReporterEventRenderer by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.ExecutionEventConsolePrinter by zio.test.ReporterEventRenderer
+[debug] Including zio.test.ExecutionEventConsolePrinter.Live by zio.test.ReporterEventRenderer
+[debug] Including zio.test.render.IntelliJRenderer by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.ReporterEventRenderer.IntelliJEventRenderer by zio.test.render.IntelliJRenderer
+[debug] Including zio.test.SummaryBuilder by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.Summary by zio.test.SummaryBuilder
+[debug] Including zio.test.AssertionVariants by zio.test.TestArrow
+[debug] Including zio.test.TestTrace.Node by zio.test.TestArrow
+[debug] Including zio.test.TestTrace by zio.test.TestArrow
+[debug] Including zio.test.TestArrow.TestArrowF by zio.test.TestTrace
+[debug] Including zio.test.TestResult by zio.test.TestTrace
+[debug] Including zio.test.CheckConstructorLowPriority2 by zio.test.TestResult
+[debug] Including zio.test.TestResultZIOOps by zio.test.TestResult
+[debug] Including zio.test.CheckConstructorLowPriority3 by zio.test.TestResult
+[debug] Including zio.test.TestConfig.TestV2 by zio.test.TestResult
+[debug] Including zio.test.TestFailure.Assertion by zio.test.TestResult
+[debug] Including zio.test.CheckConstructor by zio.test.TestResult
+[debug] Including zio.test.CheckConstructorLowPriority1 by zio.test.TestResult
+[debug] Including zio.test.TestFailure by zio.test.TestResult
+[debug] Including zio.test.ExecutionEvent.Test by zio.test.TestFailure
+[debug] Including zio.test.results.ResultSerializer by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.TestDebug by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.results.ResultSerializer.Json by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.Spec.SpecCase by zio.test.TestFailure
+[debug] Including zio.test.Annotations.Test by zio.test.TestFailure
+[debug] Including zio.test.Spec.ScopedPartiallyApplied by zio.test.TestFailure
+[debug] Including zio.test.ExecutionEvent.RuntimeFailure by zio.test.TestFailure
+[debug] Including zio.test.Annotations by zio.test.TestFailure
+[debug] Including zio.test.Spec.ProvideSomeLayerShared by zio.test.TestFailure
+[debug] Including zio.test.Spec.TestCase by zio.test.TestFailure
+[debug] Including zio.test.Spec.ScopedCase by zio.test.TestFailure
+[debug] Including zio.test.CompileVariants by zio.test.TestResult
+[debug] Including zio.test.Result by zio.test.TestArrow
+[debug] Including zio.test.TestTrace.And by zio.test.Result
+[debug] Including zio.test.TestTrace.Not by zio.test.Result
+[debug] Including zio.test.TestTrace.Or by zio.test.Result
+[debug] Including zio.test.TestTrace.AndThen by zio.test.Result
+[debug] Including zio.test.TestArrow.Meta by zio.test.Assertion
+[debug] Including zio.test.TestRandom by zio.test.package
+[debug] Including zio.test.TestSystem by zio.test.package
+[debug] Invalidated macros due to upstream dependencies change: Set(zio.test.ProvideSomeSharedPartiallyApplied, zio.test.SpecVersionSpecific, zio.test.ZIOSpecVersionSpecific, zio.test.ProvideSomePartiallyApplied, zio.test.ZIOSpecAbstractVersionSpecific, zio.test.CompileVariants)
+[debug] Initial set of included nodes: zio.test.ProvideSomeSharedPartiallyApplied, zio.test.SpecVersionSpecific, zio.test.ZIOSpecVersionSpecific, zio.test.ProvideSomePartiallyApplied, zio.test.ZIOSpecAbstractVersionSpecific, zio.test.CompileVariants
+[debug] Including zio.test.Spec by zio.test.SpecVersionSpecific
+[debug] Including zio.test.ZIOSpec by zio.test.ZIOSpecVersionSpecific
+[debug] Including zio.test.ZIOSpecDefault by zio.test.ZIOSpec
+[debug] Including zio.test.ZIOSpecAbstract by zio.test.ZIOSpecAbstractVersionSpecific
+[debug] Including zio.test.package by zio.test.CompileVariants
+[debug] compilation cycle 2
+[info] compiling 5 Scala sources to /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/test/jvm/target/scala-2.13/classes ...
+[debug] Returning already retrieved and compiled bridge: /home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala2-sbt-bridge/2.13.18/scala2-sbt-bridge-2.13.18.jar.
+[debug] [zinc] Running cached compiler 3a9ac084 for Scala compiler version 2.13.18
+[debug] [zinc] The Scala compiler is invoked with:
+[debug] 	-deprecation
+[debug] 	-encoding
+[debug] 	UTF-8
+[debug] 	-feature
+[debug] 	-unchecked
+[debug] 	-release
+[debug] 	11
+[debug] 	-Xfatal-warnings
+[debug] 	-Ywarn-unused:params,-implicits
+[debug] 	-Ybackend-parallelism:4
+[debug] 	-language:higherKinds
+[debug] 	-language:existentials
+[debug] 	-explaintypes
+[debug] 	-Yrangepos
+[debug] 	-Xlint:_,-missing-interpolator,-type-parameter-shadow,-infer-any
+[debug] 	-Ywarn-numeric-widen
+[debug] 	-Ywarn-value-discard
+[debug] 	-language:experimental.macros
+[debug] 	-Ymacro-annotations
+[debug] 	-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent
+[debug] 	-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent
+[debug] 	-classpath
+[debug] 	/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/test/jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/core/jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/internal-macros/.jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/stacktracer/.jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/streams/jvm/target/scala-2.13/classes:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.18/scala-library-2.13.18.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.13.18/scala-reflect-2.13.18.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.13.18/scala-compiler-2.13.18.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/portable-scala/portable-scala-reflect_2.13/1.1.3/portable-scala-reflect_2.13-1.1.3.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/dev/zio/izumi-reflect_2.13/3.0.9/izumi-reflect_2.13-3.0.9.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.14.0/scala-collection-compat_2.13-2.14.0.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/io/github/java-diff-utils/java-diff-utils/4.16/java-diff-utils-4.16.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/jline/jline/3.29.0/jline-3.29.0-jdk8.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/dev/zio/izumi-reflect-thirdparty-boopickle-shaded_2.13/3.0.9/izumi-reflect-thirdparty-boopickle-shaded_2.13-3.0.9.jar
+[debug] Scala compilation took 0.439501916 s
+[info] done compiling
+[debug] Invalidating (transitively) by inheritance from zio.test.ZIOSpecAbstractVersionSpecific...
+[debug] Initial set of included nodes: zio.test.ZIOSpecAbstractVersionSpecific
+[debug] Including zio.test.ZIOSpecAbstract by zio.test.ZIOSpecAbstractVersionSpecific
+[debug] Including zio.test.ZIOSpec by zio.test.ZIOSpecAbstract
+[debug] Including zio.test.ZIOSpecDefault by zio.test.ZIOSpec
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.ZIOSpecAbstract, zio.test.ZIOSpecAbstractVersionSpecific, zio.test.ZIOSpec, zio.test.ZIOSpecDefault)
+[debug] The following member ref dependencies of zio.test.ZIOSpecAbstract are invalidated:
+[debug] 	zio.test.ZIOSpec
+[debug] The following member ref dependencies of zio.test.ZIOSpecAbstractVersionSpecific are invalidated:
+[debug] 	zio.test.ZIOSpecAbstract
+[debug] The following member ref dependencies of zio.test.ZIOSpec are invalidated:
+[debug] 	zio.test.ZIOSpecDefault
+[debug] Change APIChangeDueToMacroDefinition(zio.test.ZIOSpecAbstractVersionSpecific) invalidates 4 classes due to The zio.test.ZIOSpecAbstractVersionSpecific source file declares a macro.
+[debug]   > by transitive inheritance: Set(zio.test.ZIOSpecAbstract, zio.test.ZIOSpecAbstractVersionSpecific, zio.test.ZIOSpec, zio.test.ZIOSpecDefault)
+[debug]   > 
+[debug]   > by member reference: Set(zio.test.ZIOSpec, zio.test.ZIOSpecAbstract, zio.test.ZIOSpecDefault)
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.CompileVariants...
+[debug] Initial set of included nodes: zio.test.CompileVariants
+[debug] Including zio.test.package by zio.test.CompileVariants
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.CompileVariants, zio.test.package)
+[debug] The following member ref dependencies of zio.test.CompileVariants are invalidated:
+[debug] 	zio.test.package
+[debug] The following member ref dependencies of zio.test.package are invalidated:
+[debug] 	zio.test.Annotations
+[debug] 	zio.test.CompileVariants
+[debug] 	zio.test.Live
+[debug] 	zio.test.Sized
+[debug] 	zio.test.Spec
+[debug] 	zio.test.SpecLayerMacros
+[debug] 	zio.test.SpecVersionSpecific
+[debug] 	zio.test.TestAspect
+[debug] 	zio.test.TestClock
+[debug] 	zio.test.TestClock.Test
+[debug] 	zio.test.TestConfig
+[debug] 	zio.test.TestConsole
+[debug] 	zio.test.TestConstructor
+[debug] 	zio.test.TestConstructorLowPriority1
+[debug] 	zio.test.TestConstructorLowPriority2
+[debug] 	zio.test.TestConstructorLowPriority3
+[debug] 	zio.test.TestExecutor
+[debug] 	zio.test.TestRandom
+[debug] 	zio.test.TestResult
+[debug] 	zio.test.TestSystem
+[debug] 	zio.test.TimeoutVariants
+[debug] 	zio.test.ZIOSpec
+[debug] 	zio.test.ZIOSpecAbstract
+[debug] 	zio.test.ZIOSpecDefault
+[debug] 	zio.test.internal.SmartAssertions
+[debug] 	zio.test.laws.ZLaws.Law1
+[debug] 	zio.test.laws.ZLaws.Law1ZIO
+[debug] 	zio.test.laws.ZLaws.Law2
+[debug] 	zio.test.laws.ZLaws.Law2ZIO
+[debug] 	zio.test.laws.ZLaws.Law3
+[debug] 	zio.test.laws.ZLaws.Law3ZIO
+[debug] 	zio.test.laws.ZLaws2.Law1Left
+[debug] 	zio.test.laws.ZLaws2.Law1Right
+[debug] 	zio.test.laws.ZLawsF.Contravariant.ComposeLaw
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law1
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law1ZIO
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law2
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law2ZIO
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law3
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law3ZIO
+[debug] 	zio.test.laws.ZLawsF.Covariant.ComposeLaw
+[debug] 	zio.test.laws.ZLawsF.Covariant.FlattenLaw
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law1
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law1ZIO
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law2
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law2ZIO
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law3
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law3ZIO
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law1
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law1ZIO
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law2
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law2ZIO
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law3
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law3ZIO
+[debug] 	zio.test.laws.ZLawsF2.Divariant.ComposeLaw
+[debug] 	zio.test.laws.ZLawsF2.Divariant.Law1
+[debug] Change APIChangeDueToMacroDefinition(zio.test.CompileVariants) invalidates 57 classes due to The zio.test.CompileVariants source file declares a macro.
+[debug]   > by transitive inheritance: Set(zio.test.CompileVariants, zio.test.package)
+[debug]   > 
+[debug]   > by member reference: Set(zio.test.TestConstructorLowPriority3, zio.test.laws.ZLawsF2.Divariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1ZIO, zio.test.ZIOSpecDefault, zio.test.TestConstructor, zio.test.laws.ZLawsF.Invariant.Law2, zio.test.Sized, zio.test.laws.ZLawsF.Invariant.Law2ZIO, zio.test.laws.ZLawsF.Covariant.Law3, zio.test.Spec, zio.test.TestAspect, zio.test.SpecVersionSpecific, zio.test.ZIOSpecAbstract, zio.test.laws.ZLawsF.Covariant.FlattenLaw, zio.test.laws.ZLawsF.Invariant.Law1, zio.test.laws.ZLawsF.Covariant.Law2, zio.test.TestClock, zio.test.laws.ZLawsF.Covariant.ComposeLaw, zio.test.laws.ZLawsF.Covariant.Law2ZIO, zio.test.laws.ZLaws.Law1, zio.test.TimeoutVariants, zio.test.laws.ZLaws.Law3ZIO, zio.test.laws.ZLaws.Law2ZIO, zio.test.laws.ZLawsF.Contravariant.Law3ZIO, zio.test.laws.ZLaws2.Law1Right, zio.test.TestConfig, zio.test.SpecLayerMacros, zio.test.TestExecutor, zio.test.TestConsole, zio.test.Live, zio.test.TestClock.Test, zio.test.laws.ZLawsF.Invariant.Law1ZIO, zio.test.laws.ZLaws.Law3, zio.test.laws.ZLawsF.Contravariant.Law3, zio.test.laws.ZLawsF.Invariant.Law3ZIO, zio.test.laws.ZLawsF.Contravariant.Law2ZIO, zio.test.internal.SmartAssertions, zio.test.TestResult, zio.test.Annotations, zio.test.laws.ZLaws.Law2, zio.test.laws.ZLawsF.Covariant.Law3ZIO, zio.test.laws.ZLawsF.Invariant.Law3, zio.test.TestRandom, zio.test.laws.ZLawsF.Covariant.Law1, zio.test.laws.ZLawsF2.Divariant.ComposeLaw, zio.test.laws.ZLawsF.Contravariant.Law2, zio.test.package, zio.test.laws.ZLaws2.Law1Left, zio.test.laws.ZLawsF.Covariant.Law1ZIO, zio.test.ZIOSpec, zio.test.TestConstructorLowPriority1, zio.test.TestSystem, zio.test.CompileVariants, zio.test.laws.ZLaws.Law1ZIO, zio.test.TestConstructorLowPriority2, zio.test.laws.ZLawsF.Contravariant.ComposeLaw)
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.ProvideSomePartiallyApplied...
+[debug] Initial set of included nodes: zio.test.ProvideSomePartiallyApplied
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.ProvideSomePartiallyApplied)
+[debug] Change APIChangeDueToMacroDefinition(zio.test.ProvideSomePartiallyApplied) invalidates 1 classes due to The zio.test.ProvideSomePartiallyApplied source file declares a macro.
+[debug]   > by transitive inheritance: Set(zio.test.ProvideSomePartiallyApplied)
+[debug]   > 
+[debug]   > 
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.ZIOSpecVersionSpecific...
+[debug] Initial set of included nodes: zio.test.ZIOSpecVersionSpecific
+[debug] Including zio.test.ZIOSpec by zio.test.ZIOSpecVersionSpecific
+[debug] Including zio.test.ZIOSpecDefault by zio.test.ZIOSpec
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.ZIOSpecVersionSpecific, zio.test.ZIOSpec, zio.test.ZIOSpecDefault)
+[debug] The following member ref dependencies of zio.test.ZIOSpecVersionSpecific are invalidated:
+[debug] 	zio.test.ZIOSpec
+[debug] The following member ref dependencies of zio.test.ZIOSpec are invalidated:
+[debug] 	zio.test.ZIOSpecDefault
+[debug] Change APIChangeDueToMacroDefinition(zio.test.ZIOSpecVersionSpecific) invalidates 3 classes due to The zio.test.ZIOSpecVersionSpecific source file declares a macro.
+[debug]   > by transitive inheritance: Set(zio.test.ZIOSpecVersionSpecific, zio.test.ZIOSpec, zio.test.ZIOSpecDefault)
+[debug]   > 
+[debug]   > by member reference: Set(zio.test.ZIOSpec, zio.test.ZIOSpecDefault)
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.ProvideSomeSharedPartiallyApplied...
+[debug] Initial set of included nodes: zio.test.ProvideSomeSharedPartiallyApplied
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.ProvideSomeSharedPartiallyApplied)
+[debug] Change APIChangeDueToMacroDefinition(zio.test.ProvideSomeSharedPartiallyApplied) invalidates 1 classes due to The zio.test.ProvideSomeSharedPartiallyApplied source file declares a macro.
+[debug]   > by transitive inheritance: Set(zio.test.ProvideSomeSharedPartiallyApplied)
+[debug]   > 
+[debug]   > 
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.SpecVersionSpecific...
+[debug] Initial set of included nodes: zio.test.SpecVersionSpecific
+[debug] Including zio.test.Spec by zio.test.SpecVersionSpecific
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.Spec, zio.test.SpecVersionSpecific)
+[debug] The following member ref dependencies of zio.test.Spec are invalidated:
+[debug] 	zio.test.FilteredSpec
+[debug] 	zio.test.ProvideSomePartiallyApplied
+[debug] 	zio.test.ProvideSomeSharedPartiallyApplied
+[debug] 	zio.test.SmartSpecMacros
+[debug] 	zio.test.SpecLayerMacros
+[debug] 	zio.test.SpecVersionSpecific
+[debug] 	zio.test.SuiteConstructor
+[debug] 	zio.test.SuiteConstructorLowPriority1
+[debug] 	zio.test.SuiteConstructorLowPriority2
+[debug] 	zio.test.SuiteConstructorLowPriority3
+[debug] 	zio.test.SuiteConstructorLowPriority4
+[debug] 	zio.test.TestAspect
+[debug] 	zio.test.TestAspect.PerTest
+[debug] 	zio.test.TestConstructor
+[debug] 	zio.test.TestConstructorLowPriority1
+[debug] 	zio.test.TestConstructorLowPriority2
+[debug] 	zio.test.TestConstructorLowPriority3
+[debug] 	zio.test.TestExecutor
+[debug] 	zio.test.TestRunner
+[debug] 	zio.test.TestRunner.UnsafeAPI
+[debug] 	zio.test.TimeoutVariants
+[debug] 	zio.test.ZIOSpec
+[debug] 	zio.test.ZIOSpecAbstract
+[debug] 	zio.test.ZIOSpecAbstractVersionSpecific
+[debug] 	zio.test.ZIOSpecDefault
+[debug] 	zio.test.ZIOSpecVersionSpecific
+[debug] 	zio.test.package
+[debug] The following member ref dependencies of zio.test.SpecVersionSpecific are invalidated:
+[debug] 	zio.test.Spec
+[debug] Change APIChangeDueToMacroDefinition(zio.test.SpecVersionSpecific) invalidates 28 classes due to The zio.test.SpecVersionSpecific source file declares a macro.
+[debug]   > by transitive inheritance: Set(zio.test.Spec, zio.test.SpecVersionSpecific)
+[debug]   > 
+[debug]   > by member reference: Set(zio.test.TestConstructorLowPriority3, zio.test.SuiteConstructorLowPriority1, zio.test.ZIOSpecDefault, zio.test.TestConstructor, zio.test.ProvideSomeSharedPartiallyApplied, zio.test.TestRunner.UnsafeAPI, zio.test.Spec, zio.test.TestAspect, zio.test.SuiteConstructorLowPriority2, zio.test.SpecVersionSpecific, zio.test.SuiteConstructor, zio.test.ZIOSpecAbstract, zio.test.ZIOSpecVersionSpecific, zio.test.TestAspect.PerTest, zio.test.TimeoutVariants, zio.test.FilteredSpec, zio.test.ProvideSomePartiallyApplied, zio.test.SpecLayerMacros, zio.test.TestExecutor, zio.test.SuiteConstructorLowPriority3, zio.test.ZIOSpecAbstractVersionSpecific, zio.test.package, zio.test.ZIOSpec, zio.test.TestConstructorLowPriority1, zio.test.SuiteConstructorLowPriority4, zio.test.TestRunner, zio.test.SmartSpecMacros, zio.test.TestConstructorLowPriority2)
+[debug]   > 
+[debug]         
+[debug] New invalidations:
+[debug] 	zio.test.TestConstructorLowPriority3
+[debug] 	zio.test.SuiteConstructorLowPriority1
+[debug] 	zio.test.laws.ZLawsF2.Divariant.Law1
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law1
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law1ZIO
+[debug] 	zio.test.ZIOSpecDefault
+[debug] 	zio.test.TestConstructor
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law2
+[debug] 	zio.test.Sized
+[debug] 	zio.test.TestRunner.UnsafeAPI
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law2ZIO
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law3
+[debug] 	zio.test.Spec
+[debug] 	zio.test.TestAspect
+[debug] 	zio.test.SuiteConstructorLowPriority2
+[debug] 	zio.test.SuiteConstructor
+[debug] 	zio.test.ZIOSpecAbstract
+[debug] 	zio.test.laws.ZLawsF.Covariant.FlattenLaw
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law1
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law2
+[debug] 	zio.test.TestClock
+[debug] 	zio.test.laws.ZLawsF.Covariant.ComposeLaw
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law2ZIO
+[debug] 	zio.test.laws.ZLaws.Law1
+[debug] 	zio.test.TestAspect.PerTest
+[debug] 	zio.test.TimeoutVariants
+[debug] 	zio.test.laws.ZLaws.Law3ZIO
+[debug] 	zio.test.laws.ZLaws.Law2ZIO
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law3ZIO
+[debug] 	zio.test.laws.ZLaws2.Law1Right
+[debug] 	zio.test.FilteredSpec
+[debug] 	zio.test.TestConfig
+[debug] 	zio.test.SpecLayerMacros
+[debug] 	zio.test.TestExecutor
+[debug] 	zio.test.TestConsole
+[debug] 	zio.test.Live
+[debug] 	zio.test.SuiteConstructorLowPriority3
+[debug] 	zio.test.TestClock.Test
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law1ZIO
+[debug] 	zio.test.laws.ZLaws.Law3
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law3
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law3ZIO
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law2ZIO
+[debug] 	zio.test.internal.SmartAssertions
+[debug] 	zio.test.TestResult
+[debug] 	zio.test.Annotations
+[debug] 	zio.test.laws.ZLaws.Law2
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law3ZIO
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law3
+[debug] 	zio.test.TestRandom
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law1
+[debug] 	zio.test.laws.ZLawsF2.Divariant.ComposeLaw
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law2
+[debug] 	zio.test.package
+[debug] 	zio.test.laws.ZLaws2.Law1Left
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law1ZIO
+[debug] 	zio.test.ZIOSpec
+[debug] 	zio.test.TestConstructorLowPriority1
+[debug] 	zio.test.SuiteConstructorLowPriority4
+[debug] 	zio.test.TestRunner
+[debug] 	zio.test.TestSystem
+[debug] 	zio.test.SmartSpecMacros
+[debug] 	zio.test.laws.ZLaws.Law1ZIO
+[debug] 	zio.test.TestConstructorLowPriority2
+[debug] 	zio.test.laws.ZLawsF.Contravariant.ComposeLaw
+[debug] Initial set of included nodes: zio.test.TestConstructorLowPriority3, zio.test.SuiteConstructorLowPriority1, zio.test.laws.ZLawsF2.Divariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1ZIO, zio.test.ZIOSpecDefault, zio.test.TestConstructor, zio.test.laws.ZLawsF.Invariant.Law2, zio.test.Sized, zio.test.TestRunner.UnsafeAPI, zio.test.laws.ZLawsF.Invariant.Law2ZIO, zio.test.laws.ZLawsF.Covariant.Law3, zio.test.Spec, zio.test.TestAspect, zio.test.SuiteConstructorLowPriority2, zio.test.SuiteConstructor, zio.test.ZIOSpecAbstract, zio.test.laws.ZLawsF.Covariant.FlattenLaw, zio.test.laws.ZLawsF.Invariant.Law1, zio.test.laws.ZLawsF.Covariant.Law2, zio.test.TestClock, zio.test.laws.ZLawsF.Covariant.ComposeLaw, zio.test.laws.ZLawsF.Covariant.Law2ZIO, zio.test.laws.ZLaws.Law1, zio.test.TestAspect.PerTest, zio.test.TimeoutVariants, zio.test.laws.ZLaws.Law3ZIO, zio.test.laws.ZLaws.Law2ZIO, zio.test.laws.ZLawsF.Contravariant.Law3ZIO, zio.test.laws.ZLaws2.Law1Right, zio.test.FilteredSpec, zio.test.TestConfig, zio.test.SpecLayerMacros, zio.test.TestExecutor, zio.test.TestConsole, zio.test.Live, zio.test.SuiteConstructorLowPriority3, zio.test.TestClock.Test, zio.test.laws.ZLawsF.Invariant.Law1ZIO, zio.test.laws.ZLaws.Law3, zio.test.laws.ZLawsF.Contravariant.Law3, zio.test.laws.ZLawsF.Invariant.Law3ZIO, zio.test.laws.ZLawsF.Contravariant.Law2ZIO, zio.test.internal.SmartAssertions, zio.test.TestResult, zio.test.Annotations, zio.test.laws.ZLaws.Law2, zio.test.laws.ZLawsF.Covariant.Law3ZIO, zio.test.laws.ZLawsF.Invariant.Law3, zio.test.TestRandom, zio.test.laws.ZLawsF.Covariant.Law1, zio.test.laws.ZLawsF2.Divariant.ComposeLaw, zio.test.laws.ZLawsF.Contravariant.Law2, zio.test.package, zio.test.laws.ZLaws2.Law1Left, zio.test.laws.ZLawsF.Covariant.Law1ZIO, zio.test.ZIOSpec, zio.test.TestConstructorLowPriority1, zio.test.SuiteConstructorLowPriority4, zio.test.TestRunner, zio.test.TestSystem, zio.test.SmartSpecMacros, zio.test.laws.ZLaws.Law1ZIO, zio.test.TestConstructorLowPriority2, zio.test.laws.ZLawsF.Contravariant.ComposeLaw
+[debug] Including zio.test.laws.LawsF2.Divariant by zio.test.laws.ZLawsF2.Divariant.Law1
+[debug] Including zio.test.laws.LawsF.Contravariant by zio.test.laws.ZLawsF.Contravariant.Law1
+[debug] Including zio.test.package by zio.test.TestConstructor
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law2 by zio.test.package
+[debug] Including zio.test.laws.LawsF.Invariant by zio.test.laws.ZLawsF.Invariant.Law2
+[debug] Including zio.test.Sized by zio.test.package
+[debug] Including zio.test.TestServices by zio.test.Sized
+[debug] Including zio.test.Spec by zio.test.Sized
+[debug] Including zio.test.ProvideSomeSharedPartiallyApplied by zio.test.Spec
+[debug] Including zio.test.TestRunner.UnsafeAPI by zio.test.Spec
+[debug] Including zio.test.TestAspect by zio.test.Spec
+[debug] Including zio.test.ZIOSpecAbstract by zio.test.TestAspect
+[debug] Including zio.test.ZIOSpec by zio.test.ZIOSpecAbstract
+[debug] Including zio.test.TimeoutVariants by zio.test.TestAspect
+[debug] Including zio.test.TestConfig by zio.test.TestAspect
+[debug] Including zio.test.SpecVersionSpecific by zio.test.TestConfig
+[debug] Including zio.test.SpecLayerMacros by zio.test.TestConfig
+[debug] Including zio.test.ZIOSpecAbstractVersionSpecific by zio.test.SpecLayerMacros
+[debug] Including zio.test.TestExecutor by zio.test.TestConfig
+[debug] Including zio.test.TestRunner by zio.test.TestExecutor
+[debug] Including zio.test.TestEnvironment by zio.test.TestConfig
+[debug] Including zio.test.TestConfig.TestV2 by zio.test.TestAspect
+[debug] Including zio.test.SuiteConstructorLowPriority2 by zio.test.Spec
+[debug] Including zio.test.SuiteConstructor by zio.test.Spec
+[debug] Including zio.test.ZIOSpecVersionSpecific by zio.test.Spec
+[debug] Including zio.test.TestAspect.PerTest by zio.test.Spec
+[debug] Including zio.test.FilteredSpec by zio.test.Spec
+[debug] Including zio.test.ProvideSomePartiallyApplied by zio.test.Spec
+[debug] Including zio.test.SuiteConstructorLowPriority3 by zio.test.Spec
+[debug] Including zio.test.TestConstructorLowPriority1 by zio.test.Spec
+[debug] Including zio.test.SuiteConstructorLowPriority4 by zio.test.Spec
+[debug] Including zio.test.SmartSpecMacros by zio.test.Spec
+[debug] Including zio.test.TestConstructorLowPriority2 by zio.test.Spec
+[debug] Including zio.test.Gen by zio.test.Sized
+[debug] Including zio.test.poly.GenIntegralPoly by zio.test.Gen
+[debug] Including zio.test.poly.GenPoly by zio.test.poly.GenIntegralPoly
+[debug] Including zio.test.poly.GenFractionalPoly by zio.test.poly.GenPoly
+[debug] Including zio.test.poly.GenNumericPoly by zio.test.poly.GenFractionalPoly
+[debug] Including zio.test.poly.GenOrderingPoly by zio.test.poly.GenNumericPoly
+[debug] Including zio.test.laws.GenF by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF.Invariant.Both by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant by zio.test.laws.GenF
+[debug] Including zio.test.laws.LawsF by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawfulF.Covariant by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.LawfulF by zio.test.laws.ZLawfulF.Covariant
+[debug] Including zio.test.laws.package by zio.test.laws.ZLawfulF.Covariant
+[debug] Including zio.test.laws.LawsF.Covariant by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law2ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law3 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawfulF.Contravariant by zio.test.laws.ZLawsF.Contravariant
+[debug] Including zio.test.laws.ZLawsF.Invariant by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawfulF.Invariant by zio.test.laws.ZLawsF.Invariant
+[debug] Including zio.test.laws.ZLawsF.Covariant.FlattenLaw by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law1 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law2 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.ComposeLaw by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law2ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law3ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law1ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law3 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law3ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law2ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law3ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law3 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law1 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law2 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law1ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Both by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Both by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.ComposeLaw by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLaws2 by zio.test.Gen
+[debug] Including zio.test.laws.ZLawful2 by zio.test.laws.ZLaws2
+[debug] Including zio.test.laws.Laws2 by zio.test.laws.ZLaws2
+[debug] Including zio.test.laws.GenF2 by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF2.Divariant by zio.test.laws.GenF2
+[debug] Including zio.test.laws.LawsF2 by zio.test.laws.ZLawsF2.Divariant
+[debug] Including zio.test.laws.ZLawfulF2.Divariant by zio.test.laws.ZLawsF2.Divariant
+[debug] Including zio.test.laws.LawfulF2 by zio.test.laws.ZLawfulF2.Divariant
+[debug] Including zio.test.laws.ZLawsF2.Divariant.Both by zio.test.laws.GenF2
+[debug] Including zio.test.laws.ZLawsF2.Divariant.ComposeLaw by zio.test.laws.GenF2
+[debug] Including zio.test.CheckVariants.CheckN by zio.test.Gen
+[debug] Including zio.test.FunctionVariants by zio.test.Gen
+[debug] Including zio.test.GenZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Both by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws2.Both by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law1 by zio.test.Gen
+[debug] Including zio.test.laws.Laws by zio.test.laws.ZLaws.Law1
+[debug] Including zio.test.laws.ZLaws.Law3ZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law2ZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws2.Law1Right by zio.test.Gen
+[debug] Including zio.test.TimeVariants by zio.test.Gen
+[debug] Including zio.test.Sized.Test by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law3 by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws by zio.test.Gen
+[debug] Including zio.test.laws.ZLawful by zio.test.laws.ZLaws
+[debug] Including zio.test.laws.ZLaws.Law2 by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws2.Law1Left by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law1ZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF2 by zio.test.Gen
+[debug] Including zio.test.TestClock by zio.test.package
+[debug] Including zio.test.TestClockPlatformSpecific by zio.test.TestClock
+[debug] Including zio.test.TestClock.Test by zio.test.TestClockPlatformSpecific
+[debug] Including zio.test.TestConsole by zio.test.package
+[debug] Including zio.test.Live by zio.test.package
+[debug] Including zio.test.TestConsole.Test by zio.test.Live
+[debug] Including zio.test.internal.SmartAssertions by zio.test.package
+[debug] Including zio.test.Assertion by zio.test.internal.SmartAssertions
+[debug] Including zio.test.TestArrow by zio.test.Assertion
+[debug] Including zio.test.FailureCase by zio.test.TestArrow
+[debug] Including zio.test.render.TestRenderer by zio.test.FailureCase
+[debug] Including zio.test.TestArgs by zio.test.render.TestRenderer
+[debug] Including zio.test.ExecutionEventSink by zio.test.TestArgs
+[debug] Including zio.test.results.ResultPrinter by zio.test.TestArgs
+[debug] Including zio.test.results.ResultPrinterJson by zio.test.results.ResultPrinter
+[debug] Including zio.test.results.ResultPrinterJson.LiveImpl by zio.test.results.ResultPrinter
+[debug] Including zio.test.ExecutionEventPrinter.Live by zio.test.results.ResultPrinter
+[debug] Including zio.test.ExecutionEventPrinter by zio.test.results.ResultPrinter
+[debug] Including zio.test.TestOutput.TestOutputLive by zio.test.ExecutionEventPrinter
+[debug] Including zio.test.TestOutput by zio.test.ExecutionEventPrinter
+[debug] Including zio.test.ReporterEventRenderer.ConsoleEventRenderer by zio.test.render.TestRenderer
+[debug] Including zio.test.render.ConsoleRenderer by zio.test.render.TestRenderer
+[debug] Including zio.test.ReporterEventRenderer by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.ExecutionEventConsolePrinter by zio.test.ReporterEventRenderer
+[debug] Including zio.test.ExecutionEventConsolePrinter.Live by zio.test.ReporterEventRenderer
+[debug] Including zio.test.render.IntelliJRenderer by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.ReporterEventRenderer.IntelliJEventRenderer by zio.test.render.IntelliJRenderer
+[debug] Including zio.test.SummaryBuilder by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.Summary by zio.test.SummaryBuilder
+[debug] Including zio.test.AssertionVariants by zio.test.TestArrow
+[debug] Including zio.test.TestTrace.Node by zio.test.TestArrow
+[debug] Including zio.test.TestTrace by zio.test.TestArrow
+[debug] Including zio.test.TestArrow.TestArrowF by zio.test.TestTrace
+[debug] Including zio.test.TestResult by zio.test.TestTrace
+[debug] Including zio.test.ZTest by zio.test.TestResult
+[debug] Including zio.test.CheckConstructorLowPriority2 by zio.test.TestResult
+[debug] Including zio.test.TestResultZIOOps by zio.test.TestResult
+[debug] Including zio.test.CheckConstructorLowPriority3 by zio.test.TestResult
+[debug] Including zio.test.TestFailure.Assertion by zio.test.TestResult
+[debug] Including zio.test.CheckConstructor by zio.test.TestResult
+[debug] Including zio.test.CheckConstructorLowPriority1 by zio.test.TestResult
+[debug] Including zio.test.TestFailure by zio.test.TestResult
+[debug] Including zio.test.ExecutionEvent.Test by zio.test.TestFailure
+[debug] Including zio.test.results.ResultSerializer by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.TestDebug by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.results.ResultSerializer.Json by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.Spec.SpecCase by zio.test.TestFailure
+[debug] Including zio.test.Annotations.Test by zio.test.TestFailure
+[debug] Including zio.test.Spec.ScopedPartiallyApplied by zio.test.TestFailure
+[debug] Including zio.test.ExecutionEvent.RuntimeFailure by zio.test.TestFailure
+[debug] Including zio.test.Annotations by zio.test.TestFailure
+[debug] Including zio.test.Spec.ProvideSomeLayerShared by zio.test.TestFailure
+[debug] Including zio.test.Spec.TestCase by zio.test.TestFailure
+[debug] Including zio.test.Spec.ScopedCase by zio.test.TestFailure
+[debug] Including zio.test.CompileVariants by zio.test.TestResult
+[debug] Including zio.test.Result by zio.test.TestArrow
+[debug] Including zio.test.TestTrace.And by zio.test.Result
+[debug] Including zio.test.TestTrace.Not by zio.test.Result
+[debug] Including zio.test.TestTrace.Or by zio.test.Result
+[debug] Including zio.test.TestTrace.AndThen by zio.test.Result
+[debug] Including zio.test.TestArrow.Meta by zio.test.Assertion
+[debug] Including zio.test.TestRandom by zio.test.package
+[debug] Including zio.test.TestSystem by zio.test.package
+[debug] Previously invalidated, but (transitively) depend on new invalidations:
+[debug] 	zio.test.ProvideSomeSharedPartiallyApplied
+[debug] 	zio.test.SpecVersionSpecific
+[debug] 	zio.test.ZIOSpecVersionSpecific
+[debug] 	zio.test.ProvideSomePartiallyApplied
+[debug] 	zio.test.ZIOSpecAbstractVersionSpecific
+[debug] 	zio.test.CompileVariants
+[debug] Final step, transitive dependencies:
+[debug] 	Set(zio.test.TestConstructorLowPriority3, zio.test.SuiteConstructorLowPriority1, zio.test.laws.ZLawsF2.Divariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1ZIO, zio.test.ZIOSpecDefault, zio.test.TestConstructor, zio.test.laws.ZLawsF.Invariant.Law2, zio.test.ProvideSomeSharedPartiallyApplied, zio.test.Sized, zio.test.TestRunner.UnsafeAPI, zio.test.laws.ZLawsF.Invariant.Law2ZIO, zio.test.laws.ZLawsF.Covariant.Law3, zio.test.Spec, zio.test.TestAspect, zio.test.SuiteConstructorLowPriority2, zio.test.SpecVersionSpecific, zio.test.SuiteConstructor, zio.test.ZIOSpecAbstract, zio.test.laws.ZLawsF.Covariant.FlattenLaw, zio.test.laws.ZLawsF.Invariant.Law1, zio.test.ZIOSpecVersionSpecific, zio.test.laws.ZLawsF.Covariant.Law2, zio.test.TestClock, zio.test.laws.ZLawsF.Covariant.ComposeLaw, zio.test.laws.ZLawsF.Covariant.Law2ZIO, zio.test.laws.ZLaws.Law1, zio.test.TestAspect.PerTest, zio.test.TimeoutVariants, zio.test.laws.ZLaws.Law3ZIO, zio.test.laws.ZLaws.Law2ZIO, zio.test.laws.ZLawsF.Contravariant.Law3ZIO, zio.test.laws.ZLaws2.Law1Right, zio.test.FilteredSpec, zio.test.ProvideSomePartiallyApplied, zio.test.TestConfig, zio.test.SpecLayerMacros, zio.test.TestExecutor, zio.test.TestConsole, zio.test.Live, zio.test.SuiteConstructorLowPriority3, zio.test.TestClock.Test, zio.test.laws.ZLawsF.Invariant.Law1ZIO, zio.test.laws.ZLaws.Law3, zio.test.laws.ZLawsF.Contravariant.Law3, zio.test.laws.ZLawsF.Invariant.Law3ZIO, zio.test.laws.ZLawsF.Contravariant.Law2ZIO, zio.test.internal.SmartAssertions, zio.test.TestResult, zio.test.ZIOSpecAbstractVersionSpecific, zio.test.Annotations, zio.test.laws.ZLaws.Law2, zio.test.laws.ZLawsF.Covariant.Law3ZIO, zio.test.laws.ZLawsF.Invariant.Law3, zio.test.TestRandom, zio.test.laws.ZLawsF.Covariant.Law1, zio.test.laws.ZLawsF2.Divariant.ComposeLaw, zio.test.laws.ZLawsF.Contravariant.Law2, zio.test.package, zio.test.laws.ZLaws2.Law1Left, zio.test.laws.ZLawsF.Covariant.Law1ZIO, zio.test.ZIOSpec, zio.test.TestConstructorLowPriority1, zio.test.SuiteConstructorLowPriority4, zio.test.TestRunner, zio.test.TestSystem, zio.test.CompileVariants, zio.test.SmartSpecMacros, zio.test.laws.ZLaws.Law1ZIO, zio.test.TestConstructorLowPriority2, zio.test.laws.ZLawsF.Contravariant.ComposeLaw)
+[debug] Initial set of included nodes: zio.test.ZTest, zio.test.TestLensAnyOps, zio.test.TestLensExitOps, zio.test.ProvideSomeSharedPartiallyApplied, zio.test.CheckVariants.CheckN, zio.test.CheckVariants, zio.test.SmartAssertionOps, zio.test.SpecVersionSpecific, zio.test.TestResultZIOOps, zio.test.ZIOSpecVersionSpecific, zio.test.ProvideSomePartiallyApplied, zio.test.ZIOSpecAbstractVersionSpecific, zio.test.TestLensOptionOps, zio.test.TestLensEitherOps, zio.test.package, zio.test.TestLensTryOps, zio.test.CompileVariants, zio.test.TestLensCauseOps, zio.test.TestEnvironment
+[debug] Including zio.test.TestAspect by zio.test.ZTest
+[debug] Including zio.test.TestServices by zio.test.TestAspect
+[debug] Including zio.test.package by zio.test.TestServices
+[debug] Including zio.test.TestConstructorLowPriority3 by zio.test.package
+[debug] Including zio.test.laws.ZLawsF2.Divariant.Law1 by zio.test.package
+[debug] Including zio.test.laws.LawsF2.Divariant by zio.test.laws.ZLawsF2.Divariant.Law1
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law1 by zio.test.package
+[debug] Including zio.test.laws.LawsF.Contravariant by zio.test.laws.ZLawsF.Contravariant.Law1
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law1ZIO by zio.test.package
+[debug] Including zio.test.ZIOSpecDefault by zio.test.package
+[debug] Including zio.test.TestConstructor by zio.test.package
+[debug] Including zio.test.ZIOSpec by zio.test.TestConstructor
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law2 by zio.test.package
+[debug] Including zio.test.laws.LawsF.Invariant by zio.test.laws.ZLawsF.Invariant.Law2
+[debug] Including zio.test.Sized by zio.test.package
+[debug] Including zio.test.Spec by zio.test.Sized
+[debug] Including zio.test.SuiteConstructorLowPriority1 by zio.test.Spec
+[debug] Including zio.test.ProvideSomeSharedPartiallyApplied by zio.test.Spec
+[debug] Including zio.test.TestRunner.UnsafeAPI by zio.test.Spec
+[debug] Including zio.test.SuiteConstructorLowPriority2 by zio.test.Spec
+[debug] Including zio.test.SpecVersionSpecific by zio.test.Spec
+[debug] Including zio.test.SuiteConstructor by zio.test.Spec
+[debug] Including zio.test.ZIOSpecAbstract by zio.test.Spec
+[debug] Including zio.test.ZIOSpecVersionSpecific by zio.test.Spec
+[debug] Including zio.test.TestAspect.PerTest by zio.test.Spec
+[debug] Including zio.test.TimeoutVariants by zio.test.Spec
+[debug] Including zio.test.FilteredSpec by zio.test.Spec
+[debug] Including zio.test.ProvideSomePartiallyApplied by zio.test.Spec
+[debug] Including zio.test.SpecLayerMacros by zio.test.Spec
+[debug] Including zio.test.ZIOSpecAbstractVersionSpecific by zio.test.SpecLayerMacros
+[debug] Including zio.test.TestExecutor by zio.test.Spec
+[debug] Including zio.test.TestRunner by zio.test.TestExecutor
+[debug] Including zio.test.SuiteConstructorLowPriority3 by zio.test.Spec
+[debug] Including zio.test.TestConstructorLowPriority1 by zio.test.Spec
+[debug] Including zio.test.SuiteConstructorLowPriority4 by zio.test.Spec
+[debug] Including zio.test.SmartSpecMacros by zio.test.Spec
+[debug] Including zio.test.TestConstructorLowPriority2 by zio.test.Spec
+[debug] Including zio.test.Gen by zio.test.Sized
+[debug] Including zio.test.poly.GenIntegralPoly by zio.test.Gen
+[debug] Including zio.test.poly.GenPoly by zio.test.poly.GenIntegralPoly
+[debug] Including zio.test.poly.GenFractionalPoly by zio.test.poly.GenPoly
+[debug] Including zio.test.poly.GenNumericPoly by zio.test.poly.GenFractionalPoly
+[debug] Including zio.test.poly.GenOrderingPoly by zio.test.poly.GenNumericPoly
+[debug] Including zio.test.laws.GenF by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF.Invariant.Both by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant by zio.test.laws.GenF
+[debug] Including zio.test.laws.LawsF by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawfulF.Covariant by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.LawfulF by zio.test.laws.ZLawfulF.Covariant
+[debug] Including zio.test.laws.package by zio.test.laws.ZLawfulF.Covariant
+[debug] Including zio.test.laws.LawsF.Covariant by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law2ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law3 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawfulF.Contravariant by zio.test.laws.ZLawsF.Contravariant
+[debug] Including zio.test.laws.ZLawsF.Invariant by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawfulF.Invariant by zio.test.laws.ZLawsF.Invariant
+[debug] Including zio.test.laws.ZLawsF.Covariant.FlattenLaw by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law1 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law2 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.ComposeLaw by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law2ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law3ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law1ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law3 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law3ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law2ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law3ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law3 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law1 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law2 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law1ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Both by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Both by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.ComposeLaw by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLaws2 by zio.test.Gen
+[debug] Including zio.test.laws.ZLawful2 by zio.test.laws.ZLaws2
+[debug] Including zio.test.laws.Laws2 by zio.test.laws.ZLaws2
+[debug] Including zio.test.laws.GenF2 by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF2.Divariant by zio.test.laws.GenF2
+[debug] Including zio.test.laws.LawsF2 by zio.test.laws.ZLawsF2.Divariant
+[debug] Including zio.test.laws.ZLawfulF2.Divariant by zio.test.laws.ZLawsF2.Divariant
+[debug] Including zio.test.laws.LawfulF2 by zio.test.laws.ZLawfulF2.Divariant
+[debug] Including zio.test.laws.ZLawsF2.Divariant.Both by zio.test.laws.GenF2
+[debug] Including zio.test.laws.ZLawsF2.Divariant.ComposeLaw by zio.test.laws.GenF2
+[debug] Including zio.test.CheckVariants.CheckN by zio.test.Gen
+[debug] Including zio.test.FunctionVariants by zio.test.Gen
+[debug] Including zio.test.GenZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Both by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws2.Both by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law1 by zio.test.Gen
+[debug] Including zio.test.laws.Laws by zio.test.laws.ZLaws.Law1
+[debug] Including zio.test.laws.ZLaws.Law3ZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law2ZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws2.Law1Right by zio.test.Gen
+[debug] Including zio.test.TimeVariants by zio.test.Gen
+[debug] Including zio.test.Sized.Test by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law3 by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws by zio.test.Gen
+[debug] Including zio.test.laws.ZLawful by zio.test.laws.ZLaws
+[debug] Including zio.test.laws.ZLaws.Law2 by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws2.Law1Left by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law1ZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF2 by zio.test.Gen
+[debug] Including zio.test.TestEnvironment by zio.test.Sized
+[debug] Including zio.test.TestClock by zio.test.package
+[debug] Including zio.test.TestClockPlatformSpecific by zio.test.TestClock
+[debug] Including zio.test.TestClock.Test by zio.test.TestClockPlatformSpecific
+[debug] Including zio.test.TestConfig by zio.test.package
+[debug] Including zio.test.TestConsole by zio.test.package
+[debug] Including zio.test.Live by zio.test.package
+[debug] Including zio.test.TestConsole.Test by zio.test.Live
+[debug] Including zio.test.internal.SmartAssertions by zio.test.package
+[debug] Including zio.test.Assertion by zio.test.internal.SmartAssertions
+[debug] Including zio.test.TestArrow by zio.test.Assertion
+[debug] Including zio.test.FailureCase by zio.test.TestArrow
+[debug] Including zio.test.render.TestRenderer by zio.test.FailureCase
+[debug] Including zio.test.TestArgs by zio.test.render.TestRenderer
+[debug] Including zio.test.ExecutionEventSink by zio.test.TestArgs
+[debug] Including zio.test.results.ResultPrinter by zio.test.TestArgs
+[debug] Including zio.test.results.ResultPrinterJson by zio.test.results.ResultPrinter
+[debug] Including zio.test.results.ResultPrinterJson.LiveImpl by zio.test.results.ResultPrinter
+[debug] Including zio.test.ExecutionEventPrinter.Live by zio.test.results.ResultPrinter
+[debug] Including zio.test.ExecutionEventPrinter by zio.test.results.ResultPrinter
+[debug] Including zio.test.TestOutput.TestOutputLive by zio.test.ExecutionEventPrinter
+[debug] Including zio.test.TestOutput by zio.test.ExecutionEventPrinter
+[debug] Including zio.test.ReporterEventRenderer.ConsoleEventRenderer by zio.test.render.TestRenderer
+[debug] Including zio.test.render.ConsoleRenderer by zio.test.render.TestRenderer
+[debug] Including zio.test.ReporterEventRenderer by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.ExecutionEventConsolePrinter by zio.test.ReporterEventRenderer
+[debug] Including zio.test.ExecutionEventConsolePrinter.Live by zio.test.ReporterEventRenderer
+[debug] Including zio.test.render.IntelliJRenderer by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.ReporterEventRenderer.IntelliJEventRenderer by zio.test.render.IntelliJRenderer
+[debug] Including zio.test.SummaryBuilder by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.Summary by zio.test.SummaryBuilder
+[debug] Including zio.test.AssertionVariants by zio.test.TestArrow
+[debug] Including zio.test.TestTrace.Node by zio.test.TestArrow
+[debug] Including zio.test.TestTrace by zio.test.TestArrow
+[debug] Including zio.test.TestArrow.TestArrowF by zio.test.TestTrace
+[debug] Including zio.test.TestResult by zio.test.TestTrace
+[debug] Including zio.test.CheckConstructorLowPriority2 by zio.test.TestResult
+[debug] Including zio.test.TestResultZIOOps by zio.test.TestResult
+[debug] Including zio.test.CheckConstructorLowPriority3 by zio.test.TestResult
+[debug] Including zio.test.TestConfig.TestV2 by zio.test.TestResult
+[debug] Including zio.test.TestFailure.Assertion by zio.test.TestResult
+[debug] Including zio.test.CheckConstructor by zio.test.TestResult
+[debug] Including zio.test.CheckConstructorLowPriority1 by zio.test.TestResult
+[debug] Including zio.test.TestFailure by zio.test.TestResult
+[debug] Including zio.test.ExecutionEvent.Test by zio.test.TestFailure
+[debug] Including zio.test.results.ResultSerializer by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.TestDebug by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.results.ResultSerializer.Json by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.Spec.SpecCase by zio.test.TestFailure
+[debug] Including zio.test.Annotations.Test by zio.test.TestFailure
+[debug] Including zio.test.Spec.ScopedPartiallyApplied by zio.test.TestFailure
+[debug] Including zio.test.ExecutionEvent.RuntimeFailure by zio.test.TestFailure
+[debug] Including zio.test.Annotations by zio.test.TestFailure
+[debug] Including zio.test.Spec.ProvideSomeLayerShared by zio.test.TestFailure
+[debug] Including zio.test.Spec.TestCase by zio.test.TestFailure
+[debug] Including zio.test.Spec.ScopedCase by zio.test.TestFailure
+[debug] Including zio.test.CompileVariants by zio.test.TestResult
+[debug] Including zio.test.Result by zio.test.TestArrow
+[debug] Including zio.test.TestTrace.And by zio.test.Result
+[debug] Including zio.test.TestTrace.Not by zio.test.Result
+[debug] Including zio.test.TestTrace.Or by zio.test.Result
+[debug] Including zio.test.TestTrace.AndThen by zio.test.Result
+[debug] Including zio.test.TestArrow.Meta by zio.test.Assertion
+[debug] Including zio.test.TestRandom by zio.test.package
+[debug] Including zio.test.TestSystem by zio.test.package
+[debug] Invalidated macros due to upstream dependencies change: Set()
+[debug] Initial set of included nodes: zio.test.TestConstructorLowPriority3, zio.test.ZTest, zio.test.SuiteConstructorLowPriority1, zio.test.laws.ZLawsF2.Divariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1, zio.test.TestLensAnyOps, zio.test.TestConsole.Test, zio.test.laws.ZLawsF.Contravariant.Law1ZIO, zio.test.ZIOSpecDefault, zio.test.TestConstructor, zio.test.TestLensExitOps, zio.test.laws.ZLawsF.Invariant.Law2, zio.test.ProvideSomeSharedPartiallyApplied, zio.test.laws.ZLaws2, zio.test.TestSystem.Test, zio.test.TestRandom.Data, zio.test.Spec.SpecCase, zio.test.laws.ZLawsF.Invariant.Both, zio.test.Spec.MultipleCase, zio.test.laws.ZLawsF.Covariant, zio.test.internal.SmartAssertions.Implicits.Converter, zio.test.Annotations.Test, zio.test.CheckVariants.CheckN, zio.test.internal.SmartAssertions.Implicits, zio.test.Sized, zio.test.TestRunner.UnsafeAPI, zio.test.TestClock.WarningData.Start, zio.test.laws.ZLawsF.Invariant.Law2ZIO, zio.test.CheckVariants, zio.test.laws.ZLawsF.Covariant.Law3, zio.test.TestArrow.Suspend, zio.test.Spec, zio.test.SmartAssertionOps, zio.test.Annotations.UnsafeAPI, zio.test.TestAspect, zio.test.Spec.ProvideSomeLayer, zio.test.SmartSpecMacros.TestOrStatement, zio.test.TestArrow, zio.test.laws.ZLawsF.Contravariant, zio.test.laws.ZLawsF.Invariant, zio.test.SuiteConstructorLowPriority2, zio.test.SpecVersionSpecific, zio.test.SuiteConstructor, zio.test.ZIOSpecAbstract, zio.test.TestResultZIOOps, zio.test.TestClock.SuspendedWarningData, zio.test.laws.ZLawsF.Covariant.FlattenLaw, zio.test.TestRandom.Buffer, zio.test.TestClock.Data, zio.test.SmartSpecMacros.TestOrStatement.Statement, zio.test.laws.ZLawsF.Invariant.Law1, zio.test.TestArrow.AndThen, zio.test.SmartSpecMacros.TestOrStatement.Test, zio.test.laws.ZLaws.Both, zio.test.laws.ZLaws2.Both, zio.test.TestConfig.Test, zio.test.TestClock.WarningData.Pending, zio.test.ZIOSpecVersionSpecific, zio.test.laws.ZLawsF.Covariant.Law2, zio.test.TestArrow.Or, zio.test.TestClock, zio.test.laws.ZLawsF.Covariant.ComposeLaw, zio.test.laws.ZLawsF.Covariant.Law2ZIO, zio.test.laws.ZLaws.Law1, zio.test.laws.ZLawsF2.Divariant, zio.test.TestArrow.Meta, zio.test.TestAspect.PerTest, zio.test.Live.Test, zio.test.Spec.ScopedPartiallyApplied, zio.test.TimeoutVariants, zio.test.TestArrow.And, zio.test.laws.ZLaws.Law3ZIO, zio.test.laws.ZLaws.Law2ZIO, zio.test.laws.ZLawsF2.Divariant.Both, zio.test.laws.ZLawsF.Contravariant.Law3ZIO, zio.test.laws.ZLaws2.Law1Right, zio.test.Spec.ExecCase, zio.test.FilteredSpec, zio.test.ProvideSomePartiallyApplied, zio.test.Sized.Test, zio.test.TestClock.SuspendedWarningData.Start, zio.test.TestConfig, zio.test.SpecLayerMacros, zio.test.TestExecutor, zio.test.TestConsole, zio.test.Live, zio.test.SuiteConstructorLowPriority3, zio.test.TestRandom.Test, zio.test.TestClock.Test, zio.test.TestArrow.TestArrowF, zio.test.laws.ZLawsF.Invariant.Law1ZIO, zio.test.TestConfig.TestV2, zio.test.laws.ZLaws.Law3, zio.test.laws.ZLawsF.Contravariant.Law3, zio.test.Spec.UpdateServiceAt, zio.test.laws.ZLawsF.Invariant.Law3ZIO, zio.test.internal.SmartAssertions.Implicits.Converter2, zio.test.laws.ZLawsF.Contravariant.Law2ZIO, zio.test.TestConsole.Data, zio.test.TestClock.WarningData, zio.test.TestResult.Exit, zio.test.internal.SmartAssertions, zio.test.laws.ZLaws, zio.test.TestResult, zio.test.ZIOSpecAbstractVersionSpecific, zio.test.Annotations, zio.test.laws.ZLaws.Law2, zio.test.TestClock.WarningData.Done, zio.test.TestLensOptionOps, zio.test.laws.ZLawsF, zio.test.Spec.ProvideSomeLayerShared, zio.test.laws.ZLawsF.Covariant.Law3ZIO, zio.test.TestClock.Sleep, zio.test.laws.ZLawsF.Invariant.Law3, zio.test.TestClock.SuspendedWarningData.Pending, zio.test.TestLensEitherOps, zio.test.TestRandom, zio.test.laws.ZLawsF.Covariant.Law1, zio.test.laws.ZLawsF2.Divariant.ComposeLaw, zio.test.laws.ZLawsF.Contravariant.Law2, zio.test.Spec.LabeledCase, zio.test.Spec.TestCase, zio.test.package, zio.test.laws.ZLaws2.Law1Left, zio.test.Spec.ScopedCase, zio.test.laws.ZLawsF.Covariant.Law1ZIO, zio.test.ZIOSpec, zio.test.TestConstructorLowPriority1, zio.test.SuiteConstructorLowPriority4, zio.test.laws.ZLawsF.Contravariant.Both, zio.test.TestLensTryOps, zio.test.laws.ZLawsF.Covariant.Both, zio.test.TestRunner, zio.test.TestSystem, zio.test.Spec.UpdateService, zio.test.CompileVariants, zio.test.SmartSpecMacros, zio.test.TestArrow.Span, zio.test.laws.ZLaws.Law1ZIO, zio.test.TestLensCauseOps, zio.test.TestEnvironment, zio.test.TestSystem.Data, zio.test.TestConstructorLowPriority2, zio.test.TestClock.SuspendedWarningData.Done, zio.test.laws.ZLawsF2, zio.test.TestArrow.Not, zio.test.laws.ZLawsF.Contravariant.ComposeLaw
+[debug] Including zio.test.TestConstructorLowPriority2 by zio.test.TestConstructorLowPriority3
+[debug] Including zio.test.TestConstructorLowPriority1 by zio.test.TestConstructorLowPriority2
+[debug] Including zio.test.TestConstructor by zio.test.TestConstructorLowPriority1
+[debug] Including zio.test.SuiteConstructor by zio.test.SuiteConstructorLowPriority1
+[debug] Including zio.test.laws.ZLaws2.Both by zio.test.laws.ZLaws2
+[debug] Including zio.test.laws.ZLaws2.Law1Right by zio.test.laws.ZLaws2
+[debug] Including zio.test.laws.ZLaws2.Law1Left by zio.test.laws.ZLaws2
+[debug] Including zio.test.Spec.MultipleCase by zio.test.Spec.SpecCase
+[debug] Including zio.test.Spec.ExecCase by zio.test.Spec.SpecCase
+[debug] Including zio.test.Spec.LabeledCase by zio.test.Spec.SpecCase
+[debug] Including zio.test.Spec.TestCase by zio.test.Spec.SpecCase
+[debug] Including zio.test.Spec.ScopedCase by zio.test.Spec.SpecCase
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law3 by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawsF.Covariant.FlattenLaw by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law2 by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawsF.Covariant.ComposeLaw by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law2ZIO by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law3ZIO by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law1 by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law1ZIO by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawsF.Covariant.Both by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.package by zio.test.Sized
+[debug] Including zio.test.Sized.Test by zio.test.Sized
+[debug] Including zio.test.TestAspect.PerTest by zio.test.TestAspect
+[debug] Including zio.test.SmartSpecMacros.TestOrStatement.Statement by zio.test.SmartSpecMacros.TestOrStatement
+[debug] Including zio.test.SmartSpecMacros.TestOrStatement.Test by zio.test.SmartSpecMacros.TestOrStatement
+[debug] Including zio.test.TestArrow.AndThen by zio.test.TestArrow
+[debug] Including zio.test.TestArrow.Or by zio.test.TestArrow
+[debug] Including zio.test.TestArrow.Meta by zio.test.TestArrow
+[debug] Including zio.test.TestArrow.And by zio.test.TestArrow
+[debug] Including zio.test.TestArrow.TestArrowF by zio.test.TestArrow
+[debug] Including zio.test.TestArrow.Not by zio.test.TestArrow
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law3ZIO by zio.test.laws.ZLawsF.Contravariant
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law3 by zio.test.laws.ZLawsF.Contravariant
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law2ZIO by zio.test.laws.ZLawsF.Contravariant
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law2 by zio.test.laws.ZLawsF.Contravariant
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Both by zio.test.laws.ZLawsF.Contravariant
+[debug] Including zio.test.laws.ZLawsF.Contravariant.ComposeLaw by zio.test.laws.ZLawsF.Contravariant
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law1 by zio.test.laws.ZLawsF.Invariant
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law1ZIO by zio.test.laws.ZLawsF.Invariant
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law3ZIO by zio.test.laws.ZLawsF.Invariant
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law3 by zio.test.laws.ZLawsF.Invariant
+[debug] Including zio.test.ZIOSpec by zio.test.ZIOSpecAbstract
+[debug] Including zio.test.TestClock.SuspendedWarningData.Start by zio.test.TestClock.SuspendedWarningData
+[debug] Including zio.test.TestClock.SuspendedWarningData.Done by zio.test.TestClock.SuspendedWarningData
+[debug] Including zio.test.TestClock.SuspendedWarningData.Pending by zio.test.TestClock.SuspendedWarningData
+[debug] Including zio.test.TestClock.Test by zio.test.TestClock
+[debug] Including zio.test.laws.ZLawsF2.Divariant.Both by zio.test.laws.ZLawsF2.Divariant
+[debug] Including zio.test.laws.ZLawsF2.Divariant.ComposeLaw by zio.test.laws.ZLawsF2.Divariant
+[debug] Including zio.test.TestConfig.TestV2 by zio.test.TestConfig
+[debug] Including zio.test.TestClock.WarningData.Done by zio.test.TestClock.WarningData
+[debug] Including zio.test.laws.ZLaws.Law2 by zio.test.laws.ZLaws
+[debug] Including zio.test.laws.ZLaws.Law1ZIO by zio.test.laws.ZLaws
+[debug] compilation cycle 3
+[info] compiling 32 Scala sources to /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/test/jvm/target/scala-2.13/classes ...
+[debug] Returning already retrieved and compiled bridge: /home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala2-sbt-bridge/2.13.18/scala2-sbt-bridge-2.13.18.jar.
+[debug] [zinc] Running cached compiler 186ebdf5 for Scala compiler version 2.13.18
+[debug] [zinc] The Scala compiler is invoked with:
+[debug] 	-deprecation
+[debug] 	-encoding
+[debug] 	UTF-8
+[debug] 	-feature
+[debug] 	-unchecked
+[debug] 	-release
+[debug] 	11
+[debug] 	-Xfatal-warnings
+[debug] 	-Ywarn-unused:params,-implicits
+[debug] 	-Ybackend-parallelism:4
+[debug] 	-language:higherKinds
+[debug] 	-language:existentials
+[debug] 	-explaintypes
+[debug] 	-Yrangepos
+[debug] 	-Xlint:_,-missing-interpolator,-type-parameter-shadow,-infer-any
+[debug] 	-Ywarn-numeric-widen
+[debug] 	-Ywarn-value-discard
+[debug] 	-language:experimental.macros
+[debug] 	-Ymacro-annotations
+[debug] 	-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent
+[debug] 	-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent
+[debug] 	-classpath
+[debug] 	/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/test/jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/core/jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/internal-macros/.jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/stacktracer/.jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/streams/jvm/target/scala-2.13/classes:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.18/scala-library-2.13.18.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.13.18/scala-reflect-2.13.18.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.13.18/scala-compiler-2.13.18.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/portable-scala/portable-scala-reflect_2.13/1.1.3/portable-scala-reflect_2.13-1.1.3.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/dev/zio/izumi-reflect_2.13/3.0.9/izumi-reflect_2.13-3.0.9.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.14.0/scala-collection-compat_2.13-2.14.0.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/io/github/java-diff-utils/java-diff-utils/4.16/java-diff-utils-4.16.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/jline/jline/3.29.0/jline-3.29.0-jdk8.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/dev/zio/izumi-reflect-thirdparty-boopickle-shaded_2.13/3.0.9/izumi-reflect-thirdparty-boopickle-shaded_2.13-3.0.9.jar
+[debug] Scala compilation took 1.848740526 s
+[info] done compiling
+[debug] Invalidating (transitively) by inheritance from zio.test.ZIOSpecAbstractVersionSpecific...
+[debug] Initial set of included nodes: zio.test.ZIOSpecAbstractVersionSpecific
+[debug] Including zio.test.ZIOSpecAbstract by zio.test.ZIOSpecAbstractVersionSpecific
+[debug] Including zio.test.ZIOSpec by zio.test.ZIOSpecAbstract
+[debug] Including zio.test.ZIOSpecDefault by zio.test.ZIOSpec
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.ZIOSpecAbstract, zio.test.ZIOSpecAbstractVersionSpecific, zio.test.ZIOSpec, zio.test.ZIOSpecDefault)
+[debug] The following member ref dependencies of zio.test.ZIOSpecAbstract are invalidated:
+[debug] 	zio.test.ZIOSpec
+[debug] The following member ref dependencies of zio.test.ZIOSpecAbstractVersionSpecific are invalidated:
+[debug] 	zio.test.ZIOSpecAbstract
+[debug] The following member ref dependencies of zio.test.ZIOSpec are invalidated:
+[debug] 	zio.test.ZIOSpecDefault
+[debug] Change APIChangeDueToMacroDefinition(zio.test.ZIOSpecAbstractVersionSpecific) invalidates 4 classes due to The zio.test.ZIOSpecAbstractVersionSpecific source file declares a macro.
+[debug]   > by transitive inheritance: Set(zio.test.ZIOSpecAbstract, zio.test.ZIOSpecAbstractVersionSpecific, zio.test.ZIOSpec, zio.test.ZIOSpecDefault)
+[debug]   > 
+[debug]   > by member reference: Set(zio.test.ZIOSpec, zio.test.ZIOSpecAbstract, zio.test.ZIOSpecDefault)
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.CompileVariants...
+[debug] Initial set of included nodes: zio.test.CompileVariants
+[debug] Including zio.test.package by zio.test.CompileVariants
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.CompileVariants, zio.test.package)
+[debug] The following member ref dependencies of zio.test.CompileVariants are invalidated:
+[debug] 	zio.test.package
+[debug] The following member ref dependencies of zio.test.package are invalidated:
+[debug] 	zio.test.Annotations
+[debug] 	zio.test.CompileVariants
+[debug] 	zio.test.Live
+[debug] 	zio.test.Sized
+[debug] 	zio.test.Spec
+[debug] 	zio.test.SpecLayerMacros
+[debug] 	zio.test.SpecVersionSpecific
+[debug] 	zio.test.TestAspect
+[debug] 	zio.test.TestClock
+[debug] 	zio.test.TestClock.Test
+[debug] 	zio.test.TestConfig
+[debug] 	zio.test.TestConsole
+[debug] 	zio.test.TestConstructor
+[debug] 	zio.test.TestConstructorLowPriority1
+[debug] 	zio.test.TestConstructorLowPriority2
+[debug] 	zio.test.TestConstructorLowPriority3
+[debug] 	zio.test.TestExecutor
+[debug] 	zio.test.TestRandom
+[debug] 	zio.test.TestResult
+[debug] 	zio.test.TestSystem
+[debug] 	zio.test.TimeoutVariants
+[debug] 	zio.test.ZIOSpec
+[debug] 	zio.test.ZIOSpecAbstract
+[debug] 	zio.test.ZIOSpecDefault
+[debug] 	zio.test.internal.SmartAssertions
+[debug] 	zio.test.laws.ZLaws.Law1
+[debug] 	zio.test.laws.ZLaws.Law1ZIO
+[debug] 	zio.test.laws.ZLaws.Law2
+[debug] 	zio.test.laws.ZLaws.Law2ZIO
+[debug] 	zio.test.laws.ZLaws.Law3
+[debug] 	zio.test.laws.ZLaws.Law3ZIO
+[debug] 	zio.test.laws.ZLaws2.Law1Left
+[debug] 	zio.test.laws.ZLaws2.Law1Right
+[debug] 	zio.test.laws.ZLawsF.Contravariant.ComposeLaw
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law1
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law1ZIO
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law2
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law2ZIO
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law3
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law3ZIO
+[debug] 	zio.test.laws.ZLawsF.Covariant.ComposeLaw
+[debug] 	zio.test.laws.ZLawsF.Covariant.FlattenLaw
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law1
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law1ZIO
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law2
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law2ZIO
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law3
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law3ZIO
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law1
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law1ZIO
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law2
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law2ZIO
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law3
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law3ZIO
+[debug] 	zio.test.laws.ZLawsF2.Divariant.ComposeLaw
+[debug] 	zio.test.laws.ZLawsF2.Divariant.Law1
+[debug] Change APIChangeDueToMacroDefinition(zio.test.CompileVariants) invalidates 57 classes due to The zio.test.CompileVariants source file declares a macro.
+[debug]   > by transitive inheritance: Set(zio.test.CompileVariants, zio.test.package)
+[debug]   > 
+[debug]   > by member reference: Set(zio.test.TestConstructorLowPriority3, zio.test.laws.ZLawsF2.Divariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1ZIO, zio.test.ZIOSpecDefault, zio.test.TestConstructor, zio.test.laws.ZLawsF.Invariant.Law2, zio.test.Sized, zio.test.laws.ZLawsF.Invariant.Law2ZIO, zio.test.laws.ZLawsF.Covariant.Law3, zio.test.Spec, zio.test.TestAspect, zio.test.SpecVersionSpecific, zio.test.ZIOSpecAbstract, zio.test.laws.ZLawsF.Covariant.FlattenLaw, zio.test.laws.ZLawsF.Invariant.Law1, zio.test.laws.ZLawsF.Covariant.Law2, zio.test.TestClock, zio.test.laws.ZLawsF.Covariant.ComposeLaw, zio.test.laws.ZLawsF.Covariant.Law2ZIO, zio.test.laws.ZLaws.Law1, zio.test.TimeoutVariants, zio.test.laws.ZLaws.Law3ZIO, zio.test.laws.ZLaws.Law2ZIO, zio.test.laws.ZLawsF.Contravariant.Law3ZIO, zio.test.laws.ZLaws2.Law1Right, zio.test.TestConfig, zio.test.SpecLayerMacros, zio.test.TestExecutor, zio.test.TestConsole, zio.test.Live, zio.test.TestClock.Test, zio.test.laws.ZLawsF.Invariant.Law1ZIO, zio.test.laws.ZLaws.Law3, zio.test.laws.ZLawsF.Contravariant.Law3, zio.test.laws.ZLawsF.Invariant.Law3ZIO, zio.test.laws.ZLawsF.Contravariant.Law2ZIO, zio.test.internal.SmartAssertions, zio.test.TestResult, zio.test.Annotations, zio.test.laws.ZLaws.Law2, zio.test.laws.ZLawsF.Covariant.Law3ZIO, zio.test.laws.ZLawsF.Invariant.Law3, zio.test.TestRandom, zio.test.laws.ZLawsF.Covariant.Law1, zio.test.laws.ZLawsF2.Divariant.ComposeLaw, zio.test.laws.ZLawsF.Contravariant.Law2, zio.test.package, zio.test.laws.ZLaws2.Law1Left, zio.test.laws.ZLawsF.Covariant.Law1ZIO, zio.test.ZIOSpec, zio.test.TestConstructorLowPriority1, zio.test.TestSystem, zio.test.CompileVariants, zio.test.laws.ZLaws.Law1ZIO, zio.test.TestConstructorLowPriority2, zio.test.laws.ZLawsF.Contravariant.ComposeLaw)
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.ProvideSomePartiallyApplied...
+[debug] Initial set of included nodes: zio.test.ProvideSomePartiallyApplied
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.ProvideSomePartiallyApplied)
+[debug] Change APIChangeDueToMacroDefinition(zio.test.ProvideSomePartiallyApplied) invalidates 1 classes due to The zio.test.ProvideSomePartiallyApplied source file declares a macro.
+[debug]   > by transitive inheritance: Set(zio.test.ProvideSomePartiallyApplied)
+[debug]   > 
+[debug]   > 
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.SuiteConstructor...
+[debug] Initial set of included nodes: zio.test.SuiteConstructor
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.SuiteConstructor)
+[debug] Invalidate by local inheritance: zio.test.SuiteConstructor -> Set(zio.test.SuiteConstructorLowPriority2, zio.test.SuiteConstructorLowPriority1, zio.test.SuiteConstructorLowPriority4, zio.test.SuiteConstructorLowPriority3)
+[debug] Change TraitPrivateMembersModified(zio.test.SuiteConstructor) invalidates 5 classes due to The private signature of trait zio.test.SuiteConstructor changed.
+[debug]   > by transitive inheritance: Set(zio.test.SuiteConstructor)
+[debug]   > by local inheritance: Set(zio.test.SuiteConstructorLowPriority2, zio.test.SuiteConstructorLowPriority1, zio.test.SuiteConstructorLowPriority4, zio.test.SuiteConstructorLowPriority3)
+[debug]   > 
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.TestConstructorLowPriority1...
+[debug] Initial set of included nodes: zio.test.TestConstructorLowPriority1
+[debug] Including zio.test.TestConstructor by zio.test.TestConstructorLowPriority1
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.TestConstructor, zio.test.TestConstructorLowPriority1)
+[debug] Invalidate by local inheritance: zio.test.TestConstructor -> Set(zio.test.TestConstructorLowPriority3, zio.test.TestConstructorLowPriority2, zio.test.TestConstructorLowPriority1)
+[debug] Change TraitPrivateMembersModified(zio.test.TestConstructorLowPriority1) invalidates 4 classes due to The private signature of trait zio.test.TestConstructorLowPriority1 changed.
+[debug]   > by transitive inheritance: Set(zio.test.TestConstructor, zio.test.TestConstructorLowPriority1)
+[debug]   > by local inheritance: Set(zio.test.TestConstructorLowPriority3, zio.test.TestConstructorLowPriority2, zio.test.TestConstructorLowPriority1)
+[debug]   > 
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.ZIOSpecVersionSpecific...
+[debug] Initial set of included nodes: zio.test.ZIOSpecVersionSpecific
+[debug] Including zio.test.ZIOSpec by zio.test.ZIOSpecVersionSpecific
+[debug] Including zio.test.ZIOSpecDefault by zio.test.ZIOSpec
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.ZIOSpecVersionSpecific, zio.test.ZIOSpec, zio.test.ZIOSpecDefault)
+[debug] The following member ref dependencies of zio.test.ZIOSpecVersionSpecific are invalidated:
+[debug] 	zio.test.ZIOSpec
+[debug] The following member ref dependencies of zio.test.ZIOSpec are invalidated:
+[debug] 	zio.test.ZIOSpecDefault
+[debug] Change APIChangeDueToMacroDefinition(zio.test.ZIOSpecVersionSpecific) invalidates 3 classes due to The zio.test.ZIOSpecVersionSpecific source file declares a macro.
+[debug]   > by transitive inheritance: Set(zio.test.ZIOSpecVersionSpecific, zio.test.ZIOSpec, zio.test.ZIOSpecDefault)
+[debug]   > 
+[debug]   > by member reference: Set(zio.test.ZIOSpec, zio.test.ZIOSpecDefault)
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.SuiteConstructorLowPriority2...
+[debug] Initial set of included nodes: zio.test.SuiteConstructorLowPriority2
+[debug] Including zio.test.SuiteConstructorLowPriority1 by zio.test.SuiteConstructorLowPriority2
+[debug] Including zio.test.SuiteConstructor by zio.test.SuiteConstructorLowPriority1
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.SuiteConstructor, zio.test.SuiteConstructorLowPriority2, zio.test.SuiteConstructorLowPriority1)
+[debug] Invalidate by local inheritance: zio.test.SuiteConstructor -> Set(zio.test.SuiteConstructorLowPriority2, zio.test.SuiteConstructorLowPriority1, zio.test.SuiteConstructorLowPriority4, zio.test.SuiteConstructorLowPriority3)
+[debug] Change TraitPrivateMembersModified(zio.test.SuiteConstructorLowPriority2) invalidates 5 classes due to The private signature of trait zio.test.SuiteConstructorLowPriority2 changed.
+[debug]   > by transitive inheritance: Set(zio.test.SuiteConstructor, zio.test.SuiteConstructorLowPriority2, zio.test.SuiteConstructorLowPriority1)
+[debug]   > by local inheritance: Set(zio.test.SuiteConstructorLowPriority2, zio.test.SuiteConstructorLowPriority1, zio.test.SuiteConstructorLowPriority4, zio.test.SuiteConstructorLowPriority3)
+[debug]   > 
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.TestConstructor...
+[debug] Initial set of included nodes: zio.test.TestConstructor
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.TestConstructor)
+[debug] Invalidate by local inheritance: zio.test.TestConstructor -> Set(zio.test.TestConstructorLowPriority3, zio.test.TestConstructorLowPriority2, zio.test.TestConstructorLowPriority1)
+[debug] Change TraitPrivateMembersModified(zio.test.TestConstructor) invalidates 4 classes due to The private signature of trait zio.test.TestConstructor changed.
+[debug]   > by transitive inheritance: Set(zio.test.TestConstructor)
+[debug]   > by local inheritance: Set(zio.test.TestConstructorLowPriority3, zio.test.TestConstructorLowPriority2, zio.test.TestConstructorLowPriority1)
+[debug]   > 
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.ProvideSomeSharedPartiallyApplied...
+[debug] Initial set of included nodes: zio.test.ProvideSomeSharedPartiallyApplied
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.ProvideSomeSharedPartiallyApplied)
+[debug] Change APIChangeDueToMacroDefinition(zio.test.ProvideSomeSharedPartiallyApplied) invalidates 1 classes due to The zio.test.ProvideSomeSharedPartiallyApplied source file declares a macro.
+[debug]   > by transitive inheritance: Set(zio.test.ProvideSomeSharedPartiallyApplied)
+[debug]   > 
+[debug]   > 
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.SuiteConstructorLowPriority1...
+[debug] Initial set of included nodes: zio.test.SuiteConstructorLowPriority1
+[debug] Including zio.test.SuiteConstructor by zio.test.SuiteConstructorLowPriority1
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.SuiteConstructor, zio.test.SuiteConstructorLowPriority1)
+[debug] Invalidate by local inheritance: zio.test.SuiteConstructor -> Set(zio.test.SuiteConstructorLowPriority2, zio.test.SuiteConstructorLowPriority1, zio.test.SuiteConstructorLowPriority4, zio.test.SuiteConstructorLowPriority3)
+[debug] Change TraitPrivateMembersModified(zio.test.SuiteConstructorLowPriority1) invalidates 5 classes due to The private signature of trait zio.test.SuiteConstructorLowPriority1 changed.
+[debug]   > by transitive inheritance: Set(zio.test.SuiteConstructor, zio.test.SuiteConstructorLowPriority1)
+[debug]   > by local inheritance: Set(zio.test.SuiteConstructorLowPriority2, zio.test.SuiteConstructorLowPriority1, zio.test.SuiteConstructorLowPriority4, zio.test.SuiteConstructorLowPriority3)
+[debug]   > 
+[debug]   > 
+[debug]         
+[debug] Invalidating (transitively) by inheritance from zio.test.SpecVersionSpecific...
+[debug] Initial set of included nodes: zio.test.SpecVersionSpecific
+[debug] Including zio.test.Spec by zio.test.SpecVersionSpecific
+[debug] Invalidated by transitive inheritance dependency: Set(zio.test.Spec, zio.test.SpecVersionSpecific)
+[debug] The following member ref dependencies of zio.test.Spec are invalidated:
+[debug] 	zio.test.FilteredSpec
+[debug] 	zio.test.ProvideSomePartiallyApplied
+[debug] 	zio.test.ProvideSomeSharedPartiallyApplied
+[debug] 	zio.test.SmartSpecMacros
+[debug] 	zio.test.SpecLayerMacros
+[debug] 	zio.test.SpecVersionSpecific
+[debug] 	zio.test.SuiteConstructor
+[debug] 	zio.test.SuiteConstructorLowPriority1
+[debug] 	zio.test.SuiteConstructorLowPriority2
+[debug] 	zio.test.SuiteConstructorLowPriority3
+[debug] 	zio.test.SuiteConstructorLowPriority4
+[debug] 	zio.test.TestAspect
+[debug] 	zio.test.TestAspect.PerTest
+[debug] 	zio.test.TestConstructor
+[debug] 	zio.test.TestConstructorLowPriority1
+[debug] 	zio.test.TestConstructorLowPriority2
+[debug] 	zio.test.TestConstructorLowPriority3
+[debug] 	zio.test.TestExecutor
+[debug] 	zio.test.TestRunner
+[debug] 	zio.test.TestRunner.UnsafeAPI
+[debug] 	zio.test.TimeoutVariants
+[debug] 	zio.test.ZIOSpec
+[debug] 	zio.test.ZIOSpecAbstract
+[debug] 	zio.test.ZIOSpecAbstractVersionSpecific
+[debug] 	zio.test.ZIOSpecDefault
+[debug] 	zio.test.ZIOSpecVersionSpecific
+[debug] 	zio.test.package
+[debug] The following member ref dependencies of zio.test.SpecVersionSpecific are invalidated:
+[debug] 	zio.test.Spec
+[debug] Change APIChangeDueToMacroDefinition(zio.test.SpecVersionSpecific) invalidates 28 classes due to The zio.test.SpecVersionSpecific source file declares a macro.
+[debug]   > by transitive inheritance: Set(zio.test.Spec, zio.test.SpecVersionSpecific)
+[debug]   > 
+[debug]   > by member reference: Set(zio.test.TestConstructorLowPriority3, zio.test.SuiteConstructorLowPriority1, zio.test.ZIOSpecDefault, zio.test.TestConstructor, zio.test.ProvideSomeSharedPartiallyApplied, zio.test.TestRunner.UnsafeAPI, zio.test.Spec, zio.test.TestAspect, zio.test.SuiteConstructorLowPriority2, zio.test.SpecVersionSpecific, zio.test.SuiteConstructor, zio.test.ZIOSpecAbstract, zio.test.ZIOSpecVersionSpecific, zio.test.TestAspect.PerTest, zio.test.TimeoutVariants, zio.test.FilteredSpec, zio.test.ProvideSomePartiallyApplied, zio.test.SpecLayerMacros, zio.test.TestExecutor, zio.test.SuiteConstructorLowPriority3, zio.test.ZIOSpecAbstractVersionSpecific, zio.test.package, zio.test.ZIOSpec, zio.test.TestConstructorLowPriority1, zio.test.SuiteConstructorLowPriority4, zio.test.TestRunner, zio.test.SmartSpecMacros, zio.test.TestConstructorLowPriority2)
+[debug]   > 
+[debug]         
+[debug] New invalidations:
+[debug] 	zio.test.TestConstructorLowPriority3
+[debug] 	zio.test.laws.ZLawsF2.Divariant.Law1
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law1
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law1ZIO
+[debug] 	zio.test.ZIOSpecDefault
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law2
+[debug] 	zio.test.Sized
+[debug] 	zio.test.TestRunner.UnsafeAPI
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law2ZIO
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law3
+[debug] 	zio.test.Spec
+[debug] 	zio.test.TestAspect
+[debug] 	zio.test.ZIOSpecAbstract
+[debug] 	zio.test.laws.ZLawsF.Covariant.FlattenLaw
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law1
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law2
+[debug] 	zio.test.TestClock
+[debug] 	zio.test.laws.ZLawsF.Covariant.ComposeLaw
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law2ZIO
+[debug] 	zio.test.laws.ZLaws.Law1
+[debug] 	zio.test.TestAspect.PerTest
+[debug] 	zio.test.TimeoutVariants
+[debug] 	zio.test.laws.ZLaws.Law3ZIO
+[debug] 	zio.test.laws.ZLaws.Law2ZIO
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law3ZIO
+[debug] 	zio.test.laws.ZLaws2.Law1Right
+[debug] 	zio.test.FilteredSpec
+[debug] 	zio.test.TestConfig
+[debug] 	zio.test.SpecLayerMacros
+[debug] 	zio.test.TestExecutor
+[debug] 	zio.test.TestConsole
+[debug] 	zio.test.Live
+[debug] 	zio.test.SuiteConstructorLowPriority3
+[debug] 	zio.test.TestClock.Test
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law1ZIO
+[debug] 	zio.test.laws.ZLaws.Law3
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law3
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law3ZIO
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law2ZIO
+[debug] 	zio.test.internal.SmartAssertions
+[debug] 	zio.test.TestResult
+[debug] 	zio.test.Annotations
+[debug] 	zio.test.laws.ZLaws.Law2
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law3ZIO
+[debug] 	zio.test.laws.ZLawsF.Invariant.Law3
+[debug] 	zio.test.TestRandom
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law1
+[debug] 	zio.test.laws.ZLawsF2.Divariant.ComposeLaw
+[debug] 	zio.test.laws.ZLawsF.Contravariant.Law2
+[debug] 	zio.test.package
+[debug] 	zio.test.laws.ZLaws2.Law1Left
+[debug] 	zio.test.laws.ZLawsF.Covariant.Law1ZIO
+[debug] 	zio.test.ZIOSpec
+[debug] 	zio.test.SuiteConstructorLowPriority4
+[debug] 	zio.test.TestRunner
+[debug] 	zio.test.TestSystem
+[debug] 	zio.test.SmartSpecMacros
+[debug] 	zio.test.laws.ZLaws.Law1ZIO
+[debug] 	zio.test.TestConstructorLowPriority2
+[debug] 	zio.test.laws.ZLawsF.Contravariant.ComposeLaw
+[debug] Initial set of included nodes: zio.test.TestConstructorLowPriority3, zio.test.laws.ZLawsF2.Divariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1ZIO, zio.test.ZIOSpecDefault, zio.test.laws.ZLawsF.Invariant.Law2, zio.test.Sized, zio.test.TestRunner.UnsafeAPI, zio.test.laws.ZLawsF.Invariant.Law2ZIO, zio.test.laws.ZLawsF.Covariant.Law3, zio.test.Spec, zio.test.TestAspect, zio.test.ZIOSpecAbstract, zio.test.laws.ZLawsF.Covariant.FlattenLaw, zio.test.laws.ZLawsF.Invariant.Law1, zio.test.laws.ZLawsF.Covariant.Law2, zio.test.TestClock, zio.test.laws.ZLawsF.Covariant.ComposeLaw, zio.test.laws.ZLawsF.Covariant.Law2ZIO, zio.test.laws.ZLaws.Law1, zio.test.TestAspect.PerTest, zio.test.TimeoutVariants, zio.test.laws.ZLaws.Law3ZIO, zio.test.laws.ZLaws.Law2ZIO, zio.test.laws.ZLawsF.Contravariant.Law3ZIO, zio.test.laws.ZLaws2.Law1Right, zio.test.FilteredSpec, zio.test.TestConfig, zio.test.SpecLayerMacros, zio.test.TestExecutor, zio.test.TestConsole, zio.test.Live, zio.test.SuiteConstructorLowPriority3, zio.test.TestClock.Test, zio.test.laws.ZLawsF.Invariant.Law1ZIO, zio.test.laws.ZLaws.Law3, zio.test.laws.ZLawsF.Contravariant.Law3, zio.test.laws.ZLawsF.Invariant.Law3ZIO, zio.test.laws.ZLawsF.Contravariant.Law2ZIO, zio.test.internal.SmartAssertions, zio.test.TestResult, zio.test.Annotations, zio.test.laws.ZLaws.Law2, zio.test.laws.ZLawsF.Covariant.Law3ZIO, zio.test.laws.ZLawsF.Invariant.Law3, zio.test.TestRandom, zio.test.laws.ZLawsF.Covariant.Law1, zio.test.laws.ZLawsF2.Divariant.ComposeLaw, zio.test.laws.ZLawsF.Contravariant.Law2, zio.test.package, zio.test.laws.ZLaws2.Law1Left, zio.test.laws.ZLawsF.Covariant.Law1ZIO, zio.test.ZIOSpec, zio.test.SuiteConstructorLowPriority4, zio.test.TestRunner, zio.test.TestSystem, zio.test.SmartSpecMacros, zio.test.laws.ZLaws.Law1ZIO, zio.test.TestConstructorLowPriority2, zio.test.laws.ZLawsF.Contravariant.ComposeLaw
+[debug] Including zio.test.laws.LawsF2.Divariant by zio.test.laws.ZLawsF2.Divariant.Law1
+[debug] Including zio.test.laws.LawsF.Contravariant by zio.test.laws.ZLawsF.Contravariant.Law1
+[debug] Including zio.test.laws.LawsF.Invariant by zio.test.laws.ZLawsF.Invariant.Law2
+[debug] Including zio.test.TestServices by zio.test.Sized
+[debug] Including zio.test.package by zio.test.TestServices
+[debug] Including zio.test.TestConstructor by zio.test.package
+[debug] Including zio.test.ZIOSpec by zio.test.TestConstructor
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law2ZIO by zio.test.package
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law3 by zio.test.package
+[debug] Including zio.test.laws.LawsF.Covariant by zio.test.laws.ZLawsF.Covariant.Law3
+[debug] Including zio.test.Spec by zio.test.package
+[debug] Including zio.test.SuiteConstructorLowPriority1 by zio.test.Spec
+[debug] Including zio.test.ProvideSomeSharedPartiallyApplied by zio.test.Spec
+[debug] Including zio.test.TestRunner.UnsafeAPI by zio.test.Spec
+[debug] Including zio.test.TestAspect by zio.test.Spec
+[debug] Including zio.test.ZIOSpecAbstract by zio.test.TestAspect
+[debug] Including zio.test.TimeoutVariants by zio.test.TestAspect
+[debug] Including zio.test.TestConfig by zio.test.TestAspect
+[debug] Including zio.test.SpecVersionSpecific by zio.test.TestConfig
+[debug] Including zio.test.SpecLayerMacros by zio.test.TestConfig
+[debug] Including zio.test.ZIOSpecAbstractVersionSpecific by zio.test.SpecLayerMacros
+[debug] Including zio.test.TestExecutor by zio.test.TestConfig
+[debug] Including zio.test.TestRunner by zio.test.TestExecutor
+[debug] Including zio.test.TestEnvironment by zio.test.TestConfig
+[debug] Including zio.test.TestConfig.TestV2 by zio.test.TestAspect
+[debug] Including zio.test.SuiteConstructorLowPriority2 by zio.test.Spec
+[debug] Including zio.test.SuiteConstructor by zio.test.Spec
+[debug] Including zio.test.ZIOSpecVersionSpecific by zio.test.Spec
+[debug] Including zio.test.TestAspect.PerTest by zio.test.Spec
+[debug] Including zio.test.FilteredSpec by zio.test.Spec
+[debug] Including zio.test.ProvideSomePartiallyApplied by zio.test.Spec
+[debug] Including zio.test.SuiteConstructorLowPriority3 by zio.test.Spec
+[debug] Including zio.test.TestConstructorLowPriority1 by zio.test.Spec
+[debug] Including zio.test.SuiteConstructorLowPriority4 by zio.test.Spec
+[debug] Including zio.test.SmartSpecMacros by zio.test.Spec
+[debug] Including zio.test.TestConstructorLowPriority2 by zio.test.Spec
+[debug] Including zio.test.laws.ZLawsF.Covariant.FlattenLaw by zio.test.package
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law1 by zio.test.package
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law2 by zio.test.package
+[debug] Including zio.test.TestClock by zio.test.package
+[debug] Including zio.test.TestClockPlatformSpecific by zio.test.TestClock
+[debug] Including zio.test.TestClock.Test by zio.test.TestClockPlatformSpecific
+[debug] Including zio.test.laws.ZLawsF.Covariant.ComposeLaw by zio.test.package
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law2ZIO by zio.test.package
+[debug] Including zio.test.laws.ZLaws.Law1 by zio.test.package
+[debug] Including zio.test.laws.Laws by zio.test.laws.ZLaws.Law1
+[debug] Including zio.test.laws.ZLaws.Law3ZIO by zio.test.package
+[debug] Including zio.test.laws.ZLaws.Law2ZIO by zio.test.package
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law3ZIO by zio.test.package
+[debug] Including zio.test.laws.ZLaws2.Law1Right by zio.test.package
+[debug] Including zio.test.laws.Laws2 by zio.test.laws.ZLaws2.Law1Right
+[debug] Including zio.test.TestConsole by zio.test.package
+[debug] Including zio.test.Live by zio.test.package
+[debug] Including zio.test.TestConsole.Test by zio.test.Live
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law1ZIO by zio.test.package
+[debug] Including zio.test.laws.ZLaws.Law3 by zio.test.package
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law3 by zio.test.package
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law3ZIO by zio.test.package
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law2ZIO by zio.test.package
+[debug] Including zio.test.internal.SmartAssertions by zio.test.package
+[debug] Including zio.test.Assertion by zio.test.internal.SmartAssertions
+[debug] Including zio.test.TestArrow by zio.test.Assertion
+[debug] Including zio.test.FailureCase by zio.test.TestArrow
+[debug] Including zio.test.render.TestRenderer by zio.test.FailureCase
+[debug] Including zio.test.TestArgs by zio.test.render.TestRenderer
+[debug] Including zio.test.ExecutionEventSink by zio.test.TestArgs
+[debug] Including zio.test.results.ResultPrinter by zio.test.TestArgs
+[debug] Including zio.test.results.ResultPrinterJson by zio.test.results.ResultPrinter
+[debug] Including zio.test.results.ResultPrinterJson.LiveImpl by zio.test.results.ResultPrinter
+[debug] Including zio.test.ExecutionEventPrinter.Live by zio.test.results.ResultPrinter
+[debug] Including zio.test.ExecutionEventPrinter by zio.test.results.ResultPrinter
+[debug] Including zio.test.TestOutput.TestOutputLive by zio.test.ExecutionEventPrinter
+[debug] Including zio.test.TestOutput by zio.test.ExecutionEventPrinter
+[debug] Including zio.test.ReporterEventRenderer.ConsoleEventRenderer by zio.test.render.TestRenderer
+[debug] Including zio.test.render.ConsoleRenderer by zio.test.render.TestRenderer
+[debug] Including zio.test.ReporterEventRenderer by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.ExecutionEventConsolePrinter by zio.test.ReporterEventRenderer
+[debug] Including zio.test.ExecutionEventConsolePrinter.Live by zio.test.ReporterEventRenderer
+[debug] Including zio.test.render.IntelliJRenderer by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.ReporterEventRenderer.IntelliJEventRenderer by zio.test.render.IntelliJRenderer
+[debug] Including zio.test.SummaryBuilder by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.Summary by zio.test.SummaryBuilder
+[debug] Including zio.test.AssertionVariants by zio.test.TestArrow
+[debug] Including zio.test.TestTrace.Node by zio.test.TestArrow
+[debug] Including zio.test.TestTrace by zio.test.TestArrow
+[debug] Including zio.test.TestArrow.TestArrowF by zio.test.TestTrace
+[debug] Including zio.test.TestResult by zio.test.TestTrace
+[debug] Including zio.test.ZTest by zio.test.TestResult
+[debug] Including zio.test.CheckConstructorLowPriority2 by zio.test.TestResult
+[debug] Including zio.test.laws.ZLaws2 by zio.test.TestResult
+[debug] Including zio.test.laws.ZLawful2 by zio.test.laws.ZLaws2
+[debug] Including zio.test.laws.package by zio.test.laws.ZLawful2
+[debug] Including zio.test.laws.ZLawsF.Invariant.Both by zio.test.TestResult
+[debug] Including zio.test.laws.ZLawsF.Covariant by zio.test.TestResult
+[debug] Including zio.test.laws.LawsF by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawfulF.Covariant by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.LawfulF by zio.test.laws.ZLawfulF.Covariant
+[debug] Including zio.test.CheckVariants.CheckN by zio.test.TestResult
+[debug] Including zio.test.laws.ZLawsF.Contravariant by zio.test.TestResult
+[debug] Including zio.test.laws.ZLawfulF.Contravariant by zio.test.laws.ZLawsF.Contravariant
+[debug] Including zio.test.laws.ZLawsF.Invariant by zio.test.TestResult
+[debug] Including zio.test.laws.ZLawfulF.Invariant by zio.test.laws.ZLawsF.Invariant
+[debug] Including zio.test.TestResultZIOOps by zio.test.TestResult
+[debug] Including zio.test.CheckConstructorLowPriority3 by zio.test.TestResult
+[debug] Including zio.test.laws.ZLaws.Both by zio.test.TestResult
+[debug] Including zio.test.laws.ZLaws2.Both by zio.test.TestResult
+[debug] Including zio.test.laws.ZLawsF2.Divariant by zio.test.TestResult
+[debug] Including zio.test.laws.LawsF2 by zio.test.laws.ZLawsF2.Divariant
+[debug] Including zio.test.laws.ZLawfulF2.Divariant by zio.test.laws.ZLawsF2.Divariant
+[debug] Including zio.test.laws.LawfulF2 by zio.test.laws.ZLawfulF2.Divariant
+[debug] Including zio.test.laws.ZLawsF2.Divariant.Both by zio.test.TestResult
+[debug] Including zio.test.TestFailure.Assertion by zio.test.TestResult
+[debug] Including zio.test.laws.ZLaws by zio.test.TestResult
+[debug] Including zio.test.laws.ZLawful by zio.test.laws.ZLaws
+[debug] Including zio.test.CheckConstructor by zio.test.TestResult
+[debug] Including zio.test.laws.ZLaws.Law2 by zio.test.CheckConstructor
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law3ZIO by zio.test.CheckConstructor
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law3 by zio.test.CheckConstructor
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law1 by zio.test.CheckConstructor
+[debug] Including zio.test.laws.ZLawsF2.Divariant.ComposeLaw by zio.test.CheckConstructor
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law2 by zio.test.CheckConstructor
+[debug] Including zio.test.laws.ZLaws2.Law1Left by zio.test.CheckConstructor
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law1ZIO by zio.test.CheckConstructor
+[debug] Including zio.test.laws.ZLaws.Law1ZIO by zio.test.CheckConstructor
+[debug] Including zio.test.laws.ZLawsF.Contravariant.ComposeLaw by zio.test.CheckConstructor
+[debug] Including zio.test.laws.ZLawsF by zio.test.TestResult
+[debug] Including zio.test.CheckConstructorLowPriority1 by zio.test.TestResult
+[debug] Including zio.test.TestFailure by zio.test.TestResult
+[debug] Including zio.test.ExecutionEvent.Test by zio.test.TestFailure
+[debug] Including zio.test.results.ResultSerializer by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.TestDebug by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.results.ResultSerializer.Json by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.Spec.SpecCase by zio.test.TestFailure
+[debug] Including zio.test.Annotations.Test by zio.test.TestFailure
+[debug] Including zio.test.Spec.ScopedPartiallyApplied by zio.test.TestFailure
+[debug] Including zio.test.ExecutionEvent.RuntimeFailure by zio.test.TestFailure
+[debug] Including zio.test.Annotations by zio.test.TestFailure
+[debug] Including zio.test.Spec.ProvideSomeLayerShared by zio.test.TestFailure
+[debug] Including zio.test.Spec.TestCase by zio.test.TestFailure
+[debug] Including zio.test.Spec.ScopedCase by zio.test.TestFailure
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Both by zio.test.TestResult
+[debug] Including zio.test.laws.ZLawsF.Covariant.Both by zio.test.TestResult
+[debug] Including zio.test.CompileVariants by zio.test.TestResult
+[debug] Including zio.test.laws.ZLawsF2 by zio.test.TestResult
+[debug] Including zio.test.Result by zio.test.TestArrow
+[debug] Including zio.test.TestTrace.And by zio.test.Result
+[debug] Including zio.test.TestTrace.Not by zio.test.Result
+[debug] Including zio.test.TestTrace.Or by zio.test.Result
+[debug] Including zio.test.TestTrace.AndThen by zio.test.Result
+[debug] Including zio.test.TestArrow.Meta by zio.test.Assertion
+[debug] Including zio.test.TestRandom by zio.test.package
+[debug] Including zio.test.TestSystem by zio.test.package
+[debug] Including zio.test.Gen by zio.test.Sized
+[debug] Including zio.test.poly.GenIntegralPoly by zio.test.Gen
+[debug] Including zio.test.poly.GenPoly by zio.test.poly.GenIntegralPoly
+[debug] Including zio.test.poly.GenFractionalPoly by zio.test.poly.GenPoly
+[debug] Including zio.test.poly.GenNumericPoly by zio.test.poly.GenFractionalPoly
+[debug] Including zio.test.poly.GenOrderingPoly by zio.test.poly.GenNumericPoly
+[debug] Including zio.test.laws.GenF by zio.test.Gen
+[debug] Including zio.test.laws.GenF2 by zio.test.Gen
+[debug] Including zio.test.FunctionVariants by zio.test.Gen
+[debug] Including zio.test.GenZIO by zio.test.Gen
+[debug] Including zio.test.TimeVariants by zio.test.Gen
+[debug] Including zio.test.Sized.Test by zio.test.Gen
+[debug] Previously invalidated, but (transitively) depend on new invalidations:
+[debug] 	zio.test.SuiteConstructorLowPriority1
+[debug] 	zio.test.TestConstructor
+[debug] 	zio.test.ProvideSomeSharedPartiallyApplied
+[debug] 	zio.test.SuiteConstructorLowPriority2
+[debug] 	zio.test.SpecVersionSpecific
+[debug] 	zio.test.SuiteConstructor
+[debug] 	zio.test.ZIOSpecVersionSpecific
+[debug] 	zio.test.ProvideSomePartiallyApplied
+[debug] 	zio.test.ZIOSpecAbstractVersionSpecific
+[debug] 	zio.test.TestConstructorLowPriority1
+[debug] 	zio.test.CompileVariants
+[debug] Final step, transitive dependencies:
+[debug] 	Set(zio.test.TestConstructorLowPriority3, zio.test.SuiteConstructorLowPriority1, zio.test.laws.ZLawsF2.Divariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1ZIO, zio.test.ZIOSpecDefault, zio.test.TestConstructor, zio.test.laws.ZLawsF.Invariant.Law2, zio.test.ProvideSomeSharedPartiallyApplied, zio.test.Sized, zio.test.TestRunner.UnsafeAPI, zio.test.laws.ZLawsF.Invariant.Law2ZIO, zio.test.laws.ZLawsF.Covariant.Law3, zio.test.Spec, zio.test.TestAspect, zio.test.SuiteConstructorLowPriority2, zio.test.SpecVersionSpecific, zio.test.SuiteConstructor, zio.test.ZIOSpecAbstract, zio.test.laws.ZLawsF.Covariant.FlattenLaw, zio.test.laws.ZLawsF.Invariant.Law1, zio.test.ZIOSpecVersionSpecific, zio.test.laws.ZLawsF.Covariant.Law2, zio.test.TestClock, zio.test.laws.ZLawsF.Covariant.ComposeLaw, zio.test.laws.ZLawsF.Covariant.Law2ZIO, zio.test.laws.ZLaws.Law1, zio.test.TestAspect.PerTest, zio.test.TimeoutVariants, zio.test.laws.ZLaws.Law3ZIO, zio.test.laws.ZLaws.Law2ZIO, zio.test.laws.ZLawsF.Contravariant.Law3ZIO, zio.test.laws.ZLaws2.Law1Right, zio.test.FilteredSpec, zio.test.ProvideSomePartiallyApplied, zio.test.TestConfig, zio.test.SpecLayerMacros, zio.test.TestExecutor, zio.test.TestConsole, zio.test.Live, zio.test.SuiteConstructorLowPriority3, zio.test.TestClock.Test, zio.test.laws.ZLawsF.Invariant.Law1ZIO, zio.test.laws.ZLaws.Law3, zio.test.laws.ZLawsF.Contravariant.Law3, zio.test.laws.ZLawsF.Invariant.Law3ZIO, zio.test.laws.ZLawsF.Contravariant.Law2ZIO, zio.test.internal.SmartAssertions, zio.test.TestResult, zio.test.ZIOSpecAbstractVersionSpecific, zio.test.Annotations, zio.test.laws.ZLaws.Law2, zio.test.laws.ZLawsF.Covariant.Law3ZIO, zio.test.laws.ZLawsF.Invariant.Law3, zio.test.TestRandom, zio.test.laws.ZLawsF.Covariant.Law1, zio.test.laws.ZLawsF2.Divariant.ComposeLaw, zio.test.laws.ZLawsF.Contravariant.Law2, zio.test.package, zio.test.laws.ZLaws2.Law1Left, zio.test.laws.ZLawsF.Covariant.Law1ZIO, zio.test.ZIOSpec, zio.test.TestConstructorLowPriority1, zio.test.SuiteConstructorLowPriority4, zio.test.TestRunner, zio.test.TestSystem, zio.test.CompileVariants, zio.test.SmartSpecMacros, zio.test.laws.ZLaws.Law1ZIO, zio.test.TestConstructorLowPriority2, zio.test.laws.ZLawsF.Contravariant.ComposeLaw)
+[debug] Initial set of included nodes: zio.test.TestConstructorLowPriority3, zio.test.ZTest, zio.test.SuiteConstructorLowPriority1, zio.test.laws.ZLawsF2.Divariant.Law1, zio.test.laws.ZLawsF.Contravariant.Law1, zio.test.TestLensAnyOps, zio.test.TestConsole.Test, zio.test.laws.ZLawsF.Contravariant.Law1ZIO, zio.test.ZIOSpecDefault, zio.test.TestConstructor, zio.test.TestLensExitOps, zio.test.laws.ZLawsF.Invariant.Law2, zio.test.ProvideSomeSharedPartiallyApplied, zio.test.laws.ZLaws2, zio.test.TestSystem.Test, zio.test.TestRandom.Data, zio.test.Spec.SpecCase, zio.test.laws.ZLawsF.Invariant.Both, zio.test.Spec.MultipleCase, zio.test.laws.ZLawsF.Covariant, zio.test.internal.SmartAssertions.Implicits.Converter, zio.test.Annotations.Test, zio.test.CheckVariants.CheckN, zio.test.internal.SmartAssertions.Implicits, zio.test.Sized, zio.test.TestRunner.UnsafeAPI, zio.test.TestClock.WarningData.Start, zio.test.laws.ZLawsF.Invariant.Law2ZIO, zio.test.CheckVariants, zio.test.laws.ZLawsF.Covariant.Law3, zio.test.TestArrow.Suspend, zio.test.Spec, zio.test.SmartAssertionOps, zio.test.Annotations.UnsafeAPI, zio.test.TestAspect, zio.test.Spec.ProvideSomeLayer, zio.test.SmartSpecMacros.TestOrStatement, zio.test.TestArrow, zio.test.laws.ZLawsF.Contravariant, zio.test.laws.ZLawsF.Invariant, zio.test.SuiteConstructorLowPriority2, zio.test.SpecVersionSpecific, zio.test.SuiteConstructor, zio.test.ZIOSpecAbstract, zio.test.TestResultZIOOps, zio.test.TestClock.SuspendedWarningData, zio.test.laws.ZLawsF.Covariant.FlattenLaw, zio.test.TestRandom.Buffer, zio.test.TestClock.Data, zio.test.SmartSpecMacros.TestOrStatement.Statement, zio.test.laws.ZLawsF.Invariant.Law1, zio.test.TestArrow.AndThen, zio.test.SmartSpecMacros.TestOrStatement.Test, zio.test.laws.ZLaws.Both, zio.test.laws.ZLaws2.Both, zio.test.TestConfig.Test, zio.test.TestClock.WarningData.Pending, zio.test.ZIOSpecVersionSpecific, zio.test.laws.ZLawsF.Covariant.Law2, zio.test.TestArrow.Or, zio.test.TestClock, zio.test.laws.ZLawsF.Covariant.ComposeLaw, zio.test.laws.ZLawsF.Covariant.Law2ZIO, zio.test.laws.ZLaws.Law1, zio.test.laws.ZLawsF2.Divariant, zio.test.TestArrow.Meta, zio.test.TestAspect.PerTest, zio.test.Live.Test, zio.test.Spec.ScopedPartiallyApplied, zio.test.TimeoutVariants, zio.test.TestArrow.And, zio.test.laws.ZLaws.Law3ZIO, zio.test.laws.ZLaws.Law2ZIO, zio.test.laws.ZLawsF2.Divariant.Both, zio.test.laws.ZLawsF.Contravariant.Law3ZIO, zio.test.laws.ZLaws2.Law1Right, zio.test.Spec.ExecCase, zio.test.FilteredSpec, zio.test.ProvideSomePartiallyApplied, zio.test.Sized.Test, zio.test.TestClock.SuspendedWarningData.Start, zio.test.TestConfig, zio.test.SpecLayerMacros, zio.test.TestExecutor, zio.test.TestConsole, zio.test.Live, zio.test.SuiteConstructorLowPriority3, zio.test.TestRandom.Test, zio.test.TestClock.Test, zio.test.TestArrow.TestArrowF, zio.test.laws.ZLawsF.Invariant.Law1ZIO, zio.test.TestConfig.TestV2, zio.test.laws.ZLaws.Law3, zio.test.laws.ZLawsF.Contravariant.Law3, zio.test.Spec.UpdateServiceAt, zio.test.laws.ZLawsF.Invariant.Law3ZIO, zio.test.internal.SmartAssertions.Implicits.Converter2, zio.test.laws.ZLawsF.Contravariant.Law2ZIO, zio.test.TestConsole.Data, zio.test.TestClock.WarningData, zio.test.TestResult.Exit, zio.test.internal.SmartAssertions, zio.test.laws.ZLaws, zio.test.TestResult, zio.test.ZIOSpecAbstractVersionSpecific, zio.test.Annotations, zio.test.laws.ZLaws.Law2, zio.test.TestClock.WarningData.Done, zio.test.TestLensOptionOps, zio.test.laws.ZLawsF, zio.test.Spec.ProvideSomeLayerShared, zio.test.laws.ZLawsF.Covariant.Law3ZIO, zio.test.TestClock.Sleep, zio.test.laws.ZLawsF.Invariant.Law3, zio.test.TestClock.SuspendedWarningData.Pending, zio.test.TestLensEitherOps, zio.test.TestRandom, zio.test.laws.ZLawsF.Covariant.Law1, zio.test.laws.ZLawsF2.Divariant.ComposeLaw, zio.test.laws.ZLawsF.Contravariant.Law2, zio.test.Spec.LabeledCase, zio.test.Spec.TestCase, zio.test.package, zio.test.laws.ZLaws2.Law1Left, zio.test.Spec.ScopedCase, zio.test.laws.ZLawsF.Covariant.Law1ZIO, zio.test.ZIOSpec, zio.test.TestConstructorLowPriority1, zio.test.SuiteConstructorLowPriority4, zio.test.laws.ZLawsF.Contravariant.Both, zio.test.TestLensTryOps, zio.test.laws.ZLawsF.Covariant.Both, zio.test.TestRunner, zio.test.TestSystem, zio.test.Spec.UpdateService, zio.test.CompileVariants, zio.test.SmartSpecMacros, zio.test.TestArrow.Span, zio.test.laws.ZLaws.Law1ZIO, zio.test.TestLensCauseOps, zio.test.TestEnvironment, zio.test.TestSystem.Data, zio.test.TestConstructorLowPriority2, zio.test.TestClock.SuspendedWarningData.Done, zio.test.laws.ZLawsF2, zio.test.TestArrow.Not, zio.test.laws.ZLawsF.Contravariant.ComposeLaw
+[debug] Including zio.test.TestConstructorLowPriority1 by zio.test.ZTest
+[debug] Including zio.test.TestAspect by zio.test.ZTest
+[debug] Including zio.test.TestServices by zio.test.TestAspect
+[debug] Including zio.test.package by zio.test.TestServices
+[debug] Including zio.test.laws.ZLawsF2.Divariant.Law1 by zio.test.package
+[debug] Including zio.test.laws.LawsF2.Divariant by zio.test.laws.ZLawsF2.Divariant.Law1
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law1 by zio.test.package
+[debug] Including zio.test.laws.LawsF.Contravariant by zio.test.laws.ZLawsF.Contravariant.Law1
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law1ZIO by zio.test.package
+[debug] Including zio.test.ZIOSpecDefault by zio.test.package
+[debug] Including zio.test.TestConstructor by zio.test.package
+[debug] Including zio.test.ZIOSpec by zio.test.TestConstructor
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law2 by zio.test.package
+[debug] Including zio.test.laws.LawsF.Invariant by zio.test.laws.ZLawsF.Invariant.Law2
+[debug] Including zio.test.Sized by zio.test.package
+[debug] Including zio.test.Spec by zio.test.Sized
+[debug] Including zio.test.SuiteConstructorLowPriority1 by zio.test.Spec
+[debug] Including zio.test.ProvideSomeSharedPartiallyApplied by zio.test.Spec
+[debug] Including zio.test.TestRunner.UnsafeAPI by zio.test.Spec
+[debug] Including zio.test.SuiteConstructorLowPriority2 by zio.test.Spec
+[debug] Including zio.test.SpecVersionSpecific by zio.test.Spec
+[debug] Including zio.test.SuiteConstructor by zio.test.Spec
+[debug] Including zio.test.ZIOSpecAbstract by zio.test.Spec
+[debug] Including zio.test.ZIOSpecVersionSpecific by zio.test.Spec
+[debug] Including zio.test.TestAspect.PerTest by zio.test.Spec
+[debug] Including zio.test.TimeoutVariants by zio.test.Spec
+[debug] Including zio.test.FilteredSpec by zio.test.Spec
+[debug] Including zio.test.ProvideSomePartiallyApplied by zio.test.Spec
+[debug] Including zio.test.SpecLayerMacros by zio.test.Spec
+[debug] Including zio.test.ZIOSpecAbstractVersionSpecific by zio.test.SpecLayerMacros
+[debug] Including zio.test.TestExecutor by zio.test.Spec
+[debug] Including zio.test.TestRunner by zio.test.TestExecutor
+[debug] Including zio.test.SuiteConstructorLowPriority3 by zio.test.Spec
+[debug] Including zio.test.SuiteConstructorLowPriority4 by zio.test.Spec
+[debug] Including zio.test.SmartSpecMacros by zio.test.Spec
+[debug] Including zio.test.TestConstructorLowPriority2 by zio.test.Spec
+[debug] Including zio.test.Gen by zio.test.Sized
+[debug] Including zio.test.poly.GenIntegralPoly by zio.test.Gen
+[debug] Including zio.test.poly.GenPoly by zio.test.poly.GenIntegralPoly
+[debug] Including zio.test.poly.GenFractionalPoly by zio.test.poly.GenPoly
+[debug] Including zio.test.poly.GenNumericPoly by zio.test.poly.GenFractionalPoly
+[debug] Including zio.test.poly.GenOrderingPoly by zio.test.poly.GenNumericPoly
+[debug] Including zio.test.laws.GenF by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF.Invariant.Both by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant by zio.test.laws.GenF
+[debug] Including zio.test.laws.LawsF by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawfulF.Covariant by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.LawfulF by zio.test.laws.ZLawfulF.Covariant
+[debug] Including zio.test.laws.package by zio.test.laws.ZLawfulF.Covariant
+[debug] Including zio.test.laws.LawsF.Covariant by zio.test.laws.ZLawsF.Covariant
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law2ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law3 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawfulF.Contravariant by zio.test.laws.ZLawsF.Contravariant
+[debug] Including zio.test.laws.ZLawsF.Invariant by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawfulF.Invariant by zio.test.laws.ZLawsF.Invariant
+[debug] Including zio.test.laws.ZLawsF.Covariant.FlattenLaw by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law1 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law2 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.ComposeLaw by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law2ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law3ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law1ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law3 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law3ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law2ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law3ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Invariant.Law3 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law1 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Law2 by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Law1ZIO by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.Both by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Covariant.Both by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLawsF.Contravariant.ComposeLaw by zio.test.laws.GenF
+[debug] Including zio.test.laws.ZLaws2 by zio.test.Gen
+[debug] Including zio.test.laws.ZLawful2 by zio.test.laws.ZLaws2
+[debug] Including zio.test.laws.Laws2 by zio.test.laws.ZLaws2
+[debug] Including zio.test.laws.GenF2 by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF2.Divariant by zio.test.laws.GenF2
+[debug] Including zio.test.laws.LawsF2 by zio.test.laws.ZLawsF2.Divariant
+[debug] Including zio.test.laws.ZLawfulF2.Divariant by zio.test.laws.ZLawsF2.Divariant
+[debug] Including zio.test.laws.LawfulF2 by zio.test.laws.ZLawfulF2.Divariant
+[debug] Including zio.test.laws.ZLawsF2.Divariant.ComposeLaw by zio.test.laws.GenF2
+[debug] Including zio.test.laws.ZLawsF2.Divariant.Both by zio.test.laws.GenF2
+[debug] Including zio.test.CheckVariants.CheckN by zio.test.Gen
+[debug] Including zio.test.FunctionVariants by zio.test.Gen
+[debug] Including zio.test.GenZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Both by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws2.Both by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law1 by zio.test.Gen
+[debug] Including zio.test.laws.Laws by zio.test.laws.ZLaws.Law1
+[debug] Including zio.test.laws.ZLaws.Law3ZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law2ZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws2.Law1Right by zio.test.Gen
+[debug] Including zio.test.TimeVariants by zio.test.Gen
+[debug] Including zio.test.Sized.Test by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law3 by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws by zio.test.Gen
+[debug] Including zio.test.laws.ZLawful by zio.test.laws.ZLaws
+[debug] Including zio.test.laws.ZLaws.Law2 by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws2.Law1Left by zio.test.Gen
+[debug] Including zio.test.laws.ZLaws.Law1ZIO by zio.test.Gen
+[debug] Including zio.test.laws.ZLawsF2 by zio.test.Gen
+[debug] Including zio.test.TestEnvironment by zio.test.Sized
+[debug] Including zio.test.TestClock by zio.test.package
+[debug] Including zio.test.TestClockPlatformSpecific by zio.test.TestClock
+[debug] Including zio.test.TestClock.Test by zio.test.TestClockPlatformSpecific
+[debug] Including zio.test.TestConfig by zio.test.package
+[debug] Including zio.test.TestConsole by zio.test.package
+[debug] Including zio.test.Live by zio.test.package
+[debug] Including zio.test.TestConsole.Test by zio.test.Live
+[debug] Including zio.test.internal.SmartAssertions by zio.test.package
+[debug] Including zio.test.Assertion by zio.test.internal.SmartAssertions
+[debug] Including zio.test.TestArrow by zio.test.Assertion
+[debug] Including zio.test.FailureCase by zio.test.TestArrow
+[debug] Including zio.test.render.TestRenderer by zio.test.FailureCase
+[debug] Including zio.test.TestArgs by zio.test.render.TestRenderer
+[debug] Including zio.test.ExecutionEventSink by zio.test.TestArgs
+[debug] Including zio.test.results.ResultPrinter by zio.test.TestArgs
+[debug] Including zio.test.results.ResultPrinterJson by zio.test.results.ResultPrinter
+[debug] Including zio.test.results.ResultPrinterJson.LiveImpl by zio.test.results.ResultPrinter
+[debug] Including zio.test.ExecutionEventPrinter.Live by zio.test.results.ResultPrinter
+[debug] Including zio.test.ExecutionEventPrinter by zio.test.results.ResultPrinter
+[debug] Including zio.test.TestOutput.TestOutputLive by zio.test.ExecutionEventPrinter
+[debug] Including zio.test.TestOutput by zio.test.ExecutionEventPrinter
+[debug] Including zio.test.ReporterEventRenderer.ConsoleEventRenderer by zio.test.render.TestRenderer
+[debug] Including zio.test.render.ConsoleRenderer by zio.test.render.TestRenderer
+[debug] Including zio.test.ReporterEventRenderer by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.ExecutionEventConsolePrinter by zio.test.ReporterEventRenderer
+[debug] Including zio.test.ExecutionEventConsolePrinter.Live by zio.test.ReporterEventRenderer
+[debug] Including zio.test.render.IntelliJRenderer by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.ReporterEventRenderer.IntelliJEventRenderer by zio.test.render.IntelliJRenderer
+[debug] Including zio.test.SummaryBuilder by zio.test.render.ConsoleRenderer
+[debug] Including zio.test.Summary by zio.test.SummaryBuilder
+[debug] Including zio.test.AssertionVariants by zio.test.TestArrow
+[debug] Including zio.test.TestTrace.Node by zio.test.TestArrow
+[debug] Including zio.test.TestTrace by zio.test.TestArrow
+[debug] Including zio.test.TestArrow.TestArrowF by zio.test.TestTrace
+[debug] Including zio.test.TestResult by zio.test.TestTrace
+[debug] Including zio.test.CheckConstructorLowPriority2 by zio.test.TestResult
+[debug] Including zio.test.TestResultZIOOps by zio.test.TestResult
+[debug] Including zio.test.CheckConstructorLowPriority3 by zio.test.TestResult
+[debug] Including zio.test.TestConfig.TestV2 by zio.test.TestResult
+[debug] Including zio.test.TestFailure.Assertion by zio.test.TestResult
+[debug] Including zio.test.CheckConstructor by zio.test.TestResult
+[debug] Including zio.test.CheckConstructorLowPriority1 by zio.test.TestResult
+[debug] Including zio.test.TestFailure by zio.test.TestResult
+[debug] Including zio.test.ExecutionEvent.Test by zio.test.TestFailure
+[debug] Including zio.test.results.ResultSerializer by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.TestDebug by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.results.ResultSerializer.Json by zio.test.ExecutionEvent.Test
+[debug] Including zio.test.Spec.SpecCase by zio.test.TestFailure
+[debug] Including zio.test.Annotations.Test by zio.test.TestFailure
+[debug] Including zio.test.Spec.ScopedPartiallyApplied by zio.test.TestFailure
+[debug] Including zio.test.ExecutionEvent.RuntimeFailure by zio.test.TestFailure
+[debug] Including zio.test.Annotations by zio.test.TestFailure
+[debug] Including zio.test.Spec.ProvideSomeLayerShared by zio.test.TestFailure
+[debug] Including zio.test.Spec.TestCase by zio.test.TestFailure
+[debug] Including zio.test.Spec.ScopedCase by zio.test.TestFailure
+[debug] Including zio.test.CompileVariants by zio.test.TestResult
+[debug] Including zio.test.Result by zio.test.TestArrow
+[debug] Including zio.test.TestTrace.And by zio.test.Result
+[debug] Including zio.test.TestTrace.Not by zio.test.Result
+[debug] Including zio.test.TestTrace.Or by zio.test.Result
+[debug] Including zio.test.TestTrace.AndThen by zio.test.Result
+[debug] Including zio.test.TestArrow.Meta by zio.test.Assertion
+[debug] Including zio.test.TestRandom by zio.test.package
+[debug] Including zio.test.TestSystem by zio.test.package
+[debug] Invalidated macros due to upstream dependencies change: Set()
+[debug] No classes were invalidated.

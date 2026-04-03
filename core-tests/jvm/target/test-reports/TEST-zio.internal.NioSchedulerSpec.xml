@@ -1,0 +1,124 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuite hostname="vimalinxg16" name="zio.internal.NioSchedulerSpec" tests="10" errors="0" failures="6" skipped="0" time="380.705" timestamp="2026-04-03T09:38:49">
+          <properties>
+      <property name="java.specification.version" value="17"/><property name="sun.jnu.encoding" value="UTF-8"/><property name="sun.arch.data.model" value="64"/><property name="java.vendor.url" value="https://openjdk.java.net/"/><property name="sun.boot.library.path" value="/usr/lib/jvm/java-17-openjdk/lib"/><property name="sun.java.command" value="xsbt.boot.Boot coreTestsJVM/testOnly *.NioSchedulerSpec"/><property name="jdk.debug" value="release"/><property name="java.specification.vendor" value="Oracle Corporation"/><property name="java.version.date" value="2026-01-20"/><property name="java.home" value="/usr/lib/jvm/java-17-openjdk"/><property name="file.separator" value="/"/><property name="java.vm.compressedOopsMode" value="Zero based"/><property name="line.separator" value="
+"/><property name="java.vm.specification.vendor" value="Oracle Corporation"/><property name="java.specification.name" value="Java Platform API Specification"/><property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/><property name="java.runtime.version" value="17.0.18+8"/><property name="user.name" value="vimalinx"/><property name="log4j.ignoreTCL" value="true"/><property name="file.encoding" value="UTF-8"/><property name="jnidispatch.path" value="/home/vimalinx/.cache/JNA/temp/jna346317831788718933.tmp"/><property name="jna.loaded" value="true"/><property name="java.io.tmpdir" value="/tmp"/><property name="java.version" value="17.0.18"/><property name="java.vm.specification.name" value="Java Virtual Machine Specification"/><property name="native.encoding" value="UTF-8"/><property name="java.library.path" value="/usr/java/packages/lib:/usr/lib64:/lib64:/lib:/usr/lib"/><property name="java.vendor" value="Arch Linux"/><property name="java.specification.maintenance.version" value="1"/><property name="sun.io.unicode.encoding" value="UnicodeLittle"/><property name="java.class.path" value="/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-sbt/sbt-launch/1.12.8/sbt-launch-1.12.8.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/io/get-coursier/sbt/sbt-runner/0.2.0/sbt-runner-0.2.0.jar"/><property name="java.vm.vendor" value="Arch Linux"/><property name="jline.shutdownhook" value="false"/><property name="user.timezone" value="Asia/Shanghai"/><property name="java.vm.specification.version" value="17"/><property name="os.name" value="Linux"/><property name="sun.java.launcher" value="SUN_STANDARD"/><property name="user.country" value="US"/><property name="sun.cpu.endian" value="little"/><property name="user.home" value="/home/vimalinx"/><property name="user.language" value="en"/><property name="sbt.ipcsocket.tmpdir" value="/run/user/1000/.sbtb5e407c9/ipcsocket"/><property name="swoval.tmpdir" value="/run/user/1000/.sbtb5e407c9/swoval"/><property name="jline.esc.timeout" value="0"/><property name="path.separator" value=":"/><property name="jna.nosys" value="true"/><property name="os.version" value="6.19.10-arch1-1"/><property name="java.runtime.name" value="OpenJDK Runtime Environment"/><property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/><property name="jna.platform.library.path" value="/usr/lib64:/lib64:/usr/lib:/lib:/opt/intel/oneapi/compiler/2025.0/lib:/opt/cuda/lib64:/opt/cuda/nvvm/lib64:/opt/intel/oneapi/mkl/latest/lib/intel64:/usr/lib/libfakeroot"/><property name="sbt-launch.version" value="1.12.8"/><property name="java.vendor.url.bug" value="https://bugreport.java.com/bugreport/"/><property name="user.dir" value="/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio"/><property name="os.arch" value="amd64"/><property name="java.vm.info" value="mixed mode, sharing"/><property name="java.vm.version" value="17.0.18+8"/><property name="java.class.version" value="61.0"/>
+    </properties>
+          <testcase classname="zio.internal.NioSchedulerSpec" name=" - basic functionality - provides metrics" time="0.094">
+                      
+                    </testcase><testcase classname="zio.internal.NioSchedulerSpec" name=" - basic functionality - metrics report concurrency" time="0.094">
+                      
+                    </testcase><testcase classname="zio.internal.NioSchedulerSpec" name=" - integration with ZIO runtime - can be used as runtime executor" time="0.094">
+                      
+                    </testcase><testcase classname="zio.internal.NioSchedulerSpec" name=" - integration with ZIO runtime - fibers run on NioScheduler workers" time="0.094">
+                      <failure message="java.lang.Exception:     [31m- fibers run on NioScheduler workers[0m - 41 ms
+      [31m✗ [0m[1m[34m&quot;ZScheduler-Worker-11&quot;[0m[0m [31mdid not[0m [31mcontain[0m [1m[34m&quot;NioScheduler&quot;[0m[0m
+      [1m[36m[34mthreadName[0m did not satisfy [36m[0m[0m[1m[33mcontainsString[0m[0m[1m[36m(&quot;NioScheduler&quot;)[0m[0m[0m
+      [2mthreadName = [0m&quot;ZScheduler-Worker-11&quot;
+      [36mat /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/core-tests/jvm-native/src/test/scala/zio/internal/NioSchedulerSpec.scala:101 [0m
+" type="sbt.ForkMain$ForkError">sbt.ForkMain$ForkError: java.lang.Exception:     [31m- fibers run on NioScheduler workers[0m - 41 ms
+      [31m✗ [0m[1m[34m&quot;ZScheduler-Worker-11&quot;[0m[0m [31mdid not[0m [31mcontain[0m [1m[34m&quot;NioScheduler&quot;[0m[0m
+      [1m[36m[34mthreadName[0m did not satisfy [36m[0m[0m[1m[33mcontainsString[0m[0m[1m[36m(&quot;NioScheduler&quot;)[0m[0m[0m
+      [2mthreadName = [0m&quot;ZScheduler-Worker-11&quot;
+      [36mat /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/core-tests/jvm-native/src/test/scala/zio/internal/NioSchedulerSpec.scala:101 [0m
+
+	at zio.test.sbt.ZTestEvent$.convertTestEvent(ZTestEvent.scala:39)
+	at zio.test.sbt.ZTestEventHandlerSbt.handle(ZTestEventHandlerSbt.scala:27)
+	at zio.test.TestExecutor$$anon$1.$anonfun$run$3(TestExecutor.scala:58)
+	at zio.ZIO.$anonfun$$times$greater$1(ZIO.scala:89)
+	at zio.internal.FiberRuntime.runLoop(FiberRuntime.scala:1174)
+	at zio.internal.FiberRuntime.evaluateEffect(FiberRuntime.scala:432)
+	at zio.internal.FiberRuntime.evaluateMessageWhileSuspended(FiberRuntime.scala:505)
+	at zio.internal.FiberRuntime.drainQueueOnCurrentThread(FiberRuntime.scala:272)
+	at zio.internal.FiberRuntime.run(FiberRuntime.scala:160)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+</failure>
+                    </testcase><testcase classname="zio.internal.NioSchedulerSpec" name=" - least-loaded scheduling - distributes tasks across workers" time="10.068">
+                      <failure message="java.lang.Exception:     [31m- distributes tasks across workers[0m
+Timeout of 10 s exceeded." type="sbt.ForkMain$ForkError">sbt.ForkMain$ForkError: java.lang.Exception:     [31m- distributes tasks across workers[0m
+Timeout of 10 s exceeded.
+	at zio.test.sbt.ZTestEvent$.convertTestEvent(ZTestEvent.scala:39)
+	at zio.test.sbt.ZTestEventHandlerSbt.handle(ZTestEventHandlerSbt.scala:27)
+	at zio.test.TestExecutor$$anon$1.$anonfun$run$3(TestExecutor.scala:58)
+	at zio.ZIO.$anonfun$$times$greater$1(ZIO.scala:89)
+	at zio.internal.FiberRuntime.runLoop(FiberRuntime.scala:1136)
+	at zio.internal.FiberRuntime.evaluateEffect(FiberRuntime.scala:432)
+	at zio.internal.FiberRuntime.evaluateMessageWhileSuspended(FiberRuntime.scala:505)
+	at zio.internal.FiberRuntime.drainQueueOnCurrentThread(FiberRuntime.scala:272)
+	at zio.internal.FiberRuntime.run(FiberRuntime.scala:160)
+	at zio.internal.ZScheduler$$anon$3.run(ZScheduler.scala:404)
+</failure>
+                    </testcase><testcase classname="zio.internal.NioSchedulerSpec" name=" - integration with ZIO runtime - parallel fibers run correctly" time="10.065">
+                      <failure message="java.lang.Exception:     [31m- parallel fibers run correctly[0m
+Timeout of 10 s exceeded." type="sbt.ForkMain$ForkError">sbt.ForkMain$ForkError: java.lang.Exception:     [31m- parallel fibers run correctly[0m
+Timeout of 10 s exceeded.
+	at zio.test.sbt.ZTestEvent$.convertTestEvent(ZTestEvent.scala:39)
+	at zio.test.sbt.ZTestEventHandlerSbt.handle(ZTestEventHandlerSbt.scala:27)
+	at zio.test.TestExecutor$$anon$1.$anonfun$run$3(TestExecutor.scala:58)
+	at zio.ZIO.$anonfun$$times$greater$1(ZIO.scala:89)
+	at zio.internal.FiberRuntime.runLoop(FiberRuntime.scala:1174)
+	at zio.internal.FiberRuntime.evaluateEffect(FiberRuntime.scala:432)
+	at zio.internal.FiberRuntime.evaluateMessageWhileSuspended(FiberRuntime.scala:505)
+	at zio.internal.FiberRuntime.drainQueueOnCurrentThread(FiberRuntime.scala:272)
+	at zio.internal.FiberRuntime.run(FiberRuntime.scala:160)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+</failure>
+                    </testcase><testcase classname="zio.internal.NioSchedulerSpec" name=" - auto-blocking - can create with auto-blocking enabled" time="0.006">
+                      
+                    </testcase><testcase classname="zio.internal.NioSchedulerSpec" name=" - submitAndYield - works correctly" time="120.064">
+                      <failure message="java.lang.Exception:     [31m- works correctly[0m
+Timeout of 2 m exceeded." type="sbt.ForkMain$ForkError">sbt.ForkMain$ForkError: java.lang.Exception:     [31m- works correctly[0m
+Timeout of 2 m exceeded.
+	at zio.test.sbt.ZTestEvent$.convertTestEvent(ZTestEvent.scala:39)
+	at zio.test.sbt.ZTestEventHandlerSbt.handle(ZTestEventHandlerSbt.scala:27)
+	at zio.test.TestExecutor$$anon$1.$anonfun$run$3(TestExecutor.scala:58)
+	at zio.ZIO.$anonfun$$times$greater$1(ZIO.scala:89)
+	at zio.internal.FiberRuntime.runLoop(FiberRuntime.scala:1136)
+	at zio.internal.FiberRuntime.evaluateEffect(FiberRuntime.scala:432)
+	at zio.internal.FiberRuntime.evaluateMessageWhileSuspended(FiberRuntime.scala:505)
+	at zio.internal.FiberRuntime.drainQueueOnCurrentThread(FiberRuntime.scala:272)
+	at zio.internal.FiberRuntime.run(FiberRuntime.scala:160)
+	at zio.internal.ZScheduler$$anon$3.run(ZScheduler.scala:404)
+</failure>
+                    </testcase><testcase classname="zio.internal.NioSchedulerSpec" name=" - basic functionality - executes multiple tasks" time="120.063">
+                      <failure message="java.lang.Exception:     [31m- executes multiple tasks[0m
+Timeout of 2 m exceeded." type="sbt.ForkMain$ForkError">sbt.ForkMain$ForkError: java.lang.Exception:     [31m- executes multiple tasks[0m
+Timeout of 2 m exceeded.
+	at zio.test.sbt.ZTestEvent$.convertTestEvent(ZTestEvent.scala:39)
+	at zio.test.sbt.ZTestEventHandlerSbt.handle(ZTestEventHandlerSbt.scala:27)
+	at zio.test.TestExecutor$$anon$1.$anonfun$run$3(TestExecutor.scala:58)
+	at zio.ZIO.$anonfun$$times$greater$1(ZIO.scala:89)
+	at zio.internal.FiberRuntime.runLoop(FiberRuntime.scala:1174)
+	at zio.internal.FiberRuntime.evaluateEffect(FiberRuntime.scala:432)
+	at zio.internal.FiberRuntime.evaluateMessageWhileSuspended(FiberRuntime.scala:505)
+	at zio.internal.FiberRuntime.drainQueueOnCurrentThread(FiberRuntime.scala:272)
+	at zio.internal.FiberRuntime.run(FiberRuntime.scala:160)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+</failure>
+                    </testcase><testcase classname="zio.internal.NioSchedulerSpec" name=" - basic functionality - can be created and used" time="120.063">
+                      <failure message="java.lang.Exception:     [31m- can be created and used[0m
+Timeout of 2 m exceeded." type="sbt.ForkMain$ForkError">sbt.ForkMain$ForkError: java.lang.Exception:     [31m- can be created and used[0m
+Timeout of 2 m exceeded.
+	at zio.test.sbt.ZTestEvent$.convertTestEvent(ZTestEvent.scala:39)
+	at zio.test.sbt.ZTestEventHandlerSbt.handle(ZTestEventHandlerSbt.scala:27)
+	at zio.test.TestExecutor$$anon$1.$anonfun$run$3(TestExecutor.scala:58)
+	at zio.ZIO.$anonfun$$times$greater$1(ZIO.scala:89)
+	at zio.internal.FiberRuntime.runLoop(FiberRuntime.scala:1136)
+	at zio.internal.FiberRuntime.evaluateEffect(FiberRuntime.scala:432)
+	at zio.internal.FiberRuntime.evaluateMessageWhileSuspended(FiberRuntime.scala:505)
+	at zio.internal.FiberRuntime.drainQueueOnCurrentThread(FiberRuntime.scala:272)
+	at zio.internal.FiberRuntime.run(FiberRuntime.scala:160)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+</failure>
+                    </testcase>
+          <system-out><![CDATA[]]></system-out>
+          <system-err><![CDATA[]]></system-err>
+        </testsuite>

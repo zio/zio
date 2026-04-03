@@ -1,0 +1,80 @@
+[debug] [zinc] IncrementalCompile -----------
+[debug] IncrementalCompile.incrementalCompile
+[debug] previous = Stamps for: 422 products, 25 sources, 3 libraries
+[debug] current source = Set(${BASE}/streams/shared/src/main/scala/zio/stream/ZStream.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/ZSink.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/package.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/Gunzip.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/ZStreamAspect.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/Take.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/compression/Deflate.scala, ${BASE}/streams/jvm/target/scala-2.13/src_managed/main/sbt-buildinfo/BuildInfo.scala, ${BASE}/streams/jvm/src/main/scala/zio/stream/platform.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/compression/Gzipper.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/Deflate.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/Gzip.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/internal/CharacterSet.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/compression/CompressionParameters.scala, ${BASE}/streams/shared/src/main/scala-2/zio.stream/ZStreamVersionSpecific.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/ZChannel.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/Inflate.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/encoding/EncodingException.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/ZPipeline.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/internal/ZInputStream.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/internal/ChannelExecutor.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/SubscriptionRef.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/internal/ZReader.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/compression/CompressionException.scala, ${BASE}/streams/shared/src/main/scala/zio/stream/compression/Gunzipper.scala)
+[debug] > initialChanges = InitialChanges(Changes(added = Set(), removed = Set(), changed = Set(${BASE}/streams/jvm/target/scala-2.13/src_managed/main/sbt-buildinfo/BuildInfo.scala), unmodified = ...),Set(),Set(),API Changes: Set(TraitPrivateMembersModified(zio.Exit$), TraitPrivateMembersModified(zio.Exit)))
+[debug] The private signature of trait zio.Exit$ changed.
+[debug] All member reference dependencies will be considered within this context.
+[debug] Files invalidated by inheriting from (external) zio.Exit$: Set()
+[debug] Now invalidating by inheritance (internally).
+[debug] Getting direct dependencies of all classes transitively invalidated by inheritance.
+[debug] Getting classes that directly depend on (external) zio.Exit$.
+[debug] The private signature of trait zio.Exit changed.
+[debug] All member reference dependencies will be considered within this context.
+[debug] Files invalidated by inheriting from (external) zio.Exit: Set()
+[debug] Now invalidating by inheritance (internally).
+[debug] Getting direct dependencies of all classes transitively invalidated by inheritance.
+[debug] Getting classes that directly depend on (external) zio.Exit.
+[debug] 
+[debug] Initial source changes:
+[debug] 	removed: Set()
+[debug] 	added: Set()
+[debug] 	modified: Set(${BASE}/streams/jvm/target/scala-2.13/src_managed/main/sbt-buildinfo/BuildInfo.scala)
+[debug] Invalidated products: Set()
+[debug] External API changes: API Changes: Set(TraitPrivateMembersModified(zio.Exit$), TraitPrivateMembersModified(zio.Exit))
+[debug] Modified binary dependencies: Set()
+[debug] Initial directly invalidated classes: Set(zio.stream.BuildInfo)
+[debug] Sources indirectly invalidated by:
+[debug] 	product: Set()
+[debug] 	binary dep: Set()
+[debug] 	external source: Set()
+[debug] All initially invalidated classes: Set(zio.stream.BuildInfo)
+[debug] All initially invalidated sources:Set(${BASE}/streams/jvm/target/scala-2.13/src_managed/main/sbt-buildinfo/BuildInfo.scala)
+[debug] Initial set of included nodes: zio.stream.BuildInfo
+[debug] compilation cycle 1
+[info] compiling 1 Scala source to /home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/streams/jvm/target/scala-2.13/classes ...
+[debug] Returning already retrieved and compiled bridge: /home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala2-sbt-bridge/2.13.18/scala2-sbt-bridge-2.13.18.jar.
+[debug] [zinc] Running cached compiler 6571d307 for Scala compiler version 2.13.18
+[debug] [zinc] The Scala compiler is invoked with:
+[debug] 	-deprecation
+[debug] 	-encoding
+[debug] 	UTF-8
+[debug] 	-feature
+[debug] 	-unchecked
+[debug] 	-release
+[debug] 	11
+[debug] 	-Xfatal-warnings
+[debug] 	-Ywarn-unused:params,-implicits
+[debug] 	-Ybackend-parallelism:4
+[debug] 	-language:higherKinds
+[debug] 	-language:existentials
+[debug] 	-explaintypes
+[debug] 	-Yrangepos
+[debug] 	-Xlint:_,-missing-interpolator,-type-parameter-shadow,-infer-any
+[debug] 	-Ywarn-numeric-widen
+[debug] 	-Ywarn-value-discard
+[debug] 	-language:experimental.macros
+[debug] 	-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent
+[debug] 	-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent
+[debug] 	-classpath
+[debug] 	/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/streams/jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/core/jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/internal-macros/.jvm/target/scala-2.13/classes:/home/vimalinx/MakeMoney/Pay-for-me/.autogamer/workspaces/zio__zio/stacktracer/.jvm/target/scala-2.13/classes:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-library/2.13.18/scala-library-2.13.18.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-reflect/2.13.18/scala-reflect-2.13.18.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/scala-compiler/2.13.18/scala-compiler-2.13.18.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/dev/zio/izumi-reflect_2.13/3.0.9/izumi-reflect_2.13-3.0.9.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-collection-compat_2.13/2.14.0/scala-collection-compat_2.13-2.14.0.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/io/github/java-diff-utils/java-diff-utils/4.16/java-diff-utils-4.16.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/org/jline/jline/3.29.0/jline-3.29.0-jdk8.jar:/home/vimalinx/.cache/coursier/v1/https/repo1.maven.org/maven2/dev/zio/izumi-reflect-thirdparty-boopickle-shaded_2.13/3.0.9/izumi-reflect-thirdparty-boopickle-shaded_2.13-3.0.9.jar
+[debug] Scala compilation took 0.068645928 s
+[info] done compiling
+[debug] Invalidating (transitively) by inheritance from zio.stream.BuildInfo...
+[debug] Initial set of included nodes: zio.stream.BuildInfo
+[debug] Invalidated by transitive inheritance dependency: Set(zio.stream.BuildInfo)
+[debug] Change NamesChange(zio.stream.BuildInfo,ModifiedNames(changes = UsedName(version,[Default]))) invalidates 1 classes due to The zio.stream.BuildInfo has the following regular definitions changed:
+[debug] 	UsedName(version,[Default]).
+[debug]   > by transitive inheritance: Set(zio.stream.BuildInfo)
+[debug]   > 
+[debug]   > 
+[debug]   > 
+[debug]         
+[debug] New invalidations:
+[debug] Initial set of included nodes: 
+[debug] Previously invalidated, but (transitively) depend on new invalidations:
+[debug] Final step, transitive dependencies:
+[debug] 	Set()
+[debug] Initial set of included nodes: zio.stream.BuildInfo
+[debug] Invalidated macros due to upstream dependencies change: Set()
+[debug] No classes were invalidated.

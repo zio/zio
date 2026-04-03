@@ -28,6 +28,25 @@ private[zio] abstract class DefaultExecutors {
   final def makeDefault(autoBlocking: Boolean): zio.Executor =
     new ZScheduler(autoBlocking)
 
+  /**
+   * Creates a Least-Loaded scheduler (NioScheduler) that assigns tasks to the
+   * worker with the least workload. This is an alternative to the work-stealing
+   * scheduler that can provide better performance in certain scenarios.
+   *
+   * @see [[NioScheduler]] for details on the scheduling algorithm
+   */
+  final def makeNio(): zio.Executor =
+    makeNio(false)
+
+  /**
+   * Creates a Least-Loaded scheduler (NioScheduler) with optional auto-blocking.
+   *
+   * @param autoBlocking if true, the scheduler will automatically detect and
+   *                     handle blocking operations
+   */
+  final def makeNio(autoBlocking: Boolean): zio.Executor =
+    new NioScheduler(autoBlocking)
+
   final def fromThreadPoolExecutor(
     es: ThreadPoolExecutor
   ): zio.Executor =
