@@ -98,9 +98,14 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
     supervisor.start()
   }
 
+  /** Returns `true` if the current thread is an [[NioScheduler.Worker]]. */
   override private[zio] def isCurrentThreadInExecutor: Boolean =
     Thread.currentThread().isInstanceOf[NioScheduler.Worker]
 
+  /**
+   * Returns execution metrics aggregated across all workers and the global
+   * queue. Thread-safe: reads volatile fields and lock-free data structures.
+   */
   def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics] = {
     val metrics = new ExecutionMetrics {
       def capacity: Int = Int.MaxValue
@@ -153,6 +158,11 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
     Some(metrics)
   }
 
+  /**
+   * Attempts to execute a pending task on the current worker thread.
+   * Checks `nextRunnable`, then local queue, then global queue.
+   * If the task is a [[FiberRunnable]], runs it with the given depth.
+   */
   override def stealWork(depth: Int): Boolean = {
     val worker = currentWorker()
     if (worker ne null) {
@@ -187,6 +197,11 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
     }
   }
 
+  /**
+   * Submits a task for execution. If the current thread is a non-blocking
+   * worker, enqueues to its local queue (overflowing to global). Otherwise,
+   * routes to the least-loaded worker via [[submitToLeastLoaded]].
+   */
   def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
     if (shutdown) return false
 
@@ -207,6 +222,11 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
     true
   }
 
+  /**
+   * Submits a task and signals that the current fiber is willing to yield.
+   * On a non-blocking worker with empty queues, the task is placed directly
+   * into `nextRunnable` for immediate execution (bypassing the queue).
+   */
   override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
     if (shutdown) return false
 
@@ -571,6 +591,10 @@ private object NioScheduler {
     @volatile
     var opCount: Long = 0L
 
+    /**
+     * Marks this worker as blocking, migrates its remaining tasks to the global
+     * queue, and spawns a replacement worker in its place.
+     */
     def markAsBlocking(): Unit
 
     final def setName(i: Int): Unit =
