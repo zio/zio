@@ -40,8 +40,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val idle            = new ConcurrentLinkedQueue[ZScheduler.Worker]()
   private[this] val globalLocations = makeLocations()
   private[this] val state           = new AtomicInteger(poolSize << 16)
-  private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
   private[this] val submitCount     = new AtomicInteger(0)
+  private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
@@ -171,8 +171,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       var notify            = true
       var submittedToGlobal = false
       if ((worker eq null) || worker.blocking) {
-        globalQueue.offer(runnable)
         submittedToGlobal = true
+        globalQueue.offer(runnable)
       }
       // Attempt resumption in the current Thread
       else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
@@ -370,46 +370,59 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             }
           }
           if (runnable eq null) {
-            val currentState =
-              if (currentBlocking && searching) state.decrementAndGet()
-              else if (currentBlocking) state.get
-              else if (searching) state.addAndGet(0xfffeffff)
-              else state.addAndGet(0xffff0000)
-            val currentSearching = currentState & 0xffff
-            active = false
-            if (currentBlocking) {
-              cache.offer(self)
-            } else {
-              idle.offer(self)
-            }
-            if (currentSearching == 0 && searching) {
-              var i      = 0
-              var notify = false
-              while (i != poolSize && !notify) {
-                val worker = workers(i)
-                notify = !worker.localQueue.isEmpty()
-                i += 1
-              }
-              if (!notify) {
-                notify = !globalQueue.isEmpty()
-              }
-              if (notify) {
-                val currentState = state.get
-                maybeUnparkWorker(currentState)
-              }
-            }
             // Spin-before-park: avoid expensive park/unpark syscall pair when work
-            // arrives within a short window. This reduces latency and context switches.
-            if (spinCount < maxSpins) {
+            // arrives within a short window. Spin BEFORE going inactive so the
+            // state transition and idle-queue add happen at most once.
+            // Only spin while still active - after parking (or spurious wakeup),
+            // the worker is inactive and should not spin again.
+            if (active && spinCount < maxSpins) {
               spinCount += 1
               Thread.onSpinWait()
-            } else {
+              // Stay active; loop back to find work. The worker is still counted
+              // as active in the state and is NOT in the idle queue, so other
+              // threads will not attempt to unpark it (it doesn't need it).
+            } else if (active) {
+              // Spin budget exhausted while active - transition to inactive once
               spinCount = 0
+              val currentState =
+                if (currentBlocking && searching) state.decrementAndGet()
+                else if (currentBlocking) state.get
+                else if (searching) state.addAndGet(0xfffeffff)
+                else state.addAndGet(0xffff0000)
+              val currentSearching = currentState & 0xffff
+              active = false
+              if (currentBlocking) {
+                cache.offer(self)
+              } else {
+                idle.offer(self)
+              }
+              if (currentSearching == 0 && searching) {
+                var i      = 0
+                var notify = false
+                while (i != poolSize && !notify) {
+                  val worker = workers(i)
+                  notify = !worker.localQueue.isEmpty()
+                  i += 1
+                }
+                if (!notify) {
+                  notify = !globalQueue.isEmpty()
+                }
+                if (notify) {
+                  val currentState = state.get
+                  maybeUnparkWorker(currentState)
+                }
+              }
               while (!active && !isInterrupted) {
                 LockSupport.park()
               }
+              searching = true
+            } else {
+              // Worker is inactive (spurious wakeup or re-check after wake) - just park again
+              while (!active && !isInterrupted) {
+                LockSupport.park()
+              }
+              searching = true
             }
-            searching = true
           } else {
             // Reset spin count when work is found
             spinCount = 0
@@ -476,15 +489,11 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   }
 
   /**
-   * Throttled unpark check to reduce excessive LockSupport.unpark() calls. Only
-   * returns true every Nth submission. This is only used when the submitting
-   * thread is an active worker (local queue path) — global queue submissions
-   * always bypass this throttle to prevent task stranding.
+   * Returns true every 16th call to throttle unnecessary unpark operations.
+   * Uses a bitmask for efficiency instead of modulo.
    */
-  private def shouldUnparkWorker(): Boolean = {
-    val count = submitCount.incrementAndGet()
-    (count & 15) == 0
-  }
+  private def shouldUnparkWorker(): Boolean =
+    (submitCount.incrementAndGet() & 15) == 0
 
   private[this] def submitBlocking(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
     Blocking.blockingExecutor.submit(runnable)
