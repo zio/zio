@@ -139,7 +139,7 @@ object CauseSpec extends ZIOBaseSpec {
             )
             .map(new Throwable(msg1, _))
         }
-        val failOrDie = Gen.elements[Throwable => Cause[Throwable]](Cause.fail(_), Cause.die(_))
+        val failOrDie = Gen.randomChoice[Throwable => Cause[Throwable]](Cause.fail(_), Cause.die(_))
         check(throwable, failOrDie) { (e, makeCause) =>
           val rootCause        = makeCause(e)
           val cause            = rootCause
@@ -365,7 +365,7 @@ object CauseSpec extends ZIOBaseSpec {
 
   val equalCauses: Gen[Any, (Cause[String], Cause[String])] =
     (causes <*> causes <*> causes).flatMap { case (a, b, c) =>
-      Gen.elements(
+      Gen.randomChoice(
         (a, a),
         (Then(Then(a, b), c), Then(a, Then(b, c))),
         (Then(a, Both(b, c)), Both(Then(a, b), Then(a, c))),

@@ -60,5 +60,5 @@ object GenFractionalPoly {
    * instance.
    */
   def genFractionalPoly(implicit trace: Trace): Gen[Any, GenFractionalPoly] =
-    Gen.elements(double, float)
+    Gen.randomChoice(double, float)
 }

@@ -88,5 +88,5 @@ object StackSpec extends ZIOBaseSpec {
   case object False extends Boolean
 
   val gen: Gen[Any, List[Boolean]] =
-    Gen.large(n => Gen.listOfN(n)(Gen.elements(True, False)))
+    Gen.large(n => Gen.listOfN(n)(Gen.randomChoice(True, False)))
 }

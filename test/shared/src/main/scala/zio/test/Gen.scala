@@ -426,7 +426,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     oneOf(left.map(Left(_)), right.map(Right(_)))
 
   def elements[A](as: A*)(implicit trace: Trace): Gen[Any, A] =
-    if (as.isEmpty) empty else int(0, as.length - 1).map(as)
+    if (as.isEmpty) empty else fromIterable(as.distinct)
 
   def empty(implicit trace: Trace): Gen[Any, Nothing] =
     emptyGen
@@ -447,6 +447,12 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
   )(implicit trace: Trace): Gen[R, A] =
     Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
+
+  /**
+   * Constructs a generator that randomly chooses one of the specified values.
+   */
+  def randomChoice[A](as: A*)(implicit trace: Trace): Gen[Any, A] =
+    if (as.isEmpty) empty else int(0, as.length - 1).map(i => as(i))
 
   /**
    * Constructs a generator from a function that uses randomness. The returned
