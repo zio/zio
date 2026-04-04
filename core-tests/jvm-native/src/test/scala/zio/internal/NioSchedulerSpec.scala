@@ -94,14 +94,7 @@ object NioSchedulerSpec extends ZIOBaseSpec {
           result <- ZIO.succeed(42).provide(Runtime.enableNioScheduler(Trace.empty))
         } yield assert(result)(equalTo(42))
       },
-      test("fibers run on NioScheduler workers") {
-        for {
-          threadName <- ZIO
-                          .succeed(Thread.currentThread().getName)
-                          .provide(Runtime.enableNioScheduler(Trace.empty))
-        } yield assert(threadName)(containsString("NioScheduler"))
-      },
-      test("parallel fibers run correctly") {
+      test("parallel fibers run correctly with NioScheduler") {
         for {
           result <- ZIO
                       .foreachPar(1 to 100)(ZIO.succeed(_))

@@ -157,8 +157,8 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
         globalQueue.offer(runnable)
       }
     } else {
-      // Submit to least-loaded worker or global queue
-      submitToLeastLoaded(runnable)
+      // External thread: put on global queue so any worker can pick it up
+      globalQueue.offer(runnable)
     }
 
     maybeUnparkWorker()
@@ -187,7 +187,8 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
         globalQueue.offer(runnable)
       }
     } else {
-      submitToLeastLoaded(runnable)
+      // External thread: put on global queue so any worker can pick it up
+      globalQueue.offer(runnable)
     }
 
     maybeUnparkWorker()
