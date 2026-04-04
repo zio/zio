@@ -47,4 +47,29 @@ private[zio] trait RuntimePlatformSpecific {
     ZLayer.suspend {
       Runtime.setExecutor(Executor.makeDefault(autoBlocking = true))
     }
+
+  /**
+   * Enables the Least-Loaded (NIO) scheduler, which assigns tasks to the worker
+   * with the least workload. This is an alternative to the default
+   * work-stealing scheduler that can provide better performance in certain
+   * scenarios.
+   *
+   * @see
+   *   [[zio.internal.NioScheduler]] for details on the scheduling algorithm
+   */
+  def enableNioScheduler(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.suspend {
+      Runtime.setExecutor(Executor.makeNio(autoBlocking = false))
+    }
+
+  /**
+   * Enables the Least-Loaded (NIO) scheduler with automatic blocking detection.
+   *
+   * @see
+   *   [[zio.internal.NioScheduler]] for details on the scheduling algorithm
+   */
+  def enableNioSchedulerWithAutoBlocking(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.suspend {
+      Runtime.setExecutor(Executor.makeNio(autoBlocking = true))
+    }
 }

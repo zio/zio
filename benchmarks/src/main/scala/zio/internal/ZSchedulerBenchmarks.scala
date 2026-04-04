@@ -91,6 +91,17 @@ class ZSchedulerBenchmarks {
   def zioSchedulerYieldMany(): Int =
     zioYieldMany(zScheduler)
 
+  @Benchmark
+  def zioSchedulerForkBomb(): Int = {
+    val io = for {
+      promise <- Promise.make[Nothing, Unit]
+      _       <- ZIO.replicateZIO(100000)(ZIO.unit.forkDaemon)
+      _       <- promise.succeed(())
+      _       <- promise.await
+    } yield 0
+    unsafeRun(io.onExecutor(zScheduler))
+  }
+
   def catsChainedFork(runtime: IORuntime): Int = {
 
     def iterate(deferred: Deferred[CIO, Unit], n: Int): CIO[Any] =
