@@ -2041,19 +2041,73 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * A pipeline that rechunks the stream into chunks of the specified size.
    */
   def rechunk[In](n: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
-    new ZPipeline(ZChannel.succeed(new ZStream.Rechunker[In](scala.math.max(n, 1))).flatMap { rechunker =>
-      lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, ZNothing, Chunk[In], Any] =
-        ZChannel.readWithCause(
-          (in: Chunk[In]) => {
-            val out = rechunker.rechunk(in)
-            if (out ne null) out *> loop
-            else loop
-          },
-          (cause: Cause[ZNothing]) => rechunker.done() *> ZChannel.refailCause(cause),
-          (_: Any) => rechunker.done()
-        )
+    new ZPipeline(ZChannel.suspend {
+      val n0 = scala.math.max(n, 1)
+      if (n0 == 1) ZChannel.identity[Nothing, Chunk[In], Any]
+      else
+        ZChannel.succeed(new ZStream.Rechunker[In](n0)).flatMap { rechunker =>
+          lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, ZNothing, Chunk[In], Any] =
+            ZChannel.readWithCause(
+              (in: Chunk[In]) => {
+                val outChannel = rechunker.rechunk(in)
+                if (outChannel ne null) {
+                  ZChannel.suspend {
+                    val builder = ChunkBuilder.make[In]()
+                    lazy val reader: ZChannel[Any, ZNothing, Chunk[In], Any, ZNothing, Nothing, Any] =
+                      ZChannel.readWithCause(
+                        (out: Chunk[In]) => ZChannel.succeed(builder ++= out) *> reader,
+                        ZChannel.refailCause,
+                        ZChannel.succeedNow
+                      )
 
-      loop
+                    (outChannel pipeTo reader) *> {
+                      val result = builder.result()
+                      if (result.isEmpty) loop
+                      else ZChannel.write(result) *> loop
+                    }
+                  }
+                } else loop
+              },
+              (cause: Cause[ZNothing]) => {
+                val outChannel = rechunker.done()
+                ZChannel.suspend {
+                  val builder = ChunkBuilder.make[In]()
+                  lazy val reader: ZChannel[Any, ZNothing, Chunk[In], Any, ZNothing, Nothing, Any] =
+                    ZChannel.readWithCause(
+                      (out: Chunk[In]) => ZChannel.succeed(builder ++= out) *> reader,
+                      ZChannel.refailCause,
+                      ZChannel.succeedNow
+                    )
+
+                  (outChannel pipeTo reader) *> {
+                    val result = builder.result()
+                    if (result.isEmpty) ZChannel.refailCause(cause)
+                    else ZChannel.write(result) *> ZChannel.refailCause(cause)
+                  }
+                }
+              },
+              (_: Any) => {
+                val outChannel = rechunker.done()
+                ZChannel.suspend {
+                  val builder = ChunkBuilder.make[In]()
+                  lazy val reader: ZChannel[Any, ZNothing, Chunk[In], Any, ZNothing, Nothing, Any] =
+                    ZChannel.readWithCause(
+                      (out: Chunk[In]) => ZChannel.succeed(builder ++= out) *> reader,
+                      ZChannel.refailCause,
+                      ZChannel.succeedNow
+                    )
+
+                  (outChannel pipeTo reader) *> {
+                    val result = builder.result()
+                    if (result.isEmpty) ZChannel.unit
+                    else ZChannel.write(result)
+                  }
+                }
+              }
+            )
+
+          loop
+        }
     })
 
   /**

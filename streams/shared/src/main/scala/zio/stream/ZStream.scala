@@ -5850,11 +5850,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
           i += 1
           pos += 1
           if (pos == n) {
-            buffer ++= chunkBuilder.result()
+            val result = ZChannel.write(buffer ++ chunkBuilder.result())
             chunkBuilder.clear()
-
-            // Flush buffer
-            val result = ZChannel.write(buffer)
             pos = 0
             buffer = Chunk.empty[A]
             if (channel == null) channel = result
@@ -5879,18 +5876,18 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
           val needed    = n - pos
           val available = chunkSize - chunkOffset
           val size      = math.min(needed, available)
-          buffer ++= chunk.slice(chunkOffset, chunkOffset + size)
-          pos += size
-          chunkOffset += size
 
           if (size == needed) {
-            // Flush buffer
-            val result = ZChannel.write(buffer)
+            val result = ZChannel.write(buffer ++ chunk.slice(chunkOffset, chunkOffset + size))
             pos = 0
             buffer = Chunk.empty[A]
             if (channel == null) channel = result
             else channel = channel *> result
+          } else {
+            buffer ++= chunk.slice(chunkOffset, chunkOffset + size)
+            pos += size
           }
+          chunkOffset += size
         }
 
         channel

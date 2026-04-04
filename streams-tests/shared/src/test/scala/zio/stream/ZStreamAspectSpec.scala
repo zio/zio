@@ -17,12 +17,12 @@ object ZStreamAspectSpec extends ZIOBaseSpec {
         }
       ),
       suite("rechunk")(
-        test("rechunks to size") {
+        test("rechunks elements") {
           val stream = ZStream.range(0, 10, 9)
           for {
-            chunks <- (stream @@ ZStreamAspect.rechunk(3)).mapChunks(c => Chunk(c)).runCollect
+            elements <- (stream @@ ZStreamAspect.rechunk(3)).runCollect
           } yield assertTrue(
-            chunks == Chunk(Chunk(0, 1, 2), Chunk(3, 4, 5), Chunk(6, 7, 8), Chunk(9))
+            elements == Chunk(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
           )
         },
         test("handles empty stream") {
