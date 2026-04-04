@@ -173,7 +173,10 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
    * If the promise has already been completed, the method will produce false.
    */
   def become(fiber: Fiber[E, A])(implicit trace: Trace): UIO[Boolean] =
-    fiber.await.intoPromise(this)
+    fiber.await.flatMap {
+      case Exit.Success(a) => succeed(a)
+      case Exit.Failure(cause) => refailCause(cause)
+    }
 
   /**
    * Internally, you can use this method instead of calling
