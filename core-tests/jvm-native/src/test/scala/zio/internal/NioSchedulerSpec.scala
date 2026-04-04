@@ -30,38 +30,38 @@ object NioSchedulerSpec extends ZIOBaseSpec {
         for {
           executor <- ZIO.succeed(Executor.makeNio())
           counter  <- ZIO.succeed(new AtomicInteger(0))
-          _        <- ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
-                        executor.submit(() => { counter.incrementAndGet(); () })
-                      })
-          _        <- ZIO.sleep(100.millis)
-          value    <- ZIO.succeed(counter.get())
+          _ <- ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
+                 executor.submit { () => counter.incrementAndGet(); () }
+               })
+          _     <- ZIO.sleep(100.millis)
+          value <- ZIO.succeed(counter.get())
         } yield assert(value)(equalTo(1))
       },
       test("executes multiple tasks") {
         for {
           executor <- ZIO.succeed(Executor.makeNio())
           counter  <- ZIO.succeed(new AtomicInteger(0))
-          _        <- ZIO.foreachDiscard(1 to 100) { _ =>
-                        ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
-                          executor.submit(() => { counter.incrementAndGet(); () })
-                        })
-                      }
-          _        <- ZIO.sleep(200.millis)
-          value    <- ZIO.succeed(counter.get())
+          _ <- ZIO.foreachDiscard(1 to 100) { _ =>
+                 ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
+                   executor.submit { () => counter.incrementAndGet(); () }
+                 })
+               }
+          _     <- ZIO.sleep(200.millis)
+          value <- ZIO.succeed(counter.get())
         } yield assert(value)(equalTo(100))
       },
       test("provides metrics") {
         for {
           executor <- ZIO.succeed(Executor.makeNio())
-          metrics  <- ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
-                        executor.metrics
-                      })
+          metrics <- ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
+                       executor.metrics
+                     })
         } yield assert(metrics)(isSome)
       },
       test("metrics report concurrency") {
         for {
-          executor    <- ZIO.succeed(Executor.makeNio())
-          metricsOpt  <- ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
+          executor <- ZIO.succeed(Executor.makeNio())
+          metricsOpt <- ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
                           executor.metrics
                         })
           concurrency <- ZIO.fromOption(metricsOpt.map(_.concurrency))
@@ -71,20 +71,20 @@ object NioSchedulerSpec extends ZIOBaseSpec {
     suite("least-loaded scheduling")(
       test("distributes tasks across workers") {
         for {
-          executor   <- ZIO.succeed(Executor.makeNio())
-          counter    <- ZIO.succeed(new AtomicInteger(0))
-          numTasks   = 1000
-          _          <- ZIO.foreachDiscard(1 to numTasks) { _ =>
-                          ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
-                            executor.submit(() => {
-                              counter.incrementAndGet()
-                              Thread.sleep(1) // Small delay to allow distribution
-                              ()
-                            })
-                          })
-                        }
-          _          <- ZIO.sleep(2.seconds)
-          value      <- ZIO.succeed(counter.get())
+          executor <- ZIO.succeed(Executor.makeNio())
+          counter  <- ZIO.succeed(new AtomicInteger(0))
+          numTasks  = 1000
+          _ <- ZIO.foreachDiscard(1 to numTasks) { _ =>
+                 ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
+                   executor.submit { () =>
+                     counter.incrementAndGet()
+                     Thread.sleep(1) // Small delay to allow distribution
+                     ()
+                   }
+                 })
+               }
+          _     <- ZIO.sleep(2.seconds)
+          value <- ZIO.succeed(counter.get())
         } yield assert(value)(equalTo(numTasks))
       } @@ TestAspect.timeout(10.seconds)
     ),
@@ -96,14 +96,16 @@ object NioSchedulerSpec extends ZIOBaseSpec {
       },
       test("fibers run on NioScheduler workers") {
         for {
-          threadName <- ZIO.succeed(Thread.currentThread().getName)
-                         .provide(Runtime.enableNioScheduler(Trace.empty))
+          threadName <- ZIO
+                          .succeed(Thread.currentThread().getName)
+                          .provide(Runtime.enableNioScheduler(Trace.empty))
         } yield assert(threadName)(containsString("NioScheduler"))
       },
       test("parallel fibers run correctly") {
         for {
-          result <- ZIO.foreachPar(1 to 100)(ZIO.succeed(_))
-                     .provide(Runtime.enableNioScheduler(Trace.empty))
+          result <- ZIO
+                      .foreachPar(1 to 100)(ZIO.succeed(_))
+                      .provide(Runtime.enableNioScheduler(Trace.empty))
         } yield assert(result)(hasSize(equalTo(100)))
       } @@ TestAspect.timeout(10.seconds)
     ),
@@ -112,11 +114,11 @@ object NioSchedulerSpec extends ZIOBaseSpec {
         for {
           executor <- ZIO.succeed(Executor.makeNio())
           counter  <- ZIO.succeed(new AtomicInteger(0))
-          _        <- ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
-                        executor.submitAndYield(() => { counter.incrementAndGet(); () })
-                      })
-          _        <- ZIO.sleep(100.millis)
-          value    <- ZIO.succeed(counter.get())
+          _ <- ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
+                 executor.submitAndYield { () => counter.incrementAndGet(); () }
+               })
+          _     <- ZIO.sleep(100.millis)
+          value <- ZIO.succeed(counter.get())
         } yield assert(value)(equalTo(1))
       }
     ),
@@ -124,9 +126,9 @@ object NioSchedulerSpec extends ZIOBaseSpec {
       test("can create with auto-blocking enabled") {
         for {
           executor <- ZIO.succeed(Executor.makeNio(autoBlocking = true))
-          metrics  <- ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
-                        executor.metrics
-                      })
+          metrics <- ZIO.succeed(Unsafe.unsafe { implicit unsafe =>
+                       executor.metrics
+                     })
         } yield assert(metrics)(isSome)
       }
     )

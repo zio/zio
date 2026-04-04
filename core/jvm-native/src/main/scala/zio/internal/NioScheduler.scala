@@ -26,14 +26,15 @@ import scala.concurrent.BlockContext
 import scala.concurrent.CanAwait
 
 /**
- * A `NioScheduler` is an `Executor` that uses a Least-Loaded scheduling algorithm.
+ * A `NioScheduler` is an `Executor` that uses a Least-Loaded scheduling
+ * algorithm.
  *
- * Unlike the work-stealing scheduler (ZScheduler), this scheduler assigns new tasks
- * to the worker with the least workload. This approach:
- * - Eliminates the complexity of work-stealing
- * - Reduces contention on shared queues
- * - Provides natural load balancing
- * - Is simpler to implement and maintain
+ * Unlike the work-stealing scheduler (ZScheduler), this scheduler assigns new
+ * tasks to the worker with the least workload. This approach:
+ *   - Eliminates the complexity of work-stealing
+ *   - Reduces contention on shared queues
+ *   - Provides natural load balancing
+ *   - Is simpler to implement and maintain
  *
  * Inspired by the Nio async runtime for Rust.
  * [[https://nurmohammed840.github.io/posts/announcing-nio/]]
@@ -46,7 +47,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
   private[this] val workers     = Array.ofDim[NioScheduler.Worker](poolSize)
   private[this] val state       = new AtomicInteger(poolSize << 16)
 
-  @volatile private[this] var shutdown = false
+  @volatile private[this] var _isShutdown = false
 
   // Initialize workers
   (0 until poolSize).foreach { workerId =>
@@ -145,7 +146,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
   }
 
   def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
-    if (shutdown) return false
+    if (_isShutdown) return false
 
     val worker = currentWorker()
 
@@ -165,7 +166,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
   }
 
   override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
-    if (shutdown) return false
+    if (_isShutdown) return false
 
     val worker = currentWorker()
 
@@ -194,8 +195,8 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
   }
 
   /**
-   * Submits a runnable to the worker with the least workload.
-   * This is the core of the Least-Loaded scheduling algorithm.
+   * Submits a runnable to the worker with the least workload. This is the core
+   * of the Least-Loaded scheduling algorithm.
    */
   private def submitToLeastLoaded(runnable: Runnable): Unit = {
     var leastLoadedWorker: NioScheduler.Worker = null
@@ -233,8 +234,8 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
     }
 
   private def maybeUnparkWorker(): Unit = {
-    val currentState   = state.get
-    val currentActive  = (currentState & 0xffff0000) >> 16
+    val currentState     = state.get
+    val currentActive    = (currentState & 0xffff0000) >> 16
     val currentSearching = currentState & 0xffff
 
     if (currentActive < poolSize && currentSearching == 0) {
@@ -256,17 +257,16 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
   private def makeWorker(): NioScheduler.Worker =
     new NioScheduler.Worker {
       self =>
-
       final override def run(): Unit = {
         val globalQueue = parent.globalQueue
         val workers     = parent.workers
         val state       = parent.state
 
-        var currentOpCount = 0L
+        var currentOpCount     = 0L
         var runnable: Runnable = null
-        var searching = false
+        var searching          = false
 
-        while (!isInterrupted && !shutdown) {
+        while (!isInterrupted && !_isShutdown) {
           // Try to get from nextRunnable first
           if (nextRunnable ne null) {
             runnable = nextRunnable
@@ -282,7 +282,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
 
             // If still empty and we're searching, try to help other workers
             if ((runnable eq null) && !searching) {
-              val currentState = state.get
+              val currentState  = state.get
               val currentActive = currentState & 0xffff
               if (2 * currentActive < poolSize) {
                 state.getAndIncrement()
@@ -300,7 +300,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
                   if (size > 1) {
                     // Steal half of the tasks
                     val toSteal = size / 2
-                    val stolen = otherWorker.localQueue.pollUpTo(toSteal)
+                    val stolen  = otherWorker.localQueue.pollUpTo(toSteal)
                     if (!stolen.isEmpty) {
                       val iter = stolen.iterator
                       runnable = iter.next()
@@ -340,7 +340,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
             }
 
             // Park until woken up, but double-check for work before parking
-            while (!active && !isInterrupted && !shutdown) {
+            while (!active && !isInterrupted && !_isShutdown) {
               // Double-check for work to avoid race condition
               if (!globalQueue.isEmpty || !localQueue.isEmpty()) {
                 // Found work, don't park - increment state to become active again
@@ -398,7 +398,7 @@ private final class NioScheduler(autoBlocking: Boolean) extends Executor { paren
    * Shuts down the scheduler gracefully.
    */
   def shutdown(): Unit = {
-    this.shutdown = true
+    this._isShutdown = true
     workers.foreach(_.interrupt())
   }
 }
@@ -407,14 +407,14 @@ private object NioScheduler {
   private val poolSize: Int = java.lang.Runtime.getRuntime.availableProcessors
 
   /**
-   * Marks the current worker as blocking if the current thread is a NioScheduler worker.
+   * Marks the current worker as blocking if the current thread is a
+   * NioScheduler worker.
    */
-  def markCurrentWorkerAsBlocking(): Unit = {
+  def markCurrentWorkerAsBlocking(): Unit =
     Thread.currentThread() match {
       case w: NioScheduler.Worker => w.markAsBlocking()
       case _                      => ()
     }
-  }
 
   /**
    * A `Worker` is a `Thread` that executes tasks submitted to the scheduler.
