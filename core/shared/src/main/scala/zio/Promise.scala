@@ -175,7 +175,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
   def become(fiber: Fiber[E, A])(implicit trace: Trace): UIO[Boolean] =
     fiber.await
       .flatMap {
-        case Exit.Success(a)     => succeed(a)
+        case Exit.Success(a) => succeed(a)
         case Exit.Failure(cause) => refailCause(cause)
       }
 
