@@ -59,7 +59,7 @@ object GenIntegralPoly {
    * instance.
    */
   def genIntegralPoly(implicit trace: Trace): Gen[Any, GenIntegralPoly] =
-    Gen.elements(byte, char, int, long, short)
+    Gen.randomChoice(byte, char, int, long, short)
 
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for

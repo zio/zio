@@ -72,7 +72,7 @@ object GenNumericPoly {
    * instance.
    */
   def genNumericPoly(implicit trace: Trace): Gen[Any, GenNumericPoly] =
-    Gen.elements(
+    Gen.randomChoice(
       byte,
       char,
       double,
