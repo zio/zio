@@ -40,7 +40,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val idle            = new ConcurrentLinkedQueue[ZScheduler.Worker]()
   private[this] val globalLocations = makeLocations()
   private[this] val state           = new AtomicInteger(poolSize << 16)
-  private[this] val unparkCounter = new AtomicInteger(0)
+  private[this] val unparkCounter   = new AtomicInteger(0)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
@@ -446,11 +446,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     }
 
   private def maybeUnparkWorker(currentState: Int): Unit = {
-    // Coalesce unparks: only unpark every N calls to reduce expensive LockSupport.unpark
-    // This trades some fairness for aggression, reducing excessive cycling.
-    // The counter resets when we successfully unpark a worker.
-    val count = unparkCounter.incrementAndGet()
-    if (count % 2 != 0 && count != 1) return  // Skip every other unpark attempt
+    val count            = unparkCounter.incrementAndGet()
+    if (count % 2 != 0 && count != 1) return
     val currentSearching = currentState & 0xffff
     val currentActive    = (currentState & 0xffff0000) >> 16
     if (currentActive != poolSize && currentSearching == 0) {
@@ -458,7 +455,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       if (worker ne null) {
         state.getAndAdd(0x10001)
         worker.active = true
-        unparkCounter.set(0)  // Reset on successful unpark
+        unparkCounter.set(0)
         LockSupport.unpark(worker)
       }
     }
