@@ -7,6 +7,7 @@ env:
 
 on:
   pull_request:
+  pull_request_target:
   push:
     branches:
       - 'series/2.x'
@@ -17,7 +18,7 @@ on:
     types: [update-docs]
 
 concurrency:
-  group: ci-pr-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  group: ci-pr-${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -124,6 +125,34 @@ jobs:
 
       - name: Print All Generated Files
         run: find ./website/build -print
+
+  deploy-preview:
+    needs: [build-website]
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: website-artifact
+          path: website-artifact
+
+      - name: Deploy preview to Netlify
+        uses: nwtgck/actions-netlify@v3.0
+        with:
+          publish-dir: ./website-artifact
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "PR #${{ github.event.pull_request.number }} — ${{ github.event.pull_request.title }}"
+          alias: pr-${{ github.event.pull_request.number }}
+          enable-pull-request-comment: true
+          overwrites-pull-request-comment: true
+          enable-commit-comment: false
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        timeout-minutes: 5
 
   test:
     runs-on: ubuntu-latest
