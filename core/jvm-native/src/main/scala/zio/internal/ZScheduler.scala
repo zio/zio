@@ -153,8 +153,10 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       } else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
       } else ()
-      val currentState = state.get
-      maybeUnparkWorker(currentState)
+      if (!idle.isEmpty) {
+        val currentState = state.get
+        maybeUnparkWorker(currentState)
+      }
       true
     }
   }
@@ -398,7 +400,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             if (searching) {
               searching = false
               val currentState = state.decrementAndGet()
-              maybeUnparkWorker(currentState)
+              if (!globalQueue.isEmpty) {
+                maybeUnparkWorker(currentState)
+              }
             }
             currentRunnable = runnable
             runnable.run()
