@@ -128,7 +128,7 @@ jobs:
 
   deploy-preview:
     needs: [build-website]
-    if: github.event_name == 'pull_request_target'
+    if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     permissions:
       contents: read
