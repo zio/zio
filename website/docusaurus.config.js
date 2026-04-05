@@ -4,6 +4,7 @@ const path = require('path');
 
 const lightCodeTheme = require('prism-react-renderer/themes/github');
 const darkCodeTheme = require('prism-react-renderer/themes/vsDark');
+const { getEditUrl } = require('./editUrl')
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -241,7 +242,7 @@ const config = {
               },
             ],
           ],
-          editUrl: 'https://github.com/zio/zio/edit/series/2.x',
+          editUrl: getEditUrl,
         },
         blog: {
           blogTitle: 'ZIO Blog',

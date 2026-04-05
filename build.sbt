@@ -547,8 +547,8 @@ lazy val commonJunitTestSettings = Seq(
   libraryDependencies ++= Seq(
     "junit"                     % "junit"                          % "4.13.2" % Test,
     "org.scala-lang.modules"   %% "scala-xml"                      % "2.4.0"  % Test,
-    "org.apache.maven"          % "maven-embedder"                 % "3.9.13" % Test,
-    "org.apache.maven"          % "maven-compat"                   % "3.9.13" % Test,
+    "org.apache.maven"          % "maven-embedder"                 % "3.9.14" % Test,
+    "org.apache.maven"          % "maven-compat"                   % "3.9.14" % Test,
     "com.google.inject"         % "guice"                          % "6.0.0"  % Test,
     "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "1.0.0"  % Test,
     "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.27" % Test,
@@ -667,7 +667,7 @@ lazy val benchmarks = project.module
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
         "qa.hedgehog"               %% "hedgehog-core" % "0.13.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
-        "org.springframework"        % "spring-core"   % "7.0.5"
+        "org.springframework"        % "spring-core"   % "7.0.6"
       )
     },
     excludeDependencies ++= {
