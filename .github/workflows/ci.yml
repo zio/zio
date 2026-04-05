@@ -7,6 +7,7 @@ env:
 
 on:
   pull_request:
+  pull_request_target:
   push:
     branches:
       - 'series/2.x'
@@ -17,7 +18,7 @@ on:
     types: [update-docs]
 
 concurrency:
-  group: ci-pr-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  group: ci-pr-${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target') && github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -127,7 +128,7 @@ jobs:
 
   deploy-preview:
     needs: [build-website]
-    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    if: github.event_name == 'pull_request_target'
     runs-on: ubuntu-latest
     permissions:
       contents: read
