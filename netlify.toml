@@ -1,6 +1,6 @@
 [build]
   publish = "website/build"
-  ignore  = "exit 1"
+  ignore  = "exit 0"
 
 [build.environment]
   NODE_VERSION            = "20"
