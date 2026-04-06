@@ -125,33 +125,6 @@ jobs:
       - name: Print All Generated Files
         run: find ./website/build -print
 
-  deploy-preview:
-    needs: [build-website]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: website-artifact
-          path: website-artifact
-
-      - name: Deploy preview to Netlify
-        uses: nwtgck/actions-netlify@v3.0
-        with:
-          publish-dir: ./website-artifact
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          deploy-message: "PR #${{ github.event.pull_request.number }} — ${{ github.event.pull_request.title }}"
-          alias: pr-${{ github.event.pull_request.number }}
-          enable-pull-request-comment: true
-          overwrites-pull-request-comment: true
-          enable-commit-comment: false
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        timeout-minutes: 5
-
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 60
