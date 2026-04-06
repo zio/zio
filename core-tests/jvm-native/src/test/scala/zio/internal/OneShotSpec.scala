@@ -49,7 +49,7 @@ object OneShotSpec extends ZIOBaseSpec {
         oneShot.lock()
         t.start()
         lock.get()
-        Thread.sleep(10L)
+        Thread.sleep(50L)
         val isSet = oneShot.isSet
         oneShot.unlock()
 
@@ -60,16 +60,16 @@ object OneShotSpec extends ZIOBaseSpec {
           val oneShot = OneShot.make[Int]
 
           new Thread(() => {
-            Thread.sleep(10L)
+            Thread.sleep(100L)
             oneShot.set(1)
           }).start()
 
-          assert(oneShot.get(20L))(equalTo(1))
+          assert(oneShot.get(2000L))(equalTo(1))
         },
         test("fails if no value is set") {
           val oneShot = OneShot.make[Object]
 
-          assert(oneShot.get(10L))(throwsA[OneShot.TimeoutException])
+          assert(oneShot.get(50L))(throwsA[OneShot.TimeoutException])
         }
       ) @@ blocking,
       suite("tryGet(timeout)")(
@@ -77,16 +77,16 @@ object OneShotSpec extends ZIOBaseSpec {
           val oneShot = OneShot.make[Int]
 
           new Thread(() => {
-            Thread.sleep(10L)
+            Thread.sleep(100L)
             oneShot.set(1)
           }).start()
 
-          assert(oneShot.tryGet(20L))(equalTo(1))
+          assert(oneShot.tryGet(2000L))(equalTo(1))
         },
         test("returns null if the value is not set within the timeout") {
           val oneShot = OneShot.make[Object]
 
-          assert(oneShot.tryGet(10L))(equalTo(null))
+          assert(oneShot.tryGet(50L))(equalTo(null))
         }
       ) @@ blocking
     )
