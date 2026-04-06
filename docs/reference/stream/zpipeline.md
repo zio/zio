@@ -36,6 +36,71 @@ val chars =
 
 There is also a `ZPipeline.mapZIO` which is an effectful version of this constructor.
 
+### From Custom Channels
+
+For stateful transformations that can't be expressed with `map` or `mapZIO`, you can build pipelines directly from `ZChannel` using the `ZChannel.readWithCause` pattern. This is the foundation for any complex pipeline:
+
+```scala mdoc:silent:nest
+import zio.stream.ZChannel
+import zio.Chunk
+
+// A pipeline that groups consecutive pairs of elements
+def pairwise[A]: ZPipeline[Any, Nothing, A, (A, A)] = {
+  ZPipeline.fromChannel(
+    ZChannel.readWithCause(
+      elem => {
+        // Process a chunk of elements
+        val pairs = scala.collection.mutable.ListBuffer.empty[(A, A)]
+        var previous: Option[A] = None
+
+        elem.foreach { current =>
+          previous.foreach { prev =>
+            pairs += ((prev, current))
+          }
+          previous = Some(current)
+        }
+
+        // Write results and recurse with new state
+        ZChannel.writeAll(pairs: _*) *>
+          pairwiseChannel(previous)
+      },
+      err => ZChannel.fail(err),      // Propagate upstream errors
+      done => ZChannel.succeed(done)  // Stream ended
+    )
+  )
+}
+
+// Helper to maintain state across invocations
+def pairwiseChannel[A](previous: Option[A]): ZChannel[Any, Nothing, Chunk[A], Any, Nothing, (A, A), Any] = {
+  ZChannel.readWithCause(
+    elem => {
+      val pairs = scala.collection.mutable.ListBuffer.empty[(A, A)]
+      var currentPrev = previous
+
+      elem.foreach { current =>
+        currentPrev.foreach { prev =>
+          pairs += ((prev, current))
+        }
+        currentPrev = Some(current)
+      }
+
+      ZChannel.writeAll(pairs: _*) *> pairwiseChannel(currentPrev)
+    },
+    err => ZChannel.fail(err),
+    done => ZChannel.succeed(done)
+  )
+}
+```
+
+The three-case `readWithCause` pattern is essential:
+- **Case 1 (elem):** Process incoming chunk of elements and decide what to emit
+- **Case 2 (err):** Handle errors from upstream (usually propagate unchanged)
+- **Case 3 (done):** Handle stream completion (finalize any pending state)
+
+:::info
+**Why channels instead of functions?** Pipelines are channels because they need to compose seamlessly with sinks and other pipelines. A function-based pipeline couldn't be composed with a sink—the channel abstraction provides a unified interface for all streaming components.
+:::
+
 ## Built-in Pipelines
 
 ### Identity
