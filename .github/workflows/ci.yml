@@ -122,6 +122,18 @@ jobs:
           path: ./website/build
           overwrite: true
 
+      - name: Save PR Metadata
+        if: github.event_name == 'pull_request'
+        run: echo "${{ github.event.pull_request.number }}" > pr-number.txt
+
+      - name: Upload PR Metadata
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-metadata
+          path: pr-number.txt
+          overwrite: true
+
       - name: Print All Generated Files
         run: find ./website/build -print
 
