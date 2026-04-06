@@ -61,10 +61,10 @@ def pairwise[A]: ZPipeline[Any, Nothing, A, (A, A)] = {
         }
 
         // Write results and recurse with new state
-        ZChannel.writeAll(pairs: _*) *>
+        ZChannel.writeAll(pairs.toSeq: _*) *>
           pairwiseChannel(previous)
       },
-      err => ZChannel.fail(err),      // Propagate upstream errors
+      err => ZChannel.failCause(err),      // Propagate upstream errors
       done => ZChannel.succeed(done)  // Stream ended
     )
   )
@@ -84,9 +84,9 @@ def pairwiseChannel[A](previous: Option[A]): ZChannel[Any, Nothing, Chunk[A], An
         currentPrev = Some(current)
       }
 
-      ZChannel.writeAll(pairs: _*) *> pairwiseChannel(currentPrev)
+      ZChannel.writeAll(pairs.toSeq: _*) *> pairwiseChannel(currentPrev)
     },
-    err => ZChannel.fail(err),
+    err => ZChannel.failCause(err),
     done => ZChannel.succeed(done)
   )
 }
