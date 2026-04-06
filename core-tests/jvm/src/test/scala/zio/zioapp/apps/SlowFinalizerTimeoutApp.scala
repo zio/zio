@@ -4,8 +4,8 @@ import zio._
 
 /**
  * Overrides gracefulShutdownTimeout to 1 second. The finalizer tries to sleep
- * for 30 seconds before printing a marker. Since the timeout is 1 second,
- * the marker must NOT appear — the finalizer should be cut off.
+ * for 30 seconds before printing a marker. Since the timeout is 1 second, the
+ * marker must NOT appear — the finalizer should be cut off.
  */
 object SlowFinalizerTimeoutApp extends ZIOAppDefault {
 

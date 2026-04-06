@@ -11,7 +11,8 @@ import scala.annotation.nowarn
  * resources, error handling in finalizers, app composition, and args threading.
  * These tests run on JVM, JS, and Native without spawning child processes.
  *
- * @see [[https://github.com/zio/zio/issues/9909 #9909]]
+ * @see
+ *   [[https://github.com/zio/zio/issues/9909 #9909]]
  */
 object ZIOAppLifecycleSpec extends ZIOBaseSpec {
 
@@ -54,13 +55,13 @@ object ZIOAppLifecycleSpec extends ZIOBaseSpec {
         ref <- Ref.make(0)
         app = new ZIOApp {
                 type Environment = Ref[Int]
-                val environmentTag: EnvironmentTag[Ref[Int]]                       = EnvironmentTag[Ref[Int]]
-                val bootstrap: ZLayer[ZIOAppArgs, Any, Ref[Int]]                   = ZLayer.succeed(ref)
+                val environmentTag: EnvironmentTag[Ref[Int]]     = EnvironmentTag[Ref[Int]]
+                val bootstrap: ZLayer[ZIOAppArgs, Any, Ref[Int]] = ZLayer.succeed(ref)
                 val run: ZIO[Ref[Int] with ZIOAppArgs with Scope, Any, Any] =
                   ZIO.serviceWithZIO[Ref[Int]](_.update(_ + 10))
               }
-        _   <- app.invoke(Chunk.empty)
-        v   <- ref.get
+        _ <- app.invoke(Chunk.empty)
+        v <- ref.get
       } yield assertTrue(v == 10)
     }
   )
@@ -126,9 +127,9 @@ object ZIOAppLifecycleSpec extends ZIOBaseSpec {
   private val compositionSuite = suite("app composition")(
     test("composed apps run both effects") {
       for {
-        ref <- Ref.make(List.empty[String])
-        app1 = ZIOApp.fromZIO(ref.update(_ :+ "first"))
-        app2 = ZIOApp.fromZIO(ref.update(_ :+ "second"))
+        ref    <- Ref.make(List.empty[String])
+        app1    = ZIOApp.fromZIO(ref.update(_ :+ "first"))
+        app2    = ZIOApp.fromZIO(ref.update(_ :+ "second"))
         _      <- (app1 <> app2).invoke(Chunk.empty)
         result <- ref.get
       } yield assertTrue(result.contains("first")) &&

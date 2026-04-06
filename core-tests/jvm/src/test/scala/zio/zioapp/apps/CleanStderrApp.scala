@@ -5,8 +5,8 @@ import zio._
 /**
  * Tests regression #9807: on clean shutdown via SIGINT, stderr should NOT
  * contain uncaught exception traces (e.g., "Exception in thread" or
- * "FiberFailure"). This app adds an extra JVM shutdown hook that sleeps
- * for 2 seconds to reproduce the race condition described in the issue.
+ * "FiberFailure"). This app adds an extra JVM shutdown hook that sleeps for 2
+ * seconds to reproduce the race condition described in the issue.
  */
 object CleanStderrApp extends ZIOAppDefault {
 

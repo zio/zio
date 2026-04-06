@@ -4,9 +4,9 @@ import java.io.{BufferedReader, InputStreamReader}
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 /**
- * Spawns a JVM child process running a given main class, captures stdout/stderr,
- * and optionally sends SIGINT to simulate Ctrl+C. Uses CountDownLatch with hard
- * timeouts so CI never hangs.
+ * Spawns a JVM child process running a given main class, captures
+ * stdout/stderr, and optionally sends SIGINT to simulate Ctrl+C. Uses
+ * CountDownLatch with hard timeouts so CI never hangs.
  *
  * Each test app prints "APP_READY" to stdout once it is blocked or done. The
  * `runAndInterrupt` variant waits for that marker before sending SIGINT.
@@ -25,7 +25,7 @@ object JvmProcessRunner {
     args: List[String] = Nil,
     timeoutMs: Long = DefaultTimeoutMs
   ): ProcessResult = {
-    val process = startProcess(mainClass, args)
+    val process          = startProcess(mainClass, args)
     val (stdout, stderr) = drainOutput(process, timeoutMs)
     val exitCode =
       if (process.isAlive) { process.destroyForcibly(); -1 }
@@ -34,8 +34,8 @@ object JvmProcessRunner {
   }
 
   /**
-   * Run the app, wait for the "APP_READY" marker on stdout, send SIGINT,
-   * then wait for exit.
+   * Run the app, wait for the "APP_READY" marker on stdout, send SIGINT, then
+   * wait for exit.
    */
   def runAndInterrupt(
     mainClass: String,
@@ -100,17 +100,20 @@ object JvmProcessRunner {
     buf: StringBuilder,
     readyLatch: Option[CountDownLatch]
   ): Thread = {
-    val t = new Thread(() => {
-      val reader = new BufferedReader(new InputStreamReader(stream))
-      var line   = reader.readLine()
-      while (line != null) {
-        buf.append(line).append('\n')
-        readyLatch.foreach { latch =>
-          if (line.contains("APP_READY")) latch.countDown()
+    val t = new Thread(
+      () => {
+        val reader = new BufferedReader(new InputStreamReader(stream))
+        var line   = reader.readLine()
+        while (line != null) {
+          buf.append(line).append('\n')
+          readyLatch.foreach { latch =>
+            if (line.contains("APP_READY")) latch.countDown()
+          }
+          line = reader.readLine()
         }
-        line = reader.readLine()
-      }
-    }, s"$name-reader")
+      },
+      s"$name-reader"
+    )
     t.setDaemon(true)
     t
   }
@@ -139,6 +142,6 @@ object JvmProcessRunner {
   private def sendSigint(process: Process): Unit = {
     val pid         = process.pid()
     val killProcess = new ProcessBuilder("kill", "-INT", pid.toString).start()
-    val _ = killProcess.waitFor(5, TimeUnit.SECONDS)
+    val _           = killProcess.waitFor(5, TimeUnit.SECONDS)
   }
 }

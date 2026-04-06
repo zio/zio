@@ -3,9 +3,9 @@ package zio.zioapp.apps
 import zio._
 
 /**
- * Acquires three resources in order A -> B -> C, then blocks forever.
- * On SIGINT, finalizers must ALL run and in reverse order: C, B, A.
- * Covers regression #9901.
+ * Acquires three resources in order A -> B -> C, then blocks forever. On
+ * SIGINT, finalizers must ALL run and in reverse order: C, B, A. Covers
+ * regression #9901.
  */
 object MultiFinalizerOrderApp extends ZIOAppDefault {
   val run: ZIO[Scope, Nothing, Nothing] =

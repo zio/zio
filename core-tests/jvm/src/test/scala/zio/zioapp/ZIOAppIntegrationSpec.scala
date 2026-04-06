@@ -7,21 +7,23 @@ import zio.test.TestAspect._
 /**
  * Process-level integration tests for ZIOApp lifecycle behaviour.
  *
- * These tests spawn real JVM child processes so the full `main()` code path
- * is exercised, including JVM shutdown hooks, `System.exit`, signal delivery,
- * and `gracefulShutdownTimeout`.
+ * These tests spawn real JVM child processes so the full `main()` code path is
+ * exercised, including JVM shutdown hooks, `System.exit`, signal delivery, and
+ * `gracefulShutdownTimeout`.
  *
  * The existing `ZIOAppSpec` uses `invoke()` which is great for unit-level
  * verification but bypasses all JVM-level shutdown machinery. These tests
  * complement it by covering the gaps that only process-level testing can reach.
  *
  * Each test app is a minimal `ZIOAppDefault` in the `apps` sub-package. They
- * print sentinel markers (e.g. "APP_READY", "FINALIZER_RAN") to stdout so
- * the test harness can verify behaviour by inspecting captured output.
+ * print sentinel markers (e.g. "APP_READY", "FINALIZER_RAN") to stdout so the
+ * test harness can verify behaviour by inspecting captured output.
  *
- * Signal tests are gated behind `os(o => !o.isWindows)` and use `nonFlaky(3)` for stability.
+ * Signal tests are gated behind `os(o => !o.isWindows)` and use `nonFlaky(3)`
+ * for stability.
  *
- * @see [[https://github.com/zio/zio/issues/9909 #9909]]
+ * @see
+ *   [[https://github.com/zio/zio/issues/9909 #9909]]
  */
 object ZIOAppIntegrationSpec extends ZIOBaseSpec {
 
@@ -96,7 +98,6 @@ object ZIOAppIntegrationSpec extends ZIOBaseSpec {
                   )
       } yield assertTrue(result.stdout.contains("FINALIZER_RAN"))
     } @@ nonFlaky(3),
-
     test("multiple finalizers all run in reverse order on SIGINT (#9901)") {
       for {
         result <- ZIO.attemptBlockingInterrupt(
@@ -112,7 +113,6 @@ object ZIOAppIntegrationSpec extends ZIOBaseSpec {
         assertTrue(out.indexOf("FIN_B") < out.indexOf("FIN_A"))
       }
     } @@ nonFlaky(3),
-
     test("shutdown completes without hanging") {
       for {
         result <- ZIO.attemptBlockingInterrupt(
@@ -120,7 +120,6 @@ object ZIOAppIntegrationSpec extends ZIOBaseSpec {
                   )
       } yield assertTrue(result.exitCode != -1) // -1 means we timed out
     } @@ nonFlaky(3),
-
     test("gracefulShutdownTimeout cuts off slow finalizer") {
       for {
         result <- ZIO.attemptBlockingInterrupt(
@@ -132,7 +131,6 @@ object ZIOAppIntegrationSpec extends ZIOBaseSpec {
         assertTrue(!result.stdout.contains("SLOW_FIN_DONE"))
       }
     } @@ nonFlaky(3),
-
     test("bootstrap layer finalizer runs on SIGINT") {
       for {
         result <- ZIO.attemptBlockingInterrupt(
@@ -158,7 +156,6 @@ object ZIOAppIntegrationSpec extends ZIOBaseSpec {
         assertTrue(!stderr.contains("FiberFailure"))
       }
     } @@ nonFlaky(3),
-
     test("daemon fibers are cleaned up on shutdown") {
       for {
         result <- ZIO.attemptBlockingInterrupt(
@@ -166,7 +163,6 @@ object ZIOAppIntegrationSpec extends ZIOBaseSpec {
                   )
       } yield assertTrue(result.exitCode != -1)
     } @@ nonFlaky(3),
-
     test("failing finalizer does not prevent other finalizers from running") {
       for {
         result <- ZIO.attemptBlockingInterrupt(

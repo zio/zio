@@ -3,8 +3,8 @@ package zio.zioapp.apps
 import zio._
 
 /**
- * App that dies (unrecoverable defect) after printing a marker.
- * Expected: exit code 1.
+ * App that dies (unrecoverable defect) after printing a marker. Expected: exit
+ * code 1.
  */
 object DefectExitApp extends ZIOAppDefault {
   val run: ZIO[Any, Nothing, Nothing] =
