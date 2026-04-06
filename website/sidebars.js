@@ -575,7 +575,6 @@ module.exports = {
     "resources/index",
     "resources/articles",
     "resources/videos",
-    "resources/cookbooks",
     "resources/sampleprojects",
     "resources/poweredbyzio"
   ]
