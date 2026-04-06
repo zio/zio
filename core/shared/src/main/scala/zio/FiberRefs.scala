@@ -33,8 +33,8 @@ final class FiberRefs private (
   import FiberRef.currentRuntimeFlags
   import zio.FiberRefs.{StackEntry, Value, eqWithBoxedNumericEquality}
 
-  private[this] var _needsTransformWhenForked: Int = -1
-  private[this] var _needsTransformWhenJoinEq: Int = -1
+  private[this] var _needTransformWhenForked: List[FiberRef[_]] = null
+  private[this] var _needsTransformWhenJoinEq: Int              = -1
 
   /**
    * Returns a new fiber refs with the specified ref deleted from it.
@@ -52,28 +52,22 @@ final class FiberRefs private (
     fiberRefLocals.keySet
 
   /**
-   * Boolean flag which indicates whether the FiberRefs map contains an entry
-   * that will cause the map to be changed when [[forkAs]] is called.
+   * List of FiberRefs that need to be transformed when calling [[forkAs]].
    *
-   * This way we can avoid calling `fiberRefLocals.transform` on every
-   * invocation of [[forkAs]] when we already know that the map will not be
-   * transformed
+   * Using this list we can avoid transforming the entire map when forking
    */
-  private[this] def needsTransformWhenForked: Boolean =
-    (_needsTransformWhenForked: @switch) match {
-      case 0 => false
-      case 1 => true
-      case _ =>
-        var res = true
+  private[this] def needTransformWhenForked: List[FiberRef[_]] =
+    _needTransformWhenForked match {
+      case null =>
+        var res = List.empty[FiberRef[_]]
         val it  = fiberRefLocals.keysIterator
-        while (it.hasNext && res) res = it.next().hasIdentityFork
-        if (res) {
-          _needsTransformWhenForked = 0
-          false
-        } else {
-          _needsTransformWhenForked = 1
-          true
+        while (it.hasNext) {
+          val v = it.next()
+          if (!v.hasIdentityFork) res ::= v
         }
+        _needTransformWhenForked = res
+        res
+      case v => v
     }
 
   /**
@@ -102,37 +96,43 @@ final class FiberRefs private (
    * will potentially modify the value of the fiber refs, as determined by the
    * individual fiber refs that make up the collection.
    */
-  def forkAs(childId: FiberId.Runtime): FiberRefs =
-    if (needsTransformWhenForked) {
-      val childMap = fiberRefLocals.transform { (fiberRef, entry) =>
-        if (fiberRef.hasIdentityFork) {
-          entry
-        } else {
-          import entry.{depth, stack}
+  def forkAs(childId: FiberId.Runtime): FiberRefs = {
+    var toTransform = needTransformWhenForked
+    if (toTransform eq Nil) return self
 
-          type T = fiberRef.Value & AnyRef
-          val oldValue = stack.head.value.asInstanceOf[T]
-          val newValue = fiberRef.patch(fiberRef.fork)(oldValue).asInstanceOf[T]
-          if (eqWithBoxedNumericEquality(oldValue, newValue)) entry
-          else {
+    val parentMap = fiberRefLocals
+    var childMap  = parentMap
 
-            /**
-             * The assertion disappears when compiling with `CI_RELEASE_MODE=1`.
-             * If this shows up in benchmarks, make sure to compile the code
-             * with the envvar set.
-             */
-            assert(
-              BuildInfo.optimizationsEnabled || newValue != oldValue,
-              s"FiberRef.improvedEq reference equality returned false but equals returned true for value of class ${(oldValue: AnyRef).getClass.getName}"
-            )
-            Value(::(StackEntry(childId, newValue, 0), stack), depth + 1)
-          }
-        }
+    while (toTransform ne Nil) {
+      val fiberRef = toTransform.head
+      type T = fiberRef.Value & AnyRef
+
+      val entry = parentMap(fiberRef)
+
+      import entry.{depth, stack}
+
+      val oldValue = stack.head.value.asInstanceOf[T]
+      val newValue = fiberRef.patch(fiberRef.fork)(oldValue).asInstanceOf[T]
+      if (!eqWithBoxedNumericEquality(oldValue, newValue)) {
+
+        /**
+         * The assertion disappears when compiling with `CI_RELEASE_MODE=1`. If
+         * this shows up in benchmarks, make sure to compile the code with the
+         * envvar set.
+         */
+        assert(
+          BuildInfo.optimizationsEnabled || newValue != oldValue,
+          s"FiberRef.improvedEq reference equality returned false but equals returned true for value of class ${(oldValue: AnyRef).getClass.getName}"
+        )
+        childMap = childMap.updated(fiberRef, Value(::(StackEntry(childId, newValue, 0), stack), depth + 1))
       }
 
-      if (childMap ne fiberRefLocals) FiberRefs(childMap)
-      else self
-    } else self
+      toTransform = toTransform.tail
+    }
+
+    if (childMap eq parentMap) self
+    else FiberRefs(childMap)
+  }
 
   /**
    * Gets the value of the specified `FiberRef` in this collection of `FiberRef`
