@@ -2529,6 +2529,16 @@ object ZIOSpec extends ZIOBaseSpec {
 
         assertZIO(io.catchAllCause(ZIO.succeed(_)))(equalTo(Cause.fail("Uh oh!")))
       } @@ zioTag(errors),
+      test("catchAll does not recover from defects in combined Fail+Die cause (issue 9874)") {
+        val cause = Cause.die(new RuntimeException("defect")) && Cause.fail("typed error")
+        val io    = ZIO.failCause(cause).catchAll(_ => ZIO.succeed("recovered"))
+        assertZIO(io.exit)(dies(isSubtype[RuntimeException](hasMessage(equalTo("defect")))))
+      } @@ zioTag(errors),
+      test("catchAll does not recover from interruption in combined Fail+Interrupt cause (issue 9874)") {
+        val cause = Cause.interrupt(FiberId.None) && Cause.fail("typed error")
+        val io    = ZIO.failCause(cause).catchAll(_ => ZIO.succeed("recovered"))
+        assertZIO(io.exit)(isInterrupted)
+      } @@ zioTag(errors),
       test("exception in fromFuture does not kill fiber") {
         val io = ZIO.fromFuture(_ => throw ExampleError).either
         assertZIO(io)(isLeft(equalTo(ExampleError)))
