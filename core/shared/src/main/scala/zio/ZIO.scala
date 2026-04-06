@@ -23,6 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.IntFunction
 import scala.annotation.implicitNotFound
 import scala.collection.mutable.ListBuffer
@@ -1019,10 +1020,7 @@ sealed trait ZIO[-R, +E, +A]
    * result of this effect.
    */
   final def memoize(implicit trace: Trace): UIO[ZIO[R, E, A]] =
-    for {
-      promise  <- Promise.make[E, (FiberRefs.Patch, A)]
-      complete <- self.diffFiberRefs.intoPromise(promise).once
-    } yield complete *> promise.await.flatMap { case (patch, a) => ZIO.patchFiberRefs(patch).as(a) }
+    ZIO.memoize((_: Unit) => self).map(_.apply(()))
 
   /**
    * Returns a new effect where the error channel has been merged into the
@@ -1052,9 +1050,9 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def once(implicit trace: Trace): UIO[ZIO[R, E, Unit]] =
     ZIO.succeed {
-      val ref = Ref.unsafe.make(true)(Unsafe)
+      val ref = new AtomicBoolean(false)
 
-      ZIO.whenDiscard(ref.unsafe.getAndSet(false)(Unsafe))(self)
+      ZIO.whenDiscard(ref.compareAndSet(false, true))(self)
     }
 
   /**
@@ -4371,20 +4369,36 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Returns a memoized version of the specified effectual function.
    */
   def memoize[R, E, A, B](f: A => ZIO[R, E, B])(implicit trace: Trace): UIO[A => ZIO[R, E, B]] =
-    Ref.Synchronized.make(Map.empty[A, Promise[E, (FiberRefs.Patch, B)]]).map { ref => a =>
-      for {
-        promise <- ref.modifyZIO { map =>
-                     map.get(a) match {
-                       case Some(promise) => Exit.succeed((promise, map))
-                       case _ =>
-                         for {
-                           promise <- Promise.make[E, (FiberRefs.Patch, B)]
-                           _       <- f(a).diffFiberRefs.intoPromise(promise).fork
-                         } yield (promise, map.updated(a, promise))
-                     }
-                   }
-        b <- promise.await.flatMap { case (patch, b) => ZIO.patchFiberRefs(patch).as(b) }
-      } yield b
+    Ref.Synchronized.make(Map.empty[A, Promise[E, (FiberRefs.Patch, B)]]).map { ref =>
+      def loop(a: A): ZIO[R, E, B] =
+        ZIO.suspendSucceed {
+          val isSetter = new AtomicBoolean()
+          for {
+            promise <- ref.modifyZIO { map =>
+                         map.getOrElse(a, null) match {
+                           case null =>
+                             for {
+                               p <- Promise.make[E, (FiberRefs.Patch, B)]
+                               _ <- ZIO.uninterruptibleMask { restore =>
+                                      isSetter.set(true)
+                                      restore(f(a).diffFiberRefs).exitWith {
+                                        case ex if ex.isInterruptedOnly => ref.update(_.removed(a)) *> p.done(ex)
+                                        case ex                         => p.done(ex)
+                                      }.fork
+                                    }
+                             } yield (p, map.updated(a, p))
+                           case p => Exit.succeed((p, map))
+                         }
+                       }
+            b <- promise.await.exitWith {
+                   case Exit.Success((patch, b))                      => ZIO.patchFiberRefs(patch).as(b)
+                   case ex if !isSetter.get() && ex.isInterruptedOnly => ZIO.yieldNow *> loop(a)
+                   case ex                                            => ex.asInstanceOf[Exit[E, Nothing]]
+                 }
+          } yield b
+        }
+
+      loop
     }
 
   /**
