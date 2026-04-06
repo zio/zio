@@ -28,6 +28,8 @@ jobs:
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v6.0.2
+      with:
+        ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
     - name: Setup Java
       uses: actions/setup-java@v5.2.0
       with:
@@ -55,6 +57,7 @@ jobs:
       - name: Checkout current branch
         uses: actions/checkout@v6.0.2
         with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
           fetch-depth: 0
       - name: Setup Java
         uses: actions/setup-java@v5.2.0
@@ -87,6 +90,7 @@ jobs:
       - name: Checkout Current Branch
         uses: actions/checkout@v6.0.2
         with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
           fetch-depth: 0
       - name: Setup Java
         uses: actions/setup-java@v5.2.0
@@ -150,6 +154,8 @@ jobs:
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v6.0.2
+      with:
+        ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
     - name: Setup Java
       uses: actions/setup-java@v5.2.0
       with:
@@ -211,6 +217,8 @@ jobs:
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
       - name: Setup Java
         uses: actions/setup-java@v5.2.0
         with:
@@ -243,6 +251,8 @@ jobs:
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
       - name: Install Boehm GC
         if: ${{ startsWith(matrix.platform, 'Native') }}
         run: sudo apt-get update && sudo apt-get install -y libgc-dev
