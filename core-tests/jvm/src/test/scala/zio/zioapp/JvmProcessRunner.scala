@@ -15,7 +15,7 @@ object JvmProcessRunner {
 
   final case class ProcessResult(exitCode: Int, stdout: String, stderr: String)
 
-  private val DefaultTimeoutMs = 30_000L
+  private val DefaultTimeoutMs = 30000L
 
   /**
    * Run the app, wait for it to exit naturally (or time out).
