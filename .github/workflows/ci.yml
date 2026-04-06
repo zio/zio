@@ -6,7 +6,7 @@ env:
   NODE_OPTIONS: --max_old_space_size=6144
 
 on:
-  pull_request_target:
+  pull_request:
   push:
     branches:
       - 'series/2.x'
@@ -17,7 +17,7 @@ on:
     types: [update-docs]
 
 concurrency:
-  group: ci-pr-${{ github.event_name == 'pull_request_target' && github.event.pull_request.number || github.ref }}
+  group: ci-pr-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
