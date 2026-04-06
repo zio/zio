@@ -27,6 +27,7 @@ import scala.annotation.tailrec
  * enqueued and of which elements can be dequeued.
  */
 sealed abstract class Queue[A] extends Dequeue.Internal[A] with Enqueue.Internal[A] {
+  override def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit] = shutdown
 
   /**
    * Checks whether the queue is currently empty.
@@ -44,7 +45,7 @@ sealed abstract class Queue[A] extends Dequeue.Internal[A] with Enqueue.Internal
 object Queue extends QueuePlatformSpecific {
   private val interruptAsNone = ZIO.interruptAs(FiberId.None)(Trace.empty)
 
-  private[zio] abstract class Internal[A] extends Queue[A]
+  private[zio] abstract class Internal[A] extends Queue[A] { override def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit] = shutdown }
 
   /**
    * Makes a new bounded queue. When the capacity of the queue is reached, any
@@ -226,6 +227,21 @@ object Queue extends QueuePlatformSpecific {
         else
           Exit.succeed(queue.size() - takers.size() + strategy.surplusSize)
       }
+
+
+  override def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit] =
+    ZIO.fiberIdWith { fiberId =>
+      if (shutdownFlag.compareAndSet(false, true)) {
+        implicit val unsafe: Unsafe = Unsafe
+        shutdownHook.unsafe.succeedUnit
+        val it = unsafePollAll(takers).iterator
+        while (it.hasNext) {
+          it.next().unsafe.done(Exit.failCause(cause))
+        }
+        strategy.shutdown(fiberId)
+      }
+      Exit.unit
+    }.uninterruptible
 
     override def shutdown(implicit trace: Trace): UIO[Unit] =
       ZIO.fiberIdWith { fiberId =>
