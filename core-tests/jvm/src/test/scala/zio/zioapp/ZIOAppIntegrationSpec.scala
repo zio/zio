@@ -19,7 +19,7 @@ import zio.test.TestAspect._
  * print sentinel markers (e.g. "APP_READY", "FINALIZER_RAN") to stdout so
  * the test harness can verify behaviour by inspecting captured output.
  *
- * Signal tests are gated behind `@@ unix` and use `nonFlaky(3)` for stability.
+ * Signal tests are gated behind `os(o => !o.isWindows)` and use `nonFlaky(3)` for stability.
  *
  * @see [[https://github.com/zio/zio/issues/9909 #9909]]
  */

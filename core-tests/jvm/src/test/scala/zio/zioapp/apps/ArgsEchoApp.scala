@@ -10,6 +10,5 @@ object ArgsEchoApp extends ZIOAppDefault {
     for {
       args <- getArgs
       _    <- Console.printLine("ARGS:" + args.mkString(",")).orDie
-      _    <- Console.printLine("APP_READY").orDie
     } yield ()
 }
