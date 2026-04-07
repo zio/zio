@@ -134,11 +134,12 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
 
     // Assuming that the instant of observed values is continuously increasing
     // While Observing we cut off the first sample if we have already maxSize samples
-    def observe(value: Double, t: java.time.Instant): Unit = {
+    val observe: ((Double, java.time.Instant)) => Unit = (t: (Double, java.time.Instant)) => {
+      val value = t._1
       if (maxSize > 0) {
         head = head + 1 // TODO: Should `head` start at -1???
         val target = head % maxSize
-        values(target) = (t, value)
+        values(target) = (t._2, value)
       }
 
       count += 1
@@ -149,7 +150,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
     }
 
     MetricHookAnyRef(
-      t => observe(t._1, t._2),
+      observe,
       () =>
         MetricState.Summary(
           error,
@@ -159,7 +160,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
           getMax(),
           getSum()
         ),
-      t => observe(t._1, t._2)
+      observe
     )
   }
 
