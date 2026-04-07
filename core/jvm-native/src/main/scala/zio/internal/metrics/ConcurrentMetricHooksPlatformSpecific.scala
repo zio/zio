@@ -16,7 +16,6 @@
 package zio.internal.metrics
 
 import zio._
-import zio.internal.metrics.MetricHook.SummaryValue
 import zio.metrics._
 
 import java.lang.{Double => JDouble}
@@ -131,7 +130,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
   def summary(key: MetricKey.Summary): MetricHook.Summary = {
     import key.keyType.{error, maxAge, maxSize, quantiles}
 
-    val values = new AtomicReferenceArray[SummaryValue](maxSize)
+    val values = new AtomicReferenceArray[(Double, java.time.Instant)](maxSize)
     val head   = new AtomicLong(0)
     val count  = new LongAdder
     val sum    = new DoubleAdder
@@ -169,11 +168,11 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
       while (idx < maxSize) {
         val item = values.get(idx)
         if (item ne null) {
-          val ts          = item.timestamp
+          val ts          = item._2
           val notTooOld   = !ts.isBefore(cutoff)
           val notInFuture = !ts.isAfter(now)
           if (notTooOld && notInFuture) {
-            builder += item.value
+            builder += item._1
           }
         }
         idx += 1
@@ -187,7 +186,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
     def observe(tuple: (Double, java.time.Instant)): Unit = {
       if (maxSize > 0) {
         val target = (head.incrementAndGet() % maxSize).toInt
-        values.set(target, SummaryValue(tuple._1, tuple._2))
+        values.set(target, tuple)
       }
 
       val value = tuple._1

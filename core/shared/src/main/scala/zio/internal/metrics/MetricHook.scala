@@ -37,8 +37,6 @@ private[zio] final case class MetricHookAnyRef[-In, +Out](
 private[zio] object MetricHook {
   import zio.metrics.MetricState
 
-  final case class SummaryValue(value: Double, timestamp: java.time.Instant)
-
   type Root    = MetricHook[_, MetricState.Untyped]
   type Untyped = MetricHook[_, _]
 
