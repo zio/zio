@@ -16,10 +16,10 @@
 
 package zio
 
+import zio.internal.UnboundedMpmcQueue
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.TSemaphore
 
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicLong
 import scala.annotation.tailrec
 
@@ -134,7 +134,7 @@ object Semaphore {
     private[this] val permits = new AtomicLong(initialPermits)
 
     /** FIFO queue of waiters. Only touched on the slow path. */
-    private[this] val waiters = new ConcurrentLinkedQueue[Waiter]()
+    private[this] val waiters = UnboundedMpmcQueue[Waiter](8)
 
     override def available(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(permits.get())
