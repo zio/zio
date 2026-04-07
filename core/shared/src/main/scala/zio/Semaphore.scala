@@ -296,16 +296,14 @@ object Semaphore {
          * Queue)
          */
         private def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
-          ZIO.suspendSucceed {
-            ref.unsafe.modify {
-              case permits: SemaphoreState.FreePermits => Exit.unit -> (permits + n)
-              case queue: SemaphoreState.JobQueue =>
-                val (foundJob, newQueue) = queue.remove(promise)
-                if (foundJob ne null)
-                  releaseN(n - foundJob.permits) -> newQueue
-                else
-                  releaseN(n) -> queue
-            }
+          ref.modify {
+            case permits: SemaphoreState.FreePermits => Exit.unit -> (permits + n)
+            case queue: SemaphoreState.JobQueue =>
+              val (foundJob, newQueue) = queue.remove(promise)
+              if (foundJob ne null)
+                releaseN(n - foundJob.permits) -> newQueue
+              else
+                releaseN(n) -> queue
           }
 
         /**
