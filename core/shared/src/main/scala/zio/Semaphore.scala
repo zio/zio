@@ -314,40 +314,47 @@ object Semaphore {
          * Complexity: O(k) amortized where k = number of fibers that can be
          * woken with n permits. Each dequeue is O(1) amortized.
          */
-        private def releaseN(n: Long)(implicit trace: Trace): UIO[Any] = {
+        private def releaseN(n: Long)(implicit trace: Trace): UIO[Any] =
+          if (n <= 0L) Exit.unit
+          else {
 
-          @tailrec
-          def loop(
-            n0: Long,
-            state: SemaphoreState,
-            acc: List[Promise[Nothing, Unit]]
-          ): (List[Promise[Nothing, Unit]], SemaphoreState) =
-            state match {
-              case permits: SemaphoreState.FreePermits => acc -> (permits + n0)
-              case queue: SemaphoreState.JobQueue =>
-                queue.dequeueOrNull match {
-                  case null => acc -> SemaphoreState.FreePermits(n0)
-                  case (job, queue0) =>
-                    val promise   = job.promise
-                    val permits   = job.permits
-                    val available = n0 - permits
-                    if (available > 0L) {
-                      loop(available, queue0, promise :: acc)
-                    } else if (available == 0L) {
-                      (promise :: acc) -> queue0
-                    } else {
-                      val newQueue = queue0.prepend(Job(promise = promise, permits = permits - n0))
-                      acc -> newQueue
-                    }
-                }
+            @tailrec
+            def loop(
+              n0: Long,
+              state: SemaphoreState,
+              acc: ChunkBuilder[Promise[Nothing, Unit]]
+            ): (ChunkBuilder[Promise[Nothing, Unit]], SemaphoreState) =
+              state match {
+                case permits: SemaphoreState.FreePermits => acc -> (permits + n0)
+                case queue: SemaphoreState.JobQueue =>
+                  queue.dequeueOrNull match {
+                    case null => acc -> SemaphoreState.FreePermits(n0)
+                    case (job, queue0) =>
+                      val promise   = job.promise
+                      val permits   = job.permits
+                      val available = n0 - permits
+                      if (available > 0L) {
+                        acc += promise
+                        loop(available, queue0, acc)
+                      } else if (available == 0L) {
+                        acc += promise
+                        acc -> queue0
+                      } else {
+                        val newQueue = queue0.prepend(Job(promise = promise, permits = permits - n0))
+                        acc -> newQueue
+                      }
+                  }
+              }
+
+            ZIO.suspendSucceed {
+              val promises = ref.unsafe.modify(loop(n, _, ChunkBuilder.make[Promise[Nothing, Unit]]())).result()
+              promises.size match {
+                case 0 => Exit.unit
+                case 1 => promises(0).succeedUnit
+                case _ => ZIO.foreachDiscard(promises)(_.succeedUnit)
+              }
             }
-
-          ZIO.suspendSucceed {
-            val promises = ref.unsafe.modify(loop(n, _, Nil))
-            if (promises.isEmpty) Exit.unit
-            else ZIO.foreachDiscard(promises)(_.succeedUnit)
           }
-        }
       }
   }
 
