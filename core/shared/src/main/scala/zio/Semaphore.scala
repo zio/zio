@@ -116,7 +116,7 @@ object Semaphore {
    * Semaphore implementation using separated concerns:
    *
    *   - `AtomicLong` for the permit counter (fast path: 1 CAS, zero allocation)
-   *   - `ConcurrentLinkedQueue` for the waiter queue (slow path only)
+   *   - `UnboundedMpmcQueue` for the waiter queue (slow path only)
    *
    * Design inspired by:
    *   - JDK AQS: separated permit counter from wait queue
@@ -126,7 +126,7 @@ object Semaphore {
    *
    * Fast path (permits available, no waiters): single CAS on AtomicLong, zero
    * allocation. Slow path (contended): one Promise allocation +
-   * ConcurrentLinkedQueue.offer.
+   * queue offer.
    */
   private[zio] final class ConcurrentSemaphore(initialPermits: Long)(implicit u: Unsafe) extends Semaphore {
 
@@ -277,28 +277,37 @@ object Semaphore {
      * already completed (interrupted or claimed by cancel handler), return its
      * permits and try the next waiter.
      *
+     * Synchronized to prevent a race where two concurrent callers both peek
+     * the same waiter, both CAS permits, and then poll different elements
+     * (losing a waiter). This is the same approach Tokio uses (mutex on the
+     * release path). The lock is only held during queue manipulation — no
+     * fiber suspension or I/O occurs under the lock.
+     *
      * `completeWith(Exit.unit)` both completes the promise and triggers all
      * registered callbacks (resuming the waiting fiber), so no additional
      * action is needed after completion.
      */
-    @tailrec
-    private def pollWaiters(): Unit = {
-      val waiter = waiters.peek()
-      if (waiter ne null) {
-        val available = permits.get()
-        if (available >= waiter.needed) {
-          if (permits.compareAndSet(available, available - waiter.needed)) {
-            waiters.poll()
-            val woke = waiter.promise.unsafe.completeWith(Exit.unit)
-            if (!woke) {
-              permits.getAndAdd(waiter.needed)
+    private def pollWaiters(): Unit = pollLock.synchronized {
+      @tailrec def loop(): Unit = {
+        val waiter = waiters.peek()
+        if (waiter ne null) {
+          val available = permits.get()
+          if (available >= waiter.needed) {
+            if (permits.compareAndSet(available, available - waiter.needed)) {
+              waiters.poll()
+              val woke = waiter.promise.unsafe.completeWith(Exit.unit)
+              if (!woke) {
+                permits.getAndAdd(waiter.needed)
+              }
+              loop()
+            } else {
+              loop()
             }
-            pollWaiters()
-          } else {
-            pollWaiters()
           }
         }
       }
+      loop()
     }
+    private[this] val pollLock = new AnyRef
   }
 }
