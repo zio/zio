@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.{AtomicLong, AtomicLongArray, AtomicReference
 
 private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks with AddersVersionSpecific {
   def counter(key: MetricKey.Counter): MetricHook.Counter = {
-    val adder = new DoubleAdder
+    val adder                 = new DoubleAdder
     val addFn: Double => Unit = v => adder.add(v)
 
     MetricHookDouble(addFn, () => MetricState.Counter(adder.sum()), addFn)
