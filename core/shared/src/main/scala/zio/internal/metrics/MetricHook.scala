@@ -45,6 +45,6 @@ private[zio] object MetricHook {
   type Counter   = MetricHookDouble[MetricState.Counter]
   type Gauge     = MetricHookDouble[MetricState.Gauge]
   type Histogram = MetricHookDouble[MetricState.Histogram]
-  type Summary   = MetricHookAnyRef[SummaryValue, MetricState.Summary]
+  type Summary   = MetricHookAnyRef[(Double, java.time.Instant), MetricState.Summary]
   type Frequency = MetricHookAnyRef[String, MetricState.Frequency]
 }

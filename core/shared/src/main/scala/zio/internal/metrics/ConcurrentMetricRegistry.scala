@@ -108,10 +108,10 @@ private[zio] class ConcurrentMetricRegistry {
             i = i + 1
           }
         case MetricKeyType.Summary(_, _, _, _) =>
-          val k  = key.asInstanceOf[MetricKey.Summary]
-          val sv = value.asInstanceOf[MetricHook.SummaryValue]
+          val k          = key.asInstanceOf[MetricKey.Summary]
+          val (v, instant) = value.asInstanceOf[(Double, java.time.Instant)]
           while (i < len) {
-            listeners(i).updateSummary(k, sv.value, sv.timestamp)
+            listeners(i).updateSummary(k, v, instant)
             i = i + 1
           }
         case MetricKeyType.Counter =>

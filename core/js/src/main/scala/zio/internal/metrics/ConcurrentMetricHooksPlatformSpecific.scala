@@ -149,7 +149,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
     }
 
     MetricHookAnyRef(
-      t => observe(t.value, t.timestamp),
+      t => observe(t._1, t._2),
       () =>
         MetricState.Summary(
           error,
@@ -159,7 +159,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
           getMax(),
           getSum()
         ),
-      t => observe(t.value, t.timestamp)
+      t => observe(t._1, t._2)
     )
   }
 

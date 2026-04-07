@@ -544,8 +544,7 @@ object Metric {
     error: Double,
     quantiles: Chunk[Double]
   ): Summary[Double] =
-    summaryInstant(name, maxAge, maxSize, error, quantiles)
-      .contramap[Double](d => MetricHook.SummaryValue(d, java.time.Instant.now()))
+    summaryInstant(name, maxAge, maxSize, error, quantiles).withNow[Double]
 
   /**
    * A summary metric.
@@ -558,8 +557,7 @@ object Metric {
     error: Double,
     quantiles: Chunk[Double]
   ): Summary[Double] =
-    summaryInstant(name, description, maxAge, maxSize, error, quantiles)
-      .contramap[Double](d => MetricHook.SummaryValue(d, java.time.Instant.now()))
+    summaryInstant(name, description, maxAge, maxSize, error, quantiles).withNow[Double]
 
   def summaryInstant(
     name: String,
@@ -567,7 +565,7 @@ object Metric {
     maxSize: Int,
     error: Double,
     quantiles: Chunk[Double]
-  ): Summary[MetricHook.SummaryValue] =
+  ): Summary[(Double, java.time.Instant)] =
     fromMetricKey(MetricKey.summary(name, maxAge, maxSize, error, quantiles))
 
   def summaryInstant(
@@ -577,7 +575,7 @@ object Metric {
     maxSize: Int,
     error: Double,
     quantiles: Chunk[Double]
-  ): Summary[MetricHook.SummaryValue] =
+  ): Summary[(Double, java.time.Instant)] =
     fromMetricKey(MetricKey.summary(name, description, maxAge, maxSize, error, quantiles))
 
   /**

@@ -184,13 +184,13 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
 
     // Assuming that the instant of observed values is continuously increasing
     // While Observing we cut off the first sample if we have already maxSize samples
-    def observe(summaryValue: SummaryValue): Unit = {
+    def observe(tuple: (Double, java.time.Instant)): Unit = {
       if (maxSize > 0) {
         val target = (head.incrementAndGet() % maxSize).toInt
-        values.set(target, summaryValue)
+        values.set(target, SummaryValue(tuple._1, tuple._2))
       }
 
-      val value = summaryValue.value
+      val value = tuple._1
       count.increment()
       sum.add(value)
       updateMin(min, value)
