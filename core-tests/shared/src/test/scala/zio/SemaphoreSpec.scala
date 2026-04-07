@@ -6,6 +6,13 @@ import zio.test._
 
 object SemaphoreSpec extends ZIOBaseSpec {
   override def spec = suite("SemaphoreSpec")(
+    test("high contention: 10 fibers competing for 1 permit") {
+      for {
+        sem   <- Semaphore.make(1L)
+        fiber <- ZIO.forkAll(List.fill(10)(ZIO.foreachDiscard(1 to 100)(_ => sem.withPermit(ZIO.succeed(1)))))
+        _     <- fiber.join
+      } yield assertCompletes
+    } @@ timeout(30.seconds) @@ TestAspect.withLiveClock,
     test("withPermit automatically releases the permit if the effect is interrupted") {
       for {
         promise   <- Promise.make[Nothing, Unit]

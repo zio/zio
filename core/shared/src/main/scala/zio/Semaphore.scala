@@ -16,7 +16,6 @@
 
 package zio
 
-import zio.internal.UnboundedMpmcQueue
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.TSemaphore
 
@@ -125,8 +124,7 @@ object Semaphore {
    *     deficit)
    *
    * Fast path (permits available, no waiters): single CAS on AtomicLong, zero
-   * allocation. Slow path (contended): one Promise allocation +
-   * queue offer.
+   * allocation. Slow path (contended): one Promise allocation + queue offer.
    */
   private[zio] final class ConcurrentSemaphore(initialPermits: Long)(implicit u: Unsafe) extends Semaphore {
 
@@ -134,7 +132,7 @@ object Semaphore {
     private[this] val permits = new AtomicLong(initialPermits)
 
     /** FIFO queue of waiters. Only touched on the slow path. */
-    private[this] val waiters = UnboundedMpmcQueue[Waiter](8)
+    private[this] val waiters = new java.util.concurrent.ConcurrentLinkedQueue[Waiter]()
 
     override def available(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(permits.get())
@@ -214,11 +212,15 @@ object Semaphore {
             } else {
               val consumed = drainPermits(n)
               val deficit  = n - consumed
-              val promise  = Promise.unsafe.make[Nothing, Unit](fiberId)
-              val waiter   = new Waiter(deficit, promise)
-              waiters.offer(waiter)
-              pollWaiters()
-              new PendingAcquisition(n, consumed, waiter)
+              if (deficit == 0L) {
+                // Drained all needed permits — no need to wait
+                new ImmediateAcquisition(n)
+              } else {
+                val promise = Promise.unsafe.make[Nothing, Unit](fiberId)
+                val waiter  = new Waiter(deficit, promise)
+                waiters.offer(waiter)
+                new PendingAcquisition(n, consumed, waiter)
+              }
             }
           }
         }
@@ -272,42 +274,30 @@ object Semaphore {
         }
 
     /**
-     * Walk the waiter queue FIFO, waking waiters whose permit needs can be
-     * satisfied. Uses skip-on-release cancellation: if a waiter's promise is
-     * already completed (interrupted or claimed by cancel handler), return its
-     * permits and try the next waiter.
+     * Wake waiters whose permit needs can be satisfied. Lock-free: uses poll
+     * (not peek) to dequeue a waiter, then tries to satisfy it. If not enough
+     * permits, puts the waiter back.
      *
-     * Synchronized to prevent a race where two concurrent callers both peek
-     * the same waiter, both CAS permits, and then poll different elements
-     * (losing a waiter). This is the same approach Tokio uses (mutex on the
-     * release path). The lock is only held during queue manipulation — no
-     * fiber suspension or I/O occurs under the lock.
-     *
-     * `completeWith(Exit.unit)` both completes the promise and triggers all
-     * registered callbacks (resuming the waiting fiber), so no additional
-     * action is needed after completion.
+     * Multiple concurrent callers are safe because each `poll()` is atomic and
+     * returns a unique element. Each caller works with its own polled waiter
+     * independently.
      */
-    private def pollWaiters(): Unit = pollLock.synchronized {
-      @tailrec def loop(): Unit = {
-        val waiter = waiters.peek()
-        if (waiter ne null) {
-          val available = permits.get()
-          if (available >= waiter.needed) {
-            if (permits.compareAndSet(available, available - waiter.needed)) {
-              waiters.poll()
-              val woke = waiter.promise.unsafe.completeWith(Exit.unit)
-              if (!woke) {
-                permits.getAndAdd(waiter.needed)
-              }
-              loop()
-            } else {
-              loop()
-            }
+    private def pollWaiters(): Unit = {
+      val waiter = waiters.poll()
+      if (waiter ne null) {
+        val needed = waiter.needed
+        if (tryDecrementPermits(needed)) {
+          val woke = waiter.promise.unsafe.completeWith(Exit.unit)
+          if (!woke) {
+            // Already completed (interrupted/cancelled). Return permits.
+            permits.getAndAdd(needed)
           }
+          pollWaiters() // try next waiter
+        } else {
+          // Not enough permits — put waiter back
+          waiters.offer(waiter)
         }
       }
-      loop()
     }
-    private[this] val pollLock = new AnyRef
   }
 }
