@@ -4392,7 +4392,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                        }
             b <- promise.await.exitWith {
                    case Exit.Success((patch, b))                      => ZIO.patchFiberRefs(patch).as(b)
-                   case ex if !isSetter.get() && ex.isInterruptedOnly => ZIO.yieldNow *> loop(a)
+                   case ex if !isSetter.get() && ex.isInterruptedOnly => loop(a)
                    case ex                                            => ex.asInstanceOf[Exit[E, Nothing]]
                  }
           } yield b
