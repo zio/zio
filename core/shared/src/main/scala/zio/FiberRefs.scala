@@ -122,7 +122,7 @@ final class FiberRefs private (
          */
         assert(
           BuildInfo.optimizationsEnabled || newValue != oldValue,
-          s"FiberRef.improvedEq reference equality returned false but equals returned true for value of class ${(oldValue: AnyRef).getClass.getName}"
+          s"FiberRef.eqWithBoxedNumericEquality reference equality returned false but equals returned true for value of class ${(oldValue: AnyRef).getClass.getName}"
         )
         childMap = childMap.updated(fiberRef, Value(::(StackEntry(childId, newValue, 0), stack), depth + 1))
       }
