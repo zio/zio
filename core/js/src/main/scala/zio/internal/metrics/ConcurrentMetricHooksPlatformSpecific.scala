@@ -45,7 +45,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
     bounds.sorted.zipWithIndex.foreach { case (n, i) => boundaries(i) = n }
 
     // Insert the value into the right bucket with a binary search
-    def update(value: Double) = {
+    val update: Double => Unit = (value: Double) => {
       var from = 0
       var to   = size
       while (from != to) {
@@ -167,7 +167,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
     var count  = 0L
     val values = new java.util.HashMap[String, Long]()
 
-    def update(word: String) = {
+    val update: String => Unit = (word: String) => {
       count += 1
       val slotCount = Option(values.get(word)).getOrElse(0L)
       values.put(word, slotCount + 1)
