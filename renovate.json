@@ -18,7 +18,7 @@
   ],
   "packageRules": [
     {
-      "description": "Update Official ZIO Ecosystem Docs",
+      "description": "Update Official ZIO Ecosystem Docs - including pre-releases",
       "matchBaseBranches": [
         "series/2.x"
       ],
@@ -27,14 +27,15 @@
         "documentation"
       ],
       "matchPackageNames": [
-        "^@zio\.dev\/.*"
+        "^@zio\\.dev\\/.*"
       ],
+      "ignoreUnstable": false,
       "enabled": true
     },
     {
       "description": "Disable patch updates for non-ZIO npm packages",
       "matchPackageNames": [
-        "^(?!@zio\.dev\/)"
+        "^(?!@zio\\.dev\\/)"
       ],
       "matchUpdateTypes": [
         "patch"
