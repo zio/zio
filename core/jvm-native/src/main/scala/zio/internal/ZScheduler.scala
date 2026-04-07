@@ -194,8 +194,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         } else if (!target.localQueue.offer(runnable)) {
           handleFullWorkerQueue(target, runnable)
         }
-      }
-      else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
+      } else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
         val fromGlobal = globalQueue.poll()
         if (fromGlobal eq null) {
           worker.nextRunnable = runnable
@@ -204,8 +203,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
           worker.nextRunnable = fromGlobal
           worker.localQueue.offer(runnable)
         }
-      }
-      else if (!worker.localQueue.offer(runnable)) {
+      } else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
       }
 
@@ -542,7 +540,7 @@ private object ZScheduler {
       null
 
     val localQueue: RingBufferPow2[Runnable] =
-       RingBufferPow2(256)
+      RingBufferPow2(256)
 
     var nextRunnable: Runnable =
       null
