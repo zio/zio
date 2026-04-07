@@ -105,7 +105,7 @@ jobs:
       - name: Install NodeJS
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Compile Docs
         run: |
