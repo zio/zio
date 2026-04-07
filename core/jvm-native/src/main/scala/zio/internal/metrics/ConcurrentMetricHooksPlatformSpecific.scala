@@ -163,12 +163,16 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
       // them by timestamp to get a valid view of a time window.
       // The order does not matter because it gets sorted before passing to calculateQuantiles.
 
-      var idx = 0
+      // Precompute cutoff once to avoid allocating a Duration per item
+      val cutoff = now.minus(maxAge)
+      var idx    = 0
       while (idx < maxSize) {
         val item = values.get(idx)
         if (item ne null) {
-          val age = Duration.fromInterval(item.timestamp, now)
-          if (!age.isNegative && age.compareTo(maxAge) <= 0) {
+          val ts          = item.timestamp
+          val notTooOld   = !ts.isBefore(cutoff)
+          val notInFuture = !ts.isAfter(now)
+          if (notTooOld && notInFuture) {
             builder += item.value
           }
         }
