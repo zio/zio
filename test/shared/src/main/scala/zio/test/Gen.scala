@@ -19,7 +19,7 @@ package zio.test
 import zio.Random._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZStream
-import zio.{Chunk, NonEmptyChunk, Random, Trace, UIO, URIO, ZIO, Zippable}
+import zio.{Chunk, FiberRef, NonEmptyChunk, Random, Trace, UIO, URIO, Unsafe, ZIO, Zippable}
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -32,6 +32,15 @@ import scala.math.Numeric.DoubleIsFractional
  * environment `R`. Generators may be random or deterministic.
  */
 final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
+
+  /**
+   * Returns a stream of samples appropriate for the current mode.
+   * None = deterministic (exhaust all values once).
+   * Some(n) = sampling (repeat the stream, take n fresh samples).
+   */
+  private[test] def samples(n: Option[Int])(implicit trace: Trace): ZStream[R, Nothing, Sample[R, A]] =
+    ZStream.scoped[R](Gen.deterministic.locallyScoped(n.isEmpty)) *>
+      n.fold(sample)(k => sample.forever.take(k.toLong))
 
   /**
    * A symbolic alias for `concat`.
@@ -101,14 +110,20 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 
   def withFilter(f: A => Boolean)(implicit trace: Trace): Gen[R, A] = filter(f)
 
-  def flatMap[R1 <: R, B](f: A => Gen[R1, B])(implicit trace: Trace): Gen[R1, B] =
+  def flatMap[R1 <: R, B](f: A => Gen[R1, B])(implicit trace: Trace): Gen[R1, B] = Gen.dual(
     Gen {
       self.sample.flatMap { sample =>
         val values  = f(sample.value).sample
         val shrinks = Gen(sample.shrink).flatMap(f).sample
         values.map(_.flatMap(Sample(_, shrinks)))
       }
+    },
+    Gen {
+      self.sample.forever.flatMap { sample =>
+        f(sample.value).sample.take(1).map(s => Sample.noShrink(s.value))
+      }
     }
+  )
 
   def flatten[R1 <: R, B](implicit ev: A <:< Gen[R1, B], trace: Trace): Gen[R1, B] =
     flatMap(ev)
@@ -147,14 +162,14 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Runs the generator and collects all of its values in a list.
    */
   def runCollect(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).runCollect.map(_.toList)
+    samples(None).map(_.value).runCollect.map(_.toList)
 
   /**
    * Repeatedly runs the generator and collects the specified number of values
    * in a list.
    */
   def runCollectN(n: Int)(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
+    samples(Some(n)).map(_.value).runCollect.map(_.toList)
 
   /**
    * Runs the generator returning the first value of the generator.
@@ -180,6 +195,14 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 }
 
 object Gen extends GenZIO with FunctionVariants with TimeVariants {
+
+  /** Tracks deterministic (runCollect) vs sampling (runCollectN) mode. */
+  private[test] val deterministic: FiberRef[Boolean] =
+    Unsafe.unsafe(implicit u => FiberRef.unsafe.make(true))
+
+  /** Choose behavior based on mode: deterministic exhausts, sampling re-evaluates. */
+  private[test] def dual[R, A](det: Gen[R, A], sampled: Gen[R, A])(implicit trace: Trace): Gen[R, A] =
+    Gen(ZStream.unwrap(deterministic.get.map(isDet => if (isDet) det.sample else sampled.sample)))
 
   /**
    * A generator of alpha characters.

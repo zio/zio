@@ -776,6 +776,32 @@ object GenSpec extends ZIOBaseSpec {
       check(Gen.setOfN(2)(Gen.fromIterable(List(1, 2, 3)))) { set =>
         assertTrue(set.size == 2)
       }
-    }
+    },
+    suite("deterministic vs sampling (#9101)")(
+      test("uuid before fromIterable produces distinct values when sampling") {
+        val gen = for {
+          id <- Gen.uuid
+          _  <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
+        } yield id
+        assertZIO(gen.runCollectN(5).map(_.toSet.size))(equalTo(5))
+      },
+      test("uuid after fromIterable produces distinct values when sampling") {
+        val gen = for {
+          _  <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
+          id <- Gen.uuid
+        } yield id
+        assertZIO(gen.runCollectN(5).map(_.toSet.size))(equalTo(5))
+      },
+      test("deterministic generators still compose exhaustively") {
+        val gen = for {
+          a <- Gen.fromIterable(1 to 2)
+          b <- Gen.fromIterable(3 to 4)
+        } yield a + b
+        assertZIO(gen.runCollect)(equalTo(List(4, 5, 5, 6)))
+      },
+test("boolean remains exhaustive in deterministic mode") {
+        assertZIO(Gen.boolean.runCollectN(2).map(_.toSet))(equalTo(Set(false, true)))
+      }
+    )
   )
 }
