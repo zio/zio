@@ -33,7 +33,7 @@ import scala.annotation.tailrec
  * If you need functionality that `Semaphore` doesn't provide, use a
  * [[TSemaphore]] and define it in a [[zio.stm.ZSTM]] transaction.
  */
-sealed trait Semaphore extends Serializable {
+sealed abstract class Semaphore extends Serializable {
 
   /**
    * Returns the number of available permits.
@@ -97,220 +97,208 @@ object Semaphore {
   def make(permits: => Long)(implicit trace: Trace): UIO[Semaphore] =
     ZIO.succeed(unsafe.make(permits)(Unsafe.unsafe))
 
+  object unsafe {
+    def make(initialPermits: Long)(implicit unsafe: Unsafe): Semaphore =
+      new ConcurrentSemaphore(initialPermits)
+  }
+
   /**
    * A waiter in the semaphore queue, waiting for `needed` permits.
    */
   private final class Waiter(val needed: Long, val promise: Promise[Nothing, Unit])
 
-  object unsafe {
+  private sealed abstract class Acquisition {
+    def waitUntilAcquired(implicit trace: Trace): UIO[Unit]
+    def release(implicit trace: Trace): UIO[Any]
+  }
+
+  /**
+   * Semaphore implementation using separated concerns:
+   *
+   *   - `AtomicLong` for the permit counter (fast path: 1 CAS, zero allocation)
+   *   - `ConcurrentLinkedQueue` for the waiter queue (slow path only)
+   *
+   * Design inspired by:
+   *   - JDK AQS: separated permit counter from wait queue
+   *   - Kyo Meter: AtomicLong + lock-free queue, skip-on-release cancellation
+   *   - Tokio Semaphore: partial permit allocation (consume available, queue
+   *     deficit)
+   *
+   * Fast path (permits available, no waiters): single CAS on AtomicLong, zero
+   * allocation. Slow path (contended): one Promise allocation +
+   * ConcurrentLinkedQueue.offer.
+   */
+  private[zio] final class ConcurrentSemaphore(initialPermits: Long)(implicit u: Unsafe) extends Semaphore {
+
+    /** Permit counter. Always >= 0 on quiescent state. */
+    private[this] val permits = new AtomicLong(initialPermits)
+
+    /** FIFO queue of waiters. Only touched on the slow path. */
+    private[this] val waiters = new ConcurrentLinkedQueue[Waiter]()
+
+    override def available(implicit trace: Trace): UIO[Long] =
+      ZIO.succeed(permits.get())
+
+    override def awaiting(implicit trace: Trace): UIO[Long] =
+      ZIO.succeed(waiters.size().toLong)
+
+    override def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+      withPermits(1L)(zio)
+
+    override def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+      withPermitsScoped(1L)
+
+    override def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+      ZIO.acquireReleaseWith(acquire(n))(_.release)(_.waitUntilAcquired *> zio)
+
+    override def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+      ZIO.acquireRelease(acquire(n))(_.release).flatMap(_.waitUntilAcquired)
+
+    override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+      ZIO.acquireReleaseWith(tryAcquire(n)) {
+        case Some(release) => release
+        case _             => Exit.unit
+      } {
+        case _: Some[?] => zio.asSome
+        case _          => Exit.none
+      }
+
+    /** Fast-path acquisition: permits were immediately available. */
+    private final class ImmediateAcquisition(n: Long) extends Acquisition {
+      def waitUntilAcquired(implicit trace: Trace): UIO[Unit] = Exit.unit
+      def release(implicit trace: Trace): UIO[Any]            = releaseN(n)
+    }
 
     /**
-     * Next-generation Semaphore implementation using separated concerns:
+     * Slow-path acquisition: fiber must wait for permits.
      *
-     *   - `AtomicLong` for the permit counter (fast path: 1 CAS, zero
-     *     allocation)
-     *   - `ConcurrentLinkedQueue` for the waiter queue (slow path only)
-     *
-     * Design inspired by:
-     *   - JDK AQS: separated permit counter from wait queue
-     *   - Kyo Meter: AtomicLong + lock-free queue, skip-on-release cancellation
-     *   - Tokio Semaphore: partial permit allocation (consume available, queue
-     *     deficit)
-     *   - Current ZIO (PR #10378): multi-permit support, O(1) cancel
-     *
-     * Fast path (permits available, no waiters): single CAS on AtomicLong, zero
-     * allocation. Slow path (contended): one Promise allocation +
-     * ConcurrentLinkedQueue.offer.
+     * Release handler uses the promise as a coordination point:
+     *   - If we can complete the promise first (cancel path): the releaser
+     *     hasn't given us the deficit permits yet. Return only the consumed
+     *     portion. The deficit will be returned by the releaser when it
+     *     encounters our completed promise (skip-on-release).
+     *   - If the releaser already completed the promise (normal path): we hold
+     *     all n permits. Return all n.
      */
-    def make(initialPermits: Long)(implicit unsafe: Unsafe): Semaphore =
-      new Semaphore {
+    private final class PendingAcquisition(
+      n: Long,
+      consumed: Long,
+      waiter: Waiter
+    ) extends Acquisition {
+      def waitUntilAcquired(implicit trace: Trace): UIO[Unit] = waiter.promise.await
 
-        /** Permit counter. Always >= 0 on quiescent state. */
-        private val permits = new AtomicLong(initialPermits)
-
-        /** FIFO queue of waiters. Only touched on the slow path. */
-        private val waiters = new ConcurrentLinkedQueue[Waiter]()
-
-        override def available(implicit trace: Trace): UIO[Long] =
-          ZIO.succeed(permits.get())
-
-        override def awaiting(implicit trace: Trace): UIO[Long] =
-          ZIO.succeed(waiters.size().toLong)
-
-        override def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-          withPermits(1L)(zio)
-
-        override def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-          withPermitsScoped(1L)
-
-        override def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-          ZIO.acquireReleaseWith(acquire(n))(_.release)(_.waitUntilAcquired *> zio)
-
-        override def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-          ZIO.acquireRelease(acquire(n))(_.release).flatMap(_.waitUntilAcquired)
-
-        override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-          ZIO.acquireReleaseWith(tryAcquire(n)) {
-            case Some(release) => release
-            case _             => Exit.unit
-          } {
-            case _: Some[?] => zio.asSome
-            case _          => Exit.none
-          }
-
-        private sealed abstract class Acquisition {
-          def waitUntilAcquired(implicit trace: Trace): UIO[Unit]
-          def release(implicit trace: Trace): UIO[Any]
+      def release(implicit trace: Trace): UIO[Any] = ZIO.succeed {
+        val weClaimed = waiter.promise.unsafe.completeWith(Exit.unit)
+        if (weClaimed) {
+          permits.getAndAdd(consumed)
+        } else {
+          permits.getAndAdd(n)
         }
+        pollWaiters()
+      }
+    }
 
-        /** Fast-path acquisition: permits were immediately available. */
-        private final class ImmediateAcquisition(n: Long) extends Acquisition {
-          def waitUntilAcquired(implicit trace: Trace): UIO[Unit] = Exit.unit
-          def release(implicit trace: Trace): UIO[Any]            = releaseN(n)
-        }
+    private[this] val zeroAcquisition = Exit.succeed(new ImmediateAcquisition(0L))
 
-        /** Slow-path acquisition: fiber must wait for permits. */
-        private final class PendingAcquisition(
-          n: Long,
-          consumed: Long,
-          waiter: Waiter
-        ) extends Acquisition {
-          def waitUntilAcquired(implicit trace: Trace): UIO[Unit] = waiter.promise.await
-
-          /**
-           * Release handler. Uses the promise as a coordination point:
-           *   - If we can complete the promise first (cancel path): the
-           *     releaser hasn't given us the deficit permits yet. Return only
-           *     the consumed portion. The deficit will be returned by the
-           *     releaser when it encounters our completed promise
-           *     (skip-on-release).
-           *   - If the releaser already completed the promise (normal path): we
-           *     hold all n permits. Return all n.
-           */
-          def release(implicit trace: Trace): UIO[Any] = ZIO.succeed {
-            val weClaimed = waiter.promise.unsafe.completeWith(Exit.unit)
-            if (weClaimed) {
-              // cancel path: return consumed portion
-              permits.getAndAdd(consumed)
-              pollWaiters()
+    /**
+     * Try to acquire `n` permits. Returns an Acquisition that must be released.
+     */
+    private def acquire(n: Long)(implicit trace: Trace): UIO[Acquisition] =
+      if (n < 0L) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+      else if (n == 0L) zeroAcquisition
+      else
+        ZIO.fiberIdWith { fiberId =>
+          Exit.succeed {
+            if (tryDecrementPermits(n)) {
+              new ImmediateAcquisition(n)
             } else {
-              // normal path: return all n permits
-              permits.getAndAdd(n)
+              val consumed = drainPermits(n)
+              val deficit  = n - consumed
+              val promise  = Promise.unsafe.make[Nothing, Unit](fiberId)
+              val waiter   = new Waiter(deficit, promise)
+              waiters.offer(waiter)
               pollWaiters()
+              new PendingAcquisition(n, consumed, waiter)
             }
           }
         }
 
-        private val zeroAcquisition = Exit.succeed(new ImmediateAcquisition(0L))
-
-        /**
-         * Try to acquire `n` permits. Returns an Acquisition that must be
-         * released.
-         */
-        private def acquire(n: Long)(implicit trace: Trace): UIO[Acquisition] =
-          if (n < 0L) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
-          else if (n == 0L) zeroAcquisition
-          else
-            ZIO.fiberIdWith { fiberId =>
-              Exit.succeed {
-                if (tryDecrementPermits(n)) {
-                  // Fast path: all permits available, zero queue interaction
-                  new ImmediateAcquisition(n)
-                } else {
-                  // Slow path: drain available permits, queue the deficit
-                  val consumed = drainPermits(n)
-                  val deficit  = n - consumed
-                  val promise  = Promise.unsafe.make[Nothing, Unit](fiberId)
-                  val waiter   = new Waiter(deficit, promise)
-                  waiters.offer(waiter)
-                  // Kick pollWaiters in case permits were released between
-                  // drainPermits and offer
-                  pollWaiters()
-                  new PendingAcquisition(n, consumed, waiter)
-                }
-              }
-            }
-
-        /**
-         * Try to acquire `n` permits without waiting. Returns Some(release) on
-         * success.
-         */
-        private def tryAcquire(n: Long)(implicit trace: Trace): UIO[Option[UIO[Any]]] =
-          if (n < 0L) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
-          else if (n == 0L) Exit.succeed(Some(Exit.unit))
-          else
-            ZIO.succeed {
-              if (tryDecrementPermits(n)) Some(releaseN(n))
-              else None
-            }
-
-        /**
-         * CAS loop: try to deduct `n` permits. Succeeds only if `permits >= n`.
-         */
-        @tailrec
-        private def tryDecrementPermits(n: Long): Boolean = {
-          val current = permits.get()
-          if (current >= n) {
-            if (permits.compareAndSet(current, current - n)) true
-            else tryDecrementPermits(n) // CAS retry
-          } else false
+    /**
+     * Try to acquire `n` permits without waiting.
+     */
+    private def tryAcquire(n: Long)(implicit trace: Trace): UIO[Option[UIO[Any]]] =
+      if (n < 0L) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+      else if (n == 0L) Exit.succeed(Some(Exit.unit))
+      else
+        ZIO.succeed {
+          if (tryDecrementPermits(n)) Some(releaseN(n))
+          else None
         }
 
-        /**
-         * Drain up to `n` permits from the counter. Returns the number actually
-         * consumed (0 to n).
-         */
-        @tailrec
-        private def drainPermits(n: Long): Long = {
-          val current = permits.get()
-          val consume = math.min(current, n)
-          if (consume <= 0L) 0L
-          else if (permits.compareAndSet(current, current - consume)) consume
-          else drainPermits(n) // CAS retry
+    /**
+     * CAS loop: try to deduct `n` permits. Succeeds only if `permits >= n`.
+     */
+    @tailrec
+    private def tryDecrementPermits(n: Long): Boolean = {
+      val current = permits.get()
+      if (current >= n) {
+        if (permits.compareAndSet(current, current - n)) true
+        else tryDecrementPermits(n)
+      } else false
+    }
+
+    /**
+     * Drain up to `n` permits from the counter. Returns the number actually
+     * consumed (0 to n).
+     */
+    @tailrec
+    private def drainPermits(n: Long): Long = {
+      val current = permits.get()
+      val consume = math.min(current, n)
+      if (consume <= 0L) 0L
+      else if (permits.compareAndSet(current, current - consume)) consume
+      else drainPermits(n)
+    }
+
+    /**
+     * Release `n` permits back and wake any satisfied waiters.
+     */
+    private def releaseN(n: Long)(implicit trace: Trace): UIO[Any] =
+      if (n <= 0L) Exit.unit
+      else
+        ZIO.succeed {
+          permits.getAndAdd(n)
+          pollWaiters()
         }
 
-        /**
-         * Release `n` permits back and wake any satisfied waiters.
-         */
-        private def releaseN(n: Long)(implicit trace: Trace): UIO[Any] =
-          if (n <= 0L) Exit.unit
-          else
-            ZIO.succeed {
-              permits.getAndAdd(n)
-              pollWaiters()
+    /**
+     * Walk the waiter queue FIFO, waking waiters whose permit needs can be
+     * satisfied. Uses skip-on-release cancellation: if a waiter's promise is
+     * already completed (interrupted or claimed by cancel handler), return its
+     * permits and try the next waiter.
+     *
+     * `completeWith(Exit.unit)` both completes the promise and triggers all
+     * registered callbacks (resuming the waiting fiber), so no additional
+     * action is needed after completion.
+     */
+    @tailrec
+    private def pollWaiters(): Unit = {
+      val waiter = waiters.peek()
+      if (waiter ne null) {
+        val available = permits.get()
+        if (available >= waiter.needed) {
+          if (permits.compareAndSet(available, available - waiter.needed)) {
+            waiters.poll()
+            val woke = waiter.promise.unsafe.completeWith(Exit.unit)
+            if (!woke) {
+              permits.getAndAdd(waiter.needed)
             }
-
-        /**
-         * Walk the waiter queue FIFO, waking waiters whose permit needs can be
-         * satisfied. Uses skip-on-release cancellation: if a waiter's promise
-         * is already completed (interrupted or claimed by cancel handler),
-         * return its permits and try the next waiter.
-         *
-         * `completeWith(Exit.unit)` both completes the promise and triggers all
-         * registered callbacks (resuming the waiting fiber), so no additional
-         * action is needed after completion.
-         */
-        @tailrec
-        private def pollWaiters(): Unit = {
-          val waiter = waiters.peek()
-          if (waiter ne null) {
-            val available = permits.get()
-            if (available >= waiter.needed) {
-              if (permits.compareAndSet(available, available - waiter.needed)) {
-                waiters.poll() // remove head
-                val woke = waiter.promise.unsafe.completeWith(Exit.unit)
-                if (!woke) {
-                  // Already completed (interrupted/cancelled). Return permits.
-                  permits.getAndAdd(waiter.needed)
-                }
-                pollWaiters() // try next waiter
-              } else {
-                pollWaiters() // CAS failed, retry
-              }
-            }
-            // else: not enough permits for head waiter, stop
+            pollWaiters()
+          } else {
+            pollWaiters()
           }
         }
       }
+    }
   }
 }
