@@ -20,10 +20,10 @@ import java.util.concurrent.{Semaphore => JSemaphore}
 @Fork(3)
 class SemaphoreContentionBenchmark {
 
-  @Param(Array("2", "10", "50", "100"))
+  @Param(Array("10", "100"))
   var fibers: Int = _
 
-  @Param(Array("1", "5", "10"))
+  @Param(Array("1", "10"))
   var permits: Int = _
 
   val opsPerFiber: Int = 1000
@@ -127,10 +127,10 @@ class SemaphoreFastPathBenchmark {
 @Fork(3)
 class SemaphoreMultiPermitBenchmark {
 
-  @Param(Array("2", "10", "50"))
+  @Param(Array("10", "50"))
   var fibers: Int = _
 
-  @Param(Array("1", "3", "5"))
+  @Param(Array("1", "5"))
   var acquireSize: Int = _
 
   val totalPermits: Int = 10
