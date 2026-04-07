@@ -26,8 +26,9 @@ import java.util.concurrent.atomic.{AtomicLong, AtomicLongArray, AtomicReference
 private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks with AddersVersionSpecific {
   def counter(key: MetricKey.Counter): MetricHook.Counter = {
     val adder = new DoubleAdder
+    val addFn: Double => Unit = v => adder.add(v)
 
-    MetricHookDouble(v => adder.add(v), () => MetricState.Counter(adder.sum()), v => adder.add(v))
+    MetricHookDouble(addFn, () => MetricState.Counter(adder.sum()), addFn)
   }
 
   private def incrementBy(atomic: AtomicDouble, value: Double): Unit = {
@@ -162,7 +163,8 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
       // them by timestamp to get a valid view of a time window.
       // The order does not matter because it gets sorted before passing to calculateQuantiles.
 
-      for (idx <- 0 until maxSize) {
+      var idx = 0
+      while (idx < maxSize) {
         val item = values.get(idx)
         if (item ne null) {
           val age = Duration.fromInterval(item.timestamp, now)
@@ -170,6 +172,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
             builder += item.value
           }
         }
+        idx += 1
       }
 
       zio.internal.metrics.calculateQuantiles(sortedQuantiles, builder.result().sorted(DoubleOrdering))
@@ -229,7 +232,6 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
         val e = it.next()
         builder += (e.getKey -> e.getValue.longValue())
       }
-
       builder.result()
     }
 

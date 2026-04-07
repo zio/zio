@@ -74,40 +74,51 @@ private[zio] class ConcurrentMetricRegistry {
     val len       = listeners.length
 
     if (len > 0) {
+      // Hoist casts out of while loops: `value.asInstanceOf[Double]` unboxes on every call,
+      // so performing it once before the loop avoids repeated unboxing overhead.
       var i = 0
       key.keyType match {
         case MetricKeyType.Gauge =>
+          val k = key.asInstanceOf[MetricKey.Gauge]
+          val v = value.asInstanceOf[Double]
           eventType match {
             case MetricEventType.Modify =>
               while (i < len) {
-                listeners(i).modifyGauge(key.asInstanceOf[MetricKey.Gauge], value.asInstanceOf[Double])
+                listeners(i).modifyGauge(k, v)
                 i = i + 1
               }
             case MetricEventType.Update =>
               while (i < len) {
-                listeners(i).updateGauge(key.asInstanceOf[MetricKey.Gauge], value.asInstanceOf[Double])
+                listeners(i).updateGauge(k, v)
                 i = i + 1
               }
           }
         case MetricKeyType.Histogram(_) =>
+          val k = key.asInstanceOf[MetricKey.Histogram]
+          val v = value.asInstanceOf[Double]
           while (i < len) {
-            listeners(i).updateHistogram(key.asInstanceOf[MetricKey.Histogram], value.asInstanceOf[Double])
+            listeners(i).updateHistogram(k, v)
             i = i + 1
           }
         case MetricKeyType.Frequency =>
+          val k = key.asInstanceOf[MetricKey.Frequency]
+          val v = value.asInstanceOf[String]
           while (i < len) {
-            listeners(i).updateFrequency(key.asInstanceOf[MetricKey.Frequency], value.asInstanceOf[String])
+            listeners(i).updateFrequency(k, v)
             i = i + 1
           }
         case MetricKeyType.Summary(_, _, _, _) =>
+          val k  = key.asInstanceOf[MetricKey.Summary]
           val sv = value.asInstanceOf[MetricHook.SummaryValue]
           while (i < len) {
-            listeners(i).updateSummary(key.asInstanceOf[MetricKey.Summary], sv.value, sv.timestamp)
+            listeners(i).updateSummary(k, sv.value, sv.timestamp)
             i = i + 1
           }
         case MetricKeyType.Counter =>
+          val k = key.asInstanceOf[MetricKey.Counter]
+          val v = value.asInstanceOf[Double]
           while (i < len) {
-            listeners(i).updateCounter(key.asInstanceOf[MetricKey.Counter], value.asInstanceOf[Double])
+            listeners(i).updateCounter(k, v)
             i = i + 1
           }
       }

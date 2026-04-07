@@ -16,7 +16,7 @@
 
 package zio.internal.metrics
 
-private[zio] sealed trait MetricHook[-In, +Out] {
+private[zio] sealed abstract class MetricHook[-In, +Out] {
   def update: In => Unit
   def get: () => Out
   def modify: In => Unit
