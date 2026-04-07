@@ -86,7 +86,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
     }
 
     // Insert the value into the right bucket with a binary search
-    def update(value: Double): Unit = {
+    val update: Double => Unit = (value: Double) => {
       var from = 0
       var to   = size
       while (from != to) {
@@ -217,7 +217,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
     val count  = new LongAdder
     val values = new ConcurrentHashMap[String, LongAdder]
 
-    def update(word: String): Unit = {
+    val update: String => Unit = (word: String) => {
       count.increment()
       var slot = values.get(word)
       if (slot eq null) {
