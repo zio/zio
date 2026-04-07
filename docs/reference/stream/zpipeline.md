@@ -40,54 +40,24 @@ There is also a `ZPipeline.mapZIO` which is an effectful version of this constru
 
 For stateful transformations that can't be expressed with `map` or `mapZIO`, you can build pipelines directly from `ZChannel` using the `ZChannel.readWithCause` pattern. This is the foundation for any complex pipeline:
 
-```scala mdoc:silent:nest
-import zio.stream.ZChannel
-import zio.Chunk
+When building custom pipelines with `ZChannel.readWithCause`, you define how to handle three cases:
 
-// A pipeline that groups consecutive pairs of elements
-def pairwise[A]: ZPipeline[Any, Nothing, A, (A, A)] = {
+```scala
+def customPipeline[In, Out]: ZPipeline[Any, Nothing, In, Out] = {
   ZPipeline.fromChannel(
     ZChannel.readWithCause(
+      // Case 1: Process incoming Chunk[In]
       elem => {
-        // Process a chunk of elements
-        val pairs = scala.collection.mutable.ListBuffer.empty[(A, A)]
-        var previous: Option[A] = None
-
-        elem.foreach { current =>
-          previous.foreach { prev =>
-            pairs += ((prev, current))
-          }
-          previous = Some(current)
-        }
-
-        // Write results and recurse with new state
-        ZChannel.writeAll(pairs.toSeq: _*) *>
-          pairwiseChannel(previous)
+        // Transform elem and emit outputs
+        // Then recursively call to read next chunk
+        val transformedOutput = ??? // : ZChannel[...]
+        transformedOutput
       },
-      err => ZChannel.failCause(err),      // Propagate upstream errors
-      done => ZChannel.succeed(done)  // Stream ended
+      // Case 2: Propagate errors from upstream  
+      err => ZChannel.failCause(err),
+      // Case 3: Handle stream end
+      done => ZChannel.succeed(done)
     )
-  )
-}
-
-// Helper to maintain state across invocations
-def pairwiseChannel[A](previous: Option[A]): ZChannel[Any, Nothing, Chunk[A], Any, Nothing, (A, A), Any] = {
-  ZChannel.readWithCause(
-    elem => {
-      val pairs = scala.collection.mutable.ListBuffer.empty[(A, A)]
-      var currentPrev = previous
-
-      elem.foreach { current =>
-        currentPrev.foreach { prev =>
-          pairs += ((prev, current))
-        }
-        currentPrev = Some(current)
-      }
-
-      ZChannel.writeAll(pairs.toSeq: _*) *> pairwiseChannel(currentPrev)
-    },
-    err => ZChannel.failCause(err),
-    done => ZChannel.succeed(done)
   )
 }
 ```
