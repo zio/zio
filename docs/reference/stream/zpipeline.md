@@ -41,6 +41,7 @@ There is also a `ZPipeline.mapZIO` which is an effectful version of this constru
 For stateful transformations that can't be expressed with `map` or `mapZIO`, you can build pipelines directly from `ZChannel` using `ZChannel.readWithCause`. Here is a pipeline that pairs each element with its predecessor:
 
 ```scala mdoc:silent:nest
+import zio.{ZNothing, Cause}
 import zio.stream.ZChannel
 
 def pairwise[A]: ZPipeline[Any, Nothing, A, (A, A)] =
