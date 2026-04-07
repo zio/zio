@@ -98,7 +98,7 @@ object Semaphore {
 
   private[zio] final case class Job(promise: Promise[Nothing, Unit], permits: Long)
 
-  private[zio] sealed trait SemaphoreState
+  private[zio] sealed abstract class SemaphoreState
   private[zio] object SemaphoreState {
 
     /**
