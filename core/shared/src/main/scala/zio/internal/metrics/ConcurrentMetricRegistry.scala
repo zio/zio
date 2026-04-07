@@ -3,7 +3,6 @@ package zio.internal.metrics
 import zio._
 import zio.metrics._
 
-import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
@@ -101,9 +100,9 @@ private[zio] class ConcurrentMetricRegistry {
             i = i + 1
           }
         case MetricKeyType.Summary(_, _, _, _) =>
+          val sv = value.asInstanceOf[MetricHook.SummaryValue]
           while (i < len) {
-            val (v, instant) = value.asInstanceOf[(Double, Instant)]
-            listeners(i).updateSummary(key.asInstanceOf[MetricKey.Summary], v, instant)
+            listeners(i).updateSummary(key.asInstanceOf[MetricKey.Summary], sv.value, sv.timestamp)
             i = i + 1
           }
         case MetricKeyType.Counter =>
