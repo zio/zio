@@ -236,6 +236,7 @@ object BuildHelper {
   def macroExpansionSettings = Seq(
     scalacOptions ++= {
       CrossVersion.partialVersion(scalaVersion.value) match {
+        case Some((3, _))  => Seq("-Xcheck-macros")
         case Some((2, 13)) => Seq("-Ymacro-annotations")
         case _             => Seq.empty
       }
@@ -250,7 +251,10 @@ object BuildHelper {
   )
 
   def macroDefinitionSettings = Seq(
-    scalacOptions += "-language:experimental.macros",
+    scalacOptions += {
+      if (scalaVersion.value == Scala3) "-Xcheck-macros"
+      else "-language:experimental.macros"
+    },
     libraryDependencies ++= {
       if (scalaVersion.value == Scala3) Seq()
       else
