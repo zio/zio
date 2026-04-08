@@ -2,7 +2,13 @@ package zio.test.sbt
 
 import sbt.testing.{Status, TestSelector}
 import zio.test.sbt.Colors.{green, red, yellow}
-import zio.test.sbt.ExecuteSpecs.{getEvents, getOutput, getOutputs}
+import zio.test.sbt.ExecuteSpecs.{
+  getEvents,
+  getOutput,
+  getOutputs,
+  getOutputForDiscoveredName,
+  getOutputForDiscoveredNamesMatching
+}
 import zio.test.{Spec, TestAspect, TestEnvironment, TestResult, ZIOSpecDefault, assertTrue, assert}
 import zio.{Scope, ZIO}
 
@@ -190,27 +196,54 @@ object ZTestFrameworkSpec extends ZIOSpecDefault {
         long   <- testName("outer - inner - test")
       } yield verify(short) && verify(medium) && verify(long)
     },
-    test("reports an actionable diagnostic for class-based specs") {
-      ExecuteSpecs
-        .getOutputForClassName("zio.test.sbt.FrameworkSpecInstances$ClassBasedSpec")
-        .either
-        .map {
-          case Left(errors) =>
-            assertTrue(
-              errors.exists { error =>
-                val msg = error.getMessage
-                msg.contains("must be defined as a Scala object, not a class") &&
-                msg.contains("extends ZIOSpecDefault") &&
-                msg.contains("Change `class") &&
-                msg.contains("to `object")
-              }
-            )
-          case Right(output) =>
-            assertTrue(
-              output.exists(_.contains("must be defined as an object")) ||
-                output.exists(_.contains("class-based ZIO specs are not supported"))
-            )
-        }
+    test("reports an actionable error for class-based specs") {
+      getOutputForDiscoveredName("zio.test.sbt.FrameworkSpecInstances$ClassBasedSpec").either.map {
+        case Left(errors) =>
+          assertTrue(
+            errors.exists { error =>
+              val msg = error.getMessage
+              msg.contains("must be defined as a Scala object, not a class") &&
+              msg.contains("extends ZIOSpecDefault") &&
+              msg.contains("Change `class") &&
+              msg.contains("to `object")
+            }
+          )
+        case Right(_) =>
+          assertTrue(false)
+      }
+    },
+    test("abstract base classes are ignored by broad patterns") {
+      getOutputForDiscoveredNamesMatching(
+        Seq(
+          "zio.test.sbt.FrameworkSpecInstances$MyAbstractSpec",
+          "zio.test.sbt.FrameworkSpecInstances$FooSpec"
+        ),
+        "FrameworkSpecInstances$"
+      ).either.map {
+        case Left(_) =>
+          assertTrue(false)
+        case Right(output) =>
+          assertTrue(
+            output.exists(_.contains("FooSpec")) ||
+              output.exists(_.contains("should pass"))
+          )
+      }
+    },
+    test("non-abstract base classes are discovered by broad patterns") {
+      getOutputForDiscoveredNamesMatching(
+        Seq(
+          "zio.test.sbt.FrameworkSpecInstances$NonAbstractBaseSpec",
+          "zio.test.sbt.FrameworkSpecInstances$BarSpec"
+        ),
+        "FrameworkSpecInstances$"
+      ).either.map {
+        case Left(errors) =>
+          assertTrue(
+            errors.exists(_.getMessage.contains("must be defined as a Scala object, not a class"))
+          )
+        case Right(_) =>
+          assertTrue(false)
+      }
     }
   )
 }

@@ -239,7 +239,8 @@ object FrameworkSpecInstances {
     )
   }
 
-  final class ClassBasedSpec extends ZIOSpecDefault {
+  // Error - class cannot contain spec only object can
+  class ClassBasedSpec extends ZIOSpecDefault {
     def spec =
       suite("class-based-spec")(
         test("should not be silently ignored") {
@@ -247,4 +248,26 @@ object FrameworkSpecInstances {
         }
       )
   }
+
+  // OK - abstract class can be used to store spec
+  abstract class MyAbstractSpec(name: String) extends ZIOSpecDefault {
+    def spec = suite(name)(
+      test("should pass") {
+        assertTrue(true)
+      }
+    )
+  }
+
+  object FooSpec extends MyAbstractSpec("FooSpec")
+
+  // Error - non abstract class cannnot be used to store spec
+  class NonAbstractBaseSpec(name: String) extends ZIOSpecDefault {
+    def spec: Spec[TestEnvironment, Any] = suite(name)(
+      test("should pass") {
+        assertTrue(true)
+      }
+    )
+  }
+
+  object BarSpec extends NonAbstractBaseSpec("BarSpec")
 }
