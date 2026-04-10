@@ -375,17 +375,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
               idle.offer(self)
             }
             if (currentSearching == 0 && searching) {
-              var i      = 0
-              var notify = false
-              while (i != poolSize && !notify) {
-                val worker = workers(i)
-                notify = !worker.localQueue.isEmpty()
-                i += 1
-              }
-              if (!notify) {
-                notify = !globalQueue.isEmpty()
-              }
-              if (notify) {
+              if (!globalQueue.isEmpty()) {
                 val currentState = state.get
                 maybeUnparkWorker(currentState)
               }
