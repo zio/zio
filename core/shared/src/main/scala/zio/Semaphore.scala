@@ -155,15 +155,27 @@ object Semaphore {
           else if (n == 0L)
             ZIO.succeed(Reservation.zero)
           else
-            Promise.make[Nothing, Unit].flatMap { promise =>
-              ref.modify {
-                case Right(permits) if permits >= n =>
-                  Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
-                case Right(permits) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
-                case Left(queue) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
-              }
+            // Fast path: try to acquire without allocating a Promise
+            ref.modify {
+              case Right(permits) if permits >= n =>
+                Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
+              case other =>
+                null.asInstanceOf[Reservation] -> other
+            }.flatMap { reservation =>
+              if (reservation ne null) ZIO.succeed(reservation)
+              else
+                // Slow path: need to wait, allocate Promise now
+                Promise.make[Nothing, Unit].flatMap { promise =>
+                  ref.modify {
+                    case Right(permits) if permits >= n =>
+                      // Permits became available between our first check and now
+                      Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
+                    case Right(permits) =>
+                      Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
+                    case Left(queue) =>
+                      Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
+                  }
+                }
             }
 
         def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
