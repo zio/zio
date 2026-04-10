@@ -776,6 +776,117 @@ object GenSpec extends ZIOBaseSpec {
       check(Gen.setOfN(2)(Gen.fromIterable(List(1, 2, 3)))) { set =>
         assertTrue(set.size == 2)
       }
-    }
+    },
+    test("map of keys with small domain") {
+      check(Gen.mapOfN(2)(Gen.fromIterable(List(1, 2, 3)), Gen.int)) { map =>
+        assertTrue(map.size == 2)
+      }
+    },
+    suite("determinism")(
+      test("fromIterable and then nondeterministic") {
+        val gen = for {
+          i  <- Gen.fromIterable(1 to 3)
+          id <- Gen.uuid
+        } yield (i, id)
+
+        val deterministic1    = gen.samples(None).map(_.value._1).runCollect
+        val deterministic2    = gen.samples(None).map(_.value._2).runCollect
+        val nondeterministic1 = gen.samples(Some(3)).map(_.value._1).runCollect
+        val nondeterministic2 = gen.samples(Some(3)).map(_.value._2).runCollect
+
+        assertZIO(deterministic1)(equalTo(Chunk(1, 2, 3))) &&
+        assertZIO(deterministic2.map(_.toSet))(hasSize(equalTo(3))) &&
+        assertZIO(nondeterministic1)(forall(isOneOf(1 to 3))) &&
+        assertZIO(nondeterministic2.map(_.toSet))(hasSize(equalTo(3)))
+      },
+      test("nondeterministic and then fromIterable") {
+        val gen = for {
+          id <- Gen.uuid
+          i  <- Gen.fromIterable(1 to 3)
+        } yield (i, id)
+
+        val deterministic1    = gen.samples(None).map(_.value._1).runCollect
+        val deterministic2    = gen.samples(None).map(_.value._2).runCollect
+        val nondeterministic1 = gen.samples(Some(3)).map(_.value._1).runCollect
+        val nondeterministic2 = gen.samples(Some(3)).map(_.value._2).runCollect
+
+        assertZIO(deterministic1)(equalTo(Chunk(1, 2, 3))) &&
+        assertZIO(deterministic2.map(_.toSet))(hasSize(equalTo(1))) &&
+        assertZIO(nondeterministic1)(forall(isOneOf(1 to 3))) &&
+        assertZIO(nondeterministic2.map(_.toSet))(hasSize(equalTo(3)))
+      },
+      test("concat and then nondeterministic") {
+        val gen = for {
+          i  <- Gen.fromIterable(1 to 3) ++ Gen.const(4)
+          id <- Gen.uuid
+        } yield (i, id)
+
+        val deterministic1    = gen.samples(None).map(_.value._1).runCollect
+        val deterministic2    = gen.samples(None).map(_.value._2).runCollect
+        val nondeterministic1 = gen.samples(Some(4)).map(_.value._1).runCollect
+        val nondeterministic2 = gen.samples(Some(4)).map(_.value._2).runCollect
+
+        assertZIO(deterministic1)(equalTo(Chunk(1, 2, 3, 4))) &&
+        assertZIO(deterministic2.map(_.toSet))(hasSize(equalTo(4))) &&
+        assertZIO(nondeterministic1)(forall(isOneOf(1 to 4))) &&
+        assertZIO(nondeterministic2.map(_.toSet))(hasSize(equalTo(4)))
+      },
+      test("nondeterministic and then concat") {
+        val gen = for {
+          id <- Gen.uuid
+          i  <- Gen.fromIterable(1 to 3) ++ Gen.const(4)
+        } yield (i, id)
+
+        val deterministic1    = gen.samples(None).map(_.value._1).runCollect
+        val deterministic2    = gen.samples(None).map(_.value._2).runCollect
+        val nondeterministic1 = gen.samples(Some(4)).map(_.value._1).runCollect
+        val nondeterministic2 = gen.samples(Some(4)).map(_.value._2).runCollect
+
+        assertZIO(deterministic1)(equalTo(Chunk(1, 2, 3, 4))) &&
+        assertZIO(deterministic2.map(_.toSet))(hasSize(equalTo(1))) &&
+        assertZIO(nondeterministic1)(forall(isOneOf(1 to 4))) &&
+        assertZIO(nondeterministic2.map(_.toSet))(hasSize(equalTo(4)))
+      },
+      test("const is deterministic") {
+        val gen = for {
+          id <- Gen.const("id")
+          i  <- Gen.fromIterable(1 to 3)
+        } yield (i, id)
+        assertZIO(gen.runCollect)(equalTo(List(1 -> "id", 2 -> "id", 3 -> "id")))
+      },
+      test("swapping order in for-comprehension produces similar diversity") {
+        val genA = for {
+          i  <- Gen.fromIterable(1 to 100)
+          id <- Gen.uuid
+        } yield id
+
+        val genB = for {
+          id <- Gen.uuid
+          _  <- Gen.fromIterable(1 to 100)
+        } yield id
+
+        for {
+          a <- genA.runCollectN(5).map(_.toSet.size)
+          b <- genB.runCollectN(5).map(_.toSet.size)
+        } yield assertTrue(a >= 3 && b >= 3)
+      },
+      test("option of fromIterable generates None in checkAll") {
+        val gen = Gen.option(Gen.fromIterable(List("a", "b")))
+        assertZIO(gen.runCollect)(equalTo(List(None, Some("a"), Some("b"))))
+      },
+      test("filter with single-value generators works in runCollectN") {
+        val gen = for {
+          first  <- Gen.int(1, 10).filter(_ == 10)
+          second <- Gen.int(1, 10).filter(_ == 1)
+        } yield (first, second)
+        assertZIO(gen.runCollectN(1))(equalTo(List((10, 1))))
+      },
+      test("boolean is exhaustive in deterministic mode") {
+        assertZIO(Gen.boolean.runCollect)(equalTo(List(false, true)))
+      },
+      test("boolean produces both values in nondeterministic mode") {
+        Gen.boolean.runCollectN(20).map(values => assertTrue(values.toSet == Set(false, true)))
+      }
+    )
   )
 }

@@ -81,10 +81,10 @@ object GenUtils {
   val smallInt: Gen[Any, Int] = Gen.int(-10, 10)
 
   def sample[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
-    gen.sample.map(_.value).runCollect.map(_.toList)
+    gen.runCollect
 
   def sample100[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
-    gen.sample.map(_.value).forever.take(size.toLong).runCollect.map(_.toList)
+    gen.runCollectN(size)
 
   def sampleEffect[E, A](
     gen: Gen[Any, ZIO[Any, E, A]],
@@ -93,7 +93,7 @@ object GenUtils {
     provideSize(sample100(gen).flatMap(effects => ZIO.foreach(effects)(_.exit)))(size)
 
   def shrink[R, A](gen: Gen[R, A]): URIO[R, A] =
-    gen.sample.take(1).flatMap(_.shrinkSearch(_ => true)).take(size * 10L).runLast.map(_.get)
+    gen.sample.forever.take(1).flatMap(_.shrinkSearch(_ => true)).take(size * 10L).runLast.map(_.get)
 
   val shrinkable: Gen[Any, Int] =
     Gen.fromRandomSample(_.nextIntBounded(90).map(_ + 10).map(Sample.shrinkIntegral(0)))
