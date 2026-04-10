@@ -31,8 +31,13 @@ The following guides have been written to help you get started with ZIO with min
 
 1. [How to Interop with Cats Effect?](interop/with-cats-effect.md)
 2. [How to Interop with Future?](interop/with-future.md)
-3. [How to Interop with Java?](interop/with-java.md)
-4. [How to Interop with JavaScript?](interop/with-javascript.md)
+3. [How to Interop with Guava?](interop/with-guava.md)
+4. [How to Interop with Java?](interop/with-java.md)
+5. [How to Interop with JavaScript?](interop/with-javascript.md)
+6. [How to Interop with Monix?](interop/with-monix.md)
+7. [How to Interop with Reactive Streams?](interop/with-reactive-streams.md)
+8. [How to Interop with Scalaz 7.x?](interop/with-scalaz-7x.md)
+9. [How to Interop with Twitter?](interop/with-twitter.md)
 
 ## Migration Guides
 
