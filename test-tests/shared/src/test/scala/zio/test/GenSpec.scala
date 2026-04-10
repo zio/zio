@@ -856,7 +856,7 @@ object GenSpec extends ZIOBaseSpec {
       },
       test("swapping order in for-comprehension produces similar diversity") {
         val genA = for {
-          i  <- Gen.fromIterable(1 to 100)
+          _  <- Gen.fromIterable(1 to 100)
           id <- Gen.uuid
         } yield id
 
