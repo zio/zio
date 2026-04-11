@@ -72,8 +72,12 @@
     "tailwindcss": "4.2.2",
     "tslib": "^2.4.0"
   },
+  "overrides": {
+    "webpackbar": "^7.0.0"
+  },
   "resolutions": {
-    "cytoscape": "3.33.2"
+    "cytoscape": "3.33.2",
+    "webpackbar": "^7.0.0"
   },
   "browserslist": {
     "production": [
