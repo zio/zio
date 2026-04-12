@@ -468,41 +468,61 @@ object ZStreamSpec extends DefaultRunnableSpec {
           }
         ),
         suite("buffer")(
-          testM("maintains elements and ordering")(checkM(tinyChunkOf(tinyChunkOf(Gen.anyInt))) { chunk =>
-            assertM(
-              ZStream
-                .fromChunks(chunk: _*)
-                .buffer(2)
-                .runCollect
-            )(equalTo(chunk.flatten))
-          }),
-          testM("buffer the Stream with Error") {
-            val e = new RuntimeException("boom")
-            assertM(
-              (ZStream.range(0, 10) ++ ZStream.fail(e))
-                .buffer(2)
-                .runCollect
-                .run
-            )(fails(equalTo(e)))
-          },
-          testM("fast producer progress independently") {
-            for {
-              ref   <- Ref.make(List[Int]())
-              latch <- Promise.make[Nothing, Unit]
-              s = ZStream
-                    .range(1, 5)
-                    .tap(i => ref.update(i :: _) *> latch.succeed(()).when(i == 4))
-                    .buffer(2)
-              l <- s.process.use { as =>
-                     for {
-                       _ <- as
-                       _ <- latch.await
-                       l <- ref.get
-                     } yield l
-                   }
-            } yield assert(l.reverse)(equalTo((1 to 4).toList))
+  testM("maintains elements and ordering")(checkM(tinyChunkOf(tinyChunkOf(Gen.anyInt))) { chunk =>
+    assertM(
+      ZStream
+        .fromChunks(chunk: _*)
+        .buffer(2)
+        .runCollect
+    )(equalTo(chunk.flatten))
+  }),
+  testM("buffer the Stream with Error") {
+    val e = new RuntimeException("boom")
+    assertM(
+      (ZStream.range(0, 10) ++ ZStream.fail(e))
+        .buffer(2)
+        .runCollect
+        .run
+    )(fails(equalTo(e)))
+  },
+  testM("fast producer progress independently") {
+    for {
+      ref   <- Ref.make(List[Int]())
+      latch <- Promise.make[Nothing, Unit]
+      s = ZStream
+            .range(1, 5)
+            .tap(i => ref.update(i :: _) *> latch.succeed(()).when(i == 4))
+            .buffer(2)
+      l <- s.process.use { as =>
+             for {
+               _ <- as
+               _ <- latch.await
+               l <- ref.get
+             } yield l
+           }
+    } yield assert(l.reverse)(equalTo((1 to 4).toList))
+  },
+  testM("buffer(1) should not over-pull elements (#9810)") {
+    for {
+      started <- Ref.make(0)
+      gate    <- Promise.make[Nothing, Unit]
+      stream =
+        ZStream
+          .fromIterable(1 to 3)
+          .mapM { n =>
+            started.updateAndGet(_ + 1).flatMap { _ =>
+              if (n == 1) ZIO.succeed(n)
+              else gate.await.as(n)
+            }
           }
-        ),
+          .buffer(1)
+      fiber <- stream.runHead.fork
+      _     <- TestClock.adjust(1.second)
+      count <- started.get
+      _     <- fiber.interrupt
+    } yield assert(count)(equalTo(2))
+  }
+),
         suite("bufferDropping")(
           testM("buffer the Stream with Error") {
             val e = new RuntimeException("boom")

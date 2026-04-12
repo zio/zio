@@ -2965,21 +2965,21 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * Like [[ZStream#runIntoQueue]], but provides the result as a scoped [[ZIO]]
    * to allow for scope composition.
    */
-def runIntoQueueElementsScoped(
-  queue: => Enqueue[Exit[Option[E], A]]
-)(implicit trace: Trace): ZIO[R with Scope, Nothing, Unit] = {
-  def offerElements(chunk: Chunk[A]): UIO[Unit] =
-    ZIO.foreachDiscard(chunk)(a => queue.offer(Exit.succeed(a)).unit)
+  def runIntoQueueElementsScoped(
+    queue: => Enqueue[Exit[Option[E], A]]
+  )(implicit trace: Trace): ZIO[R with Scope, Nothing, Unit] = {
+    def offerElements(chunk: Chunk[A]): UIO[Unit] =
+      ZIO.foreachDiscard(chunk)(a => queue.offer(Exit.succeed(a)).unit)
 
-  lazy val writer: ZChannel[R, E, Chunk[A], Any, Nothing, Exit[Option[E], A], Any] =
-    ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Exit[Option[E], A], Any](
-      in  => ZChannel.fromZIO(offerElements(in)) *> writer,
-      err => ZChannel.fromZIO(queue.offer(Exit.failCause(err.map(Some(_)))).unit),
-      _   => ZChannel.fromZIO(queue.offer(Exit.fail(None)).unit)
-    )
+    lazy val writer: ZChannel[R, E, Chunk[A], Any, Nothing, Exit[Option[E], A], Any] =
+      ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Exit[Option[E], A], Any](
+        in => ZChannel.fromZIO(offerElements(in)) *> writer,
+        err => ZChannel.fromZIO(queue.offer(Exit.failCause(err.map(Some(_)))).unit),
+        _ => ZChannel.fromZIO(queue.offer(Exit.fail(None)).unit)
+      )
 
-  (self.channel >>> writer).drain.runScoped.unit
-}
+    (self.channel >>> writer).drain.runScoped.unit
+  }
 
   /**
    * Runs the stream to completion and yields the last value emitted by it,
