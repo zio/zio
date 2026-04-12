@@ -40,16 +40,24 @@ jobs:
         run: echo "number=$(cat pr-metadata/pr-number.txt)" >> "$GITHUB_OUTPUT"
 
       - name: Deploy Preview to Netlify
+        id: netlify-deploy
         uses: nwtgck/actions-netlify@v3.0
         with:
           publish-dir: ./website-artifact
           github-token: ${{ secrets.GITHUB_TOKEN }}
           deploy-message: "PR #${{ steps.pr.outputs.number }}"
           alias: pr-${{ steps.pr.outputs.number }}
-          enable-pull-request-comment: true
-          overwrites-pull-request-comment: true
+          enable-pull-request-comment: false
           enable-commit-comment: false
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         timeout-minutes: 5
+
+      - name: Post Preview URL Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          number: ${{ steps.pr.outputs.number }}
+          header: netlify-preview
+          message: |
+            🚀 Preview deployed to Netlify: ${{ steps.netlify-deploy.outputs.deploy-url }}
