@@ -33,12 +33,7 @@ object ExecuteSpecs {
     args: Array[String],
     selectors: Array[Selector] = Array(new SuiteSelector)
   ): ZIO[Any, ::[Throwable], (Seq[String], Seq[Event])] = {
-    val taskDefs: Seq[TaskDef] =
-      specs.map { spec =>
-        val className  = spec.getClass.getName
-        val moduleName = TestRunner.moduleName(className)
-        new TaskDef(moduleName, ZioSpecFingerprint, false, selectors)
-      }
+    val taskDefs = discoverTasks(specs.map(_.getClass.getName), selectors)
     runTaskDefs(taskDefs, args)
   }
 
@@ -47,24 +42,19 @@ object ExecuteSpecs {
     args: Array[String] = Array.empty,
     selectors: Array[Selector] = Array(new SuiteSelector)
   ): ZIO[Any, ::[Throwable], Seq[String]] = {
-    val taskDefs = Seq(taskDefForDiscoveredName(name, selectors))
+    val taskDefs: Seq[TaskDef] = discoverTasks(Seq(name), selectors)
     runTaskDefs(
       taskDefs,
       args
     ).map(_._1)
   }
 
-  private def taskDefForDiscoveredName(
+  private def mkTaskDef(
     name: String,
     selectors: Array[Selector]
   ): TaskDef = {
     val moduleName = TestRunner.moduleName(name)
-    val isModule =
-      Reflect
-        .lookupLoadableModuleClass(moduleName, getClass.getClassLoader)
-        .isDefined
-
-    if (isModule)
+    if (isModule(moduleName))
       new TaskDef(moduleName, ZioSpecFingerprint, false, selectors)
     else
       new TaskDef(name, ZioSpecClassFingerprint, false, selectors)
@@ -76,18 +66,24 @@ object ExecuteSpecs {
     args: Array[String] = Array.empty,
     selectors: Array[Selector] = Array(new SuiteSelector)
   ): ZIO[Any, ::[Throwable], Seq[String]] = {
-    val loader = getClass.getClassLoader
-
-    val taskDefs =
-      names
-        .filter(name => isConcreteDiscoverableName(name, loader))
-        .map(taskDefForDiscoveredName(_, selectors))
-        .filter { taskDef =>
-          val fqcn = taskDef.fullyQualifiedName()
-          fqcn.contains(pattern) || fqcn.stripSuffix("$").contains(pattern)
-        }
-
+    val taskDefs = discoverTasks(names, selectors)
+      .filter(hasPattern(pattern))
     runTaskDefs(taskDefs, args).map(_._1)
+  }
+
+  private def isModule(moduleName: String): Boolean =
+    Reflect
+      .lookupLoadableModuleClass(moduleName, getClass.getClassLoader)
+      .isDefined
+
+  private def hasPattern(pattern: String)(td: TaskDef): Boolean =
+    td.fullyQualifiedName().stripSuffix("$").contains(pattern)
+
+  private def discoverTasks(names: Seq[String], selectors: Array[Selector]): Seq[TaskDef] = {
+    val loader = getClass.getClassLoader
+    names
+      .filter(name => isConcreteDiscoverableName(name, loader))
+      .map(name => mkTaskDef(name, selectors))
   }
 
   // Keep object specs discoverable via their module name (e.g. FooSpec -> FooSpec$).
@@ -95,19 +91,16 @@ object ExecuteSpecs {
   // - reject traits / interfaces
   // - reject abstract classes
   // - reject missing classes
+  private def isConcreteDiscoverableName(name: String, loader: ClassLoader): Boolean = {
+    val moduleName = TestRunner.moduleName(name)
+    isModule(moduleName) || loadClassOption(name, loader).exists(isConcrete)
+  }
+
   private def loadClassOption(name: String, loader: ClassLoader): Option[Class[?]] =
     catching(classOf[ClassNotFoundException]).opt(loader.loadClass(name))
 
-  private def isConcreteDiscoverableName(name: String, loader: ClassLoader): Boolean = {
-    val moduleName = TestRunner.moduleName(name)
-
-    if (Reflect.lookupLoadableModuleClass(moduleName, loader).isDefined)
-      true
-    else
-      loadClassOption(name, loader).exists { clazz =>
-        !clazz.isInterface && !Modifier.isAbstract(clazz.getModifiers)
-      }
-  }
+  private def isConcrete(clazz: Class[_]): Boolean =
+    !clazz.isInterface && !Modifier.isAbstract(clazz.getModifiers)
 
   private def runTaskDefs(
     taskDefs: Seq[TaskDef],
