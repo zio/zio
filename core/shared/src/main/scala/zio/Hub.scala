@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright 2021-2024 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A `Hub` is an asynchronous message hub. Publishers can offer messages to the
  * hub and subscribers can subscribe to take messages from the hub.
  */
-sealed abstract class Hub[A] extends Enqueue.Internal[A] {
+sealed abstract class Hub[A] extends Enqueue.Internal[Nothing, A] {
 
   /**
    * Publishes a message to the hub, returning whether the message was published
@@ -44,7 +44,7 @@ sealed abstract class Hub[A] extends Enqueue.Internal[A] {
    * be evaluated multiple times within the scope to take a message from the hub
    * each time.
    */
-  def subscribe(implicit trace: Trace): ZIO[Scope, Nothing, Dequeue[A]]
+  def subscribe(implicit trace: Trace): ZIO[Scope, Nothing, Dequeue[Nothing, A]]
 
   override final def isEmpty(implicit trace: Trace): UIO[Boolean] =
     size.map(_ == 0)
@@ -186,7 +186,7 @@ object Hub {
           if (shutdownFlag.get) ZIO.interrupt
           else Exit.succeed(hub.size())
         }
-      def subscribe(implicit trace: Trace): ZIO[Scope, Nothing, Dequeue[A]] =
+      def subscribe(implicit trace: Trace): ZIO[Scope, Nothing, Dequeue[Nothing, A]] =
         ZIO.acquireReleaseExit {
           for {
             child   <- scope.fork
@@ -205,7 +205,7 @@ object Hub {
     hub: internal.Hub[A],
     subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
     strategy: Strategy[A]
-  )(implicit trace: Trace): UIO[Dequeue[A]] =
+  )(implicit trace: Trace): UIO[Dequeue[Nothing, A]] =
     ZIO.fiberIdWith { fiberId =>
       Exit.succeed {
         val promise = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
@@ -233,8 +233,8 @@ object Hub {
     shutdownHook: Promise[Nothing, Unit],
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
-  ): Dequeue[A] =
-    new Dequeue.Internal[A] { self =>
+  ): Dequeue[Nothing, A] =
+    new Dequeue.Internal[Nothing, A] { self =>
       def awaitShutdown(implicit trace: Trace): UIO[Unit] =
         shutdownHook.await
       val capacity: Int =
@@ -582,3 +582,4 @@ object Hub {
     ()
   }
 }
+
