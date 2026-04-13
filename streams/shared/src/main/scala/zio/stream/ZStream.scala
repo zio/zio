@@ -4539,15 +4539,23 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from an iterator
    */
   def fromIteratorSucceed[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
-    trace: Trace
-  ): ZStream[Any, Nothing, A] = {
-  def writeOneByOne(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
-    if (iterator.hasNext)
-      ZChannel.write(Chunk.single(iterator.next())) *> 
-      ZChannel.fromZIO(ZIO.yieldNow) *> // Mana shu qator qo'shilishi kerak
-      writeOneByOne(iterator)
-    else
-      ZChannel.unit
+      trace: Trace
+    ): ZStream[Any, Nothing, A] = {
+      def loop(iterator: Iterator[A]): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] =
+        if (iterator.hasNext) {
+          val builder = ChunkBuilder.make[A]()
+          var i       = 0
+          while (i < maxChunkSize && iterator.hasNext) {
+            builder += iterator.next()
+            i += 1
+          }
+          ZChannel.write(builder.result()) *> ZChannel.fromZIO(ZIO.yieldNow) *> loop(iterator)
+        } else {
+          ZChannel.unit
+        }
+  
+      ZStream.fromChannel(loop(iterator))
+    }
 
     def writeChunks(iterator: Iterator[A], maxChunkSize0: Int): ZChannel[Any, Any, Any, Any, Nothing, Chunk[A], Any] = {
       val builder = ChunkBuilder.make[A](maxChunkSize0)
