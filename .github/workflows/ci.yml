@@ -28,6 +28,8 @@ jobs:
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v6.0.2
+      with:
+        ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
     - name: Setup Java
       uses: actions/setup-java@v5.2.0
       with:
@@ -55,6 +57,7 @@ jobs:
       - name: Checkout current branch
         uses: actions/checkout@v6.0.2
         with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
           fetch-depth: 0
       - name: Setup Java
         uses: actions/setup-java@v5.2.0
@@ -87,6 +90,7 @@ jobs:
       - name: Checkout Current Branch
         uses: actions/checkout@v6.0.2
         with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
           fetch-depth: 0
       - name: Setup Java
         uses: actions/setup-java@v5.2.0
@@ -101,7 +105,7 @@ jobs:
       - name: Install NodeJS
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24.14.1
 
       - name: Compile Docs
         run: |
@@ -122,6 +126,18 @@ jobs:
           path: ./website/build
           overwrite: true
 
+      - name: Save PR Metadata
+        if: github.event_name == 'pull_request'
+        run: echo "${{ github.event.pull_request.number }}" > pr-number.txt
+
+      - name: Upload PR Metadata
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-metadata
+          path: pr-number.txt
+          overwrite: true
+
       - name: Print All Generated Files
         run: find ./website/build -print
 
@@ -138,6 +154,8 @@ jobs:
     steps:
     - name: Checkout current branch
       uses: actions/checkout@v6.0.2
+      with:
+        ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
     - name: Setup Java
       uses: actions/setup-java@v5.2.0
       with:
@@ -199,6 +217,8 @@ jobs:
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
       - name: Setup Java
         uses: actions/setup-java@v5.2.0
         with:
@@ -231,6 +251,8 @@ jobs:
     steps:
       - name: Checkout current branch
         uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
       - name: Install Boehm GC
         if: ${{ startsWith(matrix.platform, 'Native') }}
         run: sudo apt-get update && sudo apt-get install -y libgc-dev
@@ -328,13 +350,13 @@ jobs:
           git commit -m "$commit_message" || echo "No changes to commit"
       - name: Generate a token
         id: generate-tokens
-        uses: actions/create-github-app-token@v3.0.0
+        uses: actions/create-github-app-token@v3.1.1
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_SECRET }}
           owner: ${{ github.repository_owner }}
       - name: Create Pull Request to Update Docs
-        uses: peter-evans/create-pull-request@v8.1.0
+        uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ steps.generate-token.outputs.token }}
           body: |-
