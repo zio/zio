@@ -19,7 +19,7 @@ package zio
 /**
  * A queue that can only be enqueued.
  */
-sealed trait Enqueue[-A] extends Serializable {
+sealed trait Enqueue[-E, -A] extends Serializable {
 
   /**
    * Waits until the queue is shutdown. The `IO` returned by this method will
@@ -36,12 +36,12 @@ sealed trait Enqueue[-A] extends Serializable {
   /**
    * `true` if `shutdown` has been called.
    */
-  def isShutdown(implicit trace: Trace): UIO[Boolean]
+  def isShutdown(implicit trace: Trace): IO[E, Boolean]
 
   /**
    * Places one value in the queue.
    */
-  def offer(a: A)(implicit trace: Trace): UIO[Boolean]
+  def offer(a: A)(implicit trace: Trace): IO[E, Boolean]
 
   /**
    * For Bounded Queue: uses the `BackPressure` Strategy, places the values in
@@ -60,7 +60,7 @@ sealed trait Enqueue[-A] extends Serializable {
    * queue but if there is no room it will not enqueue them and return the
    * leftovers.
    */
-  def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]]
+  def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): IO[E, Chunk[A1]]
 
   /**
    * Interrupts any fibers that are suspended on `offer` or `take`. Future calls
@@ -78,15 +78,15 @@ sealed trait Enqueue[-A] extends Serializable {
   /**
    * Checks whether the queue is currently empty.
    */
-  def isEmpty(implicit trace: Trace): UIO[Boolean] =
+  def isEmpty(implicit trace: Trace): IO[E, Boolean] =
     size.map(_ <= 0)
 
   /**
    * Checks whether the queue is currently full.
    */
-  def isFull(implicit trace: Trace): UIO[Boolean] =
+  def isFull(implicit trace: Trace): IO[E, Boolean] =
     size.map(_ >= capacity)
 }
 private[zio] object Enqueue {
-  private[zio] trait Internal[-A] extends Enqueue[A]
+  private[zio] trait Internal[-E, -A] extends Enqueue[E, A]
 }
