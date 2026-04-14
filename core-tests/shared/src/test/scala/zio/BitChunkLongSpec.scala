@@ -14,7 +14,7 @@ object BitChunkLongSpec extends ZIOBaseSpec {
     Gen.small(Gen.const(_))
 
   val genEndianness: Gen[Any, Chunk.BitChunk.Endianness] =
-    Gen.elements(Chunk.BitChunk.Endianness.BigEndian, Chunk.BitChunk.Endianness.LittleEndian)
+    Gen.randomChoice(Chunk.BitChunk.Endianness.BigEndian, Chunk.BitChunk.Endianness.LittleEndian)
 
   def toBinaryString(endianness: Chunk.BitChunk.Endianness)(long: Long): String = {
     val endiannessLong =

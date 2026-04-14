@@ -28,7 +28,7 @@ trait TimeVariants {
    * `DayOfWeek.MONDAY`.
    */
   final def dayOfWeek(implicit trace: Trace): Gen[Any, DayOfWeek] =
-    Gen.elements(
+    Gen.randomChoice(
       DayOfWeek.MONDAY,
       DayOfWeek.TUESDAY,
       DayOfWeek.WEDNESDAY,
@@ -127,7 +127,7 @@ trait TimeVariants {
    * A generator of `java.time.Month` values. Shrinks toward `Month.JANUARY`.
    */
   final def month(implicit trace: Trace): Gen[Any, Month] =
-    Gen.elements(
+    Gen.randomChoice(
       Month.JANUARY,
       Month.FEBRUARY,
       Month.MARCH,
@@ -287,7 +287,7 @@ trait TimeVariants {
    * A generator of `java.time.ZoneId` values. Doesn't have any shrinking.
    */
   final def zoneId(implicit trace: Trace): Gen[Any, ZoneId] =
-    Gen.elements(ZoneId.getAvailableZoneIds.asScala.map(ZoneId.of).toList: _*).noShrink
+    Gen.randomChoice(ZoneId.getAvailableZoneIds.asScala.map(ZoneId.of).toList: _*).noShrink
 
   /**
    * A generator of `java.time.ZoneOffset` values. Shrinks toward

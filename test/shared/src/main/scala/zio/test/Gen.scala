@@ -286,7 +286,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of booleans. Shrinks toward 'false'.
    */
   def boolean(implicit trace: Trace): Gen[Any, Boolean] =
-    elements(false, true)
+    randomChoice(false, true)
 
   /**
    * A generator whose size falls within the specified bounds.
@@ -399,7 +399,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of currency.
    */
   def currency(implicit trace: Trace): Gen[Any, java.util.Currency] =
-    elements(java.util.Currency.getAvailableCurrencies.asScala.toSeq: _*)
+    randomChoice(java.util.Currency.getAvailableCurrencies.asScala.toSeq: _*)
 
   /**
    * A generator of doubles. Shrinks toward '0'.
@@ -425,8 +425,25 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   ): Gen[R, Either[A, B]] =
     oneOf(left.map(Left(_)), right.map(Right(_)))
 
+  /**
+   * A generator that produces each of the specified values exactly once, in
+   * order. Designed for use with `checkAll` to exhaustively test every provided
+   * value. Shrinks toward the first value. For random sampling use
+   * `Gen.randomChoice`.
+   */
   def elements[A](as: A*)(implicit trace: Trace): Gen[Any, A] =
-    if (as.isEmpty) empty else int(0, as.length - 1).map(as)
+    if (as.isEmpty) empty
+    else {
+      val indexed = as.toVector
+      fromIterable(
+        indexed,
+        (a: A) => {
+          val idx = indexed.indexOf(a)
+          if (idx <= 0) ZStream.empty
+          else ZStream.fromIterable(indexed.take(idx))
+        }
+      )
+    }
 
   def empty(implicit trace: Trace): Gen[Any, Nothing] =
     emptyGen
@@ -706,6 +723,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     char(33, 126)
 
   /**
+   * A generator that randomly selects one of the specified values. Shrinks
+   * toward the first value in the argument list. For exhaustive coverage of all
+   * values use `Gen.elements` with `checkAll`.
+   */
+  def randomChoice[A](as: A*)(implicit trace: Trace): Gen[Any, A] =
+    if (as.isEmpty) empty else int(0, as.length - 1).map(as)
+
+  /**
    * A sized generator of sets.
    */
   def setOf[R, A](gen: Gen[R, A])(implicit trace: Trace): Gen[R, Set[A]] =
@@ -927,7 +952,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of whitespace characters.
    */
   def whitespaceChars(implicit trace: Trace): Gen[Any, Char] =
-    Gen.elements((Char.MinValue to Char.MaxValue).filter(_.isWhitespace): _*)
+    Gen.randomChoice((Char.MinValue to Char.MaxValue).filter(_.isWhitespace): _*)
 
   /**
    * Restricts an integer to the specified range.

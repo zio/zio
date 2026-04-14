@@ -6,7 +6,7 @@ import zio.test._
 object ChunkPackedBooleanSpec extends ZIOBaseSpec {
 
   val genEndianness: Gen[Any, Chunk.BitChunk.Endianness] =
-    Gen.elements(Chunk.BitChunk.Endianness.BigEndian, Chunk.BitChunk.Endianness.LittleEndian)
+    Gen.randomChoice(Chunk.BitChunk.Endianness.BigEndian, Chunk.BitChunk.Endianness.LittleEndian)
 
   val genBoolChunk: Gen[Any, Chunk[Boolean]] =
     for {
@@ -15,7 +15,7 @@ object ChunkPackedBooleanSpec extends ZIOBaseSpec {
       byteChunk    <- Gen.listOf(Gen.byte).map(Chunk.fromIterable).map(x => x.asBitsByte)
       intChunk     <- Gen.listOf(Gen.int).map(Chunk.fromIterable).map(x => x.asBitsInt(endianness))
       longChunk    <- Gen.listOf(Gen.long).map(Chunk.fromIterable).map(x => x.asBitsLong(endianness))
-      oneOf        <- Gen.elements(booleanChunk, byteChunk, intChunk, longChunk)
+      oneOf        <- Gen.randomChoice(booleanChunk, byteChunk, intChunk, longChunk)
     } yield oneOf
 
   val genInt: Gen[Any, Int] =

@@ -76,7 +76,7 @@ object GenOrderingPoly {
     GenNumericPoly.float
 
   def genOrderingPoly(implicit trace: Trace): Gen[Any, GenOrderingPoly] = {
-    val primitives = Gen.elements(
+    val primitives = Gen.randomChoice(
       boolean,
       byte,
       char,
@@ -88,7 +88,7 @@ object GenOrderingPoly {
       string,
       unit
     )
-    val constructors = Gen.elements(list _, option _, vector _)
+    val constructors = Gen.randomChoice(list _, option _, vector _)
     val collections = for {
       constructor <- constructors
       primitive   <- primitives

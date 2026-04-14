@@ -188,6 +188,9 @@ object GenSpec extends ZIOBaseSpec {
       test("boolean generates true and false") {
         checkSample(Gen.boolean)(contains(true) && contains(false))
       },
+      test("randomChoice generates all specified values") {
+        checkSample(Gen.randomChoice(1, 2, 3))(contains(1) && contains(2) && contains(3))
+      },
       test("byte generates values in range") {
         checkSample(Gen.byte(38, 38))(forall(equalTo(38.toByte)))
       },
@@ -513,6 +516,12 @@ object GenSpec extends ZIOBaseSpec {
       test("boolean shrinks to false") {
         checkShrink(Gen.boolean)(false)
       },
+      test("elements shrinks to first value") {
+        checkShrink(Gen.elements("a", "b", "c"))("a")
+      },
+      test("randomChoice shrinks to first value") {
+        checkShrink(Gen.randomChoice("a", "b", "c"))("a")
+      },
       test("byte shrinks to bottom of range") {
         checkShrink(Gen.byte(38, 123))(38)
       },
@@ -776,6 +785,13 @@ object GenSpec extends ZIOBaseSpec {
       check(Gen.setOfN(2)(Gen.fromIterable(List(1, 2, 3)))) { set =>
         assertTrue(set.size == 2)
       }
+    },
+    test("checkAll(Gen.elements) visits every element position exactly once") {
+      for {
+        counter <- Ref.make(0)
+        _       <- checkAll(Gen.elements(1, 1, 1, 2))(_ => counter.update(_ + 1) *> assertCompletes)
+        count   <- counter.get
+      } yield assertTrue(count == 4)
     }
   )
 }
