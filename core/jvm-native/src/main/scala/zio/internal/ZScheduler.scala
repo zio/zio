@@ -443,11 +443,16 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         }
       }
     }
-
   private def maybeUnparkWorker(currentState: Int): Unit = {
     val currentSearching = currentState & 0xffff
     val currentActive    = (currentState & 0xffff0000) >> 16
-    if (currentActive != poolSize && currentSearching == 0) {
+
+    val shouldUnpark =
+      currentActive != poolSize &&
+        currentSearching == 0 &&
+        !globalQueue.isEmpty()
+
+    if (shouldUnpark) {
       val worker = idle.poll()
       if (worker ne null) {
         state.getAndAdd(0x10001)
