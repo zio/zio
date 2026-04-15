@@ -5647,21 +5647,57 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       trace: Trace
     ): ZIO[R, E, B1] =
       ZIO.fiberIdWith { parentFiberId =>
-        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
-          (winner, loser) =>
-            winner.await.flatMap { exit =>
-              loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
-            },
-          (winner, loser) =>
-            winner.await.flatMap {
-              case e: Exit.Failure[Nothing] =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
-              case _ =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
-            },
-          null,
-          FiberScope.global
-        )
+        ZIO.withFiberRuntime[Any, E, B1] { (parentFiber, parentStatus) =>
+          val graft    = ZIO.Grafter(parentFiber)
+          val leftEff  = graft.applyOnExit(self)
+          val rightEff = graft.applyOnExit(ZIO.sleep(duration).interruptible)
+          val flags    = parentStatus.runtimeFlags
+
+          val leftFiber = ZIO.unsafe.makeChildFiber(trace, leftEff, parentFiber, flags, null)(Unsafe)
+          val startLeft = leftFiber.startSuspended()(Unsafe)
+
+          leftFiber.addObserver(_ => ())(Unsafe)
+          startLeft(leftEff)
+
+          leftFiber.unsafe.poll(Unsafe) match {
+            case Some(exit) =>
+              leftFiber.inheritAll *> ZIO.done(exit.mapExit(f))
+            case None =>
+              val rightFiber = ZIO.unsafe.makeChildFiber(trace, rightEff, parentFiber, flags, FiberScope.global)(Unsafe)
+              val startRight = rightFiber.startSuspended()(Unsafe)
+
+              import java.util.concurrent.atomic.AtomicBoolean
+
+              ZIO.async[Any, E, B1](
+                { cb =>
+                  val raceIndicator = new AtomicBoolean()
+
+                  leftFiber.addObserver { _ =>
+                    if (raceIndicator.compareAndSet(false, true)) {
+                      cb(
+                        rightFiber.interruptAs(parentFiberId) *>
+                          leftFiber.inheritAll *>
+                          ZIO.done(leftFiber.unsafe.poll(Unsafe).get.mapExit(f))
+                      )
+                    }
+                  }(Unsafe)
+
+                  rightFiber.addObserver { _ =>
+                    if (raceIndicator.compareAndSet(false, true)) {
+                      cb(
+                        leftFiber.interruptAs(parentFiberId) *>
+                          rightFiber.inheritAll.as(b())
+                      )
+                    }
+                  }(Unsafe)
+
+                  startRight(rightEff)
+                  ()
+                },
+                leftFiber.id <> rightFiber.id
+              )
+          }
+        }
       }
   }
 
