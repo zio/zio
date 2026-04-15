@@ -212,13 +212,11 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
                 (f: URIO[Env, Any]) =>
                   if (isNullOrZIOUnit(f)) Exit.unit
                   else
-                    ZIO.succeed {
+                    ZIO.suspendSucceed {
                       val prevLastClose = closeLastSubstream
-                      if (prevLastClose eq null) {
-                        closeLastSubstream = f
-                      } else {
-                        closeLastSubstream = prevLastClose *> f
-                      }
+                      closeLastSubstream = f
+                      if (isNullOrZIOUnit(prevLastClose)) Exit.unit
+                      else prevLastClose
                     }
 
               val exec: ErasedExecutor[Env] = new ChannelExecutor(value, providedEnv, innerExecuteLastClose)
@@ -554,7 +552,7 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
         childExecutor.close
       )
 
-    def finishWithDoneValue(doneValue: Any): Unit = {
+    def finishWithDoneValue(doneValue: Any): ZIO[Env, Nothing, Unit] = {
       val modifiedParent =
         parentSubexecutor.copy(
           lastDone =
@@ -565,13 +563,12 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
 
       val thisClose = childExecutor.close(Exit.succeed(doneValue))
       val lastClose = closeLastSubstream
-      if (isNullOrZIOUnit(lastClose)) {
-        closeLastSubstream = thisClose
-      } else {
-        closeLastSubstream = lastClose *> thisClose
-      }
+      closeLastSubstream = thisClose
 
       replaceSubexecutor(modifiedParent)
+
+      if (isNullOrZIOUnit(lastClose)) null
+      else executeCloseLastSubstream(ZIO.uninterruptible(lastClose)).unit
     }
 
     ChannelState.Read(
@@ -587,7 +584,6 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
             handleSubexecFailure(cause).effectOrNullIgnored // NOTE: assuming finalizers cannot fail
           case Exit.Success(doneValue) =>
             finishWithDoneValue(doneValue)
-            null
         }
       }
     )
