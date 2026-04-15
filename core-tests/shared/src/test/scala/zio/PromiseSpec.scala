@@ -134,6 +134,123 @@ object PromiseSpec extends ZIOBaseSpec {
         _      <- ZIO.foreach(fibers)(_.await)
       } yield assertCompletes
     },
+    suite("become")(
+      test("become with a succeeding fiber") {
+        for {
+          fiber  <- ZIO.succeed(42).fork
+          p      <- Promise.make[Nothing, Int]
+          became <- p.become(fiber)
+          v      <- p.await
+        } yield assert(became)(isTrue) && assert(v)(equalTo(42))
+      },
+      test("become with a failing fiber") {
+        for {
+          fiber  <- ZIO.fail("error").fork
+          p      <- Promise.make[String, Int]
+          became <- p.become(fiber)
+          v      <- p.await.exit
+        } yield assert(became)(isTrue) && assert(v)(fails(equalTo("error")))
+      } @@ zioTag(errors),
+      test("become with a dying fiber") {
+        for {
+          fiber  <- ZIO.die(new RuntimeException("boom")).fork
+          p      <- Promise.make[Nothing, Int]
+          became <- p.become(fiber)
+          v      <- p.await.exit
+        } yield assert(became)(isTrue) && assert(v)(dies(hasMessage(equalTo("boom"))))
+      },
+      test("become with an already completed fiber") {
+        for {
+          fiber  <- ZIO.succeed(99).fork
+          _      <- fiber.await
+          p      <- Promise.make[Nothing, Int]
+          became <- p.become(fiber)
+          v      <- p.await
+        } yield assert(became)(isTrue) && assert(v)(equalTo(99))
+      },
+      test("become returns false on already completed promise") {
+        for {
+          p      <- Promise.make[Nothing, Int]
+          _      <- p.succeed(1)
+          fiber  <- ZIO.succeed(42).fork
+          became <- p.become(fiber)
+          v      <- p.await
+        } yield assert(became)(isFalse) && assert(v)(equalTo(1))
+      },
+      test("become returns false when called twice") {
+        for {
+          fiber1 <- ZIO.succeed(1).fork
+          fiber2 <- ZIO.succeed(2).fork
+          p      <- Promise.make[Nothing, Int]
+          b1     <- p.become(fiber1)
+          b2     <- p.become(fiber2)
+          v      <- p.await
+        } yield assert(b1)(isTrue) && assert(b2)(isFalse) && assert(v)(equalTo(1))
+      },
+      test("become transfers pre-existing waiters") {
+        for {
+          p      <- Promise.make[Nothing, Int]
+          f1     <- p.await.fork
+          f2     <- p.await.fork
+          fiber  <- ZIO.succeed(42).fork
+          _      <- p.become(fiber)
+          v1     <- f1.join
+          v2     <- f2.join
+        } yield assert(v1)(equalTo(42)) && assert(v2)(equalTo(42))
+      },
+      test("become isDone when fiber completes") {
+        for {
+          fiber <- ZIO.succeed(42).fork
+          p     <- Promise.make[Nothing, Int]
+          _     <- p.become(fiber)
+          _     <- fiber.await
+          d     <- p.isDone
+        } yield assert(d)(isTrue)
+      },
+      test("become isDone before fiber completes") {
+        for {
+          p     <- Promise.make[Nothing, Int]
+          fiber <- (ZIO.succeed(42) <* ZIO.sleep(1.second)).fork
+          _     <- p.become(fiber)
+          d     <- p.isDone
+        } yield assert(d)(isFalse)
+      },
+      test("become poll when fiber has completed") {
+        for {
+          fiber  <- ZIO.succeed(42).fork
+          _      <- fiber.await
+          p      <- Promise.make[Nothing, Int]
+          _      <- p.become(fiber)
+          result <- p.poll.someOrFail("fail").flatten.exit
+        } yield assert(result)(succeeds(equalTo(42)))
+      },
+      test("become poll before fiber completes") {
+        for {
+          p     <- Promise.make[Nothing, Int]
+          fiber <- (ZIO.succeed(42) <* ZIO.sleep(1.second)).fork
+          _     <- p.become(fiber)
+          poll  <- p.poll
+        } yield assert(poll)(isNone)
+      },
+      test("completeWith on a linked promise returns false") {
+        for {
+          fiber <- ZIO.succeed(42).fork
+          p     <- Promise.make[Nothing, Int]
+          _     <- p.become(fiber)
+          s     <- p.succeed(99)
+          v     <- p.await
+        } yield assert(s)(isFalse) && assert(v)(equalTo(42))
+      },
+      test("become waiter stack safety") {
+        for {
+          p      <- Promise.make[Nothing, Unit]
+          fibers <- ZIO.foreach(1 to n)(_ => p.await.forkDaemon)
+          fiber  <- ZIO.unit.fork
+          _      <- p.become(fiber)
+          _      <- ZIO.foreach(fibers)(_.await)
+        } yield assertCompletes
+      }
+    ),
     suite("State")(
       suite("add")(
         test("stack safety") {

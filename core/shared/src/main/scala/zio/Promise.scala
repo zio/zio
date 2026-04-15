@@ -47,7 +47,8 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
   def await(implicit trace: Trace): IO[E, A] =
     ZIO.suspendSucceed {
       state.get match {
-        case Done(value) => value
+        case Done(value)          => value
+        case FiberLinked(fiber)   => fiber.await.flatMap(exit => exit)
         case pending =>
           ZIO.asyncInterrupt[Any, E, A](
             k => {
@@ -57,7 +58,14 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
                   case pending: Pending[?, ?] =>
                     if (state.compareAndSet(pending, pending.add(k))) ()
                     else loop(state.get)
-                  case Done(value) => k(value)
+                  case Done(value)        => k(value)
+                  case FiberLinked(fiber) =>
+                    fiber match {
+                      case runtime: Fiber.Runtime[E, A] @unchecked =>
+                        runtime.unsafe.addObserver((exit: Exit[E, A]) => k(exit))(Unsafe)
+                      case _ =>
+                        k(fiber.await.flatMap(exit => exit))
+                    }
                 }
               loop(pending)
 
@@ -70,6 +78,18 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
           )
       }
     }
+
+  /**
+   * Links this promise to the specified fiber, such that this promise will
+   * complete with the same result as the fiber. Any fibers waiting on this
+   * promise will be transferred to the fiber's observer list, avoiding
+   * intermediate allocations.
+   *
+   * If this promise has already been completed or linked, the method will
+   * produce false.
+   */
+  def become(fiber: Fiber[E, A])(implicit trace: Trace): UIO[Boolean] =
+    ZIO.succeed(unsafe.become(fiber)(trace, Unsafe))
 
   /**
    * Kills the promise with the specified error, which will be propagated to all
@@ -175,6 +195,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     ZIO.succeed(unsafe.succeedUnit(ev0, trace, Unsafe))
 
   private[zio] trait UnsafeAPI extends Serializable {
+    def become(fiber: Fiber[E, A])(implicit trace: Trace, unsafe: Unsafe): Boolean
     def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean
     def die(e: Throwable)(implicit trace: Trace, unsafe: Unsafe): Boolean
     def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit
@@ -192,6 +213,27 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
   private[zio] def state: AtomicReference[Promise.internal.State[E, A]] =
     unsafe.asInstanceOf[AtomicReference[Promise.internal.State[E, A]]]
   private[zio] val unsafe: UnsafeAPI = new AtomicReference(Promise.internal.State.empty[E, A]) with UnsafeAPI { state =>
+    def become(fiber: Fiber[E, A])(implicit trace: Trace, unsafe: Unsafe): Boolean = {
+      @annotation.tailrec
+      def loop(): Boolean =
+        state.get match {
+          case pending: Pending[?, ?] =>
+            if (state.compareAndSet(pending, FiberLinked(fiber))) {
+              if (pending.size > 0) {
+                fiber match {
+                  case runtime: Fiber.Runtime[E, A] @unchecked =>
+                    transferToRuntime(pending, runtime)
+                  case _ =>
+                    pending.complete(fiber.await.flatMap(exit => exit))
+                }
+              }
+              true
+            } else loop()
+          case _ => false
+        }
+      loop()
+    }
+
     def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean = {
       @annotation.tailrec
       def loop(): Boolean =
@@ -223,12 +265,25 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
       completeWith(ZIO.interruptAs(fiberId))
 
     def isDone(implicit unsafe: Unsafe): Boolean =
-      state.get().isInstanceOf[Done[?, ?]]
+      state.get() match {
+        case _: Done[?, ?]      => true
+        case FiberLinked(fiber) =>
+          fiber match {
+            case runtime: Fiber.Runtime[E, A] @unchecked => runtime.unsafe.poll.isDefined
+            case _                                        => false
+          }
+        case _                  => false
+      }
 
     def poll(implicit unsafe: Unsafe): Option[IO[E, A]] =
       state.get() match {
-        case Done(value) => Some(value)
-        case _           => None
+        case Done(value)        => Some(value)
+        case FiberLinked(fiber) =>
+          fiber match {
+            case runtime: Fiber.Runtime[E, A] @unchecked => runtime.unsafe.poll
+            case _                                        => None
+          }
+        case _                  => None
       }
 
     def refailCause(e: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Boolean =
@@ -246,6 +301,7 @@ object Promise {
   private[zio] object internal {
     sealed abstract class State[E, A]            extends Serializable
     final case class Done[E, A](value: IO[E, A]) extends State[E, A]
+    final case class FiberLinked[E, A](fiber: Fiber[E, A]) extends State[E, A]
     sealed abstract class Pending[E, A] extends State[E, A] { self =>
       def complete(io: IO[E, A]): Unit
       def add(waiter: IO[E, A] => Any): Pending[E, A]
@@ -325,6 +381,24 @@ object Promise {
 
     object State {
       def empty[E, A]: State[E, A] = Empty.asInstanceOf[State[E, A]]
+    }
+
+    private[zio] def transferToRuntime[E, A](
+      pending: Pending[E, A],
+      runtime: Fiber.Runtime[E, A]
+    )(implicit u: Unsafe): Unit = {
+      var current: Pending[E, A] = pending
+      while (current ne Empty) {
+        current match {
+          case link: Link[?, ?] =>
+            val waiter   = link.waiter
+            val observer: Exit[E, A] => Unit = exit => waiter(exit)
+            runtime.unsafe.addObserver(observer)(u)
+            current = link.ws
+          case _ =>
+            current = Empty.asInstanceOf[Pending[E, A]]
+        }
+      }
     }
   }
 
