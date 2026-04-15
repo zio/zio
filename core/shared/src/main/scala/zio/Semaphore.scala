@@ -155,53 +155,70 @@ object Semaphore {
           else if (n == 0L)
             ZIO.succeed(Reservation.zero)
           else
-            Promise.make[Nothing, Unit].flatMap { promise =>
-              ref.modify {
-                case Right(permits) if permits >= n =>
-                  Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
-                case Right(permits) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
-                case Left(queue) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
-              }
+            ref.modify {
+              case Right(permits) if permits >= n =>
+                Some(Reservation(ZIO.unit, releaseN(n))) -> Right(permits - n)
+              case state =>
+                None -> state
+            }.flatMap {
+              case Some(reservation) => ZIO.succeed(reservation)
+              case None              => Promise.make[Nothing, Unit].flatMap(slowReserve(n, _))
             }
+
+        private def slowReserve(n: Long, promise: Promise[Nothing, Unit])(implicit trace: Trace): UIO[Reservation] =
+          ref.modify {
+            case Right(permits) if permits >= n =>
+              Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
+            case Right(permits) =>
+              Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
+            case Left(queue) =>
+              Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
+          }
 
         def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
           ref.modify {
             case Left(queue) =>
-              queue
-                .find(_._1 == promise)
-                .fold(releaseN(n) -> Left(queue)) { case (_, permits) =>
-                  releaseN(n - permits) -> Left(queue.filter(_._1 != promise))
-                }
+              val (before, from) = queue.span(_._1 ne promise)
+              if (from.isEmpty)
+                releaseN(n) -> Left(queue)
+              else {
+                val (_, needed) = from.head
+                releaseN(n - needed) -> Left(before ++ from.tail)
+              }
             case Right(permits) => ZIO.unit -> Right(permits + n)
           }.flatten
 
-        def releaseN(n: Long)(implicit trace: Trace): UIO[Any] = {
+        def releaseN(n: Long)(implicit trace: Trace): UIO[Any] =
+          if (n <= 0L) ZIO.unit
+          else {
 
-          @tailrec
-          def loop(
-            n: Long,
-            state: Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long],
-            acc: UIO[Any]
-          ): (UIO[Any], Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]) =
-            state match {
-              case Right(permits) => acc -> Right(permits + n)
-              case Left(queue) =>
-                queue.dequeueOption match {
-                  case None => acc -> Right(n)
-                  case Some(((promise, permits), queue)) =>
-                    if (n > permits)
-                      loop(n - permits, Left(queue), acc *> promise.succeedUnit)
-                    else if (n == permits)
-                      (acc *> promise.succeedUnit) -> Left(queue)
-                    else
-                      acc -> Left((promise -> (permits - n)) +: queue)
-                }
+            @tailrec
+            def loop(
+              remaining: Long,
+              state: Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long],
+              acc: List[Promise[Nothing, Unit]]
+            ): (List[Promise[Nothing, Unit]], Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]) =
+              state match {
+                case Right(permits) => acc -> Right(permits + remaining)
+                case Left(queue) =>
+                  queue.dequeueOption match {
+                    case None => acc -> Right(remaining)
+                    case Some(((promise, permits), queue)) =>
+                      if (remaining > permits)
+                        loop(remaining - permits, Left(queue), promise :: acc)
+                      else if (remaining == permits)
+                        (promise :: acc) -> Left(queue)
+                      else
+                        acc -> Left((promise -> (permits - remaining)) +: queue)
+                  }
+              }
+
+            ref.modify(loop(n, _, Nil)).flatMap {
+              case Nil            => ZIO.unit
+              case promise :: Nil => promise.succeedUnit
+              case promises       => ZIO.foreachDiscard(promises.reverse)(_.succeedUnit)
             }
-
-          ref.modify(loop(n, _, ZIO.unit)).flatten
-        }
+          }
       }
   }
 }
