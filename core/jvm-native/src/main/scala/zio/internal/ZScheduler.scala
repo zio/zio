@@ -451,7 +451,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     val shouldUnpark =
       currentActive != poolSize &&
         currentSearching == 0 &&
-        globalQueue.size() > 0 // ✅ real queue check
+        !globalQueue.isEmpty() // ✅ real queue check
 
     if (shouldUnpark) {
       val worker = idle.poll()
