@@ -722,7 +722,14 @@ sealed trait ZIO[-R, +E, +A]
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E2, B] =
-    foldCauseZIO(c => c.failureTraceOrCause.fold(failure, Exit.failCause), success)
+    foldCauseZIO(
+      c =>
+        c.keepDefects match {
+          case Some(d) => Exit.failCause(d)
+          case None    => c.failureTraceOrCause.fold(failure, Exit.failCause)
+        },
+      success
+    )
 
   /**
    * Recovers from errors by accepting one effect to execute for the case of an
@@ -739,7 +746,14 @@ sealed trait ZIO[-R, +E, +A]
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E2, B] =
-    foldCauseZIO(c => c.failureOrCause.fold(failure, Exit.failCause), success)
+    foldCauseZIO(
+      c =>
+        c.keepDefects match {
+          case Some(d) => Exit.failCause(d)
+          case None    => c.failureOrCause.fold(failure, Exit.failCause)
+        },
+      success
+    )
 
   /**
    * Returns a new effect that will pass the success value of this effect to the
@@ -826,7 +840,11 @@ sealed trait ZIO[-R, +E, +A]
   final def forkWithErrorHandler[R1 <: R](handler: E => URIO[R1, Any])(implicit
     trace: Trace
   ): URIO[R1, Fiber.Runtime[E, A]] =
-    onError(c => c.failureOrCause.fold(handler, Exit.failCause)).fork
+    onError(c =>
+      c.keepDefects.fold[URIO[R1, Any]](
+        c.failureOrCause.fold(handler, Exit.failCause)
+      )(d => Exit.failCause(d))
+    ).fork
 
   private[zio] final def forkWithScopeOverride(
     scopeOverride: FiberScope
