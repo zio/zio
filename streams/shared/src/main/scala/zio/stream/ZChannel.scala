@@ -673,7 +673,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         val input       = SingleProducerAsyncInput.unsafe.make[InErr, InElem, InDone](fiberId)(Unsafe)
         val queueReader = ZChannel.fromInput(input)
         val n0          = n.toLong
-        val bufferSize0 = bufferSize
+        val bufferSize0 = math.max(bufferSize, n)
         val outgoing    = Queue.unsafe.bounded[Fiber[Either[Unit, OutDone], OutElem2]](bufferSize0, fiberId)(Unsafe)
         val errorSignal = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
         val permits     = Semaphore.unsafe.make(n0)(Unsafe)
