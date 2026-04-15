@@ -390,24 +390,60 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * @note
    *   Prefer capacities that are powers of 2 for better performance.
    */
-  def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val queue = self.toQueueOfElements(capacity)
+  def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] =
+    if (capacity <= 0) self
+    else if (capacity == 1) bufferOne
+    else {
+      val queue = self.toQueueOfElements(capacity - 1)
+      new ZStream(
+        ZChannel.unwrapScoped[R] {
+          queue.map { queue =>
+            lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+              ZChannel.fromZIO {
+                queue.take
+              }.flatMap { (exit: Exit[Option[E], A]) =>
+                exit.foldExit(
+                  Cause
+                    .flipCauseOption(_)
+                    .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
+                  value => ZChannel.write(Chunk.single(value)) *> process
+                )
+              }
+
+            process
+          }
+        }
+      )
+    }
+
+  private def bufferOne(implicit trace: Trace): ZStream[R, E, A] = {
     new ZStream(
       ZChannel.unwrapScoped[R] {
-        queue.map { queue =>
-          lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-            ZChannel.fromZIO {
-              queue.take
-            }.flatMap { (exit: Exit[Option[E], A]) =>
+        for {
+          handoff <- ZStream.Handoff.make[Exit[Option[E], A]]
+          _       <- {
+            lazy val producer: ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] =
+              ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Nothing, Any](
+                in =>
+                  ZChannel.fromZIO(
+                    ZIO.foreachDiscard(in)(a => handoff.offer(Exit.succeed(a)))
+                  ) *> producer,
+                err => ZChannel.fromZIO(handoff.offer(Exit.failCause(err.map(Some(_))))),
+                _ => ZChannel.fromZIO(handoff.offer(Exit.fail(None)))
+              )
+            (self.channel >>> producer).drain.runScoped.forkScoped
+          }
+        } yield {
+          lazy val consumer: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+            ZChannel.fromZIO(handoff.take).flatMap { (exit: Exit[Option[E], A]) =>
               exit.foldExit(
                 Cause
                   .flipCauseOption(_)
                   .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
-                value => ZChannel.write(Chunk.single(value)) *> process
+                value => ZChannel.write(Chunk.single(value)) *> consumer
               )
             }
-
-          process
+          consumer
         }
       }
     )
