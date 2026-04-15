@@ -776,6 +776,37 @@ object GenSpec extends ZIOBaseSpec {
       check(Gen.setOfN(2)(Gen.fromIterable(List(1, 2, 3)))) { set =>
         assertTrue(set.size == 2)
       }
-    }
+    },
+    suite("deterministic and random generator composition")(
+      test("uuid followed by fromIterable produces distinct uuids") {
+        val gen = for {
+          id <- Gen.uuid
+          _  <- Gen.fromIterable(1 to 3)
+        } yield id
+        assertZIO(gen.runCollectN(10).map(_.toSet))(hasSize(equalTo(10)))
+      },
+      test("fromIterable followed by uuid produces distinct uuids") {
+        val gen = for {
+          i  <- Gen.fromIterable(1 to 3)
+          id <- Gen.uuid
+        } yield (i, id)
+        assertZIO(gen.runCollectN(10).map(_._2).map(_.toSet))(hasSize(equalTo(10)))
+      },
+      test("uuid followed by infinite fromIterable produces distinct uuids") {
+        val gen = for {
+          id <- Gen.uuid
+          _  <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
+        } yield id
+        assertZIO(gen.runCollectN(10).map(_.toSet))(hasSize(isGreaterThan(1)))
+      },
+      test("fromIterable runCollect enumerates all values") {
+        assertZIO(Gen.fromIterable(1 to 5).runCollect)(equalTo(List(1, 2, 3, 4, 5)))
+      },
+      test("fromIterable runCollectN produces values from the iterable") {
+        assertZIO(Gen.fromIterable(1 to 5).runCollectN(10))(
+          forall(isOneOf(1 to 5))
+        )
+      }
+    )
   )
 }
