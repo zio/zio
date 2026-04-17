@@ -128,21 +128,37 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Retrieve the first checked error on the `Left` if available, if there are
    * no checked errors return the rest of the `Cause` that is known to contain
    * only `Die` or `Interrupt` causes.
+   *
+   * If the `Cause` contains both a defect (`Die`) and a typed failure (`Fail`),
+   * the defect takes priority and this method returns `Right` with the defects
+   * and interruptions stripped of any typed failures. Defects are
+   * non-recoverable and must not be silently dropped by typed error recovery
+   * combinators.
    */
-  final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
-    case Some(error) => Left(error)
-    case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
-  }
+  final def failureOrCause: Either[E, Cause[Nothing]] =
+    if (isDie) Right(stripFailures)
+    else
+      failureOption match {
+        case Some(error) => Left(error)
+        case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+      }
 
   /**
    * Retrieve the first checked error and its trace on the `Left` if available,
    * if there are no checked errors return the rest of the `Cause` that is known
    * to contain only `Die` or `Interrupt` causes.
+   *
+   * If the `Cause` contains both a defect (`Die`) and a typed failure (`Fail`),
+   * the defect takes priority and this method returns `Right` with the defects
+   * and interruptions stripped of any typed failures.
    */
-  final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] = failureTraceOption match {
-    case Some(errorAndTrace) => Left(errorAndTrace)
-    case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
-  }
+  final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] =
+    if (isDie) Right(stripFailures)
+    else
+      failureTraceOption match {
+        case Some(errorAndTrace) => Left(errorAndTrace)
+        case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+      }
 
   /**
    * Produces a list of all recoverable errors `E` in the `Cause`.

@@ -4923,6 +4923,56 @@ object ZIOSpec extends ZIOBaseSpec {
         val exit = Exit.succeed(1).unit
         assertTrue(exit == Exit.unit)
       }
+    ),
+    // Regression tests for https://github.com/zio/zio/issues/9874
+    // Defects (Die) must never be silently dropped by typed error recovery combinators.
+    suite("issue-9874: Die is not swallowed by typed error recovery")(
+      test("catchAll does not swallow a defect when Cause contains Both(Die, Fail)") {
+        val t     = new RuntimeException("defect")
+        val cause = Cause.die(t) && Cause.fail("typed")
+        for {
+          exit <- ZIO.failCause(cause).catchAll(_ => ZIO.succeed("handled")).exit
+        } yield assert(exit)(dies(equalTo(t)))
+      } @@ zioTag(errors),
+      test("catchAll does not swallow a defect when Cause contains Then(Die, Fail)") {
+        val t     = new RuntimeException("defect")
+        val cause = Cause.die(t) ++ Cause.fail("typed")
+        for {
+          exit <- ZIO.failCause(cause).catchAll(_ => ZIO.succeed("handled")).exit
+        } yield assert(exit)(dies(equalTo(t)))
+      } @@ zioTag(errors),
+      test("foldZIO does not swallow a defect when Cause contains Both(Die, Fail)") {
+        val t     = new RuntimeException("defect")
+        val cause = Cause.die(t) && Cause.fail("typed")
+        for {
+          exit <- ZIO
+                    .failCause(cause)
+                    .foldZIO(_ => ZIO.succeed("failure-handled"), _ => ZIO.succeed("success"))
+                    .exit
+        } yield assert(exit)(dies(equalTo(t)))
+      } @@ zioTag(errors),
+      test("retry does not retry when Cause contains Both(Die, Fail)") {
+        val t     = new RuntimeException("defect")
+        val cause = Cause.die(t) && Cause.fail("typed")
+        for {
+          count <- Ref.make(0)
+          exit  <- (count.update(_ + 1) *> ZIO.failCause(cause)).retry(Schedule.recurs(3)).exit
+          n     <- count.get
+        } yield assert(exit)(dies(equalTo(t))) && assert(n)(equalTo(1))
+      } @@ zioTag(errors),
+      test("catchAll on pure Fail still recovers (sanity check)") {
+        for {
+          result <- ZIO.fail("typed").catchAll(_ => ZIO.succeed("handled")).exit
+        } yield assert(result)(succeeds(equalTo("handled")))
+      } @@ zioTag(errors),
+      test("foreachPar typed error recovery is unaffected (regression guard)") {
+        for {
+          result <- ZIO
+                      .foreachPar(List(1, 2, 3))(i => if (i == 2) ZIO.fail(s"err-$i") else ZIO.succeed(i))
+                      .catchAll(e => ZIO.succeed(s"recovered: $e"))
+                      .exit
+        } yield assert(result)(succeeds(anything))
+      }
     )
   )
 

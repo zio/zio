@@ -246,6 +246,44 @@ object CauseSpec extends ZIOBaseSpec {
         }
       }
     ),
+    // Regression tests for https://github.com/zio/zio/issues/9874
+    suite("failureOrCause")(
+      test("returns Left for a pure Fail") {
+        assert(Cause.fail("e").failureOrCause)(isLeft(equalTo("e")))
+      },
+      test("returns Right for a pure Die") {
+        val t = new RuntimeException("boom")
+        assert(Cause.die(t).failureOrCause)(isRight(equalTo(Cause.die(t))))
+      },
+      test("returns Right when Both(Die, Fail) — defect takes priority") {
+        val t    = new RuntimeException("boom")
+        val both = Cause.die(t) && Cause.fail("typed")
+        both.failureOrCause match {
+          case Right(c) => assert(c.isDie)(isTrue)
+          case Left(_)  => assert(false)(isTrue ?? "expected Right but got Left")
+        }
+      },
+      test("returns Right when Then(Die, Fail) — defect takes priority") {
+        val t     = new RuntimeException("boom")
+        val then_ = Cause.die(t) ++ Cause.fail("typed")
+        then_.failureOrCause match {
+          case Right(c) => assert(c.isDie)(isTrue)
+          case Left(_)  => assert(false)(isTrue ?? "expected Right but got Left")
+        }
+      },
+      test("Right result from Both(Die, Fail) contains no typed failures") {
+        val t    = new RuntimeException("boom")
+        val both = Cause.die(t) && Cause.fail("typed")
+        both.failureOrCause match {
+          case Right(c) => assert(c.isFailure)(isFalse)
+          case Left(_)  => assert(false)(isTrue ?? "expected Right but got Left")
+        }
+      },
+      test("returns Right for a pure Interrupt — unchanged behaviour") {
+        val interrupt = Cause.interrupt(FiberId.None)
+        assert(interrupt.failureOrCause)(isRight(equalTo(interrupt)))
+      }
+    ),
     suite("filter")(
       test("fail.filter(false)") {
         val f1 = Cause.fail(())
