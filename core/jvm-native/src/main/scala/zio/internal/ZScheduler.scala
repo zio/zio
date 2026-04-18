@@ -327,33 +327,58 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                 }
               }
               if (searching) {
-                var i      = 0
-                var loop   = true
-                val offset = random.nextInt(poolSize)
-                while (i != poolSize && loop) {
-                  val index  = (i + offset) % poolSize
-                  val worker = workers(index)
-                  if ((worker ne self) && !worker.blocking) {
-                    val size = worker.localQueue.size()
-                    if (size > 0) {
-                      val runnables  = worker.localQueue.pollUpTo(size - size / 2)
-                      val nRunnables = runnables.size
-                      if (nRunnables > 0) {
-                        val iter = runnables.iterator
-                        runnable = iter.next()
-                        if (nRunnables > 1) localQueue.offerAll(iter, nRunnables - 1)
-                        currentBlocking = blocking
-                        if (currentBlocking) {
-                          val runnables = localQueue.pollUpTo(256)
-                          if (!runnables.isEmpty) {
-                            globalQueue.offerAll(runnables, random)
-                          }
+                // --- Power of Two Choices (P2C) Work-Stealing ---
+                // We pick two random workers and steal from the one with more tasks.
+                // This provides better load balancing than linear search.
+                val idx1   = random.nextInt(poolSize)
+                val idx2   = random.nextInt(poolSize)
+                val w1     = workers(idx1)
+                val w2     = workers(idx2)
+                val target = if (w1.localQueue.size() >= w2.localQueue.size()) w1 else w2
+
+                if ((target ne self) && !target.blocking) {
+                  val size = target.localQueue.size()
+                  if (size > 0) {
+                    val runnables  = target.localQueue.pollUpTo(size - size / 2)
+                    val nRunnables = runnables.size
+                    if (nRunnables > 0) {
+                      val iter = runnables.iterator
+                      runnable = iter.next()
+                      if (nRunnables > 1) localQueue.offerAll(iter, nRunnables - 1)
+                      currentBlocking = blocking
+                      if (currentBlocking) {
+                        val runnables = localQueue.pollUpTo(256)
+                        if (!runnables.isEmpty) {
+                          globalQueue.offerAll(runnables, random)
                         }
-                        loop = false
                       }
+                      loop = false
                     }
                   }
-                  i += 1
+                }
+                
+                // Fallback to linear search if P2C didn't yield work (optional but safe)
+                if (runnable eq null) {
+                  var j = 0
+                  val offset = random.nextInt(poolSize)
+                  while (j != poolSize && loop) {
+                    val index = (j + offset) % poolSize
+                    val worker = workers(index)
+                    if ((worker ne self) && !worker.blocking) {
+                      val size = worker.localQueue.size()
+                      if (size > 0) {
+                        val runnables = worker.localQueue.pollUpTo(size - size / 2)
+                        val nRunnables = runnables.size
+                        if (nRunnables > 0) {
+                          val iter = runnables.iterator
+                          runnable = iter.next()
+                          if (nRunnables > 1) localQueue.offerAll(iter, nRunnables - 1)
+                          loop = false
+                        }
+                      }
+                    }
+                    j += 1
+                  }
                 }
                 if (runnable eq null) {
                   runnable = globalQueue.poll(random)
