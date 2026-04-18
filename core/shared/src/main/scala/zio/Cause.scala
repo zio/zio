@@ -129,9 +129,15 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * no checked errors return the rest of the `Cause` that is known to contain
    * only `Die` or `Interrupt` causes.
    */
-  final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
-    case Some(error) => Left(error)
-    case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+  final def failureOrCause: Either[E, Cause[Nothing]] = {
+    val defectsAndInterrupts = stripFailures
+    if (!defectsAndInterrupts.isEmpty)
+      Right(self.asInstanceOf[Cause[Nothing]])
+    else
+      failureOption match {
+        case Some(error) => Left(error)
+        case None        => Right(self.asInstanceOf[Cause[Nothing]])
+      }
   }
 
   /**
@@ -139,9 +145,15 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * if there are no checked errors return the rest of the `Cause` that is known
    * to contain only `Die` or `Interrupt` causes.
    */
-  final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] = failureTraceOption match {
-    case Some(errorAndTrace) => Left(errorAndTrace)
-    case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+  final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] = {
+    val defectsAndInterrupts = stripFailures
+    if (!defectsAndInterrupts.isEmpty)
+      Right(self.asInstanceOf[Cause[Nothing]])
+    else
+      failureTraceOption match {
+        case Some(errorAndTrace) => Left(errorAndTrace)
+        case None                => Right(self.asInstanceOf[Cause[Nothing]])
+      }
   }
 
   /**
@@ -580,6 +592,15 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   /**
    * Squashes a `Cause` down to a single `Throwable`, chosen to be the "most
    * important" `Throwable`.
+   */
+  /**
+   * Converts this `Cause` to a single `Throwable`, applying `f` to any typed
+   * failure. Priority order when multiple cause types are present:
+   *   1. `Die` (defects — unrecoverable, returned as-is) 2. `Interrupt`
+   *      (interruptions) 3. `Fail` (typed failures — `f` is applied)
+   *
+   * @see
+   *   [[squashTraceWith]] for a variant that preserves stack traces.
    */
   final def squashWith(f: E => Throwable): Throwable =
     failureOption.map(f) orElse
