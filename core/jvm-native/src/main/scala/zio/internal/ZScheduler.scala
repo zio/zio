@@ -330,6 +330,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                 // --- Power of Two Choices (P2C) Work-Stealing ---
                 // We pick two random workers and steal from the one with more tasks.
                 // This provides better load balancing than linear search.
+                var loop   = true
                 val idx1   = random.nextInt(poolSize)
                 val idx2   = random.nextInt(poolSize)
                 val w1     = workers(idx1)
@@ -373,6 +374,13 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                           val iter = runnables.iterator
                           runnable = iter.next()
                           if (nRunnables > 1) localQueue.offerAll(iter, nRunnables - 1)
+                          currentBlocking = blocking
+                          if (currentBlocking) {
+                            val runnables = localQueue.pollUpTo(256)
+                            if (!runnables.isEmpty) {
+                              globalQueue.offerAll(runnables, random)
+                            }
+                          }
                           loop = false
                         }
                       }
