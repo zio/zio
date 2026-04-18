@@ -22,6 +22,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
 import java.util.concurrent.locks.LockSupport
 import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
+import java.nio.channels.{Selector, SelectionKey}
 import scala.collection.mutable
 import scala.concurrent.{BlockContext, CanAwait}
 
@@ -41,6 +42,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val globalLocations = makeLocations()
   private[this] val state           = new AtomicInteger(poolSize << 16)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
+  private[zio] val selector         = Selector.open()
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
@@ -416,6 +418,34 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                 maybeUnparkWorker(currentState)
               }
             }
+            
+            // --- Non-blocking NIO Event Polling ---
+            // Before yielding the CPU, we poll the global NIO selector.
+            // If any sockets are ready, we steal their suspended fibers and inject them into the global queue.
+            try {
+              if (parent.selector.selectNow() > 0) {
+                var foundWork = false
+                val random = ThreadLocalRandom.current
+                val keys = parent.selector.selectedKeys().iterator()
+                while (keys.hasNext()) {
+                  val key = keys.next()
+                  keys.remove()
+                  val attachment = key.attachment()
+                  if (attachment != null && attachment.isInstanceOf[Runnable]) {
+                    globalQueue.offer(attachment.asInstanceOf[Runnable], random)
+                    foundWork = true
+                  }
+                }
+                if (foundWork) {
+                  // Safely trigger standard cluster unparking mechanics instead of hacking atomic thread state!
+                  val currentState = state.get
+                  maybeUnparkWorker(currentState)
+                }
+              }
+            } catch {
+              case _: java.io.IOException => () // Ignore selector glitches
+            }
+
             while (!active && !isInterrupted) {
               LockSupport.park()
             }
