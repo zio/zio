@@ -706,23 +706,23 @@ object GenSpec extends ZIOBaseSpec {
       val gen: Gen[Any, UUID] =
         for {
           id <- Gen.uuid
-          _  <- Gen.fromIterable(LazyList.iterate(0)(_ + 1)).resample
+          _  <- Gen.fromIterable(new Iterable[Int] { def iterator = Iterator.iterate(0)(_ + 1) }).resample
         } yield id
 
       for {
         seen <- Ref.make(Set.empty[UUID])
         _ <- CheckN(20)(gen) { id =>
-          seen.update(_ + id).as(assertCompletes)
-        }
+               seen.update(_ + id).as(assertCompletes)
+             }
         values <- seen.get
-      } yield assert(values.size)(isGreaterThan(1))
+      } yield assert(values.size)(equalTo(20))
     },
     test("checkN does not collapse deterministic fromIterable to head element") {
       for {
         seen <- Ref.make(Set.empty[Int])
         _ <- CheckN(20)(Gen.fromIterable(1 to 3)) { n =>
-          seen.update(_ + n).as(assertCompletes)
-        }
+               seen.update(_ + n).as(assertCompletes)
+             }
         values <- seen.get
       } yield assert(values)(equalTo(Set(1, 2, 3)))
     },
