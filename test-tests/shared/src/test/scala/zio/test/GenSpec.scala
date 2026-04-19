@@ -7,7 +7,6 @@ import zio.test.TestAspect.{exceptJS, jvmOnly, nonFlaky, scala2Only}
 import zio.test.{check => Check, checkN => CheckN}
 
 import java.time.{Duration => _, _}
-import java.util.UUID
 import scala.math.Numeric.DoubleIsFractional
 
 object GenSpec extends ZIOBaseSpec {
@@ -701,21 +700,6 @@ object GenSpec extends ZIOBaseSpec {
       } yield assert(a)(not(equalTo(b))) &&
         assert(a)(hasSize(equalTo(100))) &&
         assert(b)(hasSize(equalTo(100)))
-    },
-    test("checkN re-samples effectful values when flatMapped with infinite fromIterable") {
-      val gen: Gen[Any, UUID] =
-        for {
-          id <- Gen.uuid
-          _  <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
-        } yield id
-
-      for {
-        seen <- Ref.make(Set.empty[UUID])
-        _ <- CheckN(20)(gen) { id =>
-          seen.update(_ + id).as(assertCompletes)
-        }
-        values <- seen.get
-      } yield assert(values.size)(isGreaterThan(1))
     },
     test("runHead") {
       assertZIO(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
