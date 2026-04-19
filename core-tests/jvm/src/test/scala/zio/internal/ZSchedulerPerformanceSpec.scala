@@ -10,8 +10,8 @@ object ZSchedulerPerformanceSpec extends ZIOSpecDefault {
         _ <- ZIO.yieldNow
         // Create a large number of small tasks to stress the scheduler
         _ <- ZIO.foreachPar((1 to 10000).toList) { _ =>
-          ZIO.succeed(1 + 1)
-        }
+               ZIO.succeed(1 + 1)
+             }
       } yield assertCompletes
     }
   )
