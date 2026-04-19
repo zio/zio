@@ -94,8 +94,9 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 
   /**
    * Truncates this generator to a single sample, forcing outer re-evaluation
-   * when this generator is used inside a `flatMap`. This is useful for preventing
-   * infinite generators from getting stuck during property-based testing.
+   * when this generator is used inside a `flatMap`. This is useful for
+   * preventing infinite generators from getting stuck during property-based
+   * testing.
    */
   def resample(implicit trace: Trace): Gen[R, A] =
     Gen(sample.take(1))
