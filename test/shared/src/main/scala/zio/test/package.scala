@@ -393,20 +393,12 @@ package object test extends CompileVariants {
    * Checks the test passes for "sufficient" numbers of samples from the given
    * random variable.
    */
-  private def sampledCheckStream[R <: ZAny, A](rv: Gen[R, A], n: Int)(implicit trace: Trace): ZStream[R, Nothing, Sample[R, A]] =
-    if (n <= 0) ZStream.empty
-    else
-      ZStream
-        .fromIterable(0L until n.toLong)
-        .mapZIO(i => rv.sample.forever.drop(i.toInt).runHead)
-        .collectSome
-
   def check[R <: ZAny, A, In](rv: Gen[R, A])(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
     sourceLocation: SourceLocation,
     trace: Trace
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-    TestConfig.samples.flatMap(n => checkStream(sampledCheckStream(rv, n))(a => checkConstructor(test(a))))
+    TestConfig.samples.flatMap(n => checkStream(rv.sample.forever.take(n.toLong))(a => checkConstructor(test(a))))
 
   /**
    * A version of `check` that accepts two random variables.
@@ -808,7 +800,7 @@ package object test extends CompileVariants {
     trace: Trace
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     TestConfig.samples.flatMap(n =>
-      checkStreamPar(sampledCheckStream(rv, n), parallelism)(a => checkConstructor(test(a)))
+      checkStreamPar(rv.sample.forever.take(n.toLong), parallelism)(a => checkConstructor(test(a)))
     )
 
   /**
@@ -1017,7 +1009,7 @@ package object test extends CompileVariants {
         checkConstructor: CheckConstructor[R, In],
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-        checkStream(sampledCheckStream(rv, n))(a => checkConstructor(test(a)))
+        checkStream(rv.sample.forever.take(n.toLong))(a => checkConstructor(test(a)))
       def apply[R <: ZAny, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => In
       )(implicit
