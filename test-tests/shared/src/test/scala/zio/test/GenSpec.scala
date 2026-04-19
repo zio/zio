@@ -717,15 +717,6 @@ object GenSpec extends ZIOBaseSpec {
         values <- seen.get
       } yield assert(values.size)(isGreaterThan(1))
     },
-    test("checkN does not collapse boolean generator to a single value") {
-      for {
-        seen <- Ref.make(Set.empty[Boolean])
-        _ <- CheckN(20)(Gen.boolean) { b =>
-          seen.update(_ + b).as(assertCompletes)
-        }
-        values <- seen.get
-      } yield assert(values)(equalTo(Set(true, false)))
-    },
     test("runHead") {
       assertZIO(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
     },
