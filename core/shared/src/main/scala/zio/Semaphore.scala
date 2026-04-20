@@ -19,8 +19,8 @@ package zio
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.TSemaphore
 
-import scala.annotation.tailrec
-import scala.collection.immutable.{Queue => ScalaQueue}
+import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * An asynchronous semaphore, which is a generalization of a mutex. Semaphores
@@ -98,110 +98,191 @@ object Semaphore {
 
   object unsafe {
     def make(permits: Long)(implicit unsafe: Unsafe): Semaphore =
-      new Semaphore {
-        val ref = Ref.unsafe.make[Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]](Right(permits))
+      new SemaphoreImpl(permits)
+  }
 
-        def available(implicit trace: Trace): UIO[Long] =
-          ref.get.map {
-            case Left(_)        => 0L
-            case Right(permits) => permits
-          }
+  private final class Waiter(val n: Long, val promise: Promise[Nothing, Unit]) {
+    @volatile var cancelled: Boolean = false
+  }
 
-        override def awaiting(implicit trace: Trace): UIO[Long] =
-          ref.get.map {
-            case Left(queue) => queue.size.toLong
-            case Right(_)    => 0L
-          }
+  private final class SemaphoreImpl(initialPermits: Long) extends Semaphore {
+    // Tracks available permits. Can go negative when there are waiters
+    // waiting for more permits than currently available? No — we track
+    // only available count; waiters are kept separately.
+    private[this] val permitsRef = new AtomicLong(initialPermits)
+    private[this] val waiters    = new ConcurrentLinkedQueue[Waiter]()
+    // Count of waiters (for `awaiting` and to know if we need to go slow path)
+    private[this] val waiterCount = new AtomicLong(0L)
 
-        def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-          withPermits(1L)(zio)
+    def available(implicit trace: Trace): UIO[Long] =
+      ZIO.succeed {
+        val p = permitsRef.get()
+        if (p < 0L) 0L else p
+      }
 
-        def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-          withPermitsScoped(1L)
+    override def awaiting(implicit trace: Trace): UIO[Long] =
+      ZIO.succeed(waiterCount.get())
 
-        def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-          ZIO.acquireReleaseWith(reserve(n))(_.release)(_.acquire *> zio)
+    def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+      withPermits(1L)(zio)
 
-        def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-          ZIO.acquireRelease(reserve(n))(_.release).flatMap(_.acquire)
+    def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+      withPermitsScoped(1L)
 
-        override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-          ZIO.acquireReleaseWith(tryReserve(n)) {
-            case Some(reservation) => reservation.release
-            case _                 => Exit.unit
-          } {
-            case _: Some[?] => zio.asSome
-            case _          => Exit.none
-          }
-
-        case class Reservation(acquire: UIO[Unit], release: UIO[Any])
-        object Reservation {
-          private[zio] val zero = Reservation(ZIO.unit, ZIO.unit)
+    def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+      if (n < 0L)
+        ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+      else if (n == 0L)
+        zio
+      else
+        ZIO.uninterruptibleMask { restore =>
+          acquire(n, restore).foldCauseZIO(
+            cause => {
+              releaseN(n)
+              Exit.failCause(cause)
+            },
+            _ =>
+              restore(zio).foldCauseZIO(
+                cause => {
+                  releaseN(n)
+                  Exit.failCause(cause)
+                },
+                a => {
+                  releaseN(n)
+                  Exit.succeed(a)
+                }
+              )
+          )
         }
 
-        def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
-          if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
-          else if (n == 0L) ZIO.succeed(Some(Reservation.zero))
+    def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+      if (n < 0L)
+        ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+      else if (n == 0L)
+        ZIO.unit
+      else
+        ZIO.uninterruptibleMask { restore =>
+          acquire(n, restore) *> ZIO.addFinalizer(ZIO.succeed(releaseN(n)))
+        }
+
+    override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+      if (n < 0L)
+        ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+      else if (n == 0L)
+        zio.asSome
+      else
+        ZIO.suspendSucceed {
+          if (tryAcquire(n))
+            zio.asSome.onExit(_ => ZIO.succeed(releaseN(n)))
           else
-            ref.modify {
-              case Right(permits) if permits >= n =>
-                Some(Reservation(ZIO.unit, releaseN(n))) -> Right(permits - n)
-              case other => None -> other
-            }
+            Exit.none
+        }
 
-        def reserve(n: Long)(implicit trace: Trace): UIO[Reservation] =
-          if (n < 0)
-            ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
-          else if (n == 0L)
-            ZIO.succeed(Reservation.zero)
-          else
-            Promise.make[Nothing, Unit].flatMap { promise =>
-              ref.modify {
-                case Right(permits) if permits >= n =>
-                  Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
-                case Right(permits) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
-                case Left(queue) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
-              }
-            }
-
-        def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
-          ref.modify {
-            case Left(queue) =>
-              queue
-                .find(_._1 == promise)
-                .fold(releaseN(n) -> Left(queue)) { case (_, permits) =>
-                  releaseN(n - permits) -> Left(queue.filter(_._1 != promise))
-                }
-            case Right(permits) => ZIO.unit -> Right(permits + n)
-          }.flatten
-
-        def releaseN(n: Long)(implicit trace: Trace): UIO[Any] = {
-
-          @tailrec
-          def loop(
-            n: Long,
-            state: Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long],
-            acc: UIO[Any]
-          ): (UIO[Any], Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]) =
-            state match {
-              case Right(permits) => acc -> Right(permits + n)
-              case Left(queue) =>
-                queue.dequeueOption match {
-                  case None => acc -> Right(n)
-                  case Some(((promise, permits), queue)) =>
-                    if (n > permits)
-                      loop(n - permits, Left(queue), acc *> promise.succeedUnit)
-                    else if (n == permits)
-                      (acc *> promise.succeedUnit) -> Left(queue)
-                    else
-                      acc -> Left((promise -> (permits - n)) +: queue)
-                }
-            }
-
-          ref.modify(loop(n, _, ZIO.unit)).flatten
+    // Fast-path try-acquire. Only succeeds if there are no waiters and enough permits.
+    private def tryAcquire(n: Long): Boolean = {
+      // If there are waiters queued, we should not jump ahead (preserve ordering for acquirers).
+      if (waiterCount.get() != 0L) return false
+      var loop = true
+      var acquired = false
+      while (loop) {
+        val current = permitsRef.get()
+        if (current < n) {
+          loop = false
+        } else if (permitsRef.compareAndSet(current, current - n)) {
+          loop = false
+          acquired = true
         }
       }
+      acquired
+    }
+
+    // Acquire n permits; may suspend. Must be called in uninterruptible context.
+    private def acquire(n: Long, restore: ZIO.InterruptibilityRestorer)(implicit trace: Trace): UIO[Unit] = {
+      // Fast path: try to immediately acquire if no waiters
+      if (tryAcquire(n)) ZIO.unit
+      else {
+        Promise.make[Nothing, Unit].flatMap { promise =>
+          val waiter = new Waiter(n, promise)
+          waiterCount.incrementAndGet()
+          waiters.offer(waiter)
+          // After enqueueing, try to drain so we don't block unnecessarily
+          // in case permits were released between fast-path check and enqueue.
+          drainWaiters()
+          restore(promise.await).onInterrupt(ZIO.succeed(cancelWaiter(waiter, n)))
+        }
+      }
+    }
+
+    private def cancelWaiter(waiter: Waiter, n: Long): Unit = {
+      if (!waiter.cancelled) {
+        waiter.cancelled = true
+        waiterCount.decrementAndGet()
+        // If the waiter was already fulfilled (promise completed), we need to release
+        // the permits back. Check whether the promise is done.
+        // Use unsafe peek at promise state: if promise was completed, permits were
+        // granted to this waiter and we must release them.
+        if (waiter.promise.unsafe.done(Exit.unit)(Unsafe.unsafe)) {
+          // We successfully set the promise here, meaning the releaser had NOT granted
+          // permits yet. So nothing to release.
+          ()
+        } else {
+          // The promise was already completed by releaser — permits were granted.
+          releaseN(n)
+        }
+      }
+    }
+
+    // Release n permits back to the semaphore and try to wake up waiters.
+    private def releaseN(n: Long): Unit = {
+      permitsRef.addAndGet(n)
+      drainWaiters()
+    }
+
+    // Tries to wake up waiters in FIFO order while enough permits are available.
+    private def drainWaiters(): Unit = {
+      var continue = true
+      while (continue) {
+        val head = waiters.peek()
+        if (head eq null) {
+          continue = false
+        } else if (head.cancelled) {
+          waiters.poll()
+          // continue loop
+        } else {
+          val needed = head.n
+          var acquired = false
+          var loop = true
+          while (loop) {
+            val current = permitsRef.get()
+            if (current < needed) {
+              loop = false
+            } else if (permitsRef.compareAndSet(current, current - needed)) {
+              loop = false
+              acquired = true
+            }
+          }
+          if (acquired) {
+            // Try to remove this waiter from the queue and signal it.
+            if (waiters.remove(head)) {
+              if (head.cancelled) {
+                // Waiter was cancelled between acquisition and removal; return permits.
+                permitsRef.addAndGet(needed)
+              } else {
+                waiterCount.decrementAndGet()
+                if (!head.promise.unsafe.done(Exit.unit)(Unsafe.unsafe)) {
+                  // Promise was already set (e.g. cancellation); return permits.
+                  permitsRef.addAndGet(needed)
+                }
+              }
+            } else {
+              // Another thread concurrently removed it; return the permits.
+              permitsRef.addAndGet(needed)
+            }
+          } else {
+            continue = false
+          }
+        }
+      }
+    }
   }
 }
