@@ -1,25 +1,9 @@
-/*
- * Copyright 2018-2024 John A. De Goes and the ZIO Contributors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.TSemaphore
 
-import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
@@ -103,6 +87,7 @@ object Semaphore {
 
   private final class Waiter(val n: Long, val promise: Promise[Nothing, Unit]) {
     @volatile var cancelled: Boolean = false
+    val completed = new AtomicBoolean(false)
   }
 
   private final class SemaphoreImpl(initialPermits: Long) extends Semaphore {
@@ -162,7 +147,7 @@ object Semaphore {
         ZIO.unit
       else
         ZIO.uninterruptibleMask { restore =>
-          acquire(n, restore) *> ZIO.addFinalizer(ZIO.succeed(releaseN(n)))
+          (acquire(n, restore) *> ZIO.addFinalizer(ZIO.succeed(releaseN(n)))).unit
         }
 
     override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
@@ -217,16 +202,16 @@ object Semaphore {
       if (!waiter.cancelled) {
         waiter.cancelled = true
         waiterCount.decrementAndGet()
-        // If the waiter was already fulfilled (promise completed), we need to release
-        // the permits back. Check whether the promise is done.
-        // Use unsafe peek at promise state: if promise was completed, permits were
-        // granted to this waiter and we must release them.
-        if (waiter.promise.unsafe.done(Exit.unit)(Unsafe.unsafe)) {
-          // We successfully set the promise here, meaning the releaser had NOT granted
-          // permits yet. So nothing to release.
-          ()
+        // We race with the drainer to complete the promise.
+        // If we win, we complete the promise and no permits were granted.
+        // If we lose, the drainer completed the promise and we must release the permits.
+        if (waiter.completed.compareAndSet(false, true)) {
+          // We won the race, so we are responsible for completing the promise.
+          // Since this is from an interruption, no permits were acquired.
+          waiter.promise.unsafe.done(Exit.unit)(Unsafe.unsafe)
         } else {
-          // The promise was already completed by releaser — permits were granted.
+          // The promise was already completed by a releaser, which means
+          // permits were granted. We must release them back.
           releaseN(n)
         }
       }
@@ -269,8 +254,13 @@ object Semaphore {
                 permitsRef.addAndGet(needed)
               } else {
                 waiterCount.decrementAndGet()
-                if (!head.promise.unsafe.done(Exit.unit)(Unsafe.unsafe)) {
-                  // Promise was already set (e.g. cancellation); return permits.
+                // Race to complete the promise. If we lose, it means the waiter was
+                // cancelled concurrently and we must return the permits.
+                if (head.completed.compareAndSet(false, true)) {
+                  // We won the race, we can complete the promise.
+                  head.promise.unsafe.done(Exit.unit)(Unsafe.unsafe)
+                } else {
+                  // Promise was already completed by cancellation; return permits.
                   permitsRef.addAndGet(needed)
                 }
               }
