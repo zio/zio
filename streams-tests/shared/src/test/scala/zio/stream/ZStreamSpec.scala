@@ -578,14 +578,30 @@ object ZStreamSpec extends ZIOBaseSpec {
           }
         ) @@ TestAspect.timeout(5.seconds) @@ nonFlaky,
         suite("buffer")(
-          test("maintains elements and ordering")(check(tinyChunkOf(tinyChunkOf(Gen.int))) { chunk =>
-            assertZIO(
-              ZStream
-                .fromChunks(chunk: _*)
-                .buffer(2)
-                .runCollect
-            )(equalTo(chunk.flatten))
-          }) @@ flaky,
+          test("buffer(1) should not prefetch more than 1 element") {
+            for {
+              ref <- Ref.make(List.empty[Int])
+
+              stream = ZStream
+                         .fromIterable(1 to 3)
+                         .tap(i => ref.update(_ :+ i)) // track pulls from upstream
+                         .buffer(1)
+                         .mapZIO(i => ZIO.sleep(100.millis) *> ZIO.succeed(i)) // slow consumer
+
+              fiber  <- stream.runDrain.fork
+              _      <- ZIO.sleep(50.millis) // give time for buffering to happen
+              values <- ref.get
+              _      <- fiber.join
+            } yield assertTrue(values.length <= 2) // 1 in-flight + 1 buffered
+          }
+            test ("maintains elements and ordering")(check(tinyChunkOf(tinyChunkOf(Gen.int))) { chunk =>
+              assertZIO(
+                ZStream
+                  .fromChunks(chunk: _*)
+                  .buffer(2)
+                  .runCollect
+              )(equalTo(chunk.flatten))
+            }) @@ flaky,
           test("buffer the Stream with Error") {
             val e = new RuntimeException("boom")
             assertZIO(
