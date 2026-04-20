@@ -39,7 +39,7 @@ private[zio] class ZIOAppVersionSpecificMacros(val ctx: Quotes) {
       report.errorAndAbort(message)
     }
 
-    zio.asInstanceOf[Expr[ZIO[Provided, E, A]]]
+    '{ $zio.asInstanceOf[ZIO[Provided, E, A]] }
   }
 
   def flattenAnd(typeRepr: TypeRepr): List[TypeRepr] =

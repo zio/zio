@@ -70,5 +70,5 @@ object Macros {
   }
 
   private def traceExpr(trace: String)(using ctx: Quotes): Expr[Tracer.instance.Type] =
-    Expr(trace).asInstanceOf[Expr[Tracer.instance.Type]]
+    '{ ${ Expr(trace) }.asInstanceOf[Tracer.instance.Type] }
 }
