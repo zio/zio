@@ -39,7 +39,7 @@ private[test] class ZIOSpecAbstractSpecificMacros(val ctx: Quotes) {
       report.errorAndAbort(message)
     }
 
-    spec.asInstanceOf[Expr[Spec[Provided, E]]]
+    '{ $spec.asInstanceOf[Spec[Provided, E]] }
   }
 
   def flattenAnd(typeRepr: TypeRepr): List[TypeRepr] =
