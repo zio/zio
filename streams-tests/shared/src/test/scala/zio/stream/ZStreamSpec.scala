@@ -3398,6 +3398,16 @@ object ZStreamSpec extends ZIOBaseSpec {
               exit <- stream.peel(sink).exit
             } yield assert(exit)(fails(equalTo("fail")))
           },
+          test("propagates errors 2") {
+            val stream = ZStream.fail("oh noes")
+            stream
+              .peel(ZSink.succeed(()))
+              .flatMap { case (_, tail) =>
+                tail.runDrain
+              }
+              .flip
+              .map(s => assertTrue(s == "oh noes"))
+          },
           test("preserves the scope") {
             for {
               ref     <- Ref.make[Chunk[String]](Chunk.empty)

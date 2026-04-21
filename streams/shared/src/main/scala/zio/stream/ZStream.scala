@@ -2458,9 +2458,14 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
 
       lazy val producer: ZChannel[Any, Any, Any, Any, E, Chunk[A1], Unit] = ZChannel.unwrap(
         handoff.take.map {
-          case Signal.Emit(els)   => ZChannel.write(els) *> producer
-          case Signal.Halt(cause) => ZChannel.refailCause(cause)
-          case Signal.End         => ZChannel.unit
+          case Signal.Emit(els) => ZChannel.write(els) *> producer
+          case Signal.Halt(cause) =>
+            val unwrapped = cause match {
+              case Cause.Die(value: ZChannel.ChannelFailure[E], _) => value.err
+              case _                                               => cause
+            }
+            ZChannel.refailCause(unwrapped)
+          case Signal.End => ZChannel.unit
         }
       )
 
