@@ -19,7 +19,7 @@ package zio.internal
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ConcurrentHashMap
-import java.util.{Collections, WeakHashMap, Map => JMap, Set => JSet}
+import java.util.{Collections, HashSet, WeakHashMap, Map => JMap, Set => JSet}
 
 private[zio] trait PlatformSpecific {
 
@@ -83,11 +83,21 @@ private[zio] trait PlatformSpecific {
   final def newWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
 
+  /**
+   * On Scala Native, ConcurrentHashMap.newKeySet() has a race condition in
+   * treeifyBin() that causes NPEs under high concurrency (e.g. forking 10K fibers).
+   * Upstream bug: https://github.com/scala-native/scala-native/issues/4388
+   *
+   * We use Collections.synchronizedSet(HashSet) instead, which completely avoids
+   * the ConcurrentHashMap code path. While this uses coarse-grained locking,
+   * the WeakConcurrentBag usage pattern (mostly adds with occasional iteration)
+   * is not highly contended, so the performance impact is acceptable.
+   */
   final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
-    ConcurrentHashMap.newKeySet[A]()
+    Collections.synchronizedSet(new HashSet[A]())
 
   final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
-    ConcurrentHashMap.newKeySet[A](initialCapacity)
+    Collections.synchronizedSet(new HashSet[A](initialCapacity))
 
   private def blackhole(a: Any): Unit = {
     val _ = a
