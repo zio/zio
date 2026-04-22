@@ -11,6 +11,74 @@ object CauseSpec extends ZIOBaseSpec {
 
   def spec = suite("CauseSpec")(
     suite("Cause")(
+      // ──────────────────────────────────────────────────────────
+      // Tests for issue #9874: defects/interrupts must beat failures
+      // ──────────────────────────────────────────────────────────
+
+      test("failureOrCause: defect wins over failure in Both") {
+        val defect   = Cause.die(new RuntimeException("boom"))
+        val combined = defect && Cause.fail("fail")
+        assert(combined.failureOrCause)(isRight(anything))
+      },
+      test("failureOrCause: interrupt wins over failure in Both") {
+        val interrupt = Cause.interrupt(FiberId.None)
+        val combined  = interrupt && Cause.fail("fail")
+        assert(combined.failureOrCause)(isRight(anything))
+      },
+      test("failureOrCause: defect wins in Then(Die, Fail)") {
+        val cause = Cause.die(new RuntimeException("die")) ++ Cause.fail("fail")
+        assert(cause.failureOrCause)(isRight(anything))
+      },
+      test("failureOrCause: defect wins in Then(Fail, Die)") {
+        val cause = Cause.fail("fail") ++ Cause.die(new RuntimeException("die"))
+        assert(cause.failureOrCause)(isRight(anything))
+      },
+      test("failureOrCause: multiple failures with defect — defect wins") {
+        val cause = Cause.fail("f1") && Cause.die(new RuntimeException("die")) && Cause.fail("f2")
+        assert(cause.failureOrCause)(isRight(anything))
+      },
+      test("failureOrCause: defect + interrupt + failure — non-failures win") {
+        val cause = Cause.die(new RuntimeException("x")) &&
+          Cause.interrupt(FiberId.None) &&
+          Cause.fail("f")
+        assert(cause.failureOrCause)(isRight(anything))
+      },
+      test("failureOrCause: pure failure — failure is returned (no regression)") {
+        val cause = Cause.fail("boom")
+        assert(cause.failureOrCause)(isLeft(equalTo("boom")))
+      },
+      test("failureOrCause: pure defect — defect is returned (no regression)") {
+        val ex    = new RuntimeException("die")
+        val cause = Cause.die(ex)
+        assert(cause.failureOrCause)(isRight(equalTo(Cause.die(ex))))
+      },
+      test("catchAll must not swallow defects from Both(Die, Fail)") {
+        val defect   = Cause.die(new RuntimeException("boom"))
+        val combined = defect && Cause.fail("handled")
+        for {
+          exit <- ZIO.failCause(combined).catchAll(_ => ZIO.succeed("caught")).exit
+        } yield assertTrue(exit.isFailure) && assertTrue(exit.causeOption.exists(_.isDie))
+      },
+      test("catchAll must not swallow interruptions from Both(Interrupt, Fail)") {
+        val cause = Cause.interrupt(FiberId.None) && Cause.fail("handled")
+        for {
+          exit <- ZIO.failCause(cause).catchAll(_ => ZIO.succeed("caught")).exit
+        } yield assertTrue(exit.isFailure) && assertTrue(exit.causeOption.exists(_.isInterrupted))
+      },
+      test("catchSome must not swallow defects from Both(Die, Fail)") {
+        val defect   = Cause.die(new RuntimeException("boom"))
+        val combined = defect && Cause.fail("handled")
+        for {
+          exit <- ZIO.failCause(combined).catchSome { case _ => ZIO.succeed("caught") }.exit
+        } yield assertTrue(exit.isFailure) && assertTrue(exit.causeOption.exists(_.isDie))
+      },
+      test("orElse must not swallow defects from Both(Die, Fail)") {
+        val defect   = Cause.die(new RuntimeException("boom"))
+        val combined = defect && Cause.fail("handled")
+        for {
+          exit <- ZIO.failCause(combined).orElse(ZIO.succeed("fallback")).exit
+        } yield assertTrue(exit.isFailure) && assertTrue(exit.causeOption.exists(_.isDie))
+      },
       test("`Cause#died` and `Cause#stripFailures` are consistent") {
         check(causes)(c => assert(c.keepDefects)(if (c.isDie) isSome(anything) else isNone))
       },
@@ -20,6 +88,21 @@ object CauseSpec extends ZIOBaseSpec {
       test("`Cause.equals` and `Cause.hashCode` satisfy the contract") {
         check(equalCauses) { case (a, b) =>
           assert(a.hashCode)(equalTo(b.hashCode))
+        }
+      },
+      test("PBT: forAll Both(Die,Fail) → Right") {
+        check(Gen.string) { msg =>
+          assertTrue(Both(Cause.die(new RuntimeException(msg)), Cause.fail(msg)).failureOrCause.isRight)
+        }
+      },
+      test("PBT: forAll Both(Interrupt,Fail) → Right") {
+        check(Gen.string) { _ =>
+          assertTrue(Both(Cause.interrupt(FiberId.None), Cause.fail("f")).failureOrCause.isRight)
+        }
+      },
+      test("PBT: forAll pure Fail → Left") {
+        check(Gen.string) { msg =>
+          assertTrue(Cause.fail(msg).failureOrCause == Left(msg))
         }
       },
       test("`Cause.equals` discriminates between `Die` and `Fail`") {
@@ -359,6 +442,39 @@ object CauseSpec extends ZIOBaseSpec {
       }
     )
   ) @@ samples(10)
+
+  // ── Property-Based Tests (Issue #9874) ─────────────────────
+  suite("failureOrCause — property-based (defect always wins)")(
+    test("forAll: Cause with any Die always returns Right from failureOrCause") {
+      check(Gen.string) { msg =>
+        val die     = Cause.die(new RuntimeException(msg))
+        val failure = Cause.fail(msg)
+        val both    = Both(die, failure)
+        assertTrue(both.failureOrCause.isLeft)
+      }
+    },
+    test("forAll: Cause with any Interrupt always returns Right from failureOrCause") {
+      check(Gen.string) { _ =>
+        val interrupt = Cause.interrupt(FiberId.None)
+        val failure   = Cause.fail("f")
+        val both      = Both(interrupt, failure)
+        assertTrue(both.failureOrCause.isLeft)
+      }
+    },
+    test("forAll: pure failure always returns Left") {
+      check(Gen.string) { msg =>
+        val cause = Cause.fail(msg)
+        assertTrue(cause.failureOrCause == Left(msg))
+      }
+    },
+    test("forAll: Die has higher priority than any number of failures") {
+      check(Gen.listOf(Gen.string).map(_.take(5))) { msgs =>
+        val failures = msgs.foldLeft(Cause.empty: Cause[String])((acc, m) => Both(acc, Cause.fail(m)))
+        val withDie  = Both(failures, Cause.die(new RuntimeException("defect")))
+        assertTrue(withDie.failureOrCause.isLeft)
+      }
+    }
+  )
 
   val causes: Gen[Any, Cause[String]] =
     Gen.causes(Gen.string, Gen.string.map(s => new RuntimeException(s)))
