@@ -390,9 +390,16 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                 maybeUnparkWorker(currentState)
               }
             }
+            val spinLimit = 2000
+            var spins     = 0
+            while (!active && !isInterrupted && spins < spinLimit) {
+              java.lang.Thread.onSpinWait()
+              spins += 1
+            }
             while (!active && !isInterrupted) {
               LockSupport.park()
             }
+
             searching = true
           } else {
             if (searching) {
