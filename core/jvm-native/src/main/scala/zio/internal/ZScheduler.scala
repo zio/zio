@@ -149,7 +149,24 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       submitBlocking(runnable)
     } else {
       if ((worker eq null) || worker.blocking) {
-        globalQueue.offer(runnable)
+        val rnd = ThreadLocalRandom.current()
+        val i1  = rnd.nextInt(poolSize)
+        var i2  = rnd.nextInt(poolSize)
+        if (i1 == i2) i2 = (i1 + 1) % poolSize
+        val w1 = workers(i1)
+        val w2 = workers(i2)
+        val target =
+          if ((w1 ne null) && (w2 ne null)) {
+            if (w1.localQueue.size() <= w2.localQueue.size()) w1 else w2
+          } else if (w1 ne null) w1
+          else w2
+
+        if ((target ne null) && !target.blocking && target.localQueue.offer(runnable)) {
+          val currentState = state.get
+          maybeUnparkWorker(currentState)
+        } else {
+          globalQueue.offer(runnable)
+        }
       } else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
       } else ()
@@ -327,16 +344,25 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                 }
               }
               if (searching) {
-                var i      = 0
-                var loop   = true
-                val offset = random.nextInt(poolSize)
+                var i    = 0
+                var loop = true
                 while (i != poolSize && loop) {
-                  val index  = (i + offset) % poolSize
-                  val worker = workers(index)
-                  if ((worker ne self) && !worker.blocking) {
-                    val size = worker.localQueue.size()
+                  val idx1 = random.nextInt(poolSize)
+                  var idx2 = random.nextInt(poolSize)
+                  if (idx1 == idx2) idx2 = (idx1 + 1) % poolSize
+                  val w1 = workers(idx1)
+                  val w2 = workers(idx2)
+
+                  val target =
+                    if ((w1 ne null) && (w2 ne null)) {
+                      if (w1.localQueue.size() >= w2.localQueue.size()) w1 else w2
+                    } else if (w1 ne null) w1
+                    else w2
+
+                  if ((target ne null) && (target ne self) && !target.blocking) {
+                    val size = target.localQueue.size()
                     if (size > 0) {
-                      val runnables  = worker.localQueue.pollUpTo(size - size / 2)
+                      val runnables  = target.localQueue.pollUpTo(size - size / 2)
                       val nRunnables = runnables.size
                       if (nRunnables > 0) {
                         val iter = runnables.iterator
