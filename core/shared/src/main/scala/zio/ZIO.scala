@@ -1025,6 +1025,36 @@ sealed trait ZIO[-R, +E, +A]
     } yield complete *> promise.await.flatMap { case (patch, a) => ZIO.patchFiberRefs(patch).as(a) }
 
   /**
+   * Returns an effect that, if evaluated, will return the lazily computed
+   * successful result of this effect. Unlike [[memoize]], failed or interrupted
+   * attempts are not memoized and will cause this effect to be re-executed on
+   * subsequent evaluations.
+   */
+  final def memoizeSuccess(implicit trace: Trace): URIO[R, IO[E, A]] =
+    Ref.make[Option[Promise[E, (FiberRefs.Patch, A)]]](None).flatMap { ref =>
+      ZIO.environmentWith[R] { r =>
+        ref.modify {
+          case Some(p) =>
+            (p, false) -> Some(p)
+          case _ =>
+            val p = Promise.unsafe.make[E, (FiberRefs.Patch, A)](FiberId.None)(Unsafe)
+            (p, true) -> Some(p)
+        }.flatMap { case (p, executeSelf) =>
+          ZIO.whenDiscard(executeSelf) {
+            ZIO.uninterruptibleMask(restore =>
+              restore(self.diffFiberRefs).exitWith {
+                case Exit.Failure(cause) => ref.set(None) *> p.failCause(cause)
+                case Exit.Success(res)   => p.succeed(res)
+              }.provideEnvironment(r).fork
+            )
+          } *> p.await.flatMap { case (patch, a) =>
+            ZIO.patchFiberRefs(patch).as(a)
+          }
+        }
+      }
+    }
+
+  /**
    * Returns a new effect where the error channel has been merged into the
    * success channel to their common combined type.
    */

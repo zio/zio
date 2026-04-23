@@ -1542,6 +1542,53 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(c)(equalTo(d))
       }
     ),
+    suiteAll("memoizeSuccess") {
+      val io: IO[Int, Int] = Random.nextInt.flatMap(i =>
+        Random.nextDouble.flatMap(d =>
+          if (d < 0.5) ZIO.fail(i)
+          else ZIO.succeed(i)
+        )
+      )
+      test("non-memoized returns new instances on repeated calls") {
+        for {
+          a <- io.flip
+          b <- io.flip
+          c <- io
+          d <- io.flip
+          e <- io
+        } yield {
+          // Failure -> Failure -> Success -> Failure -> Success -> Failure
+          // List(-1194344215, -2074907587, -1886689338, -1583814084, -793421097)
+          assertTrue(Set(a, b, c, d, e).size == 5)
+        }
+      }
+      test("memoized returns the same instance after first success result") {
+        io.memoizeSuccess.flatMap(call =>
+          for {
+            a <- call.flip
+            b <- call.flip
+            c <- call
+            d <- call
+            e <- call
+          } yield {
+            assertTrue(
+              a != b,
+              b != c,
+              c == d,
+              d == e
+            )
+          }
+        )
+      }
+      test("memoized returns just one success result even calls are concurrent") {
+        io.memoizeSuccess.flatMap(call =>
+          ZIO
+            .collectAllSuccessesPar(Seq.fill(90)(call))
+            .withParallelism(30)
+            .map(res => assertTrue(res.toSet.size == 1))
+        )
+      }
+    } @@ TestAspect.setSeed(101),
     suite("merge")(
       test("on flipped result") {
         val zio: IO[Int, Int] = ZIO.succeed(1)
