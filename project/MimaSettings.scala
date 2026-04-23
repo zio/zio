@@ -11,6 +11,7 @@ object MimaSettings {
       mimaPreviousArtifacts ++= previousStableVersion.value.map(organization.value %% name.value % _).toSet,
       mimaBinaryIssueFilters ++= Seq(
         exclude[Problem]("zio.internal.*"),
+        exclude[IncompatibleResultTypeProblem]("zio.Fiber._roots"),
         exclude[Problem]("zio.stm.ZSTM#internal*"),
         exclude[Problem]("zio.stm.ZSTM$internal*"),
         exclude[Problem]("zio.stream.internal*"),
