@@ -89,8 +89,6 @@ private[zio] trait PlatformSpecific {
   final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
     new HashSet[A](initialCapacity)
 
-  final def newConcurrentWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] = new HashSet[A]()
-
   final def newWeakHashMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] = new HashMap[A, B]()
 
   final def newConcurrentMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] = new HashMap[A, B]()
