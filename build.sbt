@@ -66,6 +66,18 @@ addCommandAlias(
   "mimaChecks",
   "all coreJVM/mimaReportBinaryIssues streamsJVM/mimaReportBinaryIssues testsJVM/mimaReportBinaryIssues"
 )
+addCommandAlias(
+  "stressCheck",
+  "; coreTestsJVM/testOnly zio.internal.FiberSetSpec" +
+    "; coreTestsJVM/testOnly zio.internal.FiberSetSpec" +
+    "; coreTestsJVM/testOnly zio.internal.FiberSetSpec" +
+    "; coreTestsJVM/testOnly zio.internal.FiberSetSpec" +
+    "; coreTestsJVM/testOnly zio.internal.FiberSetSpec"
+)
+addCommandAlias(
+  "ciCheck",
+  "; +coreTestsJVM/test; coreJS/compile; scalafmtCheckAll; mimaChecks"
+)
 
 lazy val projectsCommon = List(
   concurrent,
