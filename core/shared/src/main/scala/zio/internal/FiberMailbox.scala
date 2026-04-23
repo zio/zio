@@ -53,7 +53,6 @@ final class FiberMailbox extends AtomicInteger(0) {
     var spins       = 0
     var msg: AnyRef = null
     while ((msg eq null) && spins < MAX_SPINS) {
-      Thread.onSpinWait()
       msg = getSlot(ri)
       spins += 1
     }
