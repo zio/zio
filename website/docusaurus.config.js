@@ -287,6 +287,38 @@ const config = {
         ],
       },
     ],
+    [
+      'docusaurus-plugin-llms',
+      /** @type {import('docusaurus-plugin-llms').PluginOptions} */
+      ({
+        generateLLMsTxt: true,
+        generateLLMsFullTxt: true,
+        generateMarkdownFiles: true,
+        docsDir: 'docs',
+        ignoreFiles: [],
+        title: 'ZIO',
+        description:
+          'Type-safe, composable asynchronous and concurrent programming for Scala.',
+        includeBlog: false,
+        pathTransformation: {
+          ignorePaths: ['docs'],
+          addPaths: [],
+        },
+        includeOrder: [
+          'overview/**',
+          'reference/**',
+          'guides/**',
+          'ecosystem/**',
+          'resources/**',
+          'events/**',
+          'faq.md',
+        ],
+        excludeImports: true,
+        removeDuplicateHeadings: true,
+        includeUnmatchedLast: true,
+        preserveDirectoryStructure: false,
+      }),
+    ],
   ],
   markdown: {
     mermaid: true,

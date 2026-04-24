@@ -4,7 +4,7 @@
   "scripts": {
     "docusaurus": "docusaurus",
     "start": "docusaurus generate-sidebar; docusaurus start",
-    "build": "docusaurus generate-sidebar; USE_SIMPLE_CSS_MINIFIER=true docusaurus build",
+    "build": "docusaurus generate-sidebar; USE_SIMPLE_CSS_MINIFIER=true docusaurus build && node scripts/llms-md-mirror.js build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus generate-sidebar; docusaurus deploy",
     "serve": "docusaurus generate-sidebar; docusaurus serve",
@@ -58,6 +58,7 @@
     "babel": "^6.23.0",
     "blended-include-code-plugin": "0.1.2",
     "clsx": "2.1.1",
+    "docusaurus-plugin-llms": "0.4.0",
     "highlight.js": "11.11.1",
     "node-fetch": "^3.3.2",
     "postcss": "8.5.10",

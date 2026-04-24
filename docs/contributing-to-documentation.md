@@ -76,6 +76,22 @@ It will be served on [localhost](http://127.0.0.1:3000/) address.
 5. When we are finished with the documentation, we can commit those changes and [create a pull request](contributor-guidelines.md#create-a-pull-request).
 
 
+## AI-friendly Markdown Variants
+
+The website publishes `/llms.txt` and `/llms-full.txt` at the site root (per the [llmstxt.org](https://llmstxt.org/) standard) so LLMs and AI agents can discover and ingest the documentation without scraping HTML. It also serves a Markdown variant next to every documentation page — for example, the page rendered at `/reference/schedule/` is also available as plain Markdown at `/reference/schedule.md`.
+
+Two pieces cooperate to produce this:
+
+1. The [`docusaurus-plugin-llms`](https://github.com/rachfop/docusaurus-plugin-llms) plugin generates `llms.txt`, `llms-full.txt`, and a `.md` variant for every documentation source file. Its configuration lives in `website/docusaurus.config.js`.
+2. A small post-build script, `website/scripts/llms-md-mirror.js`, runs after `docusaurus build` (from the `build` entry in `website/package.json`) and mirrors the generated Markdown to match the canonical page URL.
+
+The mirror step exists because `docusaurus-plugin-llms` writes each `.md` at the *source file path*, while Docusaurus renders HTML at a different path in two common cases:
+
+- `reference/schedule/index.md` is rendered at `/reference/schedule/`, so the natural Markdown URL is `/reference/schedule.md`, not `/reference/schedule/index.md`.
+- `reference/core/zio/zio.md` is rendered at `/reference/core/zio/` (Docusaurus's folder-named-doc convention), so the natural Markdown URL is `/reference/core/zio.md`.
+
+The script scans the build output and, for every `<dir>/index.md` or `<dir>/<dir>.md` it finds, creates a sibling `<dir>.md` so appending `.md` to any rendered URL resolves. It never overwrites an existing file, so its output composes cleanly with the llms plugin and with any future upstream fix. Running after `docusaurus build` (rather than as another Docusaurus plugin) avoids racing against the llms plugin — Docusaurus runs plugins' `postBuild` hooks concurrently, so a mirror plugin could walk the build directory before the llms plugin had finished writing its `.md` files. This keeps the solution in one place rather than requiring explicit `slug:` frontmatter on every index and folder-named-doc file across the site and the ~30 ecosystem subprojects synced in from npm.
+
 ## Giving Feedback
 
 Sometimes we see some problem in the documentation, or we have some idea to make better documentation, but we haven't time or knowledge to do that personally. We can discuss those ideas with the community. There are two ways to do this:
