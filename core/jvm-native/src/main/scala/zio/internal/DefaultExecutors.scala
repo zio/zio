@@ -28,6 +28,16 @@ private[zio] abstract class DefaultExecutors {
   final def makeDefault(autoBlocking: Boolean): zio.Executor =
     new ZScheduler(autoBlocking)
 
+  /**
+   * Creates a NIO-based executor that uses Java NIO Selector for efficient
+   * event-driven task scheduling. This scheduler reduces thread park/unpark
+   * frequency by using NIO's event loop mechanism.
+   *
+   * @param autoBlocking Whether to enable automatic blocking detection
+   */
+  final def makeNio(autoBlocking: Boolean = false): zio.Executor =
+    new NioScheduler(autoBlocking)
+
   final def fromThreadPoolExecutor(
     es: ThreadPoolExecutor
   ): zio.Executor =
