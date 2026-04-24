@@ -1,0 +1,14 @@
+# ZIO Ecosystem
+
+> ZIO has a rich ecosystem of libraries and tools that enhance its capabilities and provide additional functionality. This ecosystem includes libraries for various purposes, such as web development, data processing, testing, and more.
+
+ZIO has a rich ecosystem of libraries and tools that enhance its capabilities and provide additional functionality. This ecosystem includes libraries for various purposes, such as web development, data processing, testing, and more.
+
+But it doesn't end there! If you need a comprehensive list of libraries and tools, you can find them in one of the following sections:
+
+- [Official libraries](officials/index.md), maintained by the ZIO team under the [ZIO Organization](https://github.com/zio).
+- [Community libraries](community/index.md), maintained by members of the ZIO community.
+
+Below are some of the highlights from the official libraries:
+
+<Ecosystem  />

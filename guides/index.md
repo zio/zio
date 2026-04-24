@@ -1,0 +1,39 @@
+# ZIO Guides
+
+> The following guides have been written to help you get started with ZIO with minimal effort and without the need to fully understand the underlying technology:
+
+## Quickstart Guides
+
+The following guides have been written to help you get started with ZIO with minimal effort and without the need to fully understand the underlying technology:
+
+1. [ZIO Quickstart: Hello World](quickstarts/hello-world.md)
+2. [ZIO Quickstart: Building a RESTful Web Service](quickstarts/restful-webservice.md)
+3. [ZIO Quickstart: Building a GraphQL Web Service](quickstarts/graphql-webservice.md)
+4. [ZIO Quickstart: Building a gRPC Server and Client](https://scalapb.github.io/zio-grpc/docs/quickstart/)
+
+## Tutorial Guides
+
+1. [How to Make a ZIO Application Configurable?](tutorials/make-a-zio-application-configurable.md)
+2. [How to Encode and Decode JSON Data](tutorials/encode-and-decode-json-data.md)
+3. [How to Enable Logging in a ZIO Application?](tutorials/enable-logging-in-a-zio-application.md)
+4. [How to Create a Custom Logger for a ZIO Application?](tutorials/create-custom-logger-for-a-zio-application.md)
+5. [How to Run Our First ZIO Project With VSCode?](tutorials/run-our-first-zio-project-with-vscode.md)
+6. [How to Run Our First ZIO Project With IntelliJ IDEA?](tutorials/running-our-first-zio-project-with-intellij-idea.md) 
+7. [How to Build a RESTful Web Service](tutorials/build-a-restful-webservice.md)
+8. [How to Deploy a ZIO Application Using Docker?](tutorials/deploy-a-zio-application-using-docker.md)
+9. [How to Monitor a ZIO Application Using ZIO's Built-in Metric System?](tutorials/monitor-a-zio-application-using-zios-built-in-metric-system.md)
+10. [How to Produce/Consume Data To/From Kafka Topics?](tutorials/produce-consume-data-to-from-kafka-topics.md)
+11. [How to Debug a ZIO Application?](tutorials/debug-a-zio-application.md)
+
+## Integration Guides
+
+1. [How to Interop with Cats Effect?](interop/with-cats-effect.md)
+2. [How to Interop with Future?](interop/with-future.md)
+3. [How to Interop with Java?](interop/with-java.md)
+4. [How to Interop with JavaScript?](interop/with-javascript.md)
+
+## Migration Guides
+
+1. [ZIO 2.x Migration Guide](migrate/migration-guide.md)
+2. [How to Migrate from Cats Effect to ZIO?](migrate/from-cats-effect.md)
+3. [How to Migrate from Monix to ZIO?](migrate/from-monix.md)

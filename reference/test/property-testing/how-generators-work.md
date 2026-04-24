@@ -1,0 +1,230 @@
+# How Generators Work?
+
+> A `Gen[R, A]` represents a generator of values of type `A`, which requires an environment `R`. The `Gen` data type is the base functionality for generating test data for property-based testing. We use them to produce deterministic and non-deterministic (PRNG) random values.
+
+A `Gen[R, A]` represents a generator of values of type `A`, which requires an environment `R`. The `Gen` data type is the base functionality for generating test data for property-based testing. We use them to produce deterministic and non-deterministic (PRNG) random values.
+
+It is encoded as a stream of optional samples:
+
+```scala
+case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]])
+```
+
+Before deep into the generators, let's see what property-based testing is and what problem it solves in the testing world.
+
+## How Generators Work?
+
+We can think of `Gen[R, A]` as a `ZStream[R, Nothing, A]`. For example, the `Gen.int` is a stream of random integers `ZStream.fromZIO(Random.nextInt)`.
+
+To find out how a generator works, let's take a look at the following snippet.  It shows how the `Gen` data type is implemented.
+
+:::caution
+Although it doesn't provide the exact implementation, this condensed edition of the "Gen" data type is sufficient to grasp how generators operate.
+
+For instance, we don't use a [pseudo-random generator](#random-generators-are-deterministic-by-default) throughout the following implementation. We haven't encoded the [shrinking algorithm](shrinking.md), either.
+:::
+
+```scala
+
+case class Gen[R, A](sample: ZStream[R, Nothing, A]) {
+  def map[B](f: A => B): Gen[R, B] = Gen(sample.map(f))
+
+  def flatMap[R1 <: R, B](f: A => Gen[R1, B]): Gen[R1, B] = ???
+
+  def runCollect: ZIO[R, Nothing, List[A]] = sample.runCollect.map(_.toList)
+}
+
+object Gen {
+  // A constant generator of the specified value.
+  def const[A](a: => A): Gen[Any, A] = 
+    Gen(ZStream.succeed(a))
+  
+  // A random generator of integers.
+  def int: Gen[Any, Int] = 
+    Gen(ZStream.fromZIO(Random.nextInt))
+  def int(min: Int, max: Int): Gen[Any, Int] = 
+    ???
+  
+  // A random generator of specified values.
+  def elements[A](as: A*): Gen[Any, A] = 
+    if (as.isEmpty) Gen(ZStream.empty) else int(0, as.length - 1).map(as)
+  
+  // A constant generator of fixed values.
+  def fromIterable[A](xs: Iterable[A]): Gen[Any, A] = 
+    Gen(ZStream.fromIterable(xs))
+}
+
+Gen.const(42).runCollect.debug
+// Output: List(42)
+
+Gen.int.runCollect.debug
+// Output: List(82) or List(3423) or List(-352) or ...
+
+Gen.elements(1, 2, 3).runCollect.debug
+// Output: List(1) or List(2) or List(3)
+
+Gen.fromIterable(List(1, 2, 3))
+// Output: List(1, 2, 3)
+```
+
+So we can see that the `Gen` data type is nothing more than a stream of random/constant values.
+
+## Two Types of Generators
+
+We have two types of generators:
+
+1. **Deterministic Generators**— Generators that produce constant fixed values, such as `Gen.empty`, `Gen.const(42)`, and `Gen.fromIterable(List(1, 2, 3))`.
+2. **Random Generators**— Generators that produce random values, such as `Gen.boolean`, `Gen.int`, and `Gen.elements(1, 2, 3)`.
+
+## Random Generators Are Deterministic by Default
+
+The important fact about random generators is that they produce deterministic values by default. This means that if we run the same random generator multiple times, it will always produce the same sequence of values to achieve reproducibility.
+
+So let's add some debugging print lines inside a test and see what values are produced:
+
+```scala
+
+object ExampleSpec extends ZIOSpecDefault {
+  def spec =
+    test("example test") {
+      check(Gen.int(0, 10)) { n =>
+        println(n)
+        assertTrue(n + n == 2 * n)
+      }
+    } @@ samples(5)
+}
+```
+
+We can see, even though the `Gen.int` is a non-deterministic generator, every time we run the test, the generator will produce the same sequence of values:
+
+```scala
+runSpec
+9
+3
+0
+9
+6
++ example test
+```
+
+This is due to the fact that the generator uses a pseudo-random number generator, which uses a deterministic algorithm.
+
+The generator provides a fixed seed number to its underlying deterministic algorithm to generate random numbers. As the seed number is fixed, the generator will always produce the same sequence of values.
+
+For more information, there is a separate page about this on [TestRandom](../services/random.md), which is the underlying service for generating test values.
+
+This behavior helps us to have reproducible tests. However, if we need non-deterministic test values, we can use the `TestAspect.nondeterministic` to change the default behavior:
+
+```scala
+
+object ExampleSpec extends ZIOSpecDefault {
+  def spec =
+    test("example test") {
+      check(Gen.int(0, 10)) { n =>
+        println(n)
+        assertTrue(n + n == 2 * n)
+      }
+    } @@ samples(5) @@ nondeterministic
+}
+```
+
+## How Samples Are Generated?
+
+When we run `check`, it creates an infinite stream by repeatedly sampling from the generator (using `forever`), then takes values from that stream—200 samples by default. We can override this using the `TestAspect.samples` test aspect, for example, use`@@ TestAspect.samples(5)` to take only 5 samples. Let's examine how samples are produced for each of the following generators:
+
+- `check(Gen.const(42))(n => ???)` will repeatedly sample from `ZStream.succeed(42)`, producing: 42, 42, 42, ...
+- `check(Gen.int)(n => ???)` will repeatedly sample from `ZStream.fromZIO(Random.nextInt)`, producing e.g.: 2, -3422, 33, 3991334, 98138, ...
+- `check(Gen.elements(1, 2, 3))(n => ???)` will repeatedly sample from `ZStream.fromZIO(Random.nextIntBounded(3).map(Chunk(1, 2, 3)(_)))`, producing e.g.: 3, 1, 1, 3, 2, ...
+- `check(Gen.fromIterable(List(1, 2, 3)))(n => ???)` will repeatedly sample from `ZStream.fromIterable(List(1, 2, 3))`, producing: 1, 2, 3, 1, 2, 3, ...
+
+When we run the `check` function with multiple generators, the samples will be the Cartesian product of their streams. Let's try some examples:
+
+```scala
+
+test("two deterministic generators") {
+  check(Gen.const(1), Gen.fromIterable(List("a", "b", "c"))) { (a, b) =>
+    println((a, b))
+    assertTrue(true)
+  }
+} @@ TestAspect.samples(5)
+```
+
+The output will be:
+
+```scala
+(1,a)
+(1,b)
+(1,c)
+(1,a)
+(1,b)
++ two deterministic generators
+1 tests passed. 0 tests failed. 0 tests ignored.
+```
+
+So the example above is something like this:
+
+```scala
+
+{
+  for {
+    a <- ZStream.succeed(1)
+    b <- ZStream.fromIterable(List("a", "b", "c"))
+  } yield (a, b)
+}.forever.take(5).runCollect.debug
+```
+
+Now let's try to use one non-deterministic generator and one deterministic generator:
+
+```scala
+
+test("one non-deterministic generator and one deterministic generator") {
+  check(Gen.int(1, 3), Gen.fromIterable(List("a", "b", "c"))) { (a, b) =>
+    println((a, b))
+    assertTrue(true)
+  }
+} @@ TestAspect.samples(5)
+```
+
+Here is one example output:
+
+```scala
+(3,a)
+(3,b)
+(3,c)
+(2,a)
+(2,b)
++ one non-deterministic generator and one deterministic generator
+1 tests passed. 0 tests failed. 0 tests ignored.
+```
+
+This is the same as the previous example; it is like we have the following stream:
+
+```scala
+
+{
+  for {
+    a <- ZStream.fromZIO(Random.nextIntBetween(1, 3))
+    b <- ZStream.fromIterable(List("a", "b", "c"))
+  } yield (a, b)
+}.forever.take(5).runCollect.debug
+```
+
+## Running a Generator for Debugging Purposes
+
+To run a generator, we can call the `runCollect` operation:
+
+```scala
+
+val ints: ZIO[Any, Nothing, List[Int]] = Gen.int.runCollect.debug
+// Output: List(-2090696713)
+```
+
+This will return a `ZIO` effect containing all its values in a list, which in this example contains only one element.
+
+To create more samples, we can use `Gen#runCollectN`, which repeatedly runs the generator as much as we need. In this example, it will generate a list containing 5 integer elements:
+
+```scala
+Gen.int.runCollectN(5).debug
+```
+
+In addition, there is an operator called `Gen#runHead`, which returns the first value generated by the generator.
