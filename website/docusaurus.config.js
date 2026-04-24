@@ -319,39 +319,6 @@ const config = {
         preserveDirectoryStructure: false,
       }),
     ],
-    // Mirror generated .md files so appending `.md` to any rendered URL resolves.
-    // See docs/contributing-to-documentation.md ("AI-friendly Markdown Variants").
-    async function llmsMarkdownMirrorPlugin() {
-      return {
-        name: 'llms-markdown-mirror',
-        async postBuild({ outDir }) {
-          const fs = require('fs').promises;
-          const fsPath = require('path');
-          async function mirror(dir) {
-            const entries = await fs.readdir(dir, { withFileTypes: true });
-            for (const entry of entries) {
-              const full = fsPath.join(dir, entry.name);
-              if (entry.isDirectory()) {
-                await mirror(full);
-                continue;
-              }
-              if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
-              const parent = fsPath.dirname(full);
-              if (parent === outDir) continue;
-              const base = entry.name.replace(/\.md$/, '');
-              if (base !== 'index' && base !== fsPath.basename(parent)) continue;
-              const target = `${parent}.md`;
-              try {
-                await fs.access(target);
-              } catch {
-                await fs.copyFile(full, target);
-              }
-            }
-          }
-          await mirror(outDir);
-        },
-      };
-    },
   ],
   markdown: {
     mermaid: true,
