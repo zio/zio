@@ -47,4 +47,14 @@ private[zio] trait RuntimePlatformSpecific {
     ZLayer.suspend {
       Runtime.setExecutor(Executor.makeDefault(autoBlocking = true))
     }
+
+  def enableLeastLoadedExecutor(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.suspend {
+      Runtime.setExecutor(Executor.makeLeastLoaded(autoBlocking = false))
+    }
+
+  def enableAutoBlockingLeastLoadedExecutor(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.suspend {
+      Runtime.setExecutor(Executor.makeLeastLoaded(autoBlocking = true))
+    }
 }
