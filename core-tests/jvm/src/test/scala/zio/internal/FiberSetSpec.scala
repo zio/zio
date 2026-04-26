@@ -74,10 +74,10 @@ object FiberSetSpec extends ZIOBaseSpec {
         s.add(obj1)
         s.add(obj2)
         s.add(obj3)
-        val found = scala.collection.mutable.Set.empty[AnyRef]
+        val found = new java.util.HashSet[AnyRef]()
         val it    = s.iterator()
-        while (it.hasNext) found += it.next()
-        assertTrue(found == Set(obj1, obj2, obj3))
+        while (it.hasNext) found.add(it.next())
+        assertTrue(found.contains(obj1) && found.contains(obj2) && found.contains(obj3) && found.size() == 3)
       },
       test("uses identity, not equality, to distinguish elements") {
         // Two different objects that are .equals() should both be stored
