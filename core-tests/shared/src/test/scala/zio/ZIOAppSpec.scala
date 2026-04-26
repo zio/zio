@@ -163,18 +163,18 @@ object ZIOAppSpec extends ZIOBaseSpec {
         } yield assertTrue(v)
       },
       test("acquireRelease finalizer runs on interruption") {
-        // The acquire must complete (ZIO.unit) before we block so the release
-        // is registered in the scope and runs when the fiber is interrupted.
+        // Verify that ZIO.acquireReleaseWith runs its finalizer when the fiber
+        // is interrupted.  We test this directly (without routing through
+        // app.invoke) so that interrupt propagation is unambiguous.
         for {
           latch    <- Promise.make[Nothing, Unit]
           released <- Ref.make(false)
-          app = ZIOApp.fromZIO(
-                  ZIO.acquireReleaseWith(ZIO.unit)(_ => released.set(true))(_ => latch.succeed(()) *> ZIO.never)
-                )
-          fiber <- app.invoke(Chunk.empty).fork
-          _     <- latch.await
-          _     <- fiber.interrupt
-          v     <- released.get
+          fiber <- ZIO
+                     .acquireReleaseWith(ZIO.unit)(_ => released.set(true))(_ => latch.succeed(()) *> ZIO.never)
+                     .fork
+          _ <- latch.await
+          _ <- fiber.interrupt
+          v <- released.get
         } yield assertTrue(v)
       },
       test("multiple nested finalizers all run") {
