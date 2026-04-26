@@ -86,18 +86,21 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
       } @@ withLiveClock @@ timeout(30.seconds),
       test("scoped resource finalizer runs after interrupt (issue #9901)") {
         // Tests that ZIO.acquireRelease releases the resource on fiber interrupt.
-        // We use a plain fiber (not app.invoke) because app.invoke does not
-        // propagate external interrupt into the scope in the same way.
+        // The acquire must complete (ZIO.unit) before we block (ZIO.never) so
+        // that the release is registered in the scope and runs on interrupt.
         for {
           latch  <- Promise.make[Nothing, Unit]
           closed <- Ref.make(false)
-          resource = ZIO.acquireRelease(
-                       latch.succeed(()) *> ZIO.never.as("handle")
-                     )(_ => closed.set(true))
-          fiber <- ZIO.scoped(resource).fork
-          _     <- latch.await
-          _     <- fiber.interrupt
-          v     <- closed.get
+          fiber <- ZIO
+                     .scoped(
+                       ZIO.acquireRelease(ZIO.unit)(_ => closed.set(true)) *>
+                         latch.succeed(()) *>
+                         ZIO.never
+                     )
+                     .fork
+          _ <- latch.await
+          _ <- fiber.interrupt
+          v <- closed.get
         } yield assertTrue(v)
       } @@ withLiveClock @@ timeout(30.seconds)
     ),
