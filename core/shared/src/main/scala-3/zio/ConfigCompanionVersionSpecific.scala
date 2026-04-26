@@ -74,4 +74,26 @@ private[zio] transparent trait ConfigCompanionVersionSpecific {
       case _: EmptyTuple => Nil
       case _: (t *: ts)  => summonInline[Config[t]] :: summonConfigList[ts]
     }
+
+  /**
+   * Given instances for primitive types so that `derives Config` works without
+   * any extra boilerplate. Each instance delegates to the existing named
+   * constructor on the companion and is then `nested` by [[derived]] under the
+   * field name.
+   */
+  given Config[String]                               = string
+  given Config[Int]                                  = int
+  given Config[Long]                                 = long
+  given Config[Double]                               = double
+  given Config[Float]                                = float
+  given Config[Boolean]                              = boolean
+  given Config[BigInt]                               = bigInt
+  given Config[BigDecimal]                           = bigDecimal
+  given Config[zio.Duration]                         = duration
+  given Config[java.time.LocalDate]                  = localDate
+  given Config[java.time.LocalDateTime]              = localDateTime
+  given Config[java.time.LocalTime]                  = localTime
+  given Config[java.time.OffsetDateTime]             = offsetDateTime
+  given Config[java.net.URI]                         = uri
+  given [A](using cfg: Config[A]): Config[Option[A]] = cfg.optional
 }
