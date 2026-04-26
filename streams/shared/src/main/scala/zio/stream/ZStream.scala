@@ -3363,38 +3363,53 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def tapSink[R1 <: R, E1 >: E](
     sink: => ZSink[R1, E1, A, Any, Any]
   )(implicit trace: Trace): ZStream[R1, E1, A] =
-    ZStream.fromZIO(Queue.bounded[Take[E1, A]](1) <*> Promise.make[Nothing, Unit]).flatMap { case (queue, promise) =>
-      val right = ZStream.fromQueue(queue, 1).flattenTake
-      lazy val loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
-        ZChannel.readWithCause(
-          chunk =>
-            ZChannel
-              .fromZIO(queue.offer(Take.chunk(chunk)))
-              .foldCauseChannel(
-                _ => ZChannel.write(chunk) *> ZChannel.identity,
-                _ => ZChannel.write(chunk) *> loop
-              ),
-          cause =>
-            ZChannel
-              .fromZIO(queue.offer(Take.failCause(cause)))
-              .foldCauseChannel(
-                _ => ZChannel.refailCause(cause),
-                _ => ZChannel.refailCause(cause)
-              ),
-          _ =>
-            ZChannel
-              .fromZIO(queue.offer(Take.end))
-              .foldCauseChannel(
-                ZChannel.unitChannelFn,
-                ZChannel.unitChannelFn
-              )
+    ZStream.unwrapScoped[R1, E1, A] {
+      for {
+        queue <- Queue.bounded[Take[E1, A]](1)
+        // Fork the sink as a daemon so it is not interrupted when the scope
+        // is closed by downstream (e.g. take(n)).  The release block below
+        // waits for the sink to finish processing every element already in the
+        // queue before letting the stream terminate.
+        sinkFiber <- ZStream
+                       .fromQueue(queue, 1)
+                       .flattenTake
+                       .run(sink)
+                       .forkDaemon
+      } yield {
+        lazy val loop: ZChannel[R1, E, Chunk[A], Any, E1, Chunk[A], Any] =
+          ZChannel.readWithCause(
+            chunk =>
+              ZChannel
+                .fromZIO(queue.offer(Take.chunk(chunk)))
+                .foldCauseChannel(
+                  _ => ZChannel.write(chunk) *> ZChannel.identity,
+                  _ => ZChannel.write(chunk) *> loop
+                ),
+            cause =>
+              ZChannel
+                .fromZIO(queue.offer(Take.failCause(cause)))
+                .foldCauseChannel(
+                  _ => ZChannel.refailCause(cause),
+                  _ => ZChannel.refailCause(cause)
+                ),
+            _ =>
+              ZChannel
+                .fromZIO(queue.offer(Take.end))
+                .foldCauseChannel(
+                  ZChannel.unitChannelFn,
+                  ZChannel.unitChannelFn
+                )
+          )
+        // When the stream finalizes (including when downstream stops early via
+        // take(n)), offer Take.end to signal the sink that the stream is done,
+        // then join the sink fiber so that every element already written to the
+        // queue is processed before we return.
+        new ZStream(
+          self.channel
+            .pipeTo(loop)
+            .ensuring(queue.offer(Take.end).ignore *> sinkFiber.join.ignore *> queue.shutdown)
         )
-      new ZStream(
-        ZChannel.fromZIO(promise.await) *> self.channel
-          .pipeTo(loop)
-          .ensuring(queue.offer(Take.end).forkDaemon *> queue.awaitShutdown)
-      )
-        .merge(ZStream.execute((promise.succeedUnit *> right.run(sink)).ensuring(queue.shutdown)), HaltStrategy.Both)
+      }
     }
 
   /**
