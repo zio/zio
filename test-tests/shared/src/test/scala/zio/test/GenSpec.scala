@@ -696,7 +696,7 @@ object GenSpec extends ZIOBaseSpec {
       for {
         samples <- {
           val gen = for {
-            _ <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
+            _  <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
             id <- Gen.uuid
           } yield id
           gen.runCollectN(10)
@@ -706,7 +706,7 @@ object GenSpec extends ZIOBaseSpec {
     },
     test("size can be modified locally") {
       val getSize = Gen.size.sample.map(_.value).runCollect.map(_.head)
-      val result = for {
+      val result  = for {
         x <- Sized.withSize(200)(getSize)
         y <- getSize
       } yield x == 2 * y
@@ -829,7 +829,7 @@ object GenSpec extends ZIOBaseSpec {
           _  <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
         } yield id
         val genB = for {
-          _ <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
+          _  <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
           id <- Gen.uuid
         } yield id
         for {

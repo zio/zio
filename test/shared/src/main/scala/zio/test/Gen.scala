@@ -131,15 +131,15 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 
   /**
    * Composes this generator with the specified generator to produce a new
-   * generator that generates the Cartesian product of their values.  Unlike
+   * generator that generates the Cartesian product of their values. Unlike
    * [[flatMap]], `crossWith` exhausts all values of the inner generator for
-   * every value of the outer generator.  This is the right choice when both
+   * every value of the outer generator. This is the right choice when both
    * generators are deterministic (e.g. created with [[Gen.fromIterable]]) and
    * you want every combination to be tested.
    *
-   * When one or both generators are random (e.g. [[Gen.int]], [[Gen.uuid]])
-   * the behaviour is identical to `flatMap` because each random generator
-   * emits exactly one sample per stream evaluation.
+   * When one or both generators are random (e.g. [[Gen.int]], [[Gen.uuid]]) the
+   * behaviour is identical to `flatMap` because each random generator emits
+   * exactly one sample per stream evaluation.
    */
   def crossWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C)(implicit trace: Trace): Gen[R1, C] =
     Gen {
@@ -151,7 +151,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
     }
 
   /**
-   * Alias for [[crossWith]] that discards the second value.  Composes this
+   * Alias for [[crossWith]] that discards the second value. Composes this
    * generator with the specified generator, keeping only the values of this
    * generator, as a Cartesian product.
    */
@@ -220,8 +220,8 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * product of elements with the specified function.
    *
    * This uses [[crossWith]] semantics (exhaustive Cartesian product), which is
-   * correct when both generators are deterministic.  For composing generators
-   * in a for-comprehension (where each "step" should draw a fresh independent
+   * correct when both generators are deterministic. For composing generators in
+   * a for-comprehension (where each "step" should draw a fresh independent
    * sample), use [[flatMap]] directly.
    */
   def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C)(implicit trace: Trace): Gen[R1, C] =
@@ -312,7 +312,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
         val byteLength = ((bitLength.toLong + 7) / 8).toInt
         val excessBits = byteLength * 8 - bitLength
         val mask       = (1 << (8 - excessBits)) - 1
-        val effect = nextBytes(byteLength).map { bytes =>
+        val effect     = nextBytes(byteLength).map { bytes =>
           val arr = bytes.toArray
           arr(0) = (arr(0) & mask).toByte
           min + BigInt(arr)
@@ -413,8 +413,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * with the specified function.
    *
    * Note: this uses [[Gen#crossWith]] internally so that all combinations from
-   * each generator are produced (exhaustive behaviour).  This is appropriate
-   * for deterministic generators created with [[fromIterable]].  For random
+   * each generator are produced (exhaustive behaviour). This is appropriate for
+   * deterministic generators created with [[fromIterable]]. For random
    * generators the result is the same as using [[flatMap]] because random
    * generators emit exactly one sample per evaluation.
    */
@@ -674,7 +674,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def mapOfN[R, A, B](n: Int)(key: Gen[R, A], value: Gen[R, B])(implicit
     trace: Trace
   ): Gen[R, Map[A, B]] = {
-    val pair = key.zip(value)
+    val pair                                    = key.zip(value)
     def loop(acc: Map[A, B]): Gen[R, Map[A, B]] =
       if (acc.size >= n) Gen.const(acc)
       else
@@ -970,7 +970,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * }}}
    */
   def weighted[R, A](gs: (Gen[R, A], Double)*)(implicit trace: Trace): Gen[R, A] = {
-    val sum = gs.map(_._2).sum
+    val sum      = gs.map(_._2).sum
     val (map, _) = gs.foldLeft((SortedMap.empty[Double, Gen[R, A]], 0.0)) { case ((map, acc), (gen, d)) =>
       if ((acc + d) / sum > acc / sum) (map.updated((acc + d) / sum, gen), acc + d)
       else (map, acc)
