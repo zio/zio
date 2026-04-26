@@ -357,6 +357,25 @@ object CauseSpec extends ZIOBaseSpec {
           }
         }
       }
+    ),
+    suite("failureOrCause")(
+      test("returns Left with failure when no defect is present") {
+        val cause: Cause[String] = Cause.fail("error")
+        assert(cause.failureOrCause)(isLeft(equalTo("error")))
+      },
+      test("returns Right (full cause) when cause contains only a defect") {
+        val boom: Throwable    = new RuntimeException("boom")
+        val cause: Cause[String] = Cause.die(boom)
+        assert(cause.failureOrCause)(isRight(equalTo(cause.asInstanceOf[Cause[Nothing]])))
+      },
+      test("returns Right when cause contains both Fail and Die — defects take priority (issue #9874)") {
+        val boom             = new RuntimeException("boom")
+        val dieCause         = Cause.die(boom)
+        val combinedCause    = dieCause && Cause.fail("error")
+        // defects must take priority so the full cause is returned on the Right,
+        // ensuring that error handlers like catchAll do not swallow the defect
+        assert(combinedCause.failureOrCause)(isRight(anything))
+      }
     )
   ) @@ samples(10)
 

@@ -128,20 +128,28 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Retrieve the first checked error on the `Left` if available, if there are
    * no checked errors return the rest of the `Cause` that is known to contain
    * only `Die` or `Interrupt` causes.
+   *
+   * If this `Cause` contains both failures and defects, defects take priority
+   * and the full cause is returned on the `Right` so that defects are not
+   * silently swallowed by error handlers like `catchAll`.
    */
   final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
-    case Some(error) => Left(error)
-    case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+    case Some(error) if !isDie => Left(error)
+    case _                     => Right(self.asInstanceOf[Cause[Nothing]]) // defects take priority; no E inside this cause, can safely cast
   }
 
   /**
    * Retrieve the first checked error and its trace on the `Left` if available,
    * if there are no checked errors return the rest of the `Cause` that is known
    * to contain only `Die` or `Interrupt` causes.
+   *
+   * If this `Cause` contains both failures and defects, defects take priority
+   * and the full cause is returned on the `Right` so that defects are not
+   * silently swallowed by error handlers like `catchAllTrace`.
    */
   final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] = failureTraceOption match {
-    case Some(errorAndTrace) => Left(errorAndTrace)
-    case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+    case Some(errorAndTrace) if !isDie => Left(errorAndTrace)
+    case _                             => Right(self.asInstanceOf[Cause[Nothing]]) // defects take priority; no E inside this cause, can safely cast
   }
 
   /**

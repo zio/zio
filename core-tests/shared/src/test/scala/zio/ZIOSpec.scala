@@ -282,6 +282,23 @@ object ZIOSpec extends ZIOBaseSpec {
         zio.map(assert(_)(isTrue))
       }
     ),
+    suite("catchAll")(
+      test("does not swallow defects when cause contains both Fail and Die (issue #9874)") {
+        // When a Cause contains both a failure and a defect (e.g. via &&),
+        // catchAll should NOT silently handle the failure and lose the defect.
+        // Defects must always take priority over failures.
+        val boom         = new RuntimeException("boom")
+        val dieCause     = Cause.die(boom)
+        val combinedCause = dieCause && Cause.fail("handled")
+        for {
+          exit <- ZIO.failCause(combinedCause).catchAll(e => ZIO.succeed(s"handled: $e")).exit
+        } yield assert(exit)(dies(equalTo(boom)))
+      },
+      test("recovers from pure failure when no defect is present") {
+        val io = ZIO.fail("oops").catchAll(e => ZIO.succeed(s"caught: $e"))
+        assertZIO(io)(equalTo("caught: oops"))
+      }
+    ) @@ zioTag(errors),
     suite("catchAllDefect")(
       test("recovers from all defects") {
         val s   = "division by zero"
