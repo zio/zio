@@ -177,7 +177,17 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
             )
           } @@ runOnlyIfSupporting(StandardCharsets.UTF_16BE.name),
           test("UTF-16LE with BOM") {
-            testDecoderWithRandomStringUsing(ZPipeline.utfDecode, StandardCharsets.UTF_16LE, BOM.Utf16LE)
+            // Filter out strings that start with a null character: when encoded as
+            // UTF-16LE, a leading '\u0000' produces bytes [0x00, 0x00], and prepending
+            // BOM.Utf16LE ([0xFF, 0xFE]) yields [0xFF, 0xFE, 0x00, 0x00], which is
+            // indistinguishable from the UTF-32LE BOM.  utfDecode correctly detects it
+            // as UTF-32LE in that case, so the round-trip is expected to differ.
+            testDecoderWithRandomStringUsing(
+              ZPipeline.utfDecode,
+              StandardCharsets.UTF_16LE,
+              BOM.Utf16LE,
+              Gen.string.filter(s => s.isEmpty || s.head != '\u0000')
+            )
           } @@ runOnlyIfSupporting(StandardCharsets.UTF_16LE.name),
           test("UTF-16LE with BOM, with data that happens to start with BOM") {
             testDecoderUsing(
