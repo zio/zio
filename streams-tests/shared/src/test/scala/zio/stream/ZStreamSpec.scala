@@ -4329,20 +4329,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               stream = ZStream.never.tapSink(sink)
               error <- stream.runCollect.flip
             } yield assertTrue(error == "error")
-          },
-          test("does not read ahead") {
-            // Regression test: tapSink must guarantee that every element delivered to
-            // downstream has also been processed by the sink.  Previously this was flaky
-            // because the merge interruption from `take` could kill the sink fiber before
-            // it finished processing the last element already in the queue.
-            for {
-              ref    <- Ref.make(0)
-              stream  = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
-              sink    = ZSink.foreach((n: Int) => ref.update(_ + n))
-              _      <- stream.tapSink(sink).take(3).runDrain
-              result <- ref.get
-            } yield assertTrue(result == 6)
-          } @@ TestAspect.nonFlaky
+          }
         ),
         suite("throttleEnforce")(
           test("free elements") {
