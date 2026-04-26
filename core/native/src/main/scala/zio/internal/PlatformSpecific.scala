@@ -19,7 +19,7 @@ package zio.internal
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ConcurrentHashMap
-import java.util.{Collections, WeakHashMap, Map => JMap, Set => JSet}
+import java.util.{Collections, HashSet, WeakHashMap, Map => JMap, Set => JSet}
 
 private[zio] trait PlatformSpecific {
 
@@ -83,11 +83,15 @@ private[zio] trait PlatformSpecific {
   final def newWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
 
+  // Note: On Scala Native, ConcurrentHashMap.treeifyBin has a NullPointerException
+  // when a hash bucket exceeds 8 entries and is promoted to a tree node.
+  // See: https://github.com/zio/zio/issues/9681
+  // We use a synchronized HashSet instead, which avoids the tree conversion entirely.
   final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
-    ConcurrentHashMap.newKeySet[A]()
+    Collections.synchronizedSet(new HashSet[A]())
 
   final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
-    ConcurrentHashMap.newKeySet[A](initialCapacity)
+    Collections.synchronizedSet(new HashSet[A](initialCapacity))
 
   private def blackhole(a: Any): Unit = {
     val _ = a
