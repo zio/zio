@@ -2340,6 +2340,27 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertZIO(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(
               equalTo(Chunk(Chunk(1, 2), Chunk(3, 4)))
             )
+          },
+          test("group by time when infinite stream produces fewer elements than chunk size (#8686)") {
+            // Regression test: groupedWithin used to hang forever on an infinite stream
+            // that produces fewer elements than chunkSize if the schedule fires before
+            // chunkSize is reached and no further elements are produced.
+            assertWithChunkCoordination(List(Chunk(1, 2))) { c =>
+              val stream = ZStream
+                .fromQueue(c.queue)
+                .collectWhileSuccess
+                .flattenChunks
+                // After emitting 1 and 2 the queue is empty; no further elements arrive.
+                // The groupedWithin schedule should flush the partial chunk after 2 seconds.
+                .groupedWithin(10, 2.seconds)
+                .tap(_ => c.proceed)
+
+              assertZIO(for {
+                f      <- stream.take(1).runCollect.fork
+                _      <- c.offer *> TestClock.adjust(2.seconds) *> c.awaitNext
+                result <- f.join
+              } yield result)(equalTo(Chunk(Chunk(1, 2))))
+            }
           }
         ),
         test("interleave") {
@@ -4310,6 +4331,10 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assertTrue(error == "error")
           },
           test("does not read ahead") {
+            // Regression test: tapSink must guarantee that every element delivered to
+            // downstream has also been processed by the sink.  Previously this was flaky
+            // because the merge interruption from `take` could kill the sink fiber before
+            // it finished processing the last element already in the queue.
             for {
               ref    <- Ref.make(0)
               stream  = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
@@ -4317,7 +4342,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- stream.tapSink(sink).take(3).runDrain
               result <- ref.get
             } yield assertTrue(result == 6)
-          } @@ TestAspect.flaky
+          } @@ TestAspect.nonFlaky
         ),
         suite("throttleEnforce")(
           test("free elements") {

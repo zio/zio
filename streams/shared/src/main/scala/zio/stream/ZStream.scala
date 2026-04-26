@@ -229,8 +229,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                       consumed.get.map { p =>
                         if (p) ZChannel.fromZIO(sinkEndReason.set(ScheduleEnd) *> endAfterEmit.set(true))
                         else
-                          ZChannel
-                            .fromZIO(sinkEndReason.set(ScheduleEnd) *> endAfterEmit.set(true)) *> handoffConsumer
+                          // No elements consumed since last emission: complete immediately so the
+                          // sink fiber can finish and the schedule can restart. Without this, an
+                          // infinite stream that stops producing elements after the schedule fires
+                          // would block the sink fiber waiting for data that never arrives.
+                          ZChannel.fromZIO(sinkEndReason.set(ScheduleEnd))
                       }
                     }
                   case End(reason) => ZChannel.fromZIO(sinkEndReason.set(reason) *> endAfterEmit.set(true))
@@ -3392,7 +3395,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       new ZStream(
         ZChannel.fromZIO(promise.await) *> self.channel
           .pipeTo(loop)
-          .ensuring(queue.offer(Take.end).forkDaemon *> queue.awaitShutdown)
+          // When the upstream channel finishes (normally or via interruption from a downstream
+          // operator like `take`), wait uninterruptibly for the sink to drain whatever is still
+          // in the queue before completing.  Without `ZIO.uninterruptible`, a race between the
+          // merge interrupt and this cleanup causes the "does not read ahead" guarantee to be
+          // violated: elements already delivered to the queue but not yet processed by the sink
+          // could be lost.
+          .ensuring(ZIO.uninterruptible(queue.offer(Take.end).ignore *> queue.awaitShutdown))
       )
         .merge(ZStream.execute((promise.succeedUnit *> right.run(sink)).ensuring(queue.shutdown)), HaltStrategy.Both)
     }
