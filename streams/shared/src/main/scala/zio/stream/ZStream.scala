@@ -3397,11 +3397,11 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           .pipeTo(loop)
           // When the upstream channel finishes (normally or via interruption from a downstream
           // operator like `take`), wait uninterruptibly for the sink to drain whatever is still
-          // in the queue before completing.  Without `ZIO.uninterruptible`, a race between the
-          // merge interrupt and this cleanup causes the "does not read ahead" guarantee to be
-          // violated: elements already delivered to the queue but not yet processed by the sink
-          // could be lost.
-          .ensuring(ZIO.uninterruptible(queue.offer(Take.end).ignore *> queue.awaitShutdown))
+          // in the queue before completing.  We fork the `Take.end` offer as a daemon so it
+          // can be interrupted by `queue.shutdown` (avoiding deadlock when the done handler
+          // already offered `Take.end` and the queue is full), while `queue.awaitShutdown` is
+          // protected by `ZIO.uninterruptible` so the merge cannot skip the cleanup.
+          .ensuring(ZIO.uninterruptible(queue.offer(Take.end).forkDaemon *> queue.awaitShutdown))
       )
         .merge(ZStream.execute((promise.succeedUnit *> right.run(sink)).ensuring(queue.shutdown)), HaltStrategy.Both)
     }
