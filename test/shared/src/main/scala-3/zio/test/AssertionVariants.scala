@@ -68,8 +68,8 @@ trait AssertionVariants {
   }
 
   /**
-   * Makes a new assertion that requires a value equal the specified value.
-   * When a [[Diff]] instance is available for the type, a structured diff is
+   * Makes a new assertion that requires a value equal the specified value. When
+   * a [[Diff]] instance is available for the type, a structured diff is
    * rendered on failure instead of a plain "expected / obtained" message.
    */
   final def equalTo[A](expected: A)(implicit diff: OptionalImplicit[Diff[A]]): Assertion[A] =
