@@ -287,8 +287,8 @@ object ZIOSpec extends ZIOBaseSpec {
         // When a Cause contains both a failure and a defect (e.g. via &&),
         // catchAll should NOT silently handle the failure and lose the defect.
         // Defects must always take priority over failures.
-        val boom         = new RuntimeException("boom")
-        val dieCause     = Cause.die(boom)
+        val boom          = new RuntimeException("boom")
+        val dieCause      = Cause.die(boom)
         val combinedCause = dieCause && Cause.fail("handled")
         for {
           exit <- ZIO.failCause(combinedCause).catchAll(e => ZIO.succeed(s"handled: $e")).exit
