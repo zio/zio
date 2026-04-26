@@ -3396,14 +3396,28 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         ZChannel.fromZIO(promise.await) *> self.channel
           .pipeTo(loop)
           // When the upstream channel finishes (normally or via interruption from a downstream
-          // operator like `take`), wait uninterruptibly for the sink to drain whatever is still
-          // in the queue before completing.  We fork the `Take.end` offer as a daemon so it
-          // can be interrupted by `queue.shutdown` (avoiding deadlock when the done handler
-          // already offered `Take.end` and the queue is full), while `queue.awaitShutdown` is
-          // protected by `ZIO.uninterruptible` so the merge cannot skip the cleanup.
-          .ensuring(ZIO.uninterruptible(queue.offer(Take.end).forkDaemon *> queue.awaitShutdown))
+          // operator like `take`), we must guarantee that every element already in the queue is
+          // also processed by the sink before this channel signals completion.
+          //
+          // By the time take(n) cancels the merge, the n-th element has already been placed in
+          // the bounded queue (the loop offers *before* writing to downstream).  The
+          // uninterruptible offer therefore blocks until the sink consumes that last element
+          // (freeing space), after which Take.end is enqueued and the sink exits naturally.
+          //
+          // `.ignore` handles the case where the queue was already shut down (e.g. a failing
+          // sink that called queue.shutdown first) — the interrupt from the shut-down offer is
+          // deferred by `uninterruptible`, which short-circuits `*>` and lets the block exit
+          // without waiting, since shutdown has already happened.
+          .ensuring(ZIO.uninterruptible(queue.offer(Take.end).ignore *> queue.awaitShutdown))
       )
-        .merge(ZStream.execute((promise.succeedUnit *> right.run(sink)).ensuring(queue.shutdown)), HaltStrategy.Both)
+        // Wrap right.run(sink) in ZIO.uninterruptible so that a downstream `take` cannot kill
+        // the sink fiber while it is processing the last element in the queue.  The right side
+        // always terminates because Take.end is guaranteed to be enqueued by the left ensuring
+        // block above, and ZStream.fromQueue.flattenTake exits on Take.end.
+        .merge(
+          ZStream.execute(ZIO.uninterruptible(promise.succeedUnit *> right.run(sink)).ensuring(queue.shutdown)),
+          HaltStrategy.Both
+        )
     }
 
   /**
