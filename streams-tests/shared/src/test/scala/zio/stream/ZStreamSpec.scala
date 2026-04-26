@@ -607,7 +607,33 @@ object ZStreamSpec extends ZIOBaseSpec {
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
-          }
+          },
+          test("buffer(1) pre-fetches exactly 1 element (issue #9810)") {
+            // Verifies that buffer(1) does not eagerly pull more than 1 element
+            // ahead of what the consumer is currently processing.
+            // With the old implementation, buffer(1) would pull 2 elements ahead
+            // because the producer always read one element speculatively from
+            // upstream before blocking on the full queue.
+            for {
+              pulledRef  <- Ref.make(0)
+              consumerGo <- Promise.make[Nothing, Unit]
+              // Track how many elements have been pulled from upstream.
+              // The upstream gate ensures the consumer is blocked (holding element 1)
+              // while we observe how many additional elements are pre-fetched.
+              s = ZStream
+                    .fromIterable(1 to 5)
+                    .mapZIO(i => pulledRef.update(_ + 1).as(i))
+                    .buffer(1)
+              fiber  <- s.mapZIO(i => consumerGo.await.as(i)).runDrain.fork
+              // Let the fiber run until it blocks waiting for the consumer gate.
+              _      <- ZIO.yieldNow.repeatN(10)
+              pulled <- pulledRef.get
+              _      <- consumerGo.succeedUnit
+              _      <- fiber.join
+            } yield assert(pulled)(isLessThanEqualTo(2))
+            // At most 2 elements should have been pulled from upstream:
+            // element 1 (being handed to the consumer) + element 2 (buffered).
+          } @@ nonFlaky
         ),
         suite("bufferChunks")(
           test("maintains elements and ordering")(check(tinyChunkOf(tinyChunkOf(Gen.int))) { chunk =>

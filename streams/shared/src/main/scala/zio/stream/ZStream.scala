@@ -391,27 +391,76 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   Prefer capacities that are powers of 2 for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val queue = self.toQueueOfElements(capacity)
+    val cap = capacity
+    if (cap <= 0) self
+    else if (cap == 1) bufferExactlyOne
+    else {
+      // Use a queue of size (cap - 1) because the producer always reads one element
+      // from upstream speculatively before blocking on a full queue. This means the
+      // total number of elements pre-fetched ahead of the consumer is:
+      //   (cap - 1) elements in the queue + 1 element speculatively read = cap elements.
+      val queue = self.toQueueOfElements(cap - 1)
+      new ZStream(
+        ZChannel.unwrapScoped[R] {
+          queue.map { queue =>
+            lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+              ZChannel.fromZIO {
+                queue.take
+              }.flatMap { (exit: Exit[Option[E], A]) =>
+                exit.foldExit(
+                  Cause
+                    .flipCauseOption(_)
+                    .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
+                  value => ZChannel.write(Chunk.single(value)) *> process
+                )
+              }
+
+            process
+          }
+        }
+      )
+    }
+  }
+
+  /**
+   * Implementation of `buffer(1)` using a rendezvous handoff channel.
+   *
+   * A bounded queue of capacity 1 would still pre-fetch 2 elements (one in the
+   * queue and one speculatively read from upstream). Using `Handoff` — which has
+   * capacity 0 — the producer blocks after placing each element until the consumer
+   * takes it, ensuring exactly 1 element is buffered ahead at any time.
+   */
+  private def bufferExactlyOne(implicit trace: Trace): ZStream[R, E, A] =
     new ZStream(
       ZChannel.unwrapScoped[R] {
-        queue.map { queue =>
-          lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
-            ZChannel.fromZIO {
-              queue.take
-            }.flatMap { (exit: Exit[Option[E], A]) =>
+        for {
+          handoff <- ZStream.Handoff.make[Exit[Option[E], A]]
+          _ <- {
+            lazy val producer: ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] =
+              ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Nothing, Any](
+                in =>
+                  ZChannel.fromZIO(
+                    ZIO.foreachDiscard(in)(a => handoff.offer(Exit.succeed(a)))
+                  ) *> producer,
+                err => ZChannel.fromZIO(handoff.offer(Exit.failCause(err.map(Some(_))))),
+                _ => ZChannel.fromZIO(handoff.offer(Exit.fail(None)))
+              )
+            (self.channel >>> producer).drain.runScoped.forkScoped
+          }
+        } yield {
+          lazy val consumer: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
+            ZChannel.fromZIO(handoff.take).flatMap { (exit: Exit[Option[E], A]) =>
               exit.foldExit(
                 Cause
                   .flipCauseOption(_)
                   .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
-                value => ZChannel.write(Chunk.single(value)) *> process
+                value => ZChannel.write(Chunk.single(value)) *> consumer
               )
             }
-
-          process
+          consumer
         }
       }
     )
-  }
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by
