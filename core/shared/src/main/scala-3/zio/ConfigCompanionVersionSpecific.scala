@@ -80,20 +80,24 @@ private[zio] transparent trait ConfigCompanionVersionSpecific {
    * any extra boilerplate. Each instance delegates to the existing named
    * constructor on the companion and is then `nested` by [[derived]] under the
    * field name.
+   *
+   * Note: these reference `Config.string`, `Config.int`, etc. (fully-qualified)
+   * because this trait is compiled before the companion object's methods are in
+   * scope — bare `string` / `int` would be unresolved inside the trait body.
    */
-  given Config[String]                               = string
-  given Config[Int]                                  = int
-  given Config[Long]                                 = long
-  given Config[Double]                               = double
-  given Config[Float]                                = float
-  given Config[Boolean]                              = boolean
-  given Config[BigInt]                               = bigInt
-  given Config[BigDecimal]                           = bigDecimal
-  given Config[zio.Duration]                         = duration
-  given Config[java.time.LocalDate]                  = localDate
-  given Config[java.time.LocalDateTime]              = localDateTime
-  given Config[java.time.LocalTime]                  = localTime
-  given Config[java.time.OffsetDateTime]             = offsetDateTime
-  given Config[java.net.URI]                         = uri
+  given Config[String]                               = Config.string
+  given Config[Int]                                  = Config.int
+  given Config[Long]                                 = Config.long
+  given Config[Double]                               = Config.double
+  given Config[Float]                                = Config.float
+  given Config[Boolean]                              = Config.boolean
+  given Config[BigInt]                               = Config.bigInt
+  given Config[BigDecimal]                           = Config.bigDecimal
+  given Config[zio.Duration]                         = Config.duration
+  given Config[java.time.LocalDate]                  = Config.localDate
+  given Config[java.time.LocalDateTime]              = Config.localDateTime
+  given Config[java.time.LocalTime]                  = Config.localTime
+  given Config[java.time.OffsetDateTime]             = Config.offsetDateTime
+  given Config[java.net.URI]                         = Config.uri
   given [A](using cfg: Config[A]): Config[Option[A]] = cfg.optional
 }
