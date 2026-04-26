@@ -42,6 +42,27 @@ private[zio] transparent trait ConfigCompanionVersionSpecific {
    * field names.
    */
   inline def derived[A](using m: Mirror.ProductOf[A]): Config[A] = {
+    // Given instances for primitive types, scoped *locally* to this inline
+    // expansion so they do not leak into the enclosing implicit scope and
+    // interfere with other derivation macros (e.g. `ZLayer.derive`).
+    // Fully-qualified names are used because this trait is compiled before
+    // the companion object's methods are in scope.
+    given Config[String]                               = Config.string
+    given Config[Int]                                  = Config.int
+    given Config[Long]                                 = Config.long
+    given Config[Double]                               = Config.double
+    given Config[Float]                                = Config.float
+    given Config[Boolean]                              = Config.boolean
+    given Config[BigInt]                               = Config.bigInt
+    given Config[BigDecimal]                           = Config.bigDecimal
+    given Config[zio.Duration]                         = Config.duration
+    given Config[java.time.LocalDate]                  = Config.localDate
+    given Config[java.time.LocalDateTime]              = Config.localDateTime
+    given Config[java.time.LocalTime]                  = Config.localTime
+    given Config[java.time.OffsetDateTime]             = Config.offsetDateTime
+    given Config[java.net.URI]                         = Config.uri
+    given [B](using cfg: Config[B]): Config[Option[B]] = cfg.optional
+
     val labels: List[String]     = constValueTuple[m.MirroredElemLabels].toList.asInstanceOf[List[String]]
     val configs: List[Config[?]] = summonConfigList[m.MirroredElemTypes]
 
@@ -74,30 +95,4 @@ private[zio] transparent trait ConfigCompanionVersionSpecific {
       case _: EmptyTuple => Nil
       case _: (t *: ts)  => summonInline[Config[t]] :: summonConfigList[ts]
     }
-
-  /**
-   * Given instances for primitive types so that `derives Config` works without
-   * any extra boilerplate. Each instance delegates to the existing named
-   * constructor on the companion and is then `nested` by [[derived]] under the
-   * field name.
-   *
-   * Note: these reference `Config.string`, `Config.int`, etc. (fully-qualified)
-   * because this trait is compiled before the companion object's methods are in
-   * scope — bare `string` / `int` would be unresolved inside the trait body.
-   */
-  given Config[String]                               = Config.string
-  given Config[Int]                                  = Config.int
-  given Config[Long]                                 = Config.long
-  given Config[Double]                               = Config.double
-  given Config[Float]                                = Config.float
-  given Config[Boolean]                              = Config.boolean
-  given Config[BigInt]                               = Config.bigInt
-  given Config[BigDecimal]                           = Config.bigDecimal
-  given Config[zio.Duration]                         = Config.duration
-  given Config[java.time.LocalDate]                  = Config.localDate
-  given Config[java.time.LocalDateTime]              = Config.localDateTime
-  given Config[java.time.LocalTime]                  = Config.localTime
-  given Config[java.time.OffsetDateTime]             = Config.offsetDateTime
-  given Config[java.net.URI]                         = Config.uri
-  given [A](using cfg: Config[A]): Config[Option[A]] = cfg.optional
 }
