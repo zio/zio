@@ -46,7 +46,13 @@ object MimaSettings {
         exclude[Problem]("zio.test.TestClock.SuspendedWarningData"),
         exclude[Problem]("zio.test.TestClock.WarningData"),
         exclude[DirectMissingMethodProblem]("zio.test.package.testFiberRefGen"),
-        exclude[IncompatibleMethTypeProblem]("zio.test.package.warningEmptyGen")
+        exclude[IncompatibleMethTypeProblem]("zio.test.package.warningEmptyGen"),
+        // equalTo now accepts only A (not Any) via Diff typeclass: type-parameter
+        // change and removal of the old Any-erased overload (#8664)
+        exclude[DirectMissingMethodProblem]("zio.test.Assertion.equalTo"),
+        exclude[DirectMissingMethodProblem]("zio.test.AssertionVariants.equalTo"),
+        exclude[IncompatibleMethTypeProblem]("zio.test.Assertion.equalTo"),
+        exclude[IncompatibleMethTypeProblem]("zio.test.AssertionVariants.equalTo")
       ),
       mimaFailOnProblem := failOnProblem
     )
