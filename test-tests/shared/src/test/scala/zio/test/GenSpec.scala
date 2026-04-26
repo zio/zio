@@ -672,6 +672,38 @@ object GenSpec extends ZIOBaseSpec {
       val actual     = exhaustive.zipWith(exhaustive)(_ + _)
       checkFinite(actual)(equalTo(expected))
     },
+    test("Gen.uuid before Gen.fromIterable(infinite) produces distinct UUIDs (issue #9101)") {
+      // When a random generator (Gen.uuid) is placed before an infinite
+      // deterministic generator (Gen.fromIterable(LazyList.iterate(...))) in a
+      // for-comprehension, each test run must get a fresh UUID.  Previously the
+      // ZStream.flatMap exhausted the infinite inner stream, fixing the random
+      // seed at the value drawn for the very first test run.
+      for {
+        samples <- {
+          val gen = for {
+            id <- Gen.uuid
+            _  <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
+          } yield id
+          gen.runCollectN(10)
+        }
+        // All 10 UUIDs must be distinct – if the bug is present they are all equal.
+        distinct = samples.distinct
+      } yield assert(distinct.size)(isGreaterThan(1))
+    },
+    test("Gen.fromIterable before Gen.uuid also produces distinct UUIDs") {
+      // Sanity-check: the ordering that was already working should continue
+      // to work after the fix.
+      for {
+        samples <- {
+          val gen = for {
+            _ <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
+            id <- Gen.uuid
+          } yield id
+          gen.runCollectN(10)
+        }
+        distinct = samples.distinct
+      } yield assert(distinct.size)(isGreaterThan(1))
+    },
     test("size can be modified locally") {
       val getSize = Gen.size.sample.map(_.value).runCollect.map(_.head)
       val result = for {
@@ -776,6 +808,42 @@ object GenSpec extends ZIOBaseSpec {
       check(Gen.setOfN(2)(Gen.fromIterable(List(1, 2, 3)))) { set =>
         assertTrue(set.size == 2)
       }
-    }
+    },
+    // Regression tests for https://github.com/zio/zio/issues/9101
+    suite("flatMap does not fix the outer value when the inner generator is infinite (issue #9101)")(
+      test("random generator before infinite fromIterable produces diverse values") {
+        // Before the fix, `id` was always the same because `ZStream.flatMap` exhausted
+        // the infinite inner stream and never advanced the outer (uuid) generator.
+        val gen = for {
+          id <- Gen.uuid
+          _  <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
+        } yield id
+        for {
+          samples <- gen.runCollectN(5)
+        } yield assertTrue(samples.distinct.size > 1)
+      },
+      test("ordering of flatMap does not affect diversity of random values") {
+        // Both orderings should produce diverse UUIDs, not just the second one.
+        val genA = for {
+          id <- Gen.uuid
+          _  <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
+        } yield id
+        val genB = for {
+          _ <- Gen.fromIterable(LazyList.iterate(0)(_ + 1))
+          id <- Gen.uuid
+        } yield id
+        for {
+          samplesA <- genA.runCollectN(5)
+          samplesB <- genB.runCollectN(5)
+        } yield assertTrue(samplesA.distinct.size > 1) &&
+          assertTrue(samplesB.distinct.size > 1)
+      },
+      test("crossWith still produces Cartesian product for deterministic generators") {
+        // zipWith (which uses crossWith) must still produce all combinations for checkAll
+        val expected = List.range(1, 4).flatMap(x => List.range(1, 4).map(y => x + y))
+        val actual   = Gen.fromIterable(1 until 4).zipWith(Gen.fromIterable(1 until 4))(_ + _)
+        checkFinite(actual)(equalTo(expected))
+      }
+    )
   )
 }

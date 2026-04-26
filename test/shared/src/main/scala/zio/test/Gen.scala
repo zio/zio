@@ -101,10 +101,23 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 
   def withFilter(f: A => Boolean)(implicit trace: Trace): Gen[R, A] = filter(f)
 
+  /**
+   * Flat-maps this generator with the specified function.
+   *
+   * Unlike [[crossWith]], `flatMap` limits the inner generator to a single
+   * sample per outer value. This ensures that when a random generator (e.g.
+   * [[Gen.uuid]]) is placed before a deterministic generator (e.g.
+   * [[Gen.fromIterable]]) in a for-comprehension, the random generator is
+   * re-evaluated for each test run rather than being fixed to its first value
+   * for the lifetime of the (potentially infinite) inner stream.
+   *
+   * Use [[crossWith]] (or [[zip]] / [[zipWith]]) when you need the exhaustive
+   * Cartesian-product behaviour of two deterministic generators.
+   */
   def flatMap[R1 <: R, B](f: A => Gen[R1, B])(implicit trace: Trace): Gen[R1, B] =
     Gen {
       self.sample.flatMap { sample =>
-        val values  = f(sample.value).sample
+        val values  = f(sample.value).sample.take(1)
         val shrinks = Gen(sample.shrink).flatMap(f).sample
         values.map(_.flatMap(Sample(_, shrinks)))
       }
@@ -115,6 +128,37 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 
   def map[B](f: A => B)(implicit trace: Trace): Gen[R, B] =
     Gen(sample.map(_.map(f)))
+
+  /**
+   * Composes this generator with the specified generator to produce a new
+   * generator that generates the Cartesian product of their values.  Unlike
+   * [[flatMap]], `crossWith` exhausts all values of the inner generator for
+   * every value of the outer generator.  This is the right choice when both
+   * generators are deterministic (e.g. created with [[Gen.fromIterable]]) and
+   * you want every combination to be tested.
+   *
+   * When one or both generators are random (e.g. [[Gen.int]], [[Gen.uuid]])
+   * the behaviour is identical to `flatMap` because each random generator
+   * emits exactly one sample per stream evaluation.
+   */
+  def crossWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C)(implicit trace: Trace): Gen[R1, C] =
+    Gen {
+      self.sample.flatMap { sample =>
+        val values  = that.map(b => f(sample.value, b)).sample
+        val shrinks = Gen(sample.shrink).crossWith(that)(f).sample
+        values.map(_.flatMap(Sample(_, shrinks)))
+      }
+    }
+
+  /**
+   * Alias for [[crossWith]] that discards the second value.  Composes this
+   * generator with the specified generator, keeping only the values of this
+   * generator, as a Cartesian product.
+   */
+  def cross[R1 <: R, B](
+    that: Gen[R1, B]
+  )(implicit zippable: Zippable[A, B], trace: Trace): Gen[R1, zippable.Out] =
+    self.crossWith(that)(zippable.zip(_, _))
 
   /**
    * Maps an effectual function over a generator.
@@ -174,9 +218,14 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
   /**
    * Composes this generator with the specified generator to create a cartesian
    * product of elements with the specified function.
+   *
+   * This uses [[crossWith]] semantics (exhaustive Cartesian product), which is
+   * correct when both generators are deterministic.  For composing generators
+   * in a for-comprehension (where each "step" should draw a fresh independent
+   * sample), use [[flatMap]] directly.
    */
   def zipWith[R1 <: R, B, C](that: Gen[R1, B])(f: (A, B) => C)(implicit trace: Trace): Gen[R1, C] =
-    self.flatMap(a => that.map(b => f(a, b)))
+    self.crossWith(that)(f)
 }
 
 object Gen extends GenZIO with FunctionVariants with TimeVariants {
@@ -362,17 +411,23 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * Composes the specified generators to create a cartesian product of elements
    * with the specified function.
+   *
+   * Note: this uses [[Gen#crossWith]] internally so that all combinations from
+   * each generator are produced (exhaustive behaviour).  This is appropriate
+   * for deterministic generators created with [[fromIterable]].  For random
+   * generators the result is the same as using [[flatMap]] because random
+   * generators emit exactly one sample per evaluation.
    */
   def collectAll[R, A](gens: Iterable[Gen[R, A]])(implicit trace: Trace): Gen[R, List[A]] =
     Gen.suspend {
 
-      def loop(gens: List[Gen[R, A]], as: List[A]): Gen[R, List[A]] =
+      def loop(gens: List[Gen[R, A]]): Gen[R, List[A]] =
         gens match {
-          case gen :: gens => gen.flatMap(a => loop(gens, a :: as))
-          case Nil         => Gen.const(as.reverse)
+          case gen :: rest => gen.crossWith(loop(rest))(_ :: _)
+          case Nil         => Gen.const(Nil)
         }
 
-      loop(gens.toList, Nil)
+      loop(gens.toList)
     }
 
   /**
