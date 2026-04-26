@@ -315,16 +315,21 @@ object ZIOAppSpec extends ZIOBaseSpec {
     // -----------------------------------------------------------------------
     suite("concurrency")(
       test("concurrent finalizers both run") {
+        // Use two latches so we know BOTH branches are blocked on ZIO.never
+        // before we interrupt — avoids a race where the right branch is still
+        // in latch.await when the interrupt arrives.
         for {
-          latch <- Promise.make[Nothing, Unit]
-          fin1  <- Ref.make(false)
-          fin2  <- Ref.make(false)
-          effect = (latch.succeed(()) *> ZIO.never)
+          latch1 <- Promise.make[Nothing, Unit]
+          latch2 <- Promise.make[Nothing, Unit]
+          fin1   <- Ref.make(false)
+          fin2   <- Ref.make(false)
+          effect = (latch1.succeed(()) *> ZIO.never)
                      .ensuring(fin1.set(true))
-                     .zipPar((latch.await *> ZIO.never).ensuring(fin2.set(true)))
+                     .zipPar((latch2.succeed(()) *> ZIO.never).ensuring(fin2.set(true)))
           app    = ZIOApp.fromZIO(effect)
           fiber <- app.invoke(Chunk.empty).fork
-          _     <- latch.await
+          _     <- latch1.await
+          _     <- latch2.await
           _     <- fiber.interrupt
           v1    <- fin1.get
           v2    <- fin2.get
