@@ -674,7 +674,7 @@ object GenSpec extends ZIOBaseSpec {
     },
     test("Gen.uuid before Gen.fromIterable(infinite) produces distinct UUIDs (issue #9101)") {
       // When a random generator (Gen.uuid) is placed before an infinite
-      // deterministic generator (Gen.fromIterable(Iterator.from(...))) in a
+      // deterministic generator (Gen.fromIterable(0 until Int.MaxValue)) in a
       // for-comprehension, each test run must get a fresh UUID.  Previously the
       // ZStream.flatMap exhausted the infinite inner stream, fixing the random
       // seed at the value drawn for the very first test run.
@@ -682,7 +682,7 @@ object GenSpec extends ZIOBaseSpec {
         samples <- {
           val gen = for {
             id <- Gen.uuid
-            _  <- Gen.fromIterable(Iterator.from(0))
+            _  <- Gen.fromIterable(0 until Int.MaxValue)
           } yield id
           gen.runCollectN(10)
         }
@@ -696,7 +696,7 @@ object GenSpec extends ZIOBaseSpec {
       for {
         samples <- {
           val gen = for {
-            _  <- Gen.fromIterable(Iterator.from(0))
+            _  <- Gen.fromIterable(0 until Int.MaxValue)
             id <- Gen.uuid
           } yield id
           gen.runCollectN(10)
@@ -816,7 +816,7 @@ object GenSpec extends ZIOBaseSpec {
         // the infinite inner stream and never advanced the outer (uuid) generator.
         val gen = for {
           id <- Gen.uuid
-          _  <- Gen.fromIterable(Iterator.from(0))
+          _  <- Gen.fromIterable(0 until Int.MaxValue)
         } yield id
         for {
           samples <- gen.runCollectN(5)
@@ -826,10 +826,10 @@ object GenSpec extends ZIOBaseSpec {
         // Both orderings should produce diverse UUIDs, not just the second one.
         val genA = for {
           id <- Gen.uuid
-          _  <- Gen.fromIterable(Iterator.from(0))
+          _  <- Gen.fromIterable(0 until Int.MaxValue)
         } yield id
         val genB = for {
-          _  <- Gen.fromIterable(Iterator.from(0))
+          _  <- Gen.fromIterable(0 until Int.MaxValue)
           id <- Gen.uuid
         } yield id
         for {
