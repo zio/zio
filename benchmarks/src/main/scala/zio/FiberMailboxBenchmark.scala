@@ -112,9 +112,7 @@ class FiberMailboxBenchmark {
   @Benchmark
   def endToEnd_fiberResumptions(): Long = unsafeRun {
     ZIO
-      .foreachPar(List.fill(100)(()))(
-        _ => ZIO.yieldNow *> ZIO.unit
-      )
+      .foreachPar(List.fill(100)(()))(_ => ZIO.yieldNow *> ZIO.unit)
       .as(0L)
   }
 }
