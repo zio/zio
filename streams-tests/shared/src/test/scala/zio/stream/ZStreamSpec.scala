@@ -2971,6 +2971,24 @@ object ZStreamSpec extends ZIOBaseSpec {
               _     <- f.join
             } yield assertTrue(count == 0)
           } @@ TestAspect.jvmOnly @@ nonFlaky,
+          test("parallelism is not bounded by default buffer size (#9339)") {
+            // With n > default bufferSize (16), all n fibers should be able to start
+            // concurrently. Previously the bounded queue (bufferSize=16) would block
+            // the producer after 16 fibers, limiting effective parallelism to bufferSize.
+            val parallelism = 32 // intentionally > default bufferSize of 16
+            for {
+              latch <- CountdownLatch.make(parallelism + 1)
+              f <- ZStream
+                     .range(0, parallelism * 2)
+                     .mapZIOPar(parallelism)(_ => latch.countDown *> latch.await)
+                     .runDrain
+                     .fork
+              _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
+              _     <- latch.countDown
+              count <- latch.count
+              _     <- f.join
+            } yield assertTrue(count == 0)
+          } @@ TestAspect.jvmOnly @@ nonFlaky,
           test("accumulates parallel errors") {
             sealed abstract class DbError extends Product with Serializable
             case object Missing           extends DbError

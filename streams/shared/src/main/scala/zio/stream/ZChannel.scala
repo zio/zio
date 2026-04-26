@@ -673,7 +673,12 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         val input       = SingleProducerAsyncInput.unsafe.make[InErr, InElem, InDone](fiberId)(Unsafe)
         val queueReader = ZChannel.fromInput(input)
         val n0          = n.toLong
-        val bufferSize0 = bufferSize
+        // Ensure the outgoing queue is large enough to hold all in-flight fibers.
+        // When bufferSize < n, the queue fills before n permits can be used, limiting
+        // effective parallelism to min(n, bufferSize). We use max(n, bufferSize) so the
+        // semaphore is the sole controller of concurrency. Int.MaxValue is treated as
+        // unbounded parallelism; in that case we leave bufferSize unchanged to avoid OOM.
+        val bufferSize0 = if (n == Int.MaxValue) bufferSize else math.max(bufferSize, n)
         val outgoing    = Queue.unsafe.bounded[Fiber[Either[Unit, OutDone], OutElem2]](bufferSize0, fiberId)(Unsafe)
         val errorSignal = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
         val permits     = Semaphore.unsafe.make(n0)(Unsafe)
