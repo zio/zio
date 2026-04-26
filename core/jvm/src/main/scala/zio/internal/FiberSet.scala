@@ -55,8 +55,8 @@ import java.util.{AbstractSet, Iterator => JIterator}
  *
  * ==Eventual consistency of [[isEmpty]]==
  *
- * Like [[FiberMailbox.isEmpty]], this method is ''eventually consistent'':
- * a concurrent [[add]] that has not yet completed may cause a transient false
+ * Like [[FiberMailbox.isEmpty]], this method is ''eventually consistent'': a
+ * concurrent [[add]] that has not yet completed may cause a transient false
  * positive. Callers (i.e. [[FiberRuntime]]) must tolerate false negatives.
  */
 private[zio] final class FiberSet[A <: AnyRef] extends AbstractSet[A] {
@@ -87,8 +87,8 @@ private[zio] final class FiberSet[A <: AnyRef] extends AbstractSet[A] {
   override def iterator(): JIterator[A] = {
     expunge()
     new JIterator[A] {
-      private val inner  = backing.keySet().iterator()
-      private var _next  = fetchNext()
+      private val inner = backing.keySet().iterator()
+      private var _next = fetchNext()
 
       private def fetchNext(): A = {
         while (inner.hasNext) {
@@ -148,8 +148,8 @@ private[internal] final class IdentityWeakKey[A <: AnyRef](ref: A, queue: Refere
     case other: IdentityWeakKey[_] =>
       val a = get()
       val b = other.get()
-      if ((a ne null) && (b ne null)) a eq b  // both alive: compare by identity
-      else this eq other                        // at least one dead: fall back to ref equality
+      if ((a ne null) && (b ne null)) a eq b // both alive: compare by identity
+      else this eq other                     // at least one dead: fall back to ref equality
     case _ => false
   }
 }

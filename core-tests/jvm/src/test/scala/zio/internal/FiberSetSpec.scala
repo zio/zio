@@ -102,9 +102,9 @@ object FiberSetSpec extends ZIOBaseSpec {
           p     <- Promise.make[Nothing, Int]
           fiber <- p.await.fork
           // Give the runtime a moment to register the child
-          _     <- ZIO.yieldNow
-          _     <- p.succeed(42)
-          _     <- fiber.join
+          _ <- ZIO.yieldNow
+          _ <- p.succeed(42)
+          _ <- fiber.join
         } yield assertCompletes
       },
       test("many concurrent fibers can be tracked") {
@@ -123,10 +123,10 @@ object FiberSetSpec extends ZIOBaseSpec {
     suite("concurrent add correctness")(
       test("all elements added concurrently are eventually present") {
         ZIO.succeed {
-          val s       = new FiberSet[AnyRef]()
-          val count   = 1000
-          val elems   = Array.fill(count)(new Object())
-          val latch   = new CountDownLatch(1)
+          val s     = new FiberSet[AnyRef]()
+          val count = 1000
+          val elems = Array.fill(count)(new Object())
+          val latch = new CountDownLatch(1)
           val threads = elems.map { e =>
             val t = new Thread(() => { latch.await(); s.add(e) })
             t.start()
