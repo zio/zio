@@ -15,7 +15,7 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
     // Regression test for https://github.com/zio/zio/issues/9170
     suite("OpLog")(
       test("logs each ZIO effect at Debug level when OpLog is enabled") {
-        val loggedMessages                   = new AtomicReference(List.empty[String])
+        val loggedMessages = new AtomicReference(List.empty[String])
         val testLogger: ZLogger[String, Any] = new ZLogger[String, Any] {
           override def apply(
             trace: Trace,
@@ -84,7 +84,7 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
           val nOps       = new AtomicInteger(0)
           val latch      = Promise.unsafe.make[Nothing, Unit](FiberId.None)
           val supervisor = new YieldTrackingSupervisor(latch, nOps)
-          val f          =
+          val f =
             ZIO.whileLoop(nOps.getAndIncrement() < nIters)(ZIO.when(nOps.get() % 10000 == 0)(ZIO.yieldNow))(_ => ())
           ZIO
             .withFiberRuntime[Any, Nothing, Unit] { (parentFib, status) =>
@@ -126,7 +126,7 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
           val executed = Ref.unsafe.make(0)
           val cb       = Ref.unsafe.make[Option[ZIO[Any, Nothing, Unit] => Unit]](None)
           val latch    = Promise.unsafe.make[Nothing, Unit](FiberId.None)
-          val async    = ZIO.async[Any, Nothing, Unit] { k =>
+          val async = ZIO.async[Any, Nothing, Unit] { k =>
             cb.unsafe.set(Some(k))
             latch.unsafe.done(Exit.unit)
           }
