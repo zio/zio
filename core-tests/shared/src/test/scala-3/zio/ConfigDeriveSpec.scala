@@ -46,20 +46,22 @@ object ConfigDeriveSpec extends ZIOBaseSpec {
     test("derives Config for nested case classes") {
       val provider = ConfigProvider.fromMap(
         Map(
-          "server.host"          -> "example.com",
-          "server.port"          -> "443",
-          "db.url"               -> "jdbc:postgresql://localhost/mydb",
-          "db.maxPoolSize"       -> "10"
+          "server.host"    -> "example.com",
+          "server.port"    -> "443",
+          "db.url"         -> "jdbc:postgresql://localhost/mydb",
+          "db.maxPoolSize" -> "10"
         )
       )
       for {
         cfg <- provider.load(summon[Config[AppConfig]])
-      } yield assert(cfg)(equalTo(
-        AppConfig(
-          ServerConfig("example.com", 443),
-          DbConfig("jdbc:postgresql://localhost/mydb", 10)
+      } yield assert(cfg)(
+        equalTo(
+          AppConfig(
+            ServerConfig("example.com", 443),
+            DbConfig("jdbc:postgresql://localhost/mydb", 10)
+          )
         )
-      ))
+      )
     }
   )
 }

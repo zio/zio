@@ -22,8 +22,8 @@ import scala.deriving.Mirror
 private[zio] transparent trait ConfigCompanionVersionSpecific {
 
   /**
-   * Derives a [[Config]] for any product type (case class or case object)
-   * whose field types all have a [[Config]] instance in implicit scope.
+   * Derives a [[Config]] for any product type (case class or case object) whose
+   * field types all have a [[Config]] instance in implicit scope.
    *
    * This allows the Scala 3 `derives` keyword to be used:
    *
@@ -37,12 +37,12 @@ private[zio] transparent trait ConfigCompanionVersionSpecific {
    * }
    * }}}
    *
-   * All field types must have a [[Config]] instance in implicit scope.
-   * The field names in the configuration source are derived from the
-   * case-class field names.
+   * All field types must have a [[Config]] instance in implicit scope. The
+   * field names in the configuration source are derived from the case-class
+   * field names.
    */
   inline def derived[A](using m: Mirror.ProductOf[A]): Config[A] = {
-    val labels: List[String]    = constValueTuple[m.MirroredElemLabels].toList.asInstanceOf[List[String]]
+    val labels: List[String]     = constValueTuple[m.MirroredElemLabels].toList.asInstanceOf[List[String]]
     val configs: List[Config[?]] = summonConfigList[m.MirroredElemTypes]
 
     // Build a Config[List[Any]] by folding right over all fields.
@@ -57,15 +57,18 @@ private[zio] transparent trait ConfigCompanionVersionSpecific {
     // Map the flat List[Any] to the case-class by supplying it as a Product.
     combined.map { values =>
       m.fromProduct(new Product {
-        private val elems: Array[Any] = values.toArray
-        def productArity: Int                  = elems.length
-        def productElement(i: Int): Any        = elems(i)
-        def canEqual(that: Any): Boolean       = false
+        private val elems: Array[Any]    = values.toArray
+        def productArity: Int            = elems.length
+        def productElement(i: Int): Any  = elems(i)
+        def canEqual(that: Any): Boolean = false
       })
     }
   }
 
-  /** Recursively summons [[Config]] instances for each element of a [[Tuple]] type. */
+  /**
+   * Recursively summons [[Config]] instances for each element of a [[Tuple]]
+   * type.
+   */
   private inline def summonConfigList[T <: Tuple]: List[Config[?]] =
     inline erasedValue[T] match {
       case _: EmptyTuple => Nil
