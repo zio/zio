@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2024 John A. De Goes and the ZIO Contributors
+ * Copyright 2018-2024 John A. De Goes and ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,329 +18,351 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.atomic.AtomicReference
+import scala.annotation.tailrec
 
 /**
- * A promise represents an asynchronous variable, of [[zio.ZIO]] type, that can
- * be set exactly once, with the ability for an arbitrary number of fibers to
- * suspend (by calling `await`) and automatically resume when the variable is
- * set.
- *
- * Promises can be used for building primitive actions whose completions require
- * the coordinated action of multiple fibers, and for building higher-level
- * concurrent or asynchronous structures.
- * {{{
- * for {
- *   promise <- Promise.make[Nothing, Int]
- *   _       <- promise.succeed(42).delay(1.second).fork
- *   value   <- promise.await // Resumes when forked fiber completes promise
- * } yield value
- * }}}
+ * A `Promise[E, A]` is a concurrency-safe variable that can be set exactly
+ * once, with the ability to block on its value. Promises can be used for
+ * synchronizing computations, implementing semaphores and mutexes, and
+ * building higher-level concurrent primitives.
  */
-final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
-  import Promise.internal._
-
-  /**
-   * Retrieves the value of the promise, suspending the fiber running the action
-   * until the result is available.
-   */
-  def await(implicit trace: Trace): IO[E, A] =
-    ZIO.suspendSucceed {
-      state.get match {
-        case Done(value) => value
-        case pending =>
-          ZIO.asyncInterrupt[Any, E, A](
-            k => {
-              @annotation.tailrec
-              def loop(current: State[E, A]): Unit =
-                current match {
-                  case pending: Pending[?, ?] =>
-                    if (state.compareAndSet(pending, pending.add(k))) ()
-                    else loop(state.get)
-                  case Done(value) => k(value)
-                }
-              loop(pending)
-
-              Left(ZIO.succeed(state.updateAndGet {
-                case pending: Pending[?, ?] => pending.remove(k)
-                case completed              => completed
-              }))
-            },
-            blockingOn
-          )
-      }
-    }
-
-  /**
-   * Kills the promise with the specified error, which will be propagated to all
-   * fibers waiting on the value of the promise.
-   */
-  def die(e: Throwable)(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.die(e)(trace, Unsafe))
-
-  /**
-   * Exits the promise with the specified exit, which will be propagated to all
-   * fibers waiting on the value of the promise.
-   */
-  def done(e: Exit[E, A])(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.completeWith(e)(Unsafe))
-
-  /**
-   * Completes the promise with the result of the specified effect. If the
-   * promise has already been completed, the method will produce false.
-   *
-   * Note that [[Promise.completeWith]] will be much faster, so consider using
-   * that if you do not need to memoize the result of the specified effect.
-   */
-  def complete(io: IO[E, A])(implicit trace: Trace): UIO[Boolean] = io.intoPromise(this)
-
-  /**
-   * Completes the promise with the specified effect. If the promise has already
-   * been completed, the method will produce false.
-   *
-   * Note that since the promise is completed with an effect, the effect will be
-   * evaluated each time the value of the promise is retrieved through
-   * combinators such as `await`, potentially producing different results if the
-   * effect produces different results on subsequent evaluations. In this case
-   * te meaning of the "exactly once" guarantee of `Promise` is that the promise
-   * can be completed with exactly one effect. For a version that completes the
-   * promise with the result of an effect see [[Promise.complete]].
-   */
-  def completeWith(io: IO[E, A])(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.completeWith(io)(Unsafe))
-
-  /**
-   * Fails the promise with the specified error, which will be propagated to all
-   * fibers waiting on the value of the promise.
-   */
-  def fail(e: E)(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.fail(e)(trace, Unsafe))
-
-  /**
-   * Fails the promise with the specified cause, which will be propagated to all
-   * fibers waiting on the value of the promise.
-   */
-  def failCause(e: Cause[E])(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.failCause(e)(trace, Unsafe))
-
-  /**
-   * Completes the promise with interruption. This will interrupt all fibers
-   * waiting on the value of the promise as by the fiber calling this method.
-   */
-  def interrupt(implicit trace: Trace): UIO[Boolean] =
-    ZIO.fiberIdWith(id => interruptAs(id))
-
-  /**
-   * Completes the promise with interruption. This will interrupt all fibers
-   * waiting on the value of the promise as by the specified fiber.
-   */
-  def interruptAs(fiberId: FiberId)(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.interruptAs(fiberId)(trace, Unsafe))
-
-  /**
-   * Checks for completion of this Promise. Produces true if this promise has
-   * already been completed with a value or an error and false otherwise.
-   */
-  def isDone(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.isDone(Unsafe))
-
-  /**
-   * Checks for completion of this Promise. Returns the result effect if this
-   * promise has already been completed or a `None` otherwise.
-   */
-  def poll(implicit trace: Trace): UIO[Option[IO[E, A]]] =
-    ZIO.succeed(unsafe.poll(Unsafe))
-
-  /**
-   * Fails the promise with the specified cause, which will be propagated to all
-   * fibers waiting on the value of the promise. No new stack trace is attached
-   * to the cause.
-   */
-  def refailCause(e: Cause[E])(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.refailCause(e)(trace, Unsafe))
+trait Promise[E, A] extends Serializable { self =>
 
   /**
    * Completes the promise with the specified value.
+   *
+   * @param a
+   *   the value to complete the promise with
+   * @return
+   *   a `UIO[Unit]` that succeeds with unit when the promise has been
+   *   successfully completed
    */
-  def succeed(a: A)(implicit trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.succeed(a)(trace, Unsafe))
+  def succeed(a: A): UIO[Boolean]
 
   /**
-   * Internally, you can use this method instead of calling
-   * `myPromise.succeed(())`
+   * Completes the promise with the specified effect.
    *
-   * It avoids the `Exit` allocation
+   * @param io
+   *   the effect to complete the promise with
+   * @return
+   *   a `UIO[Unit]` that succeeds with unit when the promise has been
+   *   successfully completed
    */
-  private[zio] def succeedUnit(implicit ev0: A =:= Unit, trace: Trace): UIO[Boolean] =
-    ZIO.succeed(unsafe.succeedUnit(ev0, trace, Unsafe))
+  def done(io: IO[E, A]): UIO[Boolean]
 
-  private[zio] trait UnsafeAPI extends Serializable {
-    def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean
-    def die(e: Throwable)(implicit trace: Trace, unsafe: Unsafe): Boolean
-    def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit
-    def fail(e: E)(implicit trace: Trace, unsafe: Unsafe): Boolean
-    def failCause(e: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Boolean
-    def interruptAs(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Boolean
-    def isDone(implicit unsafe: Unsafe): Boolean
-    def poll(implicit unsafe: Unsafe): Option[IO[E, A]]
-    def refailCause(e: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Boolean
-    def succeed(a: A)(implicit trace: Trace, unsafe: Unsafe): Boolean
-    def succeedUnit(implicit ev0: A =:= Unit, trace: Trace, unsafe: Unsafe): Boolean
-  }
+  /**
+   * Completes the promise with the specified error.
+   *
+   * @param e
+   *   the error to complete the promise with
+   * @return
+   *   a `UIO[Unit]` that succeeds with unit when the promise has been
+   *   successfully completed
+   */
+  def fail(e: E): UIO[Boolean]
 
-  @deprecated("Kept for binary compatibility only. Do not use", "2.1.16")
-  private[zio] def state: AtomicReference[Promise.internal.State[E, A]] =
-    unsafe.asInstanceOf[AtomicReference[Promise.internal.State[E, A]]]
-  private[zio] val unsafe: UnsafeAPI = new AtomicReference(Promise.internal.State.empty[E, A]) with UnsafeAPI { state =>
-    def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean = {
-      @annotation.tailrec
-      def loop(): Boolean =
-        state.get match {
-          case pending: Pending[?, ?] =>
-            if (state.compareAndSet(pending, Done(io))) {
-              pending.complete(io)
-              true
-            } else {
-              loop()
-            }
-          case _ => false
-        }
-      loop()
-    }
+  /**
+   * Completes the promise with the specified cause.
+   *
+   * @param cause
+   *   the cause to complete the promise with
+   * @return
+   *   a `UIO[Unit]` that succeeds with unit when the promise has been
+   *   successfully completed
+   */
+  def failCause(cause: Cause[E]): UIO[Boolean]
 
-    def die(e: Throwable)(implicit trace: Trace, unsafe: Unsafe): Boolean =
-      completeWith(ZIO.die(e))
+  /**
+   * Returns a `UIO` that will succeed with `Some(a)` when the promise is
+   * successfully completed with `a`, or `None` if the promise is completed
+   * with a failure.
+   */
+  def either: UIO[Either[E, A]]
 
-    def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit = completeWith(io)
+  /**
+   * Returns a `UIO` that will succeed with `Some(a)` when the promise is
+   * successfully completed with `a`, or `None` if the promise is completed
+   * with a failure. If the promise is completed with an error, the resulting
+   * `UIO` will succeed with `None`, but the error will not be reported as a
+   * failure. This method is useful when the error type is `Nothing`.
+   */
+  def option: UIO[Option[A]]
 
-    def fail(e: E)(implicit trace: Trace, unsafe: Unsafe): Boolean =
-      completeWith(ZIO.fail(e))
+  /**
+   * Interrupts the promise with a `FiberId.None`.
+   *
+   * @return
+   *   a `UIO[Unit]` that succeeds with unit when the promise has been
+   *   successfully interrupted
+   */
+  def interrupt: UIO[Boolean]
 
-    def failCause(e: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Boolean =
-      completeWith(ZIO.failCause(e))
+  /**
+   * Retrieves whether the promise has been completed.
+   */
+  def isDone: UIO[Boolean]
 
-    def interruptAs(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Boolean =
-      completeWith(ZIO.interruptAs(fiberId))
+  /**
+   * Retrieves the value of the promise, suspending the fiber until the result
+   * is available.
+   */
+  def await: IO[E, A]
 
-    def isDone(implicit unsafe: Unsafe): Boolean =
-      state.get().isInstanceOf[Done[?, ?]]
+  /**
+   * Makes this promise complete with the same result as `that` promise.
+   * Any fibers waiting on this promise will be transferred to `that`.
+   * If `that` is already completed, this promise is completed immediately.
+   */
+  def become(that: Promise[E, A]): UIO[Unit]
 
-    def poll(implicit unsafe: Unsafe): Option[IO[E, A]] =
-      state.get() match {
-        case Done(value) => Some(value)
-        case _           => None
-      }
-
-    def refailCause(e: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Boolean =
-      completeWith(Exit.failCause(e))
-
-    def succeed(a: A)(implicit trace: Trace, unsafe: Unsafe): Boolean =
-      completeWith(Exit.succeed(a))
-
-    override def succeedUnit(implicit ev0: A =:= Unit, trace: Trace, unsafe: Unsafe): Boolean =
-      completeWith(Exit.unit.asInstanceOf[IO[E, A]])
-  }
-
+  /**
+   * Returns a `Fiber` that will await the result of this promise.
+   */
+  def toFiber: UIO[Fiber[E, A]]
 }
+
 object Promise {
-  private[zio] object internal {
-    sealed abstract class State[E, A]            extends Serializable
-    final case class Done[E, A](value: IO[E, A]) extends State[E, A]
-    sealed abstract class Pending[E, A] extends State[E, A] { self =>
-      def complete(io: IO[E, A]): Unit
-      def add(waiter: IO[E, A] => Any): Pending[E, A]
-      def remove(waiter: IO[E, A] => Any): Pending[E, A]
-      def size: Int
-    }
-    private case object Empty extends Pending[Nothing, Nothing] { self =>
-      override def complete(io: IO[Nothing, Nothing]): Unit = ()
-      def size                                              = 0
-      def add(waiter: IO[Nothing, Nothing] => Any): Pending[Nothing, Nothing] =
-        new Link[Nothing, Nothing](waiter, self) {
-          override def size = 1
-        }
-      def remove(waiter: IO[Nothing, Nothing] => Any): Pending[Nothing, Nothing] = self
-    }
-    private sealed abstract class Link[E, A](final val waiter: IO[E, A] => Any, final val ws: Pending[E, A])
-        extends Pending[E, A] {
-      self =>
-      final def add(waiter: IO[E, A] => Any): Pending[E, A] = new Link(waiter, self) {
-        override val size = self.size + 1
+
+  /**
+   * Creates a new promise that is not completed.
+   */
+  def make[E, A]: UIO[Promise[E, A]] =
+    makeAs(FiberId.None)
+
+  /**
+   * Creates a new promise that is not completed, with the specified `FiberId`
+   * used for reporting purposes when the promise is interrupted.
+   */
+  def makeAs[E, A](id: => FiberId): UIO[Promise[E, A]] =
+    ZIO
+      .succeed {
+        new unsafe.UnsafePromise[E, A](id)
       }
-      final def complete(io: IO[E, A]): Unit =
-        if (size == 1) waiter(io)
-        else {
-          var current: Pending[E, A] = self
-          while (current ne Empty) {
-            current match {
-              case link: Link[?, ?] =>
-                link.waiter(io)
-                current = link.ws
-              case _ => // Empty
-                current = Empty.asInstanceOf[Pending[E, A]]
-            }
-          }
-        }
+      .refailException
 
-      final def remove(waiter: IO[E, A] => Any): Pending[E, A] =
-        if (size == 1) if (waiter eq self.waiter) ws else self
-        else {
-          val arr                = Link.materialize(self, size)
-          var i                  = size - 1
-          var acc: Pending[E, A] = Empty.asInstanceOf[Pending[E, A]]
-
-          while (i >= 0) {
-            if (arr(i) ne waiter) {
-              acc = acc.add(arr(i))
-            }
-            i -= 1
-          }
-          acc
-        }
+  /**
+   * Creates a new promise that is already completed with the specified value.
+   */
+  def succeed[A](a: A): UIO[Promise[Nothing, A]] =
+    make.map { promise =>
+      unsafe.UnsafePromise.done(promise, IO.succeed(a))
+      promise
     }
 
-    private object Link {
-
-      /**
-       * Materializes the pending state into an array of waiters in reverse
-       * order.
-       */
-      def materialize[E, A](pending: Pending[E, A], size: Int): Array[IO[E, A] => Any] = {
-        val array   = new Array[IO[E, A] => Any](size)
-        var current = pending
-        var i       = size - 1
-
-        while (i >= 0) {
-          current match {
-            case link: Link[?, ?] =>
-              array(i) = link.waiter
-              current = link.ws
-            case _ => () // Empty
-          }
-          i -= 1
-        }
-        array
-      }
+  /**
+   * Creates a new promise that is already completed with the specified error.
+   */
+  def fail[E](e: E): UIO[Promise[E, Nothing]] =
+    make.map { promise =>
+      unsafe.UnsafePromise.done(promise, IO.fail(e))
+      promise
     }
+
+  /**
+   * Creates a new promise that is already completed with the specified cause.
+   */
+  def failCause[E](cause: Cause[E]): UIO[Promise[E, Nothing]] =
+    make.map { promise =>
+      unsafe.UnsafePromise.done(promise, IO.failCause(cause))
+      promise
+    }
+
+  /**
+   * Creates a new promise that is already interrupted.
+   */
+  def interrupt: UIO[Promise[Nothing, Nothing]] =
+    make.map { promise =>
+      unsafe.UnsafePromise.done(promise, IO.interrupt)
+      promise
+    }
+
+  /**
+   * Awaits on both promises, combining their results into a tuple.
+   */
+  def both[E, A, B](left: Promise[E, A], right: Promise[E, B]): UIO[Promise[E, (A, B)]] =
+    make.map { promise =>
+      left.await.zipWith(right.await)(_ -> _).pipeTo(promise)
+      promise
+    }
+
+  /**
+   * Awaits on both promises, returning the result of the one that completes
+   * first.
+   */
+  def either[E, A, B](left: Promise[E, A], right: Promise[E, B]): UIO[Promise[E, Either[A, B]]] =
+    make.map { promise =>
+      left.await.map(Left(_)).race(right.await.map(Right(_))).pipeTo(promise)
+      promise
+    }
+
+  /**
+   * Awaits on both promises, returning the result of the one that completes
+   * first, or the failure if both fail.
+   */
+  def race[E, A](left: Promise[E, A], right: Promise[E, A]): UIO[Promise[E, A]] =
+    make.map { promise =>
+      left.await.race(right.await).pipeTo(promise)
+      promise
+    }
+
+  private[zio] object unsafe {
+
+    sealed private[zio] trait State[E, A] extends Serializable
 
     object State {
-      def empty[E, A]: State[E, A] = Empty.asInstanceOf[State[E, A]]
+      final case class Pending[E, A](waiters: Chunk[(Either[Cause[E], A]) => Unit]) extends State[E, A]
+      final case class Linking[E, A](promise: Promise[E, A])                         extends State[E, A]
+      final case class Done[E, A](exit: Exit[E, A])                                  extends State[E, A]
     }
-  }
 
-  /**
-   * Makes a new promise to be completed by the fiber creating the promise.
-   */
-  def make[E, A](implicit trace: Trace): UIO[Promise[E, A]] =
-    ZIO.fiberIdWith(id => Exit.succeed(unsafe.make(id)(Unsafe)))
+    final class UnsafePromise[E, A](id: => FiberId) extends Promise[E, A] {
+      @volatile private[this] var state: State[E, A] = State.Pending(Chunk.empty)
 
-  /**
-   * Makes a new promise to be completed by the fiber with the specified id.
-   */
-  def makeAs[E, A](fiberId: => FiberId)(implicit trace: Trace): UIO[Promise[E, A]] =
-    ZIO.succeed(unsafe.make(fiberId)(Unsafe))
+      override def succeed(a: A): UIO[Boolean] =
+        done(IO.succeed(a))
 
-  object unsafe {
-    def make[E, A](fiberId: FiberId)(implicit unsafe: Unsafe): Promise[E, A] = new Promise[E, A](fiberId)
+      override def done(io: IO[E, A]): UIO[Boolean] =
+        ZIO.uninterruptible {
+          ZIO
+            .succeed {
+              val oldState = state
+              oldState match {
+                case State.Pending(waiters) =>
+                  val exit = io.unsafeRunSync()
+                  state = State.Done(exit)
+                  waiters.foreach(cb => cb(exit.fold(Left(_), Right(_))))
+                  true
+                case State.Linking(that) =>
+                  that.done(io)
+                  true
+                case State.Done(_) =>
+                  false
+              }
+            }
+            .refailException
+        }
+
+      override def fail(e: E): UIO[Boolean] =
+        done(IO.fail(e))
+
+      override def failCause(cause: Cause[E]): UIO[Boolean] =
+        done(IO.failCause(cause))
+
+      override def either: UIO[Either[E, A]] =
+        await.either
+
+      override def option: UIO[Option[A]] =
+        await.flip.map(_.toOption).refailException
+
+      override def interrupt: UIO[Boolean] =
+        failCause(Cause.interrupt(FiberId.None))
+
+      override def isDone: UIO[Boolean] =
+        ZIO.succeed {
+          state match {
+            case State.Done(_)       => true
+            case State.Linking(that) => unsafe.UnsafePromise.isDone(that)
+            case State.Pending(_)    => false
+          }
+        }
+
+      override def await: IO[E, A] =
+        ZIO.asyncInterrupt { cb =>
+          val updateState: State[E, A] => Boolean = {
+            case State.Pending(waiters) =>
+              state = State.Pending(waiters :+ cb)
+              false
+            case State.Linking(that) =>
+              that.await.unsafeRunAsync(cb)
+              true
+            case State.Done(exit) =>
+              cb(exit.fold(Left(_), Right(_)))
+              true
+          }
+
+          if (updateState(state)) {
+            Left(ZIO.unit)
+          } else {
+            Left {
+              ZIO.succeed {
+                @tailrec
+                def loop(): Unit =
+                  state match {
+                    case State.Pending(waiters) =>
+                      val index = waiters.indexWhere(_ eq cb)
+                      if (index >= 0) {
+                        val newWaiters = waiters.take(index) ++ waiters.drop(index + 1)
+                        state = State.Pending(newWaiters)
+                      }
+                    case State.Linking(that) =>
+                      that.await.unsafeRunAsyncInterrupt { _ =>
+                        ZIO.unit
+                      }
+                    case State.Done(_) =>
+                      ()
+                  }
+              }.refailException
+            }
+          }
+        }
+
+      override def become(that: Promise[E, A]): UIO[Unit] =
+        ZIO.uninterruptible {
+          ZIO.succeed {
+            val oldState = this.synchronized {
+              state match {
+                case State.Pending(waiters) if waiters.nonEmpty =>
+                  state = State.Linking(that)
+                  Some(waiters)
+                case State.Pending(waiters) if waiters.isEmpty =>
+                  state = State.Linking(that)
+                  None
+                case State.Done(exit) =>
+                  that.done(exit)
+                  None
+                case State.Linking(existing) =>
+                  if (existing eq that) None
+                  else {
+                    state = State.Linking(that)
+                    None
+                  }
+              }
+            }
+
+            oldState match {
+              case Some(waiters) =>
+                waiters.foreach { cb =>
+                  that.await.unsafeRunAsync(cb)
+                }
+              case None =>
+                ()
+            }
+          }.refailException
+        }
+
+      override def toFiber: UIO[Fiber[E, A]] =
+        Fiber.fromEffect(await)
+    }
+
+    private[zio] def isDone[E, A](promise: Promise[E, A]): Boolean =
+      promise match {
+        case p: UnsafePromise[E, A] =>
+          p.state match {
+            case State.Done(_)       => true
+            case State.Linking(that) => isDone(that)
+            case State.Pending(_)    => false
+          }
+        case _ => false
+      }
+
+    private[zio] def done[E, A](promise: Promise[E, A], io: IO[E, A]): Unit =
+      promise match {
+        case p: UnsafePromise[E, A] =>
+          p.done(io).unsafeRunSync()
+        case _ =>
+          io.unsafeRunAsync { exit =>
+            promise.done(exit).unsafeRunSync()
+          }
+      }
   }
 }
