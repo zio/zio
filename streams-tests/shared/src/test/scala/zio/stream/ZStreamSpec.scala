@@ -624,7 +624,7 @@ object ZStreamSpec extends ZIOBaseSpec {
                     .fromIterable(1 to 5)
                     .mapZIO(i => pulledRef.update(_ + 1).as(i))
                     .buffer(1)
-              fiber  <- s.mapZIO(i => consumerGo.await.as(i)).runDrain.fork
+              fiber <- s.mapZIO(i => consumerGo.await.as(i)).runDrain.fork
               // Let the fiber run until it blocks waiting for the consumer gate.
               _      <- ZIO.yieldNow.repeatN(10)
               pulled <- pulledRef.get
