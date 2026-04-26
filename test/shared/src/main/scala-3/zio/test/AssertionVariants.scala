@@ -20,7 +20,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{ErrorMessage => M}
 import zio.test.Assertion.Arguments.valueArgument
 import zio.test.diff.{Diff, DiffResult}
-import zio.test.internal.{OptionalImplicit, PrettyPrint}
+import zio.internal.ansi.AnsiStringOps
+import zio.test.internal.OptionalImplicit
 
 trait AssertionVariants {
   private def diffProduct[T](
