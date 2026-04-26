@@ -6,12 +6,47 @@ import zio.metrics.Metric
 import zio.test.TestAspect.{nonFlaky, timeout}
 import zio.test._
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
 
 object FiberRuntimeSpec extends ZIOBaseSpec {
   private implicit val unsafe: Unsafe = Unsafe.unsafe
 
   def spec = suite("FiberRuntimeSpec")(
+    // Regression test for https://github.com/zio/zio/issues/9170
+    suite("OpLog")(
+      test("logs each ZIO effect at Debug level when OpLog is enabled") {
+        val loggedMessages = new AtomicReference(List.empty[String])
+        val testLogger: ZLogger[String, Any] = new ZLogger[String, Any] {
+          override def apply(
+            trace: Trace,
+            fiberId: FiberId,
+            logLevel: LogLevel,
+            message: () => String,
+            cause: Cause[Any],
+            context: FiberRefs,
+            spans: List[LogSpan],
+            annotations: Map[String, String]
+          ): Any = {
+            if (logLevel == LogLevel.Debug) {
+              loggedMessages.updateAndGet(message() :: _)
+            }
+          }
+        }
+
+        ZIO.succeed(42).flatMap(n => ZIO.succeed(n + 1))
+          .provide(
+            Runtime.enableOpLog,
+            Runtime.addLogger(testLogger)
+          )
+          .map { _ =>
+            val logged = loggedMessages.get()
+            assertTrue(
+              logged.exists(_.contains("Sync")),
+              logged.exists(_.contains("FlatMap"))
+            )
+          }
+      }
+    ),
     suite("whileLoop")(
       test("auto-yields every 10280 operations when no other yielding is performed") {
         ZIO.suspendSucceed {
