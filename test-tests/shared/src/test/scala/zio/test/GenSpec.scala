@@ -834,9 +834,9 @@ object GenSpec extends ZIOBaseSpec {
         } yield id
         for {
           samplesA <- genA.runCollectN(5)
+          assertA   = assertTrue(samplesA.distinct.size > 1)
           samplesB <- genB.runCollectN(5)
-        } yield assertTrue(samplesA.distinct.size > 1) &&
-          assertTrue(samplesB.distinct.size > 1)
+        } yield assertA && assertTrue(samplesB.distinct.size > 1)
       },
       test("crossWith still produces Cartesian product for deterministic generators") {
         // zipWith (which uses crossWith) must still produce all combinations for checkAll
