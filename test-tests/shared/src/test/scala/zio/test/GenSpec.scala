@@ -673,11 +673,13 @@ object GenSpec extends ZIOBaseSpec {
       checkFinite(actual)(equalTo(expected))
     },
     test("Gen.uuid before Gen.fromIterable(infinite) produces distinct UUIDs (issue #9101)") {
-      // When a random generator (Gen.uuid) is placed before an infinite
+      // When a random generator (Gen.uuid) is placed before a large
       // deterministic generator (Gen.fromIterable(0 until Int.MaxValue)) in a
       // for-comprehension, each test run must get a fresh UUID.  Previously the
-      // ZStream.flatMap exhausted the infinite inner stream, fixing the random
-      // seed at the value drawn for the very first test run.
+      // ZStream.flatMap exhausted the entire inner stream before advancing the
+      // outer (uuid) generator, fixing the random seed at the value drawn for
+      // the very first test run.  `0 until Int.MaxValue` is used instead of
+      // `LazyList.iterate(0)(_ + 1)` because LazyList was added in Scala 2.13.
       for {
         samples <- {
           val gen = for {
@@ -691,8 +693,7 @@ object GenSpec extends ZIOBaseSpec {
       } yield assert(distinct.size)(isGreaterThan(1))
     },
     test("Gen.fromIterable before Gen.uuid also produces distinct UUIDs") {
-      // Sanity-check: the ordering that was already working should continue
-      // to work after the fix.
+      // Sanity-check: both orderings must produce diverse UUIDs after the fix.
       for {
         samples <- {
           val gen = for {
