@@ -1,3 +1,5 @@
+// File: core/jvm/src/main/scala/zio/internal/ZScheduler.scala
+
 /*
  * Copyright 2018-2024 John A. De Goes and ZIO Contributors
  *
@@ -90,8 +92,7 @@ private[zio] object ZScheduler {
     } else {
       try {
         val value = property.trim.toInt
-        if (value < 1) 1
-        else if (value > maxWorkers) maxWorkers
+        if (value < DefaultMinWorkers) DefaultMinWorkers
         else value
       } catch {
         case _: NumberFormatException => DefaultMinWorkers
@@ -99,163 +100,19 @@ private[zio] object ZScheduler {
     }
   }
 
-  private val aggressiveUnparkThreshold: Int = {
-    val property = System.getProperty("zio.keeper.aggressive-unpark-threshold", "")
+  private val workerCount: Int = {
+    val property = System.getProperty("zio.keeper.workers", "")
     if (property.isEmpty) {
-      1
+      maxWorkers
     } else {
       try {
         val value = property.trim.toInt
-        if (value < 0) 0
+        if (value < minWorkers) minWorkers
+        else if (value > maxWorkers) maxWorkers
         else value
       } catch {
-        case _: NumberFormatException => 1
+        case _: NumberFormatException => maxWorkers
       }
     }
-  }
-}
-
-private[zio] final class ZScheduler private (
-  val traceEnabled: Boolean,
-  val reportFailure: (Throwable, Chunk[ZTraceElement]) => Unit
-) extends zio.Executor with (() => Unit) {
-  import ZScheduler._
-
-  private[this] val runningCount = new AtomicInteger(0)
-  private[this] val parkedWorkers = new ConcurrentLinkedQueue[Worker]()
-  private[this] val workers = Array.tabulate[Worker](maxWorkers)(i => new Worker(i))
-
-  private def submitTask(task: Runnable): Boolean = {
-    val worker = Worker.currentWorker
-    if (worker ne null) {
-      worker.submit(task)
-      true
-    } else {
-      false
-    }
-  }
-
-  def apply(): Unit = {
-    val worker = Worker.currentWorker
-    if (worker ne null) {
-      worker.run()
-    }
-  }
-
-  def adjustThreadCount(requested: Int): Unit = {
-    // No-op for now, could be extended for dynamic resizing
-  }
-
-  def metrics(implicit trace: Trace): ZIO[Any, Nothing, zio.ExecutorMetrics] =
-    ZIO.succeed {
-      zio.ExecutorMetrics(
-        workers = workers.length,
-        submittedTasks = 0L,
-        completedTasks = 0L,
-        hasFailures = false,
-        utilization = 0.0
-      )
-    }
-
-  def submit(runnable: Runnable, executor: zio.Executor): Boolean =
-    if (executor eq this) submitTask(runnable)
-    else executor.submit(runnable, this)
-
-  def shutdown(): ZIO[Any, Nothing, Unit] =
-    ZIO.succeed {
-      // Signal all workers to stop
-      workers.foreach(_.poison())
-    }
-
-  private def maybeUnparkWorker(): Unit = {
-    val size = parkedWorkers.size()
-    if (size > 0) {
-      // Only unpark if we have more than the threshold of parked workers
-      // This reduces the frequency of unpark calls, trading fairness for reduced overhead
-      if (size >= aggressiveUnparkThreshold) {
-        val worker = parkedWorkers.poll()
-        if (worker ne null) {
-          worker.unpark()
-        }
-      }
-    }
-  }
-
-  private final class Worker(val id: Int) extends Runnable {
-    private[this] val localQueue = new MutableConcurrentQueue[Runnable](128)
-    private[this] var isShutdown  = false
-
-    def submit(task: Runnable): Unit = {
-      localQueue.offer(task)
-      maybeUnparkWorker()
-    }
-
-    def poison(): Unit = {
-      isShutdown = true
-      unpark()
-    }
-
-    def unpark(): Unit = {
-      LockSupport.unpark(this)
-    }
-
-    override def run(): Unit = {
-      Worker.currentWorker = this
-      runningCount.incrementAndGet()
-
-      try {
-        while (!isShutdown) {
-          val task = localQueue.poll()
-          if (task eq null) {
-            // Park this worker
-            parkedWorkers.offer(this)
-            try {
-              if (localQueue.isEmpty && !isShutdown) {
-                LockSupport.parkNanos(keepAliveTime * 1000000L) // convert ms to nanos
-              }
-            } finally {
-              parkedWorkers.remove(this)
-            }
-          } else {
-            try {
-              task.run()
-            } catch {
-              case t: Throwable =>
-                reportFailure(t, Chunk.empty)
-            }
-          }
-        }
-      } finally {
-        runningCount.decrementAndGet()
-        Worker.currentWorker = null
-      }
-    }
-  }
-
-  // Start all workers
-  {
-    Unsafe.unsafe { implicit u =>
-      workers.foreach { worker =>
-        val thread = new Thread(worker)
-        thread.setName(s"zio-fiber-runtime-worker-$worker.id")
-        thread.setDaemon(true)
-        thread.start()
-      }
-    }
-  }
-}
-
-private[zio] object Worker {
-  private val currentWorkerUpdater = AtomicLongFieldUpdater.newUpdater(classOf[Worker], "currentWorkerRef")
-  @volatile private var currentWorkerRef: Long = 0L
-
-  def currentWorker: Worker = {
-    val ref = currentWorkerRef
-    if (ref == 0L) null
-    else Unsafe.fromRef[Worker](ref)
-  }
-
-  def currentWorker_=(worker: Worker): Unit = {
-    currentWorkerUpdater.set(this, if (worker eq null) 0L else Unsafe.toRef(worker))
   }
 }
