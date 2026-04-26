@@ -40,12 +40,10 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
     // Shutdown hook integration (simulated via Thread interrupt / latch)
     // -----------------------------------------------------------------------
     suite("shutdown hook")(
-
       /**
        * Validates the core shutdown-hook pathway:
-       *   1. App is running (ZIO.never)
-       *   2. A simulated shutdown hook interrupts the fiber
-       *   3. The finalizer completes before the latch is released
+       *   1. App is running (ZIO.never) 2. A simulated shutdown hook interrupts
+       *      the fiber 3. The finalizer completes before the latch is released
        *
        * This is the unit-level analogue of what happens when the JVM receives
        * SIGINT / SIGTERM and the registered shutdown hook fires.
@@ -59,7 +57,7 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
           finalizerRan <- Ref.make(false)
           effect = (running.succeed(()) *> ZIO.never)
                      .ensuring(finalizerRan.set(true) *> finalized.succeed(()))
-          app   = ZIOAppDefault.fromZIO(effect)
+          app    = ZIOAppDefault.fromZIO(effect)
           fiber <- app.invoke(Chunk.empty).fork
           _     <- running.await
           // Simulate the JVM shutdown hook by interrupting the fiber
@@ -68,7 +66,6 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
           v <- finalizerRan.get
         } yield assertTrue(v)
       } @@ withLiveClock @@ timeout(30.seconds),
-
       test("multiple sequential finalizers all complete before shutdown (issue #9901)") {
         for {
           log   <- Ref.make(Vector.empty[String])
@@ -77,14 +74,13 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
                      .ensuring(log.update(_ :+ "third"))
                      .ensuring(log.update(_ :+ "second"))
                      .ensuring(log.update(_ :+ "first"))
-          app   = ZIOAppDefault.fromZIO(effect)
-          fiber <- app.invoke(Chunk.empty).fork
-          _     <- latch.await
-          _     <- fiber.interrupt
+          app     = ZIOAppDefault.fromZIO(effect)
+          fiber  <- app.invoke(Chunk.empty).fork
+          _      <- latch.await
+          _      <- fiber.interrupt
           result <- log.get
         } yield assertTrue(result == Vector("first", "second", "third"))
       } @@ withLiveClock @@ timeout(30.seconds),
-
       test("scoped resource finalizer runs after SIGINT-like interrupt (issue #9901)") {
         for {
           latch   <- Promise.make[Nothing, Unit]
@@ -103,7 +99,6 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
     // gracefulShutdownTimeout
     // -----------------------------------------------------------------------
     suite("gracefulShutdownTimeout")(
-
       /**
        * When gracefulShutdownTimeout is set to a finite value and finalizers
        * complete within that window, the app shuts down cleanly.
@@ -125,9 +120,9 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
       } @@ withLiveClock @@ timeout(30.seconds),
 
       /**
-       * When gracefulShutdownTimeout is Duration.Zero, the app should still
-       * set shuttingDown = true and not block forever.  The finalizer may or
-       * may not run (timeout is zero) but the shutdown should not hang.
+       * When gracefulShutdownTimeout is Duration.Zero, the app should still set
+       * shuttingDown = true and not block forever. The finalizer may or may not
+       * run (timeout is zero) but the shutdown should not hang.
        *
        * This tests the `case d if d <= Duration.Zero => ()` branch in
        * ZIOAppPlatformSpecific.shutdownHook.
@@ -150,10 +145,9 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
     // Race between shutdown hooks (#9807)
     // -----------------------------------------------------------------------
     suite("shutdown hook race conditions (issue #9807)")(
-
       /**
-       * When two concurrent shutdown hooks exist (one registered by ZIO, one
-       * by user code), the shutdown should still be clean – no spurious
+       * When two concurrent shutdown hooks exist (one registered by ZIO, one by
+       * user code), the shutdown should still be clean – no spurious
        * FiberFailure printed to stderr.
        *
        * Unit-level simulation: we compose two apps that both run ZIO.never and
@@ -179,7 +173,7 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
       /**
        * Validates that when a user-registered JVM shutdown hook runs
        * concurrently with ZIO's own shutdown hook, the ZIO finalizer still
-       * completes without error.  We simulate the "slower user hook" scenario
+       * completes without error. We simulate the "slower user hook" scenario
        * from #9807 by running a brief ZIO.sleep-based finalizer and an
        * unrelated background fiber.
        */
@@ -207,11 +201,10 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
     // Catastrophic failure path
     // -----------------------------------------------------------------------
     suite("catastrophic failure")(
-
       /**
        * When FiberRuntime.catastrophicFailure is set, ZIOApp's shutdown hook
        * skips waiting for finalizers (resources may be leaked) and prints a
-       * warning instead.  We validate that the shuttingDown flag is still set
+       * warning instead. We validate that the shuttingDown flag is still set
        * correctly so that the exit proceeds.
        *
        * NOTE: We reset catastrophicFailure after the test to avoid polluting
@@ -242,21 +235,19 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
     // Subprocess-based SIGINT test
     // -----------------------------------------------------------------------
     suite("subprocess SIGINT (issue #9901)")(
-
       /**
        * Spawns a tiny ZIOApp as a separate JVM process, sends SIGINT, and
-       * verifies that:
-       *   (a) the process exits with code 130 (128 + 2, standard SIGINT exit)
-       *       or 143 (128 + 15, SIGTERM) — OR the custom exit code 0 if the
-       *       JVM catches the signal and runs shutdown hooks cleanly.
-       *   (b) the sentinel file written by the finalizer exists on disk,
-       *       proving the finalizer ran before the JVM exited.
+       * verifies that: (a) the process exits with code 130 (128 + 2, standard
+       * SIGINT exit) or 143 (128 + 15, SIGTERM) — OR the custom exit code 0 if
+       * the JVM catches the signal and runs shutdown hooks cleanly. (b) the
+       * sentinel file written by the finalizer exists on disk, proving the
+       * finalizer ran before the JVM exited.
        *
        * Because spawning a subprocess requires a built JAR/class-path, this
        * test is tagged `ignore` by default and is intended to be enabled in CI
-       * by setting the environment variable ENABLE_SUBPROCESS_TESTS=true.
-       * The test body is included so the logic is reviewable and can be
-       * manually verified.
+       * by setting the environment variable ENABLE_SUBPROCESS_TESTS=true. The
+       * test body is included so the logic is reviewable and can be manually
+       * verified.
        */
       test("SIGINT causes finalizers to run in subprocess (issue #9901)") {
         val enabled = java.lang.System.getenv("ENABLE_SUBPROCESS_TESTS") == "true"
@@ -268,9 +259,9 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
             sentinel.toFile.deleteOnExit()
             java.nio.file.Files.delete(sentinel) // start with file absent
 
-            val cp       = java.lang.System.getProperty("java.class.path")
+            val cp        = java.lang.System.getProperty("java.class.path")
             val mainClass = "zio.ZIOAppSIGINTTestApp" // see companion object below
-            val pb = new ProcessBuilder("java", "-cp", cp, mainClass, sentinel.toAbsolutePath.toString)
+            val pb        = new ProcessBuilder("java", "-cp", cp, mainClass, sentinel.toAbsolutePath.toString)
             pb.redirectErrorStream(true)
             val proc = pb.start()
 
@@ -283,7 +274,7 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
             (exitCode, finalizerRan)
           }.map { case (exitCode, finalizerRan) =>
             assertTrue(finalizerRan) &&
-              assertTrue(exitCode == 0 || exitCode == 130 || exitCode == 143)
+            assertTrue(exitCode == 0 || exitCode == 130 || exitCode == 143)
           }
       } @@ withLiveClock @@ timeout(60.seconds)
     )
@@ -295,21 +286,21 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
  *
  * Usage: java -cp <classpath> zio.ZIOAppSIGINTTestApp <sentinel-file-path>
  *
- * The app writes the sentinel file from its finalizer.  If the JVM exits
- * before the finalizer runs the file will be absent, causing the test to fail.
+ * The app writes the sentinel file from its finalizer. If the JVM exits before
+ * the finalizer runs the file will be absent, causing the test to fail.
  */
 object ZIOAppSIGINTTestApp extends ZIOAppDefault {
   def run: ZIO[ZIOAppArgs with Scope, Any, Any] =
     for {
-      args     <- ZIOAppArgs.getArgs
-      sentinel  = new java.io.File(args.headOption.getOrElse("/tmp/zio-sigint-sentinel.txt"))
-      _        <- ZIO.acquireRelease(
-                    ZIO.debug("ZIOAppSIGINTTestApp: started, waiting for signal...")
-                  )(_ =>
-                    ZIO.debug("ZIOAppSIGINTTestApp: finalizer running") *>
-                      ZIO.succeed(sentinel.createNewFile()) *>
-                      ZIO.debug("ZIOAppSIGINTTestApp: sentinel written")
-                  )
-      _        <- ZIO.never
+      args    <- ZIOAppArgs.getArgs
+      sentinel = new java.io.File(args.headOption.getOrElse("/tmp/zio-sigint-sentinel.txt"))
+      _ <- ZIO.acquireRelease(
+             ZIO.debug("ZIOAppSIGINTTestApp: started, waiting for signal...")
+           )(_ =>
+             ZIO.debug("ZIOAppSIGINTTestApp: finalizer running") *>
+               ZIO.succeed(sentinel.createNewFile()) *>
+               ZIO.debug("ZIOAppSIGINTTestApp: sentinel written")
+           )
+      _ <- ZIO.never
     } yield ()
 }

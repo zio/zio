@@ -22,14 +22,14 @@ import scala.annotation.nowarn
 
 /**
  * Test suite for ZIOApp behaviour covering:
- *  - Exit codes (success / failure / interruption)
- *  - Finalizer execution on normal completion and interruption
- *  - Bootstrap layer lifecycle
- *  - gracefulShutdownTimeout semantics
- *  - Regression cases from issues #9901, #9807, #9240
+ *   - Exit codes (success / failure / interruption)
+ *   - Finalizer execution on normal completion and interruption
+ *   - Bootstrap layer lifecycle
+ *   - gracefulShutdownTimeout semantics
+ *   - Regression cases from issues #9901, #9807, #9240
  *
- * Signal-based tests (SIGINT / shutdown hooks) live in
- * ZIOAppPlatformSpec inside core-tests/jvm-native.
+ * Signal-based tests (SIGINT / shutdown hooks) live in ZIOAppPlatformSpec
+ * inside core-tests/jvm-native.
  */
 object ZIOAppSpec extends ZIOBaseSpec {
 
@@ -47,20 +47,20 @@ object ZIOAppSpec extends ZIOBaseSpec {
       },
       test("composed app logic runs both component effects") {
         for {
-          ref  <- Ref.make(2)
-          app1  = ZIOApp.fromZIO(ref.update(_ + 3))
-          app2  = ZIOApp.fromZIO(ref.update(_ - 5))
-          _    <- (app1 <> app2).invoke(Chunk.empty)
-          v    <- ref.get
+          ref <- Ref.make(2)
+          app1 = ZIOApp.fromZIO(ref.update(_ + 3))
+          app2 = ZIOApp.fromZIO(ref.update(_ - 5))
+          _   <- (app1 <> app2).invoke(Chunk.empty)
+          v   <- ref.get
         } yield assertTrue(v == 0)
       },
       test("ZIOApp.apply accepts a bootstrap layer") {
         for {
-          ref <- Ref.make(false)
+          ref      <- Ref.make(false)
           bootstrap = ZLayer.fromZIO(ref.set(true).as(()))
-          app = ZIOApp(ZIO.unit, bootstrap)
-          _   <- app.invoke(Chunk.empty)
-          v   <- ref.get
+          app       = ZIOApp(ZIO.unit, bootstrap)
+          _        <- app.invoke(Chunk.empty)
+          v        <- ref.get
         } yield assertTrue(v)
       },
       test("command-line arguments are accessible inside run") {
@@ -161,8 +161,8 @@ object ZIOAppSpec extends ZIOBaseSpec {
           app = ZIOApp.fromZIO(
                   ZIO.acquireReleaseWith(ZIO.unit)(_ => released.set(true))(_ => ZIO.unit)
                 )
-          _   <- app.invoke(Chunk.empty)
-          v   <- released.get
+          _ <- app.invoke(Chunk.empty)
+          v <- released.get
         } yield assertTrue(v)
       },
       test("acquireRelease finalizer runs on interruption") {
@@ -170,9 +170,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
           latch    <- Promise.make[Nothing, Unit]
           released <- Ref.make(false)
           app = ZIOApp.fromZIO(
-                  ZIO.acquireReleaseWith(latch.succeed(()) *> ZIO.never)(
-                    _ => released.set(true)
-                  )(_ => ZIO.unit)
+                  ZIO.acquireReleaseWith(latch.succeed(()) *> ZIO.never)(_ => released.set(true))(_ => ZIO.unit)
                 )
           fiber <- app.invoke(Chunk.empty).fork
           _     <- latch.await
@@ -184,8 +182,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
         for {
           log <- Ref.make(List.empty[String])
           app = ZIOApp.fromZIO(
-                  ZIO
-                    .unit
+                  ZIO.unit
                     .ensuring(log.update("outer" :: _))
                     .ensuring(log.update("inner" :: _))
                 )
@@ -196,8 +193,8 @@ object ZIOAppSpec extends ZIOBaseSpec {
       // #9901 – scope finalizer (withFinalizer) runs after SIGINT-like interrupt
       test("withFinalizer finalizer runs when app is interrupted (issue #9901)") {
         for {
-          running   <- Promise.make[Nothing, Unit]
-          closed    <- Ref.make(false)
+          running <- Promise.make[Nothing, Unit]
+          closed  <- Ref.make(false)
           app = ZIOAppDefault.fromZIO(
                   ZIO.scoped(
                     ZIO.unit
@@ -258,8 +255,8 @@ object ZIOAppSpec extends ZIOBaseSpec {
                   run0 = ZIO.fail("run error"),
                   bootstrap0 = ZLayer.scoped(ZIO.acquireRelease(ZIO.unit)(_ => released.set(true)))
                 )
-          _   <- app.invoke(Chunk.empty).ignore
-          v   <- released.get
+          _ <- app.invoke(Chunk.empty).ignore
+          v <- released.get
         } yield assertTrue(v)
       }
     ),
@@ -320,18 +317,18 @@ object ZIOAppSpec extends ZIOBaseSpec {
     suite("concurrency")(
       test("concurrent finalizers both run") {
         for {
-          latch    <- Promise.make[Nothing, Unit]
-          fin1     <- Ref.make(false)
-          fin2     <- Ref.make(false)
-          effect    = (latch.succeed(()) *> ZIO.never)
-                        .ensuring(fin1.set(true))
-                        .zipPar((latch.await *> ZIO.never).ensuring(fin2.set(true)))
-          app       = ZIOApp.fromZIO(effect)
-          fiber    <- app.invoke(Chunk.empty).fork
-          _        <- latch.await
-          _        <- fiber.interrupt
-          v1       <- fin1.get
-          v2       <- fin2.get
+          latch <- Promise.make[Nothing, Unit]
+          fin1  <- Ref.make(false)
+          fin2  <- Ref.make(false)
+          effect = (latch.succeed(()) *> ZIO.never)
+                     .ensuring(fin1.set(true))
+                     .zipPar((latch.await *> ZIO.never).ensuring(fin2.set(true)))
+          app    = ZIOApp.fromZIO(effect)
+          fiber <- app.invoke(Chunk.empty).fork
+          _     <- latch.await
+          _     <- fiber.interrupt
+          v1    <- fin1.get
+          v2    <- fin2.get
         } yield assertTrue(v1 && v2)
       },
       // Regression: #9807 – race between JVM shutdown hooks causing stderr noise.
@@ -373,8 +370,8 @@ object ZIOAppSpec extends ZIOBaseSpec {
                     ZIO.yieldNow *> finalized.set(true)
                   )
                 )
-          _   <- app.invoke(Chunk.empty)
-          v   <- finalized.get
+          _ <- app.invoke(Chunk.empty)
+          v <- finalized.get
         } yield assertTrue(v)
       } @@ timeout(10.seconds)
     ),
