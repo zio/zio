@@ -19,8 +19,6 @@ import zio.internal.FiberRuntime
 import zio.test._
 import zio.test.TestAspect._
 
-import java.util.concurrent.atomic.AtomicBoolean
-
 /**
  * JVM / Native platform tests for ZIOApp.
  *
@@ -285,10 +283,7 @@ object ZIOAppPlatformSpec extends ZIOBaseSpec {
             (exitCode, finalizerRan)
           }.map { case (exitCode, finalizerRan) =>
             assertTrue(finalizerRan) &&
-              assertTrue(
-                exitCode == 0 || exitCode == 130 || exitCode == 143,
-                s"Unexpected exit code: $exitCode"
-              )
+              assertTrue(exitCode == 0 || exitCode == 130 || exitCode == 143)
           }
       } @@ withLiveClock @@ timeout(60.seconds)
     )

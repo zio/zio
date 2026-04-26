@@ -199,9 +199,11 @@ object ZIOAppSpec extends ZIOBaseSpec {
           running   <- Promise.make[Nothing, Unit]
           closed    <- Ref.make(false)
           app = ZIOAppDefault.fromZIO(
-                  ZIO.unit
-                    .withFinalizer(_ => closed.set(true))
-                    .flatMap(_ => running.succeed(()) *> ZIO.never)
+                  ZIO.scoped(
+                    ZIO.unit
+                      .withFinalizer(_ => closed.set(true))
+                      .flatMap(_ => running.succeed(()) *> ZIO.never)
+                  )
                 )
           fiber <- app.invoke(Chunk.empty).fork
           _     <- running.await
