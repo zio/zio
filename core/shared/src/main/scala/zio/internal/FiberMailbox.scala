@@ -22,99 +22,61 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * A highly-optimized MPSC (Multiple-Producer, Single-Consumer) mailbox for
- * [[FiberRuntime]].
+ * An MPSC (Multiple-Producer, Single-Consumer) mailbox for [[FiberRuntime]].
  *
  * Fiber mailboxes are:
- *   - '''Single-consumer''': only the fiber's own run loop ever calls [[poll]].
+ *   - '''Single-consumer''': only the fiber's own run loop ever calls
+ *     [[poll]].
  *   - '''Multi-producer''': any fiber can call [[offer]] concurrently.
  *   - '''Typically very small''': almost always 0 or 1 message is in flight.
  *
  * == Design ==
  *
- * The core optimization is a single ''hot slot'' ([[AtomicReference]]) that
- * covers the overwhelmingly common case where at most one message is
- * outstanding at a time.  Placing a message in the hot slot is a single CAS
- * with '''no heap allocation''', whereas a [[ConcurrentLinkedQueue]] always
- * allocates a linked-list node for each element.
+ * A single ''hot slot'' ([[AtomicReference]]) covers the common case where at
+ * most one message is outstanding at a time. Placing a message in the hot slot
+ * is a single CAS with '''no heap allocation''', whereas a
+ * [[ConcurrentLinkedQueue]] always allocates a linked-list node per element.
  *
- * For the rare case where multiple producers race and the hot slot is already
- * occupied, a standard [[ConcurrentLinkedQueue]] absorbs the overflow.  This
- * case is practically invisible in healthy programs; correctness is preserved
- * even if it does occur.
+ * When the hot slot is already occupied a standard [[ConcurrentLinkedQueue]]
+ * absorbs the overflow; this path is practically never taken.
  *
- * == Memory layout benefit ==
+ * == Correctness ==
  *
- * By embedding this object directly in [[FiberRuntime]] (rather than
- * delegating to a separate [[ConcurrentLinkedQueue]] instance), the hot-slot
- * reference and the fiber's other fields reside in the same cache line,
- * reducing pointer-chasing on every message check.
- *
- * == Correctness note ==
- *
- * [[isEmpty]] may return `true` transiently even when a concurrent [[offer]]
- * is in flight.  This is safe because [[FiberRuntime]] always re-checks
- * emptiness after releasing the drain-lock (see the retry pattern in
- * `drainQueueOnCurrentThread`).
+ * [[isEmpty]] is ''eventually consistent'': it may transiently return `true`
+ * while a concurrent [[offer]] is in flight. This is safe because
+ * [[FiberRuntime]] re-checks emptiness after releasing the drain-lock (see the
+ * retry pattern in `drainQueueOnCurrentThread`).
  */
 private[zio] final class FiberMailbox {
 
-  /**
-   * Hot slot: holds the message for the common single-message-in-flight case.
-   *
-   * Invariant: at most one message lives here at a time. Writers compete via
-   * CAS; the single reader reclaims it with `getAndSet(null)`.
-   */
-  private[this] val _hotSlot: AtomicReference[FiberMessage] =
-    new AtomicReference[FiberMessage](null)
+  /** Hot slot for the common single-message-in-flight case. */
+  private[this] val hotSlot  = new AtomicReference[FiberMessage](null)
+  /** Overflow for the rare case where the hot slot is already occupied. */
+  private[this] val overflow = new ConcurrentLinkedQueue[FiberMessage]()
 
   /**
-   * Overflow queue: absorbs additional messages when the hot slot is already
-   * occupied by a concurrent producer.  In practice this is almost never
-   * needed.
+   * Offers a message to the mailbox. Thread-safe for concurrent callers.
+   *
+   * Fast path: CAS the hot slot — zero allocations. Slow path (hot slot
+   * occupied): enqueue into the overflow CLQ.
    */
-  private[this] val _overflow: ConcurrentLinkedQueue[FiberMessage] =
-    new ConcurrentLinkedQueue[FiberMessage]()
+  def offer(msg: FiberMessage): Unit =
+    if (!hotSlot.compareAndSet(null, msg)) overflow.add(msg)
 
   /**
-   * Offers a message to the mailbox.
+   * Polls a message from the mailbox, returning `null` if empty.
    *
-   * Thread-safe; may be called from any thread concurrently.
-   *
-   * Fast path (≥99% of calls): CAS the hot slot — zero allocations.
-   * Slow path (hot slot occupied): enqueue into the overflow CLQ.
-   */
-  def offer(msg: FiberMessage): Unit = {
-    if (!_hotSlot.compareAndSet(null, msg)) {
-      _overflow.add(msg)
-    }
-  }
-
-  /**
-   * Polls a message from the mailbox, returning `null` if the mailbox is
-   * currently empty.
-   *
-   * Must only be called from the single consumer thread (the fiber's run
-   * loop).  The caller is responsible for handling a `null` return value.
-   *
-   * Poll order: hot slot first, then overflow.
+   * Must only be called from the single consumer (the fiber's run loop).
    */
   def poll(): FiberMessage = {
-    // Atomically claim the hot-slot message (or get null if empty).
-    val hot = _hotSlot.getAndSet(null)
-    if (hot ne null) hot
-    else _overflow.poll()
+    val hot = hotSlot.getAndSet(null)
+    if (hot ne null) hot else overflow.poll()
   }
 
   /**
-   * Returns `true` iff the mailbox appears to be empty at the moment of the
-   * call.
-   *
-   * This check is ''eventually consistent'': a concurrent [[offer]] may make
-   * the result stale immediately after it is returned.  Callers must tolerate
-   * this and must not rely on the result being stable.
+   * Returns `true` iff the mailbox appears empty. Eventually consistent;
+   * callers must tolerate false negatives.
    */
-  def isEmpty: Boolean =
-    (_hotSlot.get eq null) && _overflow.isEmpty
+  def isEmpty: Boolean = (hotSlot.get eq null) && overflow.isEmpty
 
 }
