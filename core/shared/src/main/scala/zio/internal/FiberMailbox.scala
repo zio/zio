@@ -24,23 +24,16 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * An MPSC (Multiple-Producer, Single-Consumer) mailbox for [[FiberRuntime]].
  *
- * Fiber mailboxes are:
- *   - '''Single-consumer''': only the fiber's own run loop ever calls
- *     [[poll]].
- *   - '''Multi-producer''': any fiber can call [[offer]] concurrently.
- *   - '''Typically very small''': almost always 0 or 1 message is in flight.
- *
- * == Design ==
+ * Fiber mailboxes are single-consumer (only the fiber's own run loop calls
+ * [[poll]]), multi-producer (any fiber may call [[offer]] concurrently), and
+ * typically very small — almost always 0 or 1 message in flight.
  *
  * A single ''hot slot'' ([[AtomicReference]]) covers the common case where at
- * most one message is outstanding at a time. Placing a message in the hot slot
- * is a single CAS with '''no heap allocation''', whereas a
+ * most one message is outstanding. Placing a message in the hot slot requires
+ * only a single CAS with '''no heap allocation''', whereas a
  * [[ConcurrentLinkedQueue]] always allocates a linked-list node per element.
- *
- * When the hot slot is already occupied a standard [[ConcurrentLinkedQueue]]
- * absorbs the overflow; this path is practically never taken.
- *
- * == Correctness ==
+ * When the hot slot is already occupied an overflow [[ConcurrentLinkedQueue]]
+ * absorbs the extra message; this overflow path is practically never taken.
  *
  * [[isEmpty]] is ''eventually consistent'': it may transiently return `true`
  * while a concurrent [[offer]] is in flight. This is safe because
@@ -49,16 +42,16 @@ import java.util.concurrent.atomic.AtomicReference
  */
 private[zio] final class FiberMailbox {
 
-  /** Hot slot for the common single-message-in-flight case. */
-  private[this] val hotSlot  = new AtomicReference[FiberMessage](null)
-  /** Overflow for the rare case where the hot slot is already occupied. */
+  // Hot slot: holds at most one message. Writers CAS; the reader uses getAndSet.
+  private[this] val hotSlot = new AtomicReference[FiberMessage](null)
+  // Overflow: absorbs messages that arrive while the hot slot is occupied.
   private[this] val overflow = new ConcurrentLinkedQueue[FiberMessage]()
 
   /**
    * Offers a message to the mailbox. Thread-safe for concurrent callers.
    *
-   * Fast path: CAS the hot slot — zero allocations. Slow path (hot slot
-   * occupied): enqueue into the overflow CLQ.
+   * Fast path: a single CAS into the hot slot — zero allocations. Slow path
+   * (hot slot already occupied): enqueue into the overflow CLQ.
    */
   def offer(msg: FiberMessage): Unit =
     if (!hotSlot.compareAndSet(null, msg)) overflow.add(msg)
