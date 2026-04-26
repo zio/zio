@@ -3404,11 +3404,13 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
           // uninterruptible offer therefore blocks until the sink consumes that last element
           // (freeing space), after which Take.end is enqueued and the sink exits naturally.
           //
-          // `.ignore` handles the case where the queue was already shut down (e.g. a failing
-          // sink that called queue.shutdown first) — the interrupt from the shut-down offer is
-          // deferred by `uninterruptible`, which short-circuits `*>` and lets the block exit
-          // without waiting, since shutdown has already happened.
-          .ensuring(ZIO.uninterruptible(queue.offer(Take.end).ignore *> queue.awaitShutdown))
+          // `catchAllCause(_ => ZIO.unit)` handles the case where the queue was already shut
+          // down (e.g. a finishing sink that called queue.shutdown).  `queue.offer` on a
+          // shut-down queue returns `ZIO.interrupt`, which is a *self*-interrupt and bypasses
+          // `ZIO.uninterruptible`.  `catchAllCause` materialises both errors and interrupts
+          // into the ZIO value channel, so the block continues to `queue.awaitShutdown` (which
+          // returns immediately for an already-shut-down queue) without terminating the fiber.
+          .ensuring(ZIO.uninterruptible(queue.offer(Take.end).catchAllCause(_ => ZIO.unit) *> queue.awaitShutdown))
       )
         // Wrap right.run(sink) in ZIO.uninterruptible so that a downstream `take` cannot kill
         // the sink fiber while it is processing the last element in the queue.  The right side
