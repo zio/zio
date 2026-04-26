@@ -44,26 +44,7 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
     TestResult(arrow.setGenFailureDetails(details))
 }
 
-private[test] trait TestResultLowPriority {
-
-  /**
-   * Fallback implicit conversion from [[TestResult]] to `ZIO` used when no
-   * implicit [[zio.Trace]] is in scope (e.g. inside a `ZIOSpecDefault` that
-   * imports `disableAutoTrace`). Uses [[Trace.empty]] so the `TestResult`
-   * failure site — already recorded inside the `TestResult` — is preserved.
-   *
-   * This has lower priority than [[TestResult.liftTestResultToZIO]] (defined in
-   * the companion object); when a `Trace` *is* available, the companion-object
-   * version wins and the caller's trace is used.
-   */
-  implicit def liftTestResultToZIOFallback[R, E](result: TestResult): ZIO[R, E, TestResult] =
-    if (result.isSuccess)
-      ZIO.succeed(result)(Trace.empty)
-    else
-      ZIO.die(TestResult.Exit(result))(Trace.empty)
-}
-
-object TestResult extends TestResultLowPriority {
+object TestResult {
   def allSuccesses(assert: TestResult, asserts: TestResult*): TestResult = asserts.foldLeft(assert)(_ && _)
 
   def allSuccesses(asserts: Iterable[TestResult])(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
@@ -74,31 +55,6 @@ object TestResult extends TestResultLowPriority {
   def anySuccesses(asserts: Iterable[TestResult])(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
     anySuccesses(!assertCompletes, asserts.toSeq: _*)
 
-  /**
-   * Converts a [[TestResult]] into a `ZIO` effect.
-   *
-   * This implicit conversion enables using `assertTrue` (and other
-   * `TestResult`-returning combinators) as the result of a `ZIO#flatMap`
-   * callback:
-   *
-   * {{{
-   * val foo = ZIO.succeed(1)
-   * foo.flatMap(result => assertTrue(result == 1))
-   * }}}
-   *
-   * Equivalent to the for-comprehension form:
-   *
-   * {{{
-   * for {
-   *   result <- foo
-   * } yield assertTrue(result == 1)
-   * }}}
-   *
-   * @note
-   *   In Scala 2, if this conversion is not found automatically (e.g. because
-   *   `disableAutoTrace` suppresses the `Trace` macro), the lower-priority
-   *   [[TestResultLowPriority.liftTestResultToZIOFallback]] is used instead.
-   */
   implicit def liftTestResultToZIO[R, E](result: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
     if (result.isSuccess)
       ZIO.succeed(result)

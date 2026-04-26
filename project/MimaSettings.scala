@@ -46,10 +46,7 @@ object MimaSettings {
         exclude[Problem]("zio.test.TestClock.SuspendedWarningData"),
         exclude[Problem]("zio.test.TestClock.WarningData"),
         exclude[DirectMissingMethodProblem]("zio.test.package.testFiberRefGen"),
-        exclude[IncompatibleMethTypeProblem]("zio.test.package.warningEmptyGen"),
-        // New mixin forwarder added to TestResult$ companion when TestResultLowPriority parent trait was introduced
-        // to provide a Trace-free fallback for liftTestResultToZIO (fixes issue #8668)
-        exclude[NewMixinForwarderProblem]("zio.test.TestResult.liftTestResultToZIOFallback")
+        exclude[IncompatibleMethTypeProblem]("zio.test.package.warningEmptyGen")
       ),
       mimaFailOnProblem := failOnProblem
     )
