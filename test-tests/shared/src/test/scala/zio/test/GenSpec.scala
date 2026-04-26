@@ -706,7 +706,7 @@ object GenSpec extends ZIOBaseSpec {
     },
     test("size can be modified locally") {
       val getSize = Gen.size.sample.map(_.value).runCollect.map(_.head)
-      val result  = for {
+      val result = for {
         x <- Sized.withSize(200)(getSize)
         y <- getSize
       } yield x == 2 * y
