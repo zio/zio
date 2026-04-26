@@ -398,7 +398,12 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             if (searching) {
               searching = false
               val currentState = state.decrementAndGet()
-              maybeUnparkWorker(currentState)
+              // Only unpark another searcher if there is actually visible pending
+              // work. Without this gate we unpark a worker that immediately finds
+              // nothing and parks again — the excessive cycling described in #9878.
+              if (!localQueue.isEmpty() || !globalQueue.isEmpty()) {
+                maybeUnparkWorker(currentState)
+              }
             }
             currentRunnable = runnable
             runnable.run()
