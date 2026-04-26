@@ -125,10 +125,10 @@ object FiberSetSpec extends ZIOBaseSpec {
         ZIO.succeed {
           val s     = new FiberSet[AnyRef]()
           val count = 1000
-          val elems = Array.fill(count)(new Object())
+          val elems = List.fill(count)(new Object())
           val latch = new CountDownLatch(1)
           val threads = elems.map { e =>
-            val t = new Thread(() => { latch.await(); s.add(e) })
+            val t = new Thread(new Runnable { def run(): Unit = { latch.await(); s.add(e); () } })
             t.start()
             t
           }
