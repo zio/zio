@@ -19,6 +19,8 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{ErrorMessage => M}
 import zio.test.Assertion.Arguments.valueArgument
+import zio.test.diff.{Diff, DiffResult}
+import zio.test.internal.{OptionalImplicit, PrettyPrint}
 
 trait AssertionVariants {
   private def diffProduct[T](
@@ -67,8 +69,10 @@ trait AssertionVariants {
 
   /**
    * Makes a new assertion that requires a value equal the specified value.
+   * When a [[Diff]] instance is available for the type, a structured diff is
+   * rendered on failure instead of a plain "expected / obtained" message.
    */
-  final def equalTo[A](expected: A): Assertion[A] =
+  final def equalTo[A](expected: A)(implicit diff: OptionalImplicit[Diff[A]]): Assertion[A] =
     Assertion[A](
       TestArrow
         .make[A, Boolean] { actual =>
@@ -78,10 +82,28 @@ trait AssertionVariants {
             case (left, right)                             => left == right
           }
           TestTrace.boolean(result) {
-            if (expected.isInstanceOf[Product]) {
-              M.text(diffProduct(actual, expected))
-            } else {
-              M.pretty(actual) + M.equals + M.pretty(expected)
+            diff.value match {
+              case Some(d) if !d.isLowPriority && !result =>
+                val diffResult = d.diff(expected, actual)
+                diffResult match {
+                  case DiffResult.Different(_, _, None) =>
+                    M.pretty(actual) + M.equals + M.pretty(expected)
+                  case diffResult =>
+                    M.choice("There was no difference", "There was a difference") ++
+                      M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(expected)) ++
+                      M.custom(
+                        ConsoleUtils.underlined(
+                          "Diff"
+                        ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
+                      ) ++
+                      M.custom(scala.Console.RESET + diffResult.render)
+                }
+              case _ =>
+                if (expected.isInstanceOf[Product]) {
+                  M.text(diffProduct(actual, expected))
+                } else {
+                  M.pretty(actual) + M.equals + M.pretty(expected)
+                }
             }
           }
         }
