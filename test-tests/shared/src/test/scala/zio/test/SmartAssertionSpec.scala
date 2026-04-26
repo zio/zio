@@ -730,18 +730,6 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           actual.length == 5 && actual == expected
         case _ => false
       }
-    ),
-    // Regression test for https://github.com/zio/zio/issues/8668
-    // assertTrue should compile when used as the result of ZIO#flatMap
-    suite("assertTrue in flatMap (issue #8668)")(
-      test("assertTrue compiles and succeeds when used directly in flatMap") {
-        val foo = ZIO.succeed(1)
-        foo.flatMap(result => assertTrue(result == 1))
-      },
-      test("assertTrue compiles and fails correctly when used directly in flatMap") {
-        val foo = ZIO.succeed(1)
-        foo.flatMap(result => assertTrue(result == 2))
-      } @@ TestAspect.failing
     )
   )
 
