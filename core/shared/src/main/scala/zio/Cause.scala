@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -112,17 +112,46 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
 
   /**
    * Returns the `E` associated with the first `Fail` in this `Cause` if one
-   * exists.
+   * exists. To guarantee defect prioritization, this method returns `None`
+   * if the cause contains any `Die` or `Interrupt` nodes.
+   * Implementation Note: Uses a single-pass traversal for O(N) performance.
    */
-  def failureOption: Option[E] =
-    find { case Fail(e, _) => e }
+  def failureOption: Option[E] = {
+    val result = self.foldLeft[Either[Int, E]](Left(0)) {
+      case (Left(1), _)          => Left(1) // 1 = Die
+      case (_, Die(_, _))        => Left(1)
+      case (Left(2), _)          => Left(2) // 2 = Interrupt
+      case (_, Interrupt(_, _))  => Left(2)
+      case (Left(0), Fail(e, _)) => Right(e) // 0 = Empty/Nothing Yet
+      case (acc, _)              => acc
+    }
+    
+    result match {
+      case Right(e) => Some(e)
+      case _        => None
+    }
+  }
 
   /**
    * Returns the `E` associated with the first `Fail` in this `Cause` if one
-   * exists, along with its (optional) trace.
+   * exists, along with its (optional) trace. Guarantees defect prioritization
+   * by returning `None` if any `Die` or `Interrupt` nodes exist.
    */
-  def failureTraceOption: Option[(E, StackTrace)] =
-    find { case Fail(e, trace) => (e, trace) }
+  def failureTraceOption: Option[(E, StackTrace)] = {
+    val result = self.foldLeft[Either[Int, (E, StackTrace)]](Left(0)) {
+      case (Left(1), _)               => Left(1)
+      case (_, Die(_, _))             => Left(1)
+      case (Left(2), _)               => Left(2)
+      case (_, Interrupt(_, _))       => Left(2)
+      case (Left(0), Fail(e, trace))  => Right((e, trace))
+      case (acc, _)                   => acc
+    }
+
+    result match {
+      case Right(res) => Some(res)
+      case _          => None
+    }
+  }
 
   /**
    * Retrieve the first checked error on the `Left` if available, if there are
@@ -758,8 +787,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
 }
 
 object Cause extends Serializable {
-  val unit: Cause[Unit]                                                                = fail(())
-  val empty: Cause[Nothing]                                                            = Empty
+  val unit: Cause[Unit]                                                  = fail(())
+  val empty: Cause[Nothing]                                              = Empty
   def die(defect: Throwable, trace: StackTrace = StackTrace.none): Cause[Nothing]      = Die(defect, trace)
   def fail[E](error: E, trace: StackTrace = StackTrace.none): Cause[E]                 = Fail(error, trace)
   def interrupt(fiberId: FiberId, trace: StackTrace = StackTrace.none): Cause[Nothing] = Interrupt(fiberId, trace)
@@ -805,9 +834,9 @@ object Cause extends Serializable {
   }
   object Folder {
     case object Size extends Folder[Any, Any, Int] {
-      def empty(context: Any): Int                                                   = 0
-      def failCase(context: Any, error: Any, stackTrace: StackTrace): Int            = 1
-      def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Int           = 1
+      def empty(context: Any): Int                                               = 0
+      def failCase(context: Any, error: Any, stackTrace: StackTrace): Int        = 1
+      def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Int       = 1
       def interruptCase(context: Any, fiberId: FiberId, stackTrace: StackTrace): Int = 1
 
       def bothCase(context: Any, left: Int, right: Int): Int               = left + right
@@ -816,9 +845,9 @@ object Cause extends Serializable {
     }
 
     case object IsInterruptedOnly extends Folder[Any, Any, Boolean] {
-      def empty(context: Any): Boolean                                                   = true
-      def failCase(context: Any, error: Any, stackTrace: StackTrace): Boolean            = false
-      def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Boolean           = false
+      def empty(context: Any): Boolean                                               = true
+      def failCase(context: Any, error: Any, stackTrace: StackTrace): Boolean        = false
+      def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Boolean       = false
       def interruptCase(context: Any, fiberId: FiberId, stackTrace: StackTrace): Boolean = true
 
       def bothCase(context: Any, left: Boolean, right: Boolean): Boolean           = left && right
