@@ -84,10 +84,10 @@ private[zio] trait PlatformSpecific {
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
 
   final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
-    Collections.newSetFromMap(new ConcurrentHashMap[A, java.lang.Boolean]())
+    Collections.synchronizedSet(new java.util.HashSet[A]())
 
   final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
-    Collections.newSetFromMap(new ConcurrentHashMap[A, java.lang.Boolean](initialCapacity))
+    Collections.synchronizedSet(new java.util.HashSet[A](initialCapacity))
 
   private def blackhole(a: Any): Unit = {
     val _ = a
