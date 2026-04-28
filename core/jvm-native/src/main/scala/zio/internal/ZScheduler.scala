@@ -449,7 +449,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     val currentSearching = currentState & 0xffff
     val currentActive = (currentState & 0xffff0000) >> 16
     if (currentActive != poolSize && currentSearching == 0) {
-      val now = System.nanoTime()
+      val now = java.lang.System.nanoTime()
       val prev = lastUnparkNanos.get()
       if (now - prev < 200000L) {
         ()
