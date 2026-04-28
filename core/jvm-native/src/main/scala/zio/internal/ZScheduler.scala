@@ -40,7 +40,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val idle            = new ConcurrentLinkedQueue[ZScheduler.Worker]()
   private[this] val globalLocations = makeLocations()
   private[this] val state           = new AtomicInteger(poolSize << 16)
-  private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
+  private[this] val workers = Array.ofDim[ZScheduler.Worker](poolSize)
+  private[this] val lastUnparkNanos = new AtomicLong(0L)
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
@@ -446,13 +447,21 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
   private def maybeUnparkWorker(currentState: Int): Unit = {
     val currentSearching = currentState & 0xffff
-    val currentActive    = (currentState & 0xffff0000) >> 16
+    val currentActive = (currentState & 0xffff0000) >> 16
     if (currentActive != poolSize && currentSearching == 0) {
-      val worker = idle.poll()
-      if (worker ne null) {
-        state.getAndAdd(0x10001)
-        worker.active = true
-        LockSupport.unpark(worker)
+      val now = System.nanoTime()
+      val prev = lastUnparkNanos.get()
+      if (now - prev < 200000L) {
+        ()
+      } else if (lastUnparkNanos.compareAndSet(prev, now)) {
+        val worker = idle.poll()
+        if (worker ne null) {
+          state.getAndAdd(0x10001)
+          worker.active = true
+          LockSupport.unpark(worker)
+        } else {
+          lastUnparkNanos.compareAndSet(now, 0L)
+        }
       }
     }
   }
