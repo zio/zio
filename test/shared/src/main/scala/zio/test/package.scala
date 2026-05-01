@@ -398,7 +398,7 @@ package object test extends CompileVariants {
     sourceLocation: SourceLocation,
     trace: Trace
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-    TestConfig.samples.flatMap(n => checkStream(rv.sample.forever.take(n.toLong))(a => checkConstructor(test(a))))
+    TestConfig.samples.flatMap(n => checkStream(rv.sample.take(1).forever.take(n.toLong))(a => checkConstructor(test(a))))
 
   /**
    * A version of `check` that accepts two random variables.
@@ -800,7 +800,7 @@ package object test extends CompileVariants {
     trace: Trace
   ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
     TestConfig.samples.flatMap(n =>
-      checkStreamPar(rv.sample.forever.take(n.toLong), parallelism)(a => checkConstructor(test(a)))
+      checkStreamPar(rv.sample.take(1).forever.take(n.toLong), parallelism)(a => checkConstructor(test(a)))
     )
 
   /**
@@ -1009,7 +1009,7 @@ package object test extends CompileVariants {
         checkConstructor: CheckConstructor[R, In],
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
-        checkStream(rv.sample.forever.take(n.toLong))(a => checkConstructor(test(a)))
+        checkStream(rv.sample.take(1).forever.take(n.toLong))(a => checkConstructor(test(a)))
       def apply[R <: ZAny, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => In
       )(implicit

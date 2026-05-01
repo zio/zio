@@ -776,6 +776,26 @@ object GenSpec extends ZIOBaseSpec {
       check(Gen.setOfN(2)(Gen.fromIterable(List(1, 2, 3)))) { set =>
         assertTrue(set.size == 2)
       }
+    },
+    test("effectful gen before large deterministic gen produces varied samples (issue #9101)") {
+      // Regression test: in the broken case, uuid was sampled once and reused for all samples
+      // because fromIterable produced an infinite-like stream that never restarted.
+      val gen = for {
+        id <- Gen.uuid
+        _  <- Gen.fromIterable(0 to 1000000)
+      } yield id
+      for {
+        samples <- gen.runCollectN(10)
+      } yield assert(samples.distinct)(hasSize(isGreaterThan(1)))
+    },
+    test("effectful gen after deterministic gen also produces varied samples (issue #9101 working case)") {
+      val gen = for {
+        _ <- Gen.fromIterable(0 to 1000000)
+        id <- Gen.uuid
+      } yield id
+      for {
+        samples <- gen.runCollectN(10)
+      } yield assert(samples.distinct)(hasSize(isGreaterThan(1)))
     }
   )
 }
