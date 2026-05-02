@@ -12,9 +12,9 @@ import scala.util.control.TailCalls
 
 case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
-  lazy val result: TestTrace[Boolean] = TestArrow.run(arrow, Right(()))
+  val result: TestTrace[Boolean] = TestArrow.run(arrow, Right(()))
 
-  lazy val failures: Option[TestTrace[Boolean]] = TestTrace.prune(result, false)
+  val failures: Option[TestTrace[Boolean]] = TestTrace.prune(result, false)
 
   def isFailure: Boolean = failures.isDefined
 
