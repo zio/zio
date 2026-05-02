@@ -12,9 +12,9 @@ import scala.util.control.TailCalls
 
 case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
-  val result: TestTrace[Boolean] = TestArrow.run(arrow, Right(()))
+  lazy val result: TestTrace[Boolean] = TestArrow.run(arrow, Right(()))
 
-  val failures: Option[TestTrace[Boolean]] = TestTrace.prune(result, false)
+  lazy val failures: Option[TestTrace[Boolean]] = TestTrace.prune(result, false)
 
   def isFailure: Boolean = failures.isDefined
 
@@ -45,6 +45,29 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 }
 
 object TestResult {
+
+  /**
+   * Build a `TestResult` whose underlying `TestArrow` is run **once, eagerly**,
+   * with the resulting `TestTrace` cached behind a constant arrow. This is used
+   * by every `assertTrue` / `assert(...)(...)` entry point so that:
+   *
+   *   - Side-effecting expressions inside the assertion (e.g.
+   *     `q.offer(1)`, `alive.get`) are evaluated exactly once, at the call
+   *     site — i.e. *inside* the user's effect chain. That keeps any
+   *     scope-managed resources alive when the captured value is read, and
+   *     prevents `&&`/`||` composition from re-running the side effect on
+   *     every combinator step.
+   *
+   *   - Subsequent runs of the resulting arrow (driven by `result` /
+   *     `failures` inspection, or by composing into a larger `TestResult`)
+   *     return the cached trace without re-executing the original
+   *     expression.
+   */
+  def cached(arrow: TestArrow[Any, Boolean]): TestResult = {
+    val trace = TestArrow.run(arrow, Right(()))
+    TestResult(TestArrow.TestArrowF[Any, Boolean](_ => trace))
+  }
+
   def allSuccesses(assert: TestResult, asserts: TestResult*): TestResult = asserts.foldLeft(assert)(_ && _)
 
   def allSuccesses(asserts: Iterable[TestResult])(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =

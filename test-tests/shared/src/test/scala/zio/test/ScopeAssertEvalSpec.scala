@@ -18,7 +18,7 @@ object ScopeAssertEvalSpec extends ZIOBaseSpec {
         } yield assertTrue(alive.get)
       }
     },
-    test("eagerly captured Boolean works") {
+    test("eagerly captured Boolean inside ZIO.scoped works") {
       ZIO.scoped {
         for {
           alive  <- aliveResource
