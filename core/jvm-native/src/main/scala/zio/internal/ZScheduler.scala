@@ -62,6 +62,21 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   override private[zio] def isCurrentThreadInExecutor: Boolean =
     Thread.currentThread().isInstanceOf[ZScheduler.Worker]
 
+  /**
+   * Performs Power of Two Choices (P2C) to select the least-loaded worker.
+   * This is a wait-free O(1) operation that avoids global queue contention.
+   */
+  private[this] def chooseLeastLoadedWorker(): ZScheduler.Worker = {
+    val rnd = ThreadLocalRandom.current()
+    val i   = rnd.nextInt(poolSize)
+    val j   = rnd.nextInt(poolSize)
+    val wI  = workers(i)
+    val wJ  = workers(j)
+
+    // Compare queue sizes (volatile reads) to pick the better candidate
+    if (wI.localQueue.size() <= wJ.localQueue.size()) wI else wJ
+  }
+
   def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics] = {
     val metrics = new ExecutionMetrics {
       def capacity: Int =
@@ -148,11 +163,19 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      if ((worker eq null) || worker.blocking) {
-        globalQueue.offer(runnable)
-      } else if (!worker.localQueue.offer(runnable)) {
-        handleFullWorkerQueue(worker, runnable)
-      } else ()
+      if (worker ne null) {
+        if (worker.blocking) {
+          globalQueue.offer(runnable)
+        } else if (!worker.localQueue.offer(runnable)) {
+          handleFullWorkerQueue(worker, runnable)
+        } else ()
+      } else {
+        // NIO Push-based model for external submissions
+        val target = chooseLeastLoadedWorker()
+        if (!target.localQueue.offer(runnable)) {
+          globalQueue.offer(runnable)
+        }
+      }
       val currentState = state.get
       maybeUnparkWorker(currentState)
       true
@@ -165,7 +188,13 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       submitBlocking(runnable)
     } else {
       var notify = true
-      if ((worker eq null) || worker.blocking) {
+      if (worker eq null) {
+        // NIO Push-based model for external submissions
+        val target = chooseLeastLoadedWorker()
+        if (!target.localQueue.offer(runnable)) {
+          globalQueue.offer(runnable)
+        }
+      } else if (worker.blocking) {
         globalQueue.offer(runnable)
       }
       // Attempt resumption in the current Thread
