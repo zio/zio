@@ -105,7 +105,7 @@ jobs:
       - name: Install NodeJS
         uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24.14.1
 
       - name: Compile Docs
         run: |
@@ -350,13 +350,13 @@ jobs:
           git commit -m "$commit_message" || echo "No changes to commit"
       - name: Generate a token
         id: generate-tokens
-        uses: actions/create-github-app-token@v3.0.0
+        uses: actions/create-github-app-token@v3.1.1
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_SECRET }}
           owner: ${{ github.repository_owner }}
       - name: Create Pull Request to Update Docs
-        uses: peter-evans/create-pull-request@v8.1.0
+        uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ steps.generate-token.outputs.token }}
           body: |-
