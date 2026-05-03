@@ -1,12 +1,12 @@
 package zio.stream
 
 import zio._
-import zio.stm.TQueue
 import zio.concurrent.CountdownLatch
+import zio.stm.TQueue
 import zio.stream.ZStream.HaltStrategy
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock}
+import zio.test.TestAspect.{identity => _, _}
 import zio.test._
 
 import java.io.{ByteArrayInputStream, IOException}

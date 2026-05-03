@@ -36,6 +36,49 @@ val chars =
 
 There is also a `ZPipeline.mapZIO` which is an effectful version of this constructor.
 
+### From Custom Channels
+
+For stateful transformations that can't be expressed with `map` or `mapZIO`, you can build pipelines directly from `ZChannel` using `ZChannel.readWithCause`. Here is a pipeline that pairs each element with its predecessor:
+
+```scala mdoc:silent:nest
+import zio.{ZNothing, Cause}
+import zio.stream.ZChannel
+
+def pairwise[A]: ZPipeline[Any, Nothing, A, (A, A)] =
+  ZPipeline.fromChannel(pairwiseGo[A](None))
+
+def pairwiseGo[A](
+  prev: Option[A]
+): ZChannel[Any, ZNothing, Chunk[A], Any, ZNothing, Chunk[(A, A)], Any] =
+  ZChannel.readWithCause(
+    (in: Chunk[A]) => {
+      val buf  = Chunk.newBuilder[(A, A)]
+      var last = prev
+      in.foreach { a =>
+        last.foreach(p => buf += ((p, a)))
+        last = Some(a)
+      }
+      val out = buf.result()
+      (if (out.nonEmpty) ZChannel.write(out) else ZChannel.unit) *> pairwiseGo(last)
+    },
+    (err: Cause[ZNothing]) => ZChannel.refailCause(err),
+    (_: Any) => ZChannel.unit
+  )
+```
+
+The three-case `readWithCause` pattern handles:
+- **Case 1 (in):** Process incoming chunk, emit outputs, recurse to read next chunk
+- **Case 2 (err):** Handle errors from upstream (usually propagate with `refailCause`)
+- **Case 3 (done):** Handle stream completion (finalize any pending state)
+
+:::note
+Use `ZNothing` (not `Nothing`) as the error type in channel signatures. `ZNothing` is ZIO's abstract bottom type that avoids Scala type inference issues when composing channels with `readWithCause`.
+:::
+
+:::info
+**Why channels instead of functions?** Pipelines are channels because they need to compose seamlessly with sinks and other pipelines. A function-based pipeline couldn't be composed with a sink—the channel abstraction provides a unified interface for all streaming components.
+:::
+
 ## Built-in Pipelines
 
 ### Identity

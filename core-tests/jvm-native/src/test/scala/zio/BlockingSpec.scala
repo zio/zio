@@ -46,7 +46,24 @@ object BlockingSpec extends ZIOBaseSpec {
         },
         test("can be interrupted") {
           assertZIO(ZIO.attemptBlockingInterrupt(Thread.sleep(50000)).timeout(Duration.Zero))(isNone)
-        } @@ nonFlaky
+        } @@ nonFlaky,
+        test("issues multiple thread interruptions") {
+          val interruptCount = new AtomicInteger(0)
+          val effect = ZIO.attemptBlockingInterrupt {
+            while (true) {
+              try {
+                Thread.sleep(Long.MaxValue)
+              } catch {
+                case t: InterruptedException =>
+                  if (interruptCount.incrementAndGet() >= 5) throw t
+              }
+            }
+          }
+          for {
+            _    <- Live.live(effect.timeout(50.millis))
+            count = interruptCount.get()
+          } yield assertTrue(count >= 5)
+        }
       ),
       suite("ZIO.blocking")(
         test("runs on blocking thread pool") {

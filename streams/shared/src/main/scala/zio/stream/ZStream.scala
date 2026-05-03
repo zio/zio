@@ -4390,20 +4390,32 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     is: => InputStream,
     chunkSize: => Int = ZStream.DefaultChunkSize
   )(implicit trace: Trace): ZStream[Any, IOException, Byte] =
-    ZStream.succeed((is, chunkSize)).flatMap { case (is, chunkSize) =>
+    ZStream.suspend {
+      val is0        = is
+      val chunkSize0 = chunkSize
+      val bufArray   = Array.ofDim[Byte](chunkSize0) // Reusable
+
       ZStream.repeatZIOChunkOption {
-        for {
-          bufArray  <- ZIO.succeed(Array.ofDim[Byte](chunkSize))
-          bytesRead <- ZIO.attemptBlockingIO(is.read(bufArray)).asSomeError
-          bytes <- if (bytesRead < 0)
-                     Exit.failNone
-                   else if (bytesRead == 0)
-                     Exit.emptyChunk
-                   else if (bytesRead < chunkSize)
-                     ZIO.succeed(Chunk.fromArray(bufArray).take(bytesRead))
-                   else
-                     ZIO.succeed(Chunk.fromArray(bufArray))
-        } yield bytes
+        ZIO.suspend { // is0.available can throw an IOException, so we need to use `suspend`
+          if (is0.available() > 0) {
+            // Non-blocking read since data is available
+            Exit.succeed(is0.read(bufArray))
+          } else {
+            // No bytes are immediately available, so the read will block
+            ZIO.attemptBlockingInterrupt(is0.read(bufArray))
+          }
+        }
+          .refineToOrDie[IOException]
+          .asSomeError
+          .flatMap {
+            case -1 =>
+              Exit.failNone
+            case 0 =>
+              Exit.emptyChunk
+            case bytesRead =>
+              val arr = bufArray.take(bytesRead) // We must make a copy!
+              Exit.succeed(Chunk.fromArray(arr))
+          }
       }
     }
 
