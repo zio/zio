@@ -4,6 +4,7 @@ const path = require('path');
 
 const lightCodeTheme = require('prism-react-renderer/themes/github');
 const darkCodeTheme = require('prism-react-renderer/themes/vsDark');
+const { getEditUrl } = require('./editUrl')
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -241,7 +242,7 @@ const config = {
               },
             ],
           ],
-          editUrl: 'https://github.com/zio/zio/edit/series/2.x',
+          editUrl: getEditUrl,
         },
         blog: {
           blogTitle: 'ZIO Blog',
@@ -285,6 +286,38 @@ const config = {
           },
         ],
       },
+    ],
+    [
+      'docusaurus-plugin-llms',
+      /** @type {import('docusaurus-plugin-llms').PluginOptions} */
+      ({
+        generateLLMsTxt: true,
+        generateLLMsFullTxt: true,
+        generateMarkdownFiles: true,
+        docsDir: 'docs',
+        ignoreFiles: [],
+        title: 'ZIO',
+        description:
+          'Type-safe, composable asynchronous and concurrent programming for Scala.',
+        includeBlog: false,
+        pathTransformation: {
+          ignorePaths: ['docs'],
+          addPaths: [],
+        },
+        includeOrder: [
+          'overview/**',
+          'reference/**',
+          'guides/**',
+          'ecosystem/**',
+          'resources/**',
+          'events/**',
+          'faq.md',
+        ],
+        excludeImports: true,
+        removeDuplicateHeadings: true,
+        includeUnmatchedLast: true,
+        preserveDirectoryStructure: false,
+      }),
     ],
   ],
   markdown: {
