@@ -500,15 +500,22 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
       self.upstreamExecutor,
       onEffect = (effect: ZIO[Env, Nothing, Unit]) => {
         val close = this.closeLastSubstream
-        this.closeLastSubstream = null
         if (isNullOrZIOUnit(close)) effect
-        else executeCloseLastSubstream(ZIO.uninterruptible(close)) *> effect
+        else {
+          val closeLast = ZIO.uninterruptible {
+            this.closeLastSubstream = null
+            close
+          }
+          executeCloseLastSubstream(closeLast) *> effect
+        }
       },
       onEmit = { (emitted: Any) =>
         val close = this.closeLastSubstream
-        this.closeLastSubstream = null
         if (!isNullOrZIOUnit(close)) {
-          val closeLast = ZIO.uninterruptible(close)
+          val closeLast = ZIO.uninterruptible {
+            this.closeLastSubstream = null
+            close
+          }
 
           executeCloseLastSubstream(closeLast).flatMap { _ =>
             val childExecutor: ErasedExecutor[Env] =
