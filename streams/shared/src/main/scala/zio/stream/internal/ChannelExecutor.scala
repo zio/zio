@@ -212,11 +212,13 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
                 (f: URIO[Env, Any]) =>
                   if (isNullOrZIOUnit(f)) Exit.unit
                   else
-                    ZIO.suspendSucceed {
+                    ZIO.succeed {
                       val prevLastClose = closeLastSubstream
-                      closeLastSubstream = f
-                      if (isNullOrZIOUnit(prevLastClose)) Exit.unit
-                      else prevLastClose
+                      if (prevLastClose eq null) {
+                        closeLastSubstream = f
+                      } else {
+                        closeLastSubstream = prevLastClose *> f
+                      }
                     }
 
               val exec: ErasedExecutor[Env] = new ChannelExecutor(value, providedEnv, innerExecuteLastClose)
@@ -498,11 +500,13 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
       self.upstreamExecutor,
       onEffect = (effect: ZIO[Env, Nothing, Unit]) => {
         val close = this.closeLastSubstream
+        this.closeLastSubstream = null
         if (isNullOrZIOUnit(close)) effect
         else executeCloseLastSubstream(ZIO.uninterruptible(close)) *> effect
       },
       onEmit = { (emitted: Any) =>
         val close = this.closeLastSubstream
+        this.closeLastSubstream = null
         if (!isNullOrZIOUnit(close)) {
           val closeLast = ZIO.uninterruptible(close)
 
@@ -552,7 +556,7 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
         childExecutor.close
       )
 
-    def finishWithDoneValue(doneValue: Any): ZIO[Env, Nothing, Unit] = {
+    def finishWithDoneValue(doneValue: Any): Unit = {
       val modifiedParent =
         parentSubexecutor.copy(
           lastDone =
@@ -563,12 +567,13 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
 
       val thisClose = childExecutor.close(Exit.succeed(doneValue))
       val lastClose = closeLastSubstream
-      closeLastSubstream = thisClose
+      if (isNullOrZIOUnit(lastClose)) {
+        closeLastSubstream = thisClose
+      } else {
+        closeLastSubstream = lastClose *> thisClose
+      }
 
       replaceSubexecutor(modifiedParent)
-
-      if (isNullOrZIOUnit(lastClose)) null
-      else executeCloseLastSubstream(ZIO.uninterruptible(lastClose)).unit
     }
 
     ChannelState.Read(
@@ -584,6 +589,7 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
             handleSubexecFailure(cause).effectOrNullIgnored // NOTE: assuming finalizers cannot fail
           case Exit.Success(doneValue) =>
             finishWithDoneValue(doneValue)
+            null
         }
       }
     )
