@@ -6884,6 +6884,8 @@ object Exit extends Serializable {
 
   val unit: Exit[Nothing, Unit] = succeed(())
 
+  val none: Exit[Nothing, Option[Nothing]] = Success(None)
+
   private def zipRightWith[E, E1 >: E, A](left: Exit[E, Any], right: Exit[E1, A])(
     g: (Cause[E], Cause[E1]) => Cause[E1]
   ): Exit[E1, A] =
@@ -6906,7 +6908,6 @@ object Exit extends Serializable {
 
   private[zio] val `true`: Exit[Nothing, Boolean]            = Success(true)
   private[zio] val `false`: Exit[Nothing, Boolean]           = Success(false)
-  private[zio] val none: Exit[Nothing, Option[Nothing]]      = Success(None)
   private[zio] val emptyChunk: Exit[Nothing, Chunk[Nothing]] = Success(Chunk.empty)
   private[zio] val failNone: Exit[Option[Nothing], Nothing]  = Failure(Cause.none)
   private[zio] val failUnit: Exit[Unit, Nothing]             = Failure(Cause.unit)
