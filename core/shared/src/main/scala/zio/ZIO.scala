@@ -6453,6 +6453,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       case GenerateStackTrace(trace)    => s"GenerateStackTrace(trace=$trace)"
       case YieldNow(trace, forceAsync)  => s"YieldNow(trace=$trace, forceAsync=$forceAsync)"
       case FlatMap(trace, first, _)     => s"FlatMap(trace=$trace, first=${render(first)})"
+      case Mapped(trace, first, _)      => s"Mapped(trace=$trace, first=${render(first)})"
       case UpdateRuntimeFlags(trace, _) => s"UpdateRuntimeFlags(trace=$trace)"
       case FoldZIO(trace, first, _, _)  => s"FoldZIO(trace=$trace, first=${render(first)})"
       case Async(trace, _, _)           => s"Async(trace=$trace)"

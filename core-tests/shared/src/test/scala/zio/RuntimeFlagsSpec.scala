@@ -150,7 +150,7 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
                 )
 
             val asyncEffect = ZIO
-              .Async[Any, Nothing, Unit](Trace.empty, (_: Any) => ZIO.succeed(()), () => FiberId.None)
+              .Async[Any, Nothing, Unit](Trace.empty, (_: Any) => Right(ZIO.succeed(())), () => FiberId.None)
 
             val dynamicNoBoxEffect =
               ZIO.UpdateRuntimeFlagsWithin
@@ -186,9 +186,7 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
               ) == s"UpdateRuntimeFlagsWithin.DynamicNoBox(trace=${dynamicNoBoxEffect.trace})"
             ) &&
             assertTrue(ZIO.render(exitSuccessEffect) == "Exit.Success(value=0)") &&
-            assertTrue(
-              ZIO.render(exitFailureEffect) == "Exit.Failure(cause=Fail(boom,Stack trace for thread \"zio-fiber-\":\n))"
-            )
+            assertTrue(ZIO.render(exitFailureEffect) == "Exit.Failure(cause=Fail(boom,StackTrace.none))")
           } +
             test("enabled") {
               val effect1 = ZIO.succeed(1)
