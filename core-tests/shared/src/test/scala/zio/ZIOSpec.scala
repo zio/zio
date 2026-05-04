@@ -1542,6 +1542,12 @@ object ZIOSpec extends ZIOBaseSpec {
           assert(b)(not(equalTo(c))) &&
           assert(c)(equalTo(d))
       },
+      test("memoized function returns the same instance on repeated calls under contention") {
+        for {
+          memoized <- ZIO.memoize((n: Int) => RandomLive.nextString(n))
+          a        <- ZIO.foreachPar(1 to 4)(_ => memoized(10))
+        } yield assertTrue(a.distinct.size == 1)
+      } @@ nonFlaky(10000) @@ jvmOnly,
       test("memoized function does not memoize interruption") {
         for {
           p1 <- Promise.make[Nothing, Unit]

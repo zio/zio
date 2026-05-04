@@ -4369,27 +4369,34 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Returns a memoized version of the specified effectual function.
    */
   def memoize[R, E, A, B](f: A => ZIO[R, E, B])(implicit trace: Trace): UIO[A => ZIO[R, E, B]] =
-    Ref.Synchronized.make(Map.empty[A, Promise[E, (FiberRefs.Patch, B)]]).map { ref =>
+    ZIO.succeed {
+      @inline implicit def u: Unsafe = Unsafe
+
+      val ref = Ref.unsafe.make(Map.empty[A, Promise[E, (FiberRefs.Patch, B)]])
       def loop(a: A): ZIO[R, E, B] =
-        ZIO.suspendSucceed {
+        ZIO.fiberIdWith { fiberId =>
           val isSetter = new AtomicBoolean()
           for {
-            promise <- ref.modifyZIO { map =>
+            promise <- ref.modify { map =>
                          map.getOrElse(a, null) match {
                            case null =>
-                             for {
-                               p <- Promise.make[E, (FiberRefs.Patch, B)]
-                               _ <- ZIO.uninterruptibleMask { restore =>
-                                      isSetter.set(true)
-                                      restore(f(a).diffFiberRefs).exitWith {
-                                        case ex if ex.isInterruptedOnly => ref.update(_.removed(a)) *> p.done(ex)
-                                        case ex                         => p.done(ex)
-                                      }.fork
-                                    }
-                             } yield (p, map.updated(a, p))
-                           case p => Exit.succeed((p, map))
+                             val p = Promise.unsafe.make[E, (FiberRefs.Patch, B)](fiberId)
+                             val f2 = ZIO.uninterruptibleMask { restore =>
+                               isSetter.set(true)
+                               restore(f(a).diffFiberRefs).exitWith {
+                                 case ex if ex.isInterruptedOnly =>
+                                   ref.unsafe.update(_.removed(a))
+                                   p.unsafe.done(ex)
+                                   Exit.unit
+                                 case ex =>
+                                   p.unsafe.done(ex)
+                                   Exit.unit
+                               }.fork
+                             }
+                             (f2.as(p), map.updated(a, p))
+                           case p => (Exit.succeed(p), map)
                          }
-                       }
+                       }.flatten
             b <- promise.await.exitWith {
                    case Exit.Success((patch, b))                      => ZIO.patchFiberRefs(patch).as(b)
                    case ex if !isSetter.get() && ex.isInterruptedOnly => loop(a)
