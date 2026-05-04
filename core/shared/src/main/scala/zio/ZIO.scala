@@ -6473,6 +6473,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           case Exit.Success(value) => s"Exit.Success(value=$value)"
           case Exit.Failure(cause) => s"Exit.Failure(cause=$cause)"
         }
+      case other => s"${other.getClass.getSimpleName}()"
     }
 }
 
