@@ -4385,7 +4385,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                                isSetter.set(true)
                                restore(f(a).diffFiberRefs).exitWith {
                                  case ex if ex.isInterruptedOnly =>
-                                   ref.unsafe.update(_.removed(a))
+                                   ref.unsafe.update(_ - a)
                                    p.unsafe.done(ex)
                                    Exit.unit
                                  case ex =>
