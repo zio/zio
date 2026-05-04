@@ -607,6 +607,23 @@ object ScheduleSpec extends ZIOBaseSpec {
       } yield assert(actual.map(_.getHour))(forall(equalTo(4))) &&
         assert(actual.map(_.getMinute))(forall(equalTo(20)))
     },
+    test("intersect of an outer interval with a union retains all sub-intervals (#7783)") {
+      // Regression: `Intervals.intersect` used to advance whichever side started
+      // earlier, which silently dropped subsequent intervals on the longer side.
+      // Concretely: `[18:00, 19:00) ∩ {[18:53, 18:54), [18:58, 18:59)}` returned
+      // only `[18:53, 18:54)`, losing `[18:58, 18:59)`.
+      val now      = OffsetDateTime.parse("2023-02-04T18:48:00+03:00")
+      val schedule = Schedule.hourOfDay(18) && (Schedule.minuteOfHour(53) || Schedule.minuteOfHour(58))
+      for {
+        result <- schedule.step(now, (), schedule.initial)
+        intervals = result._3 match {
+                      case Schedule.Decision.Continue(is) => is.intervals
+                      case Schedule.Decision.Done         => List.empty
+                    }
+      } yield assertTrue(intervals.size == 2) &&
+        assertTrue(intervals.head.start == OffsetDateTime.parse("2023-02-04T18:53:00+03:00")) &&
+        assertTrue(intervals(1).start == OffsetDateTime.parse("2023-02-04T18:58:00+03:00"))
+    },
     test("union composes") {
       val monday            = Schedule.dayOfWeek(1)
       val wednesday         = Schedule.dayOfWeek(3)
