@@ -5646,7 +5646,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: () => B) {
     //todo: kept here for reference, drop this once the new impl is approved (makre sure to drop the referencing benchmarks in zio.TimeoutBenchmark)
-    def applyOrig[B1 >: B](f: A => B1)(duration: => Duration)(implicit
+    private[zio] def applyOrig[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
     ): ZIO[R, E, B1] =
       ZIO.fiberIdWith { parentFiberId =>
@@ -5672,12 +5672,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ): ZIO[R, E, B1] =
       ZIO.clockWith(_.scheduler).flatMap { scheduler =>
         ZIO.withFiberRuntime[R, E, B1] { (fibRt, r) =>
+          val graftedSelf = ZIO.Grafter(fibRt).applyOnExit(self)
           ZIO
             .asyncInterrupt[R, Nothing, Either[B, zio.Exit[E, A]]] { cb =>
               //todo: optimize away when the timeout is <= 0 ?
               val fib = ZIO.unsafe.makeChildFiber(
                 trace,
-                self,
+                graftedSelf,
                 fibRt,
                 r.runtimeFlags,
                 null
@@ -5704,7 +5705,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
               ) //no need to actually start the fiber (todo: remove it from the fibers scope?)
                 {
                   fib.startSuspended()(zio.Unsafe.unsafe)
-                  Left(ZIO.unit)
+                  Left(fib.interruptFork)
                 } //todo: can we bypass here? it'd require the scheduler to change state into BypassPendingResult and adding a state so the scheduler does the right thing for 'late' timeout
               else {
                 fib.addObserver { ex =>
@@ -5719,7 +5720,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                     }
                   } //else: fiber won, parent now owns cb and can bypass it
                 }(zio.Unsafe.unsafe)
-                fib.start(self)
+                fib.start(graftedSelf)
 
                 bypassState.get() match {
                   case BypassPendingResult(ex) =>

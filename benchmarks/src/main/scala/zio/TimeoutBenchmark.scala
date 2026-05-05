@@ -1,6 +1,6 @@
 package zio
 
-import org.openjdk.jmh.annotations.{Benchmark, BenchmarkMode, Mode, OutputTimeUnit, Param, State, Scope => JScope}
+import org.openjdk.jmh.annotations.{Benchmark, BenchmarkMode, Mode, OutputTimeUnit, Param, Setup, State, Scope => JScope}
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.TimeoutException
@@ -14,9 +14,13 @@ class TimeoutBenchmark {
   @Param(Array("0", "100", "10000"))
   var n: Int = _
 
-  val effect = ZIO.foldLeft(0 until n)(0) { case (prev, x) =>
-    ZIO.succeed(prev + x)
-  }
+  var effect: ZIO[Any, Nothing, Int] = _
+
+  @Setup
+  def setup(): Unit =
+    effect = ZIO.foldLeft(0 until n)(0) { case (prev, x) =>
+      ZIO.succeed(prev + x)
+    }
 
   @Benchmark
   def zioBaseline = {
