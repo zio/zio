@@ -440,13 +440,20 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
 
   /**
    * Constructs a deterministic generator that only generates the specified
-   * fixed values.
+   * fixed values. Non-definite iterables emit one value per sample stream so
+   * that they do not starve generators composed before them.
    */
   def fromIterable[R, A](
     as: Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
   )(implicit trace: Trace): Gen[R, A] =
-    Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
+    Gen {
+      val stream =
+        if (as.hasDefiniteSize) ZStream.fromIterable(as)
+        else ZStream.fromIterable(as).take(1)
+
+      stream.map(a => Sample.unfold(a)(a => (a, shrinker(a))))
+    }
 
   /**
    * Constructs a generator from a function that uses randomness. The returned
