@@ -1783,9 +1783,6 @@ object Schedule {
           case (left :: lefts, right :: rights) =>
             val interval  = left.intersect(right)
             val intervals = if (interval.isEmpty) acc else interval :: acc
-            // Advance the interval that ends first; the longer-running one may still
-            // overlap with subsequent intervals on the other side. Comparing by start
-            // (Interval.<) drops those subsequent intersections (see issue #7783).
             if (left.end.isBefore(right.end)) loop(lefts, right :: rights, intervals)
             else if (right.end.isBefore(left.end)) loop(left :: lefts, rights, intervals)
             else loop(lefts, rights, intervals)
