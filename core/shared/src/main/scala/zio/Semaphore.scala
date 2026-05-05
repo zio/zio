@@ -155,15 +155,25 @@ object Semaphore {
           else if (n == 0L)
             ZIO.succeed(Reservation.zero)
           else
-            Promise.make[Nothing, Unit].flatMap { promise =>
-              ref.modify {
-                case Right(permits) if permits >= n =>
-                  Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
-                case Right(permits) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
-                case Left(queue) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
-              }
+            ref.modify {
+              case Right(permits) if permits >= n =>
+                Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
+              case other =>
+                null -> other
+            }.flatMap {
+              case null =>
+                Promise.make[Nothing, Unit].flatMap { promise =>
+                  ref.modify {
+                    case Right(permits) if permits >= n =>
+                      Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
+                    case Right(permits) =>
+                      Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
+                    case Left(queue) =>
+                      Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
+                  }
+                }
+              case res =>
+                ZIO.succeed(res)
             }
 
         def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
@@ -205,3 +215,4 @@ object Semaphore {
       }
   }
 }
+
