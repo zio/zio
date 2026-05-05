@@ -150,7 +150,7 @@ sealed trait Config[+A] { self =>
   def zipWith[B, C](that: => Config[B])(f: (A, B) => C): Config[C] =
     self.zip(that).map(f.tupled)
 }
-object Config {
+object Config extends ConfigCompanionVersionSpecific {
   final class Secret private (private val raw: Array[Char]) { self =>
     override def equals(that: Any): Boolean =
       that match {
