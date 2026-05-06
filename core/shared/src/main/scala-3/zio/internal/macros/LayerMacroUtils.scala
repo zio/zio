@@ -22,9 +22,7 @@ private[zio] object LayerMacroUtils {
   ): Expr[ZLayer[R0, E, R]] = {
     import quotes.reflect._
 
-    val typeless = constructTypelessLayer[R0, R, E](layers, provideMethod, false)
-      .asExprOf[ZLayer[Any, E, Any]]
-    '{ $typeless.asInstanceOf[ZLayer[R0, E, R]] }
+    constructTypelessLayer[R0, R, E](layers, provideMethod, false).asExprOf[ZLayer[R0, E, R]]
   }
 
   def constructStaticSomeLayer[R0: Type, R: Type, E: Type](using Quotes)(
@@ -42,9 +40,7 @@ private[zio] object LayerMacroUtils {
   ): Expr[ZLayer[_, E, R]] = {
     import quotes.reflect._
 
-    val typeless = constructTypelessLayer[Nothing, R, E](layers, provideMethod, true)
-      .asExprOf[ZLayer[Any, E, Any]]
-    '{ $typeless.asInstanceOf[ZLayer[Any, E, R]] }
+    constructTypelessLayer[Nothing, R, E](layers, provideMethod, true).asExprOf[ZLayer[_, E, R]]
   }
 
   private def constructTypelessLayer[R0: Type, R: Type, E: Type](using Quotes)(
@@ -86,8 +82,12 @@ private[zio] object LayerMacroUtils {
       val trace = summonInline[Trace]
 
       ${
-        def typeToNode(tpe: TypeRepr): Node[TypeRepr, LayerExpr[E]] =
+        val inferredInputs = scala.collection.mutable.LinkedHashSet.empty[TypeRepr]
+
+        def typeToNode(tpe: TypeRepr): Node[TypeRepr, LayerExpr[E]] = {
+          if (inferRemainder) inferredInputs += tpe
           Node(Nil, List(tpe), tpe.asType match { case '[t] => '{ ZLayer.environment[t](trace) } })
+        }
 
         def rhsOutputType(rhs: LayerExpr[E]): TypeRepr =
           rhs.asTerm.tpe.widen.dealias match {
@@ -158,7 +158,23 @@ private[zio] object LayerMacroUtils {
           reportError = report.errorAndAbort
         )
 
-        builder.build.asTerm.asExprOf[ZLayer[_, _, _]]
+        val builtExpr = builder.build
+
+        def intersect(types: List[TypeRepr]): TypeRepr = types match {
+          case Nil          => TypeRepr.of[Any]
+          case head :: tail => tail.foldLeft(head)(AndType(_, _))
+        }
+
+        val inputRepr  = intersect(inferredInputs.toList)
+        val outputRepr = intersect(builder.target)
+
+        inputRepr.asType match {
+          case '[in] =>
+            outputRepr.asType match {
+              case '[out] =>
+                '{ ${builtExpr.asExprOf[ZLayer[Any, E, Any]]}.asInstanceOf[ZLayer[in, E, out]] }
+            }
+        }
       }
     }
   }
