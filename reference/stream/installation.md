@@ -6,7 +6,7 @@ In order to use ZIO Streaming, we need to add the required configuration in our 
 
 ```scala
 libraryDependencies += Seq(
-  "dev.zio" %% "zio"         % "2.1.25" % Test
-  "dev.zio" %% "zio-streams" % "2.1.25" % Test
+  "dev.zio" %% "zio"         % "2.1.26" % Test
+  "dev.zio" %% "zio-streams" % "2.1.26" % Test
 )
 ```

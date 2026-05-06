@@ -6,9 +6,9 @@ In order to use ZIO Test, we need to add the required configuration in our SBT s
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.zio" %% "zio-test"          % "2.1.25" % Test,
-  "dev.zio" %% "zio-test-sbt"      % "2.1.25" % Test,
-  "dev.zio" %% "zio-test-magnolia" % "2.1.25" % Test
+  "dev.zio" %% "zio-test"          % "2.1.26" % Test,
+  "dev.zio" %% "zio-test-sbt"      % "2.1.26" % Test,
+  "dev.zio" %% "zio-test-magnolia" % "2.1.26" % Test
 )
 ```
 
