@@ -3981,7 +3981,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Prefix form of `ZIO#interruptible`.
    */
   def interruptible[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed(zio.interruptible)
+    ZIO.UpdateRuntimeFlagsWithin(trace, RuntimeFlags.enableInterruption, _ => zio)
 
   /**
    * Makes the effect interruptible, but passes it a restore function that can
@@ -4994,7 +4994,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Prefix form of `ZIO#uninterruptible`.
    */
   def uninterruptible[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed(zio).uninterruptible
+    ZIO.UpdateRuntimeFlagsWithin(trace, RuntimeFlags.disableInterruption, _ => zio)
 
   /**
    * Makes the effect uninterruptible, but passes it a restore function that can
