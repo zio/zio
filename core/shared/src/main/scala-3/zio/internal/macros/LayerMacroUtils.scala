@@ -33,9 +33,7 @@ private[zio] object LayerMacroUtils {
   ): Expr[ZLayer[R0, E, _]] = {
     import quotes.reflect._
 
-    val typeless = constructTypelessLayer[R0, R, E](layers, provideMethod, false)
-      .asExprOf[ZLayer[Any, E, Any]]
-    '{ $typeless.asInstanceOf[ZLayer[R0, E, Any]] }
+    constructTypelessLayer[R0, R, E](layers, provideMethod, false).asExprOf[ZLayer[R0, E, _]]
   }
 
   def constructDynamicLayer[R: Type, E: Type](using Quotes)(
