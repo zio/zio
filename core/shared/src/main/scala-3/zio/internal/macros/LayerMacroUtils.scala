@@ -22,7 +22,9 @@ private[zio] object LayerMacroUtils {
   ): Expr[ZLayer[R0, E, R]] = {
     import quotes.reflect._
 
-    constructTypelessLayer[R0, R, E](layers, provideMethod, false).asExprOf[ZLayer[R0, E, R]]
+    val typeless = constructTypelessLayer[R0, R, E](layers, provideMethod, false)
+      .asExprOf[ZLayer[Any, E, Any]]
+    '{ $typeless.asInstanceOf[ZLayer[R0, E, R]] }
   }
 
   def constructStaticSomeLayer[R0: Type, R: Type, E: Type](using Quotes)(
@@ -31,7 +33,9 @@ private[zio] object LayerMacroUtils {
   ): Expr[ZLayer[R0, E, _]] = {
     import quotes.reflect._
 
-    constructTypelessLayer[R0, R, E](layers, provideMethod, false).asExprOf[ZLayer[R0, E, _]]
+    val typeless = constructTypelessLayer[R0, R, E](layers, provideMethod, false)
+      .asExprOf[ZLayer[Any, E, Any]]
+    '{ $typeless.asInstanceOf[ZLayer[R0, E, Any]] }
   }
 
   def constructDynamicLayer[R: Type, E: Type](using Quotes)(
@@ -40,7 +44,9 @@ private[zio] object LayerMacroUtils {
   ): Expr[ZLayer[_, E, R]] = {
     import quotes.reflect._
 
-    constructTypelessLayer[Nothing, R, E](layers, provideMethod, true).asExprOf[ZLayer[_, E, R]]
+    val typeless = constructTypelessLayer[Nothing, R, E](layers, provideMethod, true)
+      .asExprOf[ZLayer[Any, E, Any]]
+    '{ $typeless.asInstanceOf[ZLayer[Any, E, R]] }
   }
 
   private def constructTypelessLayer[R0: Type, R: Type, E: Type](using Quotes)(
@@ -85,25 +91,39 @@ private[zio] object LayerMacroUtils {
         def typeToNode(tpe: TypeRepr): Node[TypeRepr, LayerExpr[E]] =
           Node(Nil, List(tpe), tpe.asType match { case '[t] => '{ ZLayer.environment[t](trace) } })
 
+        def rhsOutputType(rhs: LayerExpr[E]): TypeRepr =
+          rhs.asTerm.tpe.widen.dealias match {
+            case AppliedType(_, List(_, _, out)) => out
+            case other =>
+              report.errorAndAbort(
+                s"Internal layer macro invariant violated: expected ZLayer[_, _, _] for rhs, got ${other.show}"
+              )
+          }
+
         def composeH(lhs: LayerExpr[E], rhs: LayerExpr[E]): LayerExpr[E] =
-          lhs match {
-            case '{ $lhs: ZLayer[i, E, o] } =>
-              rhs match {
-                case '{ $rhs: ZLayer[i2, E, o2] } =>
-                  rhs.asTerm match {
-                    case _: Ident => '{ $lhs.++($rhs)(summonInline) }
-                    case _        => '{ $lhs +!+ $rhs }
+          rhs.asTerm match {
+            case _: Ident =>
+              rhsOutputType(rhs).asType match {
+                case '[o] =>
+                  '{
+                    $lhs
+                      .asInstanceOf[ZLayer[Any, E, Any]]
+                      .++[E, Any, Any, o]($rhs.asInstanceOf[ZLayer[Any, E, o]])(summonInline)
                   }
+              }
+            case _ =>
+              '{
+                $lhs.asInstanceOf[ZLayer[Any, E, Any]] +!+
+                  $rhs.asInstanceOf[ZLayer[Any, E, Any]]
               }
           }
 
         def composeV(lhs: LayerExpr[E], rhs: LayerExpr[E]): LayerExpr[E] =
-          lhs match {
-            case '{ $lhs: ZLayer[i, E, o] } =>
-              rhs match {
-                case '{ $rhs: ZLayer[`o`, E, o2] } =>
-                  '{ composeLayer($lhs, $rhs)(using trace) }
-              }
+          '{
+            composeLayer[Any, E, Any, Any](
+              $lhs.asInstanceOf[ZLayer[Any, E, Any]],
+              $rhs.asInstanceOf[ZLayer[Any, E, Any]]
+            )(using trace)
           }
 
         def buildFinalTree(tree: LayerTree[LayerExpr[E]]): LayerExpr[E] = {
