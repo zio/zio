@@ -579,21 +579,31 @@ object ZStreamSpec extends ZIOBaseSpec {
         ) @@ TestAspect.timeout(5.seconds) @@ nonFlaky,
         suite("buffer")(
           test("maintains elements and ordering")(check(tinyChunkOf(tinyChunkOf(Gen.int))) { chunk =>
-            assertZIO(
-              ZStream
-                .fromChunks(chunk: _*)
-                .buffer(2)
-                .runCollect
-            )(equalTo(chunk.flatten))
+            for {
+              buffer1 <- ZStream
+                           .fromChunks(chunk: _*)
+                           .buffer(1)
+                           .runCollect
+              buffer2 <- ZStream
+                           .fromChunks(chunk: _*)
+                           .buffer(2)
+                           .runCollect
+            } yield assert(buffer1)(equalTo(chunk.flatten)) &&
+              assert(buffer2)(equalTo(chunk.flatten))
           }) @@ flaky,
           test("buffer the Stream with Error") {
             val e = new RuntimeException("boom")
-            assertZIO(
-              (ZStream.range(0, 10) ++ ZStream.fail(e))
-                .buffer(2)
-                .runCollect
-                .exit
-            )(fails(equalTo(e)))
+            for {
+              buffer1 <- (ZStream.range(0, 10) ++ ZStream.fail(e))
+                           .buffer(1)
+                           .runCollect
+                           .exit
+              buffer2 <- (ZStream.range(0, 10) ++ ZStream.fail(e))
+                           .buffer(2)
+                           .runCollect
+                           .exit
+            } yield assert(buffer1)(fails(equalTo(e))) &&
+              assert(buffer2)(fails(equalTo(e)))
           },
           test("fast producer progress independently") {
             for {
@@ -607,7 +617,58 @@ object ZStreamSpec extends ZIOBaseSpec {
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
-          }
+          },
+          test("does not evaluate more than capacity elements ahead") {
+            for {
+              secondStarted     <- Promise.make[Nothing, Unit]
+              thirdStarted      <- Promise.make[Nothing, Unit]
+              downstreamStarted <- Promise.make[Nothing, Unit]
+              releaseDownstream <- Promise.make[Nothing, Unit]
+              fiber <- ZStream
+                         .fromIterator(Iterator.from(1))
+                         .take(3)
+                         .mapZIO { n =>
+                           ZIO.when(n == 2)(secondStarted.succeed(())) *>
+                             ZIO.when(n == 3)(thirdStarted.succeed(())) *>
+                             ZIO.succeed(n)
+                         }
+                         .buffer(1)
+                         .runForeach(_ => downstreamStarted.succeed(()) *> releaseDownstream.await)
+                         .fork
+              _               <- downstreamStarted.await
+              _               <- secondStarted.await
+              thirdWasStarted <- thirdStarted.isDone
+              _               <- releaseDownstream.succeed(())
+              _               <- fiber.interrupt
+            } yield assert(thirdWasStarted)(isFalse)
+          } @@ TestAspect.timeout(5.seconds),
+          test("does not evaluate more than capacity elements ahead for larger capacities") {
+            for {
+              secondStarted     <- Promise.make[Nothing, Unit]
+              thirdStarted      <- Promise.make[Nothing, Unit]
+              fourthStarted     <- Promise.make[Nothing, Unit]
+              downstreamStarted <- Promise.make[Nothing, Unit]
+              releaseDownstream <- Promise.make[Nothing, Unit]
+              fiber <- ZStream
+                         .fromIterator(Iterator.from(1))
+                         .take(4)
+                         .mapZIO { n =>
+                           ZIO.when(n == 2)(secondStarted.succeed(())) *>
+                             ZIO.when(n == 3)(thirdStarted.succeed(())) *>
+                             ZIO.when(n == 4)(fourthStarted.succeed(())) *>
+                             ZIO.succeed(n)
+                         }
+                         .buffer(2)
+                         .runForeach(_ => downstreamStarted.succeed(()) *> releaseDownstream.await)
+                         .fork
+              _                <- downstreamStarted.await
+              _                <- secondStarted.await
+              _                <- thirdStarted.await
+              fourthWasStarted <- fourthStarted.isDone
+              _                <- releaseDownstream.succeed(())
+              _                <- fiber.interrupt
+            } yield assert(fourthWasStarted)(isFalse)
+          } @@ TestAspect.timeout(5.seconds)
         ),
         suite("bufferChunks")(
           test("maintains elements and ordering")(check(tinyChunkOf(tinyChunkOf(Gen.int))) { chunk =>
