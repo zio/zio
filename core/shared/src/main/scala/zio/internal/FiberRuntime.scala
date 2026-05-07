@@ -1107,6 +1107,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         self.getSupervisor().onEffect(self, cur)(Unsafe)
       }
 
+      if (RuntimeFlags.opLog(_runtimeFlags)) {
+        val safeCur = cur
+        log(() => ZIO.render(safeCur), Cause.empty, ZIO.someDebug, safeCur.trace)
+      }
+
       cur = drainQueueWhileRunning(cur)
 
       ops += 1

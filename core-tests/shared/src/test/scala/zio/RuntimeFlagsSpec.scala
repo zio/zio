@@ -127,6 +127,79 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
                 name <- ZIO.succeed(Thread.currentThread().getName)
               } yield assertTrue(name.startsWith("ZScheduler-Worker"))
             }.provide(Runtime.enableFlags(RuntimeFlag.EagerShiftBack))
-        } @@ TestAspect.jvmOnly
+        } @@ TestAspect.jvmOnly +
+        suite("OpLog") {
+          test("render produces expected strings for ZIO instruction types") {
+            val syncEffect = ZIO.Sync(Trace.empty, () => {})
+            val whileLoopEffect =
+              ZIO.WhileLoop[Any, Nothing, Unit](Trace.empty, () => true, () => ZIO.succeed(()), (_: Any) => {})
+            val statefulEffect =
+              ZIO.Stateful[Any, Nothing, Unit](Trace.empty, (_: Any, _) => ZIO.succeed(()))
+            val yieldNowEffect = ZIO.YieldNow(Trace.empty, forceAsync = true)
+            val flatMapEffect =
+              ZIO.FlatMap[Any, Nothing, Unit, Unit](Trace.empty, ZIO.succeed(()), (_: Any) => ZIO.unit)
+            val updateRuntimeFlagsEffect =
+              ZIO.UpdateRuntimeFlags(Trace.empty, RuntimeFlags.enable(RuntimeFlag.Interruption))
+            val foldZioEffect =
+              ZIO.FoldZIO[Any, Nothing, Unit, Unit, Unit](
+                Trace.empty,
+                ZIO.succeed(()),
+                (_: Any) => ZIO.succeed(()),
+                (_: Any) => ZIO.fail(())
+              )
+            val asyncEffect =
+              ZIO.Async[Any, Nothing, Unit](
+                Trace.empty,
+                (_: ZIO[Any, Nothing, Unit] => Unit) => Right(Exit.unit),
+                () => FiberId.None
+              )
+            val dynamicNoBoxEffect =
+              ZIO.UpdateRuntimeFlagsWithin.DynamicNoBox[Any, Nothing, Unit](
+                Trace.empty,
+                RuntimeFlags.enable(RuntimeFlag.Interruption),
+                (_: Int) => ZIO.succeed(())
+              )
+            val exitSuccessEffect = Exit.succeed(0)
+            val exitFailureEffect = Exit.fail("boom")
+
+            assertTrue(ZIO.render(syncEffect) == s"Sync(trace=${syncEffect.trace})") &&
+            assertTrue(ZIO.render(whileLoopEffect) == s"WhileLoop(trace=${whileLoopEffect.trace})") &&
+            assertTrue(ZIO.render(statefulEffect) == s"Stateful(trace=${statefulEffect.trace})") &&
+            assertTrue(ZIO.render(yieldNowEffect) == s"YieldNow(trace=${yieldNowEffect.trace}, forceAsync=true)") &&
+            assertTrue(
+              ZIO.render(flatMapEffect) == s"FlatMap(trace=${flatMapEffect.trace}, first=Sync(trace=${flatMapEffect.first.trace}))"
+            ) &&
+            assertTrue(
+              ZIO.render(updateRuntimeFlagsEffect) == s"UpdateRuntimeFlags(trace=${updateRuntimeFlagsEffect.trace})"
+            ) &&
+            assertTrue(
+              ZIO.render(foldZioEffect) == s"FoldZIO(trace=${foldZioEffect.trace}, first=Sync(trace=${foldZioEffect.first.trace}))"
+            ) &&
+            assertTrue(ZIO.render(asyncEffect) == s"Async(trace=${asyncEffect.trace})") &&
+            assertTrue(
+              ZIO.render(dynamicNoBoxEffect) == s"UpdateRuntimeFlagsWithin.DynamicNoBox(trace=${dynamicNoBoxEffect.trace})"
+            ) &&
+            assertTrue(ZIO.render(exitSuccessEffect) == "Exit.Success(value=0)") &&
+            assertTrue(
+              ZIO.render(exitFailureEffect) == "Exit.Failure(cause=Fail(boom,Stack trace for thread \"zio-fiber-\":\n))"
+            )
+          } +
+            test("enabling OpLog causes effects to be logged at Debug level") {
+              val effect1 = ZIO.succeed(1)
+              val effect = for {
+                a <- effect1
+                b <- ZIO.succeed(2)
+                c  = a + b
+              } yield c
+
+              val effectRendered =
+                s"FlatMap(trace=${effect.trace}, first=Sync(trace=${effect1.trace}))"
+
+              for {
+                _      <- effect
+                output <- ZTestLogger.logOutput
+              } yield assertTrue(output.exists(_.message() == effectRendered))
+            }.provide(Runtime.enableFlags(RuntimeFlag.OpLog))
+        }
     }
 }

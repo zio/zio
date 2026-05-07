@@ -6407,6 +6407,36 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         ZIO.succeed(bf.fromSpecific(as)(array.asInstanceOf[Array[B]]))
     }
 
+  private[zio] def render(zio: ZIO.Erased): String =
+    zio match {
+      case Sync(trace, _)               => s"Sync(trace=$trace)"
+      case WhileLoop(trace, _, _, _)    => s"WhileLoop(trace=$trace)"
+      case Stateful(trace, _)           => s"Stateful(trace=$trace)"
+      case GenerateStackTrace(trace)    => s"GenerateStackTrace(trace=$trace)"
+      case YieldNow(trace, forceAsync)  => s"YieldNow(trace=$trace, forceAsync=$forceAsync)"
+      case FlatMap(trace, first, _)     => s"FlatMap(trace=$trace, first=${render(first)})"
+      case Mapped(trace, first, _)      => s"Mapped(trace=$trace, first=${render(first)})"
+      case UpdateRuntimeFlags(trace, _) => s"UpdateRuntimeFlags(trace=$trace)"
+      case FoldZIO(trace, first, _, _)  => s"FoldZIO(trace=$trace, first=${render(first)})"
+      case Async(trace, _, _)           => s"Async(trace=$trace)"
+      case within: UpdateRuntimeFlagsWithin[_, _, _] =>
+        within match {
+          case UpdateRuntimeFlagsWithin.Interruptible(trace, effect) =>
+            s"UpdateRuntimeFlagsWithin.Interruptible(trace=$trace, effect=${render(effect)})"
+          case UpdateRuntimeFlagsWithin.Uninterruptible(trace, effect) =>
+            s"UpdateRuntimeFlagsWithin.Uninterruptible(trace=$trace, effect=${render(effect)})"
+          case UpdateRuntimeFlagsWithin.Dynamic(trace, _, _) =>
+            s"UpdateRuntimeFlagsWithin.Dynamic(trace=$trace)"
+          case UpdateRuntimeFlagsWithin.DynamicNoBox(trace, _, _) =>
+            s"UpdateRuntimeFlagsWithin.DynamicNoBox(trace=$trace)"
+        }
+      case exit: Exit[_, _] =>
+        exit match {
+          case Exit.Success(value) => s"Exit.Success(value=$value)"
+          case Exit.Failure(cause) => s"Exit.Failure(cause=$cause)"
+        }
+    }
+
   private def foreachParUnboundedDiscard[R, E, A](
     as: Iterable[A],
     size: Int
