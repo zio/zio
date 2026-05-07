@@ -4324,14 +4324,26 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assertTrue(error == "error")
           },
           test("does not read ahead") {
+            // The sink runs in parallel with the downstream consumer, sharing the
+            // source. `tapSink` only guarantees that the sink never *gets ahead
+            // of* downstream — it does not guarantee that every queued element
+            // has been processed by the sink when downstream completes first
+            // (which is exactly what `.take(3)` does here: it cancels the merge
+            // before the sink can drain). The deterministic property is therefore
+            // an upper bound: the sink's running sum is at most the sum of the
+            // prefix downstream has consumed (`1 + 2 + 3 == 6`) — element 4 or
+            // beyond must never be reflected in `result`. The previous
+            // `result == 6` assertion was racy because the sink can be
+            // interrupted while still processing chunks 1, 2, or 3; see
+            // https://github.com/zio/zio/issues/8792.
             for {
               ref    <- Ref.make(0)
               stream  = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
               sink    = ZSink.foreach((n: Int) => ref.update(_ + n))
               _      <- stream.tapSink(sink).take(3).runDrain
               result <- ref.get
-            } yield assertTrue(result == 6)
-          } @@ TestAspect.flaky
+            } yield assertTrue(result <= 6)
+          }
         ),
         suite("throttleEnforce")(
           test("free elements") {
