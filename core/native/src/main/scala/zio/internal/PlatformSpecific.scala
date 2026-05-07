@@ -83,11 +83,16 @@ private[zio] trait PlatformSpecific {
   final def newWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
     Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
 
+  // Use Collections.newSetFromMap(new ConcurrentHashMap) instead of
+  // ConcurrentHashMap.newKeySet() to avoid a NPE in the Scala Native
+  // implementation of ConcurrentHashMap.treeifyBin under high concurrency.
+  // See: https://github.com/zio/zio/issues/9681
+  // See: https://github.com/scala-native/scala-native/issues/4388
   final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
-    ConcurrentHashMap.newKeySet[A]()
+    Collections.newSetFromMap(new ConcurrentHashMap[A, java.lang.Boolean]())
 
   final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
-    ConcurrentHashMap.newKeySet[A](initialCapacity)
+    Collections.newSetFromMap(new ConcurrentHashMap[A, java.lang.Boolean](initialCapacity))
 
   private def blackhole(a: Any): Unit = {
     val _ = a
