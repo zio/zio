@@ -89,19 +89,20 @@ private[zio] object LayerMacroUtils {
           Node(Nil, List(tpe), tpe.asType match { case '[t] => '{ ZLayer.environment[t](trace) } })
         }
 
-        def rhsOutputType(rhs: LayerExpr[E]): TypeRepr =
-          rhs.asTerm.tpe.widen.dealias match {
+        def zlayerOutputType(layerTerm: Term): TypeRepr =
+          layerTerm.tpe.widen.dealias match {
             case AppliedType(_, List(_, _, out)) => out
             case other =>
               report.errorAndAbort(
-                s"Internal layer macro invariant violated: expected ZLayer[_, _, _] for rhs, got ${other.show}"
+                s"Internal layer macro invariant violated: expected ZLayer[_, _, _], got ${other.show}"
               )
           }
 
-        def composeH(lhs: LayerExpr[E], rhs: LayerExpr[E]): LayerExpr[E] =
-          rhs.asTerm match {
+        def composeH(lhs: LayerExpr[E], rhs: LayerExpr[E]): LayerExpr[E] = {
+          val rhsTerm = rhs.asTerm
+          rhsTerm match {
             case _: Ident =>
-              rhsOutputType(rhs).asType match {
+              zlayerOutputType(rhsTerm).asType match {
                 case '[o] =>
                   '{
                     $lhs
@@ -115,6 +116,7 @@ private[zio] object LayerMacroUtils {
                   $rhs.asInstanceOf[ZLayer[Any, E, Any]]
               }
           }
+        }
 
         def composeV(lhs: LayerExpr[E], rhs: LayerExpr[E]): LayerExpr[E] =
           '{
@@ -160,19 +162,19 @@ private[zio] object LayerMacroUtils {
 
         val builtExpr = builder.build
 
-        def intersect(types: List[TypeRepr]): TypeRepr = types match {
+        def andType(types: List[TypeRepr]): TypeRepr = types match {
           case Nil          => TypeRepr.of[Any]
           case head :: tail => tail.foldLeft(head)(AndType(_, _))
         }
 
-        val inputRepr  = intersect(inferredInputs.toList)
-        val outputRepr = intersect(builder.target)
+        val inputRepr  = andType(inferredInputs.toList)
+        val outputRepr = andType(builder.target)
 
         inputRepr.asType match {
           case '[in] =>
             outputRepr.asType match {
               case '[out] =>
-                '{ ${builtExpr.asExprOf[ZLayer[Any, E, Any]]}.asInstanceOf[ZLayer[in, E, out]] }
+                '{ $builtExpr.asInstanceOf[ZLayer[in, E, out]] }
             }
         }
       }
