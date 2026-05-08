@@ -114,13 +114,18 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
    *   the elements that were flushed from the partition
    */
   private def maybeFlushAndOffer(a: WeakReference[A]): Chunk[WeakReference[A]] = {
-    val queue = nursery.randomPartition(ThreadLocalRandom.current())
-    if (!queue.offer(a)) {
-      val flushed = queue.pollUpTo(queue.capacity >> 1)
-      // In the extremely unlikely case that the partition filled up between the poll and the offer
-      // return the element as part of the flushed elements
-      if (queue.offer(a)) flushed else flushed :+ a
-    } else Chunk.empty
+    // Add null check before proceeding
+    if (a eq null) {
+      Chunk.empty
+    } else {
+      val queue = nursery.randomPartition(ThreadLocalRandom.current())
+      if (!queue.offer(a)) {
+        val flushed = queue.pollUpTo(queue.capacity >> 1)
+        // In the extremely unlikely case that the partition filled up between the poll and the offer
+        // return the element as part of the flushed elements
+        if (queue.offer(a)) flushed else flushed :+ a
+      } else Chunk.empty
+    }
   }
 
   private def addToLongTermStorage(chunk: Chunk[WeakReference[A]]): Unit = {
@@ -129,7 +134,12 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
     while (iter.hasNextAt(i)) {
       val ref   = iter.nextAt(i)
       val value = ref.get()
-      if ((value ne null) && isAlive(value)) graduates.add(ref)
+      if ((value ne null) && isAlive(value)) {
+        // Add null check before adding to graduates set
+        if (ref ne null) {
+          graduates.add(ref)
+        }
+      }
       i += 1
     }
   }
