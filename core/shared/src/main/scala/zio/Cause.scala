@@ -125,23 +125,31 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     find { case Fail(e, trace) => (e, trace) }
 
   /**
-   * Retrieve the first checked error on the `Left` if available, if there are
-   * no checked errors return the rest of the `Cause` that is known to contain
-   * only `Die` or `Interrupt` causes.
+   * Retrieve the first checked error on the `Left` if available and there are no defects,
+   * otherwise return the defect cause on the `Right`.
    */
-  final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
-    case Some(error) => Left(error)
-    case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+  final def failureOrCause: Either[E, Cause[Nothing]] = {
+    // If there's a defect, prioritize it over failures
+    val defectCause = keepDefects
+    if (defectCause.isDefined) Right(defectCause.get)
+    else failureOption match {
+      case Some(error) => Left(error)
+      case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+    }
   }
 
   /**
-   * Retrieve the first checked error and its trace on the `Left` if available,
-   * if there are no checked errors return the rest of the `Cause` that is known
-   * to contain only `Die` or `Interrupt` causes.
+   * Retrieve the first checked error and its trace on the `Left` if available and there are no defects,
+   * otherwise return the defect cause on the `Right`.
    */
-  final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] = failureTraceOption match {
-    case Some(errorAndTrace) => Left(errorAndTrace)
-    case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+  final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] = {
+    // If there's a defect, prioritize it over failures
+    val defectCause = keepDefects
+    if (defectCause.isDefined) Right(defectCause.get)
+    else failureTraceOption match {
+      case Some(errorAndTrace) => Left(errorAndTrace)
+      case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+    }
   }
 
   /**

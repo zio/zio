@@ -246,6 +246,27 @@ object CauseSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("Defect prioritization")(
+      test("Defects should be prioritized over failures") {
+        val dieCause: Cause[String] = Cause.die(new RuntimeException("boom"))
+        val combinedCause = dieCause && Cause.fail("boom")
+
+        for {
+          // Test with catchAll - should not recover from defect
+          result1 <- ZIO.failCause(combinedCause).catchAll { e =>
+            ZIO.succeed(s"handled: $e")
+          }.exit
+
+          // Test with just the defect - should not recover
+          result2 <- ZIO.failCause(dieCause).catchAll { e =>
+            ZIO.succeed(s"handled: $e")
+          }.exit
+        } yield {
+          assert(result1)(fails(equalTo(dieCause))) &&
+          assert(result2)(fails(equalTo(dieCause)))
+        }
+      }
+    ),
     suite("filter")(
       test("fail.filter(false)") {
         val f1 = Cause.fail(())
