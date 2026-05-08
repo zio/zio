@@ -510,12 +510,7 @@ module.exports = {
         "guides/interop/with-cats-effect",
         "guides/interop/with-future",
         "guides/interop/with-java",
-        "guides/interop/with-javascript",
-        "guides/interop/with-monix",
-        "guides/interop/with-scalaz-7x",
-        "guides/interop/with-reactive-streams",
-        "guides/interop/with-twitter",
-        "guides/interop/with-guava"
+        "guides/interop/with-javascript"
       ]
     },
     {
@@ -575,8 +570,6 @@ module.exports = {
     "resources/index",
     "resources/articles",
     "resources/videos",
-    "resources/cookbooks",
-    "resources/cheatsheets",
     "resources/sampleprojects",
     "resources/poweredbyzio"
   ]

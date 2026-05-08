@@ -1,0 +1,7 @@
+[build]
+  publish = "website/build"
+  ignore  = "exit 0"
+
+[build.environment]
+  NODE_VERSION            = "20"
+  USE_SIMPLE_CSS_MINIFIER = "true"
