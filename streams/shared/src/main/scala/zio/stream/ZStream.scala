@@ -391,6 +391,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   Prefer capacities that are powers of 2 for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
+    // Use the exact capacity requested by the user
     val queue = self.toQueueOfElements(capacity)
     new ZStream(
       ZChannel.unwrapScoped[R] {
