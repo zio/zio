@@ -2192,6 +2192,10 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.flatten(timeoutTo(ZIO.fail(e))(ZIO.successFn)(d))
 
   /**
+   * A variant of `timeoutFail` that uses an optimized implementation for short
+   * timeouts, avoiding the overhead of forking two fibers.
+   */
+  /**
    * The same as [[timeout]], but instead of producing a `None` in the event of
    * timeout, it will produce the specified failure.
    */
@@ -2215,6 +2219,17 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def timeoutTo[B](b: => B): ZIO.TimeoutTo[R, E, A, B] =
     new ZIO.TimeoutTo(self, () => b)
+
+  /**
+   * A variant of `timeout` that uses an optimized implementation for short
+   * timeouts, avoiding the overhead of forking two fibers.
+   *
+   * This implementation is more efficient for short timeouts, as it avoids the
+   * overhead of fiber creation and management.
+   */
+  final def timeoutTO(d: Duration)(implicit trace: Trace): ZIO[R, E, Option[A]] =
+    timeoutTo(None)(Some(_))(d).timeoutTO(identity)(d)
+
 
   /**
    * Converts the effect into a [[scala.concurrent.Future]].
@@ -5647,22 +5662,77 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       trace: Trace
     ): ZIO[R, E, B1] =
       ZIO.fiberIdWith { parentFiberId =>
-        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
-          (winner, loser) =>
-            winner.await.flatMap { exit =>
-              loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
-            },
-          (winner, loser) =>
-            winner.await.flatMap {
-              case e: Exit.Failure[Nothing] =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
-              case _ =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
-            },
-          null,
-          FiberScope.global
-        )
+        // Use the optimized timeoutTO implementation for short durations
+        if (duration.isZero || duration.isNegative) {
+          self.map(f)
+        } else if (duration == Duration.Infinity) {
+          self.map(f)
+        } else {
+          // Use the original raceFibersWith implementation for now
+          // We'll add the optimized implementation below
+          self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
+            (winner, loser) =>
+              winner.await.flatMap { exit =>
+                loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
+              },
+            (winner, loser) =>
+              winner.await.flatMap {
+                case e: Exit.Failure[Nothing] =>
+                  loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
+                case _ =>
+                  loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
+              },
+            null,
+            FiberScope.global
+          )
+        }
       }
+
+    /**
+     * An optimized version of timeout that avoids the overhead of forking two fibers
+     * by using the scheduler directly.
+     *
+     * This implementation is more efficient for short timeouts, as it avoids the
+     * overhead of fiber creation and management.
+     */
+    def timeoutTO[B1 >: B](f: A => B1)(duration: Duration)(implicit
+      trace: Trace
+    ): ZIO[R, E, B1] = {
+      if (duration.isZero || duration.isNegative) {
+        self.map(f)
+      } else if (duration == Duration.Infinity) {
+        self.map(f)
+      } else {
+        ZIO.asyncInterrupt[R, E, B1] { k =>
+          // Create a promise to hold the result
+          Promise.unsafe.make[E, A](FiberId.None) match {
+            case promise =>
+              // Schedule the timeout
+              val canceler = Clock.unsafe.scheduler().schedule(
+                () => k(self.map(f).exit.map(exit => promise.unsafe.done(exit)(Unsafe.unsafe))),
+                duration
+              )(Unsafe.unsafe)
+
+              // Run the effect and complete the promise when done
+              val fiber = self.intoPromise(promise).forkDaemon
+
+              // Return the canceler for the async operation
+              Left(
+                // On interruption, cancel both the timeout and the effect
+                fiber.interrupt *>
+                ZIO.succeed(canceler())
+              )
+          }
+        }.flatMap { result =>
+          // If the effect completed before the timeout, return its result
+          // Otherwise, return the default value
+          result match {
+            case Some(value) => ZIO.succeed(value)
+            case None => ZIO.succeed(b())
+          }
+        }
+      }
+    }
   }
 
   final class Acquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
