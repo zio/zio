@@ -621,12 +621,10 @@ object ZStreamSpec extends ZIOBaseSpec {
                              secondCompleted.succeed(()).when(n == 2).as(n)
                          }
                          .buffer(1)
-              fiber <- stream
-                         .runForeach { n =>
-                           if (n == 1) downstreamStarted.succeed(()) *> releaseDownstream.await
-                           else ZIO.unit
-                         }
-                         .fork
+              fiber <- stream.runForeach { n =>
+                         if (n == 1) downstreamStarted.succeed(()) *> releaseDownstream.await
+                         else ZIO.unit
+                       }.fork
               _            <- downstreamStarted.await
               _            <- secondCompleted.await
               _            <- ZIO.yieldNow.repeatN(10)
