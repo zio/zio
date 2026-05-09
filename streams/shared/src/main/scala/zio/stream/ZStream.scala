@@ -25,6 +25,7 @@ import zio.stream.ZStream.{DebounceState, HandoffSignal, zipChunks}
 import zio.stream.internal.{ZInputStream, ZReader}
 
 import java.io.{IOException, InputStream}
+import scala.collection.immutable.{Queue => ScalaQueue}
 import scala.collection.mutable
 import scala.reflect.ClassTag
 
@@ -391,19 +392,66 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   Prefer capacities that are powers of 2 for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val queue = self.toQueueOfElements(capacity)
+    def producer(
+      queue: Queue[(Exit[Option[E], A], Promise[Nothing, Unit])],
+      capacity: Int,
+      waiting: ScalaQueue[Promise[Nothing, Unit]]
+    ): ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] = {
+      def offer(
+        chunk: Chunk[A],
+        index: Int,
+        waiting: ScalaQueue[Promise[Nothing, Unit]]
+      ): UIO[ScalaQueue[Promise[Nothing, Unit]]] =
+        if (index < chunk.length) {
+          val awaitCapacity =
+            if (waiting.length >= capacity) {
+              val (promise, remaining) = waiting.dequeue
+              promise.await.as(remaining)
+            } else ZIO.succeed(waiting)
+
+          for {
+            waiting <- awaitCapacity
+            promise <- Promise.make[Nothing, Unit]
+            _       <- queue.offer(Exit.succeed(chunk(index)) -> promise)
+            waiting <- offer(chunk, index + 1, waiting.enqueue(promise))
+          } yield waiting
+        } else ZIO.succeed(waiting)
+
+      ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Nothing, Any](
+        in => ZChannel.fromZIO(offer(in, 0, waiting)).flatMap(producer(queue, capacity, _)),
+        err =>
+          ZChannel.fromZIO(
+            Promise.make[Nothing, Unit].flatMap(promise => queue.offer((Exit.failCause(err.map(Some(_))), promise)))
+          ),
+        _ =>
+          ZChannel.fromZIO(
+            Promise.make[Nothing, Unit].flatMap(promise => queue.offer((Exit.fail(None), promise)))
+          )
+      )
+    }
+
     new ZStream(
       ZChannel.unwrapScoped[R] {
-        queue.map { queue =>
+        for {
+          capacity0 <- ZIO.succeed {
+                         val capacity0 = capacity
+                         require(capacity0 > 0)
+                         capacity0
+                       }
+          queue <- ZIO.acquireRelease(Queue.unbounded[(Exit[Option[E], A], Promise[Nothing, Unit])])(_.shutdown)
+          _     <- (self.channel >>> producer(queue, capacity0, ScalaQueue.empty)).drain.runScoped.forkScoped
+        } yield {
           lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
             ZChannel.fromZIO {
               queue.take
-            }.flatMap { (exit: Exit[Option[E], A]) =>
+            }.flatMap { case (exit, promise) =>
               exit.foldExit(
                 Cause
                   .flipCauseOption(_)
-                  .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
-                value => ZChannel.write(Chunk.single(value)) *> process
+                  .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](
+                    ZChannel.fromZIO(promise.succeedUnit).unit
+                  )(cause => ZChannel.fromZIO(promise.succeedUnit) *> ZChannel.refailCause(cause)),
+                value => ZChannel.write(Chunk.single(value)) *> ZChannel.fromZIO(promise.succeedUnit) *> process
               )
             }
 
