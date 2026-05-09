@@ -438,8 +438,8 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                          require(capacity0 > 0)
                          capacity0
                        }
-          queue    <- ZIO.acquireRelease(Queue.unbounded[(Exit[Option[E], A], Promise[Nothing, Unit])])(_.shutdown)
-          _        <- (self.channel >>> producer(queue, capacity0, ScalaQueue.empty)).drain.runScoped.forkScoped
+          queue <- ZIO.acquireRelease(Queue.unbounded[(Exit[Option[E], A], Promise[Nothing, Unit])])(_.shutdown)
+          _     <- (self.channel >>> producer(queue, capacity0, ScalaQueue.empty)).drain.runScoped.forkScoped
         } yield {
           lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
             ZChannel.fromZIO {
