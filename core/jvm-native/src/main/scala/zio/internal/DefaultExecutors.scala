@@ -28,9 +28,6 @@ private[zio] abstract class DefaultExecutors {
   final def makeDefault(autoBlocking: Boolean): zio.Executor =
     new ZScheduler(autoBlocking)
 
-  final def makeDefaultNio(autoBlocking: Boolean): zio.Executor =
-    new ZIOScheduler(autoBlocking)
-
   final def fromThreadPoolExecutor(
     es: ThreadPoolExecutor
   ): zio.Executor =
