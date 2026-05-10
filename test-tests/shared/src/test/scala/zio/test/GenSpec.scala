@@ -701,6 +701,50 @@ object GenSpec extends ZIOBaseSpec {
         assert(a)(hasSize(equalTo(100))) &&
         assert(b)(hasSize(equalTo(100)))
     },
+    test("runCollectN re-samples effectful generators before deterministic generators") {
+      val gen = for {
+        id <- Gen.uuid
+        _  <- Gen.fromIterable(0 until 100)
+      } yield id
+
+      assertZIO(gen.runCollectN(20).map(_.distinct.size))(isGreaterThan(1))
+    },
+    test("runCollectN re-samples effectful generators after deterministic generators") {
+      val gen = for {
+        _  <- Gen.fromIterable(0 until 100)
+        id <- Gen.uuid
+      } yield id
+
+      assertZIO(gen.runCollectN(20).map(_.distinct.size))(isGreaterThan(1))
+    },
+    test("checkN re-samples effectful generators before deterministic generators") {
+      val gen = for {
+        id <- Gen.uuid
+        _  <- Gen.fromIterable(0 until 100)
+      } yield id
+
+      for {
+        seen <- Ref.make(Set.empty[String])
+        _ <- CheckN(20)(gen) { id =>
+               seen.update(_ + id.toString).as(assertCompletes)
+             }
+        values <- seen.get
+      } yield assert(values.size)(isGreaterThan(1))
+    },
+    test("checkN re-samples effectful generators after deterministic generators") {
+      val gen = for {
+        _  <- Gen.fromIterable(0 until 100)
+        id <- Gen.uuid
+      } yield id
+
+      for {
+        seen <- Ref.make(Set.empty[String])
+        _ <- CheckN(20)(gen) { id =>
+               seen.update(_ + id.toString).as(assertCompletes)
+             }
+        values <- seen.get
+      } yield assert(values.size)(isGreaterThan(1))
+    },
     test("runHead") {
       assertZIO(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
     },
