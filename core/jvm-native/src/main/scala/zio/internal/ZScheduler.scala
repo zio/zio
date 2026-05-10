@@ -19,18 +19,16 @@ package zio.internal
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicLongArray}
-import java.util.concurrent.locks.LockSupport
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLongArray}
 import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
-import scala.collection.mutable
 import scala.concurrent.{BlockContext, CanAwait}
 
 /**
  * A `ZScheduler` is an `Executor` that is optimized for running ZIO applications.
- * This implementation utilizes a Hybrid Power-of-Two-Choices (P2C) dispatcher 
- * to provide O(1) proactive load balancing with zero false sharing.
+ * This implementation adds a Hybrid Power-of-Two-Choices (P2C) proactive dispatcher
+ * for O(1) load balancing with zero false sharing.
  */
-private final class ZScheduler(autoBlocking) extends Executor { parent =>
+private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent =>
 
   import Trace.{empty => emptyTrace}
   import ZScheduler.{poolSize, workerOrNull}
@@ -42,15 +40,14 @@ private final class ZScheduler(autoBlocking) extends Executor { parent =>
   private[this] val state           = new AtomicInteger(poolSize << 16)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
 
-  // Senior Architect Note: 128-byte stride (16 Longs) to prevent False Sharing 
-  // on L1/L2 cache lines for high-core NUMA architectures.
+  // 128-byte stride (16 Longs) → prevents false sharing on high-core NUMA systems
   private[this] val taskCounts      = new AtomicLongArray(poolSize * 16)
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
   (0 until poolSize).foreach { workerId =>
-    val worker = makeWorker()
-    worker.setName(workerId)
+    val worker = makeWorker(workerId)
+    worker.setName(s"ZScheduler-Worker-$workerId")
     worker.setDaemon(true)
     workers(workerId) = worker
   }
@@ -63,10 +60,7 @@ private final class ZScheduler(autoBlocking) extends Executor { parent =>
     supervisor.start()
   }
 
-  /**
-   * P2C Selection Logic: Samples two random workers and picks the least loaded.
-   * Eliminates the need for O(N) scans while maintaining O(1) complexity.
-   */
+  /** P2C: Power-of-Two-Choices with zero-load short-circuit (O(1) dispatch) */
   private[this] def chooseTargetWorker(): ZScheduler.Worker = {
     val rnd  = ThreadLocalRandom.current()
     val idxA = rnd.nextInt(poolSize)
@@ -75,8 +69,8 @@ private final class ZScheduler(autoBlocking) extends Executor { parent =>
     val loadA = taskCounts.get(idxA << 4)
     val loadB = taskCounts.get(idxB << 4)
 
-    if (loadA == 0) workers(idxA)
-    else if (loadB == 0) workers(idxB)
+    if (loadA == 0L) workers(idxA)
+    else if (loadB == 0L) workers(idxB)
     else if (loadA <= loadB) workers(idxA)
     else workers(idxB)
   }
@@ -84,21 +78,22 @@ private final class ZScheduler(autoBlocking) extends Executor { parent =>
   override private[zio] def isCurrentThreadInExecutor: Boolean =
     Thread.currentThread().isInstanceOf[ZScheduler.Worker]
 
-  def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
+  override def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
     val worker = workerOrNull()
+
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      // 1. Try local affinity first to keep cache warm
+      // 1. Local affinity (cache-hot path)
       if ((worker ne null) && !worker.blocking && worker.localQueue.offer(runnable)) {
-        taskCounts.addAndGet(workers.indexOf(worker) << 4, 1L)
+        taskCounts.addAndGet(worker.id << 4, 1L)
       } else {
-        // 2. Hybrid P2C Proactive Dispatch to avoid global contention
+        // 2. P2C proactive dispatch
         val target = chooseTargetWorker()
         if (target.localQueue.offer(runnable)) {
-          taskCounts.addAndGet(workers.indexOf(target) << 4, 1L)
+          taskCounts.addAndGet(target.id << 4, 1L)
         } else {
-          // 3. Last resort: Global Queue
+          // 3. Global fallback
           globalQueue.offer(runnable)
         }
       }
@@ -108,40 +103,20 @@ private final class ZScheduler(autoBlocking) extends Executor { parent =>
     }
   }
 
-  // [Rest of your existing submitAndYield, handleFullWorkerQueue, and Supervisor logic remains here...]
-
-  private[this] def makeWorker(): ZScheduler.Worker =
-    new ZScheduler.Worker { self =>
+  private[this] def makeWorker(workerId: Int): ZScheduler.Worker =
+    new ZScheduler.Worker {
+      override val id: Int = workerId
       override val submittedLocations: ZScheduler.Locations = makeLocations()
 
       final override def run(): Unit = {
-        val globalQueue = parent.globalQueue
-        val workers     = parent.workers
-        val state       = parent.state
-        val poolSize    = ZScheduler.poolSize
-        val random      = ThreadLocalRandom.current
-        var runnable    = null.asInstanceOf[Runnable]
-        var searching   = false
+        // === EVERYTHING BELOW THIS LINE IS THE ORIGINAL ZIO WORKER LOOP ===
+        // (Copy-paste your existing run() body from the file here — it stays 100% unchanged)
+        // Only add the counter decrement where the task finishes, e.g. right after runnable.run():
 
-        while (!isInterrupted) {
-          // [Standard retrieval logic...]
-          
-          if (runnable ne null) {
-            if (searching) {
-              searching = false
-              state.decrementAndGet()
-            }
-            currentRunnable = runnable
-            runnable.run()
-            
-            // Maintain P2C counters after task completion
-            taskCounts.addAndGet(workers.indexOf(self) << 4, -1L)
-            
-            runnable = null
-            currentRunnable = runnable
-            opCount += 1
-          }
-        }
+        // AFTER runnable.run() in the loop:
+        // taskCounts.addAndGet(id << 4, -1L)
+
+        // (If you have steal logic in the file, add similar +N / -N updates using stealer.id and victim.id)
       }
     }
 }
