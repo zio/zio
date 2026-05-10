@@ -16,7 +16,8 @@
 
 package zio.internal
 
-import zio.Fiber
+import zio.{Fiber, Unsafe}
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.lang.ref.WeakReference
 import scala.annotation.tailrec
@@ -41,7 +42,7 @@ private[zio] object FiberSet {
   ) extends FiberSet {
 
     def add[A](fiber: Fiber.Runtime[A, _]): Unit = {
-      val ref = new WeakReference(fiber)
+      val ref = new WeakReference[Fiber.Runtime[_, _]](fiber)
       if (!map.add(ref)) {
         map.remove(ref)
         map.add(ref)
@@ -49,7 +50,7 @@ private[zio] object FiberSet {
     }
 
     def remove[A](fiber: Fiber.Runtime[A, _]): Unit = {
-      val ref = new WeakReference(fiber)
+      val ref = new WeakReference[Fiber.Runtime[_, _]](fiber)
       map.remove(ref)
     }
 
@@ -61,11 +62,11 @@ private[zio] object FiberSet {
             private var _next: Fiber.Runtime[_, _] = prefetchOrNull()
 
             @tailrec
-            private def prefetchOrNull(): Fiber.Runtime[_, _] = {
+            private def prefetchOrNull(): Fiber.Runtime[_, _] =
               if (!mapIterator.hasNext) {
                 null.asInstanceOf[Fiber.Runtime[_, _]]
               } else {
-                val ref = mapIterator.next()
+                val ref   = mapIterator.next()
                 val fiber = ref.get
                 if (fiber eq null) {
                   mapIterator.remove()
@@ -77,7 +78,6 @@ private[zio] object FiberSet {
                   fiber
                 }
               }
-            }
 
             def hasNext: Boolean = _next ne null
 
