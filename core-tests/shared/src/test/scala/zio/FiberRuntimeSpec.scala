@@ -67,6 +67,42 @@ object FiberRuntimeSpec extends ZIOBaseSpec {
       }
     ),
     suite("observers")(
+      test("observers racing fiber completion are notified") {
+        val observers = 32
+
+        def awaitCounter(counter: AtomicInteger): UIO[Int] =
+          ZIO.suspendSucceed {
+            val count = counter.get()
+            if (count == observers) ZIO.succeed(count)
+            else ZIO.yieldNow *> awaitCounter(counter)
+          }
+
+        ZIO
+          .foreachDiscard(0 until 64) { _ =>
+            for {
+              complete <- Promise.make[Nothing, Unit]
+              start    <- Promise.make[Nothing, Unit]
+              counter  <- ZIO.succeed(new AtomicInteger(0))
+              fiber    <- complete.await.fork
+              observe <- ZIO
+                           .foreachParDiscard(0 until observers) { _ =>
+                             start.await *>
+                               ZIO.succeed {
+                                 fiber.unsafe.addObserver { _ =>
+                                   counter.incrementAndGet()
+                                   ()
+                                 }
+                               }
+                           }
+                           .fork
+              _     <- start.succeed(()) <&> complete.succeed(())
+              _     <- observe.join
+              _     <- fiber.await
+              count <- awaitCounter(counter)
+            } yield assertTrue(count == observers)
+          }
+          .as(assertCompletes)
+      } @@ timeout(10.seconds),
       test("removed on uncompleted fiber - bug #10181") {
         val observerCalled = Ref.unsafe.make(false)
         for {

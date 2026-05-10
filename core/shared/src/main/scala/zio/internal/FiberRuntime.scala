@@ -22,7 +22,6 @@ import zio.internal.SpecializationHelpers.SpecializeInt
 import zio.metrics.{Metric, MetricLabel}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Set => JavaSet}
 import scala.annotation.tailrec
@@ -42,7 +41,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _blockingOn     = FiberRuntime.notBlockingOn
   private var _asyncContWith  = null.asInstanceOf[AsyncContWith]
   private val running         = new AtomicBoolean(false)
-  private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
+  private val inbox           = new FiberMailbox()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
@@ -130,6 +129,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       if (exit ne null) Exit.succeed(exit)
       else {
         val cause = Cause.interrupt(fiberId, StackTrace(self.fiberId, Chunk.single(trace)))
+        // Same enqueue+schedule protocol as tell, but this path keeps the
+        // current-executor drain fast path.
         inbox.add(FiberMessage.InterruptSignal(cause))
 
         // If the fiber is not running (which means it's suspended), and the current thread is in the same executor as the fiber,
@@ -279,7 +280,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     // Maybe someone added something to the inbox between us checking, and us
     // giving up the drain. If so, we need to restart the draining, but only
     // if we beat everyone else to the restart:
-    if (!inbox.isEmpty && running.compareAndSet(false, true)) {
+    if (inbox.hasLinkedMessages && running.compareAndSet(false, true)) {
       if (evaluationSignal == EvaluationSignal.YieldNow) drainQueueLaterOnExecutor(true)
       else drainQueueOnCurrentThread(depth)
     }
@@ -441,7 +442,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             val interruption = interruptAllChildren()
 
             if (interruption eq null) {
-              if (inbox.isEmpty) {
+              if (inbox.isDefinitelyEmpty) {
                 finalExit = exit
 
                 if (supervisor ne Supervisor.none) supervisor.onEnd(finalExit, self)(Unsafe)
@@ -1097,7 +1098,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     var stackIndex = startStackIndex
 
     if (currentDepth >= FiberRuntime.MaxDepthBeforeTrampoline) {
-      inbox.add(FiberMessage.Resume(effect))
+      tellSelf(FiberMessage.Resume(effect))
 
       return null
     }
@@ -1113,7 +1114,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       if (ops > FiberRuntime.MaxOperationsBeforeYield && RuntimeFlags.cooperativeYielding(_runtimeFlags)) {
         updateLastTrace(cur.trace)
-        inbox.add(FiberMessage.Resume(cur))
+        tellSelf(FiberMessage.Resume(cur))
 
         return null
       } else {
@@ -1299,7 +1300,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
             case yieldNow: ZIO.YieldNow =>
               updateLastTrace(yieldNow.trace)
-              inbox.add(FiberMessage.resumeUnit)
+              tellSelf(FiberMessage.resumeUnit)
               return null
 
             case failure: Exit.Failure[Any] =>
@@ -1486,7 +1487,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         // for spinning up the fiber if there were new messages added to
         // the inbox between the completion of the effect and the transition
         // to the not running state.
-        if (!inbox.isEmpty && running.compareAndSet(false, true)) {
+        if (inbox.hasLinkedMessages && running.compareAndSet(false, true)) {
           // If there are messages and the result is null, this is either a yield, or we need to resume the fiber
           // In either way, we can optimize by using attemptResumptionOnSameThread = true
           drainQueueLaterOnExecutor(result eq null)
@@ -1524,6 +1525,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     // Attempt to spin up fiber, if it's not already running:
     if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor(false)
   }
+
+  /**
+   * Enqueues a message from the running fiber itself. Because add returns only
+   * after linking its own node, no additional schedule is needed unless an
+   * earlier cross-thread producer is still in flight; that producer will
+   * schedule after its add returns.
+   */
+  private[this] def tellSelf(message: FiberMessage): Unit =
+    inbox.add(message)
 
   private[zio] def tellAddChild(child: Fiber.Runtime[_, _]): Unit =
     tell(FiberMessage.Stateful(parentFiber => parentFiber.addChild(child)))
