@@ -516,6 +516,75 @@ object QueueSpec extends ZIOBaseSpec {
         res    <- queue.size.sandbox.either
       } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
     },
+    test("shutdownCause returns buffered items and fails future interactions with the cause") {
+      val boom  = new RuntimeException("queue worker failed")
+      val cause = Cause.die(boom)
+
+      for {
+        queue     <- Queue.bounded[Int](4)
+        _         <- queue.offerAll(Chunk(1, 2, 3))
+        remaining <- queue.shutdownCause(cause)
+        offer     <- queue.offer(4).sandbox.either
+        take      <- queue.take.sandbox.either
+        takeAll   <- queue.takeAll.sandbox.either
+        takeUpTo  <- queue.takeUpTo(1).sandbox.either
+        size      <- queue.size.sandbox.either
+      } yield assertTrue(remaining == Chunk(1, 2, 3)) &&
+        assert(offer.left.map(_.untraced))(isLeft(equalTo(cause))) &&
+        assert(take.left.map(_.untraced))(isLeft(equalTo(cause))) &&
+        assert(takeAll.left.map(_.untraced))(isLeft(equalTo(cause))) &&
+        assert(takeUpTo.left.map(_.untraced))(isLeft(equalTo(cause))) &&
+        assert(size.left.map(_.untraced))(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause fails a pending taker with the cause") {
+      val boom  = new RuntimeException("queue worker failed")
+      val cause = Cause.die(boom)
+
+      for {
+        queue     <- Queue.bounded[Int](1)
+        taker     <- queue.take.fork
+        _         <- waitForSize(queue, -1)
+        remaining <- queue.shutdownCause(cause)
+        res       <- taker.join.sandbox.either
+      } yield assertTrue(remaining.isEmpty) &&
+        assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause returns buffered items and fails a pending putter with the cause") {
+      val boom  = new RuntimeException("queue worker failed")
+      val cause = Cause.die(boom)
+
+      for {
+        queue     <- Queue.bounded[Int](1)
+        _         <- queue.offer(1)
+        putter    <- queue.offer(2).fork
+        _         <- waitForSize(queue, 2)
+        remaining <- queue.shutdownCause(cause)
+        res       <- putter.join.sandbox.either
+      } yield assertTrue(remaining == Chunk(1)) &&
+        assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause is atomic and losing callers fail with the winning cause") {
+      val boom1  = new RuntimeException("first shutdown")
+      val boom2  = new RuntimeException("second shutdown")
+      val cause1 = Cause.die(boom1)
+      val cause2 = Cause.die(boom2)
+
+      for {
+        queue <- Queue.bounded[Int](4)
+        _     <- queue.offerAll(Chunk(1, 2))
+        left  <- queue.shutdownCause(cause1).sandbox.either.fork
+        right <- queue.shutdownCause(cause2).sandbox.either.fork
+        res1  <- left.join
+        res2  <- right.join
+      } yield (res1, res2) match {
+        case (Right(chunk), Left(failure)) =>
+          assertTrue(chunk == Chunk(1, 2), failure.untraced == cause1)
+        case (Left(failure), Right(chunk)) =>
+          assertTrue(failure.untraced == cause2, chunk == Chunk(1, 2))
+        case _ =>
+          assertTrue(false)
+      }
+    },
     test("back-pressured offer completes after take") {
       for {
         queue <- Queue.bounded[Int](2)

@@ -5873,6 +5873,18 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .take(3)
                           .runCollect
             } yield result)(forall(hasSize(isLessThanEqualTo(2))))
+          },
+          test("propagates shutdownCause defects") {
+            val boom  = new RuntimeException("queue worker failed")
+            val cause = Cause.die(boom)
+
+            for {
+              queue <- Queue.unbounded[Int]
+              fiber <- ZStream.fromQueue(queue).runDrain.sandbox.either.fork
+              _     <- fiber.status.repeatUntil(_.isSuspended)
+              _     <- queue.shutdownCause(cause)
+              res   <- fiber.join
+            } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
           }
         ),
         test("fromTQueue") {
