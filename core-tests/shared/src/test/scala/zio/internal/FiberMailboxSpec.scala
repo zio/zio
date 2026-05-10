@@ -31,6 +31,32 @@ object FiberMailboxSpec extends ZIOBaseSpec {
           mailbox.isDefinitelyEmpty
         )
       },
+      test("does not allow later messages to jump ahead after partial drain") {
+        val mailbox = new FiberMailbox
+        val first   = FiberMessage.Stateful(_ => ())
+        val second  = FiberMessage.Stateful(_ => ())
+        val third   = FiberMessage.Stateful(_ => ())
+
+        mailbox.add(first)
+        mailbox.add(second)
+
+        val firstPolled = mailbox.poll()
+
+        mailbox.add(third)
+
+        val secondPolled = mailbox.poll()
+        val thirdPolled  = mailbox.poll()
+        val emptyPolled  = mailbox.poll()
+
+        assertTrue(
+          firstPolled eq first,
+          secondPolled eq second,
+          thirdPolled eq third,
+          emptyPolled eq null,
+          !mailbox.hasLinkedMessages,
+          mailbox.isDefinitelyEmpty
+        )
+      },
       test("does not drop, duplicate, or reorder messages from the same producer") {
         val mailbox     = new FiberMailbox
         val producers   = 16
