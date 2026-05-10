@@ -39,7 +39,8 @@ final class FiberMailbox {
 
     final Node node = new Node(message);
     final Node previous = PRODUCER_NODE.getAndSet(this, node);
-    previous.lazySet(node);
+    // Runtime rescheduling observes this link with one-shot post-drain checks.
+    previous.set(node);
   }
 
   FiberMessage poll() {

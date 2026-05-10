@@ -17,9 +17,6 @@ class FiberMailboxBenchmark {
   private[this] val fiberMailbox = new FiberMailbox
   private[this] val linkedQueue  = new ConcurrentLinkedQueue[FiberMessage]()
 
-  @Param(Array("1", "2", "3", "4", "16"))
-  var burstSize: Int = _
-
   @Benchmark
   def fiberMailboxEmptyPoll(): FiberMessage =
     fiberMailbox.poll()
@@ -53,9 +50,9 @@ class FiberMailboxBenchmark {
   }
 
   @Benchmark
-  def fiberMailboxBurstDrain(): Int = {
+  def fiberMailboxBurstDrain(state: FiberMailboxBurstState): Int = {
     var offered = 0
-    while (offered < burstSize) {
+    while (offered < state.burstSize) {
       fiberMailbox.add(message)
       offered += 1
     }
@@ -68,9 +65,9 @@ class FiberMailboxBenchmark {
   }
 
   @Benchmark
-  def concurrentLinkedQueueBurstDrain(): Int = {
+  def concurrentLinkedQueueBurstDrain(state: FiberMailboxBurstState): Int = {
     var offered = 0
-    while (offered < burstSize) {
+    while (offered < state.burstSize) {
       linkedQueue.add(message)
       offered += 1
     }
@@ -81,4 +78,10 @@ class FiberMailboxBenchmark {
     }
     drained
   }
+}
+
+@State(JScope.Thread)
+class FiberMailboxBurstState {
+  @Param(Array("1", "2", "3", "4", "16"))
+  var burstSize: Int = _
 }

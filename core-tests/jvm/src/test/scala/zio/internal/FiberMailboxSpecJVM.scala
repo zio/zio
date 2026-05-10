@@ -9,6 +9,21 @@ object FiberMailboxSpecJVM extends ZIOBaseSpec {
 
   def spec =
     suite("FiberMailboxSpecJVM")(
+      test("links messages before add returns") {
+        ZIO.succeed {
+          val mailbox = new FiberMailbox
+          val message = FiberMessage.Stateful(_ => ())
+
+          mailbox.add(message)
+
+          assertTrue(
+            mailbox.hasLinkedMessages,
+            !mailbox.isDefinitelyEmpty,
+            mailbox.poll() eq message,
+            mailbox.isDefinitelyEmpty
+          )
+        }
+      },
       test("tracks in-flight producers separately from linked messages") {
         ZIO.succeed {
           val mailbox = new FiberMailbox
@@ -32,7 +47,7 @@ object FiberMailboxSpecJVM extends ZIOBaseSpec {
           val hasLinkedBeforeLink       = mailbox.hasLinkedMessages
           val definitelyEmptyBeforeLink = mailbox.isDefinitelyEmpty
 
-          consumerNode.lazySet(producerNode)
+          consumerNode.set(producerNode)
 
           val polledAfterLink = mailbox.poll()
 
