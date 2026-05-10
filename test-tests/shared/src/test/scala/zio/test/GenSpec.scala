@@ -672,6 +672,29 @@ object GenSpec extends ZIOBaseSpec {
       val actual     = exhaustive.zipWith(exhaustive)(_ + _)
       checkFinite(actual)(equalTo(expected))
     },
+    test("fromIterable in flatMap with random generator produces distinct values (issue #9101)") {
+      // When a random generator (uuid) is followed by fromIterable in a
+      // for-comprehension, each sample should produce a DISTINCT random value.
+      // Before the fix this always produced the same UUID.
+      val gen = for {
+        id <- Gen.uuid
+        _  <- Gen.fromIterable(List("a", "b", "c", "d", "e"))
+      } yield id
+      for {
+        values <- gen.runCollectN(20)
+        // With the fix, we expect distinct UUIDs (extremely unlikely to collide)
+      } yield assert(values.distinct.size)(isGreaterThan(1))
+    },
+    test("fromIterable with finite list picks distinct elements in nondeterministic mode") {
+      val gen = for {
+        _   <- Gen.int
+        x   <- Gen.fromIterable(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+      } yield x
+      for {
+        values <- gen.runCollectN(30)
+        // We should see more than 1 distinct value across 30 samples
+      } yield assert(values.distinct.size)(isGreaterThan(1))
+    },
     test("size can be modified locally") {
       val getSize = Gen.size.sample.map(_.value).runCollect.map(_.head)
       val result = for {

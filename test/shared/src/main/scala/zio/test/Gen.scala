@@ -19,7 +19,7 @@ package zio.test
 import zio.Random._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZStream
-import zio.{Chunk, NonEmptyChunk, Random, Trace, UIO, URIO, ZIO, Zippable}
+import zio._
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -32,6 +32,16 @@ import scala.math.Numeric.DoubleIsFractional
  * environment `R`. Generators may be random or deterministic.
  */
 final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
+
+  /**
+   * Returns the sample stream for this generator, setting the deterministic
+   * mode flag based on whether `n` is provided. When `n` is `Some`, runs in
+   * nondeterministic mode (each call to `fromIterable` picks a random element);
+   * when `None`, runs in deterministic mode (full enumeration).
+   */
+  private[test] def samples(n: Option[Int])(implicit trace: Trace): ZStream[R, Nothing, Sample[R, A]] =
+    ZStream.scoped[R](Gen.isDeterministic.locallyScoped(n.isEmpty)) *>
+      n.fold(sample)(sample.forever.take(_))
 
   /**
    * A symbolic alias for `concat`.
@@ -147,20 +157,20 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Runs the generator and collects all of its values in a list.
    */
   def runCollect(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).runCollect.map(_.toList)
+    samples(None).map(_.value).runCollect.map(_.toList)
 
   /**
    * Repeatedly runs the generator and collects the specified number of values
    * in a list.
    */
   def runCollectN(n: Int)(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
+    samples(Some(n)).map(_.value).runCollect.map(_.toList)
 
   /**
    * Runs the generator returning the first value of the generator.
    */
   def runHead(implicit trace: Trace): ZIO[R, Nothing, Option[A]] =
-    sample.map(_.value).runHead
+    samples(Some(1)).map(_.value).runHead
 
   /**
    * Composes this generator with the specified generator to create a cartesian
@@ -180,6 +190,35 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 }
 
 object Gen extends GenZIO with FunctionVariants with TimeVariants {
+
+  /**
+   * FiberRef tracking whether the current generator execution is in
+   * deterministic mode (full enumeration) or nondeterministic mode (random
+   * sampling). Defaults to `true` (deterministic). Set to `false` by
+   * `samples(Some(n))` during property-based test execution.
+   */
+  private[test] val isDeterministic: FiberRef[Boolean] =
+    FiberRef.unsafe.make(true)(Unsafe.unsafe)
+
+  /**
+   * Constructs a dual generator that behaves differently depending on whether
+   * we are in deterministic or nondeterministic mode:
+   *
+   *   - In deterministic mode (e.g. `runCollect`, `checkAll`): uses
+   *     `deterministic`, which enumerates all values.
+   *   - In nondeterministic mode (e.g. `check`, `runCollectN`): uses
+   *     `nondeterministic`, which picks values randomly.
+   *
+   * This is the mechanism that allows `fromIterable` to compose correctly with
+   * random generators such as `Gen.uuid` in for-comprehensions.
+   */
+  def dual[R, A](
+    deterministic: => Gen[R, A],
+    nondeterministic: => Gen[R, A]
+  )(implicit trace: Trace): Gen[R, A] =
+    Gen(ZStream.unwrap {
+      isDeterministic.get.map(if (_) deterministic.sample else nondeterministic.sample)
+    })
 
   /**
    * A generator of alpha characters.
@@ -439,14 +478,51 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     uniform.map(n => -math.log(1 - n))
 
   /**
-   * Constructs a deterministic generator that only generates the specified
-   * fixed values.
+   * A dual generator from the specified list of fixed values:
+   *   - In deterministic mode, generates all the specified values in order
+   *     (original behavior).
+   *   - In nondeterministic mode, picks one value at random per sample. For
+   *     iterables with a known finite size this uses full random indexing; for
+   *     iterables of unknown or infinite size at most the first
+   *     `fromIterableMaxSampleSize` elements are considered.
+   *
+   * This dual behaviour fixes the long-standing bug where composing
+   * `fromIterable` with a random generator via `flatMap` / for-comprehension
+   * always produced the same random value (see zio/zio#9101).
    */
   def fromIterable[R, A](
     as: Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
   )(implicit trace: Trace): Gen[R, A] =
-    Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
+    Gen.dual(
+      // Deterministic: enumerate every value
+      Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a))))),
+      // Nondeterministic: pick one element at random each sample
+      fromIterableNonDeterministic(as, shrinker)
+    )
+
+  /**
+   * Maximum number of elements sampled from an iterable of unknown size when
+   * running in nondeterministic mode.
+   */
+  private val fromIterableMaxSampleSize: Int = 1000
+
+  private def fromIterableNonDeterministic[R, A](
+    as: Iterable[A],
+    shrinker: A => ZStream[R, Nothing, A]
+  )(implicit trace: Trace): Gen[R, A] = {
+    val knownSize = as.knownSize
+    val chunk: Chunk[A] =
+      if (knownSize == 0) Chunk.empty
+      else if (knownSize > 0) Chunk.fromIterable(as)
+      else Chunk.fromIterator(as.iterator.take(fromIterableMaxSampleSize))
+    if (chunk.isEmpty) Gen.empty
+    else
+      Gen.int(0, chunk.length - 1).flatMap { i =>
+        val a = chunk(i)
+        Gen.constSample(Sample.unfold(a)(a => (a, shrinker(a))))
+      }
+  }
 
   /**
    * Constructs a generator from a function that uses randomness. The returned
