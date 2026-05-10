@@ -22,7 +22,6 @@ import zio.internal.SpecializationHelpers.SpecializeInt
 import zio.metrics.{Metric, MetricLabel}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Set => JavaSet}
 import scala.annotation.tailrec
@@ -42,7 +41,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _blockingOn     = FiberRuntime.notBlockingOn
   private var _asyncContWith  = null.asInstanceOf[AsyncContWith]
   private val running         = new AtomicBoolean(false)
-  private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
+  private val inbox           = new FiberMailbox()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
@@ -130,7 +129,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       if (exit ne null) Exit.succeed(exit)
       else {
         val cause = Cause.interrupt(fiberId, StackTrace(self.fiberId, Chunk.single(trace)))
-        inbox.add(FiberMessage.InterruptSignal(cause))
+        inbox.tell(FiberMessage.InterruptSignal(cause))
 
         // If the fiber is not running (which means it's suspended), and the current thread is in the same executor as the fiber,
         // then execute the runloop on the current thread, avoiding context switching and suspension
@@ -266,19 +265,24 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       }
 
       while (evaluationSignal == EvaluationSignal.Continue) {
-        evaluationSignal = {
-          val message = inbox.poll()
-          if (message eq null) EvaluationSignal.Done
-          else evaluateMessageWhileSuspended(depth, message)
+        val messages = inbox.drainBatch()
+        if (messages.length == 0) {
+          evaluationSignal = EvaluationSignal.Done
+        } else {
+          var i = 0
+          while (i < messages.length && evaluationSignal == EvaluationSignal.Continue) {
+            evaluationSignal = evaluateMessageWhileSuspended(depth, messages(i))
+            i += 1
+          }
+          if (i < messages.length && evaluationSignal == EvaluationSignal.Continue) {
+            evaluationSignal = EvaluationSignal.YieldNow
+          }
         }
       }
     } finally {
       running.set(false)
     }
 
-    // Maybe someone added something to the inbox between us checking, and us
-    // giving up the drain. If so, we need to restart the draining, but only
-    // if we beat everyone else to the restart:
     if (!inbox.isEmpty && running.compareAndSet(false, true)) {
       if (evaluationSignal == EvaluationSignal.YieldNow) drainQueueLaterOnExecutor(true)
       else drainQueueOnCurrentThread(depth)
@@ -317,15 +321,15 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private def drainQueueWhileRunning(cur0: ZIO.Erased): ZIO.Erased = {
     var cur     = cur0
-    var message = inbox.poll()
-
-    while (message ne null) {
+    val messages = inbox.drainBatch()
+    var i = 0
+    while (i < messages.length) {
+      val message = messages(i)
       message match {
         case FiberMessage.Stateful(onFiber) =>
           processStatefulMessage(onFiber)
 
         case FiberMessage.InterruptSignal(cause) =>
-          // Unfortunately we can't avoid the virtual call to `trace` here
           updateLastTrace(cur.trace)
           processNewInterruptSignal(cause)
 
@@ -336,8 +340,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         case _ =>
           assert(DisableAssertions, "It is illegal to have multiple concurrent run loops in a single fiber")
       }
-
-      message = inbox.poll()
+      i += 1
     }
 
     cur
@@ -353,9 +356,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private def drainQueueAfterAsync(): ZIO.Erased = {
     var resumption: ZIO.Erased = null
 
-    var message = inbox.poll()
-
-    while (message ne null) {
+    val messages = inbox.drainBatch()
+    var i = 0
+    while (i < messages.length) {
+      val message = messages(i)
       message match {
         case FiberMessage.InterruptSignal(cause) =>
           processNewInterruptSignal(cause)
@@ -372,8 +376,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           assert(DisableAssertions)
 
       }
-
-      message = inbox.poll()
+      i += 1
     }
 
     resumption
@@ -1097,7 +1100,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     var stackIndex = startStackIndex
 
     if (currentDepth >= FiberRuntime.MaxDepthBeforeTrampoline) {
-      inbox.add(FiberMessage.Resume(effect))
+      inbox.tell(FiberMessage.Resume(effect))
 
       return null
     }
@@ -1113,7 +1116,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       if (ops > FiberRuntime.MaxOperationsBeforeYield && RuntimeFlags.cooperativeYielding(_runtimeFlags)) {
         updateLastTrace(cur.trace)
-        inbox.add(FiberMessage.Resume(cur))
+        inbox.tell(FiberMessage.Resume(cur))
 
         return null
       } else {
@@ -1299,7 +1302,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
             case yieldNow: ZIO.YieldNow =>
               updateLastTrace(yieldNow.trace)
-              inbox.add(FiberMessage.resumeUnit)
+              inbox.tell(FiberMessage.resumeUnit)
               return null
 
             case failure: Exit.Failure[Any] =>
@@ -1519,7 +1522,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * Adds a message to be processed by the fiber on the fiber.
    */
   private[zio] def tell(message: FiberMessage): Unit = {
-    inbox.add(message)
+    inbox.tell(message)
 
     // Attempt to spin up fiber, if it's not already running:
     if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor(false)
