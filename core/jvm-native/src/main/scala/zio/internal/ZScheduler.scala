@@ -43,6 +43,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
+  @volatile private[this] var workSignaled: Boolean = false
 
   (0 until poolSize).foreach { workerId =>
     val worker = makeWorker()
@@ -150,11 +151,13 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     } else {
       if ((worker eq null) || worker.blocking) {
         globalQueue.offer(runnable)
+        val currentState = state.get
+        maybeUnparkWorker(currentState)
       } else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
-      } else ()
-      val currentState = state.get
-      maybeUnparkWorker(currentState)
+        val currentState = state.get
+        maybeUnparkWorker(currentState)
+      }
       true
     }
   }
@@ -164,9 +167,10 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      var notify = true
+      var workAdded = false
       if ((worker eq null) || worker.blocking) {
         globalQueue.offer(runnable)
+        workAdded = true
       }
       // Attempt resumption in the current Thread
       else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
@@ -175,19 +179,22 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         // Happy path, global queue is empty, so we can proceed to run the current runnable
         if (fromGlobal eq null) {
           worker.nextRunnable = runnable
-          notify = false
         } else {
           // Less common path, global queue is not empty, so we have to prioritize the runnable from it
           worker.nextRunnable = fromGlobal
           worker.localQueue.offer(runnable)
+          workAdded = true
         }
       }
       // We have to yield, add the runnable to the local / global queue so that it can be scheduled accordingly
       else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
+        workAdded = true
+      } else {
+        workAdded = true
       }
 
-      if (notify) {
+      if (workAdded) {
         val currentState = state.get
         maybeUnparkWorker(currentState)
       }
@@ -391,7 +398,10 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
               }
             }
             while (!active && !isInterrupted) {
-              LockSupport.park()
+              if (!workSignaled) {
+                LockSupport.park()
+              }
+              workSignaled = false
             }
             searching = true
           } else {
@@ -451,6 +461,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       val worker = idle.poll()
       if (worker ne null) {
         state.getAndAdd(0x10001)
+        workSignaled = true
         worker.active = true
         LockSupport.unpark(worker)
       }
