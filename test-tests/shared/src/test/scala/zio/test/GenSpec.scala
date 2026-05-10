@@ -687,8 +687,8 @@ object GenSpec extends ZIOBaseSpec {
     },
     test("fromIterable with finite list picks distinct elements in nondeterministic mode") {
       val gen = for {
-        _   <- Gen.int
-        x   <- Gen.fromIterable(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        _ <- Gen.int
+        x <- Gen.fromIterable(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
       } yield x
       for {
         values <- gen.runCollectN(30)

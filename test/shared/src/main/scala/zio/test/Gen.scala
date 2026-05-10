@@ -480,15 +480,16 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A dual generator from the specified list of fixed values:
    *   - In deterministic mode, generates all the specified values in order
-   *     (original behavior).
-   *   - In nondeterministic mode, picks one value at random per sample. For
-   *     iterables with a known finite size this uses full random indexing; for
-   *     iterables of unknown or infinite size at most the first
-   *     `fromIterableMaxSampleSize` elements are considered.
+   *     (original behavior, used by `checkAll` and `runCollect`).
+   *   - In nondeterministic mode, picks one value at random per sample (used by
+   *     `check` and `runCollectN`).
    *
    * This dual behaviour fixes the long-standing bug where composing
    * `fromIterable` with a random generator via `flatMap` / for-comprehension
    * always produced the same random value (see zio/zio#9101).
+   *
+   * Note: `as` must be a finite collection; infinite iterables are not
+   * supported.
    */
   def fromIterable[R, A](
     as: Iterable[A],
@@ -501,26 +502,15 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
       fromIterableNonDeterministic(as, shrinker)
     )
 
-  /**
-   * Maximum number of elements sampled from an iterable of unknown size when
-   * running in nondeterministic mode.
-   */
-  private val fromIterableMaxSampleSize: Int = 1000
-
   private def fromIterableNonDeterministic[R, A](
     as: Iterable[A],
     shrinker: A => ZStream[R, Nothing, A]
   )(implicit trace: Trace): Gen[R, A] = {
-    val knownSize = as.knownSize
-    val chunk: Chunk[A] =
-      if (knownSize == 0) Chunk.empty
-      else if (knownSize > 0) Chunk.fromIterable(as)
-      else Chunk.fromIterator(as.iterator.take(fromIterableMaxSampleSize))
+    val chunk = Chunk.fromIterable(as)
     if (chunk.isEmpty) Gen.empty
     else
       Gen.int(0, chunk.length - 1).flatMap { i =>
-        val a = chunk(i)
-        Gen.constSample(Sample.unfold(a)(a => (a, shrinker(a))))
+        Gen.constSample(Sample.unfold(chunk(i))(a => (a, shrinker(a))))
       }
   }
 
