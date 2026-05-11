@@ -4325,13 +4325,13 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("does not read ahead") {
             for {
-              ref    <- Ref.make(0)
-              stream  = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
-              sink    = ZSink.foreach((n: Int) => ref.update(_ + n))
-              _      <- stream.tapSink(sink).take(3).runDrain
-              result <- ref.get
-            } yield assertTrue(result == 6)
-          } @@ TestAspect.flaky
+              ref      <- Ref.make(0)
+              stream    = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
+              sink      = ZSink.foreach((n: Int) => ref.update(_ + n))
+              elements <- stream.tapSink(sink).take(3).runCollect
+              result   <- ref.get
+            } yield assertTrue(elements == Chunk(1, 2, 3) && result <= 6)
+          }
         ),
         suite("throttleEnforce")(
           test("free elements") {

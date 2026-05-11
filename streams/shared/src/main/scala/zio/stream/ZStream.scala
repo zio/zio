@@ -3357,8 +3357,10 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   }
 
   /**
-   * Sends all elements emitted by this stream to the specified sink in addition
-   * to emitting them.
+   * Sends elements emitted by this stream to the specified sink in addition to
+   * emitting them. The sink runs in parallel with downstream consumers, so if
+   * downstream consumption ends early the sink is not guaranteed to finish
+   * processing every emitted element before interruption.
    */
   def tapSink[R1 <: R, E1 >: E](
     sink: => ZSink[R1, E1, A, Any, Any]
