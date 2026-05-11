@@ -701,6 +701,20 @@ object GenSpec extends ZIOBaseSpec {
         assert(a)(hasSize(equalTo(100))) &&
         assert(b)(hasSize(equalTo(100)))
     },
+    test("random generators advance regardless of deterministic generator order") {
+      val deterministicFirst = for {
+        _  <- Gen.fromIterable(1 to 100)
+        id <- Gen.uuid
+      } yield id
+
+      val randomFirst = for {
+        id <- Gen.uuid
+        _  <- Gen.fromIterable(1 to 100)
+      } yield id
+
+      assertZIO(deterministicFirst.runCollectN(5).map(_.toSet))(hasSize(equalTo(5))) &&
+      assertZIO(randomFirst.runCollectN(5).map(_.toSet))(hasSize(equalTo(5)))
+    },
     test("runHead") {
       assertZIO(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
     },
