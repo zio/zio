@@ -155,27 +155,25 @@ object Semaphore {
           else if (n == 0L)
             ZIO.succeed(Reservation.zero)
           else
-            // Fast path: acquire without allocating a Promise when permits are available.
-            ref.modify {
-              case Right(permits) if permits >= n =>
-                Some(Reservation(ZIO.unit, releaseN(n))) -> Right(permits - n)
-              case state =>
-                None -> state
-            }.flatMap {
-              case Some(r) => ZIO.succeed(r)
-              case None    =>
-                // Slow path: permits unavailable; allocate Promise then atomically enqueue.
-                // Semantically identical to the baseline's single ref.modify after Promise.make.
-                Promise.make[Nothing, Unit].flatMap { promise =>
-                  ref.modify {
-                    case Right(permits) if permits >= n =>
-                      Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
-                    case Right(permits) =>
-                      Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
-                    case Left(queue) =>
-                      Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
-                  }
-                }
+            // Single ref.modify. The fast (permits-available) branch returns a Reservation
+            // without allocating a Promise; the slow branches allocate the Promise lazily
+            // only when enqueueing is required. The fiberId captured by ZIO.fiberIdWith is
+            // the same one Promise.make would have captured, preserving Promise.await's
+            // blockingOn diagnostic metadata. On CAS contention the modify closure may be
+            // retried, allocating throwaway Promise instances on the slow path. The trade is
+            // one allocation per CAS attempt instead of an extra ref.modify round-trip on
+            // every contended call.
+            ZIO.fiberIdWith { fiberId =>
+              ref.modify {
+                case Right(permits) if permits >= n =>
+                  Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
+                case Right(permits) =>
+                  val promise = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
+                  Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
+                case Left(queue) =>
+                  val promise = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
+                  Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
+              }
             }
 
         def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
