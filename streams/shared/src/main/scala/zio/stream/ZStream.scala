@@ -391,10 +391,33 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   Prefer capacities that are powers of 2 for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val queue = self.toQueueOfElements(capacity)
+    // Permits are released after an element is written downstream so elements
+    // emitted but not yet pulled by the consumer still count against capacity.
+    def producer(
+      queue: Queue[Exit[Option[E], A]],
+      semaphore: TSemaphore
+    ): ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] = {
+      def offer(exit: Exit[Option[E], A]): ZIO[Any, Nothing, Unit] =
+        for {
+          _ <- semaphore.acquire.commit
+          _ <- queue.offer(exit)
+        } yield ()
+
+      ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Nothing, Any](
+        in => ZChannel.fromZIO(ZIO.foreachDiscard(in)(a => offer(Exit.succeed(a)))) *> producer(queue, semaphore),
+        err => ZChannel.fromZIO(offer(Exit.failCause(err.map(Some(_))))),
+        _ => ZChannel.fromZIO(offer(Exit.fail(None)))
+      )
+    }
+
+    val queue = ZIO.acquireRelease(Queue.unbounded[Exit[Option[E], A]])(_.shutdown)
     new ZStream(
       ZChannel.unwrapScoped[R] {
-        queue.map { queue =>
+        for {
+          queue     <- queue
+          semaphore <- TSemaphore.makeCommit(capacity.toLong)
+          _         <- (self.channel >>> producer(queue, semaphore)).runScoped.forkScoped
+        } yield {
           lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
             ZChannel.fromZIO {
               queue.take
@@ -402,8 +425,10 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
               exit.foldExit(
                 Cause
                   .flipCauseOption(_)
-                  .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
-                value => ZChannel.write(Chunk.single(value)) *> process
+                  .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](
+                    ZChannel.fromZIO(semaphore.release.commit)
+                  )(cause => ZChannel.fromZIO(semaphore.release.commit) *> ZChannel.refailCause(cause)),
+                value => ZChannel.write(Chunk.single(value)) *> ZChannel.fromZIO(semaphore.release.commit) *> process
               )
             }
 

@@ -607,6 +607,32 @@ object ZStreamSpec extends ZIOBaseSpec {
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
+          },
+          test("does not run more effects than requested capacity") {
+            for {
+              firstConsumed <- Promise.make[Nothing, Unit]
+              releaseFirst  <- Promise.make[Nothing, Unit]
+              secondStarted <- Promise.make[Nothing, Unit]
+              thirdStarted  <- Promise.make[Nothing, Unit]
+              fiber <- ZStream
+                         .fromIterator(Iterator.from(1))
+                         .mapZIO { n =>
+                           secondStarted.succeed(()).when(n == 2) *>
+                             thirdStarted.succeed(()).when(n == 3).as(n)
+                         }
+                         .buffer(1)
+                         .runForeach { n =>
+                           if (n == 1) firstConsumed.succeed(()) *> releaseFirst.await
+                           else ZIO.unit
+                         }
+                         .fork
+              _     <- firstConsumed.await
+              _     <- secondStarted.await
+              _     <- ZIO.yieldNow
+              third <- thirdStarted.poll
+              _     <- releaseFirst.succeed(())
+              _     <- fiber.interrupt
+            } yield assert(third)(isNone)
           }
         ),
         suite("bufferChunks")(
