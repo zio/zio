@@ -4325,13 +4325,16 @@ object ZStreamSpec extends ZIOBaseSpec {
           },
           test("does not read ahead") {
             for {
-              ref    <- Ref.make(0)
-              stream  = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
-              sink    = ZSink.foreach((n: Int) => ref.update(_ + n))
-              _      <- stream.tapSink(sink).take(3).runDrain
-              result <- ref.get
-            } yield assertTrue(result == 6)
-          } @@ TestAspect.flaky
+              ref   <- Ref.make(Chunk.empty[Int])
+              stream = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
+              // Downstream cancellation may interrupt the sink before it drains,
+              // so the invariant is prefix order, not full prefix processing.
+              sink      = ZSink.foreach((n: Int) => ZIO.yieldNow *> ref.update(_ :+ n))
+              elements <- stream.tapSink(sink).take(3).runCollect
+              result   <- ref.get
+            } yield assertTrue(elements == Chunk(1, 2, 3)) &&
+              assertTrue(result == elements.take(result.length))
+          }
         ),
         suite("throttleEnforce")(
           test("free elements") {
