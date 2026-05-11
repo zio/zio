@@ -155,12 +155,17 @@ object Semaphore {
           else if (n == 0L)
             ZIO.succeed(Reservation.zero)
           else
-            // Fast path: attempt acquisition without allocating a Promise.
-            // Only allocate a Promise (slow path) when permits are unavailable.
+            // Fast path: acquire without allocating a Promise when permits are available.
             ref.modify {
               case Right(permits) if permits >= n =>
-                ZIO.succeed(Reservation(ZIO.unit, releaseN(n))) -> Right(permits - n)
+                Some(Reservation(ZIO.unit, releaseN(n))) -> Right(permits - n)
               case state =>
+                None -> state
+            }.flatMap {
+              case Some(r) => ZIO.succeed(r)
+              case None =>
+                // Slow path: permits unavailable; allocate Promise then atomically enqueue.
+                // Semantically identical to the baseline's single ref.modify after Promise.make.
                 Promise.make[Nothing, Unit].flatMap { promise =>
                   ref.modify {
                     case Right(permits) if permits >= n =>
@@ -170,8 +175,8 @@ object Semaphore {
                     case Left(queue) =>
                       Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
                   }
-                } -> state
-            }.flatten
+                }
+            }
 
         def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
           ref.modify {

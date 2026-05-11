@@ -87,6 +87,30 @@ object SemaphoreSpec extends ZIOBaseSpec {
         _            <- promise.succeed(())
         waitingEnd   <- semaphore.awaiting.repeatUntil(_ == 0)
       } yield assertTrue(waitingStart == 10, waitingEnd == 0)
+    } @@ timeout(10.seconds),
+    test("partial reservation: withPermits(2) completes before competing withPermit") {
+      // Semaphore(2): two holders occupy both permits; A wants 2, B wants 1.
+      // A is enqueued first (before B). After both holders release, A must run
+      // before B, and all permits must be returned.
+      for {
+        sem    <- Semaphore.make(2L)
+        gate1  <- Promise.make[Nothing, Unit]
+        gate2  <- Promise.make[Nothing, Unit]
+        // Two holders each hold 1 permit; sem.available drops to 0.
+        h1     <- sem.withPermit(gate1.await).fork
+        h2     <- sem.withPermit(gate2.await).fork
+        _      <- sem.available.repeatUntil(_ == 0L)
+        // A enqueues for 2 permits; B enqueues for 1 permit.
+        fiberA <- sem.withPermits(2L)(ZIO.unit).fork
+        fiberB <- sem.withPermit(ZIO.unit).fork
+        _      <- sem.awaiting.repeatUntil(_ == 2L)
+        // Release both holders; A should get 2, run, then release, allowing B.
+        _      <- gate1.succeed(())
+        _      <- gate2.succeed(())
+        _      <- fiberA.join
+        _      <- fiberB.join
+        avail  <- sem.available
+      } yield assertTrue(avail == 2L)
     } @@ timeout(10.seconds)
   ) @@ exceptJS(nonFlaky)
 }
