@@ -89,9 +89,9 @@ object FiberMailboxSpecJVM extends ZIOBaseSpec {
     } @@ timeout(60.seconds),
     test("does not retain the last consumed message") {
       ZIO.attempt {
-        val mailbox = new FiberMailbox[RetentionToken]
-        val queue   = new ReferenceQueue[RetentionToken]
-        val ref     = offerAndPoll(mailbox, queue)
+        val mailbox   = new FiberMailbox[RetentionToken]
+        val queue     = new ReferenceQueue[RetentionToken]
+        val ref       = offerAndPoll(mailbox, queue)
         val collected = awaitCollection(ref, queue)
         val empty     = mailbox.isEmpty()
 
