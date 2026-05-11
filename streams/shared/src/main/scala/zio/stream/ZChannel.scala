@@ -5,6 +5,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZChannel.unitFn2
 import zio.stream.internal.ChannelExecutor.ChannelState
 import zio.stream.internal.{AsyncInputConsumer, AsyncInputProducer, ChannelExecutor, SingleProducerAsyncInput}
+import zio.stm.TSemaphore
 
 import java.util.concurrent.atomic.AtomicReference
 
@@ -674,10 +675,19 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
         val queueReader = ZChannel.fromInput(input)
         val n0          = n.toLong
         val bufferSize0 = bufferSize
-        val outgoing    = Queue.unsafe.bounded[Fiber[Either[Unit, OutDone], OutElem2]](bufferSize0, fiberId)(Unsafe)
-        val errorSignal = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
-        val permits     = Semaphore.unsafe.make(n0)(Unsafe)
-        val failureRef  = Ref.unsafe.make[Cause[OutErr1]](Cause.empty)(Unsafe)
+        final case class PendingOutput(fiber: Fiber[Either[Unit, OutDone], OutElem2], releaseSlot: Boolean)
+        // Keep the bounded queue fast path unless it would cap parallelism.
+        // The lazy slot path avoids preallocating a queue of size n.
+        val needsLazySlots = n0 > bufferSize0.toLong
+        val outgoing =
+          if (needsLazySlots) Queue.unsafe.unbounded[PendingOutput](fiberId)(Unsafe)
+          else Queue.unsafe.bounded[PendingOutput](bufferSize0, fiberId)(Unsafe)
+        val lazySlots          = if (needsLazySlots) Some(TSemaphore.unsafe.make(n0)(Unsafe)) else None
+        val acquireHandoffSlot = lazySlots.fold[UIO[Unit]](Exit.unit)(_.acquire.commit)
+        val releaseHandoffSlot = lazySlots.fold[UIO[Unit]](Exit.unit)(_.release.commit)
+        val errorSignal        = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
+        val permits            = Semaphore.unsafe.make(n0)(Unsafe)
+        val failureRef         = Ref.unsafe.make[Cause[OutErr1]](Cause.empty)(Unsafe)
 
         val setFinalizer: UIO[Unit] =
           ZIO.uninterruptible {
@@ -688,45 +698,66 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
           _          <- setFinalizer
           pull       <- (queueReader >>> self).toPullInAlt(scope)
           childScope <- scope.fork
-          processElems = pull.flatMap { outElem =>
-                           val latch = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
+          processElems =
+            ZIO.uninterruptibleMask { restore =>
+              acquireHandoffSlot *>
+                restore {
+                  pull.flatMap { outElem =>
+                    val latch = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
 
-                           permits
-                             .withPermit(
-                               latch.succeedUnit *>
-                                 f(outElem).catchAllCause { cause =>
-                                   val continue =
-                                     errorSignal.succeedUnit *>
-                                       ZChannel.failLeftUnit
+                    permits
+                      .withPermit(
+                        latch.succeedUnit *>
+                          f(outElem).catchAllCause { cause =>
+                            val continue =
+                              errorSignal.succeedUnit *>
+                                ZChannel.failLeftUnit
 
-                                   if (cause.isInterruptedOnly) continue
-                                   else failureRef.update(_ && cause) *> continue
-                                 }
-                             )
-                             .interruptible
-                             .forkIn(childScope)
-                             .flatMap(fiber => latch.await *> outgoing.offer(fiber))
-                         }.forever.interruptible
-                           .onError(_.failureOrCause match {
-                             case Left(x: Left[OutErr, ?]) =>
-                               failureRef.update(_ && Cause.fail(x.value)) *>
-                                 outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
-                             case Left(x: Right[?, OutDone]) =>
-                               permits.withPermits(n0)(ZIO.unit).interruptible *>
-                                 outgoing.offer(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]))
-                             case Right(cause) =>
-                               val continue = outgoing.offer(Fiber.done(ZChannel.failLeftUnit))
+                            if (cause.isInterruptedOnly) continue
+                            else failureRef.update(_ && cause) *> continue
+                          }
+                      )
+                      .interruptible
+                      .forkIn(childScope)
+                      .flatMap(fiber => latch.await *> outgoing.offer(PendingOutput(fiber, needsLazySlots)))
+                  }
+                }.onExit {
+                  case _: Exit.Success[?] => Exit.unit
+                  case _                  => releaseHandoffSlot
+                }
+            }.forever.interruptible
+              .onError(_.failureOrCause match {
+                case Left(x: Left[OutErr, ?]) =>
+                  failureRef.update(_ && Cause.fail(x.value)) *>
+                    outgoing.offer(PendingOutput(Fiber.done(ZChannel.failLeftUnit), releaseSlot = false))
+                case Left(x: Right[?, OutDone]) =>
+                  permits.withPermits(n0)(ZIO.unit).interruptible *>
+                    outgoing
+                      .offer(PendingOutput(Fiber.fail(x.asInstanceOf[Either[Unit, OutDone]]), releaseSlot = false))
+                case Right(cause) =>
+                  val continue = outgoing.offer(PendingOutput(Fiber.done(ZChannel.failLeftUnit), releaseSlot = false))
 
-                               if (cause.isInterruptedOnly) continue
-                               else failureRef.update(_ && cause) *> continue
-                           })
-                           .ignore
+                  if (cause.isInterruptedOnly) continue
+                  else failureRef.update(_ && cause) *> continue
+              })
+              .ignore
 
-          _ <- (processElems raceFirst ZChannel.awaitErrorSignal(childScope, fiberId)(errorSignal)).forkIn(scope)
+          _ <-
+            (processElems raceFirst ZChannel.awaitErrorSignal(childScope, fiberId)(
+              errorSignal
+            ) raceFirst outgoing.awaitShutdown)
+              .forkIn(scope)
         } yield {
           lazy val writer: ZChannel[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] =
             ZChannel.unwrap[Env1, Any, Any, Any, OutErr1, OutElem2, OutDone] {
-              outgoing.take.flatMap(_.await).flatMap {
+              outgoing.take.flatMap { output =>
+                output.fiber.await
+                  .tap(_ => releaseHandoffSlot.when(output.releaseSlot))
+                  .onExit {
+                    case _: Exit.Success[?] => Exit.unit
+                    case _                  => releaseHandoffSlot.when(output.releaseSlot)
+                  }
+              }.flatMap {
                 case s: Exit.Success[OutElem2] => Exit.succeed(ZChannel.write(s.value) *> writer)
                 case f: Exit.Failure[Either[Unit, OutDone]] =>
                   val failure0 = failureRef.unsafe.get(Unsafe)
@@ -742,7 +773,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
               }
             }
 
-          writer.embedInput(input).ensuring(outgoing.shutdown)
+          writer.embedInput(input).ensuring(outgoing.shutdown *> childScope.close(Exit.interrupt(fiberId)))
         }
       }
     }

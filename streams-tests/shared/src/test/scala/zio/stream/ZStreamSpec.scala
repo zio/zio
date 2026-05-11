@@ -2985,6 +2985,47 @@ object ZStreamSpec extends ZIOBaseSpec {
               _     <- f.join
             } yield assertTrue(count == 0)
           } @@ TestAspect.jvmOnly @@ nonFlaky,
+          test("parallelism is not bounded by bufferSize (#9339)") {
+            val parallelism = 8
+            val bufferSize  = 2
+            for {
+              latch <- CountdownLatch.make(parallelism + 1)
+              fiber <- ZStream
+                         .range(0, 1000)
+                         .mapZIOPar(parallelism, bufferSize)(_ => latch.countDown *> latch.await)
+                         .runDrain
+                         .fork
+              _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
+              _     <- latch.countDown
+              count <- latch.count
+              _     <- fiber.join
+            } yield assertTrue(count == 0)
+          } @@ TestAspect.jvmOnly @@ TestAspect.nonFlaky @@ TestAspect.timeout(10.seconds),
+          test("fast effects are still backpressured by slow downstream (#9339)") {
+            val parallelism        = 8
+            val bufferSize         = 2
+            val maxExpectedPulls   = parallelism + 1
+            val downstreamIsActive = Promise.make[Nothing, Unit]
+            val downstreamGate     = Promise.make[Nothing, Unit]
+
+            for {
+              pulled <- Ref.make(0)
+              active <- downstreamIsActive
+              gate   <- downstreamGate
+              fiber <- ZStream
+                         .range(0, 1000)
+                         .tap(_ => pulled.update(_ + 1))
+                         .mapZIOPar(parallelism, bufferSize)(ZIO.succeed(_))
+                         .mapZIO(_ => active.succeed(()) *> gate.await)
+                         .runDrain
+                         .fork
+              _     <- active.await
+              _     <- Live.live(ZIO.sleep(50.millis))
+              count <- pulled.get
+              _     <- gate.succeed(())
+              _     <- fiber.join
+            } yield assertTrue(count <= maxExpectedPulls)
+          } @@ TestAspect.jvmOnly @@ nonFlaky(10) @@ TestAspect.timeout(10.seconds),
           test("accumulates parallel errors") {
             sealed abstract class DbError extends Product with Serializable
             case object Missing           extends DbError
