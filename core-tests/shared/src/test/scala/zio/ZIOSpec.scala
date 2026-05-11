@@ -2415,6 +2415,20 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("Timeout don't lose all values from parent fiber")(
+      test("When timeout is already elapsed, effect is not evaluated") {
+        for {
+          evaluated <- Ref.make(false)
+          result    <- (evaluated.set(true) *> ZIO.succeed("value")).timeoutTo("timeout")(identity)(Duration.Zero)
+          value     <- evaluated.get
+        } yield assert(result)(equalTo("timeout")) && assert(value)(isFalse)
+      },
+      test("When effect uses test clock, timeout is driven by test scheduler") {
+        for {
+          fiber  <- ZIO.never.as("value").timeoutTo("timeout")(identity)(1.second).fork
+          _      <- TestClock.adjust(1.second)
+          result <- fiber.join
+        } yield assert(result)(equalTo("timeout"))
+      },
       test("When effect is winner and failed") {
         val (initial, update) = ("initial", "update")
         def effect(fiberRef: FiberRef[String]) =
