@@ -148,13 +148,16 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
+      var notify = true
       if ((worker eq null) || worker.blocking) {
         globalQueue.offer(runnable)
-      } else if (!worker.localQueue.offer(runnable)) {
-        handleFullWorkerQueue(worker, runnable)
-      } else ()
-      val currentState = state.get
-      maybeUnparkWorker(currentState)
+      } else {
+        notify = offerToLocalQueue(worker, runnable)
+      }
+      if (notify) {
+        val currentState = state.get
+        maybeUnparkWorker(currentState)
+      }
       true
     }
   }
@@ -183,8 +186,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         }
       }
       // We have to yield, add the runnable to the local / global queue so that it can be scheduled accordingly
-      else if (!worker.localQueue.offer(runnable)) {
-        handleFullWorkerQueue(worker, runnable)
+      else {
+        notify = offerToLocalQueue(worker, runnable)
       }
 
       if (notify) {
@@ -199,11 +202,31 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     val rnd    = ThreadLocalRandom.current
     val polled = worker.localQueue.pollUpTo(128)
     globalQueue.offerAll(polled, rnd)
+    worker.localEnqueuesSinceUnpark = 0
     val accepted = worker.localQueue.offer(runnable)
     if (!accepted) {
       // We should never ever need to come here, this is just a precaution in the case we've introduced a bug
       globalQueue.offer(runnable, rnd)
     }
+  }
+
+  private[this] def offerToLocalQueue(worker: ZScheduler.Worker, runnable: Runnable): Boolean = {
+    val localQueueWasEmpty = worker.localQueue.isEmpty()
+    if (!worker.localQueue.offer(runnable)) {
+      handleFullWorkerQueue(worker, runnable)
+      true
+    } else {
+      shouldNotifyAfterLocalEnqueue(worker, localQueueWasEmpty)
+    }
+  }
+
+  private[this] def shouldNotifyAfterLocalEnqueue(
+    worker: ZScheduler.Worker,
+    localQueueWasEmpty: Boolean
+  ): Boolean = {
+    val count = worker.localEnqueuesSinceUnpark + 1
+    worker.localEnqueuesSinceUnpark = count
+    localQueueWasEmpty || ((count & ZScheduler.localQueueUnparkBatchMask) == 0)
   }
 
   private[this] def isBlocking(worker: ZScheduler.Worker, runnable: Runnable): Boolean =
@@ -423,6 +446,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
               globalQueue.offer(nextRunnable)
               nextRunnable = null
             }
+            localEnqueuesSinceUnpark = 0
             globalQueue.offerAll(runnables)
             val worker = cache.poll()
             if (worker eq null) {
@@ -463,6 +487,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
 private object ZScheduler {
   private val poolSize = java.lang.Runtime.getRuntime.availableProcessors
+
+  private val localQueueUnparkBatchSize = 16
+  private val localQueueUnparkBatchMask = localQueueUnparkBatchSize - 1
 
   def markCurrentWorkerAsBlocking(): Unit = {
     val worker = workerOrNull()
@@ -571,6 +598,13 @@ private object ZScheduler {
      */
     var nextRunnable: Runnable =
       null
+
+    /**
+     * A local queue submission counter used to coalesce requests to unpark
+     * another worker.
+     */
+    var localEnqueuesSinceUnpark: Int =
+      0
 
     /**
      * The number of tasks that have been executed by this worker.
