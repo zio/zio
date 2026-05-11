@@ -33,6 +33,16 @@ class SemaphoreBenchmark {
     })
 
   @Benchmark
+  def semaphoreNoContention(): Unit =
+    unsafeRun(ZIO.foreachParDiscard(1 to nSTM) { _ =>
+      for {
+        sem   <- Semaphore.make(fibers.toLong)
+        fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(ZIO.succeed(1)))))
+        _     <- fiber.join
+      } yield ()
+    })
+
+  @Benchmark
   def tsemaphoreContention(): Unit =
     unsafeRun(ZIO.foreachParDiscard(1 to nSTM) { _ =>
       for {
