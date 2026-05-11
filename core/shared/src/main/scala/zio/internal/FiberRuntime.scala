@@ -278,7 +278,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     // Maybe someone added something to the inbox between us checking, and us
     // giving up the drain. If so, we need to restart the draining, but only
     // if we beat everyone else to the restart:
-    if (!inbox.isEmpty && running.compareAndSet(false, true)) {
+    if (!inbox.isEmpty() && running.compareAndSet(false, true)) {
       if (evaluationSignal == EvaluationSignal.YieldNow) drainQueueLaterOnExecutor(true)
       else drainQueueOnCurrentThread(depth)
     }
@@ -440,7 +440,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             val interruption = interruptAllChildren()
 
             if (interruption eq null) {
-              if (inbox.isEmpty) {
+              if (inbox.isEmpty()) {
                 finalExit = exit
 
                 if (supervisor ne Supervisor.none) supervisor.onEnd(finalExit, self)(Unsafe)
@@ -1485,7 +1485,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         // for spinning up the fiber if there were new messages added to
         // the inbox between the completion of the effect and the transition
         // to the not running state.
-        if (!inbox.isEmpty && running.compareAndSet(false, true)) {
+        if (!inbox.isEmpty() && running.compareAndSet(false, true)) {
           // If there are messages and the result is null, this is either a yield, or we need to resume the fiber
           // In either way, we can optimize by using attemptResumptionOnSameThread = true
           drainQueueLaterOnExecutor(result eq null)

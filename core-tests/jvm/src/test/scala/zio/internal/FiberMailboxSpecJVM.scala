@@ -92,8 +92,10 @@ object FiberMailboxSpecJVM extends ZIOBaseSpec {
         val mailbox = new FiberMailbox[RetentionToken]
         val queue   = new ReferenceQueue[RetentionToken]
         val ref     = offerAndPoll(mailbox, queue)
+        val collected = awaitCollection(ref, queue)
+        val empty     = mailbox.isEmpty()
 
-        assertTrue(awaitCollection(ref, queue), mailbox.isEmpty())
+        assertTrue(collected, empty)
       }
     } @@ timeout(10.seconds)
   )
