@@ -18,7 +18,7 @@ package zio.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.{HashMap, HashSet, Map => JMap, Set => JSet}
+import java.util.{Collection => JCollection, HashMap, HashSet, Map => JMap, Set => JSet}
 
 private[zio] trait PlatformSpecific {
 
@@ -88,6 +88,9 @@ private[zio] trait PlatformSpecific {
   final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] = new HashSet[A]()
   final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
     new HashSet[A](initialCapacity)
+
+  final def newConcurrentBagStorage[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JCollection[A] =
+    newConcurrentSet[A](initialCapacity)
 
   final def newConcurrentWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] = new HashSet[A]()
 

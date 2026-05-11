@@ -4,6 +4,7 @@ import zio.internal.WeakConcurrentBag.IsAlive
 import zio.{Chunk, Duration, Unsafe}
 
 import java.lang.ref.WeakReference
+import java.util.{Collection => JCollection}
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Predicate
@@ -27,9 +28,10 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
   private[this] val nursery           = new PartitionedRingBuffer[WeakReference[A]](nCpu * 4, nurserySize, roundToPow2 = true)
   private[this] val nurseryActualSize = nursery.capacity
 
-  private[this] val graduates = Platform.newConcurrentSet[WeakReference[A]](nurseryActualSize * 2)(Unsafe.unsafe)
-  private[this] val gcStatus  = new AtomicBoolean(false)
-  private[this] val autoGc    = new AtomicBoolean(false)
+  private[this] val graduates: JCollection[WeakReference[A]] =
+    Platform.newConcurrentBagStorage[WeakReference[A]](nurseryActualSize * 2)(Unsafe.unsafe)
+  private[this] val gcStatus = new AtomicBoolean(false)
+  private[this] val autoGc   = new AtomicBoolean(false)
 
   private[this] val notAlive = new Predicate[WeakReference[A]] {
     def test(ref: WeakReference[A]): Boolean = {
@@ -149,10 +151,11 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
       @tailrec
       def prefetch(): A =
         if (it.hasNext) {
-          val next = it.next().get()
+          val ref  = it.next()
+          val next = ref.get()
 
           if (next eq null) {
-            it.remove() // Remove dead reference since we're iterating over the set
+            graduates.remove(ref) // Remove dead reference since we're iterating over storage
             prefetch()
           } else next
         } else {

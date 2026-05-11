@@ -1,23 +1,24 @@
 package zio.internal
 
 import zio.test._
-import zio.test.TestAspect.{flaky, jvmOnly}
-import zio.ZIOBaseSpec
+import zio.test.TestAspect.{flaky, jvmOnly, nativeOnly}
+import zio.{ZIO, ZIOBaseSpec}
 
 object WeakConcurrentBagSpec extends ZIOBaseSpec {
   final case class Wrapper[A](value: A)
 
   def spec =
-    suite("WeakConcurrentBagSpec") {
-      test("size of singleton bag") {
-        val bag = WeakConcurrentBag[Wrapper[String]](10)
+    suite("WeakConcurrentBagSpec")(
+      suite("JVM")(
+        test("size of singleton bag") {
+          val bag = WeakConcurrentBag[Wrapper[String]](10)
 
-        val value = Wrapper("foo")
+          val value = Wrapper("foo")
 
-        bag.add(value)
+          bag.add(value)
 
-        assertTrue(bag.size == 1)
-      } +
+          assertTrue(bag.size == 1)
+        },
         test("iteration over 100 (nursery size: 100)") {
           val bag = WeakConcurrentBag[Wrapper[String]](100)
 
@@ -30,7 +31,7 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
           }
 
           assertTrue((bag.size == 100) && (bag.iterator.toSet == hard))
-        } +
+        },
         test("manual gc") {
           val bag = WeakConcurrentBag[Wrapper[String]](100)
 
@@ -54,7 +55,7 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
           bag.gc()
 
           assertTrue(bag.size == 50)
-        } @@ flaky +
+        } @@ flaky,
         test("auto gc") {
           val bag = WeakConcurrentBag[Wrapper[String]](100)
 
@@ -70,5 +71,13 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
 
           assertTrue(bag.size <= 100)
         } @@ flaky
-    } @@ jvmOnly
+      ) @@ jvmOnly,
+      test("many concurrent additions on Native") {
+        val bag = WeakConcurrentBag[Wrapper[Int]](16)
+
+        ZIO.foreachParDiscard(1 to 10000)(i => ZIO.succeed(bag.add(Wrapper(i)))) *>
+          ZIO.succeed(bag.graduate()) *>
+          ZIO.succeed(assertTrue(bag.size >= 0))
+      } @@ nativeOnly
+    )
 }
