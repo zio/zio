@@ -112,6 +112,18 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
                 )
             }
         } +
+        suite("op log") {
+          test("logs evaluated effects when enabled") {
+            for {
+              _ <- ZIO
+                     .succeed(1)
+                     .flatMap(i => ZIO.succeed(i + 1))
+                     .provideLayer(Runtime.enableOpLog)
+              output <- ZTestLogger.logOutput
+            } yield assertTrue(output.exists(_.logLevel == LogLevel.Debug)) &&
+              assertTrue(output.exists(_.message().startsWith("ZIO operation: ")))
+          }
+        } +
         suite("EagerShiftBack") {
           test("enabled") {
             for {

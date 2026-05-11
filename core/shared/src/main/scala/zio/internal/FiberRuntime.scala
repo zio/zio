@@ -1103,6 +1103,16 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     }
 
     while (true) {
+      if (RuntimeFlags.opLog(_runtimeFlags)) {
+        val current = cur
+        log(
+          () => s"ZIO operation: ${current.toString}",
+          Cause.empty,
+          Some(LogLevel.Debug),
+          current.trace
+        )
+      }
+
       if (RuntimeFlags.opSupervision(_runtimeFlags)) {
         self.getSupervisor().onEffect(self, cur)(Unsafe)
       }
