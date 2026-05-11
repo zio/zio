@@ -37,6 +37,30 @@ object CauseSpec extends ZIOBaseSpec {
         val n     = 100000
         val cause = List.fill(n)(Cause.fail("fail")).reduce(_ && _)
         assert(cause.failures.length)(equalTo(n))
+      },
+      test("`Cause#failureOrCause` prioritizes defects and interruptions over failures") {
+        val defect  = Cause.die(new RuntimeException("boom"))
+        val failure = Cause.fail("boom")
+        val interrupt = Cause.interrupt(
+          FiberId.Runtime(0, 0L, Trace.empty)
+        )
+
+        assert(defect && failure)(hasField("failureOrCause", _.failureOrCause, isRight(equalTo(defect)))) &&
+        assert(failure && defect)(hasField("failureOrCause", _.failureOrCause, isRight(equalTo(defect)))) &&
+        assert(interrupt && failure)(hasField("failureOrCause", _.failureOrCause, isRight(equalTo(interrupt))))
+      },
+      test("`Cause#failureTraceOrCause` prioritizes defects and interruptions over failures") {
+        val defect  = Cause.die(new RuntimeException("boom"))
+        val failure = Cause.fail("boom")
+        val interrupt = Cause.interrupt(
+          FiberId.Runtime(0, 0L, Trace.empty)
+        )
+
+        assert(defect && failure)(hasField("failureTraceOrCause", _.failureTraceOrCause, isRight(equalTo(defect)))) &&
+        assert(failure && defect)(hasField("failureTraceOrCause", _.failureTraceOrCause, isRight(equalTo(defect)))) &&
+        assert(interrupt && failure)(
+          hasField("failureTraceOrCause", _.failureTraceOrCause, isRight(equalTo(interrupt)))
+        )
       }
     ),
     suite("Then")(

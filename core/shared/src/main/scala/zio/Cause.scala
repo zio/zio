@@ -129,9 +129,14 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * no checked errors return the rest of the `Cause` that is known to contain
    * only `Die` or `Interrupt` causes.
    */
-  final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
-    case Some(error) => Left(error)
-    case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+  final def failureOrCause: Either[E, Cause[Nothing]] = {
+    val nonFailures = stripFailures
+    if (!nonFailures.isEmpty) Right(nonFailures)
+    else
+      failureOption match {
+        case Some(error) => Left(error)
+        case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+      }
   }
 
   /**
@@ -139,9 +144,14 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * if there are no checked errors return the rest of the `Cause` that is known
    * to contain only `Die` or `Interrupt` causes.
    */
-  final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] = failureTraceOption match {
-    case Some(errorAndTrace) => Left(errorAndTrace)
-    case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+  final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] = {
+    val nonFailures = stripFailures
+    if (!nonFailures.isEmpty) Right(nonFailures)
+    else
+      failureTraceOption match {
+        case Some(errorAndTrace) => Left(errorAndTrace)
+        case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
+      }
   }
 
   /**
