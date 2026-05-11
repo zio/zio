@@ -390,14 +390,39 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    * @note
    *   Prefer capacities that are powers of 2 for better performance.
    */
-  def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val queue = self.toQueueOfElements(capacity)
+  def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] =
     new ZStream(
       ZChannel.unwrapScoped[R] {
-        queue.map { queue =>
+        for {
+          capacity0 <- ZIO.succeed(capacity)
+          queue     <- ZIO.acquireRelease(Queue.bounded[Exit[Option[E], A]](capacity0))(_.shutdown)
+          tokens    <- ZIO.acquireRelease(Queue.bounded[Unit](capacity0))(_.shutdown)
+          _         <- tokens.offerAll(Chunk.fill(capacity0)(()))
+          pull      <- self.rechunk(1).toPull
+          _ <- {
+                 lazy val produce: ZIO[R, Nothing, Unit] =
+                   tokens.take *>
+                     pull.foldZIO(
+                       {
+                         case None    => queue.offer(Exit.fail(None)).unit
+                         case Some(e) => queue.offer(Exit.fail(Some(e))).unit
+                       },
+                       chunk =>
+                         chunk.headOption match {
+                           case Some(value) => queue.offer(Exit.succeed(value)) *> produce
+                           case None        => tokens.offer(()) *> produce
+                         }
+                     )
+
+                 produce
+               }.forkScoped
+        } yield {
           lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
             ZChannel.fromZIO {
-              queue.take
+              queue.take.onExit {
+                case Exit.Success(_) => tokens.offer(())
+                case _               => ZIO.unit
+              }
             }.flatMap { (exit: Exit[Option[E], A]) =>
               exit.foldExit(
                 Cause
@@ -411,7 +436,6 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
         }
       }
     )
-  }
 
   /**
    * Allows a faster producer to progress independently of a slower consumer by

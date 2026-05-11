@@ -607,6 +607,25 @@ object ZStreamSpec extends ZIOBaseSpec {
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
+          },
+          test("buffered upstream effects respect capacity while downstream is back pressured") {
+            for {
+              started        <- Ref.make(Chunk.empty[Int])
+              firstDelivered <- Promise.make[Nothing, Unit]
+              fiber <- ZStream
+                         .fromIterable(1 to 3)
+                         .mapZIO { n =>
+                           started.update(_ :+ n) *> ZIO.sleep(1.second).as(n)
+                         }
+                         .buffer(1)
+                         .runForeach(n => if (n == 1) firstDelivered.succeed(()) *> ZIO.never else ZIO.unit)
+                         .fork
+              _       <- TestClock.adjust(1.second)
+              _       <- firstDelivered.await
+              _       <- TestClock.adjust(1.second)
+              started <- started.get
+              _       <- fiber.interrupt
+            } yield assert(started)(equalTo(Chunk(1, 2)))
           }
         ),
         suite("bufferChunks")(
