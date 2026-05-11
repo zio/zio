@@ -643,7 +643,7 @@ val finalized: IO[String, Unit] =
 // finalized: IO[String, Unit] = DynamicNoBox(
 //   trace = "repl.MdocSession.MdocApp.finalized(handling-resources.md:19)",
 //   update = 1L,
-//   f = zio.ZIO$$$Lambda$19609/0x00007f204af28f68@54826aea
+//   f = zio.ZIO$$$Lambda$19548/0x00007ff4cef50f68@2ef4eb5a
 // )
 ```
 
@@ -2336,12 +2336,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$19992/0x00007f204affdf40@6e22ea5d
+//   eval = zio.Ref$$$Lambda$19931/0x00007ff4cf025f40@6e6d0be7
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$19992/0x00007f204affdf40@21555476
+//   eval = zio.Ref$$$Lambda$19931/0x00007ff4cf025f40@7ca29a58
 // )
 
 sealed trait State
@@ -2352,7 +2352,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$19992/0x00007f204affdf40@21906ea7
+//   eval = zio.Ref$$$Lambda$19931/0x00007ff4cf025f40@59c9a657
 // )
 ```
 
@@ -2369,7 +2369,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$19992/0x00007f204affdf40@102713ce
+//   eval = zio.Ref$$$Lambda$19931/0x00007ff4cf025f40@6d14959
 // )
 ```
 
@@ -2381,7 +2381,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$19992/0x00007f204affdf40@33c51b81
+//   eval = zio.Ref$$$Lambda$19931/0x00007ff4cf025f40@5670fb88
 // )
 ```
 
@@ -14176,7 +14176,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20173/0x00007f204b0b4000@5fbdd08c
+//   eval = zio.Supervisor$$$Lambda$20112/0x00007ff4cf0dc688@5928f264
 // )
 ```
 
@@ -14508,7 +14508,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$20142/0x00007f204b07e928@770a59a1
+//     f = zio.ZIO$$$Lambda$20081/0x00007ff4cf0aa3d8@13f0c2ab
 //   ),
 //   successK = <function1>
 // )
@@ -21978,14 +21978,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@503f9df3
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@6fd805c1
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@69733f9d
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@1103727c
 ```
 
 ## From ZIO
@@ -28384,9 +28384,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$19580/0x00007f204af14870@5192f563
+//             onState = zio.ZIO$$$Lambda$19519/0x00007ff4cef3c870@2361e769
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$19589/0x00007f204af1b118@14907135
+//           successK = zio.test.package$ZTest$$$Lambda$19528/0x00007ff4cef43118@66637d61
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -29976,7 +29976,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+5-c97ad41e-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+6-edbb59d0-SNAPSHOT"
 ```
 
 ## Example
