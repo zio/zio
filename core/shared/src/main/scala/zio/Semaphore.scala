@@ -155,13 +155,15 @@ object Semaphore {
           else if (n == 0L)
             ZIO.succeed(Reservation.zero)
           else
-            Promise.make[Nothing, Unit].flatMap { promise =>
+            ZIO.fiberIdWith { fiberId =>
               ref.modify {
                 case Right(permits) if permits >= n =>
                   Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
                 case Right(permits) =>
+                  val promise = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
                   Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
                 case Left(queue) =>
+                  val promise = Promise.unsafe.make[Nothing, Unit](fiberId)(Unsafe)
                   Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
               }
             }
@@ -169,11 +171,11 @@ object Semaphore {
         def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
           ref.modify {
             case Left(queue) =>
-              queue
-                .find(_._1 == promise)
-                .fold(releaseN(n) -> Left(queue)) { case (_, permits) =>
-                  releaseN(n - permits) -> Left(queue.filter(_._1 != promise))
-                }
+              val (before, after) = queue.span(_._1 ne promise)
+              after.dequeueOption match {
+                case None                       => releaseN(n)           -> Left(queue)
+                case Some(((_, permits), rest)) => releaseN(n - permits) -> Left(before ++ rest)
+              }
             case Right(permits) => ZIO.unit -> Right(permits + n)
           }.flatten
 
@@ -183,8 +185,8 @@ object Semaphore {
           def loop(
             n: Long,
             state: Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long],
-            acc: UIO[Any]
-          ): (UIO[Any], Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]) =
+            acc: List[Promise[Nothing, Unit]]
+          ): (List[Promise[Nothing, Unit]], Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]) =
             state match {
               case Right(permits) => acc -> Right(permits + n)
               case Left(queue) =>
@@ -192,15 +194,19 @@ object Semaphore {
                   case None => acc -> Right(n)
                   case Some(((promise, permits), queue)) =>
                     if (n > permits)
-                      loop(n - permits, Left(queue), acc *> promise.succeedUnit)
+                      loop(n - permits, Left(queue), promise :: acc)
                     else if (n == permits)
-                      (acc *> promise.succeedUnit) -> Left(queue)
+                      (promise :: acc) -> Left(queue)
                     else
                       acc -> Left((promise -> (permits - n)) +: queue)
                 }
             }
 
-          ref.modify(loop(n, _, ZIO.unit)).flatten
+          ref.modify(loop(n, _, Nil)).flatMap {
+            case Nil            => ZIO.unit
+            case promise :: Nil => promise.succeedUnit
+            case promises       => ZIO.foreachDiscard(promises.reverse)(_.succeedUnit)
+          }
         }
       }
   }
