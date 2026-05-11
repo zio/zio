@@ -127,9 +127,11 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
     var i    = 0
     val iter = chunk.chunkIterator
     while (iter.hasNextAt(i)) {
-      val ref   = iter.nextAt(i)
-      val value = ref.get()
-      if ((value ne null) && isAlive(value)) graduates.add(ref)
+      val ref = iter.nextAt(i)
+      if (ref ne null) {
+        val value = ref.get()
+        if ((value ne null) && isAlive(value)) graduates.add(ref)
+      }
       i += 1
     }
   }
@@ -149,12 +151,18 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
       @tailrec
       def prefetch(): A =
         if (it.hasNext) {
-          val next = it.next().get()
+          val ref = it.next()
 
-          if (next eq null) {
-            it.remove() // Remove dead reference since we're iterating over the set
+          if (ref eq null) {
             prefetch()
-          } else next
+          } else {
+            val next = ref.get()
+
+            if (next eq null) {
+              it.remove() // Remove dead reference since we're iterating over the set
+              prefetch()
+            } else next
+          }
         } else {
           null.asInstanceOf[A]
         }

@@ -101,7 +101,11 @@ private[zio] abstract class RingBuffer[A](override final val capacity: Int)
 
     if (state == STATE_RESERVED) {
       buf(curIdx) = a.asInstanceOf[AnyRef]
-      aSeq.lazySet(curIdx, curTail + 1)
+      // Use set (volatile write) instead of lazySet to ensure the buf write is
+      // visible to other threads before the sequence update on Scala Native.
+      // On Scala Native, lazySet may not provide the store-store barrier needed
+      // to prevent reordering of the buf write and the seq write.
+      aSeq.set(curIdx, curTail + 1)
       true
     } else {
       false
@@ -163,7 +167,7 @@ private[zio] abstract class RingBuffer[A](override final val capacity: Int)
         val a = as.next()
         curIdx = posToIdx(enqHead, aCapacity)
         buf(curIdx) = a.asInstanceOf[AnyRef]
-        aSeq.lazySet(curIdx, enqHead + 1)
+        aSeq.set(curIdx, enqHead + 1)
         enqHead += 1
       }
     }
@@ -216,7 +220,7 @@ private[zio] abstract class RingBuffer[A](override final val capacity: Int)
       val deqElement = aBuf(curIdx)
       aBuf(curIdx) = null
 
-      aSeq.lazySet(curIdx, curHead + aCapacity)
+      aSeq.set(curIdx, curHead + aCapacity)
 
       deqElement.asInstanceOf[A]
     } else {
@@ -277,7 +281,7 @@ private[zio] abstract class RingBuffer[A](override final val capacity: Int)
         curIdx = posToIdx(deqHead, aCapacity)
         val a = buf(curIdx).asInstanceOf[A]
         buf(curIdx) = null
-        aSeq.lazySet(curIdx, deqHead + aCapacity)
+        aSeq.set(curIdx, deqHead + aCapacity)
         builder.addOne(a)
         deqHead += 1
       }

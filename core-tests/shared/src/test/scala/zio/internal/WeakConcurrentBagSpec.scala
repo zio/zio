@@ -1,8 +1,8 @@
 package zio.internal
 
 import zio.test._
-import zio.test.TestAspect.{flaky, jvmOnly}
-import zio.ZIOBaseSpec
+import zio.test.TestAspect.{flaky, jvmOnly, nonFlaky}
+import zio.{ZIO, ZIOBaseSpec}
 
 object WeakConcurrentBagSpec extends ZIOBaseSpec {
   final case class Wrapper[A](value: A)
@@ -70,5 +70,33 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
 
           assertTrue(bag.size <= 100)
         } @@ flaky
-    } @@ jvmOnly
+    } @@ jvmOnly +
+      suite("WeakConcurrentBagConcurrentSpec") {
+        test("concurrent add of 10K elements does not throw NPE") {
+          val bag = WeakConcurrentBag[Wrapper[Int]](1000)
+
+          for {
+            fibers <- ZIO.foreach(1 to 10000) { i =>
+                        ZIO.succeed(bag.add(Wrapper(i))).fork
+                      }
+            _      <- ZIO.foreach(fibers)(_.join)
+          } yield assertTrue(bag.size > 0)
+        } @@ nonFlaky(10) +
+          test("concurrent add and iterate does not throw NPE") {
+            val bag = WeakConcurrentBag[Wrapper[Int]](100)
+
+            for {
+              addFibers <- ZIO.foreach(1 to 10000) { i =>
+                             ZIO.succeed(bag.add(Wrapper(i))).fork
+                           }
+              iterFibers <- ZIO.foreach(1 to 100) { _ =>
+                              ZIO.succeed {
+                                bag.iterator.foreach(_ => ())
+                              }.fork
+                            }
+              _ <- ZIO.foreach(addFibers)(_.join)
+              _ <- ZIO.foreach(iterFibers)(_.join)
+            } yield assertTrue(bag.size > 0)
+          } @@ nonFlaky(10)
+      }
 }
