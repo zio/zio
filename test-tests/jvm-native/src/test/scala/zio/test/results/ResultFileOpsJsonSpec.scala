@@ -7,7 +7,7 @@ import java.nio.file.Path
 
 object ResultFileOpsJsonSpec extends ZIOBaseSpec {
   def spec = suite("ResultFileOpsJsonSpec")(
-    test("trailing comma from last entry is removed")(
+    test("entries without trailing commas are preserved")(
       for {
         path    <- writeToTestFile(parallel = false)("\naaa", "\nbbb", "\nccc")
         results <- readFile(path)
@@ -44,7 +44,7 @@ object ResultFileOpsJsonSpec extends ZIOBaseSpec {
         } yield assertTrue(union == linesToWrite)
       }
     }
-  )
+  ) @@ TestAspect.sequential
 
   private def writeToTestFile(parallel: Boolean)(content: String*): Task[Path] =
     ZIO.scoped(for {

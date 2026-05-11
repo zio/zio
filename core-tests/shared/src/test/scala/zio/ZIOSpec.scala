@@ -283,6 +283,20 @@ object ZIOSpec extends ZIOBaseSpec {
         zio.map(assert(_)(isTrue))
       }
     ),
+    suite("catchAll")(
+      test("does not recover when the cause also contains a defect") {
+        val boom  = new RuntimeException("boom")
+        val cause = Cause.die(boom) && Cause.fail("failure")
+
+        assertZIO(ZIO.failCause(cause).catchAll(_ => ZIO.succeed("recovered")).exit)(dies(equalTo(boom)))
+      },
+      test("recovers checked failures when the cause only also contains interruption") {
+        for {
+          fiberId <- ZIO.fiberId
+          value   <- ZIO.failCause(Cause.interrupt(fiberId) && Cause.fail("failure")).catchAll(ZIO.succeed(_))
+        } yield assert(value)(equalTo("failure"))
+      }
+    ) @@ zioTag(errors),
     suite("catchAllDefect")(
       test("recovers from all defects") {
         val s   = "division by zero"
