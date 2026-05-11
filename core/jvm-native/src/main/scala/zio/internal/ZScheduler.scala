@@ -19,7 +19,7 @@ package zio.internal
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
+import java.util.concurrent.atomic.{AtomicInteger, AtomicLong, AtomicLongArray}
 import java.util.concurrent.locks.LockSupport
 import java.util.concurrent.{ConcurrentLinkedQueue, ThreadLocalRandom}
 import scala.collection.mutable
@@ -41,6 +41,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val globalLocations = makeLocations()
   private[this] val state           = new AtomicInteger(poolSize << 16)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
+  private[this] val workerTaskCount = new AtomicLongArray(poolSize * ZScheduler.taskCountStride)
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
@@ -119,7 +120,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         runnable = worker.nextRunnable
         worker.nextRunnable = null
       } else {
-        runnable = worker.localQueue.poll(null)
+        runnable = pollLocalQueue(worker)
         if (runnable eq null) {
           runnable = globalQueue.poll()
         }
@@ -149,8 +150,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       submitBlocking(runnable)
     } else {
       if ((worker eq null) || worker.blocking) {
-        globalQueue.offer(runnable)
-      } else if (!worker.localQueue.offer(runnable)) {
+        submitToLeastLoadedWorker(runnable)
+      } else if (!offerLocalQueue(worker, runnable)) {
         handleFullWorkerQueue(worker, runnable)
       } else ()
       val currentState = state.get
@@ -166,7 +167,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     } else {
       var notify = true
       if ((worker eq null) || worker.blocking) {
-        globalQueue.offer(runnable)
+        submitToLeastLoadedWorker(runnable)
       }
       // Attempt resumption in the current Thread
       else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
@@ -179,11 +180,13 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         } else {
           // Less common path, global queue is not empty, so we have to prioritize the runnable from it
           worker.nextRunnable = fromGlobal
-          worker.localQueue.offer(runnable)
+          if (!offerLocalQueue(worker, runnable)) {
+            globalQueue.offer(runnable)
+          }
         }
       }
       // We have to yield, add the runnable to the local / global queue so that it can be scheduled accordingly
-      else if (!worker.localQueue.offer(runnable)) {
+      else if (!offerLocalQueue(worker, runnable)) {
         handleFullWorkerQueue(worker, runnable)
       }
 
@@ -195,11 +198,58 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     }
   }
 
+  private def submitToLeastLoadedWorker(runnable: Runnable): Unit = {
+    val workerId =
+      ZScheduler.chooseLeastLoadedWorker(poolSize)(workerLoad, workerAvailable)
+
+    if (workerId == -1 || !offerLocalQueue(workers(workerId), runnable)) {
+      globalQueue.offer(runnable)
+    }
+  }
+
+  private def workerAvailable(workerId: Int): Boolean =
+    !workers(workerId).blocking
+
+  private def workerLoad(workerId: Int): Long =
+    workerTaskCount.get(taskCountIndex(workerId))
+
+  private def taskCountIndex(workerId: Int): Int =
+    workerId * ZScheduler.taskCountStride
+
+  private def offerLocalQueue(worker: ZScheduler.Worker, runnable: Runnable): Boolean = {
+    val accepted = worker.localQueue.offer(runnable)
+    if (accepted) {
+      workerTaskCount.incrementAndGet(taskCountIndex(worker.workerId))
+    }
+    accepted
+  }
+
+  private def pollLocalQueue(worker: ZScheduler.Worker): Runnable = {
+    val runnable = worker.localQueue.poll(null)
+    if (runnable ne null) {
+      workerTaskCount.decrementAndGet(taskCountIndex(worker.workerId))
+    }
+    runnable
+  }
+
+  private def decrementWorkerTaskCount(worker: ZScheduler.Worker, count: Int): Unit =
+    if (count > 0) {
+      workerTaskCount.addAndGet(taskCountIndex(worker.workerId), -count.toLong)
+      ()
+    }
+
+  private def incrementWorkerTaskCount(worker: ZScheduler.Worker, count: Int): Unit =
+    if (count > 0) {
+      workerTaskCount.addAndGet(taskCountIndex(worker.workerId), count.toLong)
+      ()
+    }
+
   private def handleFullWorkerQueue(worker: ZScheduler.Worker, runnable: Runnable): Unit = {
     val rnd    = ThreadLocalRandom.current
     val polled = worker.localQueue.pollUpTo(128)
+    decrementWorkerTaskCount(worker, polled.size)
     globalQueue.offerAll(polled, rnd)
-    val accepted = worker.localQueue.offer(runnable)
+    val accepted = offerLocalQueue(worker, runnable)
     if (!accepted) {
       // We should never ever need to come here, this is just a precaution in the case we've introduced a bug
       globalQueue.offer(runnable, rnd)
@@ -309,10 +359,10 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             if ((currentOpCount & 63) == 0) {
               runnable = globalQueue.poll(random)
               if (runnable eq null) {
-                runnable = localQueue.poll(null)
+                runnable = pollLocalQueue(self)
               }
             } else {
-              runnable = localQueue.poll(null)
+              runnable = pollLocalQueue(self)
               if (runnable eq null) {
                 runnable = globalQueue.poll(random)
               }
@@ -339,13 +389,22 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                       val runnables  = worker.localQueue.pollUpTo(size - size / 2)
                       val nRunnables = runnables.size
                       if (nRunnables > 0) {
+                        decrementWorkerTaskCount(worker, nRunnables)
                         val iter = runnables.iterator
                         runnable = iter.next()
-                        if (nRunnables > 1) localQueue.offerAll(iter, nRunnables - 1)
+                        if (nRunnables > 1) {
+                          val offered   = nRunnables - 1
+                          val remaining = localQueue.offerAll(iter, offered.toLong)
+                          incrementWorkerTaskCount(self, offered - remaining.size)
+                          if (!remaining.isEmpty) {
+                            globalQueue.offerAll(remaining, random)
+                          }
+                        }
                         currentBlocking = blocking
                         if (currentBlocking) {
                           val runnables = localQueue.pollUpTo(256)
                           if (!runnables.isEmpty) {
+                            decrementWorkerTaskCount(self, runnables.size)
                             globalQueue.offerAll(runnables, random)
                           }
                         }
@@ -419,6 +478,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
           val idx = workers.indexOf(self)
           if (idx >= 0) {
             val runnables = self.localQueue.pollUpTo(256)
+            decrementWorkerTaskCount(self, runnables.size)
             if (nextRunnable ne null) {
               globalQueue.offer(nextRunnable)
               nextRunnable = null
@@ -461,8 +521,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     Blocking.blockingExecutor.submit(runnable)
 }
 
-private object ZScheduler {
-  private val poolSize = java.lang.Runtime.getRuntime.availableProcessors
+private[internal] object ZScheduler {
+  private val poolSize        = java.lang.Runtime.getRuntime.availableProcessors
+  private val taskCountStride = 16
 
   def markCurrentWorkerAsBlocking(): Unit = {
     val worker = workerOrNull()
@@ -482,6 +543,27 @@ private object ZScheduler {
       case w: ZScheduler.Worker => w
       case _                    => null
     }
+
+  private[internal] def chooseLeastLoadedWorker(
+    workerCount: Int
+  )(load: Int => Long, available: Int => Boolean): Int = {
+    var selectedWorker = -1
+    var selectedLoad   = Long.MaxValue
+    var workerId       = 0
+
+    while (workerId < workerCount) {
+      if (available(workerId)) {
+        val currentLoad = load(workerId).max(0L)
+        if (currentLoad < selectedLoad) {
+          selectedWorker = workerId
+          selectedLoad = currentLoad
+        }
+      }
+      workerId += 1
+    }
+
+    selectedWorker
+  }
 
   /**
    * `Locations` tracks the number of observations of a fiber forked from a
@@ -579,10 +661,18 @@ private object ZScheduler {
     var opCount: Long =
       0L
 
+    /**
+     * The worker's index in the parent scheduler's worker array.
+     */
+    var workerId: Int =
+      -1
+
     def markAsBlocking(): Unit
 
-    final def setName(i: Int): Unit =
+    final def setName(i: Int): Unit = {
+      workerId = i
       setName(s"ZScheduler-Worker-$i")
+    }
 
     override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
       markAsBlocking()
