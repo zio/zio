@@ -1711,6 +1711,17 @@ object ZStreamSpec extends ZIOBaseSpec {
                 assert(result4)(equalTo(29))
             }
           },
+          testM("group based on time passed (#8686)") {
+            assertM(for {
+              result <- ZStream
+                          .fromIterable(Seq(1, 2))
+                          .concat(ZStream.fromIterable(Seq(1)).filter(_ == 0).forever)
+                          .groupedWithin(3, 2.seconds)
+                          .provideCustomLayer(Clock.live)
+                          .take(1)
+                          .runCollect
+            } yield result)(equalTo(Chunk(Chunk(1, 2))))
+          } @@ timeout(4.seconds) @@ TestAspect.jvmOnly,
           testM("group immediately when chunk size is reached") {
             assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(
               equalTo(Chunk(Chunk(1, 2), Chunk(3, 4)))
