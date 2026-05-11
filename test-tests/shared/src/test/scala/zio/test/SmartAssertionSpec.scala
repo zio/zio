@@ -218,6 +218,14 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val list: List[Int] = List(1, 2, 3, 4)
       assertTrue(list.filter(_ => false) == List.empty[Int])
     },
+    test("assertTrue compiles when returned from flatMap in Scala 2") {
+      val resultZIO = typeCheck("""
+      ZIO.succeed(1).flatMap(value => assertTrue(value == 1))
+      """)
+      for {
+        result <- resultZIO
+      } yield assertTrue(result.isRight)
+    } @@ scala2Only,
     test("equalTo compiles when comparing different primitive types") {
       val a = 1
       val b = 1L

@@ -44,7 +44,7 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
     TestResult(arrow.setGenFailureDetails(details))
 }
 
-object TestResult {
+object TestResult extends TestResultVersionSpecific {
   def allSuccesses(assert: TestResult, asserts: TestResult*): TestResult = asserts.foldLeft(assert)(_ && _)
 
   def allSuccesses(asserts: Iterable[TestResult])(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
@@ -55,7 +55,7 @@ object TestResult {
   def anySuccesses(asserts: Iterable[TestResult])(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
     anySuccesses(!assertCompletes, asserts.toSeq: _*)
 
-  implicit def liftTestResultToZIO[R, E](result: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
+  def liftTestResultToZIO[R, E](result: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
     if (result.isSuccess)
       ZIO.succeed(result)
     else
