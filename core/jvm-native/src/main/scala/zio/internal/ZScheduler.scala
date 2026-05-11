@@ -149,7 +149,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       submitBlocking(runnable)
     } else {
       if ((worker eq null) || worker.blocking) {
-        globalQueue.offer(runnable)
+        submitExternal(runnable)
       } else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
       } else ()
@@ -166,7 +166,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     } else {
       var notify = true
       if ((worker eq null) || worker.blocking) {
-        globalQueue.offer(runnable)
+        submitExternal(runnable)
       }
       // Attempt resumption in the current Thread
       else if ((worker.nextRunnable eq null) && worker.localQueue.isEmpty()) {
@@ -192,6 +192,37 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         maybeUnparkWorker(currentState)
       }
       true
+    }
+  }
+
+  private[this] def submitExternal(runnable: Runnable): Unit =
+    if (!offerToLeastLoadedWorker(runnable)) {
+      globalQueue.offer(runnable)
+    }
+
+  // Keep idle-worker wakeups on the global queue; direct placement only helps once every worker is active.
+  private[this] def offerToLeastLoadedWorker(runnable: Runnable): Boolean = {
+    val currentState  = state.get
+    val currentActive = (currentState & 0xffff0000) >> 16
+    if (currentActive != poolSize) {
+      false
+    } else {
+      val offset = ThreadLocalRandom.current.nextInt(poolSize)
+      var worker = null.asInstanceOf[ZScheduler.Worker]
+      var size   = Int.MaxValue
+      var i      = 0
+      while (i != poolSize && size != 0) {
+        val candidate = workers((i + offset) % poolSize)
+        if (!candidate.blocking) {
+          val candidateSize = candidate.localQueue.size()
+          if (candidateSize < size) {
+            worker = candidate
+            size = candidateSize
+          }
+        }
+        i += 1
+      }
+      (worker ne null) && worker.localQueue.offer(runnable)
     }
   }
 

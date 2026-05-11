@@ -7,7 +7,7 @@ import org.openjdk.jmh.annotations.{Scope => JScope, _}
 import zio._
 import zio.BenchmarkUtil._
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -76,6 +76,10 @@ class ZSchedulerBenchmarks {
     zioYieldMany(fixedThreadPool)
 
   @Benchmark
+  def zioFixedThreadPoolExternalSubmitMany(): Int =
+    zioExternalSubmitMany(fixedThreadPool)
+
+  @Benchmark
   def zioSchedulerChainedFork(): Int =
     zioChainedFork(zScheduler)
 
@@ -90,6 +94,10 @@ class ZSchedulerBenchmarks {
   @Benchmark
   def zioSchedulerYieldMany(): Int =
     zioYieldMany(zScheduler)
+
+  @Benchmark
+  def zioSchedulerExternalSubmitMany(): Int =
+    zioExternalSubmitMany(zScheduler)
 
   def catsChainedFork(runtime: IORuntime): Int = {
 
@@ -215,5 +223,20 @@ class ZSchedulerBenchmarks {
     } yield 0
 
     unsafeRun(io.onExecutor(executor))
+  }
+
+  def zioExternalSubmitMany(executor: zio.Executor): Int = {
+    val latch                   = new CountDownLatch(10000)
+    implicit val unsafe: Unsafe = Unsafe.unsafe
+    var i                       = 0
+    while (i < 10000) {
+      executor.submit(new Runnable {
+        def run(): Unit =
+          latch.countDown()
+      })
+      i += 1
+    }
+    latch.await()
+    0
   }
 }
