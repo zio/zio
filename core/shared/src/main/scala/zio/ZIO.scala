@@ -5666,24 +5666,40 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: () => B) {
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
-    ): ZIO[R, E, B1] =
-      ZIO.fiberIdWith { parentFiberId =>
-        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
-          (winner, loser) =>
-            winner.await.flatMap { exit =>
-              loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
-            },
-          (winner, loser) =>
-            winner.await.flatMap {
-              case e: Exit.Failure[Nothing] =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
-              case _ =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
-            },
-          null,
-          FiberScope.global
-        )
-      }
+    ): ZIO[R, E, B1] = {
+      val d = duration
+      if (d.isZero || d.isNegative) ZIO.succeed(b())
+      else if (d.compareTo(Duration.Infinity) >= 0) self.map(f)
+      else
+        ZIO.uninterruptibleMask { restore =>
+          ZIO.withFiberRuntime[R, E, B1] { (parentFiber, _) =>
+            val timedOut = new AtomicBoolean(false)
+            val fiberId  = parentFiber.id
+
+            val canceler = Clock.globalScheduler.schedule(
+              () => {
+                timedOut.set(true)
+                parentFiber.tellInterrupt(
+                  Cause.interrupt(fiberId, StackTrace(fiberId, Chunk.single(trace)))
+                )
+              },
+              d
+            )(Unsafe)
+
+            restore(self).foldCauseZIO(
+              cause => {
+                canceler()
+                if (timedOut.get() && cause.isInterruptedOnly) ZIO.succeed(b())
+                else ZIO.refailCause(cause)
+              },
+              a => {
+                canceler()
+                ZIO.succeed(f(a))
+              }
+            )
+          }
+        }
+    }
   }
 
   final class Acquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
