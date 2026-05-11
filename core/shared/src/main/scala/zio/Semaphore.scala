@@ -163,7 +163,7 @@ object Semaphore {
                 None -> state
             }.flatMap {
               case Some(r) => ZIO.succeed(r)
-              case None =>
+              case None    =>
                 // Slow path: permits unavailable; allocate Promise then atomically enqueue.
                 // Semantically identical to the baseline's single ref.modify after Promise.make.
                 Promise.make[Nothing, Unit].flatMap { promise =>
