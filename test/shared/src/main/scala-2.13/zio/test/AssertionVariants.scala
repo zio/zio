@@ -18,6 +18,7 @@ package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion.Arguments.valueArgument
+import zio.test.internal.EqualToRenderer
 import zio.test.{ErrorMessage => M}
 
 trait AssertionVariants {
@@ -75,10 +76,12 @@ trait AssertionVariants {
             case (left, right)                             => left == right
           }
           TestTrace.boolean(result) {
-            if (expected.isInstanceOf[Product]) {
-              M.text(diffProduct(actual, expected))
-            } else {
-              M.pretty(actual) + M.equals + M.pretty(expected)
+            EqualToRenderer.render(actual, expected, result) {
+              if (expected.isInstanceOf[Product]) {
+                M.text(diffProduct(actual, expected))
+              } else {
+                M.pretty(actual) + M.equals + M.pretty(expected)
+              }
             }
           }
         }

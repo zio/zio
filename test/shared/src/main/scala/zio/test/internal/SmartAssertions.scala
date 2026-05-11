@@ -2,8 +2,7 @@ package zio.test.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio._
-import zio.internal.ansi.AnsiStringOps
-import zio.test.diff.{Diff, DiffResult}
+import zio.test.diff.Diff
 
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
@@ -364,25 +363,7 @@ object SmartAssertions {
         }
 
         TestTrace.boolean(result) {
-          diff.value match {
-            case Some(diff) if !diff.isLowPriority && !result =>
-              val diffResult = diff.diff(that, a)
-              diffResult match {
-                case DiffResult.Different(_, _, None) =>
-                  M.pretty(a) + M.equals + M.pretty(that)
-                case diffResult =>
-                  M.choice("There was no difference", "There was a difference") ++
-                    M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
-                    M.custom(
-                      ConsoleUtils.underlined(
-                        "Diff"
-                      ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-                    ) ++
-                    M.custom(scala.Console.RESET + diffResult.render)
-              }
-            case _ =>
-              M.pretty(a) + M.equals + M.pretty(that)
-          }
+          EqualToRenderer.render(a, that, result, diff)(M.pretty(a) + M.equals + M.pretty(that))
         }
       }
 
@@ -395,25 +376,7 @@ object SmartAssertions {
         }
 
         TestTrace.boolean(result) {
-          diff.value match {
-            case Some(diff) if !diff.isLowPriority && !result =>
-              val diffResult = diff.diff(that, conv(a))
-              diffResult match {
-                case DiffResult.Different(_, _, None) =>
-                  M.pretty(a) + M.equals + M.pretty(that)
-                case diffResult =>
-                  M.choice("There was no difference", "There was a difference") ++
-                    M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
-                    M.custom(
-                      ConsoleUtils.underlined(
-                        "Diff"
-                      ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-                    ) ++
-                    M.custom(scala.Console.RESET + diffResult.render)
-              }
-            case _ =>
-              M.pretty(a) + M.equals + M.pretty(that)
-          }
+          EqualToRenderer.render(conv(a), that, result, diff)(M.pretty(a) + M.equals + M.pretty(that))
         }
       }
 
@@ -426,25 +389,7 @@ object SmartAssertions {
         }
 
         TestTrace.boolean(result) {
-          diff.value match {
-            case Some(diff) if !diff.isLowPriority && !result =>
-              val diffResult = diff.diff(conv(that), a)
-              diffResult match {
-                case DiffResult.Different(_, _, None) =>
-                  M.pretty(a) + M.equals + M.pretty(that)
-                case diffResult =>
-                  M.choice("There was no difference", "There was a difference") ++
-                    M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
-                    M.custom(
-                      ConsoleUtils.underlined(
-                        "Diff"
-                      ) + s" ${scala.Console.RED}-expected ${scala.Console.GREEN}+obtained".faint
-                    ) ++
-                    M.custom(scala.Console.RESET + diffResult.render)
-              }
-            case _ =>
-              M.pretty(a) + M.equals + M.pretty(that)
-          }
+          EqualToRenderer.render(a, conv(that), result, diff)(M.pretty(a) + M.equals + M.pretty(that))
         }
       }
 

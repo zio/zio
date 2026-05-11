@@ -137,6 +137,20 @@ object AssertionSpec extends ZIOBaseSpec {
         }
         case _ => false
       },
+      test("equalTo must use Diff when one is available") {
+        assert(List(1, 2, 3))(equalTo(List(1, 4, 3, 5)))
+      } @@ TestAspect.failing[String] {
+        case TestFailure.Assertion(result, _) =>
+          val failures = FailureCase.fromTrace(result.failures.get, Chunk.empty)
+          val errorString = failures(0).errorMessage.lines
+            .flatMap(_.fragments.map(_.text))
+            .mkString("\n")
+          errorString.contains("There was a difference") &&
+          errorString.contains("Expected") &&
+          errorString.contains("Diff") &&
+          errorString.contains("List(")
+        case _ => false
+      },
       test("equalTo should succeed for same CharSequence value") {
         val probe: CharSequence = "test"
         assert(probe)(equalTo(probe))
