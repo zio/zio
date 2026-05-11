@@ -39,6 +39,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val cache           = new ConcurrentLinkedQueue[ZScheduler.Worker]()
   private[this] val idle            = new ConcurrentLinkedQueue[ZScheduler.Worker]()
   private[this] val globalLocations = makeLocations()
+  private[this] val allActive       = poolSize << 16
   private[this] val state           = new AtomicInteger(poolSize << 16)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
 
@@ -154,7 +155,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         handleFullWorkerQueue(worker, runnable)
       } else ()
       val currentState = state.get
-      maybeUnparkWorker(currentState)
+      if (shouldMaybeUnparkWorker(currentState)) {
+        maybeUnparkWorker(currentState)
+      }
       true
     }
   }
@@ -189,7 +192,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
       if (notify) {
         val currentState = state.get
-        maybeUnparkWorker(currentState)
+        if (shouldMaybeUnparkWorker(currentState)) {
+          maybeUnparkWorker(currentState)
+        }
       }
       true
     }
@@ -387,7 +392,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
               }
               if (notify) {
                 val currentState = state.get
-                maybeUnparkWorker(currentState)
+                if (shouldMaybeUnparkWorker(currentState)) {
+                  maybeUnparkWorker(currentState)
+                }
               }
             }
             while (!active && !isInterrupted) {
@@ -398,7 +405,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             if (searching) {
               searching = false
               val currentState = state.decrementAndGet()
-              maybeUnparkWorker(currentState)
+              if (shouldMaybeUnparkWorker(currentState)) {
+                maybeUnparkWorker(currentState)
+              }
             }
             currentRunnable = runnable
             runnable.run()
@@ -455,6 +464,11 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         LockSupport.unpark(worker)
       }
     }
+  }
+
+  private def shouldMaybeUnparkWorker(currentState: Int): Boolean = {
+    val currentSearching = currentState & 0xffff
+    currentSearching == 0 && (currentState & 0xffff0000) != allActive
   }
 
   private[this] def submitBlocking(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
