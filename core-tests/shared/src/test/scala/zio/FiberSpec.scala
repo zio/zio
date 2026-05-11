@@ -97,6 +97,45 @@ object FiberSpec extends ZIOBaseSpec {
             _      <- (rootContains(fiber1) && rootContains(fiber2)).repeatUntil(_ == true)
             _      <- fiber1.interrupt *> fiber2.interrupt
           } yield assertCompletes
+        },
+        test("interrupted roots disappear") {
+          def rootContains(f: Fiber.Runtime[_, _]): UIO[Boolean] =
+            Fiber.roots.map(_.contains(f))
+
+          for {
+            fiber <- ZIO.never.forkDaemon
+            _     <- rootContains(fiber).repeatUntil(_ == true)
+            _     <- fiber.interrupt
+            _     <- ZIO.succeed(Fiber._rootSet.gc())
+            _     <- rootContains(fiber).repeatUntil(_ == false)
+          } yield assertCompletes
+        },
+        test("disabled fiber roots are not tracked") {
+          for {
+            fiber <- ZIO.never.forkDaemon
+            roots <- Fiber.roots
+            _     <- fiber.interrupt
+          } yield assertTrue(!roots.contains(fiber))
+        }.provide(Runtime.disableFlags(RuntimeFlag.FiberRoots))
+      ),
+      suite("children")(
+        test("includes live forked children") {
+          ZIO.withFiberRuntime[Any, Nothing, TestResult] { (parent, _) =>
+            for {
+              child <- ZIO.never.fork
+              _     <- parent.children.map(_.contains(child)).repeatUntil(_ == true)
+              _     <- child.interrupt
+            } yield assertCompletes
+          }
+        },
+        test("completed children disappear") {
+          ZIO.withFiberRuntime[Any, Nothing, TestResult] { (parent, _) =>
+            for {
+              child <- ZIO.unit.fork
+              _     <- child.await
+              _     <- parent.children.map(_.contains(child)).repeatUntil(_ == false)
+            } yield assertCompletes
+          }
         }
       ),
       suite("stack safety")(

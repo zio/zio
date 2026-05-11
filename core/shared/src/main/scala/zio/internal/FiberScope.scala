@@ -63,7 +63,7 @@ private[zio] object FiberScope {
       unsafe: Unsafe
     ): Unit =
       if (RuntimeFlags.fiberRoots(runtimeFlags)) {
-        Fiber._roots.add(child)
+        Fiber._rootSet.add(child)
       }
 
     private[zio] def addAll(
@@ -76,7 +76,7 @@ private[zio] object FiberScope {
     ): Unit =
       if (RuntimeFlags.fiberRoots(runtimeFlags)) {
         children.foreach {
-          Fiber._roots.add(_)
+          Fiber._rootSet.add(_)
         }
       }
   }
