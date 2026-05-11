@@ -53,6 +53,8 @@ private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
 
 private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
 
+  private[zio] def optimizeTimeoutTo: Boolean = true
+
   /**
    * Imports a synchronous effect that does blocking IO into a pure value.
    *

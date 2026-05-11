@@ -5671,6 +5671,27 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         val d = duration
         if (d.isZero || d.isNegative) Exit.succeed(b())
         else if (d >= Duration.Infinity) self.map(f)
+        else if (!ZIO.optimizeTimeoutTo)
+          ZIO.fiberIdWith { parentFiberId =>
+            self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(d).interruptible)(
+              (winner, loser) =>
+                winner.await.flatMap {
+                  case Exit.Success(a) =>
+                    winner.inheritAll *> loser.interruptAs(parentFiberId).as(f(a))
+                  case Exit.Failure(cause) =>
+                    winner.inheritAll *> loser.interruptAs(parentFiberId) *> Exit.failCause(cause)
+                },
+              (winner, loser) =>
+                winner.await.flatMap {
+                  case _: Exit.Success[?] =>
+                    loser.inheritAll *> loser.interruptAs(parentFiberId).as(b())
+                  case Exit.Failure(cause) =>
+                    loser.inheritAll *> loser.interruptAs(parentFiberId) *> Exit.failCause(cause)
+                },
+              null,
+              FiberScope.global
+            )
+          }
         else
           ZIO.withFiberRuntime[R, E, B1] { (parentFiber, parentStatus) =>
             ZIO.clockWith(_.scheduler).flatMap { scheduler =>
@@ -5685,6 +5706,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                   val completed       = new AtomicBoolean()
                   val canceledTimeout = (() => false): Scheduler.CancelToken
                   val cancelTimeout   = new AtomicReference[Scheduler.CancelToken](null)
+                  val registering     = new AtomicBoolean(true)
+                  val earlyResult     = new AtomicReference[ZIO[R, E, B1]](null)
 
                   def cancelScheduledTimeout(): Unit = {
                     val canceler = cancelTimeout.getAndSet(canceledTimeout)
@@ -5698,36 +5721,57 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                       val _ = canceler()
                     }
 
+                  def complete(effect: ZIO[R, E, B1]): Unit =
+                    if (registering.get()) {
+                      val _ = earlyResult.compareAndSet(null, effect)
+                    } else {
+                      cb(effect)
+                    }
+
                   childFiber.addObserver { exit =>
                     if (completed.compareAndSet(false, true)) {
                       cancelScheduledTimeout()
-                      cb(childFiber.inheritAll *> exit.mapExit(f))
+                      complete(childFiber.inheritAll *> exit.mapExit(f))
                     }
                   }(Unsafe)
 
                   val exit = childFiber.start(effect)
 
-                  if ((exit ne null) && completed.compareAndSet(false, true)) {
-                    Right(childFiber.inheritAll *> exit.mapExit(f))
+                  if ((exit ne null) && completed.compareAndSet(false, true))
+                    complete(childFiber.inheritAll *> exit.mapExit(f))
+
+                  val early = earlyResult.get()
+                  if (early ne null) {
+                    registering.set(false)
+                    Right(early)
                   } else {
                     if (exit eq null)
                       setScheduledTimeout(
                         scheduler.schedule(
                           () =>
-                            if (completed.compareAndSet(false, true))
-                              cb(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b())),
+                            if (completed.compareAndSet(false, true)) {
+                              complete(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b()))
+                            },
                           d
                         )(Unsafe)
                       )
 
-                    Left(
-                      ZIO.succeed {
-                        if (completed.compareAndSet(false, true)) {
-                          cancelScheduledTimeout()
-                          childFiber.tellInterrupt(Cause.interrupt(parentFiberId))
+                    registering.set(false)
+                    val early = earlyResult.get()
+                    if (early ne null)
+                      Right(early)
+                    else
+                      Left(
+                        ZIO.suspendSucceed {
+                          if (completed.compareAndSet(false, true)) {
+                            val interrupt = childFiber.interruptAs(parentFiberId).unit
+                            cancelScheduledTimeout()
+                            interrupt
+                          } else {
+                            Exit.unit
+                          }
                         }
-                      }
-                    )
+                      )
                   }
                 },
                 childFiber.id
