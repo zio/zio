@@ -516,6 +516,60 @@ object QueueSpec extends ZIOBaseSpec {
         res    <- queue.size.sandbox.either
       } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
     },
+    test("shutdownCause returns buffered elements and fails future interactions") {
+      val boom = new RuntimeException("boom")
+      for {
+        queue     <- Queue.bounded[Int](4)
+        _         <- queue.offerAll(List(1, 2))
+        remaining <- queue.shutdownCause(Cause.die(boom))
+        take      <- queue.take.exit
+        offer     <- queue.offer(3).exit
+      } yield assert(remaining)(equalTo(Chunk(1, 2))) &&
+        assert(take)(dies(equalTo(boom))) &&
+        assert(offer)(dies(equalTo(boom)))
+    },
+    test("shutdown remains idempotent after shutdownCause") {
+      val boom = new RuntimeException("boom")
+      for {
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdownCause(Cause.die(boom))
+        exit  <- queue.shutdown.exit
+      } yield assert(exit)(succeeds(isUnit))
+    },
+    test("shutdownCause fails pending takers with cause") {
+      val boom = new RuntimeException("boom")
+      for {
+        queue     <- Queue.bounded[Int](1)
+        taker     <- queue.take.fork
+        _         <- waitForSize(queue, -1)
+        remaining <- queue.shutdownCause(Cause.die(boom))
+        exit      <- taker.await
+      } yield assert(remaining)(isEmpty) &&
+        assert(exit)(dies(equalTo(boom)))
+    },
+    test("shutdownCause fails back-pressured offerers with cause") {
+      val boom = new RuntimeException("boom")
+      for {
+        queue     <- Queue.bounded[Int](1)
+        _         <- queue.offer(1)
+        offerer   <- queue.offer(2).fork
+        _         <- waitForSize(queue, 2)
+        remaining <- queue.shutdownCause(Cause.die(boom))
+        exit      <- offerer.await
+      } yield assert(remaining)(equalTo(Chunk(1))) &&
+        assert(exit)(dies(equalTo(boom)))
+    },
+    test("shutdownCause uses first cause for later shutdownCause calls") {
+      val boom1 = new RuntimeException("boom1")
+      val boom2 = new RuntimeException("boom2")
+      for {
+        queue  <- Queue.bounded[Int](1)
+        _      <- queue.offer(1)
+        first  <- queue.shutdownCause(Cause.die(boom1)).exit
+        second <- queue.shutdownCause(Cause.die(boom2)).exit
+      } yield assert(first)(succeeds(equalTo(Chunk(1)))) &&
+        assert(second)(dies(equalTo(boom1)))
+    },
     test("back-pressured offer completes after take") {
       for {
         queue <- Queue.bounded[Int](2)

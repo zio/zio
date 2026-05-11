@@ -5862,6 +5862,15 @@ object ZStreamSpec extends ZIOBaseSpec {
               } yield result)(equalTo(Chunk(1, 2)))
             }
           },
+          test("fails when the queue is shut down with a defect cause") {
+            val boom = new RuntimeException("boom")
+            for {
+              queue <- Queue.unbounded[Int]
+              fiber <- ZStream.fromQueue(queue).runCollect.fork
+              _     <- queue.shutdownCause(Cause.die(boom))
+              exit  <- fiber.await
+            } yield assert(exit)(dies(equalTo(boom)))
+          },
           test("chunks up to the max chunk size") {
             assertZIO(for {
               queue <- Queue.unbounded[Int]
