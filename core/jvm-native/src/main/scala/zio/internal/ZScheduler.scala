@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2024 John A. De Goes and the ZIO Contributors
+ * Copyright 2021-2026 John A. De Goes and the ZIO Contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -112,7 +112,6 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   }
 
   override def stealWork(depth: Int): Boolean = {
-    // Kept intact: standard work-stealing remains unchanged to preserve worker loop stability
     val currentWorker = workerOrNull()
     if (currentWorker eq null) false
     else {
@@ -123,9 +122,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       while (i < poolSize && !stolen) {
         val targetId     = (start + i) % poolSize
         val targetWorker = workers(targetId)
-        // Ensure we don't steal from ourselves
         if (targetWorker ne currentWorker) {
-          // FIX: Added 'null' as the default argument for the custom ZIO queue
           val runnable = targetWorker.localQueue.poll(null)
           if (runnable ne null) {
             currentWorker.localQueue.offer(runnable)
@@ -143,39 +140,30 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else if (worker ne null) {
-      // Internal submission: Keep it fast and local for existing fibers
       if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
       }
       true
     } else {
-      // External Submission: Hybrid P2C (Least-Loaded Non-Blocking)
       var submitted    = false
       val currentState = state.get
-
-      // Only attempt P2C if we have active workers, avoiding deadlocks on idle states
       if (((currentState & 0xffff0000) >> 16) > 0) {
         val rnd = ThreadLocalRandom.current()
         val w1  = workers(rnd.nextInt(poolSize))
         val w2  = workers(rnd.nextInt(poolSize))
-
         val target =
           if (w1.blocking && w2.blocking) null
           else if (w1.blocking) w2
           else if (w2.blocking) w1
           else if (w1.localQueue.size() <= w2.localQueue.size()) w1
           else w2
-
         if ((target ne null) && target.localQueue.offer(runnable)) {
           submitted = true
         }
       }
-
-      // Fallback to global queue if P2C fails, queues are full, or system is idle
       if (!submitted) {
         globalQueue.offer(runnable)
       }
-
       maybeUnparkWorker(currentState)
       true
     }
@@ -191,7 +179,6 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     globalQueue.offerAll(polled, rnd)
     val accepted = worker.localQueue.offer(runnable)
     if (!accepted) {
-      // We should never ever need to come here, this is just a precaution in the case we've introduced a bug
       globalQueue.offer(runnable, rnd)
     }
   }
@@ -213,7 +200,6 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
   private[this] def makeSupervisor(): ZScheduler.Supervisor =
     new ZScheduler.Supervisor {
-
       private def countSubmittedAt(location: Trace): Long = {
         var count = globalLocations.get(location)
         var i     = 0
@@ -224,7 +210,6 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         }
         count
       }
-
       override def run(): Unit = {
         val identifiedLocations = makeLocations()
         val previousOpCounts    = Array.fill(poolSize)(-1L)
@@ -272,22 +257,18 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     new ZScheduler.Worker {
       self =>
       override val submittedLocations: ZScheduler.Locations = makeLocations()
-
       final override def run(): Unit = {
-        // Store parent mutable object references in stack memory to avoid fetching it from the heap every time
         val globalQueue = parent.globalQueue
         val workers     = parent.workers
         val state       = parent.state
         val cache       = parent.cache
         val idle        = parent.idle
         val poolSize    = ZScheduler.poolSize
-
         var currentBlocking = false
         var currentOpCount  = 0L
         val random          = ThreadLocalRandom.current
         var runnable        = null.asInstanceOf[Runnable]
         var searching       = false
-
         while (!isInterrupted) {
           currentBlocking = blocking
           val currentNextRunnable = nextRunnable
@@ -399,9 +380,6 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
           }
         }
       }
-
-      // NOTE: Synchronized block in case the supervisor attempts to mark the worker as blocking at the same time
-      // as an external call
       final def markAsBlocking(): Unit = synchronized {
         if (blocking) ()
         else {
@@ -453,127 +431,48 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
 private object ZScheduler {
   private val poolSize = java.lang.Runtime.getRuntime.availableProcessors
-
   def markCurrentWorkerAsBlocking(): Unit = {
     val worker = workerOrNull()
     if (worker ne null) {
       worker.markAsBlocking()
-    } else {
-      ()
     }
   }
-
-  /**
-   * If the current thread is a [[ZScheduler.Worker]] then it is returned,
-   * otherwise returns null
-   */
   private def workerOrNull(): ZScheduler.Worker =
     Thread.currentThread() match {
       case w: ZScheduler.Worker => w
       case _                    => null
     }
-
-  /**
-   * `Locations` tracks the number of observations of a fiber forked from a
-   * location.
-   */
   private sealed abstract class Locations {
-
-    /**
-     * Returns the number of observations of a fiber forked from the specified
-     * location.
-     */
     def get(trace: Trace): Long
-
-    /**
-     * Tracks a new observation of a fiber forked from the specified location
-     * and returns the previous number of observations of a fiber forked from
-     * that location.
-     */
     def put(trace: Trace): Long
   }
-
   private object Locations {
-
     final class Enabled(sizeHint: Int = 64) extends Locations {
       private[this] val locations = mutable.HashMap.empty[Trace, AtomicLong]
       locations.sizeHint(sizeHint)
-
       def get(trace: Trace): Long = {
         val v = locations.getOrElse(trace, null)
         if (v eq null) 0L else v.get()
       }
-
       def put(trace: Trace): Long =
         locations.getOrElseUpdate(trace, new AtomicLong(0L)).getAndIncrement()
     }
-
     object Disabled extends Locations {
       def get(trace: Trace): Long = 0L
       def put(trace: Trace): Long = 0L
     }
   }
-
-  /**
-   * A `Supervisor` is a `Thread` that is responsible for monitoring workers and
-   * shifting tasks from workers that are blocking to new workers.
-   */
   private sealed abstract class Supervisor extends Thread
-
-  /**
-   * A `Worker` is a `Thread` that is responsible for executing actions
-   * submitted to the scheduler.
-   */
   private sealed abstract class Worker extends Thread with BlockContext {
-
     val submittedLocations: Locations
-
-    /**
-     * Whether this worker is currently active.
-     */
-    @volatile
-    var active: Boolean =
-      true
-
-    /**
-     * Whether this worker is currently blocking.
-     */
-    @volatile
-    var blocking: Boolean =
-      false
-
-    /**
-     * The current task being executed by this worker.
-     */
-    @volatile
-    var currentRunnable: Runnable =
-      null
-
-    /**
-     * The local work queue for this worker.
-     */
-    val localQueue: RingBufferPow2[Runnable] =
-      RingBufferPow2[Runnable](256)
-
-    /**
-     * An optional field providing fast access to the next task to be executed
-     * by this worker.
-     */
-    var nextRunnable: Runnable =
-      null
-
-    /**
-     * The number of tasks that have been executed by this worker.
-     */
-    @volatile
-    var opCount: Long =
-      0L
-
+    @volatile var active: Boolean = true
+    @volatile var blocking: Boolean = false
+    @volatile var currentRunnable: Runnable = null
+    val localQueue: RingBufferPow2[Runnable] = RingBufferPow2[Runnable](256)
+    var nextRunnable: Runnable = null
+    @volatile var opCount: Long = 0L
     def markAsBlocking(): Unit
-
-    final def setName(i: Int): Unit =
-      setName(s"ZScheduler-Worker-$i")
-
+    final def setName(i: Int): Unit = setName(s"ZScheduler-Worker-$i")
     override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
       markAsBlocking()
       thunk
