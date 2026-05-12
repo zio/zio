@@ -223,7 +223,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         val workerIndex = java.lang.Math.floorMod(offset + i, poolSize)
         val worker      = workers(workerIndex)
 
-        if (worker.active && !worker.blocking) {
+        if (worker.active && !worker.blocking && (worker.currentRunnable eq null)) {
           val size = worker.localQueue.size() + (if (worker.nextRunnable ne null) 1 else 0)
 
           if (size < bestSize) {
@@ -238,7 +238,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
       val accepted =
         (best ne null) && best.synchronized {
-          (workers(bestIndex) eq best) && best.active && !best.blocking && best.localQueue.offer(runnable)
+          (workers(bestIndex) eq best) && best.active && !best.blocking && (best.currentRunnable eq null) &&
+          best.localQueue.offer(runnable)
         }
       if (accepted && !best.active) {
         maybeUnparkWorker(state.get)
