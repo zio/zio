@@ -169,7 +169,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      var notify = true
+      var notify       = true
       val currentState = state.get
       if (worker eq null) {
         if (submitExternal(runnable, currentState)) {
@@ -227,9 +227,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
           val size = worker.localQueue.size() + (if (worker.nextRunnable ne null) 1 else 0)
 
           if (size < bestSize) {
-            best      = worker
+            best = worker
             bestIndex = workerIndex
-            bestSize  = size
+            bestSize = size
           }
         }
 
