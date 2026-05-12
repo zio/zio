@@ -121,10 +121,10 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       val rnd    = ThreadLocalRandom.current()
       val start  = rnd.nextInt(poolSize)
       while (i < poolSize && !stolen) {
-        val targetId = (start + i) % poolSize
+        val targetId     = (start + i) % poolSize
         val targetWorker = workers(targetId)
         // Ensure we don't steal from ourselves
-        if (targetWorker ne currentWorker) { 
+        if (targetWorker ne currentWorker) {
           // FIX: Added 'null' as the default argument for the custom ZIO queue
           val runnable = targetWorker.localQueue.poll(null)
           if (runnable ne null) {
@@ -150,20 +150,21 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       true
     } else {
       // External Submission: Hybrid P2C (Least-Loaded Non-Blocking)
-      var submitted = false
+      var submitted    = false
       val currentState = state.get
-      
+
       // Only attempt P2C if we have active workers, avoiding deadlocks on idle states
       if (((currentState & 0xffff0000) >> 16) > 0) {
         val rnd = ThreadLocalRandom.current()
-        val w1 = workers(rnd.nextInt(poolSize))
-        val w2 = workers(rnd.nextInt(poolSize))
-        
-        val target = if (w1.blocking && w2.blocking) null
-                     else if (w1.blocking) w2
-                     else if (w2.blocking) w1
-                     else if (w1.localQueue.size() <= w2.localQueue.size()) w1
-                     else w2
+        val w1  = workers(rnd.nextInt(poolSize))
+        val w2  = workers(rnd.nextInt(poolSize))
+
+        val target =
+          if (w1.blocking && w2.blocking) null
+          else if (w1.blocking) w2
+          else if (w2.blocking) w1
+          else if (w1.localQueue.size() <= w2.localQueue.size()) w1
+          else w2
 
         if ((target ne null) && target.localQueue.offer(runnable)) {
           submitted = true
@@ -174,7 +175,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       if (!submitted) {
         globalQueue.offer(runnable)
       }
-      
+
       maybeUnparkWorker(currentState)
       true
     }
