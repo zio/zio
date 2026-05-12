@@ -35,13 +35,13 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   import Trace.{empty => emptyTrace}
   import ZScheduler.{poolSize, workerOrNull}
 
-  private[this] val globalQueue     = new PartitionedLinkedQueue[Runnable](poolSize * 4)
-  private[this] val cache           = new ConcurrentLinkedQueue[ZScheduler.Worker]()
-  private[this] val idle            = new ConcurrentLinkedQueue[ZScheduler.Worker]()
-  private[this] val globalLocations = makeLocations()
-  private[this] val state           = new AtomicInteger(poolSize << 16)
-  private[this] val externalCursor  = new AtomicInteger(0)
-  private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
+  private[this] val globalQueue         = new PartitionedLinkedQueue[Runnable](poolSize * 4)
+  private[this] val cache               = new ConcurrentLinkedQueue[ZScheduler.Worker]()
+  private[this] val idle                = new ConcurrentLinkedQueue[ZScheduler.Worker]()
+  private[this] val globalLocations     = makeLocations()
+  private[this] val state               = new AtomicInteger(poolSize << 16)
+  private[this] val externalSubmissions = new AtomicInteger(0)
+  private[this] val workers             = Array.ofDim[ZScheduler.Worker](poolSize)
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
@@ -149,16 +149,19 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      val currentState = state.get
+      var external = false
       if (worker eq null) {
-        if (!submitExternal(runnable, currentState)) {
-          globalQueue.offer(runnable)
-        }
+        globalQueue.offer(runnable)
+        external = true
       } else if (worker.blocking) {
         globalQueue.offer(runnable)
       } else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
       } else ()
+      val currentState = state.get
+      if (external) {
+        signalExternalSubmit(currentState)
+      }
       maybeUnparkWorker(currentState)
       true
     }
@@ -169,14 +172,11 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      var notify       = true
-      val currentState = state.get
+      var notify   = true
+      var external = false
       if (worker eq null) {
-        if (submitExternal(runnable, currentState)) {
-          notify = false
-        } else {
-          globalQueue.offer(runnable)
-        }
+        globalQueue.offer(runnable)
+        external = true
       } else if (worker.blocking) {
         globalQueue.offer(runnable)
       }
@@ -200,51 +200,21 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       }
 
       if (notify) {
+        val currentState = state.get
+        if (external) {
+          signalExternalSubmit(currentState)
+        }
         maybeUnparkWorker(currentState)
       }
       true
     }
   }
 
-  private[this] def submitExternal(runnable: Runnable, currentState: Int): Boolean = {
+  private[this] def signalExternalSubmit(currentState: Int): Unit = {
     val currentActive = (currentState & 0xffff0000) >> 16
 
-    if (currentActive != poolSize) {
-      false
-    } else {
-      val sampleSize = java.lang.Math.min(poolSize, 4)
-      val offset     = externalCursor.getAndIncrement()
-      var best       = null.asInstanceOf[ZScheduler.Worker]
-      var bestIndex  = -1
-      var bestSize   = Int.MaxValue
-      var i          = 0
-
-      while (i < sampleSize) {
-        val workerIndex = java.lang.Math.floorMod(offset + i, poolSize)
-        val worker      = workers(workerIndex)
-
-        if (worker.active && !worker.blocking && (worker.currentRunnable eq null)) {
-          val size = worker.localQueue.size() + (if (worker.nextRunnable ne null) 1 else 0)
-
-          if (size < bestSize) {
-            best = worker
-            bestIndex = workerIndex
-            bestSize = size
-          }
-        }
-
-        i += 1
-      }
-
-      val accepted =
-        (best ne null) && best.synchronized {
-          (workers(bestIndex) eq best) && best.active && !best.blocking && (best.currentRunnable eq null) &&
-          best.localQueue.offer(runnable)
-        }
-      if (accepted && !best.active) {
-        maybeUnparkWorker(state.get)
-      }
-      accepted
+    if (currentActive == poolSize) {
+      externalSubmissions.incrementAndGet()
     }
   }
 
@@ -359,7 +329,16 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             runnable = currentNextRunnable
             nextRunnable = null
           } else {
-            if ((currentOpCount & 63) == 0) {
+            val pendingExternal = externalSubmissions.get()
+            if (pendingExternal > 0) {
+              runnable = globalQueue.poll(random)
+              if (runnable eq null) {
+                externalSubmissions.compareAndSet(pendingExternal, 0)
+                runnable = localQueue.poll(null)
+              } else {
+                externalSubmissions.compareAndSet(pendingExternal, pendingExternal - 1)
+              }
+            } else if ((currentOpCount & 63) == 0) {
               runnable = globalQueue.poll(random)
               if (runnable eq null) {
                 runnable = localQueue.poll(null)
@@ -415,61 +394,39 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             }
           }
           if (runnable eq null) {
-            var currentState     = 0
-            var currentSearching = 0
-            var sleep            = false
-
-            // External submissions can target this worker's local queue while it is active.
-            // Pair the last local-queue check with the transition to inactive so work is not stranded.
-            self.synchronized {
-              if (!currentBlocking && (nextRunnable ne null)) {
-                runnable = nextRunnable
-                nextRunnable = null
-              } else if (!currentBlocking) {
-                runnable = localQueue.poll(null)
+            val currentState =
+              if (currentBlocking && searching) state.decrementAndGet()
+              else if (currentBlocking) state.get
+              else if (searching) state.addAndGet(0xfffeffff)
+              else state.addAndGet(0xffff0000)
+            val currentSearching = currentState & 0xffff
+            active = false
+            if (currentBlocking) {
+              cache.offer(self)
+            } else {
+              idle.offer(self)
+            }
+            if (currentSearching == 0 && searching) {
+              var i      = 0
+              var notify = false
+              while (i != poolSize && !notify) {
+                val worker = workers(i)
+                notify = !worker.localQueue.isEmpty()
+                i += 1
               }
-
-              if (runnable eq null) {
-                currentState =
-                  if (currentBlocking && searching) state.decrementAndGet()
-                  else if (currentBlocking) state.get
-                  else if (searching) state.addAndGet(0xfffeffff)
-                  else state.addAndGet(0xffff0000)
-                currentSearching = currentState & 0xffff
-                active = false
-                sleep = true
+              if (!notify) {
+                notify = !globalQueue.isEmpty()
+              }
+              if (notify) {
+                val currentState = state.get
+                maybeUnparkWorker(currentState)
               }
             }
-
-            if (sleep) {
-              if (currentBlocking) {
-                cache.offer(self)
-              } else {
-                idle.offer(self)
-              }
-              if (currentSearching == 0 && searching) {
-                var i      = 0
-                var notify = false
-                while (i != poolSize && !notify) {
-                  val worker = workers(i)
-                  notify = !worker.localQueue.isEmpty()
-                  i += 1
-                }
-                if (!notify) {
-                  notify = !globalQueue.isEmpty()
-                }
-                if (notify) {
-                  val currentState = state.get
-                  maybeUnparkWorker(currentState)
-                }
-              }
-              while (!active && !isInterrupted) {
-                LockSupport.park()
-              }
-              searching = true
+            while (!active && !isInterrupted) {
+              LockSupport.park()
             }
-          }
-          if (runnable ne null) {
+            searching = true
+          } else {
             if (searching) {
               searching = false
               val currentState = state.decrementAndGet()
