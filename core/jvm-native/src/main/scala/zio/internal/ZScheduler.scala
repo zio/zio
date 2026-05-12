@@ -40,6 +40,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   private[this] val idle            = new ConcurrentLinkedQueue[ZScheduler.Worker]()
   private[this] val globalLocations = makeLocations()
   private[this] val state           = new AtomicInteger(poolSize << 16)
+  private[this] val externalCursor  = new AtomicInteger(0)
   private[this] val workers         = Array.ofDim[ZScheduler.Worker](poolSize)
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
@@ -148,12 +149,16 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
-      if ((worker eq null) || worker.blocking) {
+      val currentState = state.get
+      if (worker eq null) {
+        if (!submitExternal(runnable, currentState)) {
+          globalQueue.offer(runnable)
+        }
+      } else if (worker.blocking) {
         globalQueue.offer(runnable)
       } else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
       } else ()
-      val currentState = state.get
       maybeUnparkWorker(currentState)
       true
     }
@@ -165,7 +170,14 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       submitBlocking(runnable)
     } else {
       var notify = true
-      if ((worker eq null) || worker.blocking) {
+      val currentState = state.get
+      if (worker eq null) {
+        if (submitExternal(runnable, currentState)) {
+          notify = false
+        } else {
+          globalQueue.offer(runnable)
+        }
+      } else if (worker.blocking) {
         globalQueue.offer(runnable)
       }
       // Attempt resumption in the current Thread
@@ -188,10 +200,50 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       }
 
       if (notify) {
-        val currentState = state.get
         maybeUnparkWorker(currentState)
       }
       true
+    }
+  }
+
+  private[this] def submitExternal(runnable: Runnable, currentState: Int): Boolean = {
+    val currentActive = (currentState & 0xffff0000) >> 16
+
+    if (currentActive != poolSize) {
+      false
+    } else {
+      val sampleSize = java.lang.Math.min(poolSize, 4)
+      val offset     = externalCursor.getAndIncrement()
+      var best       = null.asInstanceOf[ZScheduler.Worker]
+      var bestIndex  = -1
+      var bestSize   = Int.MaxValue
+      var i          = 0
+
+      while (i < sampleSize) {
+        val workerIndex = java.lang.Math.floorMod(offset + i, poolSize)
+        val worker      = workers(workerIndex)
+
+        if (worker.active && !worker.blocking) {
+          val size = worker.localQueue.size() + (if (worker.nextRunnable ne null) 1 else 0)
+
+          if (size < bestSize) {
+            best = worker
+            bestIndex = workerIndex
+            bestSize = size
+          }
+        }
+
+        i += 1
+      }
+
+      val accepted =
+        (best ne null) && best.synchronized {
+          (workers(bestIndex) eq best) && best.active && !best.blocking && best.localQueue.offer(runnable)
+        }
+      if (accepted && !best.active) {
+        maybeUnparkWorker(state.get)
+      }
+      accepted
     }
   }
 
