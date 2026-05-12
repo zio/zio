@@ -227,9 +227,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
           val size = worker.localQueue.size() + (if (worker.nextRunnable ne null) 1 else 0)
 
           if (size < bestSize) {
-            best = worker
+            best      = worker
             bestIndex = workerIndex
-            bestSize = size
+            bestSize  = size
           }
         }
 
