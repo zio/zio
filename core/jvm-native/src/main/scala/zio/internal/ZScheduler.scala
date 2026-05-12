@@ -113,9 +113,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       val rnd    = ThreadLocalRandom.current()
       val start  = rnd.nextInt(poolSize)
       while (i < poolSize && !stolen) {
-        val targetId     = (start + i) % poolSize
+        val targetId = (start + i) % poolSize
         val targetWorker = workers(targetId)
-        if (targetWorker ne currentWorker) {
+        if (targetWorker ne currentWorker) { 
           val runnable = targetWorker.localQueue.poll(null)
           if (runnable ne null) {
             currentWorker.localQueue.offer(runnable)
@@ -138,36 +138,46 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       }
       true
     } else {
-      var submitted    = false
+      var submitted = false
       val currentState = state.get
+      
       if (((currentState & 0xffff0000) >> 16) > 0) {
         val rnd = ThreadLocalRandom.current()
-        val w1  = workers(rnd.nextInt(poolSize))
-        val w2  = workers(rnd.nextInt(poolSize))
-        val target =
-          if (w1.blocking && w2.blocking) null
-          else if (w1.blocking) w2
-          else if (w2.blocking) w1
-          else if (w1.localQueue.size() <= w2.localQueue.size()) w1
-          else w2
+        val w1 = workers(rnd.nextInt(poolSize))
+        val w2 = workers(rnd.nextInt(poolSize))
+        
+        val target = if (w1.blocking && w2.blocking) null
+                     else if (w1.blocking) w2
+                     else if (w2.blocking) w1
+                     else if (w1.localQueue.size() <= w2.localQueue.size()) w1
+                     else w2
+
         if ((target ne null) && target.localQueue.offer(runnable)) {
           submitted = true
         }
       }
-      if (!submitted) globalQueue.offer(runnable)
+
+      if (!submitted) {
+        globalQueue.offer(runnable)
+      }
+      
       maybeUnparkWorker(currentState)
       true
     }
   }
 
-  override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = submit(runnable)
+  override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
+    submit(runnable)
+  }
 
   private def handleFullWorkerQueue(worker: ZScheduler.Worker, runnable: Runnable): Unit = {
-    val rnd      = ThreadLocalRandom.current
-    val polled   = worker.localQueue.pollUpTo(128)
+    val rnd    = ThreadLocalRandom.current
+    val polled = worker.localQueue.pollUpTo(128)
     globalQueue.offerAll(polled, rnd)
     val accepted = worker.localQueue.offer(runnable)
-    if (!accepted) globalQueue.offer(runnable, rnd)
+    if (!accepted) {
+      globalQueue.offer(runnable, rnd)
+    }
   }
 
   private[this] def isBlocking(worker: ZScheduler.Worker, runnable: Runnable): Boolean =
@@ -182,10 +192,12 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     } else false
 
   private[this] def makeLocations(): ZScheduler.Locations =
-    if (autoBlocking) new ZScheduler.Locations.Enabled else ZScheduler.Locations.Disabled
+    if (autoBlocking) new ZScheduler.Locations.Enabled
+    else ZScheduler.Locations.Disabled
 
   private[this] def makeSupervisor(): ZScheduler.Supervisor =
     new ZScheduler.Supervisor {
+
       private def countSubmittedAt(location: Trace): Long = {
         var count = globalLocations.get(location)
         var i     = 0
@@ -196,6 +208,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         }
         count
       }
+
       override def run(): Unit = {
         val identifiedLocations = makeLocations()
         val previousOpCounts    = Array.fill(poolSize)(-1L)
@@ -240,20 +253,24 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     }
 
   private[this] def makeWorker(): ZScheduler.Worker =
-    new ZScheduler.Worker { self =>
+    new ZScheduler.Worker {
+      self =>
       override val submittedLocations: ZScheduler.Locations = makeLocations()
+
       final override def run(): Unit = {
-        val globalQueue     = parent.globalQueue
-        val workers         = parent.workers
-        val state           = parent.state
-        val cache           = parent.cache
-        val idle            = parent.idle
-        val poolSize        = ZScheduler.poolSize
+        val globalQueue = parent.globalQueue
+        val workers     = parent.workers
+        val state       = parent.state
+        val cache       = parent.cache
+        val idle        = parent.idle
+        val poolSize    = ZScheduler.poolSize
+
         var currentBlocking = false
         var currentOpCount  = 0L
         val random          = ThreadLocalRandom.current
         var runnable        = null.asInstanceOf[Runnable]
         var searching       = false
+
         while (!isInterrupted) {
           currentBlocking = blocking
           val currentNextRunnable = nextRunnable
@@ -264,10 +281,14 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
           } else {
             if ((currentOpCount & 63) == 0) {
               runnable = globalQueue.poll(random)
-              if (runnable eq null) runnable = localQueue.poll(null)
+              if (runnable eq null) {
+                runnable = localQueue.poll(null)
+              }
             } else {
               runnable = localQueue.poll(null)
-              if (runnable eq null) runnable = globalQueue.poll(random)
+              if (runnable eq null) {
+                runnable = globalQueue.poll(random)
+              }
             }
             if (runnable eq null) {
               if (!searching) {
@@ -297,7 +318,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                         currentBlocking = blocking
                         if (currentBlocking) {
                           val runnables = localQueue.pollUpTo(256)
-                          if (!runnables.isEmpty) globalQueue.offerAll(runnables, random)
+                          if (!runnables.isEmpty) {
+                            globalQueue.offerAll(runnables, random)
+                          }
                         }
                         loop = false
                       }
@@ -305,7 +328,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                   }
                   i += 1
                 }
-                if (runnable eq null) runnable = globalQueue.poll(random)
+                if (runnable eq null) {
+                  runnable = globalQueue.poll(random)
+                }
               }
             }
           }
@@ -317,7 +342,11 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
               else state.addAndGet(0xffff0000)
             val currentSearching = currentState & 0xffff
             active = false
-            if (currentBlocking) cache.offer(self) else idle.offer(self)
+            if (currentBlocking) {
+              cache.offer(self)
+            } else {
+              idle.offer(self)
+            }
             if (currentSearching == 0 && searching) {
               var i      = 0
               var notify = false
@@ -326,15 +355,23 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                 notify = !worker.localQueue.isEmpty()
                 i += 1
               }
-              if (!notify) notify = !globalQueue.isEmpty()
-              if (notify) maybeUnparkWorker(state.get)
+              if (!notify) {
+                notify = !globalQueue.isEmpty()
+              }
+              if (notify) {
+                val currentState = state.get
+                maybeUnparkWorker(currentState)
+              }
             }
-            while (!active && !isInterrupted) LockSupport.park()
+            while (!active && !isInterrupted) {
+              LockSupport.park()
+            }
             searching = true
           } else {
             if (searching) {
               searching = false
-              maybeUnparkWorker(state.decrementAndGet())
+              val currentState = state.decrementAndGet()
+              maybeUnparkWorker(currentState)
             }
             currentRunnable = runnable
             runnable.run()
@@ -345,8 +382,10 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
           }
         }
       }
+
       final def markAsBlocking(): Unit = synchronized {
-        if (!blocking) {
+        if (blocking) ()
+        else {
           blocking = true
           val idx = workers.indexOf(self)
           if (idx >= 0) {
@@ -366,9 +405,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             } else {
               state.getAndIncrement()
               worker.setName(idx)
-              workers(idx)    = worker
+              workers(idx) = worker
               worker.blocking = false
-              worker.active   = true
+              worker.active = true
               LockSupport.unpark(worker)
             }
           }
@@ -395,43 +434,55 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
 private object ZScheduler {
   private val poolSize = java.lang.Runtime.getRuntime.availableProcessors
+
   def markCurrentWorkerAsBlocking(): Unit = {
     val worker = workerOrNull()
-    if (worker ne null) worker.markAsBlocking()
+    if (worker ne null) {
+      worker.markAsBlocking()
+    }
   }
+
   private def workerOrNull(): ZScheduler.Worker =
     Thread.currentThread() match {
       case w: ZScheduler.Worker => w
       case _                    => null
     }
+
   private sealed abstract class Locations {
     def get(trace: Trace): Long
     def put(trace: Trace): Long
   }
+
   private object Locations {
     final class Enabled(sizeHint: Int = 64) extends Locations {
       private[this] val locations = mutable.HashMap.empty[Trace, AtomicLong]
       locations.sizeHint(sizeHint)
+
       def get(trace: Trace): Long = {
         val v = locations.getOrElse(trace, null)
         if (v eq null) 0L else v.get()
       }
-      def put(trace: Trace): Long = locations.getOrElseUpdate(trace, new AtomicLong(0L)).getAndIncrement()
+
+      def put(trace: Trace): Long =
+        locations.getOrElseUpdate(trace, new AtomicLong(0L)).getAndIncrement()
     }
+
     object Disabled extends Locations {
       def get(trace: Trace): Long = 0L
       def put(trace: Trace): Long = 0L
     }
   }
+
   private sealed abstract class Supervisor extends Thread
+
   private sealed abstract class Worker extends Thread with BlockContext {
     val submittedLocations: Locations
-    @volatile var active: Boolean            = true
-    @volatile var blocking: Boolean          = false
-    @volatile var currentRunnable: Runnable  = null
+    @volatile var active: Boolean = true
+    @volatile var blocking: Boolean = false
+    @volatile var currentRunnable: Runnable = null
     val localQueue: RingBufferPow2[Runnable] = RingBufferPow2[Runnable](256)
-    var nextRunnable: Runnable               = null
-    @volatile var opCount: Long              = 0L
+    var nextRunnable: Runnable = null
+    @volatile var opCount: Long = 0L
     def markAsBlocking(): Unit
     final def setName(i: Int): Unit = setName(s"ZScheduler-Worker-$i")
     override def blockOn[T](thunk: => T)(implicit permission: CanAwait): T = {
