@@ -481,30 +481,29 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor with Auto
     Blocking.blockingExecutor.submit(runnable)
 
   /**
-   * Permanently shuts down this scheduler, releasing the worker threads it
-   * owns and dropping any pending work. Idempotent.
+   * Permanently shuts down this scheduler, releasing the worker threads it owns
+   * and dropping any pending work. Idempotent.
    *
-   * Sets the `closing` flag, drains all task queues (so the runnables they
-   * hold become GC-eligible — important when the `ZScheduler` instance itself
-   * is held by a long-lived singleton like `Runtime.default`), and unparks
-   * every worker plus the auto-blocking supervisor. Workers wake from
+   * Sets the `closing` flag, drains all task queues (so the runnables they hold
+   * become GC-eligible — important when the `ZScheduler` instance itself is
+   * held by a long-lived singleton like `Runtime.default`), and unparks every
+   * worker plus the auto-blocking supervisor. Workers wake from
    * `LockSupport.park()`, observe `closing`, and exit their main loop.
    *
    * Termination does NOT use `Thread.interrupt`. The worker loop ignores the
-   * thread interrupt flag for control purposes (any flag set by user code,
-   * Java interop, or sbt's task cancellation is absorbed via `Thread.interrupted()`
+   * thread interrupt flag for control purposes (any flag set by user code, Java
+   * interop, or sbt's task cancellation is absorbed via `Thread.interrupted()`
    * after each runnable), so close cannot collide with foreign interrupts.
    *
-   * Any task currently running on a worker runs to completion before the
-   * worker exits — interrupts are not forwarded into user code. After
-   * `close()` returns, `submit` is a no-op that returns `false`. Tasks
-   * already on queues at the moment of close are dropped on the floor; do
-   * not call `close()` on a scheduler that still has work in flight you
-   * care about.
+   * Any task currently running on a worker runs to completion before the worker
+   * exits — interrupts are not forwarded into user code. After `close()`
+   * returns, `submit` is a no-op that returns `false`. Tasks already on queues
+   * at the moment of close are dropped on the floor; do not call `close()` on a
+   * scheduler that still has work in flight you care about.
    *
-   * The shared blocking executor (`Blocking.blockingExecutor`) is
-   * intentionally not shut down here — it is a process-wide singleton
-   * independent of any particular `ZScheduler` instance.
+   * The shared blocking executor (`Blocking.blockingExecutor`) is intentionally
+   * not shut down here — it is a process-wide singleton independent of any
+   * particular `ZScheduler` instance.
    */
   override def close(): Unit =
     if (!closing) {

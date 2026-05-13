@@ -13,15 +13,16 @@ import scala.concurrent.duration.{Duration => ScDuration, SECONDS}
  *   - ZScheduler workers read isInterrupted at every loop checkpoint and
  *     exited, leaving the state field, `idle`/`cache` queues, and `workers[]`
  *     array referring to dead threads.
- *   - Subsequent parallel work stalled forever because maybeUnparkWorker
- *     read currentActive==poolSize and never unparked.
+ *   - Subsequent parallel work stalled forever because maybeUnparkWorker read
+ *     currentActive==poolSize and never unparked.
  *
- * Post-fix, ZScheduler uses a private `closing` flag for termination and
- * clears the thread interrupt flag after every runnable. Workers survive
- * foreign interrupts; subsequent work completes normally. close() then shuts
- * the scheduler down cleanly, draining queues and unparking workers.
+ * Post-fix, ZScheduler uses a private `closing` flag for termination and clears
+ * the thread interrupt flag after every runnable. Workers survive foreign
+ * interrupts; subsequent work completes normally. close() then shuts the
+ * scheduler down cleanly, draining queues and unparking workers.
  *
- * Run via: sbt 'coreTestsJVM/Test/runMain zio.internal.ZSchedulerInterruptRepro'
+ * Run via: sbt 'coreTestsJVM/Test/runMain
+ * zio.internal.ZSchedulerInterruptRepro'
  */
 object ZSchedulerInterruptRepro {
 
@@ -62,7 +63,7 @@ object ZSchedulerInterruptRepro {
     val survivors = countWorkers()
     println(s"After interrupt phase:          $survivors live workers (was $poolSize)")
     if (survivors == poolSize) println(s"** Immunity confirmed: no workers died from foreign interrupts.")
-    else                       println(s"** Regression: ${poolSize - survivors} worker(s) died.")
+    else println(s"** Regression: ${poolSize - survivors} worker(s) died.")
 
     // Phase B: subsequent parallel workload — should complete promptly.
     val phaseB = Unsafe.unsafe { implicit u =>
@@ -122,7 +123,7 @@ object ZSchedulerInterruptRepro {
     val privateAfter = countByPrefix("ZScheduler-Worker-") - poolSize
     println(s"Private scheduler workers post: $privateAfter (expected 0)")
     if (privateAfter == 0) println(s"** Close confirmed: all private workers exited.")
-    else                   println(s"** Regression: $privateAfter private workers still alive.")
+    else println(s"** Regression: $privateAfter private workers still alive.")
 
     // Idempotence.
     privateScheduler.close()
