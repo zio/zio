@@ -554,7 +554,7 @@ lazy val commonJunitTestSettings = Seq(
     "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.27" % Test,
     "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.27" % Test,
     "org.codehaus.plexus"       % "plexus-component-annotations"   % "2.2.0"  % Test,
-    "org.slf4j"                 % "slf4j-simple"                   % "2.0.17" % Test
+    "org.slf4j"                 % "slf4j-simple"                   % "2.0.18" % Test
   )
 )
 
