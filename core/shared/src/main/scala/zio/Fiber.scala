@@ -16,12 +16,11 @@
 
 package zio
 
-import zio.internal.{FiberRenderer, FiberScope}
+import zio.internal.{FiberRenderer, FiberScope, FiberSet}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 import scala.concurrent.Future
-import zio.internal.WeakConcurrentBag
 
 /**
  * A fiber is a lightweight thread of execution that never consumes more than a
@@ -1070,7 +1069,7 @@ object Fiber extends FiberPlatformSpecific {
   private[zio] val _currentFiber: ThreadLocal[Fiber.Runtime[_, _]] =
     new ThreadLocal[Fiber.Runtime[_, _]]()
 
-  private[zio] val _roots: WeakConcurrentBag[Fiber.Runtime[_, _]] =
-    WeakConcurrentBag[Fiber.Runtime[_, _]](10000, _.isAlive())
+  private[zio] val _roots: FiberSet =
+    FiberSet(10000)
       .withAutoGc(5.seconds)
 }
