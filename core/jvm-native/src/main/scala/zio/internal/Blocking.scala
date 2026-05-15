@@ -51,4 +51,5 @@ object Blocking {
    */
   private[zio] final def signalBlocking(): Unit =
     ZScheduler.markCurrentWorkerAsBlocking()
+    NioScheduler.markCurrentWorkerAsBlocking()
 }

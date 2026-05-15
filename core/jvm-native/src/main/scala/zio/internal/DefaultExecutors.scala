@@ -26,7 +26,7 @@ private[zio] abstract class DefaultExecutors {
     makeDefault(false)
 
   final def makeDefault(autoBlocking: Boolean): zio.Executor =
-    new ZScheduler(autoBlocking)
+    DefaultExecutors.make(autoBlocking)
 
   final def fromThreadPoolExecutor(
     es: ThreadPoolExecutor
@@ -64,4 +64,20 @@ private[zio] abstract class DefaultExecutors {
           case _: RejectedExecutionException => false
         }
     }
+}
+
+private object DefaultExecutors {
+  private val SchedulerProperty = "zio.scheduler"
+  private val NioSchedulerName  = "nio"
+
+  def make(autoBlocking: Boolean): zio.Executor =
+    schedulerName match {
+      case NioSchedulerName => new NioScheduler(autoBlocking)
+      case _                => new ZScheduler(autoBlocking)
+    }
+
+  private def schedulerName: String =
+    Option(scala.util.Try(java.lang.System.getProperty(SchedulerProperty)).getOrElse(null))
+      .map(_.trim.toLowerCase)
+      .getOrElse("")
 }
