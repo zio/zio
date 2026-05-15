@@ -18,7 +18,6 @@ package zio.internal
 
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.internal.Trace.{empty => emptyTrace}
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong, AtomicReferenceArray}
