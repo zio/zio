@@ -49,7 +49,8 @@ object Blocking {
    * that case, the worker is marked as "blocking" and a new worker is spawned
    * to replace it.
    */
-  private[zio] final def signalBlocking(): Unit =
+  private[zio] final def signalBlocking(): Unit = {
     ZScheduler.markCurrentWorkerAsBlocking()
     NioScheduler.markCurrentWorkerAsBlocking()
+  }
 }
