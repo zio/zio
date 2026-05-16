@@ -37,6 +37,7 @@ object MimaSettings {
         exclude[NewMixinForwarderProblem]("zio.Exit.unit"),
         exclude[Problem]("zio.Promise#internal*"),
         exclude[Problem]("zio.Promise$internal*"),
+        exclude[ReversedMissingMethodProblem]("zio.Queue.shutdownCause"),
         exclude[Problem]("zio.Queue#Strategy*.shutdown"),
         exclude[Problem]("zio.ZLayer$MemoMap*"),
         exclude[DirectMissingMethodProblem]("zio.ZLayer#MemoMap*"),
