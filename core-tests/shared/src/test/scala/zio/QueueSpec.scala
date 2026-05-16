@@ -516,6 +516,44 @@ object QueueSpec extends ZIOBaseSpec {
         res    <- queue.size.sandbox.either
       } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
     },
+    test("shutdownCause returns buffered values and reuses the winning cause") {
+      val defect = new RuntimeException("queue failed")
+      val cause  = Cause.die(defect)
+      for {
+        queue     <- Queue.bounded[Int](3)
+        _         <- queue.offerAll(List(1, 2, 3))
+        remaining <- queue.shutdownCause(cause)
+        take      <- queue.take.sandbox.either
+        second    <- queue.shutdownCause(Cause.interrupt(FiberId.None)).sandbox.either
+      } yield assert(remaining)(equalTo(Chunk(1, 2, 3))) &&
+        assert(take)(isLeft(equalTo(cause))) &&
+        assert(second)(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause fails pending takers with the supplied cause") {
+      val defect = new RuntimeException("take failed")
+      val cause  = Cause.die(defect)
+      for {
+        queue     <- Queue.bounded[Int](1)
+        fiber     <- queue.take.fork
+        _         <- waitForSize(queue, -1)
+        remaining <- queue.shutdownCause(cause)
+        result    <- fiber.join.sandbox.either
+      } yield assert(remaining)(isEmpty) &&
+        assert(result)(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause fails back-pressured offerers with the supplied cause") {
+      val defect = new RuntimeException("offer failed")
+      val cause  = Cause.die(defect)
+      for {
+        queue  <- Queue.bounded[Int](1)
+        _      <- queue.offer(1)
+        fiber  <- queue.offer(2).fork
+        _      <- waitForSize(queue, 2)
+        rem    <- queue.shutdownCause(cause)
+        result <- fiber.join.sandbox.either
+      } yield assert(rem)(equalTo(Chunk(1))) &&
+        assert(result)(isLeft(equalTo(cause)))
+    },
     test("back-pressured offer completes after take") {
       for {
         queue <- Queue.bounded[Int](2)
