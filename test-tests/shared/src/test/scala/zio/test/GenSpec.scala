@@ -733,6 +733,9 @@ object GenSpec extends ZIOBaseSpec {
     test("runHead") {
       assertZIO(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
     },
+    test("runHead returns the first finite fromIterable value") {
+      assertZIO(Gen.fromIterable(List(1, 2, 3)).runHead)(isSome(equalTo(1)))
+    },
     test("collectAll") {
       val gen = Gen.collectAll(
         List(

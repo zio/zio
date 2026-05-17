@@ -163,7 +163,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Runs the generator returning the first value of the generator.
    */
   def runHead(implicit trace: Trace): ZIO[R, Nothing, Option[A]] =
-    samples(Some(1)).map(_.value).runHead
+    samples(None).map(_.value).runHead
 
   /**
    * Composes this generator with the specified generator to create a cartesian
