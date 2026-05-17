@@ -398,7 +398,9 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             if (searching) {
               searching = false
               val currentState = state.decrementAndGet()
-              maybeUnparkWorker(currentState)
+              if (!localQueue.isEmpty() || !globalQueue.isEmpty()) {
+                maybeUnparkWorker(currentState)
+              }
             }
             currentRunnable = runnable
             runnable.run()
