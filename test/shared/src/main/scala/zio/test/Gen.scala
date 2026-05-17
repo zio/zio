@@ -19,7 +19,7 @@ package zio.test
 import zio.Random._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZStream
-import zio.{Chunk, NonEmptyChunk, Random, Trace, UIO, URIO, ZIO, Zippable}
+import zio.{Chunk, FiberRef, NonEmptyChunk, Random, Trace, UIO, URIO, Unsafe, ZIO, Zippable}
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -32,6 +32,10 @@ import scala.math.Numeric.DoubleIsFractional
  * environment `R`. Generators may be random or deterministic.
  */
 final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
+
+  private[test] def samples(n: Option[Int])(implicit trace: Trace): ZStream[R, Nothing, Sample[R, A]] =
+    ZStream.scoped[R](Gen.deterministic.locallyScoped(n.isEmpty)) *>
+      n.fold(sample)(n => sample.forever.take(n.toLong))
 
   /**
    * A symbolic alias for `concat`.
@@ -48,12 +52,11 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
     self.zip(that)
 
   /**
-   * Concatenates the specified deterministic generator with this determinstic
-   * generator, resulting in a deterministic generator that generates the values
-   * from this generator and then the values from the specified generator.
+   * Concatenates generators exhaustively in deterministic mode and chooses
+   * between them in nondeterministic sampling mode.
    */
   def concat[R1 <: R, A1 >: A](that: Gen[R1, A1])(implicit trace: Trace): Gen[R1, A1] =
-    Gen(self.sample ++ that.sample)
+    Gen.dual(Gen(self.sample ++ that.sample), Gen.oneOf(self, that))
 
   /**
    * Maps the values produced by this generator with the specified partial
@@ -147,20 +150,20 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Runs the generator and collects all of its values in a list.
    */
   def runCollect(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).runCollect.map(_.toList)
+    samples(None).map(_.value).runCollect.map(_.toList)
 
   /**
    * Repeatedly runs the generator and collects the specified number of values
    * in a list.
    */
   def runCollectN(n: Int)(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
+    samples(Some(n)).map(_.value).runCollect.map(_.toList)
 
   /**
    * Runs the generator returning the first value of the generator.
    */
   def runHead(implicit trace: Trace): ZIO[R, Nothing, Option[A]] =
-    sample.map(_.value).runHead
+    samples(Some(1)).map(_.value).runHead
 
   /**
    * Composes this generator with the specified generator to create a cartesian
@@ -180,6 +183,19 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 }
 
 object Gen extends GenZIO with FunctionVariants with TimeVariants {
+
+  private[test] val deterministic: FiberRef[Boolean] =
+    FiberRef.unsafe.make(true)(Unsafe.unsafe)
+
+  /**
+   * Constructs a generator that can use exhaustive behavior for deterministic
+   * entry points and single-sample behavior for repeated random sampling.
+   */
+  def dual[R, A](
+    deterministic: => Gen[R, A],
+    nondeterministic: => Gen[R, A]
+  )(implicit trace: Trace): Gen[R, A] =
+    Gen(ZStream.unwrap(Gen.deterministic.get.map(if (_) deterministic.sample else nondeterministic.sample)))
 
   /**
    * A generator of alpha characters.
@@ -381,7 +397,10 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * specified generators.
    */
   def concatAll[R, A](gens: => Iterable[Gen[R, A]])(implicit trace: Trace): Gen[R, A] =
-    Gen.suspend(gens.foldLeft[Gen[R, A]](Gen.empty)(_ ++ _))
+    Gen.dual(
+      Gen(ZStream.fromIterable(gens).flatMap(_.sample)),
+      Gen.suspend(Gen.oneOf(Chunk.fromIterable(gens): _*))
+    )
 
   /**
    * A constant generator of the specified value.
@@ -426,7 +445,11 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     oneOf(left.map(Left(_)), right.map(Right(_)))
 
   def elements[A](as: A*)(implicit trace: Trace): Gen[Any, A] =
-    if (as.isEmpty) empty else int(0, as.length - 1).map(as)
+    if (as.isEmpty) empty
+    else {
+      val chunk = Chunk.fromIterable(as)
+      int(0, chunk.length - 1).map(chunk)
+    }
 
   def empty(implicit trace: Trace): Gen[Any, Nothing] =
     emptyGen
@@ -439,14 +462,21 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     uniform.map(n => -math.log(1 - n))
 
   /**
-   * Constructs a deterministic generator that only generates the specified
-   * fixed values.
+   * Constructs a generator from fixed values. In deterministic mode this
+   * generates all values in order. In nondeterministic sampling mode this
+   * randomly chooses one value per sample.
+   *
+   * Iterables without a known strict shape are sampled from a bounded prefix in
+   * nondeterministic mode so infinite iterables do not have to be materialized.
    */
   def fromIterable[R, A](
     as: Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
   )(implicit trace: Trace): Gen[R, A] =
-    Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
+    Gen.dual(
+      Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a))))),
+      Gen.suspend(randomElement(as).reshrink(a => Sample.unfold(a)(a => (a, shrinker(a)))))
+    )
 
   /**
    * Constructs a generator from a function that uses randomness. The returned
@@ -673,7 +703,11 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     oneOf(none, gen.map(Some(_)))
 
   def oneOf[R, A](as: Gen[R, A]*)(implicit trace: Trace): Gen[R, A] =
-    if (as.isEmpty) empty else int(0, as.length - 1).flatMap(as)
+    if (as.isEmpty) empty
+    else {
+      val chunk = Chunk.fromIterable(as)
+      int(0, chunk.length - 1).flatMap(chunk)
+    }
 
   /**
    * Constructs a generator of partial functions from `A` to `B` given a
@@ -936,6 +970,21 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     if (n < min) min
     else if (n > max) max
     else n
+
+  private def randomElement[A](as: Iterable[A])(implicit trace: Trace): Gen[Any, A] = {
+    val chunk =
+      as match {
+        case indexedSeq: IndexedSeq[A @unchecked] => Chunk.fromIterable(indexedSeq)
+        case list: List[A @unchecked]             => Chunk.fromIterable(list)
+        case set: Set[A @unchecked]               => Chunk.fromIterable(set)
+        case _                                    => Chunk.fromIterator(as.iterator.take(maxRandomIterablePrefix))
+      }
+
+    if (chunk.isEmpty) Gen.empty
+    else Gen.int(0, chunk.length - 1).map(chunk)
+  }
+
+  private val maxRandomIterablePrefix = 1024
 
   private def buildN[R, A, B, C](n: Int)(g: Gen[R, A])(zero: B)(add: (B, A) => B)(build: B => C)(implicit
     trace: Trace

@@ -701,6 +701,35 @@ object GenSpec extends ZIOBaseSpec {
         assert(a)(hasSize(equalTo(100))) &&
         assert(b)(hasSize(equalTo(100)))
     },
+    suite("runCollectN with fromIterable composition")(
+      test("samples fresh UUIDs when fromIterable is before a nondeterministic generator") {
+        val gen = for {
+          _  <- Gen.fromIterable(1 to 100)
+          id <- Gen.uuid
+        } yield id
+
+        assertZIO(gen.runCollectN(5).map(_.toSet))(hasSize(equalTo(5)))
+      },
+      test("samples fresh UUIDs when fromIterable is after a nondeterministic generator") {
+        val gen = for {
+          id <- Gen.uuid
+          _  <- Gen.fromIterable(1 to 100)
+        } yield id
+
+        assertZIO(gen.runCollectN(5).map(_.toSet))(hasSize(equalTo(5)))
+      },
+      test("does not hang on infinite fromIterable after a nondeterministic generator") {
+        val integers = new Iterable[Int] {
+          def iterator: Iterator[Int] = Iterator.iterate(0)(_ + 1)
+        }
+        val gen = for {
+          id <- Gen.uuid
+          _  <- Gen.fromIterable(integers)
+        } yield id
+
+        assertZIO(gen.runCollectN(5).map(_.toSet))(hasSize(equalTo(5)))
+      }
+    ),
     test("runHead") {
       assertZIO(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
     },
