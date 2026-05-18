@@ -152,7 +152,10 @@ object Queue extends QueuePlatformSpecific {
       case ShutdownState.WithCause(cause) => ZIO.failCause(cause)
     }
 
-  private def unsafeDoneShutdown[A](promise: Promise[Nothing, A], state: ShutdownState)(implicit unsafe: Unsafe): Unit =
+  private def unsafeDoneShutdown[A](promise: Promise[Nothing, A], state: ShutdownState)(implicit
+    trace: Trace,
+    unsafe: Unsafe
+  ): Unit =
     state match {
       case ShutdownState.Interrupt(fiberId) => promise.unsafe.interruptAs(fiberId)
       case ShutdownState.WithCause(cause)   => promise.unsafe.done(Exit.failCause(cause))
