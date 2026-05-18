@@ -45,7 +45,8 @@ sealed abstract class Queue[A] extends Dequeue.Internal[A] with Enqueue.Internal
    * were still buffered in the queue. The first shutdown cause wins atomically;
    * later interactions with the queue fail with the stored cause.
    */
-  def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]]
+  def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]] =
+    shutdown.as(Chunk.empty)
 }
 
 object Queue extends QueuePlatformSpecific {
