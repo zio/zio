@@ -492,6 +492,38 @@ object QueueSpec extends ZIOBaseSpec {
         res    <- queue.take.sandbox.either
       } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
     },
+    test("shutdownCause returns buffered items and fails future takes with the cause") {
+      val boom  = new RuntimeException("boom")
+      val cause = Cause.die(boom)
+      for {
+        queue     <- Queue.bounded[Int](3)
+        _         <- queue.offerAll(List(1, 2))
+        remaining <- queue.shutdownCause(cause)
+        res       <- queue.take.sandbox.either
+      } yield assert(remaining)(equalTo(Chunk(1, 2))) &&
+        assert(res)(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause fails pending takers with the cause") {
+      val boom  = new RuntimeException("boom")
+      val cause = Cause.die(boom)
+      for {
+        queue     <- Queue.bounded[Int](1)
+        f         <- queue.take.fork
+        _         <- waitForSize(queue, -1)
+        remaining <- queue.shutdownCause(cause)
+        res       <- f.join.sandbox.either
+      } yield assert(remaining)(isEmpty) &&
+        assert(res)(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause is atomic and first cause wins") {
+      val winner = Cause.die(new RuntimeException("winner"))
+      val loser  = Cause.die(new RuntimeException("loser"))
+      for {
+        queue <- Queue.bounded[Int](1)
+        _     <- queue.shutdownCause(winner)
+        res   <- queue.shutdownCause(loser).sandbox.either
+      } yield assert(res)(isLeft(equalTo(winner)))
+    },
     test("shutdown with takeAll") {
       for {
         selfId <- ZIO.fiberId
