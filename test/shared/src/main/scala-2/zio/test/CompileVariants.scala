@@ -20,6 +20,8 @@ import zio.internal.stacktracer.SourceLocation
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{Trace, UIO, ZIO}
 
+import scala.language.implicitConversions
+
 trait CompileVariants {
 
   /**
@@ -36,6 +38,9 @@ trait CompileVariants {
    */
   def assertTrue(expr: Boolean, exprs: Boolean*): TestResult = macro SmartAssertMacros.assert_impl
   def assertTrue(expr: Boolean): TestResult = macro SmartAssertMacros.assertOne_impl
+
+  implicit def liftTestResultToZIO[R, E](result: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
+    TestResult.liftTestResultToZIO(result)
 
   /**
    * Checks the assertion holds for the given value.

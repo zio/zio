@@ -401,6 +401,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       test("Chunk and Seq diff") {
         assertTrue(Chunk(1, 2, 3) == Seq(1, 2, 3))
       },
+      test("assertTrue compiles when returned from flatMap in Scala 2") {
+        for {
+          result <- typeCheck("""ZIO.succeed(1).flatMap(value => assertTrue(value == 1))""")
+        } yield assertTrue(result.isRight)
+      } @@ scala2Only,
       test("Set diffs") {
         val l1 = Set(1, 2, 3, 4)
         val l2 = Set(1, 2, 8, 4, 5)
