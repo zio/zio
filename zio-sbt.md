@@ -8,12 +8,12 @@ _ZIO SBT_ contains multiple sbt plugins that are useful for ZIO projects. It pro
 
 ## Installation
 
-Add the following lines to your `plugin.sbt` file:
+Add the following lines to your `project/plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.5.1")
-addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.5.1")
-addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.5.1")
+addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.5.2")
+addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.5.2")
+addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.5.2")
 ```
 
 Then you can enable them by using the following code in your `build.sbt` file:
@@ -100,7 +100,7 @@ ZIO SBT CI plugin generates a default GitHub workflow that includes common CI ta
 To use ZIO SBT CI plugin, add the following lines to your `plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.5.1")
+addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.5.2")
 
 resolvers ++= Resolver.sonatypeOssRepos("public")
 ```
@@ -137,7 +137,7 @@ ZIO SBT GitHub Query is an sbt plugin for fetching GitHub issues/PRs and buildin
 Add to `plugins.sbt`:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-gh-query" % "0.5.1")
+addSbtPlugin("dev.zio" % "zio-sbt-gh-query" % "0.5.2")
 ```
 
 The plugin is auto-enabled. Configure in `build.sbt`:
@@ -208,6 +208,73 @@ The plugin creates a SQLite database with:
 - `issues` table - stores issues and PRs
 - `comments` table - stores issue and PR comments
 - `search_index` - FTS5 full-text search index (requires SQLite built with FTS5 enabled)
+
+## ZIO SBT Source
+
+ZIO SBT Source is a Scala 2.13 + Scala 3 cross-compiled library that provides utilities for self-documenting example code. It includes the `ExprEval` macro, which captures the source text of expressions at compile time and prints them alongside their evaluated results at runtime.
+
+### Installation
+
+Add the following line to your `libraryDependencies` in `build.sbt`:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.5.2"
+```
+
+### Features
+
+The `ExprEval.show` macro provides an intuitive way to write self-documenting example code:
+
+```scala
+
+// Print expression source and result
+show(
+  42 + 8,
+  "Hello, " + "World!"
+)
+```
+
+Output:
+```
+42 + 8
+// 50
+"Hello, " + "World!"
+// Hello, World!
+```
+
+### Comment Labels
+
+Add `//` comments above your `show` call to add context labels to the output:
+
+```scala
+// Calculate the answer to life, the universe, and everything
+show(6 * 7)
+```
+
+Output:
+```
+// Calculate the answer to life, the universe, and everything
+6 * 7
+// 42
+```
+
+### Block Form
+
+For multiple expressions, use the block form:
+
+```scala
+show {
+  1 + 2
+  3 * 4
+  "hello"
+}
+```
+
+### Implementation Details
+
+- **Scala 3**: Uses `scala.quoted.*` with `inline def` for compile-time source capture
+- **Scala 2.13**: Uses `scala.reflect.macros.whitebox` to achieve the same behavior
+- **Runtime Helper**: `SourceReader` utility reads comment lines from source files
 
 ## Testing Strategies
 
