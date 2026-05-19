@@ -391,10 +391,34 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   Prefer capacities that are powers of 2 for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val queue = self.toQueueOfElements(capacity)
+    def producer(
+      permits: TSemaphore,
+      queue: Queue[Exit[Option[E], A]]
+    ): ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] = {
+      def offer(chunk: Chunk[A], index: Int): UIO[Unit] =
+        if (index < chunk.length)
+          permits.acquire.commit *> queue.offer(Exit.succeed(chunk(index))) *> offer(chunk, index + 1)
+        else ZIO.unit
+
+      ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Nothing, Any](
+        in => ZChannel.fromZIO(offer(in, 0)) *> producer(permits, queue),
+        err => ZChannel.fromZIO(queue.offer(Exit.failCause(err.map(Some(_))))),
+        _ => ZChannel.fromZIO(queue.offer(Exit.fail(None)))
+      )
+    }
+
     new ZStream(
       ZChannel.unwrapScoped[R] {
-        queue.map { queue =>
+        for {
+          capacity0 <- ZIO.succeed {
+                         val capacity0 = capacity
+                         require(capacity0 > 0)
+                         capacity0
+                       }
+          permits <- TSemaphore.makeCommit(capacity0.toLong)
+          queue   <- ZIO.acquireRelease(Queue.unbounded[Exit[Option[E], A]])(_.shutdown)
+          _       <- (self.channel >>> producer(permits, queue)).drain.runScoped.forkScoped
+        } yield {
           lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
             ZChannel.fromZIO {
               queue.take
@@ -403,7 +427,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                 Cause
                   .flipCauseOption(_)
                   .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
-                value => ZChannel.write(Chunk.single(value)) *> process
+                value => ZChannel.write(Chunk.single(value)) *> ZChannel.fromZIO(permits.release.commit) *> process
               )
             }
 
