@@ -75,15 +75,32 @@ presets: [
 ],
 ```
 
+## Installation
+
+Before running the documentation locally, install Node.js dependencies:
+
+```bash
+cd website
+yarn install
+```
+
+This needs to be run once to download all npm packages into `node_modules`. Subsequent runs only require `yarn start`.
+
 ## Working on the documentation 
 
 To work on the documentation locally, it is best to run two terminal windows to execute the individual parts of the generator chain:
 
-### Start mdoc
+### Start mdoc (Terminal 1)
 
-In the first terminal, navigate to the project's checkout directory and start a `sbt` shell. 
+In the first terminal, navigate to the project's root checkout directory and start a `sbt` shell. 
 
 Within the sbt shell, execute 
+
+```bash
+sbt
+```
+
+Then within the sbt prompt:
 
 ```
 docs/mdoc --watch
@@ -91,15 +108,49 @@ docs/mdoc --watch
 
 This will monitor the docs directory and execute the mdoc preprocessor whenever a change in one of the markdown documents is detected. 
 
-### Start the docusaurus test server 
+### Start the docusaurus dev server (Terminal 2)
 
-In the second terminal, navigate to the `website` directory and 
+In the second terminal, navigate to the `website` directory and run:
 
-1. For the first start, run `npm install`
-1. Otherwise, just run `yarn start`
+```bash
+yarn start
+```
 
-This will start a local web server on port 3000, so that the documentation can be viewed at http://localhost:3000/. Now, when changes to one of the markdown files in `docs` are made and saved, the website will update automatically within the browser. 
+This will start a local web server on port 3000, so that the documentation can be viewed at http://localhost:3000/. 
+
+When changes to markdown files in `docs` are made and saved:
+1. MDoc detects the change (Terminal 1)
+2. Processes Scala code blocks and outputs to `website/docs`
+3. Docusaurus detects the change (Terminal 2)
+4. Rebuilds and refreshes the browser automatically
 
 :::note
-Without running the mdoc preprocessor, the changes to the markdown files in `doc` will not trigger an update to the generated site. 
+**Important:** Both terminals must be running for the local preview to work correctly. Without the mdoc preprocessor running in Terminal 1, changes to markdown files in the `docs` directory will not appear on the website served by Terminal 2.
 :::
+
+## Production Build
+
+To build the complete website for production:
+
+```bash
+# From the project root
+sbt "docs/mdoc; docs/unidoc"
+
+# Then in the website directory
+cd website
+yarn build
+```
+
+The static HTML output will be generated in `website/build/`. This build includes:
+- All processed markdown documentation
+- API documentation (Scaladoc)
+- Optimized CSS and JavaScript
+
+To preview the production build locally:
+
+```bash
+cd website
+yarn serve
+```
+
+This serves the static build at http://localhost:3000/.
