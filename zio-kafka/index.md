@@ -38,8 +38,10 @@ Kafka has a mature Java client for producing and consuming events, but it has a 
   - allows for batches for highest throughput
   - optionally await broker acknowledgements
   - optional retries after authentication/authorization errors
+  - exposes metrics
 - Admin API:
   - exposes all the admin client methods with a ZIO based interface
+  - safer than the wrapped java client by limiting the number of concurrent operations
 - Proper errors when broker expects SSL (no [OOM crashes](https://issues.apache.org/jira/browse/KAFKA-4090))
 - Test kit with embedded kafka broker
 - Well documented
@@ -48,13 +50,13 @@ Kafka has a mature Java client for producing and consuming events, but it has a 
 
 ## Getting started
 
-See the [zio-kafka tutorial](https://zio.dev/guides/tutorials/producing-consuming-data-from-kafka-topics/) for a grand tour of the different ways you can use zio-kafka.
+See the [zio-kafka tutorial](tutorial.md) for a grand tour of the different ways you can use zio-kafka.
 
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.2.0"
-libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.2.0" % Test
+libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.4.0"
+libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.4.0" % Test
 ```
 
 Snapshots are available on Sonatype's snapshot repository https://oss.sonatype.org/content/repositories/snapshots.
@@ -135,7 +137,7 @@ object ReadmeExample extends ZIOAppDefault {
           .plainStream(Subscription.topics("random"), Serde.long, Serde.string)
           .tap(r => Console.printLine(r.value))
           .map(_.offset)
-          .aggregateAsync(Consumer.offsetBatches)
+          .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
           .mapZIO(_.commit)
           .runDrain
       } yield ()
@@ -145,6 +147,8 @@ object ReadmeExample extends ZIOAppDefault {
     ZIO.raceFirst(producerRun, List(consumerRun))
 }
 ```
+
+Read the [ZIO Kafka tutorial](tutorial.md) for a more gentle introduction.
 
 ## Documentation
 
@@ -158,7 +162,6 @@ If you are reading this from GitHub, the documentation can be found in
 
 ### Articles
 
-- [ZIO Kafka tutorial](https://zio.dev/guides/tutorials/producing-consuming-data-from-kafka-topics/) by the zio-kafka team
 - [ZIO Kafka faster than Java Kafka](https://day-to-day-stuff.blogspot.com/2024/12/zio-kafka-faster-than-java-kafka.html) by Erik van Oosten (December 2024)
 - [Introduction to zio-kafka](https://www.baeldung.com/scala/zio-kafka-intro) by Stefanos Georgakis, Baeldung (January 2023)
 - [How to implement streaming microservices with ZIO 2 and Kafka](https://scalac.io/blog/streaming-microservices-with-zio-and-kafka/) by Jorge Vasquez, Scalac (June 2023)

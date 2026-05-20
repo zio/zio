@@ -47,6 +47,9 @@ val instantSerde: Serde[Any, Instant] =
   Serdes.long.inmap(java.time.Instant.ofEpochMilli)(_.toEpochMilli)
 ```
 
+For a complete example of creating a custom serde with zio-json, see the
+[Producing and Consuming JSON Data](tutorial.md#producing-and-consuming-json-data) section in the tutorial.
+
 To handle missing data (an empty key or value), you can use the `Serde.asOption` transformer. For example:
 `Serdes.string.asOption`. This results in a `None` if the key or value is empty, and in a `Some(string)` otherwise.
 
@@ -78,7 +81,7 @@ Consumer.make(consumerSettings).flatMap { consumer =>
           ZIO.succeed(offset)
       }
     }
-    .aggregateAsync(Consumer.offsetBatches)
+    .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
     .mapZIO(_.commit)
     .runDrain
 }
@@ -112,7 +115,7 @@ Consumer.make(consumerSettings).flatMap { consumer =>
         .flatMap(processMessage)
         .as(offset)
     }
-    .aggregateAsync(Consumer.offsetBatches)
+    .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
     .mapZIO(_.commit)
     .runDrain
 }

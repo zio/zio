@@ -643,7 +643,7 @@ val finalized: IO[String, Unit] =
 // finalized: IO[String, Unit] = DynamicNoBox(
 //   trace = "repl.MdocSession.MdocApp.finalized(handling-resources.md:19)",
 //   update = 1L,
-//   f = zio.ZIO$$$Lambda$19542/0x00007f1fc6fb25c8@68d95712
+//   f = zio.ZIO$$$Lambda$19541/0x00007ff726ea0f68@176d4d93
 // )
 ```
 
@@ -2336,12 +2336,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$19925/0x00007f1fc708cf30@526adcdf
+//   eval = zio.Ref$$$Lambda$19924/0x00007ff726f77c68@23b571e8
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$19925/0x00007f1fc708cf30@5abad933
+//   eval = zio.Ref$$$Lambda$19924/0x00007ff726f77c68@70df66d2
 // )
 
 sealed trait State
@@ -2352,7 +2352,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$19925/0x00007f1fc708cf30@16355fe2
+//   eval = zio.Ref$$$Lambda$19924/0x00007ff726f77c68@80c7c1d
 // )
 ```
 
@@ -2369,7 +2369,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$19925/0x00007f1fc708cf30@21e9da3a
+//   eval = zio.Ref$$$Lambda$19924/0x00007ff726f77c68@70f5ac2b
 // )
 ```
 
@@ -2381,7 +2381,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$19925/0x00007f1fc708cf30@8eebc17
+//   eval = zio.Ref$$$Lambda$19924/0x00007ff726f77c68@1ca83441
 // )
 ```
 
@@ -14176,7 +14176,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20106/0x00007f1fc713cf18@22a08ad6
+//   eval = zio.Supervisor$$$Lambda$20105/0x00007ff727026470@60c5f242
 // )
 ```
 
@@ -14508,7 +14508,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$20075/0x00007f1fc7106928@2dfcbe72
+//     f = zio.ZIO$$$Lambda$20074/0x00007ff726ffacf8@7840464f
 //   ),
 //   successK = <function1>
 // )
@@ -21978,14 +21978,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@18e94feb
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@eb0fcd8
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@696d2537
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@207e4dea
 ```
 
 ## From ZIO
@@ -28384,9 +28384,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$19513/0x00007f1fc6f976a8@6ce487b8
+//             onState = zio.ZIO$$$Lambda$19512/0x00007ff726e8c870@75797c8c
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$19522/0x00007f1fc6fa0210@29e60440
+//           successK = zio.test.package$ZTest$$$Lambda$19521/0x00007ff726e93118@307bec47
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -29976,7 +29976,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+15-3ea4a010-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+16-814a83e0-SNAPSHOT"
 ```
 
 ## Example
@@ -92394,7 +92394,7 @@ consumer
   .plainStream(Subscription.topics("topic150"), Serde.string, Serde.string) // (1)
   .tap(cr => printLine(s"key: ${cr.record.key}, value: ${cr.record.value}")) // (2)
   .map(_.offset) // (3)
-  .aggregateAsync(Consumer.offsetBatches) // (4)
+  .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis)) // (4)
   .mapZIO(_.commit) // (5)
   .runDrain
 ```
@@ -92413,10 +92413,27 @@ throughput. See [avoiding chunk-breakers](avoiding-chunk-breakers.md) for more i
 (3) Here we get the offset of the record, so we now have a stream of offsets.
 
 (4) The offsets are aggregated into an `OffsetBatch`. The offset batch keeps the highest seen offset per partition.
+ZStream operator `aggregateAsyncWithin` runs upstream in a separate fiber, allowing consuming and committing to run in
+parallel.
+
+The offset batches are emitted every 100 milliseconds. The delay should be longer than the typical commit-duration in
+your system. For example, lets assume the delay is set to 2ms and a commit operation takes 10ms. Then, when some records
+are consumed, 2ms later `aggregateAsyncWithin` emits an offset batch and starts collecting offsets for the next batch.
+In addition, the commit operation starts. Again 2ms later `aggregateAsyncWithin` tries to emit the next batch. However,
+this will block because the commit is still ongoing. Since `aggregateAsyncWithin` is now blocked, it stops accepting
+offsets from upstream, halting the consumer until the commit completes.
+
+For applications that only see a few records per second or less, you can remove line (4) and commit the offset for each
+record separately. In this approach the commit executes on the same fiber as the rest of the stream. This lowers
+throughput. Explicitly committing every record is therefore almost never the best approach.
+
+To get the lowest commit latency you can commit continuously; a new commit is started as soon as the previous completes.
+This is done by replacing line (4) with `.aggregateAsync(Consumer.collectOffsets)`. Be aware that registering commits is
+an intensive operation for the kafka brokers. With dozens of consumers continuously committing, the high load may slow
+down everything.
 
 (5) All offsets in the `OffsetBatch` are committed. As soon as the commit is done, the next offset batch is pulled
-from the stream. Because the aggregation in (4) is asynchronous, this application is continuously committing while
-concurrently processing records.
+from upstream.
 
 ## Consuming with more parallelism
 
@@ -92435,10 +92452,12 @@ consumer
         .tap(record => printLine(s"key: ${record.key}, value: ${record.value}")) // (2)
         .map(_.offset) // (3)
   }
-  .aggregateAsync(Consumer.offsetBatches) // (4)
-  .mapZIO(_.commit)
+  .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis)) // (4)
+  .mapZIO(_.commit)  // (5)
   .runDrain
 ```
+
+In this example, each partition is processed in parallel on separate fibers, while a single fiber is doing commits.
 
 (1) When using partitionedStream with `flatMapPar(n)`, it is recommended to set n to `Int.MaxValue`. N must be equal to
 or greater than the number of partitions your consumer subscribes to otherwise there will be unhandled partitions and
@@ -92449,20 +92468,28 @@ Each time a new partition is assigned to the consumer, a new partition stream is
 
 (2) As before, here we process the received `CommittableRecord`.
 
-(3) and (4) Note how the offsets from all the sub-streams are merged into a single stream of `OffsetBatch`es. This
-ensures only a single stream is doing commits.
+(3) Note how the offsets from all the sub-streams are merged into a single stream of `Offset`s. This ensures only a
+single stream is doing commits.
 
-In this example, each partition is processed in parallel, on separate fibers, while a single fiber is doing commits.
+(4) and (5) The offsets are aggregated into an `OffsetBatch` and committed as in the previous section.
 
 ## Controlled shutdown (experimental)
 
-The examples above will keep processing records forever, or until the fiber is interrupted, typically at application shutdown. When interrupted, some records may be 'in-flight', e.g. being processed by one of the stages of your consumer stream user code. Those records will be processed partly and their offsets may not be committed. For fast shutdown in an at-least-once processing scenario this is fine.
+The examples above will keep processing records forever, or until the fiber is interrupted, typically at application
+shutdown. When interrupted, some records may be 'in-flight', e.g. being processed by one of the stages of your consumer
+stream user code. Those records will be processed partly and their offsets may not be committed. For fast shutdown in an
+at-least-once processing scenario this is fine.
 
-zio-kafka also supports a _graceful shutdown_, where the fetching of records for the subscribed topics/partitions is stopped, the streams are ended and all downstream stages are completed, allowing in-flight records to be fully processed.
+zio-kafka also supports a _graceful shutdown_, where the fetching of records for the subscribed topics/partitions is
+stopped, the streams are ended and all downstream stages are completed, allowing in-flight records to be fully
+processed.
 
-Use the `*StreamWithControl` variants of `plainStream`, `partitionedStream` and `partitionedAssignmentStream` for this purpose. These methods return a `StreamControl` object allowing you to stop fetching records and terminate the execution of the stream gracefully.
+Use the `*StreamWithControl` variants of `plainStream`, `partitionedStream` and `partitionedAssignmentStream` for this
+purpose. These methods return a `StreamControl` object allowing you to stop fetching records and terminate the execution
+of the stream gracefully.
 
-The `StreamControl` can be used with `Consumer.runWithGracefulShutdown`, which can gracefully terminate the stream upon fiber interruption. This is useful for a controlled shutdown when your application is terminated:
+The `StreamControl` can be used with `Consumer.runWithGracefulShutdown`, which can gracefully terminate the stream upon
+fiber interruption. This is useful for a controlled shutdown when your application is terminated:
 
 ```scala
 
@@ -92479,7 +92506,7 @@ ZIO.scoped {
             .tap(record => printLine(s"key: ${record.key}, value: ${record.value}"))
             .map(_.offset)
         }
-        .aggregateAsync(Consumer.offsetBatches)
+        .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
         .mapZIO(_.commit)
         .runDrain
       }
@@ -92503,7 +92530,7 @@ ZIO.scoped {
               .tap(record => printLine(s"key: ${record.key}, value: ${record.value}"))
               .map(_.offset)
           }
-          .aggregateAsync(Consumer.offsetBatches)
+          .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
           .mapZIO(_.commit)
           .runDrain
           .forkScoped
@@ -92514,7 +92541,195 @@ ZIO.scoped {
 }
 ```
 
-As of zio-kafka 3.0, this functionality is experimental. If no issues are reported and the API has good usability, it will eventually be marked as stable.
+As of zio-kafka 3.0, this functionality is experimental. If no issues are reported and the API has good usability, it
+will eventually be marked as stable.
+
+---
+
+## Consuming, Producing and Committing Offsets
+
+Consuming from Kafka and then producing a transformed message back to Kafka, is a regular pattern in systems that use
+Kafka. This page shows an example of an application that does this. Next we discuss how throughput can be improved.
+
+This page is also useful as a deep dive into producing to Kafka with data from other streaming sources.
+
+# Example application
+
+This is what the example application does:
+
+1. consumes messages from topic `topic_a`,
+2. transforms the received records,
+3. produces the transformed records to topic `topic_b`,
+4. commits the consumer offsets.
+
+The application uses the zio-kafka streaming APIs. We need to explicitly commit offsets; applications that use the
+streaming API process records asynchronously with the consumer, and therefore, committing offsets automatically is not
+possible.
+
+```scala
+
+val consumerSettings: ConsumerSettings =
+  ConsumerSettings(List("localhost:9092")).withGroupId("my-application")
+val producerSettings: ProducerSettings =
+  ProducerSettings(List("localhost:9092"))
+
+for {
+  consumer <- Consumer.make(consumerSettings)
+  producer <- Producer.make(producerSettings, Serde.int, Serde.string)
+  _ <-
+    consumer
+      // Create a stream of records, consuming all records from a topic
+      .plainStream(Subscription.topics("my-input-topic"), Serde.int, Serde.long)
+      // Convert every record in a ProducerRecord, and the ConsumerRecord's offset
+      .map { record =>
+        val key: Int = record.record.key()
+        val value: Long = record.record.value()
+        val newValue: String = value.toString
+
+        val producerRecord: ProducerRecord[Int, String] =
+          new ProducerRecord("my-output-topic", key, newValue)
+        (producerRecord, record.offset)
+      }
+      // For every chunk of producerRecords and offsets
+      .mapChunksZIO { chunk =>
+        val records = chunk.map(_._1)
+        val offsetBatch = OffsetBatch(chunk.map(_._2))
+
+        // produce the chunk of records, when acked by kafka, commit the consumed offsets,
+        // returning an empty chunk (`mapChunksZIO` requires this function to return a ZIO[Chunk])
+        producer.produceChunk[Any, Int, String](records) *>
+          offsetBatch.commit.as(Chunk.empty)
+      }
+      .runDrain
+} yield ()
+```
+
+### Performance analysis
+
+To analyze throughput performance of a zio-streams program, it is important to find out the characteristics of the
+stream's chunks, and to make sure that the chunking structure stays intact. (See [avoiding
+chunk-breakers](avoiding-chunk-breakers.md) for more information.)
+
+The program above uses a zio-kafka consumer as stream source. Kafka consumers poll the broker to get new records.
+Zio-kafka guarantees that all records that were received in a poll for a given partition, are in the same stream chunk.
+This is ideal; partitions can be processed in parallel, and we can process as many records as are available.
+
+By default, the zio-kafka consumer does pre-fetching. The result is that as soon as the stream processed a chunk of
+records, the next chunk of records is already available. This increases throughput compared to having to wait for the
+next poll.
+
+The next operation —`map`— keeps the chunking structure intact. Nothing to improve here.
+
+The next operation —`mapChunksZIO`— also keeps the chunking structure intact. In this operator, we produce a chunk of
+records. Once they are acknowledged by the Kafka broker, we commit the offsets of the consumed records.
+
+### Optimizing consumer throughput
+
+Let's zoom in on the consumer part of the example program.
+
+Method `plainStream` produces a single stream, and chunks from different partitions are processed serially. At the
+cost of making the program more complex, we can increase throughput with per-partition parallel processing. See
+[consuming with more parallelism](consuming-kafka-topics-using-zio-streams.md#consuming-with-more-parallelism) for more
+details. On this page, we do not explore this optimization further.
+
+Zio-kafka's prefetching automatically adapts and is usually as good as it can be. Only for very small/large records, or
+for large amounts of topics, you may need to configure it better. Please see [consumer tuning](consumer-tuning.md) to find
+out how.
+
+### Optimizing producer throughput
+
+ℹ️ Know your domain. In cases where messages need to be produced in a certain order, the techniques in this section are
+not suitable.
+
+Let's focus on the producer part of the program, that is, the `mapChunksZIO` operation in the example above. The
+operator pulls a chunk of records from upstream, produces that chunk to Kafka, awaits the acknowledgements, and then the
+process repeats. All these tasks are executed sequentially.
+
+We can optimize througput by pulling and producing the next chunk of records concurrently with waiting for the
+acknowledgements.
+
+To implement this with zio-streams, we need to split the `mapChunksZIO` operation from the example above in separate
+stream operations:
+
+1. produce the records
+2. await the acknowledgements and commits offsets
+
+We then use the `buffer` operator between those operations. Buffer allows upstream to run ahead in a separate fiber.
+
+The following diagram compares the two approaches. The rectangles represent stream operations.
+
+![](producer-stream-seq-and-par.svg)
+
+And now in code. Replace the `mapChunksZIO` operator with the following code:
+
+```scala
+  // Expose the chunking structure of the stream
+  .chunks         // ZStream[_, _, Chunk[(ProducerRecord, Offset)]]
+
+  // For every exposed chunk
+  .mapZIO { chunk =>
+    val records = chunk.map(_._1)
+    val offsetBatch = OffsetBatch(chunk.map(_._2))
+    // Produce asynchronously
+    producer.produceChunkAsync(records, Serde.int, Serde.string)
+      .map(await => (await, offsetBatch))
+  }               // ZStream[_, _, (Task[Chunk[RecordMetadata]], OffsetBatch)]
+
+  // Allow the producer to run ahead, producing up to 4 extra chunks
+  .buffer(4)      // ZStream[_, _, (Task[Chunk[RecordMetadata]], OffsetBatch)]
+
+  // Await acknowledgements for a chunk, and commit
+  .mapZIO { case (await, offsetBatch) =>
+    // 'await' is a ZIO, run it, and then commit offsets
+    await *> offsetBatch.commit
+  }               // ZStream[_, _, Unit]
+```
+
+Method `producer.produceChunkAsync` returns a `Task[Task[]]`. The outer task completes when the records have been sent.
+Completion gives us the inner task, which completes when the acknowledgements are received.
+
+In the code we use `buffer(4)` which allows the program to produce up to 4 extra chunk of records while awaiting
+acknowledgements.
+
+#### Aside, when commits are not needed
+
+When commits are not needed, we can simplify the code a bit:
+
+```scala
+val stream: ZStream[_, _, ProducerRecord] = ???
+
+stream
+  // Expose the chunking structure of the stream
+  .chunks         // ZStream[_, _, Chunk[ProducerRecord]]
+  // Every chunk gets produced asynchronously
+  .mapZIO { records =>
+    producer.produceChunkAsync(records, Serde.int, Serde.string)
+  }               // ZStream[_, _, Task[Chunk[RecordMetadata]]]
+  // Allow the producer to run ahead, producing up to 4 extra chunks
+  .buffer(4)      // ZStream[_, _, Task[Chunk[RecordMetadata]]]
+  // Await acknowledgements per chunk
+  .flattenZIO     // ZStream[_, _, Chunk[RecordMetadata]]
+```
+
+### Optimizing committing consumer offsets
+
+Commiting offsets can become the bottleneck in highly optimized zio-kafka programs. This is because high commit rates
+can put a high strain on the broker. Next up, we split off committing to its own fiber as well by using
+`aggregateAsyncWithin`. See [consuming with zio-streams](consuming-kafka-topics-using-zio-streams.md) to learn how this
+works.
+
+Replace the part after `.buffer()` with:
+
+```scala
+  // Await acknowledgements for a chunk 
+  .mapZIO { case (await, offsetBatch) =>
+    // 'await' is a ZIO, run it, and then return the offsets
+    await.as(offsetBatch)
+  }                   // ZStream[_, _, OffsetBatch]
+  .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
+                      // ZStream[_, _, OffsetBatch]
+  .mapZIO(_.commit)   // ZStream[_, _, Unit]
+```
 
 ---
 
@@ -92601,52 +92816,6 @@ The `provide` section of the main program could look like this:
 
 ---
 
-## Example of Consuming, Producing and Committing Offsets
-
-This example shows how to consume messages from topic `topic_a` and produce transformed messages to `topic_b`, after
-which consumer offsets are committed.
-
-Processing is done in chunks using `mapChunksZIO` for more efficiency.
-
-Please note: the ZIO consumer does not support automatic offset committing. As a result, it ignores the Kafka consumer
-setting `enable.auto.commit=true`. Developers should manually commit offsets using the provided commit methods,
-typically after processing messages or at appropriate points in their application logic.
-
-```scala
-
-val consumerSettings: ConsumerSettings =
-  ConsumerSettings(List("localhost:9092")).withGroupId("group")
-val producerSettings: ProducerSettings =
-  ProducerSettings(List("localhost:9092"))
-
-for {
-  consumer <- Consumer.make(consumerSettings)
-  producer <- Producer.make(producerSettings, Serde.int, Serde.string)
-  _ <-
-    consumer
-      .plainStream(Subscription.topics("my-input-topic"), Serde.int, Serde.long)
-      .map { record =>
-        val key: Int = record.record.key()
-        val value: Long = record.record.value()
-        val newValue: String = value.toString
-
-        val producerRecord: ProducerRecord[Int, String] =
-          new ProducerRecord("my-output-topic", key, newValue)
-        (producerRecord, record.offset)
-      }
-      .mapChunksZIO { chunk =>
-        val records = chunk.map(_._1)
-        val offsetBatch = OffsetBatch(chunk.map(_._2).toSeq)
-
-        producer.produceChunk[Any, Int, String](records) *>
-          offsetBatch.commit.as(Chunk(()))
-      }
-      .runDrain
-} yield ()
-```
-
----
-
 ## Getting Started with ZIO Kafka
 
 [ZIO Kafka](https://github.com/zio/zio-kafka) is a Kafka client for ZIO. It provides a purely functional, streams-based interface to the Kafka
@@ -92683,8 +92852,10 @@ Kafka has a mature Java client for producing and consuming events, but it has a 
   - allows for batches for highest throughput
   - optionally await broker acknowledgements
   - optional retries after authentication/authorization errors
+  - exposes metrics
 - Admin API:
   - exposes all the admin client methods with a ZIO based interface
+  - safer than the wrapped java client by limiting the number of concurrent operations
 - Proper errors when broker expects SSL (no [OOM crashes](https://issues.apache.org/jira/browse/KAFKA-4090))
 - Test kit with embedded kafka broker
 - Well documented
@@ -92693,13 +92864,13 @@ Kafka has a mature Java client for producing and consuming events, but it has a 
 
 ## Getting started
 
-See the [zio-kafka tutorial](https://zio.dev/guides/tutorials/producing-consuming-data-from-kafka-topics/) for a grand tour of the different ways you can use zio-kafka.
+See the [zio-kafka tutorial](tutorial.md) for a grand tour of the different ways you can use zio-kafka.
 
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.2.0"
-libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.2.0" % Test
+libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.4.0"
+libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.4.0" % Test
 ```
 
 Snapshots are available on Sonatype's snapshot repository https://oss.sonatype.org/content/repositories/snapshots.
@@ -92780,7 +92951,7 @@ object ReadmeExample extends ZIOAppDefault {
           .plainStream(Subscription.topics("random"), Serde.long, Serde.string)
           .tap(r => Console.printLine(r.value))
           .map(_.offset)
-          .aggregateAsync(Consumer.offsetBatches)
+          .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
           .mapZIO(_.commit)
           .runDrain
       } yield ()
@@ -92790,6 +92961,8 @@ object ReadmeExample extends ZIOAppDefault {
     ZIO.raceFirst(producerRun, List(consumerRun))
 }
 ```
+
+Read the [ZIO Kafka tutorial](tutorial.md) for a more gentle introduction.
 
 ## Documentation
 
@@ -92803,7 +92976,6 @@ If you are reading this from GitHub, the documentation can be found in
 
 ### Articles
 
-- [ZIO Kafka tutorial](https://zio.dev/guides/tutorials/producing-consuming-data-from-kafka-topics/) by the zio-kafka team
 - [ZIO Kafka faster than Java Kafka](https://day-to-day-stuff.blogspot.com/2024/12/zio-kafka-faster-than-java-kafka.html) by Erik van Oosten (December 2024)
 - [Introduction to zio-kafka](https://www.baeldung.com/scala/zio-kafka-intro) by Stefanos Georgakis, Baeldung (January 2023)
 - [How to implement streaming microservices with ZIO 2 and Kafka](https://scalac.io/blog/streaming-microservices-with-zio-and-kafka/) by Jorge Vasquez, Scalac (June 2023)
@@ -93425,6 +93597,9 @@ val instantSerde: Serde[Any, Instant] =
   Serdes.long.inmap(java.time.Instant.ofEpochMilli)(_.toEpochMilli)
 ```
 
+For a complete example of creating a custom serde with zio-json, see the
+[Producing and Consuming JSON Data](tutorial.md#producing-and-consuming-json-data) section in the tutorial.
+
 To handle missing data (an empty key or value), you can use the `Serde.asOption` transformer. For example:
 `Serdes.string.asOption`. This results in a `None` if the key or value is empty, and in a `Some(string)` otherwise.
 
@@ -93456,7 +93631,7 @@ Consumer.make(consumerSettings).flatMap { consumer =>
           ZIO.succeed(offset)
       }
     }
-    .aggregateAsync(Consumer.offsetBatches)
+    .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
     .mapZIO(_.commit)
     .runDrain
 }
@@ -93490,7 +93665,7 @@ Consumer.make(consumerSettings).flatMap { consumer =>
         .flatMap(processMessage)
         .as(offset)
     }
-    .aggregateAsync(Consumer.offsetBatches)
+    .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
     .mapZIO(_.commit)
     .runDrain
 }
@@ -93519,7 +93694,7 @@ val stream1 = ZIO.serviceWithZIO[Consumer] { consumer =>
   consumer.plainStream(Subscription.topics("topic1"), Serde.string, Serde.string)
     .tap(cr => printLine(s"For topic1, got key: ${cr.record.key}, value: ${cr.record.value}"))
     .map(_.offset)
-    .aggregateAsync(Consumer.offsetBatches)
+    .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
     .mapZIO(_.commit)
     .runDrain
 }
@@ -93528,7 +93703,7 @@ val stream2 = ZIO.serviceWithZIO[Consumer] { consumer =>
   consumer.plainStream(Subscription.topics("topic2"), Serde.uuid, Serde.int)
     .tap(cr => printLine(s"For topic2, got key: ${cr.record.key}, value: ${cr.record.value}"))
     .map(_.offset)
-    .aggregateAsync(Consumer.offsetBatches)
+    .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
     .mapZIO(_.commit)
     .runDrain
 }
@@ -93816,6 +93991,585 @@ epoch in which the records were consumed, and the brokers can accept the transac
 
 When a zio-kafka consumer misses a rebalance and continues polling, there is nothing that can be done. It will die with
 a `FencedInstanceIdException`. In these cases the consumer (or perhaps simpler, the whole program) should restart.
+
+---
+
+## Tutorial: How to Produce/Consume Data To/From Kafka Topics?(Zio-kafka)
+
+## Introduction
+
+Kafka is a distributed, fault-tolerant, message-oriented event-store platform. It is used as a message broker for distributed applications. Zio-kafka is a library that provides a way to consume and produce data from Kafka topics, and it also supports the ability to have streaming consumers and producers.
+
+In this tutorial, we will learn how to use zio-streams and zio-kafka to produce and consume data from Kafka topics.
+
+## Running Examples
+
+To access the code examples, you can clone the [ZIO Quickstarts](http://github.com/zio/zio-quickstarts) project:
+
+```bash
+$ git clone https://github.com/zio/zio-quickstarts.git
+$ cd zio-quickstarts/zio-quickstart-kafka
+```
+
+And finally, run the application using sbt:
+
+```bash
+$ sbt run
+```
+
+## Adding Dependencies to The Project
+
+In this tutorial, we will be using the following dependencies. So, let's add them to the `build.sbt` file:
+
+```scala
+libraryDependencies += Seq(
+  "dev.zio" %% "zio"         % "2.1.25",
+  "dev.zio" %% "zio-streams" % "2.1.25",
+  "dev.zio" %% "zio-kafka"   % "3.3.0",
+  "dev.zio" %% "zio-json"    % "0.9.1"
+)
+```
+
+1. **Zio-kafka** is a ZIO native client for Apache Kafka. It provides a high-level streaming API on top of the Java client. So we can produce and consume events using the declarative concurrency model of zio-streams.
+
+2. **Zio-streams** introduces a high-level API for working with streams of values. It is designated to work in a highly concurrent environment. It has seamless integration with ZIO, so we have the ability to use all the features of the ZIO along with the streams, e.g. `Scope`, `Schedule`, `ZLayer`, `Queue`, `Hub` etc. To learn more about zio-stream, there is a comprehensive section on that [here](https://zio.dev/reference/stream/).
+
+3. **Zio-json** is a library to serialize and deserialize data from/to JSON data type. We will be using this library to serialize and deserialize data when reading and writing JSON data from/to Kafka topics.
+
+## Setting Up The Kafka Cluster
+
+Before we start, we need to set up a Kafka cluster. To start a kafka cluster for testing purposes we can use the following `docker-compose.yml` file:
+
+```docker-compose
+services:
+  broker:
+    image: apache/kafka:3.9.0
+    container_name: broker
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_BROKER_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker:29093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+```
+
+Now we can run the `docker compose up -d` command to start the Kafka cluster:
+
+```bash
+$ docker compose up -d
+```
+
+## Writing a Simple Producer and Consumer Using ZIO Workflows
+
+To write producers and consumers, using the zio-kafka library, we have two choices:
+
+1. Using ZIO workflows
+2. Using zio-streams workflows
+
+In this section, we will try the first option.
+
+### 1. Serializing and Deserializing Data
+
+Before we can write a producer and consumer, let's talk about how data is stored in Kafka. Kafka is an event-store platform that stores records, records are key-value pairs as raw bytes. So a Kafka broker knows nothing about its records, it just appends the records to its internal log file.
+
+To produce and consume data from Kafka, we need a way to serialize our data to a byte array and deserialize byte arrays to our data types. This is where the `Serde` data type comes in handy. A `Serde[R, A]` is a `Serializer` and `Deserializer` for values of type `A`, which can use the environment `R` to serialize and deserialize values.
+
+Here is the simplified definition of the `Serde` data type:
+
+```scala
+trait Serde[-R, A] {
+  def deserialize(data: Array[Byte]): RIO[R, A]
+  def serialize(value: A)           : RIO[R, Array[Byte]]
+}
+```
+
+The companion object of `Serde` trait contains a set of built-in serializers and deserializers for primitive types:
+
+- `Serde.long`
+- `Serde.int`
+- `Serde.short`
+- `Serde.float`
+- `Serde.double`
+- `Serde.boolean`
+- `Serde.string`
+- `Serde.byteArray`
+- `Serde.byteBuffer`
+- `Serde.uuid`
+
+In this example, the type of the `key` is `Int` and the type of the `value` is `String`. So we can use the `Serde.int` for the `key` and the `Serde.string` for the `value`.
+
+### 2. Creating a Producer
+
+Now we can create a `Producer`:
+
+```scala
+
+val producer: ZIO[Scope, Throwable, Producer] =
+  Producer.make(
+    ProducerSettings(List("localhost:9092"))
+  )
+```
+
+The `ProducerSettings` as constructed in this code fragment is already sufficient for many applications. However, more configuration options are available on `ProducerSettings`.
+
+Notice that the created producer requires a `Scope` in the environment. When this scope closes, the producer closes its
+connection with the Kafka cluster. An explicit scope can be created with the `ZIO.scoped` method.
+
+### 3. Producing records
+
+Zio-kafka has several producers that can be used to produce data on Kafka topics. In this example, we will be using the `Producer.produce` method:
+
+```scala
+trait Producer {
+  def produce[R, K, V](
+    topic: String,
+    key: K,
+    value: V,
+    keySerializer: Serializer[R, K],
+    valueSerializer: Serializer[R, V]
+  ): RIO[R, RecordMetadata]
+}
+```
+
+Notice how the type parameters of `produce` method ensure that the value's type, corresponds to the type produced by the value's `Serializer` (and the same for the key and the `Serializer` for the key).
+
+Here is a helper function that shows how we could use the `produce` method:
+
+```scala
+def produceRecord(producer: Producer, topic: String, key: Long, value: String): RIO[Any, RecordMetadata] =
+  producer.produce[Any, Long, String](
+    topic = topic,
+    key = key,
+    value = value,
+    keySerializer = Serde.long,
+    valueSerializer = Serde.string
+  )
+```
+
+### 4. Creating a Consumer
+
+Zio-kafka provides several ways to consume data from Kafka topics. In this example, we will use the `Consumer.consumeWith` function.
+
+The following helper function creates a ZIO workflow that if we run it, runs forever and consumes records from the given topic and prints them to the console, and then commits the offsets of the consumed records:
+
+```scala
+def consumeAndPrintEvents(consumer: Consumer, groupId: String, topic: String, topics: String*): RIO[Any, Unit] =
+  consumer.consumeWith(
+    settings = ConsumerSettings(BOOSTRAP_SERVERS).withGroupId(groupId),
+    subscription = Subscription.topics(topic, topics: _*),
+    keyDeserializer = Serde.long,
+    valueDeserializer = Serde.string,
+  ) { (k, v) =>
+    Console.printLine(s"Consumed key: $k, value: $v").orDie
+  }
+```
+
+For performance reasons, records are always consumed in batches. The `consumeWith` method commits the offsets of consumed records, as soon all records of a batch have been processed.
+
+For more options see [consumer tuning](consumer-tuning.md).
+
+### 5. The Complete Example
+
+Now it's time to combine all the above steps to create a ZIO workflow that will produce and consume data from the Kafka cluster:
+
+```scala
+
+/** A simple app that produces and consumes messages from a kafka cluster
+ * without using ZIO Streams.
+ */
+object SimpleKafkaApp extends ZIOAppDefault {
+  private val BOOSTRAP_SERVERS = List("localhost:9092")
+  private val KAFKA_TOPIC      = "hello"
+
+  def run: ZIO[Scope, Throwable, Unit] = {
+    for {
+      c <- Consumer
+        .consumeWith(
+          settings =
+            ConsumerSettings(BOOSTRAP_SERVERS).withGroupId("simple-kafka-app"),
+          subscription = Subscription.topics(KAFKA_TOPIC),
+          keyDeserializer = Serde.long,
+          valueDeserializer = Serde.string
+        ) { record =>
+          Console.printLine(s"Consumed ${record.key()}, ${record.value()}").orDie
+        }
+        .fork
+
+      producer <- Producer.make(ProducerSettings(BOOSTRAP_SERVERS))
+      p <- Clock.currentDateTime
+        .flatMap { time =>
+          producer.produce[Any, Long, String](
+            topic = KAFKA_TOPIC,
+            key = time.getHour.toLong,
+            value = s"$time -- Hello, World!",
+            keySerializer = Serde.long,
+            valueSerializer = Serde.string
+          )
+        }
+        .schedule(Schedule.spaced(1.second))
+        .fork
+
+      _ <- (c <*> p).join
+    } yield ()
+  }
+
+}
+```
+
+## Zio-kafka With Zio-streams
+
+As we said before, to write producers and consumers using the zio-kafka library, we have two choices:
+
+1. Using ZIO workflows
+2. Using zio-streams workflows
+
+In this section we show zio-kafka's seamless integration with zio-streams.
+
+### 1. Streaming Producer API
+
+With zio-kafka's `Producer.produceAll` we get a `ZPipeline`. It takes streams of `ProducerRecord[K, V]`, produces these records to a Kafka topic, and then returns a stream of `RecordMetadata`:
+
+```scala
+trait Producer {
+  def produceAll[R, K, V](
+    keySerializer: Serializer[R, K],
+    valueSerializer: Serializer[R, V]
+  ): ZPipeline[R, Throwable, ProducerRecord[K, V], RecordMetadata]
+}
+```
+
+Here is an example that uses `Producer.produceAll`:
+
+```scala
+ZStream
+  .fromIterator(Iterator.from(0), maxChunkSize = 50)
+           // ZStream[Any, Throwable, Int]
+  .mapChunksZIO { chunk =>
+    chunk.map { i =>
+      new ProducerRecord(topic, key = i, value = s"record $i") 
+    }
+  }        // ZStream[Any, Throwable, ProducerRecord]
+  .via(producer.produceAll(Serde.int, Serde.string))
+           // ZStream[Any, Throwable, RecordMetadata]
+  .runDrain
+```
+
+For performance reasons, method `produceAll` produces records in batches, every chunk of the input stream results in a batch. Once all acknowledges are received, the next batch is produced.
+
+See [this page](consuming-producing-and-committing-offsets.md) for tips that can increase producing throughput.
+
+### 2. Creating a Consumer
+
+When we use the streaming API we need to construct a Consumer:
+
+```scala
+
+val consumer: ZIO[Scope, Throwable, Consumer] =
+  Consumer.make(
+    ConsumerSettings(List("localhost:9092"))
+      .withGroupId("streaming-kafka-app")
+  )
+```
+
+Notice that the consumer requires a `Scope` in the environment. When this scope closes, the consumer closes its
+connection with the Kafka cluster. An explicit scope can be created with the `ZIO.scoped` method.
+
+For more options see [creating a consumer](creating-a-consumer.md) and [consumer tuning](consumer-tuning.md).
+
+### 3. Streaming Consumer API
+
+The `Consumer.plainStream` method gives a `ZStream` that, when run, consumes records from a Kafka topic and gives a stream of `CommittableRecord[K, V]`:
+
+```scala
+trait Consumer {
+  def plainStream[R, K, V](
+    subscription: Subscription,
+    keyDeserializer: Deserializer[R, K],
+    valueDeserializer: Deserializer[R, V]
+  ): ZStream[R, Throwable, CommittableRecord[K, V]]
+}
+```
+
+Parameter `subscription` indicates which topics and partitions should be consumed from. For example `Subscription.topics("events")` to consume from the `events` topic.
+
+Parameters `keyDeserializer` and `valueDeserializer` are the `Serde` that will be used to deserialize the raw record bytes to whatever type you want them to be in.
+
+To indicate that a record has been consumed successfully, and make sure that no other consumer in the same group will consume this record again (even when the application crashes and restarts), we need to commit the offset of the record. This is how it works: first get the `Offset` of the `CommittableRecord` with the `offset` method, then call `commit` on the returned `Offset`.
+
+Here is an example:
+
+```scala
+
+val KAFKA_TOPIC = "my-topic"
+val consumer: Consumer = ???
+
+val c: ZIO[Any, Throwable, Unit] =
+  consumer
+    .plainStream(Subscription.topics(KAFKA_TOPIC), Serde.int, Serde.string)
+    .tap(e => Console.printLine(e.value))
+    .map(_.offset)      // Get the offset of the record
+    .mapZIO(_.commit)   // Commit the offset
+    .runDrain
+```
+
+While this works, it is not very performant. The problem with this approach is that we are committing offsets for each record separately. This causes a lot of overhead and slows down the consumption of records. To avoid this, we can aggregate offsets into batches and commit them all at once. This can be done by using the `ZStream#aggregateAsyncWithin` along with the `Consumer.collectOffsets` sink:
+
+```scala
+
+val KAFKA_TOPIC = "my-topic"
+val consumer: Consumer = ???
+
+val c: ZIO[Any, Throwable, Unit] =
+  consumer
+    .plainStream(Subscription.topics(KAFKA_TOPIC), Serde.int, Serde.string)
+    .tap(e => Console.printLine(e.value))
+    .map(_.offset)                           // Get the offset of the record
+                                             // Group offsets in an OffsetBatch
+    .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
+    .mapZIO(_.commit)                        // Commit the batch of offsets
+    .runDrain
+```
+
+Notice that because we are using `aggregateAsyncWithin`, the commits run asynchronously with the upstream of `aggregateAsyncWithin`. Every 100 milliseconds the next `OffsetBatch` is committed.
+
+:::caution
+Keeping the chunking structure intact is important.
+
+In the example so far we have used `tap` to print the records as they are consumed. Unfortunately, methods like `tap` and `mapZIO` destroy the chunking structure and lead to much lower throughput. Please read [a warning about mapZIO](avoiding-chunk-breakers.md) for more details and alternatives.
+:::
+
+For more details see [consuming Kafka topics using ZIO Streams](consuming-kafka-topics-using-zio-streams.md).
+
+### 4. The Complete Streaming Example
+
+It's time to create a full working example of zio-kafka with zio-streams:
+
+```scala
+
+object StreamingKafkaApp extends ZIOAppDefault {
+  private val BOOSTRAP_SERVERS = List("localhost:9092")
+  private val KAFKA_TOPIC      = "streaming-hello"
+
+  private val producerSettings = ProducerSettings(BOOSTRAP_SERVERS)
+  private val consumerSettings =
+    ConsumerSettings(BOOSTRAP_SERVERS).withGroupId("streaming-kafka-app")
+
+  def run: ZIO[Any, Throwable, Unit] = {
+    val p: ZIO[Any, Throwable, Unit] =
+      ZIO.scoped {
+        for {
+          producer <- Producer.make(producerSettings)
+          _ <- ZStream
+            .repeatZIO(Clock.currentDateTime)
+            .schedule(Schedule.spaced(1.second))
+            .map { time =>
+              new ProducerRecord(
+                KAFKA_TOPIC,
+                time.getMinute,
+                s"$time -- Hello, World!"
+              )
+            }
+            .via(producer.produceAll(Serde.int, Serde.string))
+            .runDrain
+        } yield ()
+      }
+
+    val c: ZIO[Any, Throwable, Unit] =
+      ZIO.scoped {
+        for {
+          consumer <- Consumer.make(consumerSettings)
+          _ <- consumer
+            .plainStream(
+              Subscription.topics(KAFKA_TOPIC),
+              Serde.int,
+              Serde.string
+            )
+            // Do not use `tap` in throughput sensitive applications because it
+            // destroys the chunking structure and leads to lower performance.
+            // See the previous section for more info.
+            .tap(r => Console.printLine("Consumed: " + r.value))
+            .map(_.offset)
+            .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
+            .mapZIO(_.commit)
+            .runDrain
+        } yield ()
+      }
+
+    p <&> c
+  }
+
+}
+```
+
+## Producing and Consuming JSON Data
+
+Until now, we learned how to work with simple types like `Int`, `String`, and how to use their `Serde` instances to serialize and deserialize the data.
+
+In this section, we are going to learn how to serialize/deserialize user-defined data types (like case classes), and in particular how to use the JSON format. We also will learn how to use the `Serde` built-in instances to create more complex `Serde` instances.
+
+### 1. Writing Custom Serializer and Deserializer
+
+In zio-kafka all the built-in serializers/deserializers are instances of the `Serde` trait. All `Serde`s offers several combinators with which we can create new `Serde`s. We take a closer look at 2 of them:
+
+- Method `inmap` transforms the `Serde` with pure transformations from the source type to the target type and back.
+- Method `inmapZIO` transforms the `Serde` with effectful transformations from the source type to the target type and back. As it accepts effectful transformations, we can encode any parsing failure with a `ZIO` workflow.
+
+In this example, we use `inmap` to transform the build-in `Serde.long` to a `Serde[Any, Instant]`. The `inmap` method gets 2 pure functions, the first converts from `Long` to `Instant`, the second from `Instant` to `Long`:
+
+```scala
+
+val instantSerde: Serde[Any, Instant] =
+  Serde.long.inmap[Instant](Instant.ofEpochMilli)(_.toEpochMilli)
+```
+
+In the following example, we will use `inmapZIO` to transform the built-in `Serde.string` to a `Serde[Any, Event]` where `Event` is a case class that is serialized to/deserialized from a String containing JSON.
+
+Let's say we have the `Event` case class with the following fields:
+
+```scala
+
+case class Event(
+  uuid: UUID,
+  timestamp: OffsetDateTime,
+  message: String
+)
+```
+
+First, we need to define a JSON decoder and encoder for it:
+
+```scala
+
+object Event {
+  implicit val encoder: JsonEncoder[Event] =
+    DeriveJsonEncoder.gen[Event]
+
+  implicit val decoder: JsonDecoder[Event] =
+    DeriveJsonDecoder.gen[Event]
+}
+```
+
+Then we need to create a `Serde` for the `Event` type. To convert `Event` to JSON and back, we will use the zio-json library. To define a `Serde` for the `Event` type, we will use the `Serde.string.inmapZIO` combinator:
+
+```scala
+
+object EventKafkaSerde {
+  val event: Serde[Any, Event] =
+    Serde.string.inmapZIO[Any, Event](s =>
+      ZIO
+        .fromEither(s.fromJson[Event])
+        .mapError(e => new RuntimeException(e))
+    )(r => ZIO.succeed(r.toJson))
+}
+```
+
+As we can see, we use the `String#fromJson` to convert the string to an `Event` object, and we also encode any parsing failure with a `RuntimeException` in the `ZIO` workflow.
+
+See [zio-kafka serialization and deserialization](serialization-and-deserialization.md) for more details.
+
+### 2. The Complete JSON Streaming Example
+
+Here is a full working example of producing and consuming JSON data with zio-kafka, zio-streams and zio-json:
+
+```scala
+
+/** This is the data we will be sending to Kafka in JSON format. */
+case class Event(uuid: UUID, timestamp: OffsetDateTime, message: String)
+
+/** A zio-json encoder/decoder for [[Event]]. */
+object Event {
+  implicit val encoder: JsonEncoder[Event] =
+    DeriveJsonEncoder.gen[Event]
+
+  implicit val decoder: JsonDecoder[Event] =
+    DeriveJsonDecoder.gen[Event]
+}
+
+/** A zio-kafka serializer/deserializer for [[Event]]. */
+object EventKafkaSerde {
+  val event: Serde[Any, Event] =
+    Serde.string.inmapZIO[Any, Event](s =>
+      ZIO
+        .fromEither(s.fromJson[Event])
+        .mapError(e => new RuntimeException(e))
+    )(r => ZIO.succeed(r.toJson))
+}
+
+object JsonStreamingKafkaApp extends ZIOAppDefault {
+  private val BOOSTRAP_SERVERS = List("localhost:9092")
+  private val KAFKA_TOPIC      = "json-streaming-hello"
+
+  def run: ZIO[Any, Throwable, Unit] = {
+    val p: ZIO[Any, Throwable, Unit] =
+      ZIO.scoped {
+        for {
+          producer <- Producer.make(ProducerSettings(BOOSTRAP_SERVERS))
+          _ <- ZStream
+            .repeatZIO(Random.nextUUID <*> Clock.currentDateTime)
+            .schedule(Schedule.spaced(1.second))
+            .map { case (uuid, time) =>
+              new ProducerRecord(
+                KAFKA_TOPIC,
+                time.getMinute,
+                Event(uuid, time, "Hello, World!")
+              )
+            }
+            .via(producer.produceAll(Serde.int, EventKafkaSerde.event))
+            .runDrain
+        } yield ()
+      }
+
+    val c: ZIO[Any, Throwable, Unit] =
+      ZIO.scoped {
+        for {
+          consumer <- Consumer.make(
+            ConsumerSettings(BOOSTRAP_SERVERS).withGroupId("streaming-kafka-app")
+          )
+          _ <- consumer
+            .plainStream(
+              Subscription.topics(KAFKA_TOPIC),
+              Serde.int,
+              EventKafkaSerde.event
+            )
+            .tap { r =>
+              val event: Event = r.value
+              Console.printLine(
+                s"Event ${event.uuid} was sent at ${event.timestamp} with message ${event.message}"
+              )
+            }
+            .map(_.offset)
+            .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
+            .mapZIO(_.commit)
+            .runDrain
+        } yield ()
+      }
+
+    p <&> c
+  }
+
+}
+```
+
+## Conclusion
+
+In this tutorial we first learned how to create a producer and consumer for Kafka using the ZIO workflow with zio-kafka. Then we learned how to do the same with zio-streams. We also learned how to create a custom serializer and deserializer for the Kafka records and how to produce and consume JSON data using the zio-json library.
+
+All the source code associated with this article is available on the [ZIO Quickstart](http://github.com/zio/zio-quickstarts) project on GitHub.
+
+More information:
+
+- [zio-kafka](https://zio.dev/zio-kafka/)
+- [zio-streams](https://zio.dev/reference/stream/)
+- [zio-json](https://zio.dev/zio-json/)
 
 ---
 

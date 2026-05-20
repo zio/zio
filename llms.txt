@@ -448,8 +448,8 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Avoiding chunk-breakers](https://zio.dev/zio-kafka/avoiding-chunk-breakers.md): ZIO streams are not just a simple sequence of elements. The elements are grouped into chunks, which makes many
 - [Tuning the consumer](https://zio.dev/zio-kafka/consumer-tuning.md): Zio-kafka's consumer can be tuned for:
 - [Consuming Kafka topics using ZIO Streams](https://zio.dev/zio-kafka/consuming-kafka-topics-using-zio-streams.md): You can stream data from Kafka using the `plainStream` method:
+- [Consuming, Producing and Committing Offsets](https://zio.dev/zio-kafka/consuming-producing-and-committing-offsets.md): Consuming from Kafka and then producing a transformed message back to Kafka, is a regular pattern in systems that use
 - [Creating a zio-kafka Consumer](https://zio.dev/zio-kafka/creating-a-consumer.md): Create a consumer with `Consumer.make`, passing some `ConsumerSettings`:
-- [Example of Consuming, Producing and Committing Offsets](https://zio.dev/zio-kafka/example-of-consuming-producing-and-committing-offsets.md): This example shows how to consume messages from topic `topic_a` and produce transformed messages to `topic_b`, after
 - [Getting Started with ZIO Kafka](https://zio.dev/zio-kafka/index.md): [ZIO Kafka](https://github.com/zio/zio-kafka) is a Kafka client for ZIO. It provides a purely functional, streams-based interface to the Kafka
 - [Zio-Kafka Metrics](https://zio.dev/zio-kafka/metrics.md): Zio-kafka exposes all the metrics of the wrapped Java based consumer and producer, plus some more metrics about the
 - [Migrating to zio-kafka 3](https://zio.dev/zio-kafka/migrating-to-zio-kafka-3.md): Zio-kafka 3.0.0 brings a number of backwards incompatible changes:
@@ -458,6 +458,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Serialization and Deserialization](https://zio.dev/zio-kafka/serialization-and-deserialization.md): Zio-kafka deserializes incoming data, and deserializes outgoing data (both keys and values) from byte arrays to any
 - [Sharing a Consumer between multiple streams](https://zio.dev/zio-kafka/sharing-consumer.md): Often in a single application, you want to consume from multiple Kafka topics and process each topic in a distinct way. With `zio-kafka` you can us...
 - [Transactions](https://zio.dev/zio-kafka/transactions.md): > This document describes Kafka transactions for zio-kafka version 3.0.0 and later.
+- [Tutorial: How to Produce/Consume Data To/From Kafka Topics?](https://zio.dev/zio-kafka/tutorial.md): Kafka is a distributed, fault-tolerant, message-oriented event-store platform. It is used as a message broker for distributed applications. Zio-kaf...
 - [Writing Tests with the `zio-kafka-testkit` library](https://zio.dev/zio-kafka/writing-tests.md): Zio-kafka provides a `zio-kafka-testkit` library to help you test your code using zio-kafka.
 - [Introduction to ZIO Lambda](https://zio.dev/zio-lambda/index.md): A ZIO-based AWS Custom Runtime compatible with GraalVM Native Image.
 - [Console Logger](https://zio.dev/zio-logging/console-logger.md): logger layer with configuration from config provider:
