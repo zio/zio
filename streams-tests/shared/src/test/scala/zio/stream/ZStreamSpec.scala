@@ -5873,6 +5873,14 @@ object ZStreamSpec extends ZIOBaseSpec {
                           .take(3)
                           .runCollect
             } yield result)(forall(hasSize(isLessThanEqualTo(2))))
+          },
+          test("fails with queue shutdownCause") {
+            val boom = new RuntimeException("boom")
+            assertZIO(for {
+              queue <- Queue.unbounded[Int]
+              _     <- queue.shutdownCause(Cause.die(boom))
+              exit  <- ZStream.fromQueue(queue).runCollect.exit
+            } yield exit)(dies(equalTo(boom)))
           }
         ),
         test("fromTQueue") {

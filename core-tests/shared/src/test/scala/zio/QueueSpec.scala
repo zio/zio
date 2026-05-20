@@ -516,6 +516,53 @@ object QueueSpec extends ZIOBaseSpec {
         res    <- queue.size.sandbox.either
       } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
     },
+    test("shutdownCause fails pending takers with the winning cause") {
+      val boom = new RuntimeException("boom")
+      for {
+        queue <- Queue.bounded[Int](3)
+        fiber <- queue.take.fork
+        _     <- waitForSize(queue, -1)
+        items <- queue.shutdownCause(Cause.die(boom))
+        exit  <- fiber.await
+      } yield assert(items)(isEmpty) &&
+        assert(exit)(dies(equalTo(boom)))
+    },
+    test("shutdownCause returns buffered and back-pressured items in order") {
+      val boom = new RuntimeException("boom")
+      for {
+        queue <- Queue.bounded[Int](2)
+        _     <- queue.offerAll(List(1, 2))
+        fiber <- queue.offerAll(List(3, 4, 5)).fork
+        _     <- waitForSize(queue, 5)
+        items <- queue.shutdownCause(Cause.die(boom))
+        exit  <- fiber.await
+      } yield assert(items)(equalTo(Chunk(1, 2, 3, 4, 5))) &&
+        assert(exit)(dies(equalTo(boom)))
+    },
+    test("shutdownCause fails future operations with the winning cause") {
+      val boom = new RuntimeException("boom")
+      for {
+        queue    <- Queue.bounded[Int](2)
+        _        <- queue.offer(1)
+        buffered <- queue.shutdownCause(Cause.die(boom))
+        offer    <- queue.offer(2).exit
+        take     <- queue.take.exit
+        size     <- queue.size.exit
+      } yield assert(buffered)(equalTo(Chunk(1))) &&
+        assert(offer)(dies(equalTo(boom))) &&
+        assert(take)(dies(equalTo(boom))) &&
+        assert(size)(dies(equalTo(boom)))
+    },
+    test("shutdownCause is won by the first caller") {
+      val first  = new RuntimeException("first")
+      val second = new RuntimeException("second")
+      for {
+        queue <- Queue.bounded[Int](1)
+        win   <- queue.shutdownCause(Cause.die(first)).exit
+        lose  <- queue.shutdownCause(Cause.die(second)).exit
+      } yield assert(win)(succeeds(equalTo(Chunk.empty))) &&
+        assert(lose)(dies(equalTo(first)))
+    },
     test("back-pressured offer completes after take") {
       for {
         queue <- Queue.bounded[Int](2)
