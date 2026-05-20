@@ -643,7 +643,7 @@ val finalized: IO[String, Unit] =
 // finalized: IO[String, Unit] = DynamicNoBox(
 //   trace = "repl.MdocSession.MdocApp.finalized(handling-resources.md:19)",
 //   update = 1L,
-//   f = zio.ZIO$$$Lambda$19636/0x00007f76aef33ca8@2a65f490
+//   f = zio.ZIO$$$Lambda$19542/0x00007f1fc6fb25c8@68d95712
 // )
 ```
 
@@ -2336,12 +2336,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20019/0x00007f76af014aa8@20d27f3e
+//   eval = zio.Ref$$$Lambda$19925/0x00007f1fc708cf30@526adcdf
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20019/0x00007f76af014aa8@7894499
+//   eval = zio.Ref$$$Lambda$19925/0x00007f1fc708cf30@5abad933
 // )
 
 sealed trait State
@@ -2352,7 +2352,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20019/0x00007f76af014aa8@489d478d
+//   eval = zio.Ref$$$Lambda$19925/0x00007f1fc708cf30@16355fe2
 // )
 ```
 
@@ -2369,7 +2369,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20019/0x00007f76af014aa8@5a135273
+//   eval = zio.Ref$$$Lambda$19925/0x00007f1fc708cf30@21e9da3a
 // )
 ```
 
@@ -2381,7 +2381,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20019/0x00007f76af014aa8@111d8829
+//   eval = zio.Ref$$$Lambda$19925/0x00007f1fc708cf30@8eebc17
 // )
 ```
 
@@ -14176,7 +14176,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20200/0x00007f76af0bca58@4c71f924
+//   eval = zio.Supervisor$$$Lambda$20106/0x00007f1fc713cf18@22a08ad6
 // )
 ```
 
@@ -14508,7 +14508,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$20169/0x00007f76af08fa40@7b6ae405
+//     f = zio.ZIO$$$Lambda$20075/0x00007f1fc7106928@2dfcbe72
 //   ),
 //   successK = <function1>
 // )
@@ -21978,14 +21978,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@3c4c646a
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@18e94feb
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@be7cf35
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@696d2537
 ```
 
 ## From ZIO
@@ -28384,9 +28384,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$19607/0x00007f76aef1f508@609e7048
+//             onState = zio.ZIO$$$Lambda$19513/0x00007f1fc6f976a8@6ce487b8
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$19616/0x00007f76aef29e20@259ce23f
+//           successK = zio.test.package$ZTest$$$Lambda$19522/0x00007f1fc6fa0210@29e60440
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -29976,7 +29976,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+14-82dcda71-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+15-3ea4a010-SNAPSHOT"
 ```
 
 ## Example
@@ -40718,6 +40718,10 @@ To achieve this, the only thing that needs to be done from the library repositor
 By adding the following CI job to the `.github/workflows/<workflow-name>.yaml` file, we can utilize the `sbt docs/publishToNpm` command provided by the ZIO SBT Website plugin to publish the documentation package to the npm registry:
 
 ```yaml
+permissions:
+  id-token: write    # Required for OIDC trusted publishing
+  contents: read
+
 release-docs:
   name: Release Docs
   runs-on: ubuntu-latest
@@ -40737,11 +40741,25 @@ release-docs:
       registry-url: https://registry.npmjs.org
   - name: Publish Docs to NPM Registry
     run: sbt docs/publishToNpm
-    env:
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 ```
 
-The `NPM_TOKEN` is a secret used to publish the documentation to the npm registry. All official libraries under GitHub's [ZIO organization](https://github.com/zio) have access to this secret.
+This CI job uses **npm Trusted Publishing with OpenID Connect (OIDC)** for secure authentication. No npm token secret is required. Instead:
+
+1. The workflow requests an OIDC token from GitHub (via the `id-token: write` permission)
+2. The `setup-node` action configures npm to use this OIDC token for authentication
+3. The npm package on npmjs.com must be configured to accept OIDC tokens from your repository
+
+**Setup Instructions for npm Trusted Publisher:**
+
+1. Go to your npm package settings page: `https://www.npmjs.com/package/@zio.dev/<package-name>/settings/access`
+2. Add a **Trusted Publisher** with:
+   - **Provider**: GitHub Actions
+   - **Organization**: `zio`
+   - **Repository**: `<your-repo-name>`
+   - **Workflow filename**: `ci.yml` (or your actual workflow filename - must be exact, not a wildcard)
+   - **Environment name**: (leave blank unless you use a specific environment)
+
+For more information, see the [npm Trusted Publishers documentation](https://docs.npmjs.com/trusted-publishers/).
 
 ### Notifying the Main Repository
 
@@ -40880,7 +40898,7 @@ This CI job will create a new pull request to update the `README.md` file after 
 
 ## Utilizing Autogenerated CI through the ZIO SBT CI Plugin (Recommended)
 
-The ZIO SBT CI plugin can generate the CI jobs automatically, including the job for publishing the documentation package to the NPM registry.
+The ZIO SBT CI plugin can generate the CI jobs automatically, including the job for publishing the documentation package to the NPM registry using npm Trusted Publishing with OIDC.
 
 To do this, first, we need to install the plugin in the `project/plugins.sbt` file of the library repository:
 
@@ -40891,8 +40909,20 @@ addSbtPlugin("dev.zio" % "zio-sbt-ci" % "<version>")
 
 By adding this line, the plugin will be enabled, and we can use the `sbt ciGenerateGithubWorkflow` command to generate the CI jobs. The generated CI jobs will be placed in the `.github/workflows/ci.yml`.
 
+**Important:** After generating the workflow, you must configure your npm package as a **Trusted Publisher** on npmjs.com:
+
+1. Go to: `https://www.npmjs.com/package/@zio.dev/<package-name>/settings/access`
+2. Add a **Trusted Publisher** with:
+   - **Provider**: GitHub Actions
+   - **Organization**: `zio`
+   - **Repository**: `<your-repo-name>`
+   - **Workflow filename**: `ci.yml` (exact match required, not a wildcard)
+   - **Environment name**: (leave blank)
+
 :::note
 After each release of an official library, the documentation for that library will be published to the npm registry. In the CI of the ZIO repository, the latest versions of documentations that are published to the NPM registry will be downloaded and integrated into the zio.dev site.
+
+The generated CI uses npm Trusted Publishing with OIDC for secure, token-free authentication. No NPM_TOKEN secret is needed.
 :::
 
 To learn more about the ZIO SBT CI plugin, please refer to [this page](https://zio.dev/zio-sbt).
