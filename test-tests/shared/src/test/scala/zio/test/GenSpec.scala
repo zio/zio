@@ -701,6 +701,29 @@ object GenSpec extends ZIOBaseSpec {
         assert(a)(hasSize(equalTo(100))) &&
         assert(b)(hasSize(equalTo(100)))
     },
+    test("runCollectN resamples random values before deterministic streams") {
+      val naturals = new Iterable[Int] {
+        def iterator: Iterator[Int] = Iterator.iterate(0)(_ + 1)
+      }
+
+      val before = for {
+        _  <- Gen.fromIterable(naturals)
+        id <- Gen.uuid
+      } yield id
+
+      val after = for {
+        id <- Gen.uuid
+        _  <- Gen.fromIterable(naturals)
+      } yield id
+
+      for {
+        beforeIds <- before.runCollectN(20)
+        afterIds  <- after.runCollectN(20)
+      } yield assert(beforeIds.toSet)(hasSize(isGreaterThan(1))) &&
+        assert(afterIds.toSet)(hasSize(isGreaterThan(1))) &&
+        assert(beforeIds)(hasSize(equalTo(20))) &&
+        assert(afterIds)(hasSize(equalTo(20)))
+    },
     test("runHead") {
       assertZIO(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
     },

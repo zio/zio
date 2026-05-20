@@ -81,10 +81,10 @@ object GenUtils {
   val smallInt: Gen[Any, Int] = Gen.int(-10, 10)
 
   def sample[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
-    gen.sample.map(_.value).runCollect.map(_.toList)
+    gen.runCollect
 
   def sample100[R, A](gen: Gen[R, A]): ZIO[R, Nothing, List[A]] =
-    gen.sample.map(_.value).forever.take(size.toLong).runCollect.map(_.toList)
+    gen.runCollectN(size)
 
   def sampleEffect[E, A](
     gen: Gen[Any, ZIO[Any, E, A]],

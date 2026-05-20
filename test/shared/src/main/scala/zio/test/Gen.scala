@@ -19,7 +19,7 @@ package zio.test
 import zio.Random._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZStream
-import zio.{Chunk, NonEmptyChunk, Random, Trace, UIO, URIO, ZIO, Zippable}
+import zio.{Chunk, FiberRef, NonEmptyChunk, Random, Trace, UIO, URIO, Unsafe, ZIO, Zippable}
 
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -32,6 +32,8 @@ import scala.math.Numeric.DoubleIsFractional
  * environment `R`. Generators may be random or deterministic.
  */
 final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
+  private[test] def resample(implicit trace: Trace): ZStream[R, Nothing, Sample[R, A]] =
+    ZStream.scoped[R](Gen.randomized.locallyScoped(false)) *> sample
 
   /**
    * A symbolic alias for `concat`.
@@ -147,20 +149,20 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * Runs the generator and collects all of its values in a list.
    */
   def runCollect(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).runCollect.map(_.toList)
+    resample.map(_.value).runCollect.map(_.toList)
 
   /**
    * Repeatedly runs the generator and collects the specified number of values
    * in a list.
    */
   def runCollectN(n: Int)(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
+    resample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
 
   /**
    * Runs the generator returning the first value of the generator.
    */
   def runHead(implicit trace: Trace): ZIO[R, Nothing, Option[A]] =
-    sample.map(_.value).runHead
+    resample.map(_.value).runHead
 
   /**
    * Composes this generator with the specified generator to create a cartesian
@@ -180,6 +182,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 }
 
 object Gen extends GenZIO with FunctionVariants with TimeVariants {
+  private[test] val randomized: FiberRef[Boolean] = FiberRef.unsafe.make(false)(Unsafe.unsafe)
 
   /**
    * A generator of alpha characters.
@@ -255,7 +258,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
   def bigInt(min: BigInt, max: BigInt)(implicit trace: Trace): Gen[Any, BigInt] =
-    Gen.fromZIOSample {
+    Gen.fromRandomZIOSample {
       if (min > max) ZIO.die(new IllegalArgumentException("invalid bounds"))
       else if (min == max) ZIO.succeed(Sample.noShrink(min))
       else {
@@ -298,7 +301,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of bytes. Shrinks toward '0'.
    */
   def byte(implicit trace: Trace): Gen[Any, Byte] =
-    fromZIOSample {
+    fromRandomZIOSample {
       nextIntBounded(Byte.MaxValue - Byte.MinValue + 1)
         .map(r => (Byte.MinValue + r).toByte)
         .map(Sample.shrinkIntegral(0))
@@ -315,7 +318,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of characters. Shrinks toward '0'.
    */
   def char(implicit trace: Trace): Gen[Any, Char] =
-    fromZIOSample {
+    fromRandomZIOSample {
       nextIntBounded(Char.MaxValue - Char.MinValue + 1)
         .map(r => (Char.MinValue + r).toChar)
         .map(Sample.shrinkIntegral(0))
@@ -405,7 +408,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of doubles. Shrinks toward '0'.
    */
   def double(implicit trace: Trace): Gen[Any, Double] =
-    fromZIOSample(nextDouble.map(Sample.shrinkFractional(0f)))
+    fromRandomZIOSample(nextDouble.map(Sample.shrinkFractional(0f)))
 
   /**
    * A generator of double values inside the specified range: [start, end]. The
@@ -445,8 +448,23 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def fromIterable[R, A](
     as: Iterable[A],
     shrinker: A => ZStream[R, Nothing, A] = defaultShrinker
-  )(implicit trace: Trace): Gen[R, A] =
-    Gen(ZStream.fromIterable(as).map(a => Sample.unfold(a)(a => (a, shrinker(a)))))
+  )(implicit trace: Trace): Gen[R, A] = {
+    def sample(a: A): Sample[R, A] =
+      Sample.unfold(a)(a => (a, shrinker(a)))
+
+    Gen(ZStream.unwrap {
+      randomized.get.map { randomized =>
+        if (!randomized) ZStream.fromIterable(as).map(sample)
+        else
+          as match {
+            case indexed: IndexedSeq[_] if indexed.nonEmpty =>
+              ZStream.fromZIO(nextIntBounded(indexed.length).map(index => sample(indexed(index).asInstanceOf[A])))
+            case _ =>
+              ZStream.fromIterable(as).take(1).map(sample)
+          }
+      }
+    })
+  }
 
   /**
    * Constructs a generator from a function that uses randomness. The returned
@@ -462,7 +480,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   final def fromRandomSample[R, A](f: Random => UIO[Sample[R, A]])(implicit
     trace: Trace
   ): Gen[R, A] =
-    fromZIOSample(ZIO.randomWith(f))
+    fromRandomZIOSample(ZIO.randomWith(f))
 
   /**
    * Constructs a generator from an effect that constructs a value.
@@ -476,11 +494,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   def fromZIOSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]])(implicit trace: Trace): Gen[R, A] =
     Gen(ZStream.fromZIO(effect))
 
+  private def fromRandomZIOSample[R, A](effect: ZIO[R, Nothing, Sample[R, A]])(implicit trace: Trace): Gen[R, A] =
+    Gen(ZStream.fromZIO(randomized.set(true) *> effect))
+
   /**
    * A generator of floats. Shrinks toward '0'.
    */
   def float(implicit trace: Trace): Gen[Any, Float] =
-    fromZIOSample(nextFloat.map(Sample.shrinkFractional(0f)))
+    fromRandomZIOSample(nextFloat.map(Sample.shrinkFractional(0f)))
 
   /**
    * A generator of hex chars(0-9,a-f,A-F).
@@ -513,14 +534,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of integers. Shrinks toward '0'.
    */
   def int(implicit trace: Trace): Gen[Any, Int] =
-    fromZIOSample(nextInt.map(Sample.shrinkIntegral(0)))
+    fromRandomZIOSample(nextInt.map(Sample.shrinkIntegral(0)))
 
   /**
    * A generator of integers inside the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
   def int(min: Int, max: Int)(implicit trace: Trace): Gen[Any, Int] =
-    Gen.fromZIOSample {
+    Gen.fromRandomZIOSample {
       if (min > max) ZIO.die(new IllegalArgumentException("invalid bounds"))
       else {
         val effect =
@@ -579,14 +600,14 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of longs. Shrinks toward '0'.
    */
   def long(implicit trace: Trace): Gen[Any, Long] =
-    fromZIOSample(nextLong.map(Sample.shrinkIntegral(0L)))
+    fromRandomZIOSample(nextLong.map(Sample.shrinkIntegral(0L)))
 
   /**
    * A generator of long values in the specified range: [start, end]. The
    * shrinker will shrink toward the lower end of the range ("smallest").
    */
   def long(min: Long, max: Long)(implicit trace: Trace): Gen[Any, Long] =
-    Gen.fromZIOSample {
+    Gen.fromRandomZIOSample {
       if (min > max) ZIO.die(new IllegalArgumentException("invalid bounds"))
       else {
         val effect =
@@ -744,7 +765,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of shorts. Shrinks toward '0'.
    */
   def short(implicit trace: Trace): Gen[Any, Short] =
-    fromZIOSample {
+    fromRandomZIOSample {
       nextIntBounded(Short.MaxValue - Short.MinValue + 1)
         .map(r => (Short.MinValue + r).toShort)
         .map(Sample.shrinkIntegral(0))
@@ -865,7 +886,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * will shrink toward `0`.
    */
   def uniform(implicit trace: Trace): Gen[Any, Double] =
-    fromZIOSample(nextDouble.map(Sample.shrinkFractional(0.0)))
+    fromRandomZIOSample(nextDouble.map(Sample.shrinkFractional(0.0)))
 
   /**
    * A constant generator of the unit value.
@@ -878,7 +899,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * not have any shrinking.
    */
   def uuid(implicit trace: Trace): Gen[Any, UUID] =
-    Gen.fromZIO(nextUUID)
+    fromRandomZIOSample(nextUUID.map(Sample.noShrink))
 
   /**
    * A sized generator of vectors.
