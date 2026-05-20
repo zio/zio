@@ -33,7 +33,11 @@ sealed abstract class Queue[A] extends Dequeue.Internal[A] with Enqueue.Internal
    * operations will fail with the winning cause and the winning caller receives
    * the values that were still buffered in the queue.
    */
-  def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]]
+  def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]] =
+    this match {
+      case support: Queue.ShutdownSupport[A @unchecked] => support.shutdownCauseNow(cause)
+      case _                                            => shutdown.as(Chunk.empty)
+    }
 
   /**
    * Checks whether the queue is currently empty.
@@ -53,6 +57,9 @@ object Queue extends QueuePlatformSpecific {
   private val interruptAsNone = ZIO.interruptAs(FiberId.None)(Trace.empty)
 
   private[zio] abstract class Internal[A] extends Queue[A]
+  private[zio] trait ShutdownSupport[A] {
+    def shutdownCauseNow(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]]
+  }
 
   /**
    * Makes a new bounded queue. When the capacity of the queue is reached, any
@@ -145,12 +152,15 @@ object Queue extends QueuePlatformSpecific {
     strategy: Strategy[A],
     fiberId: FiberId
   )(implicit unsafe: Unsafe): Queue[A] = {
-    val p = Promise.unsafe.make[Nothing, Unit](fiberId)
+    val p             = Promise.unsafe.make[Nothing, Unit](fiberId)
+    val shutdownFlag  = new AtomicBoolean(false)
+    val shutdownState = new AtomicReference[AnyRef](null)
+    strategy.unsafeSetShutdownState(shutdownFlag, shutdownState)
     unsafeCreate(
       queue,
       new ConcurrentDeque[Promise[Nothing, A]],
       p,
-      new AtomicReference[AnyRef](null),
+      shutdownFlag,
       strategy
     )
   }
@@ -159,17 +169,20 @@ object Queue extends QueuePlatformSpecific {
     queue: MutableConcurrentQueue[A],
     takers: ConcurrentDeque[Promise[Nothing, A]],
     shutdownHook: Promise[Nothing, Unit],
-    shutdownState: AtomicReference[AnyRef],
+    shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
-  ): Queue[A] = new QueueImpl[A](queue, takers, shutdownHook, shutdownState, strategy)
+  ): Queue[A] = new QueueImpl[A](queue, takers, shutdownHook, shutdownFlag, strategy)
 
   private final class QueueImpl[A](
     queue: MutableConcurrentQueue[A],
     takers: ConcurrentDeque[Promise[Nothing, A]],
     shutdownHook: Promise[Nothing, Unit],
-    shutdownState: AtomicReference[AnyRef],
+    shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
-  ) extends Queue[A] {
+  ) extends Queue[A]
+      with ShutdownSupport[A] {
+
+    private[this] val shutdownState = strategy.shutdownStateRef
 
     private def shutdownEffect(state: AnyRef)(implicit trace: Trace): UIO[Nothing] =
       if (state eq DefaultShutdown) ZIO.interrupt
@@ -192,7 +205,7 @@ object Queue extends QueuePlatformSpecific {
         if (state ne null) shutdownEffect(state)
         else {
           if (tryOffer(a)) Exit.`true`
-          else strategy.handleSurplus(Chunk.single(a), queue, takers, shutdownState)
+          else strategy.handleSurplus(Chunk.single(a), queue, takers, shutdownFlag)
         }
       }
 
@@ -208,7 +221,7 @@ object Queue extends QueuePlatformSpecific {
 
       if (noRemaining) true
       else if (queue.offer(a)) {
-        strategy.unsafeCompleteTakers(queue, takers, shutdownState)
+        strategy.unsafeCompleteTakers(queue, takers)
         true
       } else false
     }
@@ -230,10 +243,10 @@ object Queue extends QueuePlatformSpecific {
             val surplus = unsafeOfferAll(queue, remaining)
 
             if (surplus.isEmpty) {
-              strategy.unsafeCompleteTakers(queue, takers, shutdownState)
+              strategy.unsafeCompleteTakers(queue, takers)
               Exit.emptyChunk
             } else
-              strategy.handleSurplus(surplus, queue, takers, shutdownState).map { offered =>
+              strategy.handleSurplus(surplus, queue, takers, shutdownFlag).map { offered =>
                 if (offered) Chunk.empty else surplus
               }
           }
@@ -253,7 +266,7 @@ object Queue extends QueuePlatformSpecific {
 
     override def shutdown(implicit trace: Trace): UIO[Unit] =
       ZIO.fiberIdWith { fiberId =>
-        if (shutdownState.compareAndSet(null, DefaultShutdown)) {
+        if (shutdownFlag.compareAndSet(false, true) && shutdownState.compareAndSet(null, DefaultShutdown)) {
           implicit val unsafe: Unsafe = Unsafe
           shutdownHook.unsafe.succeedUnit
 
@@ -262,7 +275,7 @@ object Queue extends QueuePlatformSpecific {
             takerIterator.next().unsafe.interruptAs(fiberId)
           }
 
-          strategy.shutdown(Cause.interrupt(fiberId))
+          strategy.shutdown(fiberId)
           Exit.unit
         } else {
           val state = shutdownStateOrNull
@@ -271,12 +284,12 @@ object Queue extends QueuePlatformSpecific {
         }
       }.uninterruptible
 
-    override def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]] =
+    override def shutdownCauseNow(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]] =
       ZIO.suspendSucceed {
         val existing = shutdownStateOrNull
         if (existing ne null) {
           shutdownEffect(existing)
-        } else if (shutdownState.compareAndSet(null, cause)) {
+        } else if (shutdownFlag.compareAndSet(false, true) && shutdownState.compareAndSet(null, cause)) {
           implicit val unsafe: Unsafe = Unsafe
           shutdownHook.unsafe.succeedUnit
 
@@ -285,7 +298,7 @@ object Queue extends QueuePlatformSpecific {
             takerIterator.next().unsafe.refailCause(cause)
           }
 
-          val surplus  = strategy.shutdown(cause)
+          val surplus  = strategy.shutdownWithCause(cause)
           val buffered = unsafePollAll(queue)
 
           Exit.succeed(buffered ++ surplus)
@@ -311,7 +324,7 @@ object Queue extends QueuePlatformSpecific {
                 val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe)
 
                 takers.offer(p)
-                strategy.unsafeCompleteTakers(queue, takers, shutdownState)
+                strategy.unsafeCompleteTakers(queue, takers)
                 restore(p.await).catchAllCause { c =>
                   val removed = p.unsafe.completeWith(interruptAsNone)(Unsafe)
                   takers.remove(p)
@@ -324,7 +337,7 @@ object Queue extends QueuePlatformSpecific {
                   }
                 }
               case item =>
-                strategy.unsafeOnQueueEmptySpace(queue, takers, shutdownState)
+                strategy.unsafeOnQueueEmptySpace(queue, takers)
                 Exit.succeed(item)
             }
           }
@@ -339,7 +352,7 @@ object Queue extends QueuePlatformSpecific {
         else {
           val as = unsafePollAll(queue)
           if (!as.isEmpty) {
-            strategy.unsafeOnQueueEmptySpace(queue, takers, shutdownState)
+            strategy.unsafeOnQueueEmptySpace(queue, takers)
             Exit.succeed(as)
           } else {
             Exit.emptyChunk
@@ -355,7 +368,7 @@ object Queue extends QueuePlatformSpecific {
         else {
           val as = unsafePollN(queue, max)
           if (!as.isEmpty) {
-            strategy.unsafeOnQueueEmptySpace(queue, takers, shutdownState)
+            strategy.unsafeOnQueueEmptySpace(queue, takers)
             Exit.succeed(as)
           } else {
             Exit.emptyChunk
@@ -372,7 +385,7 @@ object Queue extends QueuePlatformSpecific {
           queue.poll(null.asInstanceOf[A]) match {
             case null => Exit.none
             case v =>
-              strategy.unsafeOnQueueEmptySpace(queue, takers, shutdownState)
+              strategy.unsafeOnQueueEmptySpace(queue, takers)
               Exit.succeed(Some(v))
           }
         }
@@ -380,32 +393,47 @@ object Queue extends QueuePlatformSpecific {
   }
 
   private sealed abstract class Strategy[A] {
-    private[this] val draining = new AtomicBoolean(false)
+    private[this] val draining                               = new AtomicBoolean(false)
+    private[this] var isShutdown: AtomicBoolean              = _
+    private[this] var shutdownState: AtomicReference[AnyRef] = _
+
+    final def unsafeSetShutdownState(
+      shutdownFlag: AtomicBoolean,
+      state: AtomicReference[AnyRef]
+    ): Unit = {
+      isShutdown = shutdownFlag
+      shutdownState = state
+    }
+
+    final def shutdownStateOrNull: AnyRef =
+      if (shutdownState eq null) null else shutdownState.get()
+
+    final def shutdownStateRef: AtomicReference[AnyRef] = shutdownState
 
     def handleSurplus(
       as: Iterable[A],
       queue: MutableConcurrentQueue[A],
       takers: ConcurrentDeque[Promise[Nothing, A]],
-      shutdownState: AtomicReference[AnyRef]
+      isShutdown: AtomicBoolean
     )(implicit trace: Trace): UIO[Boolean]
 
     def unsafeOnQueueEmptySpace(
       queue: MutableConcurrentQueue[A],
-      takers: ConcurrentDeque[Promise[Nothing, A]],
-      shutdownState: AtomicReference[AnyRef]
+      takers: ConcurrentDeque[Promise[Nothing, A]]
     ): Unit
 
     def surplusSize: Int
 
-    def shutdown(cause: Cause[Nothing])(implicit trace: Trace, unsafe: Unsafe): Chunk[A]
+    def shutdown(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Unit
+
+    def shutdownWithCause(cause: Cause[Nothing])(implicit trace: Trace, unsafe: Unsafe): Chunk[A] = Chunk.empty
 
     @tailrec
     final def unsafeCompleteTakers(
       queue: MutableConcurrentQueue[A],
-      takers: ConcurrentDeque[Promise[Nothing, A]],
-      shutdownState: AtomicReference[AnyRef]
+      takers: ConcurrentDeque[Promise[Nothing, A]]
     ): Unit =
-      if ((shutdownState.get eq null) && !takers.isEmpty && draining.compareAndSet(false, true)) {
+      if (!isShutdown.get && !takers.isEmpty && draining.compareAndSet(false, true)) {
         try {
           var keepPolling      = !queue.isEmpty()
           val empty            = null.asInstanceOf[A]
@@ -432,14 +460,14 @@ object Queue extends QueuePlatformSpecific {
               }
             }
           }
-          if (notifyEmptySpace) unsafeOnQueueEmptySpace(queue, takers, shutdownState)
+          if (notifyEmptySpace) unsafeOnQueueEmptySpace(queue, takers)
         } finally {
           draining.set(false)
         }
 
         // We need to check in case someone added a putter or pulled from the queue since our last check
         // while we were still holding the lock
-        if ((shutdownState.get eq null) && !queue.isEmpty()) unsafeCompleteTakers(queue, takers, shutdownState)
+        if (!isShutdown.get && !queue.isEmpty()) unsafeCompleteTakers(queue, takers)
       }
   }
 
@@ -460,16 +488,16 @@ object Queue extends QueuePlatformSpecific {
         as: Iterable[A],
         queue: MutableConcurrentQueue[A],
         takers: ConcurrentDeque[Promise[Nothing, A]],
-        shutdownState: AtomicReference[AnyRef]
+        isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] =
         ZIO.fiberIdWith { fiberId =>
           val p = Promise.unsafe.make[Nothing, Boolean](fiberId)(Unsafe.unsafe)
 
           ZIO.suspendSucceed {
             unsafeOffer(as, p)
-            unsafeOnQueueEmptySpace(queue, takers, shutdownState)
-            unsafeCompleteTakers(queue, takers, shutdownState)
-            shutdownState.get() match {
+            unsafeOnQueueEmptySpace(queue, takers)
+            unsafeCompleteTakers(queue, takers)
+            shutdownStateOrNull match {
               case null            => p.await
               case DefaultShutdown => ZIO.interrupt
               case cause           => ZIO.refailCause(cause.asInstanceOf[Cause[Nothing]])
@@ -490,20 +518,19 @@ object Queue extends QueuePlatformSpecific {
       @tailrec
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
-        takers: ConcurrentDeque[Promise[Nothing, A]],
-        shutdownState: AtomicReference[AnyRef]
+        takers: ConcurrentDeque[Promise[Nothing, A]]
       ): Unit = {
         val putters0 = putters
-        if ((shutdownState.get eq null) && !putters0.isEmpty && notifying.compareAndSet(false, true)) {
+        if ((shutdownStateOrNull eq null) && !putters0.isEmpty && notifying.compareAndSet(false, true)) {
           var keepPolling = !queue.isFull()
 
           try {
-            while (keepPolling && (shutdownState.get eq null)) {
+            while (keepPolling && (shutdownStateOrNull eq null)) {
               val putter = putters0.poll()
               if (putter eq null) {
                 keepPolling = false
-                unsafeCompleteTakers(queue, takers, shutdownState)
-              } else if (shutdownState.get ne null) {
+                unsafeCompleteTakers(queue, takers)
+              } else if (shutdownStateOrNull ne null) {
                 putters0.addFirst(putter)
                 keepPolling = false
               } else {
@@ -514,7 +541,7 @@ object Queue extends QueuePlatformSpecific {
                   putters0.addFirst(putter)
                 }
                 if (!offered || queue.isFull()) {
-                  unsafeCompleteTakers(queue, takers, shutdownState)
+                  unsafeCompleteTakers(queue, takers)
                   keepPolling = !queue.isFull()
                 }
               }
@@ -525,13 +552,22 @@ object Queue extends QueuePlatformSpecific {
 
           // We need to check in case someone added a putter or pulled from the queue since our last check
           // while we were still holding the lock
-          if ((shutdownState.get eq null) && !queue.isFull()) unsafeOnQueueEmptySpace(queue, takers, shutdownState)
+          if ((shutdownStateOrNull eq null) && !queue.isFull()) unsafeOnQueueEmptySpace(queue, takers)
         }
       }
 
       def surplusSize: Int = putters.size()
 
-      def shutdown(cause: Cause[Nothing])(implicit trace: Trace, unsafe: Unsafe): Chunk[A] = {
+      def shutdown(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Unit = {
+        var next = putters.poll()
+        while (next ne null) {
+          val (_, promise, isLast) = next
+          if (isLast) promise.unsafe.interruptAs(fiberId)
+          next = putters.poll()
+        }
+      }
+
+      override def shutdownWithCause(cause: Cause[Nothing])(implicit trace: Trace, unsafe: Unsafe): Chunk[A] = {
         val items = ChunkBuilder.make[A](putters.size())
         var next  = putters.poll()
         while (next ne null) {
@@ -550,18 +586,17 @@ object Queue extends QueuePlatformSpecific {
         as: Iterable[A],
         queue: MutableConcurrentQueue[A],
         takers: ConcurrentDeque[Promise[Nothing, A]],
-        shutdownState: AtomicReference[AnyRef]
+        isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] = Exit.`false`
 
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
-        takers: ConcurrentDeque[Promise[Nothing, A]],
-        shutdownState: AtomicReference[AnyRef]
+        takers: ConcurrentDeque[Promise[Nothing, A]]
       ): Unit = ()
 
       def surplusSize: Int = 0
 
-      def shutdown(cause: Cause[Nothing])(implicit trace: Trace, unsafe: Unsafe): Chunk[A] = Chunk.empty
+      def shutdown(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Unit = ()
     }
 
     final case class Sliding[A]() extends Strategy[A] {
@@ -569,7 +604,7 @@ object Queue extends QueuePlatformSpecific {
         as: Iterable[A],
         queue: MutableConcurrentQueue[A],
         takers: ConcurrentDeque[Promise[Nothing, A]],
-        shutdownState: AtomicReference[AnyRef]
+        isShutdown: AtomicBoolean
       )(implicit trace: Trace): UIO[Boolean] = {
         def unsafeSlidingOffer(as: Iterable[A]): Unit =
           if (!as.isEmpty && queue.capacity > 0) {
@@ -590,20 +625,19 @@ object Queue extends QueuePlatformSpecific {
 
         ZIO.succeed {
           unsafeSlidingOffer(as)
-          unsafeCompleteTakers(queue, takers, shutdownState)
+          unsafeCompleteTakers(queue, takers)
           true
         }
       }
 
       def unsafeOnQueueEmptySpace(
         queue: MutableConcurrentQueue[A],
-        takers: ConcurrentDeque[Promise[Nothing, A]],
-        shutdownState: AtomicReference[AnyRef]
+        takers: ConcurrentDeque[Promise[Nothing, A]]
       ): Unit = ()
 
       def surplusSize: Int = 0
 
-      def shutdown(cause: Cause[Nothing])(implicit trace: Trace, unsafe: Unsafe): Chunk[A] = Chunk.empty
+      def shutdown(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Unit = ()
     }
   }
 
