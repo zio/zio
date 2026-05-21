@@ -154,7 +154,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
    * in a list.
    */
   def runCollectN(n: Int)(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
-    sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
+    ZIO.collectAll(List.fill(n)(sample.map(_.value).runHead.map(_.toList))).map(_.flatten)
 
   /**
    * Runs the generator returning the first value of the generator.

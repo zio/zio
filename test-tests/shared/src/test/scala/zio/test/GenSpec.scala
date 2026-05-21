@@ -701,6 +701,17 @@ object GenSpec extends ZIOBaseSpec {
         assert(a)(hasSize(equalTo(100))) &&
         assert(b)(hasSize(equalTo(100)))
     },
+    test("runCollectN resamples a random generator followed by an infinite deterministic generator") {
+      val infinite = new Iterable[Int] {
+        override def iterator: Iterator[Int] = Iterator.iterate(0)(_ + 1)
+      }
+      val gen = for {
+        id <- Gen.uuid
+        _  <- Gen.fromIterable(infinite)
+      } yield id
+
+      assertZIO(gen.runCollectN(20).map(_.distinct.length))(isGreaterThan(1))
+    },
     test("runHead") {
       assertZIO(Gen.int(-10, 10).runHead)(isSome(isWithin(-10, 10)))
     },
