@@ -39,12 +39,32 @@ sealed abstract class Queue[A] extends Dequeue.Internal[A] with Enqueue.Internal
    */
   override final def isFull(implicit trace: Trace): UIO[Boolean] =
     size.map(_ >= capacity)
+
+  /**
+   * Shuts the queue down with the specified cause, returning values that were
+   * buffered but not yet taken. Future calls to `offer*` and `take*` will fail
+   * with the same cause.
+   */
+  def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]] =
+    shutdown.as(Chunk.empty)
 }
 
 object Queue extends QueuePlatformSpecific {
   private val interruptAsNone = ZIO.interruptAs(FiberId.None)(Trace.empty)
 
   private[zio] abstract class Internal[A] extends Queue[A]
+
+  private sealed trait ShutdownState extends Serializable
+  private object ShutdownState {
+    case object Normal                                extends ShutdownState
+    final case class WithCause(cause: Cause[Nothing]) extends ShutdownState
+  }
+
+  private def failShutdown[A](state: ShutdownState)(implicit trace: Trace): UIO[A] =
+    state match {
+      case ShutdownState.Normal           => ZIO.interrupt
+      case ShutdownState.WithCause(cause) => ZIO.refailCause(cause)
+    }
 
   /**
    * Makes a new bounded queue. When the capacity of the queue is reached, any
@@ -162,15 +182,17 @@ object Queue extends QueuePlatformSpecific {
     shutdownFlag: AtomicBoolean,
     strategy: Strategy[A]
   ) extends Queue[A] {
+    private[this] val shutdownState = new AtomicReference[ShutdownState](null.asInstanceOf[ShutdownState])
 
     override def capacity: Int = queue.capacity
 
     override def offer(a: A)(implicit trace: Trace): UIO[Boolean] =
       ZIO.suspendSucceed {
-        if (shutdownFlag.get) ZIO.interrupt
-        else {
-          if (tryOffer(a)) Exit.`true`
-          else strategy.handleSurplus(Chunk.single(a), queue, takers, shutdownFlag)
+        shutdownState.get() match {
+          case state if state ne null => failShutdown(state)
+          case _ =>
+            if (tryOffer(a)) Exit.`true`
+            else strategy.handleSurplus(Chunk.single(a), queue, takers, shutdownFlag)
         }
       }
 
@@ -193,27 +215,28 @@ object Queue extends QueuePlatformSpecific {
 
     override def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
       ZIO.suspendSucceed {
-        if (shutdownFlag.get) ZIO.interrupt
-        else {
-          val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else Chunk.empty
-          val (forTakers, remaining) = as.splitAt(pTakers.size)
-          (pTakers zip forTakers).foreach { case (taker, item) =>
-            unsafeCompletePromise(taker, item)
-          }
+        shutdownState.get() match {
+          case state if state ne null => failShutdown(state)
+          case _ =>
+            val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else Chunk.empty
+            val (forTakers, remaining) = as.splitAt(pTakers.size)
+            (pTakers zip forTakers).foreach { case (taker, item) =>
+              unsafeCompletePromise(taker, item)
+            }
 
-          if (remaining.isEmpty) Exit.emptyChunk
-          else {
-            // not enough takers, offer to the queue
-            val surplus = unsafeOfferAll(queue, remaining)
+            if (remaining.isEmpty) Exit.emptyChunk
+            else {
+              // not enough takers, offer to the queue
+              val surplus = unsafeOfferAll(queue, remaining)
 
-            if (surplus.isEmpty) {
-              strategy.unsafeCompleteTakers(queue, takers)
-              Exit.emptyChunk
-            } else
-              strategy.handleSurplus(surplus, queue, takers, shutdownFlag).map { offered =>
-                if (offered) Chunk.empty else surplus
-              }
-          }
+              if (surplus.isEmpty) {
+                strategy.unsafeCompleteTakers(queue, takers)
+                Exit.emptyChunk
+              } else
+                strategy.handleSurplus(surplus, queue, takers, shutdownFlag).map { offered =>
+                  if (offered) Chunk.empty else surplus
+                }
+            }
         }
       }
 
@@ -221,16 +244,17 @@ object Queue extends QueuePlatformSpecific {
 
     override def size(implicit trace: Trace): UIO[Int] =
       ZIO.suspendSucceed {
-        if (shutdownFlag.get)
-          ZIO.interrupt
-        else
-          Exit.succeed(queue.size() - takers.size() + strategy.surplusSize)
+        shutdownState.get() match {
+          case state if state ne null => failShutdown(state)
+          case _                      => Exit.succeed(queue.size() - takers.size() + strategy.surplusSize)
+        }
       }
 
     override def shutdown(implicit trace: Trace): UIO[Unit] =
       ZIO.fiberIdWith { fiberId =>
-        if (shutdownFlag.compareAndSet(false, true)) {
+        if (shutdownState.compareAndSet(null, ShutdownState.Normal)) {
           implicit val unsafe: Unsafe = Unsafe
+          shutdownFlag.set(true)
           shutdownHook.unsafe.succeedUnit
           val it = unsafePollAll(takers).iterator
           while (it.hasNext) {
@@ -241,89 +265,119 @@ object Queue extends QueuePlatformSpecific {
         Exit.unit
       }.uninterruptible
 
-    override def isShutdown(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(shutdownFlag.get)
+    override def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Chunk[A]] =
+      ZIO.suspendSucceed {
+        val state = ShutdownState.WithCause(cause)
+        if (shutdownState.compareAndSet(null, state)) {
+          implicit val unsafe: Unsafe = Unsafe
+          strategy.prepareShutdownCause(cause)
+          shutdownFlag.set(true)
+          shutdownHook.unsafe.succeedUnit
+          val it = unsafePollAll(takers).iterator
+          while (it.hasNext) {
+            it.next().unsafe.refailCause(cause)
+          }
+          val buffered = unsafePollAll(queue)
+          Exit.succeed(buffered ++ strategy.shutdownCause(cause))
+        } else {
+          val state = shutdownState.get()
+          if (state eq null) shutdownCause(cause)
+          else failShutdown(state)
+        }
+      }.uninterruptible
+
+    override def isShutdown(implicit trace: Trace): UIO[Boolean] = ZIO.succeed(shutdownState.get() ne null)
 
     override def take(implicit trace: Trace): UIO[A] =
       ZIO.uninterruptibleMask { restore =>
         ZIO.fiberIdWith { fiberId =>
-          if (shutdownFlag.get) ZIO.interrupt
-          else {
-            queue.poll(null.asInstanceOf[A]) match {
-              case null =>
-                // add the promise to takers, then:
-                // - try take again in case a value was added since
-                // - wait for the promise to be completed
-                // - clean up resources in case of interruption
-                val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe)
+          shutdownState.get() match {
+            case state if state ne null => failShutdown(state)
+            case _ =>
+              queue.poll(null.asInstanceOf[A]) match {
+                case null =>
+                  // add the promise to takers, then:
+                  // - try take again in case a value was added since
+                  // - wait for the promise to be completed
+                  // - clean up resources in case of interruption
+                  val p = Promise.unsafe.make[Nothing, A](fiberId)(Unsafe)
 
-                takers.offer(p)
-                strategy.unsafeCompleteTakers(queue, takers)
-                restore(p.await).catchAllCause { c =>
-                  val removed = p.unsafe.completeWith(interruptAsNone)(Unsafe)
-                  takers.remove(p)
-                  if (removed) Exit.failCause(c)
-                  else {
-                    // The promise was already completed, so if we interrupt here we'll drop the item
-                    // This is not ideal but instead of interrupting we recover temporarily.
-                    // Interruption will resume at the next point where it's enabled
-                    p.await
+                  takers.offer(p)
+                  strategy.unsafeCompleteTakers(queue, takers)
+                  val await = restore(p.await).catchAllCause { c =>
+                    val removed = p.unsafe.completeWith(interruptAsNone)(Unsafe)
+                    takers.remove(p)
+                    if (removed) Exit.failCause(c)
+                    else {
+                      // The promise was already completed, so if we interrupt here we'll drop the item
+                      // This is not ideal but instead of interrupting we recover temporarily.
+                      // Interruption will resume at the next point where it's enabled
+                      p.await
+                    }
                   }
-                }
-              case item =>
-                strategy.unsafeOnQueueEmptySpace(queue, takers)
-                Exit.succeed(item)
-            }
+                  shutdownState.get() match {
+                    case state if state ne null =>
+                      val removed = p.unsafe.completeWith(interruptAsNone)(Unsafe)
+                      takers.remove(p)
+                      if (removed) failShutdown(state) else await
+                    case _ => await
+                  }
+                case item =>
+                  strategy.unsafeOnQueueEmptySpace(queue, takers)
+                  Exit.succeed(item)
+              }
           }
         }
       }
 
     override def takeAll(implicit trace: Trace): UIO[Chunk[A]] =
       ZIO.suspendSucceed {
-        if (shutdownFlag.get)
-          ZIO.interrupt
-        else {
-          val as = unsafePollAll(queue)
-          if (!as.isEmpty) {
-            strategy.unsafeOnQueueEmptySpace(queue, takers)
-            Exit.succeed(as)
-          } else {
-            Exit.emptyChunk
-          }
+        shutdownState.get() match {
+          case state if state ne null => failShutdown(state)
+          case _ =>
+            val as = unsafePollAll(queue)
+            if (!as.isEmpty) {
+              strategy.unsafeOnQueueEmptySpace(queue, takers)
+              Exit.succeed(as)
+            } else {
+              Exit.emptyChunk
+            }
         }
       }
 
     override def takeUpTo(max: Int)(implicit trace: Trace): UIO[Chunk[A]] =
       ZIO.suspendSucceed {
-        if (shutdownFlag.get)
-          ZIO.interrupt
-        else {
-          val as = unsafePollN(queue, max)
-          if (!as.isEmpty) {
-            strategy.unsafeOnQueueEmptySpace(queue, takers)
-            Exit.succeed(as)
-          } else {
-            Exit.emptyChunk
-          }
+        shutdownState.get() match {
+          case state if state ne null => failShutdown(state)
+          case _ =>
+            val as = unsafePollN(queue, max)
+            if (!as.isEmpty) {
+              strategy.unsafeOnQueueEmptySpace(queue, takers)
+              Exit.succeed(as)
+            } else {
+              Exit.emptyChunk
+            }
         }
       }
 
     override def poll(implicit trace: Trace): UIO[Option[A]] =
       ZIO.suspendSucceed {
-        if (shutdownFlag.get)
-          ZIO.interrupt
-        else {
-          queue.poll(null.asInstanceOf[A]) match {
-            case null => Exit.none
-            case v =>
-              strategy.unsafeOnQueueEmptySpace(queue, takers)
-              Exit.succeed(Some(v))
-          }
+        shutdownState.get() match {
+          case state if state ne null => failShutdown(state)
+          case _ =>
+            queue.poll(null.asInstanceOf[A]) match {
+              case null => Exit.none
+              case v =>
+                strategy.unsafeOnQueueEmptySpace(queue, takers)
+                Exit.succeed(Some(v))
+            }
         }
       }
   }
 
   private sealed abstract class Strategy[A] {
-    private[this] val draining = new AtomicBoolean(false)
+    private[this] val draining      = new AtomicBoolean(false)
+    private[this] val shutdownState = new AtomicReference[ShutdownState](null.asInstanceOf[ShutdownState])
 
     def handleSurplus(
       as: Iterable[A],
@@ -340,6 +394,18 @@ object Queue extends QueuePlatformSpecific {
     def surplusSize: Int
 
     def shutdown(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Unit
+
+    final def prepareShutdownCause(cause: Cause[Nothing]): Unit =
+      shutdownState.set(ShutdownState.WithCause(cause))
+
+    protected final def shutdownResult[A1](implicit trace: Trace): UIO[A1] =
+      shutdownState.get() match {
+        case state if state ne null => failShutdown(state)
+        case _                      => ZIO.interrupt
+      }
+
+    def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace, unsafe: Unsafe): Chunk[A] =
+      Chunk.empty
 
     @tailrec
     final def unsafeCompleteTakers(
@@ -410,7 +476,8 @@ object Queue extends QueuePlatformSpecific {
             unsafeOffer(as, p)
             unsafeOnQueueEmptySpace(queue, takers)
             unsafeCompleteTakers(queue, takers)
-            if (isShutdown.get) ZIO.interrupt else p.await
+            if (isShutdown.get) shutdownResult
+            else p.await
           }.onInterrupt(ZIO.succeed(unsafeRemove(p)))
         }
 
@@ -471,6 +538,18 @@ object Queue extends QueuePlatformSpecific {
           if (isLast) promise.unsafe.interruptAs(fiberId)
           next = putters.poll()
         }
+      }
+
+      override def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace, unsafe: Unsafe): Chunk[A] = {
+        val builder = ChunkBuilder.make[A](putters.size())
+        var next    = putters.poll()
+        while (next ne null) {
+          val (value, promise, isLast) = next
+          builder.addOne(value)
+          if (isLast) promise.unsafe.refailCause(cause)
+          next = putters.poll()
+        }
+        builder.result()
       }
     }
 

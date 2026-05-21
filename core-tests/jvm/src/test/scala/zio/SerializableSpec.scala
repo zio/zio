@@ -44,6 +44,17 @@ object SerializableSpec extends ZIOBaseSpec {
       } yield assert(v1)(equalTo(10)) &&
         assert(v2)(equalTo(20))
     },
+    test("Queue shutdownCause state is serializable") {
+      val cause = Cause.die(new RuntimeException("boom"))
+      for {
+        queue       <- Queue.bounded[Int](100)
+        _           <- queue.offer(10)
+        returnQueue <- serializeAndBack(queue)
+        buffered    <- returnQueue.shutdownCause(cause)
+        result      <- returnQueue.offer(20).sandbox.either
+      } yield assert(buffered)(equalTo(Chunk(10))) &&
+        assert(result.left.map(_.untraced))(isLeft(equalTo(cause.untraced)))
+    },
     test("Hub is serializable") {
       for {
         hub                     <- Hub.bounded[Int](100)

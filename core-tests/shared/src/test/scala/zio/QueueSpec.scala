@@ -516,6 +516,58 @@ object QueueSpec extends ZIOBaseSpec {
         res    <- queue.size.sandbox.either
       } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
     },
+    test("shutdownCause returns buffered values and fails future operations with the cause") {
+      val cause = Cause.die(new RuntimeException("boom"))
+      for {
+        queue    <- Queue.bounded[Int](3)
+        _        <- queue.offerAll(List(1, 2))
+        buffered <- queue.shutdownCause(cause)
+        offer    <- queue.offer(3).sandbox.either
+        take     <- queue.take.sandbox.either
+        takeAll  <- queue.takeAll.sandbox.either
+        size     <- queue.size.sandbox.either
+      } yield assert(buffered)(equalTo(Chunk(1, 2))) &&
+        assert(offer.left.map(_.untraced))(isLeft(equalTo(cause.untraced))) &&
+        assert(take.left.map(_.untraced))(isLeft(equalTo(cause.untraced))) &&
+        assert(takeAll.left.map(_.untraced))(isLeft(equalTo(cause.untraced))) &&
+        assert(size.left.map(_.untraced))(isLeft(equalTo(cause.untraced)))
+    },
+    test("shutdownCause fails a suspended taker with the cause") {
+      val cause = Cause.die(new RuntimeException("boom"))
+      for {
+        queue    <- Queue.bounded[Int](1)
+        fiber    <- queue.take.fork
+        _        <- waitForSize(queue, -1)
+        buffered <- queue.shutdownCause(cause)
+        result   <- fiber.join.sandbox.either
+      } yield assert(buffered)(isEmpty) &&
+        assert(result.left.map(_.untraced))(isLeft(equalTo(cause.untraced)))
+    },
+    test("shutdownCause returns back-pressured values and fails suspended offerers with the cause") {
+      val cause = Cause.die(new RuntimeException("boom"))
+      for {
+        queue    <- Queue.bounded[Int](1)
+        _        <- queue.offer(1)
+        fiber    <- queue.offer(2).fork
+        _        <- waitForSize(queue, 2)
+        buffered <- queue.shutdownCause(cause)
+        result   <- fiber.join.sandbox.either
+      } yield assert(buffered)(equalTo(Chunk(1, 2))) &&
+        assert(result.left.map(_.untraced))(isLeft(equalTo(cause.untraced)))
+    },
+    test("shutdownCause is first caller wins") {
+      val cause1 = Cause.die(new RuntimeException("boom1"))
+      val cause2 = Cause.die(new RuntimeException("boom2"))
+      for {
+        queue    <- Queue.bounded[Int](1)
+        _        <- queue.offer(1)
+        buffered <- queue.shutdownCause(cause1)
+        second   <- queue.shutdownCause(cause2).sandbox.either
+        offer    <- queue.offer(2).sandbox.either
+      } yield assert(buffered)(equalTo(Chunk(1))) &&
+        assert(second.left.map(_.untraced))(isLeft(equalTo(cause1.untraced))) &&
+        assert(offer.left.map(_.untraced))(isLeft(equalTo(cause1.untraced)))
+    },
     test("back-pressured offer completes after take") {
       for {
         queue <- Queue.bounded[Int](2)
