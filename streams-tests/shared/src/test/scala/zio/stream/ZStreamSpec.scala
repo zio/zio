@@ -607,6 +607,32 @@ object ZStreamSpec extends ZIOBaseSpec {
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
+          },
+          test("does not evaluate more than capacity elements ahead") {
+            for {
+              secondStarted <- Promise.make[Nothing, Unit]
+              thirdStarted  <- Promise.make[Nothing, Unit]
+              result <- ZIO.scoped {
+                          val stream =
+                            ZStream
+                              .fromIterable(1 to 3)
+                              .mapZIO { n =>
+                                ZIO.when(n == 2)(secondStarted.succeedUnit) *>
+                                  ZIO.when(n == 3)(thirdStarted.succeedUnit) *>
+                                  ZIO.succeed(n)
+                              }
+                              .buffer(1)
+
+                          stream.toPull.flatMap { pull =>
+                            for {
+                              first <- pull
+                              _     <- secondStarted.await
+                              _     <- ZIO.yieldNow.repeatN(10)
+                              third <- thirdStarted.poll
+                            } yield assert(first)(equalTo(Chunk.single(1))) && assert(third)(isNone)
+                          }
+                        }
+            } yield result
           }
         ),
         suite("bufferChunks")(

@@ -391,10 +391,40 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   Prefer capacities that are powers of 2 for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val queue = self.toQueueOfElements(capacity)
+    def producer(
+      queue: Queue[Exit[Option[E], A]],
+      permits: Queue[Unit]
+    ): ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] = {
+      lazy val loop: ZChannel[R, E, Chunk[A], Any, Nothing, Nothing, Any] =
+        ZChannel.fromZIO(permits.take) *>
+          ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Nothing, Any](
+            in =>
+              if (in.isEmpty)
+                ZChannel.fromZIO(permits.offer(()).unit) *> loop
+              else
+                ZChannel.fromZIO(queue.offerAll(in.map(Exit.succeed(_))).unit) *> loop,
+            err =>
+              ZChannel.fromZIO {
+                permits.offer(()) *> queue.offer(Exit.failCause(err.map(Some(_)))).unit
+              },
+            _ =>
+              ZChannel.fromZIO {
+                permits.offer(()) *> queue.offer(Exit.fail(None)).unit
+              }
+          )
+
+      loop
+    }
+
     new ZStream(
       ZChannel.unwrapScoped[R] {
-        queue.map { queue =>
+        for {
+          requestedCapacity <- ZIO.succeed(capacity)
+          queue             <- ZIO.acquireRelease(Queue.bounded[Exit[Option[E], A]](requestedCapacity))(_.shutdown)
+          permits           <- ZIO.acquireRelease(Queue.bounded[Unit](requestedCapacity))(_.shutdown)
+          _                 <- permits.offerAll(Chunk.fill(requestedCapacity)(())).unit
+          _                 <- (self.rechunk(1).channel >>> producer(queue, permits)).runScoped.forkScoped
+        } yield {
           lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
             ZChannel.fromZIO {
               queue.take
@@ -403,7 +433,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                 Cause
                   .flipCauseOption(_)
                   .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
-                value => ZChannel.write(Chunk.single(value)) *> process
+                value => ZChannel.fromZIO(permits.offer(()).unit) *> ZChannel.write(Chunk.single(value)) *> process
               )
             }
 
