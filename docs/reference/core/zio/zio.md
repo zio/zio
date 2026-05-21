@@ -951,6 +951,73 @@ object Main extends ZIOAppDefault {
 
 ```
 
+## Caching and Memoization
+
+Memoization caches the result of an effect or function computation, preventing redundant calculations when the same input is requested multiple times. ZIO provides two memoization strategies: `ZIO#memoize` for effects and `ZIO.memoize` for functions.
+
+### Memoizing Effects
+
+Use `ZIO#memoize` to cache the result of an effect. This is useful when the same computation is expensive and may be executed multiple times:
+
+To memoize an effect, call `memoize` on it:
+
+```scala mdoc:compile-only
+import zio._
+
+val expensiveComputation: ZIO[Any, Nothing, Int] = ZIO.succeed(42)
+
+val memoized: ZIO[Any, Nothing, ZIO[Any, Nothing, Int]] =
+  expensiveComputation.memoize
+```
+
+The memoized effect produces a cached effect that runs the original computation only once. Subsequent calls return the cached result:
+
+```scala mdoc:compile-only
+import zio._
+
+def computeValue: ZIO[Any, Nothing, Int] = {
+  ZIO.succeed {
+    println("Computing...")
+    42
+  }
+}
+
+object Example extends ZIOAppDefault {
+  def run =
+    for {
+      memoized <- computeValue.memoize
+      _        <- memoized  // prints "Computing..."
+      _        <- memoized  // returns cached result, no print
+      _        <- memoized  // returns cached result, no print
+    } yield ()
+}
+```
+
+### Memoizing Functions
+
+Use `ZIO.memoize` to create a memoized version of a function that returns a `ZIO` effect. This caches results based on input arguments:
+
+To memoize a function, use the `ZIO.memoize` constructor:
+
+```scala mdoc:compile-only
+import zio._
+
+val expensiveLookup: String => ZIO[Any, Nothing, Int] = key => ZIO.succeed(key.length)
+
+for {
+  memoized <- ZIO.memoize(expensiveLookup)
+  result1  <- memoized("hello")   // computes and caches
+  result2  <- memoized("hello")   // returns cached result
+  result3  <- memoized("world")   // different input, computes anew
+} yield (result1, result2, result3)
+```
+
+### Safe Interruption Handling
+
+:::info
+When a fiber computing a memoized value is interrupted, the computation is discarded and will be recomputed on the next request. Other fibers waiting for the same result continue waiting safely and do not receive the interruption.
+:::
+
 ## ZIO Aspect
 
 There are two types of concerns in an application, _core concerns_, and _cross-cutting concerns_. Cross-cutting concerns are shared among different parts of our application. We usually find them scattered and duplicated across our application, or they are tangled up with our primary concerns. This reduces the level of modularity of our programs.
