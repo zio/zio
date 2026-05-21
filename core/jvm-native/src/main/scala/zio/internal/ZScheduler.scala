@@ -206,6 +206,27 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     }
   }
 
+  private[this] def pollGlobalAndBatch(worker: ZScheduler.Worker, random: ThreadLocalRandom): Runnable = {
+    val runnable = globalQueue.poll(random)
+
+    if (runnable ne null) {
+      var i    = 0
+      var loop = true
+      while (i < 16 && loop) {
+        val next = globalQueue.poll(random)
+        if (next eq null) {
+          loop = false
+        } else if (!worker.localQueue.offer(next)) {
+          globalQueue.offer(next, random)
+          loop = false
+        }
+        i += 1
+      }
+    }
+
+    runnable
+  }
+
   private[this] def isBlocking(worker: ZScheduler.Worker, runnable: Runnable): Boolean =
     if (autoBlocking && runnable.isInstanceOf[FiberRunnable]) {
       val fiberRunnable = runnable.asInstanceOf[FiberRunnable]
@@ -307,14 +328,14 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             nextRunnable = null
           } else {
             if ((currentOpCount & 63) == 0) {
-              runnable = globalQueue.poll(random)
+              runnable = pollGlobalAndBatch(self, random)
               if (runnable eq null) {
                 runnable = localQueue.poll(null)
               }
             } else {
               runnable = localQueue.poll(null)
               if (runnable eq null) {
-                runnable = globalQueue.poll(random)
+                runnable = pollGlobalAndBatch(self, random)
               }
             }
             if (runnable eq null) {
@@ -356,7 +377,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                   i += 1
                 }
                 if (runnable eq null) {
-                  runnable = globalQueue.poll(random)
+                  runnable = pollGlobalAndBatch(self, random)
                 }
               }
             }

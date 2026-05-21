@@ -7,7 +7,8 @@ import org.openjdk.jmh.annotations.{Scope => JScope, _}
 import zio._
 import zio.BenchmarkUtil._
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.{AtomicInteger, AtomicReference}
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
@@ -43,6 +44,12 @@ class ZSchedulerBenchmarks {
   val fixedThreadPool: zio.Executor = fixedThreadPoolExecutor()
   val zScheduler: zio.Executor      = zio.Executor.makeDefault()
 
+  @Param(Array("8192"))
+  var externalSubmitTasks: Int = _
+
+  @Param(Array("8", "32"))
+  var externalSubmitters: Int = _
+
   @Benchmark
   def catsRuntimeChainedFork(): Int =
     catsChainedFork(catsRuntime)
@@ -76,6 +83,10 @@ class ZSchedulerBenchmarks {
     zioYieldMany(fixedThreadPool)
 
   @Benchmark
+  def zioFixedThreadPoolExternalSubmitBurst(): Int =
+    externalSubmitBurst(fixedThreadPool)
+
+  @Benchmark
   def zioSchedulerChainedFork(): Int =
     zioChainedFork(zScheduler)
 
@@ -90,6 +101,10 @@ class ZSchedulerBenchmarks {
   @Benchmark
   def zioSchedulerYieldMany(): Int =
     zioYieldMany(zScheduler)
+
+  @Benchmark
+  def zioSchedulerExternalSubmitBurst(): Int =
+    externalSubmitBurst(zScheduler)
 
   def catsChainedFork(runtime: IORuntime): Int = {
 
@@ -215,5 +230,65 @@ class ZSchedulerBenchmarks {
     } yield 0
 
     unsafeRun(io.onExecutor(executor))
+  }
+
+  def externalSubmitBurst(executor: zio.Executor): Int = {
+    val ready     = new CountDownLatch(externalSubmitters)
+    val start     = new CountDownLatch(1)
+    val done      = new CountDownLatch(externalSubmitTasks)
+    val submitted = new AtomicInteger(0)
+    val failure   = new AtomicReference[Throwable](null)
+
+    val producers = new Array[Thread](externalSubmitters)
+
+    var i = 0
+    while (i < externalSubmitters) {
+      val thread = new Thread(
+        new Runnable {
+          def run(): Unit =
+            try {
+              ready.countDown()
+              start.await()
+
+              var loop = true
+              while (loop) {
+                val n = submitted.getAndIncrement()
+                if (n >= externalSubmitTasks) loop = false
+                else {
+                  val runnable = new Runnable {
+                    def run(): Unit =
+                      done.countDown()
+                  }
+                  Unsafe.unsafe { implicit unsafe =>
+                    if (!executor.submit(runnable)) {
+                      failure.compareAndSet(null, new RuntimeException("executor rejected benchmark task"))
+                    }
+                  }
+                }
+              }
+            } catch {
+              case t: Throwable => failure.compareAndSet(null, t)
+            }
+        },
+        s"zio-external-submit-benchmark-$i"
+      )
+      thread.setDaemon(true)
+      producers(i) = thread
+      i += 1
+    }
+
+    producers.foreach(_.start())
+    ready.await()
+    start.countDown()
+    producers.foreach(_.join())
+
+    val error = failure.get()
+    if (error ne null) throw error
+
+    if (!done.await(30, TimeUnit.SECONDS)) {
+      throw new RuntimeException(s"timed out waiting for ${done.getCount()} externally submitted tasks")
+    }
+
+    externalSubmitTasks
   }
 }
