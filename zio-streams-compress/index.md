@@ -13,17 +13,19 @@ archive formats with [ZIO Streams](https://zio.dev).
 In order to use this library, we need to add one of the following line in our `build.sbt` file:
 
 ```sbt
-libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli4j" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-bzip2" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-gzip" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-lz4" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-snappy" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-tar" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zip" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zip4j" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zstd" % "1.1.3"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli4j" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-bzip2" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-gzip" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-lz4" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-snappy" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-tar" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zip" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zip4j" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zstd" % "2.1.1"
 ```
+
+_As of 2.2.0, zio-streams-compress requires zio 2.1.25 or later._
 
 For Brotli you can choose between the 'brotli' and the 'brotli4j' version. The first is based on the official Java
 library but only does decompression. The second is based on [Brotli4J](https://github.com/hyperxpro/Brotli4j) which does
@@ -39,9 +41,9 @@ Currently only jvm is supported. PRs for scala-js and scala-native are welcome.
 ```scala
 // Example.sc
 // Run with: scala-cli Example.sc
-//> using dep dev.zio:zio-streams-compress-gzip:1.1.3
-//> using dep dev.zio:zio-streams-compress-tar:1.1.3
-//> using dep dev.zio:zio-streams-compress-zip4j:1.1.3
+//> using dep dev.zio:zio-streams-compress-gzip:2.1.1
+//> using dep dev.zio:zio-streams-compress-tar:2.1.1
+//> using dep dev.zio:zio-streams-compress-zip4j:2.1.1
 
 object ExampleApp extends ZIOAppDefault {
   override def run: ZIO[Any, Any, Any] =
@@ -80,8 +82,41 @@ object ExampleApp extends ZIOAppDefault {
 }
 ```
 
-## Running the tests
+## Unarchiving
 
-```shell
-SBT_OPTS="-Xmx4G -XX:+UseG1GC" sbt test
+As of zio-streams-compress 2.0, all unarchivers require the consumer to fully read the entry's contents before the next
+archive entry is emitted.
+
+⚠️ Not reading the entry's content, causes the unarchive pipeline to lock up and halt your program.
+
+In zio-streams-compress 1.x, consuming the next archive entry, even by accident for example by using buffering or
+rechunking, corrupts the content stream of all archive entries. With the new requirement the unarchiver can continue to
+operate in a streaming fashion without corrupting content.
+
+Most of the time the new requirement should not be an issue. For example, you can concatenate 'unarchive' and 'archive'
+pipelines without problems.
+
+Here are two cases where the requirement can be issue:
+
+1. You are only interested in the metadata of the archive entries. In this case you can use the unarchiver's `list`
+   method which drains the entry's contents behind the scenes.
+
+2. Buffering, aggregation or rechunking is needed to improve throughput.
+   In this case you can first slurp the content in memory, and then do the buffering/aggregation/rechunking.
+   As the whole entry will be pulled into memory, checking the size is prudent. Be aware that the reported size might
+   not be available, or may even be maliciously incorrect! Here is an example that loads at most `maxEntrySize` bytes
+   per entry:
+
+```scala
+ZStream
+  .fromFileName("file.zip")
+  .via(ZipUnarchiver.unarchive)
+  .mapZIO { case (archiveEntry, contentStream) =>
+    if (entry.uncompressedSize.exists(_ > maxEntrySize)) ZIO.fail("archive entry too large")
+    else contentStream.take(maxEntrySize + 1).runCollect.flatMap { content =>
+      if (content.size > maxEntrySize) ZIO.fail("archive entry too large")
+      else ZIO.succss((archiveEntry, content))
+    }
+  }
+  .rechunk(10) // here it is safe to rechunk
 ```

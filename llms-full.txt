@@ -643,7 +643,7 @@ val finalized: IO[String, Unit] =
 // finalized: IO[String, Unit] = DynamicNoBox(
 //   trace = "repl.MdocSession.MdocApp.finalized(handling-resources.md:19)",
 //   update = 1L,
-//   f = zio.ZIO$$$Lambda$19541/0x00007ff726ea0f68@176d4d93
+//   f = zio.ZIO$$$Lambda$19535/0x00007f40fef38f68@24814ac3
 // )
 ```
 
@@ -2336,12 +2336,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$19924/0x00007ff726f77c68@23b571e8
+//   eval = zio.Ref$$$Lambda$19918/0x00007f40ff00df40@53b18544
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$19924/0x00007ff726f77c68@70df66d2
+//   eval = zio.Ref$$$Lambda$19918/0x00007f40ff00df40@42c875ee
 // )
 
 sealed trait State
@@ -2352,7 +2352,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$19924/0x00007ff726f77c68@80c7c1d
+//   eval = zio.Ref$$$Lambda$19918/0x00007f40ff00df40@419e65bc
 // )
 ```
 
@@ -2369,7 +2369,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$19924/0x00007ff726f77c68@70f5ac2b
+//   eval = zio.Ref$$$Lambda$19918/0x00007f40ff00df40@e48cd58
 // )
 ```
 
@@ -2381,7 +2381,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$19924/0x00007ff726f77c68@1ca83441
+//   eval = zio.Ref$$$Lambda$19918/0x00007f40ff00df40@51bc8083
 // )
 ```
 
@@ -14176,7 +14176,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20105/0x00007ff727026470@60c5f242
+//   eval = zio.Supervisor$$$Lambda$20099/0x00007f40ff0c5120@7d84a757
 // )
 ```
 
@@ -14508,7 +14508,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$20074/0x00007ff726ffacf8@7840464f
+//     f = zio.ZIO$$$Lambda$20068/0x00007f40ff08e928@3cd9b75d
 //   ),
 //   successK = <function1>
 // )
@@ -21978,14 +21978,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@eb0fcd8
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@23a6cf32
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@207e4dea
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@6529b0ad
 ```
 
 ## From ZIO
@@ -28384,9 +28384,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$19512/0x00007ff726e8c870@75797c8c
+//             onState = zio.ZIO$$$Lambda$19506/0x00007f40fef24870@6f4ed194
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$19521/0x00007ff726e93118@307bec47
+//           successK = zio.test.package$ZTest$$$Lambda$19515/0x00007f40fef2b118@2a4c4219
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -29976,7 +29976,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+16-814a83e0-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+17-cadee956-SNAPSHOT"
 ```
 
 ## Example
@@ -115501,17 +115501,19 @@ archive formats with [ZIO Streams](https://zio.dev).
 In order to use this library, we need to add one of the following line in our `build.sbt` file:
 
 ```sbt
-libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli4j" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-bzip2" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-gzip" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-lz4" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-snappy" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-tar" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zip" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zip4j" % "1.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zstd" % "1.1.3"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli4j" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-bzip2" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-gzip" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-lz4" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-snappy" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-tar" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zip" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zip4j" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zstd" % "2.1.1"
 ```
+
+_As of 2.2.0, zio-streams-compress requires zio 2.1.25 or later._
 
 For Brotli you can choose between the 'brotli' and the 'brotli4j' version. The first is based on the official Java
 library but only does decompression. The second is based on [Brotli4J](https://github.com/hyperxpro/Brotli4j) which does
@@ -115527,9 +115529,9 @@ Currently only jvm is supported. PRs for scala-js and scala-native are welcome.
 ```scala
 // Example.sc
 // Run with: scala-cli Example.sc
-//> using dep dev.zio:zio-streams-compress-gzip:1.1.3
-//> using dep dev.zio:zio-streams-compress-tar:1.1.3
-//> using dep dev.zio:zio-streams-compress-zip4j:1.1.3
+//> using dep dev.zio:zio-streams-compress-gzip:2.1.1
+//> using dep dev.zio:zio-streams-compress-tar:2.1.1
+//> using dep dev.zio:zio-streams-compress-zip4j:2.1.1
 
 object ExampleApp extends ZIOAppDefault {
   override def run: ZIO[Any, Any, Any] =
@@ -115568,10 +115570,43 @@ object ExampleApp extends ZIOAppDefault {
 }
 ```
 
-## Running the tests
+## Unarchiving
 
-```shell
-SBT_OPTS="-Xmx4G -XX:+UseG1GC" sbt test
+As of zio-streams-compress 2.0, all unarchivers require the consumer to fully read the entry's contents before the next
+archive entry is emitted.
+
+⚠️ Not reading the entry's content, causes the unarchive pipeline to lock up and halt your program.
+
+In zio-streams-compress 1.x, consuming the next archive entry, even by accident for example by using buffering or
+rechunking, corrupts the content stream of all archive entries. With the new requirement the unarchiver can continue to
+operate in a streaming fashion without corrupting content.
+
+Most of the time the new requirement should not be an issue. For example, you can concatenate 'unarchive' and 'archive'
+pipelines without problems.
+
+Here are two cases where the requirement can be issue:
+
+1. You are only interested in the metadata of the archive entries. In this case you can use the unarchiver's `list`
+   method which drains the entry's contents behind the scenes.
+
+2. Buffering, aggregation or rechunking is needed to improve throughput.
+   In this case you can first slurp the content in memory, and then do the buffering/aggregation/rechunking.
+   As the whole entry will be pulled into memory, checking the size is prudent. Be aware that the reported size might
+   not be available, or may even be maliciously incorrect! Here is an example that loads at most `maxEntrySize` bytes
+   per entry:
+
+```scala
+ZStream
+  .fromFileName("file.zip")
+  .via(ZipUnarchiver.unarchive)
+  .mapZIO { case (archiveEntry, contentStream) =>
+    if (entry.uncompressedSize.exists(_ > maxEntrySize)) ZIO.fail("archive entry too large")
+    else contentStream.take(maxEntrySize + 1).runCollect.flatMap { content =>
+      if (content.size > maxEntrySize) ZIO.fail("archive entry too large")
+      else ZIO.succss((archiveEntry, content))
+    }
+  }
+  .rechunk(10) // here it is safe to rechunk
 ```
 
 ---
