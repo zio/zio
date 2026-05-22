@@ -516,6 +516,54 @@ object QueueSpec extends ZIOBaseSpec {
         res    <- queue.size.sandbox.either
       } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
     },
+    test("shutdownCause returns queued items and fails future interactions with cause") {
+      val boom  = new RuntimeException("boom")
+      val cause = Cause.die(boom)
+
+      for {
+        queue   <- Queue.bounded[Int](3)
+        _       <- queue.offerAll(List(1, 2))
+        drained <- queue.shutdownCause(cause)
+        offer   <- queue.offer(3).sandbox.either
+        take    <- queue.take.sandbox.either
+        size    <- queue.size.sandbox.either
+      } yield assert(drained)(equalTo(Chunk(1, 2))) &&
+        assert(offer)(isLeft(equalTo(cause))) &&
+        assert(take)(isLeft(equalTo(cause))) &&
+        assert(size)(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause fails blocked takers and back-pressured offerers with cause") {
+      val boom  = new RuntimeException("boom")
+      val cause = Cause.die(boom)
+
+      for {
+        takeQueue <- Queue.bounded[Int](1)
+        taker     <- takeQueue.take.fork
+        _         <- waitForSize(takeQueue, -1)
+        _         <- takeQueue.shutdownCause(cause)
+        take      <- taker.join.sandbox.either
+
+        offerQueue <- Queue.bounded[Int](1)
+        _          <- offerQueue.offer(1)
+        putter     <- offerQueue.offer(2).fork
+        _          <- waitForSize(offerQueue, 2)
+        _          <- offerQueue.shutdownCause(cause)
+        offer      <- putter.join.sandbox.either
+      } yield assert(take)(isLeft(equalTo(cause))) &&
+        assert(offer)(isLeft(equalTo(cause)))
+    },
+    test("shutdownCause is atomic") {
+      val winner = Cause.die(new RuntimeException("winner"))
+      val loser  = Cause.die(new RuntimeException("loser"))
+
+      for {
+        queue    <- Queue.bounded[Int](1)
+        _        <- queue.shutdownCause(winner)
+        shutdown <- queue.shutdownCause(loser).sandbox.either
+        take     <- queue.take.sandbox.either
+      } yield assert(shutdown)(isLeft(equalTo(winner))) &&
+        assert(take)(isLeft(equalTo(winner)))
+    },
     test("back-pressured offer completes after take") {
       for {
         queue <- Queue.bounded[Int](2)
