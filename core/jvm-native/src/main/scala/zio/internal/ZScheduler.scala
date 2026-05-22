@@ -445,14 +445,27 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     }
 
   private def maybeUnparkWorker(currentState: Int): Unit = {
-    val currentSearching = currentState & 0xffff
-    val currentActive    = (currentState & 0xffff0000) >> 16
-    if (currentActive != poolSize && currentSearching == 0) {
-      val worker = idle.poll()
-      if (worker ne null) {
-        state.getAndAdd(0x10001)
-        worker.active = true
-        LockSupport.unpark(worker)
+    var stateSnapshot = currentState
+    var loop          = true
+    while (loop) {
+      val currentSearching = stateSnapshot & 0xffff
+      val currentActive    = (stateSnapshot & 0xffff0000) >> 16
+      if (currentActive != poolSize && currentSearching == 0) {
+        val worker = idle.poll()
+        if (worker ne null) {
+          if (state.compareAndSet(stateSnapshot, stateSnapshot + 0x10001)) {
+            worker.active = true
+            LockSupport.unpark(worker)
+            loop = false
+          } else {
+            idle.offer(worker)
+            stateSnapshot = state.get
+          }
+        } else {
+          loop = false
+        }
+      } else {
+        loop = false
       }
     }
   }
