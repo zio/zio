@@ -391,10 +391,14 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
    *   Prefer capacities that are powers of 2 for better performance.
    */
   def buffer(capacity: => Int)(implicit trace: Trace): ZStream[R, E, A] = {
-    val queue = self.toQueueOfElements(capacity)
     new ZStream(
       ZChannel.unwrapScoped[R] {
-        queue.map { queue =>
+        for {
+          capacity <- ZIO.succeed(capacity)
+          queue    <- ZIO.acquireRelease(Queue.bounded[Exit[Option[E], A]](capacity))(_.shutdown)
+          permits  <- Semaphore.make(capacity.toLong)
+          _        <- self.runIntoQueueElementsScoped(queue, permits).forkScoped
+        } yield {
           lazy val process: ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit] =
             ZChannel.fromZIO {
               queue.take
@@ -403,7 +407,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                 Cause
                   .flipCauseOption(_)
                   .fold[ZChannel[Any, Any, Any, Any, E, Chunk[A], Unit]](ZChannel.unit)(ZChannel.refailCause),
-                value => ZChannel.write(Chunk.single(value)) *> process
+                value => ZChannel.fromZIO(permits.release) *> ZChannel.write(Chunk.single(value)) *> process
               )
             }
 
@@ -2976,6 +2980,23 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       )
 
     (self.channel >>> writer).drain.runScoped.unit
+  }
+
+  private def runIntoQueueElementsScoped(
+    queue: => Enqueue[Exit[Option[E], A]],
+    permits: => Semaphore
+  )(implicit trace: Trace): ZIO[R with Scope, Nothing, Unit] = {
+    lazy val writer: ZChannel[R, E, Chunk[A], Any, Nothing, Exit[Option[E], A], Any] =
+      ZChannel.fromZIO(permits.acquire) *>
+        ZChannel.readWithCause[R, E, Chunk[A], Any, Nothing, Exit[Option[E], A], Any](
+          in =>
+            if (in.isEmpty) ZChannel.fromZIO(permits.release) *> writer
+            else ZChannel.fromZIO(queue.offer(Exit.succeed(in(0)))) *> writer,
+          err => ZChannel.fromZIO(queue.offer(Exit.failCause(err.map(Some(_))))),
+          _ => ZChannel.fromZIO(queue.offer(Exit.fail(None)))
+        )
+
+    (self.rechunk(1).channel >>> writer).drain.runScoped.unit
   }
 
   /**
