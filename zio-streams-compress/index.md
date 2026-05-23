@@ -13,16 +13,16 @@ archive formats with [ZIO Streams](https://zio.dev).
 In order to use this library, we need to add one of the following line in our `build.sbt` file:
 
 ```sbt
-libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli" % "2.1.1"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli4j" % "2.1.1"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-bzip2" % "2.1.1"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-gzip" % "2.1.1"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-lz4" % "2.1.1"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-snappy" % "2.1.1"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-tar" % "2.1.1"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zip" % "2.1.1"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zip4j" % "2.1.1"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zstd" % "2.1.1"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli" % "2.1.3"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli4j" % "2.1.3"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-bzip2" % "2.1.3"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-gzip" % "2.1.3"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-lz4" % "2.1.3"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-snappy" % "2.1.3"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-tar" % "2.1.3"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zip" % "2.1.3"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zip4j" % "2.1.3"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zstd" % "2.1.3"
 ```
 
 _As of 2.2.0, zio-streams-compress requires zio 2.1.25 or later._
@@ -41,9 +41,9 @@ Currently only jvm is supported. PRs for scala-js and scala-native are welcome.
 ```scala
 // Example.sc
 // Run with: scala-cli Example.sc
-//> using dep dev.zio:zio-streams-compress-gzip:2.1.1
-//> using dep dev.zio:zio-streams-compress-tar:2.1.1
-//> using dep dev.zio:zio-streams-compress-zip4j:2.1.1
+//> using dep dev.zio:zio-streams-compress-gzip:2.1.3
+//> using dep dev.zio:zio-streams-compress-tar:2.1.3
+//> using dep dev.zio:zio-streams-compress-zip4j:2.1.3
 
 object ExampleApp extends ZIOAppDefault {
   override def run: ZIO[Any, Any, Any] =
