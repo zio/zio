@@ -953,11 +953,11 @@ object Main extends ZIOAppDefault {
 
 ## Caching and Memoization
 
-Memoization caches the result of an effect or function computation, preventing redundant calculations when the same input is requested multiple times. ZIO provides two memoization strategies: `ZIO#memoize` for effects and `ZIO.memoize` for functions.
+Memoization caches the result of an effect or function computation, preventing redundant calculations when the same input is requested multiple times. This section covers indefinite memoization with `ZIO#memoize` and `ZIO.memoize`. For time-limited caching, see the "Time-Limited Caching" subsection below.
 
 ### Memoizing Effects
 
-To memoize an effect and cache its result (useful when the same expensive computation may be executed multiple times), call `memoize` on it:
+To memoize an effect and cache its result—useful when the same expensive computation may be executed multiple times—call `memoize` on it:
 
 ```scala mdoc:compile-only
 import zio._
@@ -992,7 +992,7 @@ object Example extends ZIOAppDefault {
 ```
 
 :::info
-When a fiber computing a memoized value is interrupted, the computation is discarded and will be recomputed on the next request. Other fibers waiting for the same result continue waiting safely and do not receive the interruption.
+When a fiber computing a memoized value is interrupted, the result is discarded and awaiting fibers transparently retry the computation. This ensures that interruption of one fiber does not propagate to others waiting for the same memoized result.
 :::
 
 ### Memoizing Functions
@@ -1097,7 +1097,7 @@ for {
 ```
 
 :::note
-The cache uses a `Ref.Synchronized` internally to manage state safely. When multiple fibers call the cached effect concurrently, the first one triggers computation while others wait for the result via a `Promise`. This ensures thread-safe, efficient concurrent caching.
+The cache uses a `Ref.Synchronized` internally to manage state safely, ensuring that only one computation runs at a time even when multiple fibers call the cached effect concurrently. This guarantees thread-safe, consistent behavior.
 :::
 
 ## ZIO Aspect
