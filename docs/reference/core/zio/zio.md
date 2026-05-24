@@ -951,6 +951,155 @@ object Main extends ZIOAppDefault {
 
 ```
 
+## Caching and Memoization
+
+Memoization caches the result of an effect or function computation, preventing redundant calculations when the same input is requested multiple times. This section covers indefinite memoization with `ZIO#memoize` and `ZIO.memoize`. For time-limited caching, see the "Time-Limited Caching" subsection below.
+
+### Memoizing Effects
+
+To memoize an effect and cache its result—useful when the same expensive computation may be executed multiple times—call `memoize` on it:
+
+```scala mdoc:compile-only
+import zio._
+
+val expensiveComputation: ZIO[Any, Nothing, Int] = ZIO.succeed(42)
+
+val memoized: ZIO[Any, Nothing, ZIO[Any, Nothing, Int]] =
+  expensiveComputation.memoize
+```
+
+The memoized effect produces a cached effect that runs the original computation only once. Subsequent calls return the cached result:
+
+```scala mdoc:compile-only
+import zio._
+
+def computeValue: ZIO[Any, Nothing, Int] = {
+  ZIO.succeed {
+    println("Computing...")
+    42
+  }
+}
+
+object Example extends ZIOAppDefault {
+  def run =
+    for {
+      memoized <- computeValue.memoize
+      _        <- memoized  // prints "Computing..."
+      _        <- memoized  // returns cached result, no print
+      _        <- memoized  // returns cached result, no print
+    } yield ()
+}
+```
+
+:::info
+When a fiber computing a memoized value is interrupted, the result is discarded and awaiting fibers transparently retry the computation. This ensures that interruption of one fiber does not propagate to others waiting for the same memoized result.
+:::
+
+### Memoizing Functions
+
+To create a memoized version of a function that returns a `ZIO` effect, use the `ZIO.memoize` constructor, which caches results based on input arguments:
+
+```scala mdoc:compile-only
+import zio._
+
+val expensiveLookup: String => ZIO[Any, Nothing, Int] = key => ZIO.succeed(key.length)
+
+for {
+  memoized <- ZIO.memoize(expensiveLookup)
+  result1  <- memoized("hello")   // computes and caches
+  result2  <- memoized("hello")   // returns cached result
+  result3  <- memoized("world")   // different input, computes anew
+} yield (result1, result2, result3)
+```
+
+### Time-Limited Caching
+
+Use `ZIO#cached` to cache the result of an effect with an automatic expiration time. This is useful when results have a limited lifetime and should be refreshed periodically. The cache is thread-safe and supports concurrent access from multiple fibers.
+
+Note: `IO[E, A]` used in this section is a type alias for `ZIO[Any, E, A]`, representing an effect that has no environment requirements.
+
+#### Basic Caching with `cached`
+
+Call `cached` with a time-to-live duration to create a cached version of an effect. The `cached` method returns an effect that produces an `IO` (which is a type alias for `ZIO[Any, E, A]`). When you execute the returned `IO`, it will run the original effect once and cache the result for the specified duration:
+
+```scala mdoc:compile-only
+import zio._
+
+val expensiveData: ZIO[Any, Nothing, String] = ZIO.succeed("data")
+
+for {
+  // cached is of type IO[Nothing, String] (equivalent to ZIO[Any, Nothing, String])
+  cachedIO <- expensiveData.cached(5.minutes)
+  result1  <- cachedIO  // runs computation and caches result
+  result2  <- cachedIO  // returns cached result (within 5 minutes)
+} yield (result1, result2)
+```
+
+The return type is `ZIO[Any, Nothing, IO[Nothing, String]]`, which means `cached` returns an effect that, when executed, produces a cached `IO` effect that you can reuse multiple times.
+
+When the time-to-live duration expires, the cache is invalidated and the effect runs again on the next call:
+
+```scala mdoc:compile-only
+import zio._
+
+def fetchUserData: ZIO[Any, Nothing, String] = ZIO.succeed("user-data")
+
+for {
+  cached <- fetchUserData.cached(5.minutes)
+  _      <- cached                      // runs and caches
+  _      <- ZIO.sleep(6.minutes)
+  result <- cached                      // TTL expired, recomputes
+} yield result
+```
+
+**Comparison with `memoize`**: Unlike `ZIO.memoize` which caches results indefinitely (based on function arguments), `cached` provides time-limited caching with automatic expiration. Use `cached` when you need periodic refresh of results, and `memoize` when you want permanent caching of expensive computations.
+
+#### Caching with Manual Invalidation
+
+Call `cachedInvalidate` to obtain both the cached effect and a separate effect for manually invalidating the cache before its TTL expires (useful when you need to cache-bust based on external events), returning a tuple of the cached effect and an invalidation function:
+
+```scala mdoc:compile-only
+import zio._
+
+def freshData: ZIO[Any, Nothing, String] = ZIO.succeed("data")
+
+for {
+  pair              <- freshData.cachedInvalidate(1.hour)
+  (cached, invalidate) = pair
+  result1 <- cached      // runs and caches
+  result2 <- cached      // returns cached result
+  _       <- invalidate  // manually clear cache before TTL expires
+  result3 <- cached      // recomputes since cache was invalidated
+} yield (result1, result2, result3)
+```
+
+#### Concurrent Access
+
+Multiple fibers can safely await the same cached result. The first fiber triggers computation while others wait for the result. This ensures the underlying effect runs only once even with concurrent access:
+
+```scala mdoc:compile-only
+import zio._
+
+def expensiveComputation: ZIO[Any, Nothing, Int] = ZIO.succeed {
+  println("Computing...")
+  42
+}
+
+for {
+  cached <- expensiveComputation.cached(5.minutes)
+  fiber1 <- cached.fork
+  fiber2 <- cached.fork
+  fiber3 <- cached.fork
+  result1 <- fiber1.join  // one executes the computation
+  result2 <- fiber2.join  // others wait for the same result
+  result3 <- fiber3.join  // all get 42, but computed only once
+} yield (result1, result2, result3)
+```
+
+:::note
+The cache uses a `Ref.Synchronized` internally to manage state safely, ensuring that only one computation runs at a time even when multiple fibers call the cached effect concurrently. This guarantees thread-safe, consistent behavior.
+:::
+
 ## ZIO Aspect
 
 There are two types of concerns in an application, _core concerns_, and _cross-cutting concerns_. Cross-cutting concerns are shared among different parts of our application. We usually find them scattered and duplicated across our application, or they are tangled up with our primary concerns. This reduces the level of modularity of our programs.
@@ -963,7 +1112,7 @@ A cross-cutting concern is more about _how_ we do something than _what_ we are d
 
 So they don't affect the return type of our workflows, but they add some new aspects or change their behavior.
 
-To increase the modularity of our applications, we can separate cross-cutting concerns from the main logic of our programs. ZIO supports this programming paradigm, which is called _ aspect-oriented programming_.
+To increase the modularity of our applications, we can separate cross-cutting concerns from the main logic of our programs. ZIO supports this programming paradigm, which is called _aspect-oriented programming_.
 
 The `ZIO` effect has a data type called `ZIOAspect`, which allows modifying a `ZIO` effect and converting it into a specialized `ZIO` effect. We can add a new aspect to a `ZIO` effect with `@@` syntax like this:
 
