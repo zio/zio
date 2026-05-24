@@ -1020,9 +1020,11 @@ for {
 
 Use `ZIO#cached` to cache the result of an effect with an automatic expiration time. This is useful when results have a limited lifetime and should be refreshed periodically. The cache is thread-safe and supports concurrent access from multiple fibers.
 
+Note: `IO[E, A]` used in this section is a type alias for `ZIO[Any, E, A]`, representing an effect that has no environment requirements.
+
 #### Basic Caching with `cached`
 
-Call `cached` with a time-to-live duration to create a cached version of an effect:
+Call `cached` with a time-to-live duration to create a cached version of an effect. The `cached` method returns an effect that produces an `IO` (which is a type alias for `ZIO[Any, E, A]`). When you execute the returned `IO`, it will run the original effect once and cache the result for the specified duration:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1030,11 +1032,14 @@ import zio._
 val expensiveData: ZIO[Any, Nothing, String] = ZIO.succeed("data")
 
 for {
-  cached <- expensiveData.cached(5.minutes)
-  result1 <- cached  // runs computation and caches result
-  result2 <- cached  // returns cached result (within 5 minutes)
+  // cached is of type IO[Nothing, String] (equivalent to ZIO[Any, Nothing, String])
+  cachedIO <- expensiveData.cached(5.minutes)
+  result1  <- cachedIO  // runs computation and caches result
+  result2  <- cachedIO  // returns cached result (within 5 minutes)
 } yield (result1, result2)
 ```
+
+The return type is `ZIO[Any, Nothing, IO[Nothing, String]]`, which means `cached` returns an effect that, when executed, produces a cached `IO` effect that you can reuse multiple times.
 
 When the time-to-live duration expires, the cache is invalidated and the effect runs again on the next call:
 
@@ -1050,6 +1055,8 @@ for {
   result <- cached                      // TTL expired, recomputes
 } yield result
 ```
+
+**Comparison with `memoize`**: Unlike `ZIO.memoize` which caches results indefinitely (based on function arguments), `cached` provides time-limited caching with automatic expiration. Use `cached` when you need periodic refresh of results, and `memoize` when you want permanent caching of expensive computations.
 
 #### Caching with Manual Invalidation
 
