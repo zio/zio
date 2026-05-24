@@ -23,7 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.function.IntFunction
 import scala.annotation.implicitNotFound
 import scala.collection.mutable.ListBuffer
@@ -5667,23 +5667,92 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
     ): ZIO[R, E, B1] =
-      ZIO.fiberIdWith { parentFiberId =>
-        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
-          (winner, loser) =>
-            winner.await.flatMap { exit =>
-              loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
-            },
-          (winner, loser) =>
-            winner.await.flatMap {
-              case e: Exit.Failure[Nothing] =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
-              case _ =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
-            },
-          null,
-          FiberScope.global
-        )
+      ZIO.clockWith(_.scheduler).flatMap { scheduler =>
+        ZIO.withFiberRuntime[R, E, B1] { (parentFiber, parentStatus) =>
+          ZIO.uninterruptibleMask { restore =>
+            import TimeoutTo._
+
+            val effect = ZIO.Grafter(parentFiber).applyOnExit(self)
+            val fiber =
+              ZIO.unsafe.makeChildFiber(trace, effect, parentFiber, parentStatus.runtimeFlags, null)(Unsafe)
+            val state    = new AtomicReference[State[E, A]](Registering)
+            val callback = new AtomicReference[ZIO[R, E, B1] => Unit](null)
+
+            def timeoutResult: ZIO[R, E, B1] =
+              fiber.interruptAs(parentFiber.id) *> fiber.inheritAll.as(b())
+
+            @annotation.tailrec
+            def complete(next: State[E, A], result: => ZIO[R, E, B1]): Unit =
+              state.get() match {
+                case Registering =>
+                  if (!state.compareAndSet(Registering, next)) complete(next, result)
+                case Registered =>
+                  if (state.compareAndSet(Registered, next)) callback.get()(result)
+                  else complete(next, result)
+                case _ => ()
+              }
+
+            val cancelTimeout = scheduler.schedule(
+              () => complete(TimedOut, timeoutResult),
+              duration
+            )(Unsafe)
+
+            def effectResult(exit: Exit[E, A]): ZIO[R, E, B1] =
+              ZIO.succeed(cancelTimeout()) *> fiber.inheritAll *> exit.mapExit(f)
+
+            val canceler: URIO[R, Any] =
+              ZIO.succeed(state.set(Cancelled)) *> ZIO.succeed(cancelTimeout())
+
+            fiber.addObserver { exit =>
+              complete(Completed(exit), effectResult(exit))
+            }(Unsafe)
+
+            fiber.startSuspended()(Unsafe)
+            state.get() match {
+              case TimedOut => ()
+              case _        => fiber.start(effect)
+            }
+
+            val awaitResult =
+              ZIO.asyncInterruptUnsafe[R, E, B1](
+                _ =>
+                  cb => {
+                    callback.set(cb)
+
+                    @annotation.tailrec
+                    def register(): Either[URIO[R, Any], ZIO[R, E, B1]] =
+                      state.get() match {
+                        case Completed(exit) => Right(effectResult(exit))
+                        case TimedOut        => Right(timeoutResult)
+                        case Registering =>
+                          if (state.compareAndSet(Registering, Registered)) Left(canceler)
+                          else register()
+                        case Registered | Cancelled => Left(canceler)
+                      }
+
+                    register()
+                  },
+                fiber.id
+              )
+
+            state.get() match {
+              case Completed(exit) => effectResult(exit)
+              case TimedOut        => timeoutResult
+              case Registering | Registered | Cancelled =>
+                restore(awaitResult).onInterrupt(canceler)
+            }
+          }
+        }
       }
+  }
+
+  private object TimeoutTo {
+    sealed trait State[+E, +A]
+    case object Registering                              extends State[Nothing, Nothing]
+    case object Registered                               extends State[Nothing, Nothing]
+    case object TimedOut                                 extends State[Nothing, Nothing]
+    case object Cancelled                                extends State[Nothing, Nothing]
+    final case class Completed[+E, +A](exit: Exit[E, A]) extends State[E, A]
   }
 
   final class Acquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
