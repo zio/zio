@@ -643,7 +643,7 @@ val finalized: IO[String, Unit] =
 // finalized: IO[String, Unit] = DynamicNoBox(
 //   trace = "repl.MdocSession.MdocApp.finalized(handling-resources.md:19)",
 //   update = 1L,
-//   f = zio.ZIO$$$Lambda$19552/0x00007f62020b9428@5d9353
+//   f = zio.ZIO$$$Lambda$19487/0x00007fccfae4d9a0@2a28eb75
 // )
 ```
 
@@ -2336,12 +2336,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$19935/0x00007f62020dc000@5ac71ff3
+//   eval = zio.Ref$$$Lambda$19870/0x00007fccfaf23120@804fc65
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$19935/0x00007f62020dc000@5dfef65f
+//   eval = zio.Ref$$$Lambda$19870/0x00007fccfaf23120@ec069f1
 // )
 
 sealed trait State
@@ -2352,7 +2352,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$19935/0x00007f62020dc000@6ce3d33c
+//   eval = zio.Ref$$$Lambda$19870/0x00007fccfaf23120@423db49b
 // )
 ```
 
@@ -2369,7 +2369,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$19935/0x00007f62020dc000@35a2a4b7
+//   eval = zio.Ref$$$Lambda$19870/0x00007fccfaf23120@5fea028a
 // )
 ```
 
@@ -2381,7 +2381,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$19935/0x00007f62020dc000@72da88e2
+//   eval = zio.Ref$$$Lambda$19870/0x00007fccfaf23120@1ef0d744
 // )
 ```
 
@@ -4889,6 +4889,24 @@ val result: ZIO[Any, IOException, Unit] =
         printLine(s"exited with failure state: $cause")
     }
   } yield ()
+```
+
+## Pre-constructed Exit Values
+
+ZIO provides several pre-constructed `Exit` values for common cases:
+
+- `Exit.unit` — A success exit with a `Unit` value
+- `Exit.none` — A success exit with a `None` value (type: `Exit[Nothing, Option[Nothing]]`)
+
+These values are useful when you need to return a pre-made exit without constructing it manually:
+
+```scala
+
+// Using Exit.unit for effects that only care about success or failure
+val unitExit: Exit[String, Unit] = Exit.unit
+
+// Using Exit.none for optional values
+val noneExit: Exit[String, Option[Nothing]] = Exit.none
 ```
 
 ---
@@ -14318,7 +14336,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20116/0x00007f6202fdd120@5706d038
+//   eval = zio.Supervisor$$$Lambda$20051/0x00007fccfafcf668@48172b64
 // )
 ```
 
@@ -14650,7 +14668,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$20085/0x00007f6202fa7dc0@ae1f40b
+//     f = zio.ZIO$$$Lambda$20020/0x00007fccfaf9fd90@2a1a4ee7
 //   ),
 //   successK = <function1>
 // )
@@ -22120,14 +22138,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@6a446f57
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@40db4b43
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@1e2b86b
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@2a94d054
 ```
 
 ## From ZIO
@@ -28526,9 +28544,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$19523/0x00007f620213e1e0@39dd2437
+//             onState = zio.ZIO$$$Lambda$19458/0x00007fccfae35918@39269b4f
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$19532/0x00007f6202184b60@7cdfbd68
+//           successK = zio.test.package$ZTest$$$Lambda$19467/0x00007fccfae3c1d0@7c24120f
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -30118,7 +30136,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+20-ce031fda-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+21-368dc8b0-SNAPSHOT"
 ```
 
 ## Example

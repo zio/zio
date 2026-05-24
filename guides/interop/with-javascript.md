@@ -7,7 +7,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+20-ce031fda-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+21-368dc8b0-SNAPSHOT"
 ```
 
 ## Example
