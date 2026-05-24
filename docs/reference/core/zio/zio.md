@@ -993,6 +993,10 @@ object Example extends ZIOAppDefault {
 }
 ```
 
+:::info
+When a fiber computing a memoized value is interrupted, the computation is discarded and will be recomputed on the next request. Other fibers waiting for the same result continue waiting safely and do not receive the interruption.
+:::
+
 ### Memoizing Functions
 
 Use `ZIO.memoize` to create a memoized version of a function that returns a `ZIO` effect. This caches results based on input arguments:
@@ -1093,12 +1097,6 @@ for {
 
 :::note
 The cache uses a `Ref.Synchronized` internally to manage state safely. When multiple fibers call the cached effect concurrently, the first one triggers computation while others wait for the result via a `Promise`. This ensures thread-safe, efficient concurrent caching.
-:::
-
-### Safe Interruption Handling
-
-:::info
-When a fiber computing a memoized value is interrupted, the computation is discarded and will be recomputed on the next request. Other fibers waiting for the same result continue waiting safely and do not receive the interruption.
 :::
 
 ## ZIO Aspect
