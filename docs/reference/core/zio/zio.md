@@ -1118,7 +1118,7 @@ A cross-cutting concern is more about _how_ we do something than _what_ we are d
 
 So they don't affect the return type of our workflows, but they add some new aspects or change their behavior.
 
-To increase the modularity of our applications, we can separate cross-cutting concerns from the main logic of our programs. ZIO supports this programming paradigm, which is called _ aspect-oriented programming_.
+To increase the modularity of our applications, we can separate cross-cutting concerns from the main logic of our programs. ZIO supports this programming paradigm, which is called _aspect-oriented programming_.
 
 The `ZIO` effect has a data type called `ZIOAspect`, which allows modifying a `ZIO` effect and converting it into a specialized `ZIO` effect. We can add a new aspect to a `ZIO` effect with `@@` syntax like this:
 
