@@ -957,9 +957,7 @@ Memoization caches the result of an effect or function computation, preventing r
 
 ### Memoizing Effects
 
-Use `ZIO#memoize` to cache the result of an effect. This is useful when the same computation is expensive and may be executed multiple times:
-
-To memoize an effect, call `memoize` on it:
+To memoize an effect and cache its result (useful when the same expensive computation may be executed multiple times), call `memoize` on it:
 
 ```scala mdoc:compile-only
 import zio._
@@ -999,9 +997,7 @@ When a fiber computing a memoized value is interrupted, the computation is disca
 
 ### Memoizing Functions
 
-Use `ZIO.memoize` to create a memoized version of a function that returns a `ZIO` effect. This caches results based on input arguments:
-
-To memoize a function, use the `ZIO.memoize` constructor:
+To create a memoized version of a function that returns a `ZIO` effect, use the `ZIO.memoize` constructor, which caches results based on input arguments:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1060,9 +1056,7 @@ for {
 
 #### Caching with Manual Invalidation
 
-Use `ZIO#cachedInvalidate` to obtain both the cached effect and a separate effect for manually invalidating the cache before its TTL expires. This is useful when you need to cache-bust based on external events:
-
-Call `cachedInvalidate` to get a tuple of the cached effect and an invalidation function:
+Call `cachedInvalidate` to obtain both the cached effect and a separate effect for manually invalidating the cache before its TTL expires (useful when you need to cache-bust based on external events), returning a tuple of the cached effect and an invalidation function:
 
 ```scala mdoc:compile-only
 import zio._
