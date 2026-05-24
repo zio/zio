@@ -38,3 +38,22 @@ val result: ZIO[Any, IOException, Unit] =
     }
   } yield ()
 ```
+
+## Pre-constructed Exit Values
+
+ZIO provides several pre-constructed `Exit` values for common cases:
+
+- `Exit.unit` — A success exit with a `Unit` value
+- `Exit.none` — A success exit with a `None` value (type: `Exit[Nothing, Option[Nothing]]`)
+
+These values are useful when you need to return a pre-made exit without constructing it manually:
+
+```scala mdoc:silent
+import zio._
+
+// Using Exit.unit for effects that only care about success or failure
+val unitExit: Exit[String, Unit] = Exit.unit
+
+// Using Exit.none for optional values
+val noneExit: Exit[String, Option[Nothing]] = Exit.none
+```
