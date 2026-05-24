@@ -1012,6 +1012,89 @@ for {
 } yield (result1, result2, result3)
 ```
 
+### Time-Limited Caching
+
+Use `ZIO#cached` to cache the result of an effect with an automatic expiration time. This is useful when results have a limited lifetime and should be refreshed periodically. The cache is thread-safe and supports concurrent access from multiple fibers.
+
+#### Basic Caching with `cached`
+
+Call `cached` with a time-to-live duration to create a cached version of an effect:
+
+```scala mdoc:compile-only
+import zio._
+
+val expensiveData: ZIO[Any, Nothing, String] = ZIO.succeed("data")
+
+for {
+  cached <- expensiveData.cached(5.minutes)
+  result1 <- cached  // runs computation and caches result
+  result2 <- cached  // returns cached result (within 5 minutes)
+} yield (result1, result2)
+```
+
+When the time-to-live duration expires, the cache is invalidated and the effect runs again on the next call:
+
+```scala mdoc:compile-only
+import zio._
+
+def fetchUserData: ZIO[Any, Nothing, String] = ZIO.succeed("user-data")
+
+for {
+  cached <- fetchUserData.cached(5.minutes)
+  _      <- cached                      // runs and caches
+  _      <- ZIO.sleep(6.minutes)
+  result <- cached                      // TTL expired, recomputes
+} yield result
+```
+
+#### Caching with Manual Invalidation
+
+Use `ZIO#cachedInvalidate` to obtain both the cached effect and a separate effect for manually invalidating the cache before its TTL expires. This is useful when you need to cache-bust based on external events:
+
+Call `cachedInvalidate` to get a tuple of the cached effect and an invalidation function:
+
+```scala mdoc:compile-only
+import zio._
+
+def freshData: ZIO[Any, Nothing, String] = ZIO.succeed("data")
+
+for {
+  pair              <- freshData.cachedInvalidate(1.hour)
+  (cached, invalidate) = pair
+  result1 <- cached      // runs and caches
+  result2 <- cached      // returns cached result
+  _       <- invalidate  // manually clear cache before TTL expires
+  result3 <- cached      // recomputes since cache was invalidated
+} yield (result1, result2, result3)
+```
+
+#### Concurrent Access
+
+Multiple fibers can safely await the same cached result. The first fiber triggers computation while others wait for the result. This ensures the underlying effect runs only once even with concurrent access:
+
+```scala mdoc:compile-only
+import zio._
+
+def expensiveComputation: ZIO[Any, Nothing, Int] = ZIO.succeed {
+  println("Computing...")
+  42
+}
+
+for {
+  cached <- expensiveComputation.cached(5.minutes)
+  fiber1 <- cached.fork
+  fiber2 <- cached.fork
+  fiber3 <- cached.fork
+  result1 <- fiber1.join  // one executes the computation
+  result2 <- fiber2.join  // others wait for the same result
+  result3 <- fiber3.join  // all get 42, but computed only once
+} yield (result1, result2, result3)
+```
+
+:::note
+The cache uses a `Ref.Synchronized` internally to manage state safely. When multiple fibers call the cached effect concurrently, the first one triggers computation while others wait for the result via a `Promise`. This ensures thread-safe, efficient concurrent caching.
+:::
+
 ### Safe Interruption Handling
 
 :::info
