@@ -607,7 +607,26 @@ object ZStreamSpec extends ZIOBaseSpec {
               _  <- latch.await
               l2 <- ref.get
             } yield assert(l1.toList)(equalTo((1 to 2).toList)) && assert(l2.reverse)(equalTo((1 to 4).toList))
-          }
+          },
+          test("buffer(1) evaluates at most one element ahead of the consumer") {
+            for {
+              evaluated       <- Ref.make(Vector.empty[Int])
+              consumerStarted <- Promise.make[Nothing, Unit]
+              secondEvaluated <- Promise.make[Nothing, Unit]
+              releaseConsumer <- Promise.make[Nothing, Unit]
+              fiber <- ZStream
+                         .fromIterator(Iterator.from(1))
+                         .mapZIO(n => evaluated.update(_ :+ n) *> secondEvaluated.succeed(()).when(n == 2).as(n))
+                         .buffer(1)
+                         .runForeach(_ => consumerStarted.succeed(()) *> releaseConsumer.await)
+                         .fork
+              _      <- consumerStarted.await
+              _      <- secondEvaluated.await
+              _      <- ZIO.yieldNow.repeatN(10)
+              result <- evaluated.get
+              _      <- fiber.interrupt
+            } yield assert(result)(equalTo(Vector(1, 2)))
+          } @@ TestAspect.timeout(5.seconds)
         ),
         suite("bufferChunks")(
           test("maintains elements and ordering")(check(tinyChunkOf(tinyChunkOf(Gen.int))) { chunk =>
