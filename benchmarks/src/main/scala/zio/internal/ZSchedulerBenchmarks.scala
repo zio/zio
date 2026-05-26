@@ -41,6 +41,7 @@ class ZSchedulerBenchmarks {
 
   val catsRuntime: IORuntime        = IORuntime.global
   val fixedThreadPool: zio.Executor = fixedThreadPoolExecutor()
+  val nioScheduler: zio.Executor    = zio.Executor.makeNio()
   val zScheduler: zio.Executor      = zio.Executor.makeDefault()
 
   @Benchmark
@@ -74,6 +75,22 @@ class ZSchedulerBenchmarks {
   @Benchmark
   def zioFixedThreadPoolYieldMany(): Int =
     zioYieldMany(fixedThreadPool)
+
+  @Benchmark
+  def zioNioSchedulerChainedFork(): Int =
+    zioChainedFork(nioScheduler)
+
+  @Benchmark
+  def zioNioSchedulerForkMany(): Int =
+    zioForkMany(nioScheduler)
+
+  @Benchmark
+  def zioNioSchedulerPingPong(): Int =
+    zioPingPong(nioScheduler)
+
+  @Benchmark
+  def zioNioSchedulerYieldMany(): Int =
+    zioYieldMany(nioScheduler)
 
   @Benchmark
   def zioSchedulerChainedFork(): Int =

@@ -73,4 +73,14 @@ private[zio] trait RuntimePlatformSpecific {
     ZLayer.suspend {
       Runtime.setExecutor(Executor.makeDefault(autoBlocking = true))
     }
+
+  def enableNioExecutor(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.suspend {
+      Runtime.setExecutor(Executor.makeNio(autoBlocking = false))
+    }
+
+  def enableAutoBlockingNioExecutor(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
+    ZLayer.suspend {
+      Runtime.setExecutor(Executor.makeNio(autoBlocking = true))
+    }
 }
