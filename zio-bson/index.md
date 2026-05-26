@@ -21,8 +21,8 @@ The goal of this project is to create the best all-round BSON library for Scala:
 In order to use this library, we need to add the following lines in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-bson" % "1.0.10"
-libraryDependencies += "dev.zio" %% "zio-bson-magnolia" % "1.0.10"
+libraryDependencies += "dev.zio" %% "zio-bson" % "1.0.11"
+libraryDependencies += "dev.zio" %% "zio-bson-magnolia" % "1.0.11"
 ```
 
 ## zio-schema support
@@ -82,6 +82,10 @@ val bsonVal: BsonValue = doc("curvature" -> double(0.2))
 
 bsonVal.as[Banana]
 ```
+
+## Type Mappings
+
+See [Type Mappings](types.md) for the full list of supported Scala and Java types, their primary BSON types, and decoder fallbacks.
 
 ## Errors
 

@@ -370,6 +370,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Design: Subagent-Based Documentation Review](https://zio.dev/zio-blocks/superpowers/specs/2026-03-19-docs-critique-subagent-design.md): **Date:** 2026-03-19
 - [Documentation Coverage Report](https://zio.dev/zio-blocks/undocumented-report.md): Comprehensive analysis of documentation gaps in ZIO Blocks, combining automated scanning with manual source-code review.
 - [Getting Started with ZIO Bson](https://zio.dev/zio-bson/index.md): [ZIO Bson](https://github.com/zio/zio-bson) is BSON library with tight ZIO integration.
+- [Type Mappings](https://zio.dev/zio-bson/types.md): ZIO Bson provides `BsonEncoder` and `BsonDecoder` typeclass instances for a wide range of Scala and Java types.
 - [Cache Statistics](https://zio.dev/zio-cache/cache-statistics.md): ZIO Cache automatically tracks various statistics associated with the cache, such as the number of cache hits and misses and the current size of th...
 - [Cache](https://zio.dev/zio-cache/cache.md): A cache is defined in terms of a lookup function, a capacity, and a time to live.
 - [Entry Statistics](https://zio.dev/zio-cache/entry-statistics.md): ZIO Cache also tracks statistics associated with each entry, such as when the entry was last accessed. You can access the statistics for a specifie...
