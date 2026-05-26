@@ -61,7 +61,7 @@ private final class NIOScheduler(autoBlocking: Boolean) extends Executor { paren
   }
 
   override private[zio] def isCurrentThreadInExecutor: Boolean =
-    Thread.currentThread().isInstanceOf[NIOScheduler.Worker]
+    currentWorkerOrNull() ne null
 
   def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics] = {
     val metrics = new ExecutionMetrics {
@@ -100,7 +100,7 @@ private final class NIOScheduler(autoBlocking: Boolean) extends Executor { paren
   }
 
   override def stealWork(depth: Int): Boolean = {
-    val worker = workerOrNull()
+    val worker = currentWorkerOrNull()
     if ((worker ne null) && !worker.blocking) {
       val runnable = pollLocal(worker)
 
@@ -116,7 +116,7 @@ private final class NIOScheduler(autoBlocking: Boolean) extends Executor { paren
   }
 
   def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
-    val worker = workerOrNull()
+    val worker = currentWorkerOrNull()
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
@@ -126,7 +126,7 @@ private final class NIOScheduler(autoBlocking: Boolean) extends Executor { paren
   }
 
   override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
-    val worker = workerOrNull()
+    val worker = currentWorkerOrNull()
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else if ((worker ne null) && !worker.blocking && (worker.nextRunnable eq null) && worker.queue.isEmpty) {
@@ -136,6 +136,11 @@ private final class NIOScheduler(autoBlocking: Boolean) extends Executor { paren
       enqueue(selectWorker(), runnable)
       true
     }
+  }
+
+  private[this] def currentWorkerOrNull(): NIOScheduler.Worker = {
+    val worker = workerOrNull()
+    if ((worker ne null) && (worker.scheduler eq parent)) worker else null
   }
 
   private[this] def enqueue(worker: NIOScheduler.Worker, runnable: Runnable): Unit = {
@@ -276,6 +281,7 @@ private final class NIOScheduler(autoBlocking: Boolean) extends Executor { paren
   private[this] def makeWorker(): NIOScheduler.Worker =
     new NIOScheduler.Worker {
       self =>
+      override val scheduler: NIOScheduler                    = parent
       override val submittedLocations: NIOScheduler.Locations = makeLocations()
 
       final override def run(): Unit = {
@@ -387,6 +393,8 @@ private object NIOScheduler {
   private sealed abstract class Supervisor extends Thread
 
   private sealed abstract class Worker extends Thread with BlockContext {
+
+    val scheduler: NIOScheduler
 
     val submittedLocations: Locations
 

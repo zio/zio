@@ -1,6 +1,7 @@
 package zio
 
 import zio.test.Assertion._
+import zio.test.TestAspect.sequential
 import zio.test._
 
 import java.util.concurrent.TimeUnit
@@ -28,17 +29,17 @@ object NIOSchedulerSpecJVM extends ZIOBaseSpec {
     test("submitAndYield resumes on the same idle worker") {
       ZIO.attempt {
         val executor = Executor.makeNio()
-        val outer    = new AtomicReference[String]()
-        val inner    = new AtomicReference[String]()
+        val outer    = new AtomicReference[Thread]()
+        val inner    = new AtomicReference[Thread]()
         val done     = new java.util.concurrent.CountDownLatch(1)
 
         Unsafe.unsafe { implicit unsafe =>
           executor.submitOrThrow(new Runnable {
             def run(): Unit = {
-              outer.set(Thread.currentThread().getName)
+              outer.set(Thread.currentThread())
               executor.submitAndYieldOrThrow(new Runnable {
                 def run(): Unit = {
-                  inner.set(Thread.currentThread().getName)
+                  inner.set(Thread.currentThread())
                   done.countDown()
                 }
               })
@@ -46,7 +47,36 @@ object NIOSchedulerSpecJVM extends ZIOBaseSpec {
           })
         }
 
-        assertTrue(done.await(5, TimeUnit.SECONDS), outer.get() == inner.get())
+        val completed  = done.await(5, TimeUnit.SECONDS)
+        val sameThread = outer.get() eq inner.get()
+        assertTrue(completed, sameThread)
+      }
+    },
+    test("submitAndYield ignores workers from other NIO scheduler instances") {
+      ZIO.attempt {
+        val executor1 = Executor.makeNio()
+        val executor2 = Executor.makeNio()
+        val caller    = new AtomicReference[Thread]()
+        val inner     = new AtomicReference[Thread]()
+        val done      = new java.util.concurrent.CountDownLatch(1)
+
+        Unsafe.unsafe { implicit unsafe =>
+          executor1.submitOrThrow(new Runnable {
+            def run(): Unit = {
+              caller.set(Thread.currentThread())
+              executor2.submitAndYieldOrThrow(new Runnable {
+                def run(): Unit = {
+                  inner.set(Thread.currentThread())
+                  done.countDown()
+                }
+              })
+            }
+          })
+        }
+
+        val completed     = done.await(5, TimeUnit.SECONDS)
+        val differentPool = caller.get() ne inner.get()
+        assertTrue(completed, differentPool)
       }
     },
     test("auto-blocking replaces a blocked NIO worker") {
@@ -78,5 +108,5 @@ object NIOSchedulerSpecJVM extends ZIOBaseSpec {
         finally release.countDown()
       }
     }
-  )
+  ) @@ sequential
 }
