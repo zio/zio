@@ -92,6 +92,8 @@ class NarrowFlatMapBenchmark {
   def zioNarrowFlatMap(): Int = zioNarrowFlatMap(BenchmarkUtil)
 
   private[this] def zioNarrowFlatMap(runtime: Runtime[Any]): Int = {
+    implicit val trace: Trace = Trace.empty
+
     def loop(i: Int): UIO[Int] =
       if (i < size) ZIO.succeed[Int](i + 1).flatMap(loop)
       else ZIO.succeed(i)
