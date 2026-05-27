@@ -13,8 +13,16 @@
   max-width: 1400px;
 }
 
+.singleColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
 .agentContent {
-  padding: 2rem;
+  padding: 0;
 }
 
 .agentSubtitle {
@@ -39,7 +47,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 3rem;
+  padding: 0;
 }
 
 .codeContainer :global(.codeBlockContainer) {
@@ -56,25 +64,15 @@
 
 /* Responsive styles */
 @media (max-width: 996px) {
-  .codingAgent .row {
-    flex-direction: column;
+  .singleColumn {
+    max-width: 100%;
   }
 
   .agentContent {
-    padding: 2rem 1rem;
-    text-align: center;
-  }
-
-  .agentContent ul {
-    display: inline-block;
-    text-align: left;
+    padding: 0;
   }
 
   .codeContainer {
-    padding: 2rem 1rem;
-  }
-
-  .buttonContainer {
-    text-align: center;
+    padding: 0;
   }
 }
