@@ -13,7 +13,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20033/0x00007f225aebec28@665b4425
+//   eval = zio.Supervisor$$$Lambda$20155/0x00007f2362fdcca0@5fdfb2d6
 // )
 ```
 
