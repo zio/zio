@@ -13,7 +13,7 @@ export default function HomepageCodingAgent() {
           <div className={styles.agentContent}>
             <h2 className={clsx("sectionHeader", "text-4xl", "text-center")}>Teach Your Coding Agent Latest ZIO Knowledge</h2>
             <p>
-              The <code>zio-knowledge</code> skill teaches Claude Code to fetch live documentation
+              The <code>zio-knowledge</code> skill teaches your coding agent to fetch live documentation
               from zio.dev before answering any ZIO question — so you always get accurate, up-to-date
               answers, not guesses from stale training data.
             </p>
