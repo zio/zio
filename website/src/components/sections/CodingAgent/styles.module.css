@@ -44,13 +44,14 @@
 
 .codeContainer :global(.codeBlockContainer) {
   width: 100%;
+  padding: 2rem !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   border-radius: 8px;
 }
 
 .codeContainer :global(.codeBlockContainer code) {
-  font-size: 1.1rem;
-  line-height: 1.8;
+  font-size: 1.4rem;
+  line-height: 2;
 }
 
 /* Responsive styles */
