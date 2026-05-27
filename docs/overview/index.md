@@ -7,19 +7,11 @@ slug: "getting-started"
 
 ## Teach Your Coding Agent Latest ZIO Knowledge
 
-The `zio-knowledge` skill teaches your coding agent to fetch live documentation from zio.dev before answering any ZIO question — so you always get accurate, up-to-date answers, not guesses from stale training data.
-
-**To install the skill:**
+The `zio-knowledge` skill teaches your coding agent to fetch live documentation from zio.dev before answering any ZIO question — so you always get accurate, up-to-date answers, not guesses from stale training data:
 
 ```bash
 npx skills add zio/zio-skills --skill zio-knowledge
 ```
-
-**This skill covers:**
-- ZIO ecosystem modules like Core, Streams, Test, STM, Config, Schema, JSON, Kafka, and more
-- Fetches current related docs from zio.dev on ZIO related development questions
-
----
 
 ## Installation
 
