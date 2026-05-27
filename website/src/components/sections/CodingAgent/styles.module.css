@@ -16,7 +16,7 @@
 .singleColumn {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 0.5rem;
   max-width: 900px;
   margin: 0 auto;
 }
@@ -54,7 +54,7 @@
 .codeWrapper {
   position: relative;
   width: 100%;
-  max-width: 550px;
+  max-width: 520px;
   margin: 0 auto;
 }
 
