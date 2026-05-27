@@ -1,6 +1,8 @@
 import React from 'react';
 import clsx from 'clsx';
+import Link from '@docusaurus/Link';
 import CodeBlock from '@theme/CodeBlock';
+import { FaArrowRight } from 'react-icons/fa6';
 import styles from './styles.module.css';
 
 export default function HomepageCodingAgent() {
@@ -26,6 +28,15 @@ export default function HomepageCodingAgent() {
                 <li>Fetches current docs from zio.dev on every question</li>
                 <li>Works seamlessly with Claude Code's slash commands</li>
               </ul>
+              <div className={styles.buttonContainer}>
+                <Link
+                  className="hover:bg-primary-500 bg-primary flex items-center gap-2 rounded-full px-6 py-2 font-semibold text-white hover:text-white hover:no-underline"
+                  to="/overview/getting-started"
+                >
+                  <span>Get Started</span>
+                  <FaArrowRight />
+                </Link>
+              </div>
             </div>
           </div>
           <div className="col col--6">
