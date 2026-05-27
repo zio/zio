@@ -7,7 +7,7 @@ slug: "getting-started"
 
 ## Teach Your Coding Agent Latest ZIO Knowledge
 
-The `zio-knowledge` skill teaches Claude Code to fetch live documentation from zio.dev before answering any ZIO question — so you always get accurate, up-to-date answers, not guesses from stale training data.
+The `zio-knowledge` skill teaches your coding agent to fetch live documentation from zio.dev before answering any ZIO question — so you always get accurate, up-to-date answers, not guesses from stale training data.
 
 **To install the skill:**
 
