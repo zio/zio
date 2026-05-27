@@ -39,13 +39,18 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 2rem;
+  padding: 3rem;
 }
 
 .codeContainer :global(.codeBlockContainer) {
   width: 100%;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   border-radius: 8px;
+}
+
+.codeContainer :global(.codeBlockContainer code) {
+  font-size: 1.1rem;
+  line-height: 1.8;
 }
 
 /* Responsive styles */
