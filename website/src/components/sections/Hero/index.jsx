@@ -1,5 +1,7 @@
 import React from 'react';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+import Link from '@docusaurus/Link';
+import { FaArrowRight } from 'react-icons/fa6';
 
 export default function Hero() {
   const context = useDocusaurusContext();
@@ -18,6 +20,14 @@ export default function Hero() {
           Type-safe, composable asynchronous and concurrent programming for{' '}
           <span className="text-primary">Scala</span>
         </p>
+
+        <Link
+          className="hover:bg-primary-500 bg-primary flex items-center gap-2 rounded-full px-6 py-2 font-semibold text-white hover:text-white hover:no-underline"
+          to="/overview/getting-started"
+        >
+          <span>Get Started</span>
+          <FaArrowRight />
+        </Link>
       </div>
     </section>
   );

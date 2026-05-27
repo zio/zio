@@ -46,20 +46,64 @@
 .codeContainer {
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   padding: 0;
+  width: 100%;
+}
+
+.codeWrapper {
+  position: relative;
+  width: 100%;
+  max-width: 550px;
+  margin: 0 auto;
+}
+
+.copyButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 100;
+  padding: 0.6rem;
+  background-color: #9ca3af;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copyButton .icon {
+  font-size: 1.1rem;
+}
+
+.copyButton:hover {
+  background-color: #6b7280;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.copyButton:active {
+  transform: translateY(0);
+}
+
+.copyButton.copied {
+  background-color: #6b7280;
 }
 
 .codeContainer :global(.codeBlockContainer) {
   width: 100%;
-  padding: 2rem !important;
+  padding: 3rem !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   border-radius: 8px;
 }
 
 .codeContainer :global(.codeBlockContainer code) {
-  font-size: 1.4rem;
-  line-height: 2;
+  font-size: 1.7rem;
+  line-height: 2.2;
+  font-weight: 500;
 }
 
 /* Responsive styles */

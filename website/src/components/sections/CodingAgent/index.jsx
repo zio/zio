@@ -1,10 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import clsx from 'clsx';
+import { FaCheck, FaCopy } from 'react-icons/fa6';
 import CodeBlock from '@theme/CodeBlock';
 import styles from './styles.module.css';
 
 export default function HomepageCodingAgent() {
   const installCommand = `npx skills add zio/zio-skills --skill zio-knowledge`;
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyCommand = () => {
+    navigator.clipboard.writeText(installCommand);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <section className={styles.codingAgent}>
@@ -27,9 +35,18 @@ export default function HomepageCodingAgent() {
             </ul>
           </div>
           <div className={styles.codeContainer}>
-            <CodeBlock language="bash">
-              {installCommand}
-            </CodeBlock>
+            <div className={styles.codeWrapper}>
+              <button
+                className={clsx(styles.copyButton, { [styles.copied]: copied })}
+                onClick={handleCopyCommand}
+                title="Copy installation command to clipboard"
+              >
+                {copied ? <FaCheck className={styles.icon} /> : <FaCopy className={styles.icon} />}
+              </button>
+              <CodeBlock language="bash">
+                {installCommand}
+              </CodeBlock>
+            </div>
           </div>
         </div>
       </div>
