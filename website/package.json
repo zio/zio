@@ -26,8 +26,8 @@
     "@zio.dev/izumi-reflect": "2024.11.11-da5b828d4d6e",
     "@zio.dev/zio-amqp": "1.0.0-alpha.3",
     "@zio.dev/zio-aws": "2025.2.9-b3c92258585e",
-    "@zio.dev/zio-bson": "1.0.11",
     "@zio.dev/zio-blocks": "0.0.33",
+    "@zio.dev/zio-bson": "1.0.11",
     "@zio.dev/zio-cache": "0.2.8",
     "@zio.dev/zio-cli": "0.7.4",
     "@zio.dev/zio-config": "4.0.6",
@@ -58,6 +58,7 @@
     "babel": "^6.23.0",
     "blended-include-code-plugin": "0.1.2",
     "clsx": "2.1.1",
+    "docusaurus-plugin-copy-page-button": "^0.7.0",
     "docusaurus-plugin-llms": "0.4.0",
     "highlight.js": "11.11.1",
     "node-fetch": "^3.3.2",
@@ -97,8 +98,8 @@
     "@types/react": "19.2.15",
     "@types/react-helmet": "6.1.11",
     "@types/react-router-dom": "5.3.3",
-    "prettier-plugin-tailwindcss": "0.8.0",
     "prettier": "3.8.3",
+    "prettier-plugin-tailwindcss": "0.8.0",
     "typescript": "6.0.3"
   }
 }
