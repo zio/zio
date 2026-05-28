@@ -319,6 +319,12 @@ const config = {
         preserveDirectoryStructure: false,
       }),
     ],
+    [
+      'docusaurus-plugin-copy-page-button',
+      {
+        enabledActions: ['copy', 'view', 'chatgpt', 'claude', 'gemini'],
+      },
+    ],
   ],
   markdown: {
     mermaid: true,
