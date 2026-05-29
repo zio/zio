@@ -5,7 +5,6 @@ Disallow: /search
 Disallow: /.docusaurus
 Disallow: /admin
 Disallow: /api/
-Disallow: *?version=
 Allow: /static/
 
 # Sitemap reference for discovery
@@ -13,6 +12,10 @@ Sitemap: https://zio.dev/sitemap.xml
 
 # Rate limit aggressive crawlers
 User-agent: AhrefsBot
+Crawl-delay: 5
+
 User-agent: SemrushBot
+Crawl-delay: 5
+
 User-agent: DotBot
-Crawl-delay: 10
+Crawl-delay: 5
