@@ -325,6 +325,15 @@ const config = {
         enabledActions: ['copy', 'view', 'chatgpt', 'claude', 'gemini'],
       },
     ],
+    [
+      '@docusaurus/plugin-sitemap',
+      {
+        changefreq: 'weekly',
+        priority: 0.7,
+        ignorePatterns: ['/tags/**'],
+        filename: 'sitemap.xml',
+      },
+    ],
   ],
   markdown: {
     mermaid: true,
