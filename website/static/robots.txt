@@ -1,0 +1,18 @@
+# Allow all crawlers by default
+User-agent: *
+Allow: /
+Disallow: /search
+Disallow: /.docusaurus
+Disallow: /admin
+Disallow: /api/
+Disallow: *?version=
+Allow: /static/
+
+# Sitemap reference for discovery
+Sitemap: https://zio.dev/sitemap.xml
+
+# Rate limit aggressive crawlers
+User-agent: AhrefsBot
+User-agent: SemrushBot
+User-agent: DotBot
+Crawl-delay: 10
