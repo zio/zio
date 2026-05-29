@@ -13,7 +13,7 @@ const config = {
     'Type-safe, composable asynchronous and concurrent programming for Scala',
   url: 'https://zio.dev',
   baseUrl: '/',
-  trailingSlash: 'ignore',
+  trailingSlash: false,
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
   favicon: 'img/favicon.png',
@@ -324,15 +324,6 @@ const config = {
       'docusaurus-plugin-copy-page-button',
       {
         enabledActions: ['copy', 'view', 'chatgpt', 'claude', 'gemini'],
-      },
-    ],
-    [
-      '@docusaurus/plugin-sitemap',
-      {
-        changefreq: 'weekly',
-        priority: 0.7,
-        ignorePatterns: ['/tags/**'],
-        filename: 'sitemap.xml',
       },
     ],
   ],
