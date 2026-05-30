@@ -5,12 +5,13 @@ Disallow: /search
 Disallow: /.docusaurus
 Disallow: /admin
 Disallow: /api/
-Allow: /static/
 
 # Sitemap reference for discovery
 Sitemap: https://zio.dev/sitemap.xml
 
-# Rate limit aggressive crawlers
+# Rate limit overly aggressive crawlers
+# Note: Crawl-delay is honored by Bing, Yandex, and some third-party bots,
+# but not by Googlebot. Use for managing load from non-Google crawlers.
 User-agent: AhrefsBot
 Crawl-delay: 5
 

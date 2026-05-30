@@ -258,6 +258,12 @@ const config = {
           trackingID: 'G-SH0HNKLNRT',
           anonymizeIP: true,
         },
+        sitemap: {
+          changefreq: 'weekly',
+          priority: 0.7,
+          ignorePatterns: ['/tags/**'],
+          filename: 'sitemap.xml',
+        },
       },
     ],
   ],
@@ -324,15 +330,6 @@ const config = {
       'docusaurus-plugin-copy-page-button',
       {
         enabledActions: ['copy', 'view', 'chatgpt', 'claude', 'gemini'],
-      },
-    ],
-    [
-      '@docusaurus/plugin-sitemap',
-      {
-        changefreq: 'weekly',
-        priority: 0.7,
-        ignorePatterns: ['/tags/**'],
-        filename: 'sitemap.xml',
       },
     ],
   ],

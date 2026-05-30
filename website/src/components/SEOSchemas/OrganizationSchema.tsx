@@ -1,4 +1,5 @@
 import React from 'react';
+import Head from '@docusaurus/Head';
 
 export default function OrganizationSchema() {
   const organizationSchema = {
@@ -36,7 +37,7 @@ export default function OrganizationSchema() {
   };
 
   return (
-    <>
+    <Head>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
@@ -45,6 +46,6 @@ export default function OrganizationSchema() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
-    </>
+    </Head>
   );
 }
