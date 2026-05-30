@@ -3,8 +3,6 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Link from '@docusaurus/Link';
 import { FaArrowRight } from 'react-icons/fa6';
 
-import EmbeddedVideo from '@site/src/components/EmbeddedVideo';
-
 export default function Hero() {
   const context = useDocusaurusContext();
   const { siteConfig = {} } = context;
@@ -30,13 +28,6 @@ export default function Hero() {
           <span>Get Started</span>
           <FaArrowRight />
         </Link>
-      </div>
-
-      <div className="container">
-        <EmbeddedVideo
-          className="mx-auto w-full max-w-7xl"
-          video="XUwynbWUlhg"
-        />
       </div>
     </section>
   );
