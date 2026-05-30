@@ -4,7 +4,6 @@ Allow: /
 Disallow: /search
 Disallow: /.docusaurus
 Disallow: /admin
-Disallow: /api/
 
 # Sitemap reference for discovery
 Sitemap: https://zio.dev/sitemap.xml
