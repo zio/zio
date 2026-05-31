@@ -22,29 +22,11 @@ export default function OrganizationSchema() {
     },
   };
 
-  const websiteSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    url: 'https://zio.dev',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: {
-        '@type': 'EntryPoint',
-        urlTemplate: 'https://zio.dev/search?q={search_term_string}',
-      },
-      'query-input': 'required name=search_term_string',
-    },
-  };
-
   return (
     <Head>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
     </Head>
   );

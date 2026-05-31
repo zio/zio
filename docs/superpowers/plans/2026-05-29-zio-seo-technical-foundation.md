@@ -50,7 +50,9 @@ Allow: /static/
 # Sitemap reference for discovery
 Sitemap: https://zio.dev/sitemap.xml
 
-# Rate limit aggressive crawlers
+# Rate limit overly aggressive crawlers
+# Note: Crawl-delay is honored by Bing, Yandex, and some third-party bots,
+# but not by Googlebot. Use for managing load from non-Google crawlers.
 User-agent: AhrefsBot
 User-agent: SemrushBot
 User-agent: DotBot
@@ -59,10 +61,12 @@ Crawl-delay: 10
 
 Explanation:
 - `Allow: /` — permits crawling the entire site
-- `Disallow: /search`, `/.docusaurus`, etc. — blocks internal/non-indexable paths
-- `*?version=` — blocks URL parameters (e.g., `?version=1.0`)
+- `Disallow: /search`, `/.docusaurus`, `/admin` — blocks internal/non-indexable paths
+- `Disallow: /api/` — prevents indexing API endpoints (if any added in future)
+- `Disallow: *?version=` — blocks versioned URL parameters to prevent duplicate content (e.g., `?version=1.0`)
+- `Allow: /static/` — explicitly allows static asset paths
 - `Sitemap:` — tells crawlers where to find the sitemap
-- `Crawl-delay: 10` — prevents aggressive bots from overloading the server
+- `Crawl-delay: 10` — rate-limits aggressive bots (honored by Bing, Yandex, and third-party crawlers, but not Googlebot)
 
 - [ ] **Step 2: Verify the file exists and is readable**
 
@@ -94,6 +98,7 @@ Create `/website/src/components/SEOSchemas/OrganizationSchema.tsx`:
 
 ```typescript
 import React from 'react';
+import Head from '@docusaurus/Head';
 
 export default function OrganizationSchema() {
   const organizationSchema = {
@@ -116,41 +121,23 @@ export default function OrganizationSchema() {
     },
   };
 
-  const websiteSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    url: 'https://zio.dev',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: {
-        '@type': 'EntryPoint',
-        urlTemplate: 'https://zio.dev/search?q={search_term_string}',
-      },
-      'query-input': 'required name=search_term_string',
-    },
-  };
-
   return (
-    <>
+    <Head>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
-      />
-    </>
+    </Head>
   );
 }
 ```
 
 Explanation:
-- Two separate `<script>` tags for Organization and Website schemas
+- Single `<script>` tag for Organization schema
 - `dangerouslySetInnerHTML` is the safe way to inject JSON-LD in React (not XSS risk with structured data)
-- Both schemas inject into page `<head>` automatically when component renders
+- Use Docusaurus `Head` component to inject into page `<head>` (not body)
 - Organization schema includes contact info and social profiles
-- Website schema enables site search in Google SERPs
+- Note: Website schema (Sitelinks Search Box) is deprecated by Google and not included
 
 - [ ] **Step 3: Verify the file exists and has valid syntax**
 

@@ -106,26 +106,13 @@ Crawl-delay: 10
 
 **Placement:** In page `<head>` (global, appears on all pages)
 
-#### 3.2.2 Website Schema with Search Action
-```json
-{
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "url": "https://zio.dev",
-  "potentialAction": {
-    "@type": "SearchAction",
-    "target": {
-      "@type": "EntryPoint",
-      "urlTemplate": "https://zio.dev/search?q={search_term_string}"
-    },
-    "query-input": "required name=search_term_string"
-  }
-}
-```
+#### 3.2.2 Website Schema with Search Action — DEPRECATED
 
-**Placement:** In page `<head>` (global)
+**Status:** Not implemented — feature retired by Google
 
-**Benefit:** Enables "site search" feature in Google SERPs
+**Rationale:** Google deprecated the Sitelinks Search Box feature on November 21, 2024. The `WebSite` schema with `SearchAction` markup no longer triggers any SERP feature and provides no SEO value. Including it is dead code that adds no benefit.
+
+**Reference:** [Google Blog: Sitelinks Search Box Deprecation (October 2024)](https://developers.google.com/search/blog/2024/10/sitelinks-search-box)
 
 #### 3.2.3 FAQ Schema (Deferred)
 
@@ -268,9 +255,10 @@ npm run build
 ## 7. Success Criteria
 
 - ✅ `robots.txt` exists and is valid
-- ✅ JSON-LD schemas present in page source for Organization, Website, FAQ
+- ✅ JSON-LD Organization schema present in page source on all pages
 - ✅ Organization schema validates without errors
-- ✅ FAQ schema displays properly in Google's testing tool
+- ⏳ Website schema (Sitelinks Search Box) — deprecated by Google, not implemented
+- ⏳ FAQ schema — deferred to future work (see section 3.2.3)
 - ✅ Sitemap.xml exists and contains all doc versions
 - ✅ Canonical URLs auto-generated for all pages
 - ✅ No crawl errors in Google Search Console

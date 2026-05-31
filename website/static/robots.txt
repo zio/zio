@@ -4,6 +4,9 @@ Allow: /
 Disallow: /search
 Disallow: /.docusaurus
 Disallow: /admin
+Disallow: /api/
+Disallow: *?version=
+Allow: /static/
 
 # Sitemap reference for discovery
 Sitemap: https://zio.dev/sitemap.xml
@@ -12,10 +15,6 @@ Sitemap: https://zio.dev/sitemap.xml
 # Note: Crawl-delay is honored by Bing, Yandex, and some third-party bots,
 # but not by Googlebot. Use for managing load from non-Google crawlers.
 User-agent: AhrefsBot
-Crawl-delay: 5
-
 User-agent: SemrushBot
-Crawl-delay: 5
-
 User-agent: DotBot
-Crawl-delay: 5
+Crawl-delay: 10
