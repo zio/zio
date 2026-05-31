@@ -127,33 +127,20 @@ Crawl-delay: 10
 
 **Benefit:** Enables "site search" feature in Google SERPs
 
-#### 3.2.3 FAQ Schema
-```json
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "What is ZIO?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "ZIO is a type-safe, composable library for asynchronous and concurrent programming in Scala..."
-      }
-    }
-    // ... more FAQ items
-  ]
-}
-```
+#### 3.2.3 FAQ Schema (Deferred)
 
-**Placement:** Only on `/faq` page
+⚠️ **Status:** Not implemented in this release — deferred to future work
 
-**Benefit:** FAQ items appear as rich snippets in search results (increased CTR)
+**Rationale:** Google's structured data policies require that FAQ schema content must exactly match visible content on the page. The current FAQ page contains only 2 questions, while any hardcoded FAQ schema would introduce fabricated content. Schemas that don't match visible content are treated as spammy and can result in:
+- Rich result suppression in search results
+- Manual actions in Google Search Console
+- Loss of trust for other structured data on the domain
 
-**Implementation Strategy:**
-- Create custom Docusaurus theme component that injects schemas into document head
-- Use React Helmet or Docusaurus's built-in head injection mechanism
-- Extract FAQ content from `/docs/faq.md` frontmatter or structured data
+**Future Implementation:** FAQ schema can be implemented once:
+1. FAQ page content is expanded to include the questions/answers to be marked up, OR
+2. A parser is built to extract FAQ content from `docs/faq.md` and generate schema dynamically
+
+**Reference:** [Google FAQ Schema Guidelines](https://developers.google.com/search/docs/advanced/structured-data/faqpage)
 
 ---
 

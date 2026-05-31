@@ -15,11 +15,13 @@
 **Files to create:**
 - `/website/static/robots.txt` — Crawler directives and sitemap reference
 - `/website/src/components/SEOSchemas/OrganizationSchema.tsx` — Organization + Website schema component
-- `/website/src/components/SEOSchemas/FAQSchema.tsx` — FAQ schema component
 
 **Files to modify:**
 - `/website/src/theme/Root.tsx` — Inject schema components into every page
 - `/website/docusaurus.config.js` — Verify sitemap plugin and canonical URL settings
+
+**Deferred:**
+- `/website/src/components/SEOSchemas/FAQSchema.tsx` — FAQ schema component (deferred to future work, see Task 3)
 
 **No test files needed** — SEO schemas are verified with Google's validation tools, not unit tests
 
@@ -164,97 +166,20 @@ git commit -m "feat: add Organization and Website JSON-LD schema component"
 
 ---
 
-## Task 3: Create FAQ Schema Component
+## Task 3: Create FAQ Schema Component — DEFERRED
 
-**Files:**
-- Create: `/website/src/components/SEOSchemas/FAQSchema.tsx`
+**Status:** Not implemented — deferred to future work
 
-- [ ] **Step 1: Read the FAQ content to extract QA pairs**
+**Rationale:** Google's structured data policies require that FAQ schema content must exactly match visible content on the page. The current FAQ page contains only 2 questions, while any hardcoded FAQ schema would introduce fabricated content. Schemas that don't match visible content are treated as spammy and can result in:
+- Rich result suppression in search results
+- Manual actions in Google Search Console
+- Loss of trust for other structured data on the domain
 
-Run: `head -100 /website/docs/faq.md`
-This shows the FAQ structure so we can understand what questions exist.
+**Future Implementation:** FAQ schema can be implemented once:
+1. FAQ page content is expanded to include the questions/answers to be marked up, OR
+2. A parser is built to extract FAQ content from `docs/faq.md` and generate schema dynamically
 
-- [ ] **Step 2: Write the FAQSchema component**
-
-Create `/website/src/components/SEOSchemas/FAQSchema.tsx`:
-
-```typescript
-import React from 'react';
-
-export default function FAQSchema() {
-  const faqSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: [
-      {
-        '@type': 'Question',
-        name: 'What is ZIO?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'ZIO is a type-safe, composable library for asynchronous and concurrent programming in Scala. It provides a powerful set of abstractions for building scalable, resilient applications.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'How do I get started with ZIO?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'You can get started with ZIO by visiting the Getting Started guide in the documentation. It covers installation, basic concepts, and your first ZIO program.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Is ZIO production-ready?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'Yes, ZIO is used in production by many companies. The library has been battle-tested and is actively maintained with regular releases.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'How does ZIO compare to other effect libraries?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'ZIO provides a unified, type-safe approach to effects with built-in support for concurrency, resource management, and error handling. See the documentation for detailed comparisons with other libraries.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Where can I get help with ZIO?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'The ZIO community is active on Discord (https://discord.gg/2ccFBr4). You can also check the documentation, guides, and the GitHub repository for answers.',
-        },
-      },
-    ],
-  };
-
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-    />
-  );
-}
-```
-
-Explanation:
-- FAQ schema defined with 5 common questions about ZIO
-- This schema is displayed as rich snippets in Google SERPs (FAQ accordion widget)
-- Each question has a `name` and corresponding `acceptedAnswer`
-- Schema will be injected only on the FAQ page (next task)
-
-- [ ] **Step 3: Verify the file exists**
-
-Run: `cat /website/src/components/SEOSchemas/FAQSchema.tsx`
-Expected: File contents match the TypeScript code above.
-
-- [ ] **Step 4: Commit the FAQSchema component**
-
-```bash
-git add website/src/components/SEOSchemas/FAQSchema.tsx
-git commit -m "feat: add FAQ JSON-LD schema component for rich snippets"
-```
+**Reference:** [Google FAQ Schema Guidelines](https://developers.google.com/search/docs/advanced/structured-data/faqpage)
 
 ---
 
@@ -279,51 +204,43 @@ If `Root.tsx` doesn't exist, create it at `/website/src/theme/Root.tsx`:
 
 ```typescript
 import React from 'react';
-import { useLocation } from '@docusaurus/router';
 import OrganizationSchema from '../components/SEOSchemas/OrganizationSchema';
-import FAQSchema from '../components/SEOSchemas/FAQSchema';
 
-export default function Root({ children }) {
-  const { pathname } = useLocation();
-  const isFAQPage = pathname === '/faq' || pathname === '/faq/';
-
+export default function Root({ children }: { children: React.ReactNode }) {
   return (
     <>
       <OrganizationSchema />
-      {isFAQPage && <FAQSchema />}
       {children}
     </>
   );
 }
 ```
 
-If `Root.tsx` already exists, add the imports and schema components to it, wrapping the existing children:
+If `Root.tsx` already exists, add the import and schema component to it, wrapping the existing children:
 
 ```typescript
-// Add these imports at the top
+// Add this import at the top
 import OrganizationSchema from '../components/SEOSchemas/OrganizationSchema';
-import FAQSchema from '../components/SEOSchemas/FAQSchema';
 
-// Update the render to include schemas before children
+// Update the render to include the schema before children
 ```
 
 Explanation:
 - `Root.tsx` is the wrapper component that runs on every page (Docusaurus convention)
-- `OrganizationSchema` is injected on ALL pages
-- `FAQSchema` is conditionally injected ONLY on the FAQ page
-- `useLocation()` from Docusaurus router detects current page
-- Schemas are injected into `<head>` automatically by React Helmet
+- `OrganizationSchema` is injected on ALL pages (includes both Organization and Website schemas)
+- Schemas are injected into `<head>` automatically by Docusaurus Head component
+- Note: FAQ schema is deferred (see Task 3)
 
 - [ ] **Step 4: Verify Root.tsx is correct**
 
 Run: `cat /website/src/theme/Root.tsx`
-Expected: File contains both schema imports and conditional injection logic.
+Expected: File contains the schema import and injection logic.
 
 - [ ] **Step 5: Commit the Root.tsx changes**
 
 ```bash
 git add website/src/theme/Root.tsx
-git commit -m "feat: inject Organization and FAQ schemas into all pages"
+git commit -m "feat: inject Organization schema into all pages"
 ```
 
 ---
@@ -513,48 +430,40 @@ Take a screenshot.
 2. Enter `https://zio.dev/`
 3. Expected: ✅ "Page is mobile friendly"
 
-- [ ] **Step 5: Create a validation summary document**
+- [ ] **Step 5: Document validation results (internal)**
 
-Create a short text file documenting validation results:
+Document validation results in your notes for reference:
 
 ```
-SEO Configuration Validation — 2026-05-29
+SEO Configuration Validation — Date
 
 ✅ robots.txt exists at https://zio.dev/robots.txt
 ✅ sitemap.xml generated with 450+ pages
 ✅ Organization schema validates (Google Rich Results)
-✅ FAQ schema validates and displays rich snippet
 ✅ Canonical URLs present on all pages
 ✅ Mobile-friendly test passes
 ✅ Google Search Console can crawl site
 
-No errors found. SEO foundation is complete.
+Note: FAQ schema deferred (see Task 3)
 ```
 
-Save to `/website/seo-validation-report.txt`
-
-- [ ] **Step 6: Final commit**
-
-```bash
-git add website/seo-validation-report.txt
-git commit -m "docs: add SEO validation report"
-```
+**Note:** Do not commit a validation report file to the repository — it becomes stale quickly and serves no ongoing purpose. Use the design spec and implementation plan as documentation instead.
 
 ---
 
 ## Summary
 
-**Total Tasks:** 8  
-**Total Files Created:** 3 (robots.txt, OrganizationSchema.tsx, FAQSchema.tsx)  
+**Total Tasks:** 8 (Task 3 deferred)  
+**Total Files Created:** 2 (robots.txt, OrganizationSchema.tsx)  
 **Total Files Modified:** 2 (Root.tsx, docusaurus.config.js)  
-**Commits:** 6
+**Commits:** 5
 
 **Key Deliverables:**
 - ✅ Functional robots.txt with crawler directives
 - ✅ Organization + Website JSON-LD schemas on all pages
-- ✅ FAQ schema on FAQ page (rich snippets)
 - ✅ Verified sitemap generation for all versions
 - ✅ Verified canonical URL configuration
 - ✅ Validation with Google tools
+- ⏳ FAQ schema (deferred to future work — see Task 3 rationale)
 
-**Time Estimate:** 2-3 hours total
+**Time Estimate:** 2-3 hours total (for implemented components)
