@@ -284,6 +284,10 @@ const config = {
             from: '/zio-http',
             to: 'https://ziohttp.com'
           },
+          {
+            from: '/tutorials/producing-consuming-data-from-kafka-topics',
+            to: '/zio-kafka/tutorial'
+          }
         ],
       },
     ],

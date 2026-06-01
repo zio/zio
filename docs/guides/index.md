@@ -24,7 +24,7 @@ The following guides have been written to help you get started with ZIO with min
 7. [How to Build a RESTful Web Service](tutorials/build-a-restful-webservice.md)
 8. [How to Deploy a ZIO Application Using Docker?](tutorials/deploy-a-zio-application-using-docker.md)
 9. [How to Monitor a ZIO Application Using ZIO's Built-in Metric System?](tutorials/monitor-a-zio-application-using-zios-built-in-metric-system.md)
-10. [How to Produce/Consume Data To/From Kafka Topics?](tutorials/produce-consume-data-to-from-kafka-topics.md)
+10. [How to Produce/Consume Data To/From Kafka Topics?](/zio-kafka/tutorial)
 11. [How to Debug a ZIO Application?](tutorials/debug-a-zio-application.md)
 
 ## Integration Guides
