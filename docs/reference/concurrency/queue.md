@@ -23,7 +23,7 @@ A `Queue` can be bounded (with a limited capacity) or unbounded.
 
 There are several strategies to process new values when the queue is full:
 
-- The default `bounded` queue is back-pressured: when full, any offering fiber will be suspended until the queue is able to add the item
+- The default `bounded` queue is back-pressured: when full, any offering [fiber](../fiber/index.md) will be suspended until the queue is able to add the item
 - A `dropping` queue will drop new items when the queue is full
 - A `sliding` queue will drop old items when the queue is full
 

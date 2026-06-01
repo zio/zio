@@ -37,7 +37,7 @@ Runtime Systems have a lot of responsibilities:
 
 5. **Capture execution and stack traces** — They have to keep track of where we are in the progress of our own user-land code, so detailed execution traces can be captured. 
 
-6. **Ensure finalizers are run appropriately** — They have to ensure finalizers are run appropriately at the right point in all circumstances to make sure that resources are closed and clean-up logic is executed. This is the feature that powers `Scope` and all the other resource-safe constructs in ZIO.
+6. **Ensure finalizers are run appropriately** — They have to ensure finalizers are run appropriately at the right point in all circumstances to make sure that resources are closed and clean-up logic is executed. This is the feature that powers `Scope` and all the other [resource-safe constructs in ZIO](../resource/scope.md).
 
 7. **Handle asynchronous callbacks** — They have to handle this messy job of dealing with asynchronous callbacks. So we don't have to deal with async code. When we are using ZIO, everything is just async out of the box. 
 
@@ -105,7 +105,7 @@ In ZIO, we have two types of runtimes:
   - In some performance-critical regions, we want to disable logging temporarily.
   - When we want to have a customized executor for running a portion of our code.
 
-ZLayer provides a consistent way to customize and configure runtimes. Using layers to customize the runtime enables us to use ZIO workflows. So a configuration workflow can be pure, effectful, or resourceful. Let's say we want to customize the runtime based on configuration information from a file or database.
+[ZLayer provides a consistent way](../contextual/zlayer.md) to customize and configure runtimes. Using layers to customize the runtime enables us to use ZIO workflows. So a configuration workflow can be pure, effectful, or resourceful. Let's say we want to customize the runtime based on configuration information from a file or database.
 
 In most cases, it is sufficient to customize application runtime using the [`bootstrap` layer](#configuring-runtime-using-bootstrap-layer) or [providing a custom configuration](#configuring-runtime-by-providing-configuration-layers) directly to our application. If none of these solutions fit to our problem, we can use [top-level runtime configurations](#top-level-runtime-configuration).
 

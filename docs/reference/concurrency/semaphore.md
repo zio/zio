@@ -51,3 +51,7 @@ val semTaskN = (sem: Semaphore) => for {
 ```
 
 The guarantee of `withPermit` (and its corresponding counting version `withPermits`) is that each acquisition will be followed by the equivalent number of releases, regardless of whether the task succeeds, fails, or is interrupted.
+
+## See Also
+
+- [Fiber](../fiber/fiber.md) — lightweight concurrency mechanism that Semaphore synchronizes between

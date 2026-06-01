@@ -13,7 +13,7 @@ R => Either[E, A]
 
 This function, which requires an `R`, might produce either an `E`, representing failure, or an `A`, representing success. ZIO effects are not actually functions, of course, they can model synchronous, asynchronous, concurrent, parallel, and resourceful computations.
 
-ZIO effects use a fiber-based concurrency model, with built-in support for
+ZIO effects use a [fiber-based concurrency model](../../fiber/index.md), with built-in support for
 scheduling, fine-grained interruption, structured concurrency, and high scalability.
 
 The `ZIO[R, E, A]` data type has three type parameters:

@@ -7,7 +7,7 @@ A Fiber can be thought of as a virtual thread. A Fiber is the analog of a Java t
 
 > **Warning** if you are not an experienced ZIO programmer:
 >
-> You should avoid using fibers manually. ZIO gives you many concurrent primitives like `raceWith`, `zipPar`, `foreachPar`, and so forth, which utilize fibers under the hood without any manual effort required.
+> You should avoid using fibers manually. ZIO gives you [many concurrent primitives](../../overview/basic-concurrency.md) like `raceWith`, `zipPar`, `foreachPar`, and so forth, which utilize fibers under the hood without any manual effort required.
 >
 > Fibers, just like threads, are low-level constructs. It's not generally recommended to deal with them in your code directly. It is very easy to make lots of mistakes or to introduce performance problems by manually using them.
 
@@ -50,7 +50,7 @@ The fact that fibers are typed allows us to write more type-safe programs. Also,
 
 Threads in Java can be terminated via the stop method, but this is not a safe operation. The stop operation has been [deprecated](https://docs.oracle.com/javase/1.5.0/docs/guide/misc/threadPrimitiveDeprecation.html). So this is not a safe way to force kill a thread. Instead, we should try to request an interruption of the thread, but in this case, **the thread may not respond to our request, and it may just go forever**.
 
-**Fiber has a safe version of this functionality that works very well**. Just like we can interrupt a thread, we can interrupt a fiber too, but interruption of fibers is much more reliable. It will always work, and **it probably works very fast**. We don't need to wait around, we can just try to interrupt them, and they will be gone very soon.
+**Fiber has a safe version of this functionality that works very well**. Just like we can interrupt a thread, we can [interrupt a fiber](../interruption/index.md) too, but interruption of fibers is much more reliable. It will always work, and **it probably works very fast**. We don't need to wait around, we can just try to interrupt them, and they will be gone very soon.
 
 ### Structured Concurrency
 
