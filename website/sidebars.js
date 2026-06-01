@@ -495,7 +495,6 @@ module.exports = {
         "guides/tutorials/run-our-first-zio-project-with-vscode",
         "guides/tutorials/run-our-first-zio-project-with-intellij-idea",
         "guides/tutorials/deploy-a-zio-application-using-docker",
-        "guides/tutorials/producing-consuming-data-from-kafka-topics",
         "guides/tutorials/monitor-a-zio-application-using-zio-built-in-metric-system",
         "guides/tutorials/debug-a-zio-application",
         "guides/tutorials/build-a-restful-webservice",
