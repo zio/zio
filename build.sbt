@@ -526,7 +526,7 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
   .nativeSettings(
     nativeSettings,
-    libraryDependencies ++= Seq("org.scala-native" %%% "test-interface" % nativeVersion)
+    libraryDependencies ++= Seq("org.scala-native" %%% "test-interface-sbt-defs" % nativeVersion)
   )
 
 lazy val testJunitRunner = project.module
