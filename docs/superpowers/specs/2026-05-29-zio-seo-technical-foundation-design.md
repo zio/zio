@@ -12,11 +12,13 @@
 Implement technical SEO foundation for zio.dev through configuration-only changes. Focus on making the site properly discoverable and indexable by search engines without modifying documentation content.
 
 **Success Criteria:**
-- `robots.txt` properly guides crawler behavior
-- JSON-LD structured data present for Organization, Website, and FAQ schemas
+- `robots.txt` properly guides crawler behavior and rate-limits aggressive bots
+- JSON-LD Organization schema present and validates correctly on all pages
 - Sitemap generation verified and working for all versions
 - Canonical URLs correctly configured across all pages
 - No broken links or 404s in SEO-critical paths
+- Website schema (Sitelinks Search Box) recognized as deprecated by Google, not implemented
+- FAQ schema deferred to future work due to Google content-match policy
 
 ---
 
@@ -176,14 +178,16 @@ Crawl-delay: 10
 {
   url: "https://zio.dev",
   baseUrl: "/",
-  trailingSlash: "ignore", // Prevents /page vs /page/ duplicates
+  trailingSlash: false, // Strips trailing slashes to prevent duplicate content
 }
 ```
 
 **Expected Behavior:**
-- `/docs/overview/getting-started` → canonical: `https://zio.dev/docs/overview/getting-started`
-- `/1.0.18/overview/getting-started` → canonical: `https://zio.dev/docs/overview/getting-started`
+- `/overview/getting-started` → canonical: `https://zio.dev/overview/getting-started`
+- `/1.0.18/overview/getting-started` → canonical: `https://zio.dev/overview/getting-started`
 - `/blog/post-slug` → canonical: `https://zio.dev/blog/post-slug`
+
+Note: Since `routeBasePath: '/'` is configured in docs preset, documentation is served from the root, not under `/docs/`.
 
 ---
 
@@ -191,11 +195,12 @@ Crawl-delay: 10
 
 | Component | File | Change |
 |-----------|------|--------|
-| robots.txt | `/website/static/robots.txt` | Create new file |
-| Structured Data (Organization) | Theme component | Create custom component or plugin |
-| Structured Data (FAQ) | FAQ frontmatter or plugin | Extract from existing content |
-| Sitemap | `docusaurus.config.js` | Verify plugin is active |
-| Canonical URLs | `docusaurus.config.js` | Verify `trailingSlash` setting |
+| robots.txt | `/website/static/robots.txt` | Create new file with crawler directives |
+| Structured Data (Organization) | Theme component | Create Organization schema component |
+| Structured Data (Website) | Theme component | Not implemented (deprecated by Google) |
+| Structured Data (FAQ) | - | Deferred to future work (Google policy) |
+| Sitemap | `docusaurus.config.js` | Verify plugin is active in preset-classic |
+| Canonical URLs | `docusaurus.config.js` | Set `trailingSlash: false` for consistency |
 
 ---
 
@@ -205,15 +210,14 @@ Crawl-delay: 10
    - Write static file in `/website/static/`
    - Add disallow rules, sitemap reference
 
-2. **Implement Organization & Website schemas** — 45 minutes
-   - Create Docusaurus theme component or custom plugin
-   - Inject JSON-LD into document head
+2. **Implement Organization Schema** — 45 minutes
+   - Create Docusaurus theme component for Organization JSON-LD
+   - Inject into document head using Docusaurus Head component
    - Test with Google's Structured Data Testing Tool
 
-3. **Implement FAQ Schema** — 30 minutes
-   - Parse FAQ content from `/docs/faq.md`
-   - Generate FAQ schema dynamically
-   - Validate structure
+3. **FAQ Schema Deferred** — 0 minutes (for future work)
+   - Deferred until FAQ page content is expanded or parser is built
+   - Google policy requires FAQ schema content match visible page content
 
 4. **Verify Sitemap & Canonical URLs** — 15 minutes
    - Check `docusaurus.config.js` for existing configuration
@@ -298,10 +302,11 @@ These are candidates for future Approach 1 or 3 work if desired.
 
 ## 10. Deliverables
 
-1. `robots.txt` file in `/website/static/`
-2. Structured data component/plugin with Organization + Website + FAQ schemas
-3. Verification report showing all schemas validate
-4. Deployment ready — no content changes, only configuration
+1. `robots.txt` file in `/website/static/` with crawler directives and rate limiting
+2. Organization schema component (`OrganizationSchema.tsx`) injected globally on all pages
+3. Canonical URL configuration (`trailingSlash: false`) for consistent URLs across versions
+4. Verified sitemap generation and robot directives working correctly
+5. Deployment ready — no content changes, only configuration
 
 ---
 

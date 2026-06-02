@@ -4,21 +4,21 @@
 
 **Goal:** Implement technical SEO infrastructure for zio.dev — robots.txt, JSON-LD structured data, sitemap verification, and canonical URL configuration.
 
-**Architecture:** Four independent configuration layers: (1) Static robots.txt file for crawler directives, (2) Custom Docusaurus theme component injecting JSON-LD schemas (Organization, Website, FAQ), (3) Verification that sitemap generation works, (4) Verification that canonical URLs are auto-configured. All changes are non-breaking configuration additions.
+**Architecture:** Four independent configuration layers: (1) Static robots.txt file for crawler directives, (2) Custom Docusaurus theme component injecting Organization JSON-LD schema (Website schema deprecated, FAQ deferred), (3) Verification that sitemap generation works, (4) Canonical URL configuration (`trailingSlash: false`). All changes are non-breaking configuration additions.
 
-**Tech Stack:** Docusaurus 2.x, React/TypeScript (for theme component), JSON-LD structured data, Google Search Console
+**Tech Stack:** Docusaurus 3.x, React/TypeScript (for theme component), JSON-LD structured data, Google Search Console
 
 ---
 
 ## File Structure
 
 **Files to create:**
-- `/website/static/robots.txt` — Crawler directives and sitemap reference
-- `/website/src/components/SEOSchemas/OrganizationSchema.tsx` — Organization + Website schema component
+- `/website/static/robots.txt` — Crawler directives, disallow rules, and sitemap reference
+- `/website/src/components/SEOSchemas/OrganizationSchema.tsx` — Organization JSON-LD schema component
 
 **Files to modify:**
-- `/website/src/theme/Root.tsx` — Inject schema components into every page
-- `/website/docusaurus.config.js` — Verify sitemap plugin and canonical URL settings
+- `/website/src/theme/Root.tsx` — Inject Organization schema component into every page
+- `/website/docusaurus.config.js` — Verify sitemap plugin configuration and set `trailingSlash: false`
 
 **Deferred:**
 - `/website/src/components/SEOSchemas/FAQSchema.tsx` — FAQ schema component (deferred to future work, see Task 3)
@@ -136,8 +136,8 @@ Explanation:
 - Single `<script>` tag for Organization schema
 - `dangerouslySetInnerHTML` is the safe way to inject JSON-LD in React (not XSS risk with structured data)
 - Use Docusaurus `Head` component to inject into page `<head>` (not body)
-- Organization schema includes contact info and social profiles
-- Note: Website schema (Sitelinks Search Box) is deprecated by Google and not included
+- Organization schema includes name, URL, logo, description, and contact info
+- Note: Website schema (Sitelinks Search Box) deprecated by Google in Nov 2024 — not implemented
 
 - [ ] **Step 3: Verify the file exists and has valid syntax**
 
@@ -148,7 +148,7 @@ Expected: File contents match the TypeScript code above, no errors.
 
 ```bash
 git add website/src/components/SEOSchemas/OrganizationSchema.tsx
-git commit -m "feat: add Organization and Website JSON-LD schema component"
+git commit -m "feat: add Organization JSON-LD schema component"
 ```
 
 ---
@@ -232,46 +232,41 @@ git commit -m "feat: inject Organization schema into all pages"
 
 ---
 
-## Task 5: Verify Sitemap Plugin Configuration
+## Task 5: Verify Sitemap Configuration
 
 **Files:**
 - Verify: `/website/docusaurus.config.js`
 
-- [ ] **Step 1: Check if sitemap plugin is configured**
+- [ ] **Step 1: Check sitemap configuration in preset**
 
-Run: `grep -A 5 "plugin-sitemap\|@docusaurus/plugin-sitemap" /website/docusaurus.config.js`
-Expected: One of:
-- Plugin is explicitly configured in the `plugins` array, OR
-- Plugin is not mentioned (Docusaurus includes it by default)
+Run: `grep -A 5 "sitemap:" /website/docusaurus.config.js`
+Expected: Sitemap configuration under the `preset-classic` preset, not as a separate plugin.
 
-- [ ] **Step 2: If plugin is not explicitly configured, add it**
+- [ ] **Step 2: Verify sitemap options are configured correctly**
 
-If the grep command returned nothing, add the sitemap plugin to `/website/docusaurus.config.js`:
-
-Find the `plugins` array (around line 263) and add this plugin configuration if not present:
+Check that the preset includes:
 
 ```javascript
-[
-  '@docusaurus/plugin-sitemap',
-  {
-    changefreq: 'weekly',
-    priority: 0.7,
-    ignorePatterns: ['/tags/**'],
-    filename: 'sitemap.xml',
-  },
-],
+sitemap: {
+  changefreq: 'weekly',
+  priority: 0.7,
+  ignorePatterns: ['/tags/**'],
+  filename: 'sitemap.xml',
+}
 ```
 
-- [ ] **Step 3: Verify sitemap plugin is active**
+The `@docusaurus/preset-classic` includes sitemap by default; configuration goes in the preset options, not in plugins array.
 
-Run: `grep -A 3 "@docusaurus/plugin-sitemap" /website/docusaurus.config.js`
-Expected: Plugin configuration is present.
+- [ ] **Step 3: Verify no duplicate sitemap plugins exist**
 
-- [ ] **Step 4: Commit the sitemap plugin configuration**
+Run: `grep "@docusaurus/plugin-sitemap" /website/docusaurus.config.js`
+Expected: No results (sitemap is configured via preset, not as a separate plugin).
+
+- [ ] **Step 4: Commit the sitemap configuration**
 
 ```bash
 git add website/docusaurus.config.js
-git commit -m "feat: configure @docusaurus/plugin-sitemap for search engine discovery"
+git commit -m "feat: configure sitemap in preset-classic for search engine discovery"
 ```
 
 ---
@@ -286,7 +281,7 @@ git commit -m "feat: configure @docusaurus/plugin-sitemap for search engine disc
 Run: `grep "trailingSlash" /website/docusaurus.config.js`
 Expected output: Either `trailingSlash: 'ignore'` or no output.
 
-- [ ] **Step 2: If trailingSlash is not set to 'ignore', add it**
+- [ ] **Step 2: If trailingSlash is not set to false, add it**
 
 Open `/website/docusaurus.config.js` and ensure the top-level config object has:
 
@@ -296,26 +291,27 @@ const config = {
   tagline: '...',
   url: 'https://zio.dev',
   baseUrl: '/',
-  trailingSlash: 'ignore',  // ADD THIS LINE if not present
+  trailingSlash: false,  // Strips trailing slashes for canonical URL consistency
   onBrokenLinks: 'warn',
   // ... rest of config
 };
 ```
 
 Explanation:
-- `trailingSlash: 'ignore'` prevents duplicate pages (`/page` vs `/page/`)
-- Docusaurus already auto-generates canonical URLs; this setting ensures they're correct
+- `trailingSlash: false` strips trailing slashes from all URLs (e.g., `/page/` → `/page`)
+- This prevents duplicate content issues and ensures a single canonical form
+- Docusaurus auto-generates canonical URLs; this setting controls their format
 
 - [ ] **Step 3: Verify the setting is present**
 
-Run: `grep -A 2 "url: 'https://zio.dev'" /website/docusaurus.config.js | head -5`
-Expected: Lines show `baseUrl` and `trailingSlash: 'ignore'`.
+Run: `grep "trailingSlash" /website/docusaurus.config.js`
+Expected: Line shows `trailingSlash: false`.
 
 - [ ] **Step 4: Commit the canonical URL configuration**
 
 ```bash
 git add website/docusaurus.config.js
-git commit -m "feat: set trailingSlash to 'ignore' for consistent canonical URLs"
+git commit -m "feat: set trailingSlash to false for consistent canonical URLs"
 ```
 
 ---
@@ -362,10 +358,10 @@ Expected: Multiple entries with `1.0.18` in the URL path.
 Run: `grep -A 2 '"@type": "Organization"' /website/build/index.html`
 Expected: JSON-LD organization schema found in the HTML.
 
-- [ ] **Step 6: Verify FAQ schema is injected into FAQ page**
+- [ ] **Step 6: Verify no FAQ schema (deferred)**
 
-Run: `grep -A 2 '"@type": "FAQPage"' /website/build/faq/index.html`
-Expected: JSON-LD FAQ schema found in FAQ page HTML.
+FAQ schema is deferred to future work due to Google's content-match policy.
+Expected: No `"@type": "FAQPage"` in FAQ page HTML.
 
 - [ ] **Step 7: Verify canonical URLs are present**
 
@@ -446,10 +442,11 @@ Note: FAQ schema deferred (see Task 3)
 **Commits:** 5
 
 **Key Deliverables:**
-- ✅ Functional robots.txt with crawler directives
-- ✅ Organization + Website JSON-LD schemas on all pages
+- ✅ Functional robots.txt with crawler directives and rate limiting
+- ✅ Organization JSON-LD schema on all pages
+- ⏳ Website schema (Sitelinks Search Box) — deprecated by Google in Nov 2024, not implemented
 - ✅ Verified sitemap generation for all versions
-- ✅ Verified canonical URL configuration
+- ✅ Verified canonical URL configuration (trailingSlash: false)
 - ✅ Validation with Google tools
 - ⏳ FAQ schema (deferred to future work — see Task 3 rationale)
 
