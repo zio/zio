@@ -284,6 +284,10 @@ const config = {
             from: '/zio-http',
             to: 'https://ziohttp.com'
           },
+          {
+            from: '/tutorials/producing-consuming-data-from-kafka-topics',
+            to: '/zio-kafka/tutorial'
+          }
         ],
       },
     ],
@@ -318,6 +322,12 @@ const config = {
         includeUnmatchedLast: true,
         preserveDirectoryStructure: false,
       }),
+    ],
+    [
+      'docusaurus-plugin-copy-page-button',
+      {
+        enabledActions: ['copy', 'view', 'chatgpt', 'claude', 'gemini'],
+      },
     ],
   ],
   markdown: {

@@ -5,6 +5,7 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Hero from '@site/src/components/sections/Hero';
 import Features from '@site/src/components/sections/Features';
 import Ecosystem from '@site/src/components/sections/Ecosystem';
+import CodingAgent from '@site/src/components/sections/CodingAgent';
 import Sponsors from '@site/src/components/sections/Sponsors';
 import Zionomicon from '@site/src/components/sections/Zionomicon';
 
@@ -21,6 +22,7 @@ export default function WelcomePage() {
       <Hero />
 
       <main>
+        <CodingAgent />
         <Features />
         <Ecosystem title = "Ecosystem" subtitle="A rich ecosystem of libraries built on ZIO to solve real-world problems"/>
         <Zionomicon />

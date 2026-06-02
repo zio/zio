@@ -526,7 +526,7 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
   .nativeSettings(
     nativeSettings,
-    libraryDependencies ++= Seq("org.scala-native" %%% "test-interface" % nativeVersion)
+    libraryDependencies ++= Seq("org.scala-native" %%% "test-interface-sbt-defs" % nativeVersion)
   )
 
 lazy val testJunitRunner = project.module
@@ -665,7 +665,7 @@ lazy val benchmarks = project.module
         "org.jctools"                % "jctools-core"  % "4.0.6",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
-        "qa.hedgehog"               %% "hedgehog-core" % "0.13.0",
+        "qa.hedgehog"               %% "hedgehog-core" % "0.13.1",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
         "org.springframework"        % "spring-core"   % "7.0.7"
       )
