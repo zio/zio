@@ -1,7 +1,13 @@
 ---
-id: contributing-to-documentation
-slug: contributing-to-documentation
+id: "contributing-to-documentation"
+slug: "contributing-to-documentation"
 title: "Contributing to The ZIO Documentation"
+description: "A comprehensive guide for contributing to the ZIO documentation, covering editing methods via GitHub and local development, the Markdown-based toolchain, and AI-friendly documentation variants."
+keywords:
+  - "Pull Request"
+  - "Documentation"
+  - "Contributing"
+  - "Microsite"
 ---
 
 The ZIO documentation is provided by a worldwide community, just like the project itself. So if you are reading this page, you can help us to improve the documentation.

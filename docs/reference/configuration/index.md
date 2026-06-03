@@ -22,7 +22,7 @@ To make our application configurable, we should know about three essential eleme
 3. **Config Backend**— `ConfigProvider` is the underlying engine that `ZIO.config` uses to load configs. ZIO has a default config provider inside its default services. The default config provider reads configuration data from environment variables and if not found, from system properties. To change the default config provider, we can use `Runtime.setConfigProvider` layer to configure the ZIO runtime to use a custom config provider.
 
 :::note
-By introducing built-in config front-end in ZIO Core, the old way of reading configuration data using `ZLayer` is deprecated, and we don't recommend using layers for configuration anymore.
+By introducing built-in config front-end in ZIO Core, the old way of reading configuration data using [`ZLayer`](../contextual/zlayer.md) is deprecated, and we don't recommend using layers for configuration anymore.
 :::
 
 ## Primitive Configs
@@ -224,7 +224,7 @@ object MainAppScoped extends ZIOAppDefault {
 ```
 
 :::note
-The console provider is stored inside a `FiberRef`, so we can override it in a scoped manner. This is useful for changing the config provider for a specific part of the application.
+The console provider is stored inside a [`FiberRef`](../state-management/fiberref.md), so we can override it in a scoped manner. This is useful for changing the config provider for a specific part of the application.
 :::
 
 ## Testing Services

@@ -1,6 +1,12 @@
 ---
-id: index 
+id: "index "
 title: "Introduction to Scheduling ZIO Effects"
+description: "An immutable value describing recurring effectful schedules for repeating actions or retrying on failures with configurable delays."
+keywords:
+  - "Schedule"
+  - "Retrying"
+  - "Repetition"
+  - "Error handling"
 ---
 
 ```scala mdoc:invisible

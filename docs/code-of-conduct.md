@@ -1,7 +1,15 @@
 ---
-id: code-of-conduct
-slug: code-of-conduct
+id: "code-of-conduct"
+slug: "code-of-conduct"
 title: "Code of Conduct"
+description: "Outlines the ZIO project's Code of Conduct, community standards, moderation governance structure, and the role of the Steering Committee and BDFL."
+keywords:
+  - "Code of Conduct"
+  - "Moderation"
+  - "Steering Committee"
+  - "BDFL"
+  - "Governance"
+  - "Community Standards"
 ---
 
 We are committed to providing a friendly, safe and welcoming

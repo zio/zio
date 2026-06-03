@@ -61,7 +61,7 @@ So we can put something into it, making it full, or take something out, making i
 - If it is full and the calling fiber tries to put something in it.
 - If it is empty and the calling fiber tries to take something out of it.
 
-These two features of `MVar` make it possible to synchronize multiple fibers.
+These two features of `MVar` make it possible to synchronize multiple [fibers](../fiber/fiber.md).
 
 ### Nonblocking `tryPut` and `tryTake`
 
@@ -369,3 +369,7 @@ object MainApp extends ZIOAppDefault {
     }
 }
 ```
+
+## See Also
+
+- [Ref](../concurrency/ref.md) — A related mutable reference primitive for managing shared state atomically; discussed extensively as an alternative solution in the page.
