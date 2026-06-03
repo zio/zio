@@ -17,14 +17,15 @@ export default function OrganizationSchema() {
     ],
     contactPoint: {
       '@type': 'ContactPoint',
-      contactType: 'Community Support',
-      url: 'https://discord.gg/2ccFBr4',
+      contactType: 'customer support',
+      email: 'hello@zio.dev',
     },
   };
 
   return (
     <Head>
       <script
+        key="organization-schema"
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
       />
