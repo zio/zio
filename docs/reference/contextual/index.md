@@ -1,7 +1,14 @@
 ---
-id: index
+id: "index"
 title: "Introduction to the ZIO's Contextual Data Types"
 sidebar_label: "Introduction"
+description: "ZIO's contextual abstraction for encoding environments that effects require, enabling dependency injection and service composition through type-safe mechanisms."
+keywords:
+  - "Environment"
+  - "ZIO"
+  - "Dependency Injection"
+  - "ZLayer"
+  - "Service Pattern"
 ---
 
 ZIO provides a contextual abstraction that encodes the environment of the running effect. This means, every effect can work within a specific context, called an environment.

@@ -1,6 +1,13 @@
 ---
-id: zio
+id: "zio"
 title: "ZIO"
+description: "Immutable lazy value that describes workflows with fiber-based concurrency and typed error and success values."
+keywords:
+  - "ZIO"
+  - "Effects"
+  - "Fibers"
+  - "Concurrency"
+  - "Asynchronous"
 ---
 
 A `ZIO[R, E, A]` value is an immutable value that lazily describes a workflow or job. The workflow requires some environment `R`, and may fail with an error of type `E`, or succeed with a value of type `A`.

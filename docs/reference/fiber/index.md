@@ -1,6 +1,13 @@
 ---
-id: index
+id: "index"
 title: "Introduction to ZIO Fibers"
+description: "Virtual threads enabling lightweight concurrent execution on the JVM with typed error and success values."
+keywords:
+  - "Fibers"
+  - "Virtual Threads"
+  - "Concurrency"
+  - "Lightweight"
+  - "Asynchronous"
 ---
 
 A Fiber can be thought of as a virtual thread. A Fiber is the analog of a Java thread (`java.lang.Thread`), but it performs much better. Fibers are implemented in such a fashion that a single JVM thread will execute many fibers. We can think of fibers as unbounded JVM threads.

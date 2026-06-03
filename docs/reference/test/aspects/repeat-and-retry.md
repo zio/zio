@@ -1,6 +1,12 @@
 ---
-id: repeat-and-retry
+id: "repeat-and-retry"
 title: "Repeat and Retry"
+description: "Test aspects for repeating tests on a schedule and retrying failures until success with configurable policies."
+keywords:
+  - "TestAspect"
+  - "Repetition"
+  - "Retrying"
+  - "Schedule"
 ---
 
 There are some situations where we need to repeat a test with a specific schedule, or our tests might fail, and we need to retry them until we make sure that our tests pass. ZIO Test has the following test aspects for these scenarios:

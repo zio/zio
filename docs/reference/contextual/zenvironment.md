@@ -3,10 +3,10 @@ id: "zenvironment "
 title: "ZEnvironment"
 description: "ZEnvironment is a built-in type-level map for the ZIO data type that maintains and manages environmental services and their implementations for ZIO effects."
 keywords:
-  - ZEnvironment
-  - type-level map
-  - dependency injection
-  - effect dependencies
+  - "ZEnvironment"
+  - "type-level map"
+  - "dependency injection"
+  - "effect dependencies"
 ---
 
 A `ZEnvironment[R]` is a built-in type-level map for the [`ZIO`](../core/zio/zio.md) data type which is responsible for maintaining the environment of a `ZIO` effect. The `ZIO` data type uses this map to maintain all the environmental services and their implementations.
