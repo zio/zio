@@ -36,15 +36,13 @@ function getFontsLink(fonts) {
     return `family=${font.family}${fontWeight}`;
   });
 
-  const fontHref = `https://fonts.googleapis.com/css2?${fontsParams.join('&')}&display=fallback`;
+  const fontHref = `https://fonts.googleapis.com/css2?${fontsParams.join('&')}&display=swap`;
 
   return {
     tagName: 'link',
     attributes: {
-      rel: 'preload',
+      rel: 'stylesheet',
       href: fontHref,
-      as: 'style',
-      onload: "this.rel='stylesheet'",
     },
   };
 }
