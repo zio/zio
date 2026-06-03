@@ -17,8 +17,8 @@ export default function OrganizationSchema() {
     ],
     contactPoint: {
       '@type': 'ContactPoint',
-      contactType: 'customer support',
-      email: 'hello@zio.dev',
+      contactType: 'Community Support',
+      url: 'https://discord.gg/2ccFBr4',
     },
   };
 
