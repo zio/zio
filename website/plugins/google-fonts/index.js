@@ -3,7 +3,7 @@ function googleFontsPlugin() {
     name: 'docusaurus-google-fonts',
     injectHtmlTags() {
       const fonts = [{ family: 'Inter', weight: '400..900' }];
-      const fontsLink = getFontsLink(fonts);
+      const fontsLinks = getFontsLink(fonts);
 
       return {
         headTags: [
@@ -22,7 +22,7 @@ function googleFontsPlugin() {
               crossorigin: true,
             },
           },
-          fontsLink,
+          ...fontsLinks,
         ],
       };
     },
@@ -38,13 +38,26 @@ function getFontsLink(fonts) {
 
   const fontHref = `https://fonts.googleapis.com/css2?${fontsParams.join('&')}&display=swap`;
 
-  return {
-    tagName: 'link',
-    attributes: {
-      rel: 'stylesheet',
-      href: fontHref,
+  // Use preload for faster font loading while display=swap prevents invisible text during load.
+  // Preload initiates the download early; display=swap allows the page to render immediately
+  // with fallback fonts and swap to the loaded font when ready. This balances performance and UX.
+  return [
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'preload',
+        href: fontHref,
+        as: 'style',
+      },
     },
-  };
+    {
+      tagName: 'link',
+      attributes: {
+        rel: 'stylesheet',
+        href: fontHref,
+      },
+    },
+  ];
 }
 
 module.exports = googleFontsPlugin;

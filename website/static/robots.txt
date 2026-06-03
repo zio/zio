@@ -13,7 +13,8 @@ Sitemap: https://zio.dev/sitemap.xml
 
 # Rate limit overly aggressive crawlers
 # Note: Crawl-delay is honored by Bing, Yandex, and some third-party bots,
-# but not by Googlebot. Use for managing load from non-Google crawlers.
+# but not by Googlebot. To rate-limit Googlebot, use Google Search Console crawl
+# rate settings or add a Retry-After header on HTTP responses.
 User-agent: AhrefsBot
 Disallow: /search
 Disallow: /.docusaurus
