@@ -1,6 +1,14 @@
 ---
-id: index
+id: "index"
 title: "Introduction to Configuration in ZIO"
+description: "Guide to ZIO's unified configuration system: describe configs declaratively and load them via ConfigProvider."
+keywords:
+  - "Configuration System"
+  - "Environment Variables"
+  - "System Properties"
+  - "Config Provider"
+  - "Custom Configs"
+  - "Configuration Backends"
 ---
 
 Configuration is a core concern for any cloud-native application. So ZIO ships with built-in support for configuration by providing a front-end for configuration providers as well as metrics and logging.
