@@ -2,6 +2,14 @@
 id: dependency-injection-in-zio
 title: "Getting Started With Dependency Injection in ZIO"
 sidebar_label: "Getting Started"
+description: "Master ZIO dependency injection: access services from environment, compose applications, build dependency graphs with ZLayer, and inject dependencies."
+keywords:
+  - "Dependency Injection"
+  - "ZIO Services"
+  - "ZLayer Construction"
+  - "Service Composition"
+  - "Dependency Graph"
+  - "Constructor Injection"
 ---
 
 :::caution

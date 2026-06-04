@@ -239,3 +239,8 @@ object MainApp extends ZIOAppDefault {
 During writing the application, we don't care which implementation version of the `BlobStorage` and `MetadataRepo` services will be injected into our `app`. Later at the end of the day, it will be provided by one of `ZIO#provide*` methods.
 
 That's it! Very simple! ZIO encourages us to follow some of the best practices in object-oriented programming. So it doesn't require us to throw away all our object-oriented knowledge.
+
+## See Also
+
+- [Dependency Injection](../di/dependency-injection-in-zio.md) — Master ZIO dependency injection: access services from environment, compose applications, build dependency graphs with ZLayer, and inject dependencies.
+- [service dependencies and ZLayer](the-three-laws-of-zio-environment.md) — Master three ZIO environment laws: traits exclude dependencies, implementations use constructor injection, and business logic accesses services.
