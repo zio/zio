@@ -1,7 +1,16 @@
 ---
 id: scopedref
 title: "ScopedRef: Mutable Reference For Resources"
-sidebar_label: "ScopedRef"
+sidebar_label: ScopedRef
+description: "ScopedRef provides a resourceful mutable reference that automatically manages acquisition and release of scoped resources when values change."
+keywords:
+  - ScopedRef
+  - "Resource Management"
+  - "Automatic Resource Release"
+  - "Resource Lifecycle"
+  - "Mutable References"
+  - "Scoped Resources"
+  - "Resourceful Effects"
 ---
 
 `ScopedRef` is a resourceful version of [`Ref`](../concurrency/ref.md) data type. So it is a `Ref` for resourceful effects.

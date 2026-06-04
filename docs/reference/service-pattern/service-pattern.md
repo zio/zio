@@ -1,16 +1,16 @@
 ---
-id: "service-pattern"
+id: service-pattern
 title: "The Four Elements of Service Pattern"
 sidebar_label: "Service Pattern"
-description: "Guide to the four elements of ZIO Service Pattern: definition, implementation, dependencies, and ZLayer constructor lifting."
+description: "Learn the four essential elements of ZIO Service Pattern: definition, implementation, dependencies, and ZLayer constructor lifting."
 keywords:
+  - "Service Pattern"
+  - "ZLayer Constructor"
+  - "Dependency Injection"
+  - "Trait-Based Services"
   - "Service Definition"
   - "Service Implementation"
   - "Service Dependencies"
-  - "ZLayer Constructor"
-  - "Service Pattern"
-  - "Dependency Injection"
-  - "Trait-Based Services"
 ---
 
 Writing services in ZIO using the _Service Pattern_ is very similar to the object-oriented way of defining services. We use scala traits to define services, classes to implement services, and constructors to define service dependencies. Finally, we lift the class constructor into the `ZLayer`.

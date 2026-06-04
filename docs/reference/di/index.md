@@ -1,11 +1,11 @@
 ---
-id: "index"
+id: index
 title: "Introduction to Dependency Injection in ZIO"
-description: "ZIO's built-in dependency injection enables type-safe, composable service management using ZIO Environment and ZLayer for dependency graphs."
+description: "Explore ZIO's built-in dependency injection system using ZIO Environment and ZLayer for type-safe, composable service management."
 keywords:
   - "Dependency Injection"
   - "ZIO Environment"
-  - "ZLayer"
+  - ZLayer
   - "Type-Safe Dependencies"
   - "Service Composition"
   - "Dependency Graph"
