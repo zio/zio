@@ -12,7 +12,7 @@ keywords:
   - "Transactional Effects"
 ---
 
-An `STM[E, A]` represents an effect that can be performed transactionally resulting in a failure `E` or a success `A`. There is a more powerful variant `ZSTM[R, E, A]` which supports an environment type `R` like `ZIO[R, E, A]`.
+An `STM[E, A]` represents an effect that can be performed transactionally resulting in a failure `E` or a success `A`. There is a more powerful variant `ZSTM[R, E, A]` which supports an environment type `R` like [`ZIO[R, E, A]`](../core/zio/zio.md).
 
 The `STM` (and `ZSTM` variant) data-type is _not_ as powerful as the `ZIO[R, E, A]` datatype as it does not allow you to perform arbitrary effects. These are because actions inside STM actions can be executed an arbitrary amount of times (and rolled-back as well). Only STM actions and pure computation may be performed inside a memory transaction. 
 
@@ -89,5 +89,4 @@ This will cause the transfer to fail immediately if the sender does not have mon
 
 ## See Also
 
-- [STM Overview](index.md) — STM enables composable atomic transactions on memory with atomicity, consistency, and isolation guarantees for concurrent programs.
-- [TRef](tref.md) — TRef is a mutable reference to immutable values that participates in STM transactions with atomicity, consistency, and isolation guarantees.
+- [Introduction to Software Transactional Memory](index.md) — STM enables composable atomic transactions on memory with atomicity, consistency, and isolation guarantees for concurrent programs.
