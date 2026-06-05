@@ -1,7 +1,15 @@
 ---
 id: stm
 slug: stm.md
-title: "STM"
+title: STM
+description: "STM[E, A] is a transactional effect supporting atomic operations with automatic rollback, error handling, and retry-based composition."
+keywords:
+  - "Atomic Transactions"
+  - "Software Transactional Memory"
+  - "Transaction Rollback"
+  - "Retry Semantics"
+  - "STM Composition"
+  - "Transactional Effects"
 ---
 
 An `STM[E, A]` represents an effect that can be performed transactionally resulting in a failure `E` or a success `A`. There is a more powerful variant `ZSTM[R, E, A]` which supports an environment type `R` like `ZIO[R, E, A]`.
