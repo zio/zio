@@ -1,6 +1,13 @@
 ---
 id: refsynchronized
-title: "Ref.Synchronized"
+title: Ref.Synchronized
+description: "Mutable reference supporting atomic and effectful updates for managing shared state concurrently."
+keywords:
+  - "Atomic Reference"
+  - "Effectful Updates"
+  - "Concurrent State Management"
+  - "Actor Model Pattern"
+  - "Synchronized Operations"
 ---
 `Ref.Synchronized[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data, and update it atomically **and** effectfully.
 

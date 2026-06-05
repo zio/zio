@@ -1,6 +1,14 @@
 ---
 id: ref
-title: "Ref"
+title: Ref
+description: "Thread-safe atomic reference for managing immutable state in concurrent ZIO applications."
+keywords:
+  - "Atomic Reference"
+  - "Concurrent State Management"
+  - "Thread-Safe Operations"
+  - "Immutable Data"
+  - "Fiber Synchronization"
+  - "Race Condition Prevention"
 ---
 
 `Ref[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content.
@@ -335,3 +343,7 @@ The type of `ref.modify { state => ... }` is an effect that produces another eff
 **Important:** The continuation is **not** part of the atomic modification. The state modification completes before the continuation runs, and it doesn't depend on the continuation's result. If multiple fibers execute this pattern concurrently, their continuations may be interleaved, even though their state modifications are atomic.
 
 If you need the continuation to be part of the atomic operation—ensuring no other fiber can modify the state between the modification and the continuation—use `Ref.Synchronized` instead. See [Ref.Synchronized](refsynchronized.md) for more details.
+
+## See Also
+
+- [Global Shared State](../state-management/global-shared-state.md) — Manage global shared state in ZIO applications using Ref, enabling safe concurrent state sharing between fibers.
