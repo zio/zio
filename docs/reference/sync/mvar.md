@@ -1,13 +1,21 @@
 ---
-id: mvar 
-title: "MVar"
+id: mvar
+title: MVar
+description: "A single-element mutable buffer that synchronizes concurrent fibers, enabling semaphores, latches, and producer-consumer patterns."
+keywords:
+  - "Mutable buffer"
+  - "Fiber synchronization"
+  - "Binary semaphore"
+  - "Producer consumer pattern"
+  - "Concurrent primitives"
+  - "ZIO concurrency"
 ---
 
 An `MVar[A]` is a mutable location that is either empty or contains a value of type `A`. So the `MVar` acts like a _single-element buffer_.
 
 `MVar` can be used in multiple different ways:
 - As a simple on/off latch
-- As a binary semaphore `MVar[Unit]`, with `take` and `put` as `acquire` and `release`
+- As a [binary semaphore](../concurrency/semaphore.md) `MVar[Unit]`, with `take` and `put` as [`acquire`](../resource/index.md) and `release`
 - As a synchronized mutable variable
 - As a channel, with `take` and `put` as `receive` and `send`
 
@@ -319,7 +327,7 @@ Can we say this is the same as the previous `inc` function? No, because although
 
 ### Producer/Consumer Channel
 
-We can use an `MVar` to implement a producer/consumer channel:
+We can use an `MVar` to implement a [producer/consumer](../concurrency/queue.md) channel:
 
 ```scala mdoc:compile-only
 import zio._
