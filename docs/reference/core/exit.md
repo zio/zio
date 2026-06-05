@@ -1,6 +1,14 @@
 ---
 id: exit
-title: "Exit"
+title: Exit
+description: "Exit type represents ZIO fiber outcomes as either Success with a value or Failure with a typed error Cause."
+keywords:
+  - "Exit Type"
+  - "Fiber Outcomes"
+  - "Success Values"
+  - "Failure Causes"
+  - "Typed Error Handling"
+  - "Effect Results"
 ---
 
 An `Exit[E, A]` value describes [how fibers end life](../fiber/fiber.md). It has two possible values:
