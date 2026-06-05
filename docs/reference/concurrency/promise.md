@@ -1,6 +1,14 @@
 ---
 id: promise
-title: "Promise"
+title: Promise
+description: "A purely functional synchronization primitive that enables fiber coordination through a single value set exactly once."
+keywords:
+  - "Synchronization Primitive"
+  - "Fiber Coordination"
+  - "Promise Completion"
+  - "IO Concurrency"
+  - "Concurrent Primitives"
+  - "Fiber Suspension"
 ---
 
 A `Promise[E, A]` is a variable of `IO[E, A]` type that can be set exactly once.
@@ -109,3 +117,8 @@ val program: ZIO[Any, IOException, Unit] =
 
 In the example above, we create a Promise and a Fiber (`fiberA`) that completes the Promise after 1 second, and a second Fiber (`fiberB`) that will call `await` on that Promise to obtain a `String` and then print it to screen. The example prints `hello world` to the screen after 1 second. Remember, this is just a description of the program and not the execution
 itself.
+
+## See Also
+
+- [Fiber](../fiber/fiber.md) — Lightweight concurrency primitives for non-blocking, structured execution of ZIO effects with automatic supervision and interruption.
+- [Semaphore](semaphore.md) — A synchronization primitive that safely manages permit-based fiber coordination with automatic release guarantees.

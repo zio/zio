@@ -1,6 +1,14 @@
 ---
 id: queue
-title: "Queue"
+title: Queue
+description: "Lightweight, fully asynchronous in-memory queue with composable back-pressure for fiber coordination."
+keywords:
+  - "Bounded Queue"
+  - "Back-pressure Support"
+  - "Asynchronous Queue"
+  - "Producer-Consumer Pattern"
+  - "Non-blocking Queue"
+  - "Fiber Coordination"
 ---
 
 `Queue` is a lightweight in-memory queue built on ZIO with composable and transparent back-pressure. It is fully asynchronous (no locks or blocking), purely-functional and type-safe.
