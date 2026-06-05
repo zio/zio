@@ -89,6 +89,5 @@ This will cause the transfer to fail immediately if the sender does not have mon
 
 ## See Also
 
-- [overview](index.md) — STM enables composable atomic transactions on memory with atomicity, consistency, and isolation guarantees for concurrent programs.
-- [example-usage](tref.md) — TRef is a mutable reference to immutable values that participates in STM transactions with atomicity, consistency, and isolation guarantees.
-- [error-management](../core/zio/zio.md) — Immutable lazy value that describes workflows with fiber-based concurrency and typed error and success values.
+- [STM Overview](index.md) — STM enables composable atomic transactions on memory with atomicity, consistency, and isolation guarantees for concurrent programs.
+- [TRef](tref.md) — TRef is a mutable reference to immutable values that participates in STM transactions with atomicity, consistency, and isolation guarantees.
