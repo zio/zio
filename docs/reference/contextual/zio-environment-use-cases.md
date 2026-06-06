@@ -1,6 +1,14 @@
 ---
 id: zio-environment-use-cases
 title: "ZIO Environment Use-cases"
+description: "Explore practical ZIO environment use cases for local capabilities and business logic dependencies with service organization patterns."
+keywords:
+  - "ZIO Environment"
+  - "Local Capabilities"
+  - "Business Logic"
+  - "Service Pattern"
+  - "Scoped Resources"
+  - "Dependency Injection"
 ---
 
 ZIO Environment allows us to describe workflows which carry some context that is used in the course of executing the workflow. This context can be dived into two categories:
