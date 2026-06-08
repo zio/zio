@@ -1,5 +1,5 @@
 ---
-id: "zenvironment "
+id: "zenvironment"
 title: ZEnvironment
 description: "Understand ZEnvironment, the type-level map that maintains and manages environmental services and implementations for ZIO effects."
 keywords:

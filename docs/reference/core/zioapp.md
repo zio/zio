@@ -1,5 +1,5 @@
 ---
-id: "zioapp "
+id: "zioapp"
 title: "ZIOApp"
 description: "Entry point trait for ZIO applications supporting custom environments, composable layers, and graceful shutdown handling."
 keywords:

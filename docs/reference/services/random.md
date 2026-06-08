@@ -1,5 +1,5 @@
 ---
-id: "random "
+id: "random"
 title: "Random"
 description: "Provides utilities to generate pseudo-random numbers with various generators including nextInt, nextBoolean, nextDouble, and Gaussian sampling."
 keywords:

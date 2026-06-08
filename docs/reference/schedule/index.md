@@ -1,5 +1,5 @@
 ---
-id: "index "
+id: "index"
 title: "Introduction to Scheduling ZIO Effects"
 description: "Immutable values describing recurring effectful schedules for repeating actions or retrying on failures with configurable delays."
 keywords:

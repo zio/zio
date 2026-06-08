@@ -1,5 +1,5 @@
 ---
-id: "console "
+id: "console"
 title: "Console"
 description: "Service providing simple I/O operations for reading/writing strings from/to standard input, output, and error console."
 keywords:
