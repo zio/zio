@@ -1,6 +1,14 @@
 ---
-id: zlayer
+id: "zlayer"
 title: "ZLayer"
+description: "ZLayer provides composable recipes for constructing services with type-safe dependency management and asynchronous resource handling."
+keywords:
+  - "Layer Composition"
+  - "Service Construction"
+  - "Dependency Management"
+  - "Resource Management"
+  - "Asynchronous Construction"
+  - "ZLayer Combinators"
 ---
 
 A `ZLayer[-RIn, +E, +ROut]` describes a layer of an application: every layer in an application requires some services as input `RIn` and produces some services as the output `ROut`.

@@ -1,7 +1,14 @@
 ---
-id: retrying
+id: "retrying"
 title: "Retrying"
 sidebar_label: "4. Retrying"
+description: "ZIO retry mechanisms for handling transient failures with configurable policies and fallback recovery strategies."
+keywords:
+  - "Retrying"
+  - "Schedule"
+  - "Error Handling"
+  - "Recovery"
+  - "Resilience"
 ---
 
 When we are building applications we want to be resilient in the face of a transient failure. This is where we need to retry to overcome these failures.

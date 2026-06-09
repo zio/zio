@@ -1,6 +1,11 @@
 ---
-id: scheduling
+id: "scheduling"
 title: "Scheduling"
+description: "ZStream scheduling combinators for controlling emission timing and spacing of stream outputs using configurable schedule policies."
+keywords:
+  - "ZStream"
+  - "Schedule"
+  - "Scheduling"
 ---
 
 To schedule the output of a stream we use `ZStream#schedule` combinator.

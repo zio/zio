@@ -1,7 +1,13 @@
 ---
-id: contributing-to-documentation
-slug: contributing-to-documentation
+id: "contributing-to-documentation"
+slug: "contributing-to-documentation"
 title: "Contributing to The ZIO Documentation"
+description: "A comprehensive guide for contributing to the ZIO documentation, covering editing methods via GitHub and local development, the Markdown-based toolchain, and AI-friendly documentation variants."
+keywords:
+  - "Pull Request"
+  - "Documentation"
+  - "Contributing"
+  - "Microsite"
 ---
 
 The ZIO documentation is provided by a worldwide community, just like the project itself. So if you are reading this page, you can help us to improve the documentation.
@@ -97,4 +103,8 @@ The script scans the build output and, for every `<dir>/index.md` or `<dir>/<dir
 Sometimes we see some problem in the documentation, or we have some idea to make better documentation, but we haven't time or knowledge to do that personally. We can discuss those ideas with the community. There are two ways to do this:
 
 1. Using Discord (https://discord.gg/2ccFBr4) is a great way to share our thoughts with others, discuss them, and brainstorm big ideas.
-2. Opening a new issue (https://github.com/zio/zio/issues/new) is appropriate when we have actionable ideas, such as reorganizing a specific page of a documentation, or a problem with the current documentation. 
+2. Opening a new issue (https://github.com/zio/zio/issues/new) is appropriate when we have actionable ideas, such as reorganizing a specific page of a documentation, or a problem with the current documentation.
+
+## See Also
+
+- [Coding Guidelines](coding-guidelines.md) — Style and conventions for writing ZIO code, relevant when adding code examples to documentation

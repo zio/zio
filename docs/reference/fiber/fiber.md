@@ -1,7 +1,15 @@
 ---
 id: fiber
 slug: fiber.md
-title: "Fiber"
+title: Fiber
+description: "Lightweight concurrency primitives for non-blocking, structured execution of ZIO effects with automatic supervision and interruption."
+keywords:
+  - "Lightweight Fibers"
+  - "Structured Concurrency"
+  - "Fiber Interruption"
+  - "Fiber Supervision"
+  - "Non-blocking Execution"
+  - "Parallel Operators"
 ---
 
 To perform an effect without blocking the current process, we can use fibers, which are a lightweight concurrency mechanism.

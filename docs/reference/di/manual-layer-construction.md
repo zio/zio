@@ -1,6 +1,14 @@
 ---
 id: manual-layer-construction
 title: "Manual Layer Construction"
+description: "Master manual ZLayer composition: horizontally combine layers, vertically feed outputs, manage hidden dependencies, and prevent cycles."
+keywords:
+  - "Manual Layer Construction"
+  - "Horizontal Composition"
+  - "Vertical Composition"
+  - "ZLayer Operators"
+  - "Dependency Graph Building"
+  - "Layer Passthrough"
 ---
 
 We said that we can think of the `ZLayer` as a more powerful _constructor_. Constructors are not composable, because they are not values. While a constructor is not composable, `ZLayer` has a nice facility to compose with other `ZLayer`s. So we can say that a `ZLayer` turns a constructor into values.

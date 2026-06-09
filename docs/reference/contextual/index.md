@@ -1,12 +1,20 @@
 ---
-id: index
+id: "index"
 title: "Introduction to the ZIO's Contextual Data Types"
 sidebar_label: "Introduction"
+description: "ZIO's contextual abstraction for encoding environments that effects require, enabling dependency injection and service composition through type-safe mechanisms."
+keywords:
+  - "ZIO Environment"
+  - "Dependency Injection"
+  - "Service Pattern"
+  - "ZLayer"
+  - "Service Composition"
+  - "Type-Safe Dependencies"
 ---
 
 ZIO provides a contextual abstraction that encodes the environment of the running effect. This means, every effect can work within a specific context, called an environment.
 
-So when we have a `ZIO[R, E, A]` effect, we can say "given `R` as the environment of the effect, the effect may fail with an error type of `E`, or may succeed with a value of type `A`".
+So when we have a [`ZIO[R, E, A]`](../core/zio/zio.md) effect, we can say "given `R` as the environment of the effect, the effect may fail with an error type of `E`, or may succeed with a value of type `A`".
 
 For example, when we have an effect of type `ZIO[DatabaseConnection, IOException, String]`, we can say that our effect works within the context of `DatabaseConnection`. In other words, we can say that our effect requires the `DatabaseConnection` service as a context to run.
 
