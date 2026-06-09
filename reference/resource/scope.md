@@ -1,6 +1,6 @@
 # Scope
 
-> The `Scope` data type is the foundation of safe and composable resources handling in ZIO.
+> The Scope data type in ZIO represents resource lifetimes with guaranteed cleanup through finalizers, enabling safe and composable resource management.
 
 The `Scope` data type is the foundation of safe and composable resources handling in ZIO.
 
@@ -20,7 +20,7 @@ object Scope {
 }
 ```
 
-The `addFinalizerExit` operator lets us add a finalizer to the `Scope`. Based on the `Exit` value that the `Scope` is closed with, the finalizer will be run. The finalizer is guaranteed to be run when the scope is closed. The `close` operator closes the scope, running all the finalizers that have been added to the scope. It takes an `Exit` value and runs the finalizers based on that value.
+The `addFinalizerExit` operator lets us add a finalizer to the `Scope`. Based on the [`Exit`](../core/exit.md) value that the `Scope` is closed with, the finalizer will be run. The finalizer is guaranteed to be run when the scope is closed. The `close` operator closes the scope, running all the finalizers that have been added to the scope. It takes an `Exit` value and runs the finalizers based on that value.
 
 In the following example, we create a `Scope`, add a finalizer to it, and then close the scope:
 
@@ -87,7 +87,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$20088/0x00007f779b02fdd8@5938bd8c
+//     f = zio.ZIO$$$Lambda$20134/0x00007faea706fdc0@710b052c
 //   ),
 //   successK = <function1>
 // )
@@ -112,7 +112,7 @@ def contents(name: => String): ZIO[Any, IOException, Chunk[String]] =
   }
 ```
 
-In some cases ZIO applications may provide a `Scope` for us for resources that we don't specify a scope for. For example `ZIOApp` provides a `Scope` for our entire application and ZIO Test provides a `Scope` for each test.
+In some cases ZIO applications may provide a `Scope` for us for resources that we don't specify a scope for. For example [`ZIOApp`](../core/zioapp.md) provides a `Scope` for our entire application and ZIO Test provides a `Scope` for each test.
 
 :::note
 Please note that like any other services that we can obtain from the ZIO environment, we can do the same with `Scope`. By calling `ZIO.service[Scope]` we can obtain the `Scope` service and then use it to manage resources by adding finalizers to it:
@@ -206,7 +206,7 @@ This is a more advanced variant so we should generally use the standard `acquire
 
 ## Converting Resources Into Other ZIO Data Types
 
-We will commonly want to convert scoped resources into other ZIO data types, particularly `ZLayer` for dependency injection and `ZStream`, `ZSink`, and `ZChannel` for streaming.
+We will commonly want to convert scoped resources into other ZIO data types, particularly [`ZLayer`](../contextual/zlayer.md) for dependency injection and `ZStream`, `ZSink`, and `ZChannel` for streaming.
 
 We can easily do this using the `scoped` constructor on each of these data types. For example, here is how we might convert the `source` resource above into a `ZStream` of the contents:
 
@@ -339,3 +339,8 @@ trait Closeable extends Scope {
 Creating a new `Scope` returns a `Scope.Closeable` which can be closed. Normally users of a `Scope` will only be provided with a `Scope` which does not expose a `close` operator.
 
 This way the creator of a `Scope` can be sure that someone else will not "pull the rug out from under them" by closing the scope prematurely.
+
+## See Also
+
+- [ZStream](../stream/zstream/index.md) — for converting scoped resources into streaming data
+- [Handling Resources](../../overview/handling-resources.md) — foundational overview of resource management patterns

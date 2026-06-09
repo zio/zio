@@ -1,6 +1,6 @@
 # Introduction to Reloadable Services
 
-> Reloadable services are a feature in ZIO that allow us to reload services when necessary. With ZIO When we reload a service, it will automatically deallocate any resources that the service was using. This includes any open files, network connections, or database connections. ZIO will then reallocate new resources for the new service. This process of deallocation and reallocation is handled automatically by ZIO, so you don't need to worry about it.
+> Learn how to implement reloadable services in ZIO with automatic resource management for configuration changes and scheduled refreshes.
 
 Reloadable services are a feature in ZIO that allow us to reload services when necessary. With ZIO When we reload a service, it will automatically deallocate any resources that the service was using. This includes any open files, network connections, or database connections. ZIO will then reallocate new resources for the new service. This process of deallocation and reallocation is handled automatically by ZIO, so you don't need to worry about it. 
 
@@ -61,7 +61,7 @@ final case class CounterLive(id: Ref[UUID], ref: Ref[Int]) extends Counter {
 
 ## 1. The `Reloadable` Service
 
-In line with the principles of typical ZIO services, reloadable services are specifically crafted to operate seamlessly within the ZIO environment. The `Reloadable[Service]` data type serves as a wrapper around any reloadable service. This data type encompasses two fundamental methods: `get` and `reload`. The `get` method facilitates the retrieval of the underlying service managed by the `ScopedRef`, while the `reload` method enables the reloading of the service.
+In line with the principles of typical [ZIO services](index.md), reloadable services are specifically crafted to operate seamlessly within the ZIO environment. The `Reloadable[Service]` data type serves as a wrapper around any reloadable service. This data type encompasses two fundamental methods: `get` and `reload`. The `get` method facilitates the retrieval of the underlying service managed by the `ScopedRef`, while the `reload` method enables the reloading of the service.
 
 ### Reloadable Operations
 
@@ -113,7 +113,7 @@ val app: ZIO[Reloadable[Counter], Any, Unit] =
 
 ### Creating Reloadable Services
 
-Up to this point, we have explored the process of acquiring reloadable services from the ZIO environment and interacting with them. However, these workflows cannot be executed without fulfilling their requirements. For instance, in the previous example, the type of our workflow is `ZIO[Reloadable[Counter], Any, Unit]`. This implies that we need to provide a layer of type `Reloadable[Counter]`. It is necessary to create reloadable services and `provide` them as a `ZLayer`. In this section, we will delve into the creation of such services.
+Up to this point, we have explored the process of acquiring reloadable services from the ZIO environment and interacting with them. However, these workflows cannot be executed without fulfilling their requirements. For instance, in the previous example, the type of our workflow is `ZIO[Reloadable[Counter], Any, Unit]`. This implies that we need to provide a layer of type `Reloadable[Counter]`. It is necessary to create reloadable services and `provide` them as a [`ZLayer`](../contextual/zlayer.md). In this section, we will delve into the creation of such services.
 
 First, let's explore the definition of the two primary constructors for Reloadable:
 
@@ -210,7 +210,7 @@ Released counter bc66ba00-0b50-4e6e-9f60-c38b6e140a82
 
 Observing the behavior, we notice that the service undergoes reloading, causing the counter to reset and begin incrementing from zero once more.
 
-2. **`Reloadable.auto`** - By utilizing this constructor, we can provide a schedule alongside a layer of type `ZLayer[In, E, Out]`, resulting in a layer of reloadable service that will be automatically reloaded based on the specified schedule. Additionally, there is another constructor called `Reloadable.autoFromConfig` which can be used to extract the schedule from the ZIO environment.
+2. **`Reloadable.auto`** - By utilizing this constructor, we can provide a [Schedule](../schedule/index.md) alongside a layer of type `ZLayer[In, E, Out]`, resulting in a layer of reloadable service that will be automatically reloaded based on the specified schedule. Additionally, there is another constructor called `Reloadable.autoFromConfig` which can be used to extract the schedule from the ZIO environment.
 
 Let's change the previous example to reload the Counter service automatically every 5 second. First we need to create auto reloadable service:
 
@@ -354,4 +354,9 @@ Int this article we introduced two methods for implementing reloadable services 
 
 Overall, reloadable services in ZIO offer a powerful tool for managing services that require reloading, enabling seamless integration within the ZIO environment and simplifying service management in complex applications.
 
-All the source code associated with this article is available on the [ZIO Quickstart](https://github.com/zio/zio-quickstarts/tree/master/zio-quickstart-reloadable-services) on Github.
+All the source code associated with this article is available on the [ZIO Quickstart](https://github.com/zio/zio-quickstarts/tree/master/zio-quickstart-reloadable-services) on GitHub.
+
+## See Also
+
+- [Service Pattern](service-pattern.md) — Learn the four essential elements of ZIO Service Pattern: definition, implementation, dependencies, and ZLayer constructor lifting.
+- [Dependency Injection](../di/index.md) — Explore ZIO's built-in dependency injection system using ZIO Environment and ZLayer for type-safe, composable service management.

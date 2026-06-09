@@ -1,6 +1,6 @@
 # ZIO Quickstart: Hello World
 
-> This is the simplest quickstart for a ZIO application. You can download and run it very quickly. This will give you an idea of how to write similar apps.
+> Simple introductory guide to creating your first ZIO application using ZIOAppDefault and Console operations for effect composition.
 
 This is the simplest quickstart for a ZIO application. You can download and run it very quickly. This will give you an idea of how to write similar apps.
 

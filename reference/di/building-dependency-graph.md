@@ -1,6 +1,6 @@
 # Building Dependency Graph
 
-> We have two options to build a dependency graph:
+> Build dependency graphs in ZIO using manual layer composition or automatic dependency injection with compile-time validation.
 
 We have two options to build a dependency graph:
 

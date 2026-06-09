@@ -1,6 +1,6 @@
 # TQueue
 
-> A `TQueue[A]` is a mutable queue that can participate in transactions in STM.
+> Mutable queue for STM transactions with bounded/unbounded capacity and blocking operations for safe concurrent data sharing.
 
 A `TQueue[A]` is a mutable queue that can participate in transactions in STM.
 

@@ -1,6 +1,6 @@
 # Scheduling
 
-> To schedule the output of a stream we use `ZStream#schedule` combinator.
+> ZStream scheduling combinators for controlling emission timing and spacing of stream outputs using configurable schedule policies.
 
 To schedule the output of a stream we use `ZStream#schedule` combinator.
 

@@ -1,6 +1,6 @@
 # Introduction to Scheduling ZIO Effects
 
-> A `Schedule[Env, In, Out]` is an **immutable value** that **describes** a recurring effectful schedule, which runs in some environment `Env`, after consuming values of type `In` (errors in the case of `retry`, or values in the case of `repeat`) produces values of type `Out`, and in every step based on input values and the internal state decides to halt or continue after some delay **d**.
+> Immutable values describing recurring effectful schedules for repeating actions or retrying on failures with configurable delays.
 
 A `Schedule[Env, In, Out]` is an **immutable value** that **describes** a recurring effectful schedule, which runs in some environment `Env`, after consuming values of type `In` (errors in the case of `retry`, or values in the case of `repeat`) produces values of type `Out`, and in every step based on input values and the internal state decides to halt or continue after some delay **d**.
 
@@ -10,6 +10,11 @@ Schedules are defined as a possibly infinite set of intervals spread out over ti
 
 When schedules are used to repeat or retry effects, the starting boundary of each interval produced by a schedule is used as the moment when the effect will be executed again. 
 
-Schedules allow us to define and compose flexible recurrence schedules, which can be used to **repeat** actions, or **retry** actions in the event of errors. We will discuss them on the following pages.
+Schedules allow us to define and compose flexible recurrence schedules, which can be used to **repeat** actions, or **retry** actions in the [event of errors](../error-management/index.md). We will discuss them on the following pages.
 
 A variety of [combinators](combinators.md) exist for transforming and combining schedules, and the companion object for `Schedule` contains [all common types of schedules](built-in-schedules.md), both for performing retrying and repetition.
+
+## See Also
+
+- [ZStream Scheduling](../stream/zstream/scheduling.md) — ZStream scheduling combinators for controlling emission timing and spacing of stream outputs using configurable schedule policies.
+- [TestAspect: Repetition and Retrying](../test/aspects/repeat-and-retry.md) — Test aspects for repeating or retrying tests according to specified schedules.

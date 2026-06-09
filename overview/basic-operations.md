@@ -1,6 +1,6 @@
 # Basic Operations
 
-> Like the `String` data type, as well as the collection data types in Scala (such as `List`, `Map`, and `Set`), ZIO effects are _immutable_, and cannot be changed.
+> Guide to transforming and combining ZIO effects using mapping, chaining, for-comprehensions, and zipping operations.
 
 Like the `String` data type, as well as the collection data types in Scala (such as `List`, `Map`, and `Set`), ZIO effects are _immutable_, and cannot be changed. 
 

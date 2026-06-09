@@ -1,6 +1,6 @@
 # The Three Laws of ZIO Environment
 
-> When we are working with the ZIO environment, one question might arise: "When should we use environment and when do we need to use constructors?".
+> Master three ZIO environment laws: traits exclude dependencies, implementations use constructor injection, and business logic accesses services.
 
 When we are working with the ZIO environment, one question might arise: "When should we use environment and when do we need to use constructors?".
 

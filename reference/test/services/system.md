@@ -1,6 +1,6 @@
 # TestSystem
 
-> `TestSystem` supports deterministic testing of effects involving system properties.
+> ZIO Test service for deterministic testing of system environment variables and JVM system properties in isolation.
 
 `TestSystem` supports deterministic testing of effects involving system properties. 
 

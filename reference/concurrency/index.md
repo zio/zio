@@ -1,6 +1,6 @@
 # Introduction to Concurrent Programming in ZIO
 
-> Most of the time in concurrent programming we have a single state that we need to read and update concurrently. When we have multiple fibers reading or writing to the same memory location we encounter the race condition. The main goal in every concurrent program is to have a consistent view of states among all threads.
+> Lock-free, composable, non-blocking concurrency model in ZIO for safe multi-fiber coordination using atomic primitives like Ref and Promise.
 
 ## Overview
 

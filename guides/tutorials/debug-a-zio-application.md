@@ -1,6 +1,6 @@
 # Tutorial: How to Debug a ZIO Application?
 
-> Writing applications using functional programming helps us to write a base code that is less error-prone and more predictable. However, we often make mistakes when developing applications. Even though we have written lots of tests, we might have missed some areas of our code that could have caused errors. Finally, in the middle of one night, the alarm starts calling and paging us to take the right action for the error in production. This is where debugging comes in. It is a process of finding the root cause of the error and then fixing it. Sometimes this process takes a large amount of time and effort.
+> Tutorial for debugging ZIO applications using the ZIO.debug effect, print statements, and IDE debuggers for functional effects.
 
 ## Introduction
 

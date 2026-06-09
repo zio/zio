@@ -1,6 +1,6 @@
 # Introduction to ZIO Metrics
 
-> In highly concurrent applications, things are interconnected, so maintaining such a setup to run smoothly and without application downtimes is very challenging.
+> ZIO's built-in metrics system for application observability with counter, gauge, histogram, summary, and frequency metric types.
 
 In highly concurrent applications, things are interconnected, so maintaining such a setup to run smoothly and without application downtimes is very challenging. 
 

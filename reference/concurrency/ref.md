@@ -1,6 +1,6 @@
 # Ref
 
-> `Ref[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content.
+> Thread-safe atomic reference for managing immutable state in concurrent ZIO applications.
 
 `Ref[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content.
 
@@ -12,7 +12,7 @@
 - updates and modifies atomically
 
 ## Concurrent Stateful Application
-**`Ref` is the foundation for writing concurrent stateful applications**. Anytime we need to share information between multiple fibers, and those fibers have to update the same information, they need to communicate through something that provides the guarantee of atomicity. Because `Ref` is **concurrent-safe**, we can share the same `Ref` among many fibers. All of which can update `Ref` concurrently, removing the worry of race conditions. Even if we had ten thousand fibers all updating the same `Ref`, as long as they are using atomic update and modify functions, we will have zero race conditions.
+**`Ref` is the foundation for writing concurrent stateful applications**. Anytime we need to share information between [multiple fibers](../fiber/index.md), and those fibers have to update the same information, they need to communicate through something that provides the guarantee of atomicity. Because `Ref` is **concurrent-safe**, we can share the same `Ref` among many fibers. All of which can update `Ref` concurrently, removing the worry of race conditions. Even if we had ten thousand fibers all updating the same `Ref`, as long as they are using atomic update and modify functions, we will have zero race conditions.
 
 ## Operations
 Though `Ref` has many operations, here we will introduce the most common and important ones.
@@ -32,12 +32,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$19936/0x00007f779afb4f30@2288972b
+//   eval = zio.Ref$$$Lambda$19982/0x00007faea6ff3bd8@49c06b6c
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$19936/0x00007f779afb4f30@8921f6
+//   eval = zio.Ref$$$Lambda$19982/0x00007faea6ff3bd8@3def96b
 // )
 
 sealed trait State
@@ -48,7 +48,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$19936/0x00007f779afb4f30@70780dba
+//   eval = zio.Ref$$$Lambda$19982/0x00007faea6ff3bd8@269e61bc
 // )
 ```
 
@@ -65,7 +65,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$19936/0x00007f779afb4f30@1ba15223
+//   eval = zio.Ref$$$Lambda$19982/0x00007faea6ff3bd8@229fc3f1
 // )
 ```
 
@@ -77,7 +77,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$19936/0x00007f779afb4f30@22e107cb
+//   eval = zio.Ref$$$Lambda$19982/0x00007faea6ff3bd8@434d72fb
 // )
 ```
 
@@ -350,3 +350,7 @@ The type of `ref.modify { state => ... }` is an effect that produces another eff
 **Important:** The continuation is **not** part of the atomic modification. The state modification completes before the continuation runs, and it doesn't depend on the continuation's result. If multiple fibers execute this pattern concurrently, their continuations may be interleaved, even though their state modifications are atomic.
 
 If you need the continuation to be part of the atomic operation—ensuring no other fiber can modify the state between the modification and the continuation—use `Ref.Synchronized` instead. See [Ref.Synchronized](refsynchronized.md) for more details.
+
+## See Also
+
+- [Global Shared State](../state-management/global-shared-state.md) — Manage global shared state in ZIO applications using Ref, enabling safe concurrent state sharing between fibers.

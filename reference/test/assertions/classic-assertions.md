@@ -1,7 +1,6 @@
 # Classic Assertions
 
-> :::note
-In almost all cases we encourage developers using _[smart assertions](smart-assertions.md)_ instead of [classic assertions](classic-assertions.md). They are more expressive and easier to use. So you can skip reading this section.
+> Traditional assertion methods using assert and assertZIO functions for composing assertions to test values and ZIO effects in ZIO Test.
 
 :::note
 In almost all cases we encourage developers using _[smart assertions](smart-assertions.md)_ instead of [classic assertions](classic-assertions.md). They are more expressive and easier to use. So you can skip reading this section.

@@ -1,8 +1,8 @@
 # Introduction to ZSink
 
-> A `ZSink[R, E, I, L, Z]` is used to consume elements produced by a `ZStream`. You can think of a sink as a function that will consume a variable amount of `I` elements (could be 0, 1, or many!), might fail with an error of type `E`, and will eventually yield a value of type `Z` together with a remainder of type `L` as leftover.
+> A `ZSink[R, E, I, L, Z]` is used to consume elements produced by a [`ZStream`](../zstream/index.md). You can think of a sink as a function that will consume a variable amount of `I` elements (could be 0, 1, or many!), might fail with an error of type `E`, and will eventually yield a value of type `Z` together with a remainder of type `L` as [leftover](leftovers.md).
 
-A `ZSink[R, E, I, L, Z]` is used to consume elements produced by a `ZStream`. You can think of a sink as a function that will consume a variable amount of `I` elements (could be 0, 1, or many!), might fail with an error of type `E`, and will eventually yield a value of type `Z` together with a remainder of type `L` as leftover.
+A `ZSink[R, E, I, L, Z]` is used to consume elements produced by a [`ZStream`](../zstream/index.md). You can think of a sink as a function that will consume a variable amount of `I` elements (could be 0, 1, or many!), might fail with an error of type `E`, and will eventually yield a value of type `Z` together with a remainder of type `L` as [leftover](leftovers.md).
 
 To consume a stream using `ZSink` we can pass `ZSink` to the `ZStream#run` function:
 
@@ -18,3 +18,9 @@ val sum    = stream.run(sink)
 ```scala
 type Sink[+E, A, +L, +B] = ZSink[Any, E, A, L, B]
 ```
+
+## See Also
+
+- [ZSink](concurrency-and-parallelism.md) — Describes concurrent and parallel operations with multiple sinks.
+- [Creating Sinks](creating-sinks.md) — Explains how to create ZSink instances
+- [Sink Operations](operations.md) — Describes how to transform and operate on sinks

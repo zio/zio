@@ -1,6 +1,6 @@
 # Repeat and Retry
 
-> There are some situations where we need to repeat a test with a specific schedule, or our tests might fail, and we need to retry them until we make sure that our tests pass. ZIO Test has the following test aspects for these scenarios:
+> Test aspects for repeating tests on a schedule and retrying failures until success with configurable policies.
 
 There are some situations where we need to repeat a test with a specific schedule, or our tests might fail, and we need to retry them until we make sure that our tests pass. ZIO Test has the following test aspects for these scenarios:
 

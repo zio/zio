@@ -1,6 +1,6 @@
 # ZIO
 
-> A `ZIO[R, E, A]` value is an immutable value that lazily describes a workflow or job. The workflow requires some environment `R`, and may fail with an error of type `E`, or succeed with a value of type `A`.
+> Immutable lazy value that describes workflows with fiber-based concurrency and typed error and success values.
 
 A `ZIO[R, E, A]` value is an immutable value that lazily describes a workflow or job. The workflow requires some environment `R`, and may fail with an error of type `E`, or succeed with a value of type `A`.
 
@@ -12,7 +12,7 @@ R => Either[E, A]
 
 This function, which requires an `R`, might produce either an `E`, representing failure, or an `A`, representing success. ZIO effects are not actually functions, of course, they can model synchronous, asynchronous, concurrent, parallel, and resourceful computations.
 
-ZIO effects use a fiber-based concurrency model, with built-in support for
+ZIO effects use a [fiber-based concurrency model](../../fiber/index.md), with built-in support for
 scheduling, fine-grained interruption, structured concurrency, and high scalability.
 
 The `ZIO[R, E, A]` data type has three type parameters:

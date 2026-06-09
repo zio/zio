@@ -1,6 +1,6 @@
 # Providing Different Implementation of a Service
 
-> One of the benefits of using dependency injection is that, we can write our application in a way that without modifying the application logic, we can provide different implementations of services to our application.
+> Provide multiple service implementations to ZIO applications without modifying core logic using dependency injection.
 
 One of the benefits of using dependency injection is that, we can write our application in a way that without modifying the application logic, we can provide different implementations of services to our application.
 

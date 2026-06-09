@@ -1,8 +1,8 @@
 # Random
 
-> Random service provides utilities to generate random numbers. It's a functional wrapper of `scala.util.Random`. This service contains various different pseudo-random generators like `nextInt`, `nextBoolean` and `nextDouble`. Each random number generator functions return a `URIO[Random, T]` value.
+> Provides utilities to generate pseudo-random numbers with various generators including nextInt, nextBoolean, nextDouble, and Gaussian sampling.
 
-Random service provides utilities to generate random numbers. It's a functional wrapper of `scala.util.Random`. This service contains various different pseudo-random generators like `nextInt`, `nextBoolean` and `nextDouble`. Each random number generator functions return a `URIO[Random, T]` value.
+Random service provides utilities to generate random numbers. It's a functional wrapper of `scala.util.Random`. This service contains various different pseudo-random generators like `nextInt`, `nextBoolean` and `nextDouble`. Each random number generator functions return a `[URIO](../core/zio/urio.md)[Random, T]` value.
 
 ```scala
 
@@ -34,3 +34,7 @@ Also, it has a utility to shuffle a list and to generate random samples from Gau
 > **Note**:
 >
 > Random numbers that are generated via Random service are not cryptographically strong. Therefore it's not safe to use the ZIO Random service for security domains where a high level of security and randomness is required, such as password generation.
+
+## See Also
+
+- [Built-in Services](index.md) — Overview of ZIO's built-in services including Console, Clock, Random, and System that provide common functionality without explicit environment setup.

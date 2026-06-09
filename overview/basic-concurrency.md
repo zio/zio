@@ -1,6 +1,6 @@
 # Basic Concurrency
 
-> ZIO is a highly concurrent framework, powered by _fibers_, which are lightweight virtual threads that achieve massive scalability compared to threads, augmented with resource-safe cancellation, which powers many features in ZIO.
+> Introduction to ZIO's fiber-based concurrency model with operators for forking, joining, parallelism, racing, and resource-safe timeouts.
 
 ZIO is a highly concurrent framework, powered by _fibers_, which are lightweight virtual threads that achieve massive scalability compared to threads, augmented with resource-safe cancellation, which powers many features in ZIO.
 

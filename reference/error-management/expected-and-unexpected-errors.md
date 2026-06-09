@@ -1,8 +1,6 @@
 # Expected and Unexpected Errors
 
-> Inside an application, there are two distinct categories of errors:
-- **Expected errors** are those that are expected to occur, and we tend to recover them. They are also known as _recoverable errors_ or _declared errors_.
-- **Unexpected errors** are those that are not expected to occur, and they are not recoverable. They are also known as _non-recoverable errors_ or _defects_.
+> Distinguish between expected recoverable errors and unexpected defects, and learn how ZIO's type system reflects expected errors while sandboxing unforeseen failures.
 
 Inside an application, there are two distinct categories of errors:
 - **Expected errors** are those that are expected to occur, and we tend to recover them. They are also known as _recoverable errors_ or _declared errors_.

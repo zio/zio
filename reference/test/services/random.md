@@ -1,6 +1,6 @@
 # TestRandom
 
-> When working with randomness, testing might be hard because the inputs to the tested function change on every invocation. So our code behaves in an indeterministic way.
+> Supports deterministic testing of randomness using seed-based generation or predefined value feeding for reproducible property-based test scenarios.
 
 When working with randomness, testing might be hard because the inputs to the tested function change on every invocation. So our code behaves in an indeterministic way.
 
@@ -38,9 +38,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$19528/0x00007f779aec4870@4c177126
+//             onState = zio.ZIO$$$Lambda$19574/0x00007faea6f09518@18fd857c
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$19537/0x00007f779aecb118@915e6c0
+//           successK = zio.test.package$ZTest$$$Lambda$19583/0x00007faea6f10000@5dff1807
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )

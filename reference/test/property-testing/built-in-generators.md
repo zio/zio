@@ -1,6 +1,6 @@
 # Built-in Generators
 
-> In the companion object of the `Gen` data type, there are tons of generators for various data types.
+> Comprehensive reference for ZIO Test property-based test generators including primitives, collections, functions, and ZIO effects.
 
 In the companion object of the `Gen` data type, there are tons of generators for various data types.
 

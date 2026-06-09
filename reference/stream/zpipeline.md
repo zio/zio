@@ -30,7 +30,7 @@ There is also a `ZPipeline.mapZIO` which is an effectful version of this constru
 
 ### From Custom Channels
 
-For stateful transformations that can't be expressed with `map` or `mapZIO`, you can build pipelines directly from `ZChannel` using `ZChannel.readWithCause`. Here is a pipeline that pairs each element with its predecessor:
+For stateful transformations that can't be expressed with `map` or `mapZIO`, you can build pipelines directly from [`ZChannel`](zchannel/index.md) using `ZChannel.readWithCause`. Here is a pipeline that pairs each element with its predecessor:
 
 ```scala
 

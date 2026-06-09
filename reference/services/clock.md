@@ -1,6 +1,6 @@
 # Clock
 
-> Clock service contains some functionality related to time and scheduling.
+> Provides time-related operations for retrieving current time in various units, accessing date-time information, and non-blocking sleep functionality.
 
 Clock service contains some functionality related to time and scheduling. 
 

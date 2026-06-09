@@ -1,6 +1,6 @@
 # Built-in Assertions
 
-> To create `Assertion[A]` object one can use functions defined under `zio.test.Assertion`. There are already a number of useful assertions predefined like `equalTo`, `isFalse`, `isTrue`, `contains`, `throws` and more.
+> Comprehensive reference guide to ZIO Test's built-in assertion functions organized by type for testing values and effects.
 
 To create `Assertion[A]` object one can use functions defined under `zio.test.Assertion`. There are already a number of useful assertions predefined like `equalTo`, `isFalse`, `isTrue`, `contains`, `throws` and more.
 

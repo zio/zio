@@ -1,6 +1,6 @@
 # Manual Layer Construction
 
-> We said that we can think of the `ZLayer` as a more powerful _constructor_. Constructors are not composable, because they are not values. While a constructor is not composable, `ZLayer` has a nice facility to compose with other `ZLayer`s. So we can say that a `ZLayer` turns a constructor into values.
+> Master manual ZLayer composition: horizontally combine layers, vertically feed outputs, manage hidden dependencies, and prevent cycles.
 
 We said that we can think of the `ZLayer` as a more powerful _constructor_. Constructors are not composable, because they are not values. While a constructor is not composable, `ZLayer` has a nice facility to compose with other `ZLayer`s. So we can say that a `ZLayer` turns a constructor into values.
 

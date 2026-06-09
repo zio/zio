@@ -1,10 +1,10 @@
 # Introduction to ZIO's Interruption Model
 
-> While developing concurrent applications, there are several cases that we need to _interrupt_ the execution of other fibers, for example:
+> Guide to ZIO's asynchronous interruption model for managing fiber interruption in concurrent applications, with patterns for blocking operations and fiber safety.
 
 While developing concurrent applications, there are several cases that we need to _interrupt_ the execution of other fibers, for example:
 
-1. A parent fiber might start some child fibers to perform a task, and later the parent might decide that it doesn't need the result of some or all of the child fibers.
+1. A parent [Fiber](../fiber/index.md) might start some child fibers to perform a task, and later the parent might decide that it doesn't need the result of some or all of the child fibers.
 2. Two or more fibers start a race with each other. The fiber whose result is computed first wins and all other fibers are no longer needed so they should be interrupted.
 3. In interactive applications, a user may want to stop some already running tasks, such as clicking on the "stop" button to prevent downloading more files.
 4. Computations that run longer than expected should be aborted by using timeout operations.
@@ -32,7 +32,7 @@ There are several ways and situations that fibers can be interrupted. In this se
 
 ### Calling `Fiber#interrupt` Operator
 
-A fiber can be interrupted by calling `Fiber#interrupt` on that fiber.
+A fiber can be interrupted by calling [`Fiber#interrupt`](../fiber/fiber.md) on that fiber.
 
 Let's try to make a fiber and then interrupt it:
 

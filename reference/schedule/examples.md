@@ -1,6 +1,6 @@
 # Examples
 
-> Let's try some example of creating and combining schedules.
+> Practical examples of creating and combining ZIO schedules for retrying with exponential backoff and exception handling.
 
 Let's try some example of creating and combining schedules.
 

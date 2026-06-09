@@ -1,7 +1,6 @@
 # Getting Started With Dependency Injection in ZIO
 
-> :::caution
-In this page, we will focus on essential parts of dependency injection in ZIO. So in some examples we are not going to cover all the best practices for writing ZIO services.
+> Master ZIO dependency injection: access services from environment, compose applications, build dependency graphs with ZLayer, and inject dependencies.
 
 :::caution
 In this page, we will focus on essential parts of dependency injection in ZIO. So in some examples we are not going to cover all the best practices for writing ZIO services.

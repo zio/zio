@@ -60,3 +60,9 @@ Code | Rewrite
 - `either`, `option`, `orElseEither`, and `retryOrElseEither` wrap their results in `Some` or `Right` so after rewriting, code calling these methods can be simplified to accept an `A` rather than an `Option[A]` or `Either[E, A]`. 
 
 - `partitionZIO`, `partitionZIOPar`, `validateZIO` and `validateFirstZIO` have error accumulating semantics on either error channel or success channel. After rewrite the error type can be simplified to `E` rather than `List[E]` or the success type `List[B]` instead of `(List[E], List[B])`.
+
+## See Also
+
+- [Error Management](reference/error-management/index.md) — Comprehensive guide to error management strategies and typed error handling in ZIO
+- [UIO](reference/core/zio/uio.md) — Unexceptional effect type where the error type is Nothing
+- [Handling Errors](overview/handling-errors.md) — Overview of error handling patterns and strategies in ZIO

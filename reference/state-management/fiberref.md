@@ -1,6 +1,6 @@
 # FiberRef: Introduction to Fiber-local Storage
 
-> `FiberRef` is a data structure for managing and accessing thread-local values within a ZIO fiber. Thread-local storage (TLS) is a mechanism that provides each fiber its own separate storage space. A `FiberRef[A]` is a specialized type of mutable reference (`Ref[A]`) that allows us to store and retrieve values of type `A` that are local to a specific fiber.
+> Fiber-local storage enabling isolated state management and context propagation across concurrent fibers in ZIO.
 
 `FiberRef` is a data structure for managing and accessing thread-local values within a ZIO fiber. Thread-local storage (TLS) is a mechanism that provides each fiber its own separate storage space. A `FiberRef[A]` is a specialized type of mutable reference (`Ref[A]`) that allows us to store and retrieve values of type `A` that are local to a specific fiber.  
 

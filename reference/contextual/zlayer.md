@@ -1,6 +1,6 @@
 # ZLayer
 
-> A `ZLayer[-RIn, +E, +ROut]` describes a layer of an application: every layer in an application requires some services as input `RIn` and produces some services as the output `ROut`.
+> ZLayer provides composable recipes for constructing services with type-safe dependency management and asynchronous resource handling.
 
 A `ZLayer[-RIn, +E, +ROut]` describes a layer of an application: every layer in an application requires some services as input `RIn` and produces some services as the output `ROut`.
 

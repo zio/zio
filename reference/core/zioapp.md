@@ -1,7 +1,6 @@
 # ZIOApp
 
-> The `ZIOApp` trait is an entry point for a ZIO application that allows sharing layers between applications. It also
-provides us the ability to compose multiple ZIO applications.
+> Entry point trait for ZIO applications supporting custom environments, composable layers, and graceful shutdown handling.
 
 The `ZIOApp` trait is an entry point for a ZIO application that allows sharing layers between applications. It also
 provides us the ability to compose multiple ZIO applications.

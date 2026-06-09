@@ -38,7 +38,7 @@ val sum: ZIO[Any, Nothing, Int]                 = ZStream(1, 2, 3, 4, 5).run(sin
 // Result: 15
 ```
 
-**ZSink.take** — A sink that takes the specified number of values and results in a `Chunk` data type:
+**ZSink.take** — A sink that takes the specified number of values and results in a [`Chunk`](../chunk.md) data type:
 
 ```scala
 val sink  : ZSink[Any, Nothing, Int, Int, Chunk[Int]] = ZSink.take[Int](3)
@@ -356,3 +356,7 @@ val myApp: ZIO[Any, IOException, Unit] =
     _ <- producer.zip(consumers).join
   } yield ()
 ```
+
+## See Also
+
+- [ZSink](index.md) — Foundational introduction to ZSink data type and concepts

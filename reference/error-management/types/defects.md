@@ -1,6 +1,6 @@
 # Defects
 
-> By providing a `Throwable` value to the `ZIO.die` constructor, we can describe a dying effect:
+> Learn about ZIO defects—unexpected untyped errors created with ZIO.die—and how they differ from typed errors in error handling.
 
 By providing a `Throwable` value to the `ZIO.die` constructor, we can describe a dying effect:
 
@@ -115,3 +115,8 @@ Another important note is that if we `map`/`flatMap` a ZIO effect and then accid
 val defect4 = ZIO.succeed(???).map(_ => throw new Exception("Boom!"))
 val defect5 = ZIO.attempt(???).map(_ => throw new Exception("Boom!"))
 ```
+
+## See Also
+
+- [Three Types of Errors](index.md) — Understand ZIO's three error types: failures (expected), defects (unexpected), and fatals (catastrophic), and how to handle each appropriately.
+- [Expected and Unexpected Errors](../expected-and-unexpected-errors.md) — Distinguish between expected recoverable errors and unexpected defects, and learn how ZIO's type system reflects expected errors while sandboxing unforeseen failures.

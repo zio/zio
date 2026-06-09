@@ -1,6 +1,6 @@
 # Core Data Types
 
-> In this section we are going to talk about the basic data types that are required to build a ZIO application:
+> Foundational data types for ZIO applications including effect values, type aliases, runtime execution, exit values, and failure causes.
 
 In this section we are going to talk about the basic data types that are required to build a ZIO application:
 

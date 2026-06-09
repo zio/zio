@@ -1,10 +1,10 @@
 # ZEnvironment
 
-> A `ZEnvironment[R]` is a built-in type-level map for the `ZIO` data type which is responsible for maintaining the environment of a `ZIO` effect. The `ZIO` data type uses this map to maintain all the environmental services and their implementations.
+> Understand ZEnvironment, the type-level map that maintains and manages environmental services and implementations for ZIO effects.
 
-A `ZEnvironment[R]` is a built-in type-level map for the `ZIO` data type which is responsible for maintaining the environment of a `ZIO` effect. The `ZIO` data type uses this map to maintain all the environmental services and their implementations.
+A `ZEnvironment[R]` is a built-in type-level map for the [`ZIO`](../core/zio/zio.md) data type which is responsible for maintaining the environment of a `ZIO` effect. The `ZIO` data type uses this map to maintain all the environmental services and their implementations.
 
-For example, assume we have written a `ZEnvironment` containing all built-in services as below:
+For example, assume we have written a `ZEnvironment` containing all [built-in services](../services/index.md) as below:
 
 ```scala
 

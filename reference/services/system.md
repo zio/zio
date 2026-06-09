@@ -1,6 +1,6 @@
 # System
 
-> System service contains several useful functions related to system environments and properties. Both of **system environments** and **system properties** are key/value pairs. They are used to pass user-defined information to our application.
+> Service providing access to environment variables, system properties, and platform-level information for application configuration.
 
 System service contains several useful functions related to system environments and properties. Both of **system environments** and **system properties** are key/value pairs. They are used to pass user-defined information to our application.
 
@@ -47,3 +47,7 @@ System.lineSeparator
 // res2: String = """
 // """
 ```
+
+## See Also
+
+- [Built-in services](index.md) — Guide to ZIO's built-in services: Console, Clock, Random, and System with automatic environment management.

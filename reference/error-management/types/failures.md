@@ -1,6 +1,6 @@
 # Failures
 
-> When writing ZIO application, we can model a failure, using the `ZIO.fail` constructor:
+> Model expected typed errors in ZIO using ZIO.fail, including custom domain error types for better error handling and type safety.
 
 When writing ZIO application, we can model a failure, using the `ZIO.fail` constructor:
 

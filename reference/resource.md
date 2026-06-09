@@ -1,6 +1,6 @@
 # Introduction to Resource Management in ZIO
 
-> When we are writing a long-lived application, resource management is very important. Proper resource management is vital to any large-scale application. We need to make sure that our application is resource-safe, and it doesn't leak any resource.
+> ZIO resource management constructs for safe, composable acquisition and release of resources with guaranteed cleanup.
 
 When we are writing a long-lived application, resource management is very important. Proper resource management is vital to any large-scale application. We need to make sure that our application is resource-safe, and it doesn't leak any resource.
 

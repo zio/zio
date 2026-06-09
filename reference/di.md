@@ -1,6 +1,6 @@
 # Introduction to Dependency Injection in ZIO
 
-> When we implement a service, we might need to use other services. So a dependency is just another service that is required to fulfill its functionality:
+> Explore ZIO's built-in dependency injection system using ZIO Environment and ZLayer for type-safe, composable service management.
 
 ## What is a Dependency?
 

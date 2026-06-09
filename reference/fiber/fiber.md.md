@@ -1,6 +1,6 @@
 # Fiber
 
-> To perform an effect without blocking the current process, we can use fibers, which are a lightweight concurrency mechanism.
+> Lightweight concurrency primitives for non-blocking, structured execution of ZIO effects with automatic supervision and interruption.
 
 To perform an effect without blocking the current process, we can use fibers, which are a lightweight concurrency mechanism.
 

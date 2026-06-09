@@ -1,6 +1,6 @@
 # Timing out
 
-> ZIO lets us timeout any effect using the `ZIO#timeout` method, which returns a new effect that succeeds with an `Option`. A value of `None` indicates the timeout elapsed before the effect completed. If an effect times out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
+> ZIO timeout combinators for managing effect execution time limits with safe interruption handling and customizable error recovery strategies.
 
 ## `ZIO#timeout`
 

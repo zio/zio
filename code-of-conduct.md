@@ -1,10 +1,6 @@
 # Code of Conduct
 
-> We are committed to providing a friendly, safe and welcoming
-environment for all, regardless of level of experience, gender, gender
-identity and expression, sexual orientation, disability, personal
-appearance, body size, race, ethnicity, age, religion, nationality, or
-other such characteristics.
+> Outlines the ZIO project's Code of Conduct, community standards, moderation governance structure, and the role of the Steering Committee and BDFL.
 
 We are committed to providing a friendly, safe and welcoming
 environment for all, regardless of level of experience, gender, gender
@@ -46,3 +42,7 @@ We do not take the BDFL position lightly, especially with regards to moderation.
 has consistently shown he is level-headed and able to handle conflict responsibly. Feel
 free to reach out to any member of the steering committee, including John himself,
 with any concern you might have.
+
+## See Also
+
+- [Contributor Guidelines](contributor-guidelines.md) — Guidelines for contributing to the ZIO project as part of the community

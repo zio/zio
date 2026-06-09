@@ -1,6 +1,6 @@
 # Don't Reflexively Log Errors
 
-> In modern async concurrent applications with a lot of subsystems, if we do not type errors, we are not able to see what section of our code fails with what error. Therefore, this can be very tempting to log errors when they happen. So when we lose type-safety in the whole application it makes us be more sensitive and program defensively. Therefore, whenever we are calling an API we tend to catch its errors, log them as below:
+> Avoid reflexively logging errors by leveraging ZIO's typed errors for guaranteed error propagation across your application.
 
 In modern async concurrent applications with a lot of subsystems, if we do not type errors, we are not able to see what section of our code fails with what error. Therefore, this can be very tempting to log errors when they happen. So when we lose type-safety in the whole application it makes us be more sensitive and program defensively. Therefore, whenever we are calling an API we tend to catch its errors, log them as below:
 

@@ -1,6 +1,6 @@
 # Built-in Schedules
 
-> Returns a schedule that repeats one time, producing the specified constant value:
+> Discover ZIO's built-in schedule types for controlling effect repetition: fixed intervals, exponential backoff, and fibonacci-based delays.
 
 ## succeed
 

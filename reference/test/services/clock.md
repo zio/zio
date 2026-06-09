@@ -1,6 +1,6 @@
 # TestClock
 
-> In most cases we want unit tests to be as fast as possible. Waiting for real time to pass by is a real killer for this.
+> Provides deterministic time control in tests, enabling fast testing of time-dependent effects without waiting for real time.
 
 In most cases we want unit tests to be as fast as possible. Waiting for real time to pass by is a real killer for this.
 

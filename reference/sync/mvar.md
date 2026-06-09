@@ -1,12 +1,12 @@
 # MVar
 
-> An `MVar[A]` is a mutable location that is either empty or contains a value of type `A`. So the `MVar` acts like a _single-element buffer_.
+> A single-element mutable buffer that synchronizes concurrent fibers, enabling semaphores, latches, and producer-consumer patterns.
 
 An `MVar[A]` is a mutable location that is either empty or contains a value of type `A`. So the `MVar` acts like a _single-element buffer_.
 
 `MVar` can be used in multiple different ways:
 - As a simple on/off latch
-- As a binary semaphore `MVar[Unit]`, with `take` and `put` as `acquire` and `release`
+- As a [binary semaphore](../concurrency/semaphore.md) `MVar[Unit]`, with `take` and `put` as [`acquire`](../resource/index.md) and `release`
 - As a synchronized mutable variable
 - As a channel, with `take` and `put` as `receive` and `send`
 
@@ -50,7 +50,7 @@ So we can put something into it, making it full, or take something out, making i
 - If it is full and the calling fiber tries to put something in it.
 - If it is empty and the calling fiber tries to take something out of it.
 
-These two features of `MVar` make it possible to synchronize multiple fibers.
+These two features of `MVar` make it possible to synchronize multiple [fibers](../fiber/fiber.md).
 
 ### Nonblocking `tryPut` and `tryTake`
 
@@ -259,7 +259,7 @@ Can we say this is the same as the previous `inc` function? No, because although
 
 ### Producer/Consumer Channel
 
-We can use an `MVar` to implement a producer/consumer channel:
+We can use an `MVar` to implement a [producer/consumer](../concurrency/queue.md) channel:
 
 ```scala
 
@@ -305,3 +305,7 @@ object MainApp extends ZIOAppDefault {
     }
 }
 ```
+
+## See Also
+
+- [Ref](../concurrency/ref.md) — A related mutable reference primitive for managing shared state atomically; discussed extensively as an alternative solution in the page.

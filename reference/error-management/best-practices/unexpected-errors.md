@@ -1,6 +1,6 @@
 # Don't Type Unexpected Errors
 
-> When we first discover typed errors, it may be tempting to put every error into the error type parameter. That is a mistake because we can't recover from all types of errors. When we encounter unexpected errors we can't do anything in those cases. We should let the application die. Let it crash is the erlang philosophy. It is a good philosophy for all unexpected errors. At best, we can sandbox it, but we should let it crash.
+> Learn why unexpected errors should not be typed, and use orDie and refineOrDie to separate recoverable errors from application-killing defects.
 
 When we first discover typed errors, it may be tempting to put every error into the error type parameter. That is a mistake because we can't recover from all types of errors. When we encounter unexpected errors we can't do anything in those cases. We should let the application die. Let it crash is the erlang philosophy. It is a good philosophy for all unexpected errors. At best, we can sandbox it, but we should let it crash.
 

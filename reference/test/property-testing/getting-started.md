@@ -1,6 +1,6 @@
 # Getting Started With Property Checking
 
-> The fundamental idea behind property checking is to test the properties of the target function using random inputs.
+> Learn to test system properties using random input generators and property predicates with ZIO Test's Gen and check functions.
 
 The fundamental idea behind property checking is to test the properties of the target function using random inputs.
 

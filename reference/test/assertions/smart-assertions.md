@@ -1,6 +1,6 @@
 # Smart Assertions
 
-> The smart assertion is a simple way to assert both _ordinary values_ and _ZIO effects_. It uses the `assertTrue` function, which uses macro under the hood.
+> Smart Assertions enable simple assertions for ordinary values and ZIO effects using the assertTrue macro function with operators and nested value support.
 
 The smart assertion is a simple way to assert both _ordinary values_ and _ZIO effects_. It uses the `assertTrue` function, which uses macro under the hood.
 
@@ -29,7 +29,7 @@ test("multiple assertions"){
 
 ## Asserting ZIO effects
 
-The `assertTrue` method can also be used to assert ZIO effects:
+The `assertTrue` method can also be used to assert [ZIO effects](../../core/zio/zio.md):
 
 ```scala
 
@@ -228,7 +228,7 @@ test("TestLens#anything") {
 
 ### Testing Exit Values
 
-1. **`TestLens#success`** - This operator transforms the `Exit` value to its success type `A` if it is a `Exit.Success`, otherwise it will fail. So this can be used for asserting the success value of the `Exit`:
+1. **`TestLens#success`** - This operator transforms the [`Exit`](../../core/exit.md) value to its success type `A` if it is a `Exit.Success`, otherwise it will fail. So this can be used for asserting the success value of the `Exit`:
 
 ```scala
 
@@ -260,7 +260,7 @@ test("TestLens#die") {
 }
 ```
 
-4. **`TestLens#cause`** - This operator transforms the `Exit` value to its underlying `Cause` value if it has one otherwise it will fail. So this can be used for asserting the cause of the `Exit`:
+4. **`TestLens#cause`** - This operator transforms the `Exit` value to its underlying [`Cause`](../../core/cause.md) value if it has one otherwise it will fail. So this can be used for asserting the cause of the `Exit`:
 
 ```scala
 
@@ -330,3 +330,8 @@ In the above example, we define a custom assertion for the `Book` sealed trait. 
 ## More Examples
 
 The `assertTrue` macro is designed to make it easy to write assertions in a more readable way. Most test cases can be written as when we're comparing ordinary values in Scala. However, we have a [`SmartAssertionSpec`](https://github.com/zio/zio/blob/series/2.x/test-tests/shared/src/test/scala/zio/test/SmartAssertionSpec.scala) which is a collection of examples to demonstrate the power of the `assertTrue` macro.
+
+## See Also
+
+- [Built-in Assertions](built-in-assertions.md) — Comprehensive reference guide to ZIO Test's built-in assertion functions organized by type for testing values and effects.
+- [Classic Assertions](classic-assertions.md) — Traditional assertion methods using assert and assertZIO functions for composing assertions to test values and ZIO effects in ZIO Test.

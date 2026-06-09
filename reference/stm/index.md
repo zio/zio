@@ -1,6 +1,6 @@
 # Introduction to Software Transactional Memory
 
-> ZIO supports Software Transactional Memory (STM) which is a modular composable concurrency data structure. It allows us to combine and compose a group of memory operations and perform all of them in one single atomic operation.
+> STM enables composable atomic transactions on memory with atomicity, consistency, and isolation guarantees for concurrent programs.
 
 ## Overview
 
