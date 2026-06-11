@@ -276,6 +276,7 @@ module.exports = {
               ]
             },
             "reference/concurrency/promise",
+            "reference/concurrency/dequeue",
             "reference/concurrency/queue",
             "reference/concurrency/hub",
             "reference/concurrency/semaphore"
@@ -308,6 +309,7 @@ module.exports = {
       link: { type: "doc", id: "reference/resource/index" },
       items: [
         "reference/resource/scope",
+        "reference/resource/cached",
         "reference/resource/zpool",
         "reference/resource/zkeyedpool",
         "reference/resource/scopedref",

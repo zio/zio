@@ -59,10 +59,12 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 - **[Hub](concurrency/hub.md)** — A `Hub` is an asynchronous message hub that allows publishers to efficiently broadcast values to many subscribers.
 - **[Promise](concurrency/promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.
+- **[Dequeue](concurrency/dequeue.md)** — A `Dequeue[A]` is a read-only queue that allows you to asynchronously dequeue elements. It represents the consumer half of the queue interface, enabling type-safe read-only views.
+- **[Enqueue](concurrency/enqueue.md)** — An `Enqueue[A]` is a write-only queue that allows you to asynchronously enqueue elements. It represents the producer half of the queue interface.
+- **[Queue](concurrency/queue.md)** — A `Queue` is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers. It combines `Dequeue[A]` and `Enqueue[A]` for complete read-write access.
 - **[Semaphore](concurrency/semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.
 - **[Ref](concurrency/ref.md)** — `Ref[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
 - **[Ref.Synchronized](concurrency/refsynchronized.md)** — `Ref.Synchronized[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data, and update it atomically **and** effectfully.
-- **[Queue](concurrency/queue.md)** — A `Queue` is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers.
 
 ### Synchronization Aids
 
@@ -87,7 +89,9 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 ## Resource Management
 
+- **[Cached](resource/cached.md)** — A container for a possibly resourceful value that is loaded into memory and can be refreshed either manually or automatically according to a schedule.
 - **[Scope](resource/scope.md)** — A scope in which resources can safely be used.
+- **[ScopedRef](resource/scopedref.md)** — A resourceful mutable reference that automatically manages acquisition and release of scoped resources.
 - **[ZPool](resource/zpool.md)** — An asynchronous and concurrent generalized pool of reusable resources.
 
 ## Streaming
