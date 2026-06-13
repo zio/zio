@@ -1,6 +1,15 @@
 ---
 id: index
 title: "Introduction to Dependency Injection in ZIO"
+description: "Explore ZIO's built-in dependency injection system using ZIO Environment and ZLayer for type-safe, composable service management."
+keywords:
+  - "Dependency Injection"
+  - "ZIO Environment"
+  - ZLayer
+  - "Type-Safe Dependencies"
+  - "Service Composition"
+  - "Dependency Graph"
+  - "Resourceful Dependencies"
 ---
 
 ## What is a Dependency?

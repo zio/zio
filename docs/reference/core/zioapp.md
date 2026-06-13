@@ -1,6 +1,14 @@
 ---
-id: zioapp 
+id: "zioapp"
 title: "ZIOApp"
+description: "Entry point trait for ZIO applications supporting custom environments, composable layers, and graceful shutdown handling."
+keywords:
+  - "Application Entry Point"
+  - "Custom Runtime"
+  - "ZIOAppDefault"
+  - "Graceful Shutdown"
+  - "Layer Composition"
+  - "Command-line Arguments"
 ---
 
 The `ZIOApp` trait is an entry point for a ZIO application that allows sharing layers between applications. It also

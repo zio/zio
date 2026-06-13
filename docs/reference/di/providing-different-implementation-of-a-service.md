@@ -2,6 +2,13 @@
 id: providing-different-implementation-of-a-service
 title: "Providing Different Implementation of a Service"
 sidebar_label: "Multiple Implementations"
+description: "Provide multiple service implementations to ZIO applications without modifying core logic using dependency injection."
+keywords:
+  - "Multiple Implementations"
+  - "Dependency Injection"
+  - "Service Abstraction"
+  - "Configuration Layers"
+  - "Service Swapping"
 ---
 
 One of the benefits of using dependency injection is that, we can write our application in a way that without modifying the application logic, we can provide different implementations of services to our application.

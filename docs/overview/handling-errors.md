@@ -1,6 +1,14 @@
 ---
-id: handling-errors
+id: "handling-errors"
 title: "Handling Errors"
+description: "Error handling tools for catching, recovering, and retrying ZIO effects with safe fallback strategies and robust error management."
+keywords:
+  - "Error Handling"
+  - "Catching"
+  - "Fallback"
+  - "Folding"
+  - "Retrying"
+  - "Recovery"
 ---
 
 ZIO effects may fail due to foreseen or unforeseen problems. In order to help you build robust applications, ZIO tracks foreseen errors at compile-time, letting you know which effects can fail, and how they can fail. For non-recoverable problems, ZIO gives you full insight into the cause of failures (even if unexpected or catastrophic), preserving all information and automatically logging unhandled errors.
