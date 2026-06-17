@@ -2,51 +2,70 @@ package threadlocalbridge
 
 import zio._
 
-/** Title: Introducing ThreadLocalBridge
-  * Description: Shows how to use ZIO's ThreadLocalBridge to safely create FiberRefs
-  * that are linked to Java ThreadLocal storage, ensuring values are properly
-  * maintained across fiber boundaries and async operations.
+/** Title: Creating and Using ThreadLocalBridge
+  * Description: This example shows how to use ThreadLocalBridge to safely manage
+  * ThreadLocal values across ZIO fiber boundaries.
   * Run: sbt "threadlocal-bridge/runMain threadlocalbridge.Concept2Example"
   */
-object Concept2Example extends App {
-  val myThreadLocal = new ThreadLocal[String]()
+object Concept2Example extends ZIOAppDefault {
 
-  def printBridgeValue(label: String, fiberRef: FiberRef[String]): ZIO[Any, Nothing, Unit] = for {
-    value <- fiberRef.get
-    thread <- ZIO.succeed(Thread.currentThread().getName)
-    _ <- ZIO.debug(s"[$label] Thread: $thread, Value: $value")
+  // A Java ThreadLocal for storing user context
+  val userContextThreadLocal: java.lang.ThreadLocal[String] =
+    new java.lang.ThreadLocal[String] {
+      override def initialValue(): String = "anonymous"
+    }
+
+  val exampleWithBridge: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] = for {
+    // Create a FiberRef linked to the ThreadLocal
+    // The link function keeps ThreadLocal in sync with FiberRef changes
+    userContextRef <- ThreadLocalBridge.makeFiberRef("user-alice")(
+      value => userContextThreadLocal.set(value)
+    )
+
+    // Initial value is set
+    _ <- ZIO.succeed(println(s"Main fiber: user = ${userContextThreadLocal.get()}"))
+
+    // Use FiberRef.locally to temporarily change the value in a forked fiber
+    // This maintains proper context inheritance
+    _ <- userContextRef.locally("user-bob") {
+      ZIO.succeed {
+        println(s"Forked fiber: user = ${userContextThreadLocal.get()}")
+        // This correctly shows "user-bob" thanks to FiberRef.locally
+      }
+    }.fork.flatMap(_.join)
+
+    // Value remains unchanged in main fiber
+    _ <- ZIO.succeed {
+      println(s"Back in main fiber: user = ${userContextThreadLocal.get()}")
+      // Still "user-alice"
+    }
+
+    // You can also use FiberRef.set for explicit changes
+    _ <- userContextRef.set("user-charlie")
+    _ <- ZIO.succeed(println(s"After set: user = ${userContextThreadLocal.get()}"))
+
+    // Use FiberRef.locally to scope changes to a specific effect
+    _ <- userContextRef.locally("user-diana") {
+      for {
+        _ <- ZIO.succeed(println(s"In locally block: user = ${userContextThreadLocal.get()}"))
+        // Nested forked fiber inherits the locally-scoped value
+        _ <- ZIO.succeed {
+          println(s"Nested fiber (inherited): user = ${userContextThreadLocal.get()}")
+        }.fork.flatMap(_.join)
+      } yield ()
+    }
+
+    // After locally block, value reverts
+    _ <- ZIO.succeed {
+      println(s"After locally block: user = ${userContextThreadLocal.get()}")
+      // Back to "user-charlie"
+    }
   } yield ()
 
-  val program: ZIO[ThreadLocalBridge, Nothing, Unit] = ZIO.scoped {
-    for {
-      // Create a FiberRef linked to our ThreadLocal
-      myFiberRef <- ThreadLocalBridge.makeFiberRef[String]("Initial Value")(
-        value => myThreadLocal.set(value)
-      )
-      
-      _ <- printBridgeValue("After creation", myFiberRef)
-      
-      // Update the value through the FiberRef
-      _ <- myFiberRef.set("Modified Value")
-      _ <- printBridgeValue("After set", myFiberRef)
-      
-      // Verify ThreadLocal is synchronized
-      syncedValue <- ZIO.succeed(Option(myThreadLocal.get()))
-      _ <- ZIO.debug(s"ThreadLocal value synchronized: $syncedValue")
-      
-      // Use the value in a forked fiber
-      _ <- ZIO.scoped {
-        for {
-          value <- myFiberRef.get
-          _ <- ZIO.debug(s"In fiber: Value = $value")
-          _ <- ZIO.unit
-        } yield ()
-      }.fork.flatMap(_.join)
-      
-      _ <- printBridgeValue("Back in main", myFiberRef)
-    } yield ()
+  override def run: ZIO[Any, Any, Unit] = {
+    println("=== ThreadLocalBridge: Safe ThreadLocal Inheritance ===\n")
+    ZIO.scoped {
+      exampleWithBridge
+    }.provideLayer(ThreadLocalBridge.live)
   }
-
-  def run(args: List[String]): ZIO[Any, Any, Any] = 
-    program.provideLayer(ThreadLocalBridge.live)
 }

@@ -492,3 +492,29 @@ Now that you understand the basics of `ThreadLocalBridge`, here's what you can e
 - **Need to integrate with other Java libraries?** Look at the [Java Interoperability guide](./interop/with-java.md) for more patterns on working with Java code in ZIO applications.
 
 Good luck integrating ZIO with your Java dependencies! 🚀
+
+## Running the Examples
+
+All examples mentioned in this tutorial have corresponding runnable Scala files in the `zio-examples` module. You can run them locally using sbt:
+
+1. **Concept1Example.scala** — Understanding ThreadLocal Limitations with ZIO Fibers
+   ```bash
+   sbt "threadlocal-bridge/runMain threadlocalbridge.Concept1Example"
+   ```
+
+2. **Concept2Example.scala** — Introducing ThreadLocalBridge
+   ```bash
+   sbt "threadlocal-bridge/runMain threadlocalbridge.Concept2Example"
+   ```
+
+3. **Concept3Example.scala** — Fiber Isolation with ThreadLocalBridge
+   ```bash
+   sbt "threadlocal-bridge/runMain threadlocalbridge.Concept3Example"
+   ```
+
+4. **CompleteExample.scala** — Request Context Propagation with ThreadLocalBridge
+   ```bash
+   sbt "threadlocal-bridge/runMain threadlocalbridge.CompleteExample"
+   ```
+
+Each example is fully self-contained and demonstrates the concepts from this tutorial. Run them in order to progressively build your understanding of `ThreadLocalBridge` in practice.

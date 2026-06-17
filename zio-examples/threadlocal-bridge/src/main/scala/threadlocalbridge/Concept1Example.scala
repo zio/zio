@@ -2,33 +2,41 @@ package threadlocalbridge
 
 import zio._
 
-/** Title: Understanding ThreadLocal Limitations with ZIO Fibers
-  * Description: Demonstrates why plain Java ThreadLocal doesn't work reliably with
-  * ZIO's fiber-based concurrency model, as fibers may run on different threads.
+/** Title: Understanding ThreadLocal in Async Code
+  * Description: This example demonstrates the problem with using Java ThreadLocal
+  * in asynchronous code and why ThreadLocalBridge is needed.
   * Run: sbt "threadlocal-bridge/runMain threadlocalbridge.Concept1Example"
   */
-object Concept1Example extends App {
-  val myThreadLocal = new ThreadLocal[String]()
+object Concept1Example extends ZIOAppDefault {
 
-  def printThreadInfo(label: String): ZIO[Any, Nothing, Unit] = ZIO.succeed {
-    val value = myThreadLocal.get()
-    val thread = Thread.currentThread().getName
-    println(s"[$label] Thread: $thread, ThreadLocal value: $value")
-  }
-
-  val program: ZIO[Any, Nothing, Unit] = for {
-    _ <- ZIO.succeed(myThreadLocal.set("Main Value"))
-    _ <- printThreadInfo("After set in main")
-    
-    // Spawn a fiber that may run on a different thread
-    _ <- ZIO.scoped {
-      ZIO.succeed(println(s"In forked fiber: ThreadLocal value is ${myThreadLocal.get()}")).fork
+  // A simple Java ThreadLocal to store request context
+  val requestIdThreadLocal: java.lang.ThreadLocal[String] =
+    new java.lang.ThreadLocal[String] {
+      override def initialValue(): String = "unset"
     }
-    
-    // Wait briefly and check main thread again
-    _ <- ZIO.sleep(100.millis)
-    _ <- printThreadInfo("Back in main after fork")
+
+  // Without ThreadLocalBridge, ThreadLocal values are lost across fiber boundaries
+  val problemExample: ZIO[Any, Nothing, Unit] = for {
+    _ <- ZIO.succeed {
+      requestIdThreadLocal.set("request-001")
+      println(s"Main fiber: request ID = ${requestIdThreadLocal.get()}")
+    }
+
+    // When we fork a new fiber, ThreadLocal context is NOT inherited
+    _ <- ZIO.succeed {
+      println(s"Forked fiber: request ID = ${requestIdThreadLocal.get()}")
+      // This will print "unset" instead of "request-001"
+    }.fork.flatMap(_.join)
+
+    // This remains set in the original fiber
+    _ <- ZIO.succeed {
+      println(s"Back in main fiber: request ID = ${requestIdThreadLocal.get()}")
+      // This prints "request-001"
+    }
   } yield ()
 
-  def run(args: List[String]): ZIO[Any, Any, Any] = program
+  override def run: ZIO[Any, Any, Unit] = {
+    println("=== ThreadLocal Problem in Async Code ===\n")
+    problemExample
+  }
 }

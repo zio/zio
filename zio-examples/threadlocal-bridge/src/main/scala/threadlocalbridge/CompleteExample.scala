@@ -1,128 +1,178 @@
 package threadlocalbridge
 
 import zio._
-import java.util.UUID
 
-/** Title: Request Context Propagation with ThreadLocalBridge
-  * Description: A practical end-to-end example demonstrating how ThreadLocalBridge is used
-  * for request context propagation in an async system. Shows setting correlation IDs that
-  * are automatically propagated through all async operations, enabling distributed tracing
-  * and request-scoped logging across concurrent fibers.
+/** Title: Complete ThreadLocalBridge Example - Request Context Propagation
+  * Description: A realistic end-to-end example showing how to use ThreadLocalBridge
+  * to manage request context (request ID, user, correlation ID) across multiple
+  * async operations, including database queries and logging.
   * Run: sbt "threadlocal-bridge/runMain threadlocalbridge.CompleteExample"
   */
-object CompleteExample extends App {
-  
-  // Domain model
+object CompleteExample extends ZIOAppDefault {
+
+  // ===== Request Context Model =====
   case class RequestContext(
     requestId: String,
     userId: String,
-    startTime: Long
+    correlationId: String
   )
 
-  // ThreadLocal storage for request context
-  val requestContextLocal = new ThreadLocal[RequestContext]()
+  // ===== Java ThreadLocal for Request Context =====
+  val requestContextThreadLocal: java.lang.ThreadLocal[RequestContext] =
+    new java.lang.ThreadLocal[RequestContext] {
+      override def initialValue(): RequestContext =
+        RequestContext("unknown", "unknown", "unknown")
+    }
 
-  // Helper to get correlation ID for logging
-  def getCorrelationId(contextRef: FiberRef[RequestContext]): ZIO[Any, Nothing, String] =
-    contextRef.get.map(_.requestId)
+  // ===== Simulated Services =====
 
-  // Example services that need the request context
-  object AuthService {
-    def authenticate(
-      contextRef: FiberRef[RequestContext],
-      userId: String
-    ): ZIO[Any, Nothing, Boolean] = for {
-      correlationId <- getCorrelationId(contextRef)
-      _ <- ZIO.debug(s"[$correlationId] AuthService: Authenticating user $userId")
-      _ <- ZIO.sleep(50.millis)
-      _ <- ZIO.debug(s"[$correlationId] AuthService: User $userId authenticated")
-    } yield true
+  // Simulates a database query that needs request context for audit logging
+  def queryDatabase(query: String): ZIO[Any, Nothing, String] = {
+    val ctx = requestContextThreadLocal.get()
+    ZIO.succeed {
+      val result = s"Query results for: $query"
+      println(
+        s"  [DB] Request=${ctx.requestId} | User=${ctx.userId} | Query=$query | Result=$result"
+      )
+      result
+    }
   }
 
-  object DatabaseService {
-    def fetchUserData(
-      contextRef: FiberRef[RequestContext],
-      userId: String
-    ): ZIO[Any, Nothing, String] = for {
-      correlationId <- getCorrelationId(contextRef)
-      _ <- ZIO.debug(s"[$correlationId] DatabaseService: Fetching data for $userId")
-      _ <- ZIO.sleep(100.millis)
-      _ <- ZIO.debug(s"[$correlationId] DatabaseService: Retrieved user data")
-    } yield s"UserData($userId)"
+  // Simulates an external API call that propagates correlation ID
+  def callExternalApi(endpoint: String): ZIO[Any, Nothing, String] = {
+    val ctx = requestContextThreadLocal.get()
+    ZIO.succeed {
+      Thread.sleep(50) // Simulate network delay
+      val response = s"API response from $endpoint"
+      println(
+        s"  [API] Correlation=${ctx.correlationId} | Endpoint=$endpoint | Response=$response"
+      )
+      response
+    }
   }
 
-  object LoggingService {
-    def logRequest(
-      contextRef: FiberRef[RequestContext],
-      action: String
-    ): ZIO[Any, Nothing, Unit] = for {
-      context <- contextRef.get
-      _ <- ZIO.debug(s"[${context.requestId}] LoggingService: $action")
-    } yield ()
+  // Simulates logging that uses context for structured logging
+  def logEvent(event: String): ZIO[Any, Nothing, Unit] = {
+    val ctx = requestContextThreadLocal.get()
+    ZIO.succeed {
+      println(
+        s"  [LOG] RequestID=${ctx.requestId} | Event=$event"
+      )
+    }
   }
 
-  // Main request handler
+  // ===== Request Handler =====
   def handleRequest(
     contextRef: FiberRef[RequestContext],
-    userId: String
-  ): ZIO[Any, Nothing, Unit] = for {
-    // Create request context with correlation ID
-    requestId <- ZIO.succeed(UUID.randomUUID().toString.take(8))
-    currentTime <- ZIO.succeed(java.lang.System.currentTimeMillis())
-    context = RequestContext(requestId, userId, currentTime)
-    
-    // Set the context for this fiber
-    _ <- contextRef.set(context)
-    _ <- ZIO.debug(s"[${context.requestId}] === Processing request for user: $userId ===")
-    
-    // Execute service calls - they all see the same context
-    authenticated <- AuthService.authenticate(contextRef, userId)
-    
-    userData <- if (authenticated) {
-      DatabaseService.fetchUserData(contextRef, userId)
-    } else {
-      ZIO.succeed("Authentication failed")
-    }
-    
-    _ <- LoggingService.logRequest(contextRef, s"Request completed with data: $userData")
-    
-    elapsed = java.lang.System.currentTimeMillis() - context.startTime
-    _ <- ZIO.debug(s"[${context.requestId}] === Request completed in ${elapsed}ms ===")
-  } yield ()
+    request: RequestContext
+  ): ZIO[Any, Nothing, Unit] = {
+    println(s"\n>>> Processing request: ${request.requestId} for user: ${request.userId}")
 
-  val program: ZIO[ThreadLocalBridge, Nothing, Unit] = ZIO.scoped {
-    for {
-      // Create a FiberRef linked to ThreadLocal storage for request context
-      currentTime <- ZIO.succeed(java.lang.System.currentTimeMillis())
-      contextRef <- ThreadLocalBridge.makeFiberRef[RequestContext](
-        RequestContext("default", "system", currentTime)
-      )(
-        context => requestContextLocal.set(context)
+    // Use FiberRef.locally to scope the request context to this handler
+    contextRef.locally(request) {
+      for {
+        _ <- ZIO.succeed(println(s"  [Handler] Context set: $request"))
+
+        // Simulate request processing with multiple async operations
+        _ <- logEvent("Request started")
+
+        // Parallel operations: database queries and API calls
+        _ <- ZIO.collectAllPar(
+          List(
+            queryDatabase("SELECT user_profile FROM users")
+              .flatMap(result => logEvent(s"Profile loaded: $result")),
+            callExternalApi("/api/user/permissions")
+              .flatMap(result => logEvent(s"Permissions fetched: $result")),
+            queryDatabase("SELECT orders FROM order_history")
+          )
+        ).unit
+
+        // Sequential operations that depend on context
+        _ <- for {
+          _ <- logEvent("Processing order details")
+          _ <- callExternalApi("/api/inventory/check")
+          _ <- queryDatabase("UPDATE user_last_seen")
+          _ <- logEvent("Request completed")
+        } yield ()
+      } yield ()
+    }
+  }
+
+  // ===== Concurrent Request Simulation =====
+  def runConcurrentRequests: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] = {
+    val requests = List(
+      RequestContext(
+        requestId = "req-001",
+        userId = "alice",
+        correlationId = "corr-a1b2c3"
+      ),
+      RequestContext(
+        requestId = "req-002",
+        userId = "bob",
+        correlationId = "corr-x9y8z7"
+      ),
+      RequestContext(
+        requestId = "req-003",
+        userId = "charlie",
+        correlationId = "corr-m5n6o7"
       )
-      
-      _ <- ZIO.debug("Starting request processing system...")
-      _ <- ZIO.sleep(100.millis)
-      
-      // Simulate handling multiple concurrent requests
-      // Each request will have its own isolated context
-      
-      req1 <- handleRequest(contextRef, "alice").fork
-      req2 <- handleRequest(contextRef, "bob").fork
-      req3 <- handleRequest(contextRef, "charlie").fork
-      
-      _ <- ZIO.sleep(100.millis)
-      
-      // Wait for all requests to complete
-      _ <- req1.join
-      _ <- req2.join
-      _ <- req3.join
-      
-      _ <- ZIO.debug("All requests processed successfully")
-      _ <- ZIO.debug("Notice how each request maintained its own correlation ID")
-      _ <- ZIO.debug("even though operations executed asynchronously and concurrently.")
+    )
+
+    println("=== Concurrent Request Handling with ThreadLocalBridge ===")
+    println("Processing 3 concurrent requests with context isolation:\n")
+
+    // Create FiberRef linked to ThreadLocal
+    for {
+      contextRef <- ThreadLocalBridge.makeFiberRef(
+        RequestContext("default", "default", "default")
+      )(ctx => requestContextThreadLocal.set(ctx))
+
+      // Process multiple requests concurrently
+      // Each request uses locally() to scope its context
+      _ <- ZIO.collectAllPar(requests.map(handleRequest(contextRef, _))).unit
     } yield ()
   }
 
-  def run(args: List[String]): ZIO[Any, Any, Any] = 
-    program.provideLayer(ThreadLocalBridge.live)
+  // ===== Demo: Context Isolation =====
+  def contextIsolationDemo: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] = {
+    println("\n=== ThreadLocal Context Isolation Demo ===\n")
+
+    val ctx1 = RequestContext("req-iso-001", "user-x", "corr-iso-1")
+    val ctx2 = RequestContext("req-iso-002", "user-y", "corr-iso-2")
+
+    for {
+      contextRef <- ThreadLocalBridge.makeFiberRef(ctx1)(
+        ctx => requestContextThreadLocal.set(ctx)
+      )
+
+      _ <- ZIO.succeed {
+        println(s"Main: Set context to ${ctx1.userId}")
+        println(s"Main: Current context = ${requestContextThreadLocal.get()}")
+      }
+
+      // Child fiber uses locally() to scope a different context
+      _ <- contextRef.locally(ctx2) {
+        ZIO.succeed {
+          println(s"Child: Modified context to ${ctx2.userId}")
+          println(s"Child: Current context = ${requestContextThreadLocal.get()}")
+        }
+      }.fork.flatMap(_.join)
+
+      // Main fiber's context is restored after child
+      _ <- ZIO.succeed {
+        println(s"Main: After child, context still = ${requestContextThreadLocal.get()}")
+      }
+    } yield ()
+  }
+
+  override def run: ZIO[Any, Any, Unit] = {
+    val combined = for {
+      _ <- runConcurrentRequests
+      _ <- contextIsolationDemo
+    } yield ()
+
+    ZIO.scoped {
+      combined
+    }.provideLayer(ThreadLocalBridge.live)
+  }
 }
