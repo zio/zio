@@ -11,14 +11,18 @@ title: "ThreadLocalBridge"
 - Provides transparent value propagation to non-ZIO code that expects thread-local state
 - Integrates seamlessly with ZIO's supervisor-based fiber lifecycle hooks
 
-```scala
+The following shows the `ThreadLocalBridge` API:
+
+```scala mdoc:compile-only
+import zio._
+
 sealed trait ThreadLocalBridge {
   def makeFiberRef[A](initialValue: A)(link: A => Unit): ZIO[Scope, Nothing, FiberRef[A]]
 }
 
 object ThreadLocalBridge {
-  def makeFiberRef[A](initialValue: A)(link: A => Unit): ZIO[Scope with ThreadLocalBridge, Nothing, FiberRef[A]]
-  val live: ZLayer[Any, Nothing, ThreadLocalBridge]
+  def makeFiberRef[A](initialValue: A)(link: A => Unit): ZIO[Scope with ThreadLocalBridge, Nothing, FiberRef[A]] = ???
+  val live: ZLayer[Any, Nothing, ThreadLocalBridge] = ???
 }
 ```
 
@@ -80,14 +84,20 @@ The output shows how the `ThreadLocal` reflects the current fiber-local value at
 
 ## Construction
 
+This section covers the main ways to create and configure synchronized `FiberRef` instances using `ThreadLocalBridge`. The `ThreadLocalBridge#makeFiberRef` method enables automatic synchronization with Java's `ThreadLocal` storage, and the `ThreadLocalBridge#live` layer provides the runtime infrastructure needed to manage the synchronization.
+
 ### Creating a Synchronized FiberRef
 
 The primary way to create a synchronized `FiberRef` is using `ThreadLocalBridge#makeFiberRef` with a `ThreadLocal` and a link function. This method must be called within a `ZIO.scoped` context since it requires resource cleanup.
 
-`makeFiberRef` — creates a new `FiberRef` that synchronizes its value with a `ThreadLocal` via a user-supplied callback function.
+`ThreadLocalBridge#makeFiberRef` creates a new `FiberRef` that synchronizes its value with a `ThreadLocal` via a user-supplied callback function. Its signature is:
 
-```scala
-def makeFiberRef[A](initialValue: A)(link: A => Unit): ZIO[Scope, Nothing, FiberRef[A]]
+```scala mdoc:compile-only
+import zio._
+
+trait ThreadLocalBridge {
+  def makeFiberRef[A](initialValue: A)(link: A => Unit): ZIO[Scope, Nothing, FiberRef[A]]
+}
 ```
 
 The method takes two parameter lists:
@@ -97,12 +107,12 @@ The method takes two parameter lists:
 
 The method returns a `ZIO` that requires a `Scope` (for resource cleanup) and the `ThreadLocalBridge` service. It cannot fail (error type is `Nothing`).
 
-The link function is called in these situations:
+These situations trigger the link function:
 
-- **On creation** — immediately when `makeFiberRef` is called, the link function is called with the initial value
-- **On value modification** — when `fiberRef.set()` or `fiberRef.modify()` is called, the link function is called with the new state value (note: `set` delegates to `modify` internally, as explained in the Implementation Note below)
-- **On locally scope entry** — when entering a `fiberRef.locally(newValue) { ... }` block, the link function is called with the scoped value
-- **On locally scope exit** — when exiting the scoped block, the link function is called again with the restored value
+- **On creation** — `ThreadLocalBridge#makeFiberRef` immediately invokes the link function with the initial value
+- **On value modification** — when you invoke `FiberRef#set` or `FiberRef#modify`, the link function receives the new state value (note: `FiberRef#set` delegates to `FiberRef#modify` internally, as explained in the Implementation Note below)
+- **On locally scope entry** — when entering a `FiberRef#locally(newValue) { ... }` block, the link function is invoked with the scoped value
+- **On locally scope exit** — when exiting the scoped block, the link function is invoked again with the restored value
 - **On fiber suspend** — when the fiber suspends and yields control to the scheduler, the supervisor invokes the link function with the **initial value** to reset the `ThreadLocal`, preventing state pollution on the thread being vacated
 - **On fiber resume** — when the fiber resumes (possibly on a different thread), the supervisor re-invokes the link function with the **current fiber-local value** to synchronize the `ThreadLocal` to the correct value for this fiber
 
@@ -144,15 +154,19 @@ val program = ZIO.scoped {
 
 ### The ThreadLocalBridge.live Layer
 
-`ThreadLocalBridge.live` — provides the default implementation of the `ThreadLocalBridge` service.
+`ThreadLocalBridge.live` provides the default implementation of the `ThreadLocalBridge` service. Its signature is:
 
-```scala
-val live: ZLayer[Any, Nothing, ThreadLocalBridge]
+```scala mdoc:compile-only
+import zio._
+
+object ThreadLocalBridge {
+  val live: ZLayer[Any, Nothing, ThreadLocalBridge] = ???
+}
 ```
 
-The `live` layer:
+The `ThreadLocalBridge#live` layer:
 
-- Creates and registers an internal `FiberRefTrackingSupervisor` that monitors all `FiberRef` objects created via `makeFiberRef`
+- Creates and registers an internal `FiberRefTrackingSupervisor` that supervises all `FiberRef` objects from `ThreadLocalBridge#makeFiberRef`
 - Hooks into the fiber suspension and resumption lifecycle to re-invoke the link function when needed
 - Ensures that even if a fiber suspends and resumes on a different thread, the `ThreadLocal` value is restored
 - Cannot fail and requires no environment dependencies
@@ -179,9 +193,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 
 ## Core Operations
 
-Once you have a `FiberRef[A]` from `makeFiberRef`, you can use all standard `FiberRef` operations. The key difference is that mutations are automatically synchronized to the underlying `ThreadLocal` via the link function.
+Once you have a `FiberRef[A]` from `ThreadLocalBridge#makeFiberRef`, you can use all standard `FiberRef` operations. The key difference is that mutations are automatically synchronized to the underlying `ThreadLocal` via the link function.
 
-**Important:** The link function is called **synchronously** whenever the fiber-local value changes (via `set`, `modify`, `locally`) or during fiber lifecycle hooks (suspend/resume). This means:
+**Important:** The link function executes **synchronously** whenever the fiber-local value changes (via `FiberRef#set`, `FiberRef#modify`, `FiberRef#locally`) or during fiber lifecycle hooks (suspend/resume). This means:
 - Exceptions in the link function propagate as defects
 - The link function blocks the current effect until it completes
 - Keep link functions fast and avoid I/O operations or blocking calls
@@ -190,10 +204,14 @@ This synchronous behavior ensures the `ThreadLocal` is always in sync with the f
 
 ### FiberRef#set
 
-`FiberRef#set` — atomically replaces the fiber-local value and synchronizes the new value to the `ThreadLocal`.
+`FiberRef#set` atomically replaces the fiber-local value and synchronizes the new value to the `ThreadLocal`. Its signature is:
 
-```scala
-def set(value: A): UIO[Unit]
+```scala mdoc:compile-only
+import zio._
+
+trait FiberRef[A] {
+  def set(value: A): UIO[Unit]
+}
 ```
 
 The method:
@@ -203,7 +221,7 @@ The method:
 - Returns immediately (non-blocking)
 - Does not fail (returns `UIO`)
 
-**Implementation Note:** `set` works correctly with ThreadLocalBridge because the underlying `FiberRef.Proxy` class delegates `set` calls to the `modify` method, which is overridden in `TrackingFiberRef` to invoke the link function. This delegation ensures that the `ThreadLocal` is automatically synchronized whenever the fiber-local value changes via `set`.
+**Implementation Note:** `FiberRef#set` works correctly with ThreadLocalBridge because it internally delegates to the `FiberRef#modify` method, which is overridden in `TrackingFiberRef` to invoke the link function. This delegation ensures that the `ThreadLocal` is automatically synchronized whenever the fiber-local value changes via `FiberRef#set`.
 
 Setting a value automatically triggers the link function, so the `ThreadLocal` is updated synchronously:
 
@@ -229,10 +247,14 @@ val example = ZIO.scoped {
 
 ### FiberRef#modify
 
-`FiberRef#modify` — applies a function to the current value and synchronizes the result to the `ThreadLocal`.
+`FiberRef#modify` applies a function to the current value and synchronizes the result to the `ThreadLocal`. Its signature is:
 
-```scala
-def modify[B](f: A => (B, A)): UIO[B]
+```scala mdoc:compile-only
+import zio._
+
+trait FiberRef[A] {
+  def modify[B](f: A => (B, A)): UIO[B]
+}
 ```
 
 The method:
@@ -267,10 +289,14 @@ val example = ZIO.scoped {
 
 ### FiberRef#locally
 
-`FiberRef#locally` — creates a scoped region where the fiber-local value is temporarily replaced.
+`FiberRef#locally` creates a scoped region where the fiber-local value is temporarily replaced. Its signature is:
 
-```scala
-def locally[R, E, B](newValue: A)(body: ZIO[R, E, B]): ZIO[R, E, B]
+```scala mdoc:compile-only
+import zio._
+
+trait FiberRef[A] {
+  def locally[R, E, B](newValue: A)(body: ZIO[R, E, B]): ZIO[R, E, B]
+}
 ```
 
 The method:
@@ -317,14 +343,18 @@ val example = ZIO.scoped {
 }.provide(ThreadLocalBridge.live)
 ```
 
-The output demonstrates how `locally` isolates value changes to a specific scope and restores the previous value automatically.
+The output demonstrates how `FiberRef#locally` isolates value changes to a specific scope and restores the previous value automatically.
 
 ### FiberRef#get
 
-`FiberRef#get` — retrieves the current fiber-local value without modifying it.
+`FiberRef#get` retrieves the current fiber-local value without modifying it. Its signature is:
 
-```scala
-def get: UIO[A]
+```scala mdoc:compile-only
+import zio._
+
+trait FiberRef[A] {
+  def get: UIO[A]
+}
 ```
 
 The method:
@@ -357,9 +387,11 @@ val example = ZIO.scoped {
 
 ## Advanced Topics
 
+This section explores advanced features of `ThreadLocalBridge`, including how it handles fiber lifecycle events, forking semantics, parallel execution, error handling, and resource cleanup.
+
 ### Fiber Suspension and Resumption
 
-The primary power of `ThreadLocalBridge` is its automatic synchronization when fibers suspend and resume on different threads. This is handled by an internal supervisor that tracks all `FiberRef` objects created via `makeFiberRef`.
+The primary power of `ThreadLocalBridge` is its automatic synchronization when fibers suspend and resume on different threads. This is handled by an internal supervisor that supervises all `FiberRef` objects from `ThreadLocalBridge#makeFiberRef`.
 
 When a fiber suspends (yields control back to the scheduler), the supervisor's `onSuspend` hook is triggered. It invokes the link function with the **initial value** of the `FiberRef`. This resets the `ThreadLocal` to its initial state on the thread being vacated, preventing state pollution—ensuring other fibers that run on the same thread won't see leftover values from the suspended fiber.
 
@@ -372,7 +404,7 @@ This dual-phase mechanism ensures that:
 - If a fiber resumes on a different thread where the `ThreadLocal` had a different value, it is correctly updated to the fiber's current value
 - Legacy code that relies on `ThreadLocal` always sees the correct value for the current fiber
 
-Here's an example showing the ThreadLocalBridge's synchronization behavior:
+When you modify the `FiberRef` value, the link function synchronizes the change to the `ThreadLocal` immediately:
 
 ```scala mdoc:reset
 import zio._
@@ -412,7 +444,7 @@ The supervisor's `onSuspend` and `onResume` hooks are triggered automatically wh
 
 `FiberRef` uses **copy-on-fork** semantics: when you fork a fiber using `ZIO.fork` or other fiber spawning combinators, the child fiber starts with a **copy of the parent's current value**, not the initial value. ThreadLocalBridge preserves this behavior, ensuring the child's `ThreadLocal` is properly synchronized.
 
-Here's an example demonstrating copy-on-fork semantics with actual fiber forking:
+When a child fiber forks from the parent, it inherits the parent's current value, and the `ThreadLocal` reflects this inheritance:
 
 ```scala mdoc:reset
 import zio._
@@ -444,7 +476,7 @@ The child fiber inherits the parent's current value (`"parent-value"`), not the 
 
 ### Parallel Execution
 
-When using combinators like `ZIO.collectAllPar` or other parallel composition operators, each fiber maintains its own fiber-local value, and the `ThreadLocal` is properly synchronized as fibers suspend and resume across the thread pool.
+When using combinators like `ZIO.collectAllPar` or other parallel composition operators, each fiber maintains its own fiber-local value, and the `ThreadLocal` is properly synchronized as fibers suspend and resume across the thread pool:
 
 ```scala mdoc:reset
 import zio._
@@ -506,7 +538,7 @@ Keep link functions **simple and side-effect free**. Do not perform I/O, blockin
 
 ### Scope Cleanup and Finalizers
 
-When the scope exits (whether due to success, failure, or interruption), the finalizer automatically resets the `ThreadLocal` to its initial value. This prevents `ThreadLocal` leaks and ensures clean state for subsequent code.
+When the scope exits (whether due to success, failure, or interruption), the finalizer automatically resets the `ThreadLocal` to its initial value. This prevents `ThreadLocal` leaks and ensures clean state for subsequent code:
 
 ```scala mdoc:reset
 import zio._
@@ -537,255 +569,18 @@ After the scope exits, the `ThreadLocal` is reset to its initial value, preventi
 The finalizer runs even if an exception is thrown within the scope or if the effect is interrupted. This guarantees resource cleanup.
 :::
 
-## Integration
-
-### Using with FiberRef
-
-The `FiberRef` returned by `makeFiberRef` is a full-featured `FiberRef` that supports all standard operations. The `ThreadLocalBridge` wrapper intercepts key operations (`set`, `modify`, `locally`) to synchronize with the `ThreadLocal`.
-
-```scala mdoc:reset
-import zio._
-
-val threadLocal = new ThreadLocal[Option[Map[String, String]]] {
-  override def initialValue() = None
-}
-
-val example = ZIO.scoped {
-  ThreadLocalBridge.makeFiberRef[Map[String, String]](Map())(state =>
-    threadLocal.set(Some(state))
-  ).flatMap { ref =>
-    for {
-      _ <- ZIO.succeed(println(s"Initial: ${threadLocal.get()}"))
-      _ <- ref.modify(state => ((), state + ("key1" -> "value1")))
-      _ <- ZIO.succeed(println(s"After modify: ${threadLocal.get()}"))
-      current <- ref.get
-      _ <- ZIO.succeed(println(s"Current state: $current"))
-    } yield ()
-  }
-}.provide(ThreadLocalBridge.live)
-```
-
-### Composition with Other ZIO Services
-
-`ThreadLocalBridge` works well in composed layers and can be used alongside other services:
-
-```scala mdoc:reset
-import zio._
-
-case class Config(appName: String)
-
-val configLayer = ZLayer.succeed(Config("my-app"))
-
-val example = ZIO.scoped {
-  for {
-    config <- ZIO.service[Config]
-    threadLocal = new ThreadLocal[Option[String]] {
-      override def initialValue() = None
-    }
-    ref <- ThreadLocalBridge.makeFiberRef[String](config.appName)(name =>
-      threadLocal.set(Some(name))
-    )
-    _ <- ref.set("updated-name")
-    _ <- ZIO.succeed(println(s"ThreadLocal: ${threadLocal.get()}"))
-  } yield ()
-}.provide(configLayer, ThreadLocalBridge.live)
-```
-
-## Design Patterns and Best Practices
-
-### Pattern 1: Request Context Propagation
-
-Use `ThreadLocalBridge` to propagate request-level context (request ID, user, correlation token) to code that expects thread-local storage:
-
-```scala mdoc:silent:reset
-import zio._
-
-case class RequestContext(id: String, userId: String)
-
-val requestContextThreadLocal = new ThreadLocal[Option[RequestContext]] {
-  override def initialValue() = None
-}
-
-def setupRequestContext(requestId: String, userId: String): ZIO[Scope with ThreadLocalBridge, Nothing, FiberRef[RequestContext]] =
-  ThreadLocalBridge.makeFiberRef[RequestContext](
-    RequestContext(requestId, userId)
-  )(context => requestContextThreadLocal.set(Some(context)))
-```
-
-Now we can use the setup function in a scoped context:
-
-```scala mdoc
-val example = ZIO.scoped {
-  setupRequestContext("req-123", "alice").flatMap { ctxRef =>
-    for {
-      _ <- ZIO.succeed(println(s"Context: ${requestContextThreadLocal.get()}"))
-      _ <- ctxRef.modify(ctx => ((), ctx.copy(userId = "bob")))
-      _ <- ZIO.succeed(println(s"After update: ${requestContextThreadLocal.get()}"))
-    } yield ()
-  }
-}.provide(ThreadLocalBridge.live)
-```
-
-### Pattern 2: Tracing Integration
-
-Use the link function to update a tracing system's context:
-
-```scala mdoc:silent:reset
-import zio._
-
-// Simulating a tracing library
-class Tracer {
-  private val spanIdThreadLocal = new ThreadLocal[Option[String]] {
-    override def initialValue() = None
-  }
-
-  def setSpanId(id: String): Unit = spanIdThreadLocal.set(Some(id))
-  def getSpanId: Option[String] = spanIdThreadLocal.get()
-}
-
-val tracer = new Tracer()
-
-def setupTracing: ZIO[Scope with ThreadLocalBridge, Nothing, FiberRef[String]] =
-  ThreadLocalBridge.makeFiberRef[String]("root-span")(spanId =>
-    tracer.setSpanId(spanId)
-  )
-```
-
-Now use the tracing setup in a scoped context:
-
-```scala mdoc
-val example = ZIO.scoped {
-  setupTracing.flatMap { spanRef =>
-    for {
-      _ <- ZIO.succeed(println(s"Span: ${tracer.getSpanId}"))
-      _ <- spanRef.set("child-span")
-      _ <- ZIO.succeed(println(s"Updated span: ${tracer.getSpanId}"))
-    } yield ()
-  }
-}.provide(ThreadLocalBridge.live)
-```
-
-### Pattern 3: MDC for Structured Logging
-
-Use `ThreadLocalBridge` with SLF4J's MDC (Mapped Diagnostic Context) for structured logging:
-
-```scala mdoc:silent:reset
-import zio._
-
-// Simulating SLF4J MDC
-object MDC {
-  private val context = new ThreadLocal[Map[String, String]] {
-    override def initialValue() = Map()
-  }
-
-  def put(key: String, value: String): Unit = {
-    context.set(context.get() + (key -> value))
-  }
-
-  def get(key: String): Option[String] = {
-    context.get().get(key)
-  }
-
-  def clear(): Unit = context.set(Map())
-}
-
-def setupMDC(requestId: String): ZIO[Scope with ThreadLocalBridge, Nothing, FiberRef[String]] =
-  ThreadLocalBridge.makeFiberRef[String](requestId)(id => MDC.put("requestId", id))
-```
-
-Now use the MDC setup in a scoped context:
-
-```scala mdoc
-val example = ZIO.scoped {
-  setupMDC("req-xyz").flatMap { idRef =>
-    for {
-      _ <- ZIO.succeed(println(s"MDC requestId: ${MDC.get("requestId")}"))
-      _ <- idRef.set("req-abc")
-      _ <- ZIO.succeed(println(s"Updated MDC: ${MDC.get("requestId")}"))
-    } yield ()
-  }
-}.provide(ThreadLocalBridge.live)
-```
-
-### Pattern 4: Complex State with Getters/Setters
-
-When the `ThreadLocal` value is complex, use helper functions to abstract away the synchronization details:
-
-```scala mdoc:silent:reset
-import zio._
-
-case class AppState(userId: String, permissions: Set[String])
-
-object AppStateThreadLocal {
-  private val threadLocal = new ThreadLocal[Option[AppState]] {
-    override def initialValue() = None
-  }
-
-  def set(state: AppState): Unit = threadLocal.set(Some(state))
-  def get: Option[AppState] = threadLocal.get()
-  def getUserId: String = get.map(_.userId).getOrElse("anonymous")
-  def hasPermission(perm: String): Boolean =
-    get.map(_.permissions.contains(perm)).getOrElse(false)
-}
-
-def setupAppState(userId: String, perms: Set[String]): ZIO[Scope with ThreadLocalBridge, Nothing, FiberRef[AppState]] =
-  ThreadLocalBridge.makeFiberRef[AppState](AppState(userId, perms))(state =>
-    AppStateThreadLocal.set(state)
-  )
-```
-
-Now use the app state setup with the helper functions:
-
-```scala mdoc
-val example = ZIO.scoped {
-  setupAppState("alice", Set("read", "write")).flatMap { stateRef =>
-    for {
-      _ <- ZIO.succeed(println(s"User: ${AppStateThreadLocal.getUserId}"))
-      _ <- ZIO.succeed(println(s"Has write permission: ${AppStateThreadLocal.hasPermission("write")}"))
-      _ <- stateRef.modify(state => ((), state.copy(userId = "bob")))
-      _ <- ZIO.succeed(println(s"Updated user: ${AppStateThreadLocal.getUserId}"))
-    } yield ()
-  }
-}.provide(ThreadLocalBridge.live)
-```
-
 ## Performance Considerations
 
 - **Supervisor overhead:** The supervisor is only invoked when a fiber suspends or resumes, not on every operation. For most workloads, this overhead is negligible.
-- **Link function cost:** The link function is called synchronously on every fiber-local value change. Keep it as fast as possible to avoid performance degradation.
+- **Link function cost:** The link function executes synchronously on every fiber-local value change. Keep it as fast as possible to avoid performance degradation.
 - **Memory overhead:** Each tracked `FiberRef` requires a small amount of memory for tracking metadata (typically a few bytes per `FiberRef`).
 - **ThreadLocal access:** Direct `ThreadLocal.set()` and `ThreadLocal.get()` are O(1) operations with minimal overhead.
 
 For performance-critical code, avoid frequent value changes or complex link functions. If you need to batch updates, consider using a mutable container (like a `Map` or `Queue`) as the `FiberRef` value type and updating the `ThreadLocal` less frequently.
 
-## Troubleshooting
 
-### ThreadLocal Value Not Updating
+## See Also
 
-**Problem:** The `ThreadLocal` is not reflecting the current `FiberRef` value.
-
-**Solution:** Ensure you are calling `makeFiberRef` within a scope and that `ThreadLocalBridge.live` is provided in your layer composition. The link function must also execute without errors. If using the result in a for-comprehension, ensure you are using `flatMap` or for-notation correctly.
-
-### ThreadLocal Leaks
-
-**Problem:** The `ThreadLocal` value persists after the scope exits.
-
-**Solution:** This indicates the finalizer did not run. Ensure you are using `ZIO.scoped` to manage the resource scope properly, and that exceptions are not preventing cleanup. `ThreadLocalBridge` will automatically reset the `ThreadLocal` to its initial value when the scope exits normally or abnormally.
-
-### Lost Values After Fiber Suspension
-
-**Problem:** The `ThreadLocal` value is incorrect after the fiber suspends and resumes.
-
-**Solution:** This might occur if the link function is not idempotent or if it depends on external state. Ensure your link function is a pure function that only depends on its input value and does not rely on shared mutable state. Also verify that `ThreadLocalBridge.live` is provided in the runtime environment.
-
-### Link Function Exceptions
-
-**Problem:** Exceptions in the link function are causing unexpected defects.
-
-**Solution:** Wrap your link function in try-catch to handle potential errors gracefully. Remember that the link function is called from supervisor hooks, which execute synchronously during fiber lifecycle transitions. Avoid I/O or blocking operations in link functions.
-
-### Integration with Legacy Libraries
-
-**Problem:** A legacy library is not seeing the `ThreadLocal` value set by `ThreadLocalBridge`.
-
-**Solution:** Verify that the legacy library is reading from the same `ThreadLocal` instance. Ensure the link function is being called at the right times by adding logging or debugging. Also confirm that the library does not have its own thread pool that might bypass the ZIO scheduler's fiber supervision hooks.
+- **[Getting Started with ThreadLocalBridge](../../guides/getting-started-threadlocal-bridge.md)** — A tutorial that teaches how to use `ThreadLocalBridge` for Java interoperability, starting from ThreadLocal basics and building up to real-world library integration with SLF4J MDC.
+- **[FiberRef](./fiberref.md)** — The fiber-local reference type that `ThreadLocalBridge` synchronizes with ThreadLocal.
+- **[Java Interoperability](../../guides/interop/with-java.md)** — General patterns for interoperating with Java code in ZIO applications.

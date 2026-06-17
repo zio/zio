@@ -231,6 +231,7 @@ module.exports = {
               [
                 "reference/state-management/fiberref",
                 "reference/state-management/zstate",
+                "reference/state-management/threadlocal-bridge",
               ]
           }
         ]
@@ -502,6 +503,7 @@ module.exports = {
         "guides/tutorials/build-a-restful-webservice",
         "guides/tutorials/build-a-graphql-webservice",
         "guides/tutorials/gracefully-shutdown-zio-application",
+        "guides/tutorials/getting-started-threadlocal-bridge",
       ]
     },
     {

@@ -1,6 +1,14 @@
 ---
 id: getting-started-threadlocal-bridge
 title: "Getting Started with ThreadLocalBridge"
+description: "Learn to synchronize ZIO fiber-local state with Java ThreadLocal variables for seamless Java library interoperability."
+keywords:
+  - ThreadLocalBridge
+  - ThreadLocal
+  - "Java interoperability"
+  - FiberRef
+  - "Fiber context"
+  - "Context synchronization"
 ---
 
 Welcome to this tutorial on **ThreadLocalBridge**, a powerful tool for integrating ZIO with Java code that relies on `ThreadLocal` variables. This tutorial is for ZIO developers who need to interoperate with legacy Java libraries or frameworks that use `ThreadLocal` for storing context — like SLF4J, OpenTelemetry, or Spring Security.

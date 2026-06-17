@@ -49,6 +49,9 @@ Here are the two main ways to use `Cached`:
 ```scala mdoc:reset:invisible
 import zio._
 ```
+
+Create a cache and manually trigger a refresh:
+
 ```scala mdoc:compile-only
 import zio._
 
@@ -72,6 +75,7 @@ object ManualRefreshExample extends ZIOAppDefault {
 
 ```scala mdoc:compile-only
 import zio._
+import zio.test.TestClock
 
 object AutoRefreshExample extends ZIOAppDefault {
   def run = ZIO.scoped {
@@ -95,27 +99,29 @@ object AutoRefreshExample extends ZIOAppDefault {
 
 ### `Cached.manual`
 
-Creates a cache that must be manually refreshed by calling the `refresh` method.
+Creates a cache that must be manually refreshed by calling the `Cached#refresh` method.
 
 **Signature:**
 ```scala
-def manual[R, Error, Resource](
-  acquire: ZIO[R, Error, Resource]
-)(implicit trace: Trace): ZIO[R with Scope, Nothing, Cached[Error, Resource]]
+object Cached {
+  def manual[R, Error, Resource](
+    acquire: ZIO[R, Error, Resource]
+  ): ZIO[R with Scope, Nothing, Cached[Error, Resource]]
+}
 ```
 
 **Parameters:**
-- `acquire`: A `ZIO` effect that acquires or computes the resource. This effect will be executed each time `refresh()` is called.
+- `acquire`: A `ZIO` effect that acquires or computes the resource. This effect is executed each time `refresh()` is called.
 
 **Returns:** A scoped effect that produces a `Cached` value.
 
 **Description:**
-The `manual` constructor creates a cache that stores the result of the `acquire` effect. You must explicitly call `refresh()` to update the cached value. This is useful when:
+The `Cached.manual` constructor creates a cache that stores the result of the `acquire` effect. You must explicitly call `Cached#refresh()` to update the cached value. This is useful when:
 - Refresh timing is event-driven (e.g., triggered by user action)
 - You need fine-grained control over when refreshes happen
 - The refresh pattern is irregular or unpredictable
 
-**Example:**
+To create a manual cache that you can refresh on demand:
 
 ```scala mdoc:compile-only
 import zio._
@@ -142,10 +148,12 @@ Creates a cache that is automatically refreshed according to a schedule policy.
 
 **Signature:**
 ```scala
-def auto[R, Error, Resource](
-  acquire: ZIO[R, Error, Resource], 
-  policy: Schedule[Any, Any, Any]
-)(implicit trace: Trace): ZIO[R with Scope, Nothing, Cached[Error, Resource]]
+object Cached {
+  def auto[R, Error, Resource](
+    acquire: ZIO[R, Error, Resource], 
+    policy: Schedule[Any, Any, Any]
+  ): ZIO[R with Scope, Nothing, Cached[Error, Resource]]
+}
 ```
 
 **Parameters:**
@@ -155,7 +163,7 @@ def auto[R, Error, Resource](
 **Returns:** A scoped effect that produces a `Cached` value.
 
 **Description:**
-The `auto` constructor creates a cache that refreshes automatically according to the provided schedule. This is useful when:
+The `Cached.auto` constructor creates a cache that refreshes automatically according to the provided schedule. This is useful when:
 - Refresh timing is regular and predictable (e.g., every N seconds)
 - You want the cache to stay fresh without manual intervention
 - The resource should be periodically reloaded (e.g., configuration, slowly-changing data)
@@ -165,15 +173,16 @@ The `auto` constructor creates a cache that refreshes automatically according to
 - Failed refreshes do NOT invalidate the cached value, allowing graceful degradation when refresh attempts fail temporarily.
 - The refresh is executed in a daemon fiber that runs until the scope is closed.
 
-**Example:**
+To create an automatic cache that refreshes on a fixed schedule:
 
 ```scala mdoc:compile-only
 import zio._
+import zio.test.TestClock
 
 object AutoCacheExample extends ZIOAppDefault {
   def run = ZIO.scoped {
     for {
-      ref <- Ref.make(System.currentTimeMillis())
+      ref <- Ref.make(java.lang.System.currentTimeMillis())
       cached <- Cached.auto(
         ref.get.flatMap(ts => ZIO.succeed(s"Timestamp: $ts")),
         Schedule.spaced(5.seconds)
@@ -210,27 +219,31 @@ object AutoCacheWithRetryExample extends ZIOAppDefault {
 
 ## Core Operations
 
+The core operations of `Cached` provide simple methods to retrieve and update cached values.
+
 ### `Cached#get`
 
 Retrieves the currently cached value.
 
 **Signature:**
 ```scala
-def get(implicit trace: Trace): IO[Error, Resource]
+trait Cached[Error, Resource] {
+  def get: IO[Error, Resource]
+}
 ```
 
 **Returns:** An effect that produces the cached resource, or fails with an error if the initial acquisition failed.
 
 **Description:**
-The `get` method returns the most recently cached value. If the cache has never been successfully populated (either because `manual` hasn't been refreshed yet, or because `auto` hasn't completed its first refresh), the returned effect will fail. After at least one successful refresh, `get` will always return that cached value immediately, even if subsequent refreshes fail.
+The `Cached#get` method returns the most recently cached value. If the cache has never been successfully populated (either because `Cached.manual` hasn't been refreshed yet, or because `Cached.auto` hasn't completed its first refresh), the returned effect fails. After at least one successful refresh, `Cached#get` always returns that cached value immediately, even if subsequent refreshes fail.
 
 **Behavior:**
 - Returns the last successfully cached value
 - Fails if the cache was never successfully populated
-- Does not trigger a refresh (see `refresh` for that)
+- Does not trigger a refresh (see `Cached#refresh` for that)
 - Returns immediately without blocking
 
-**Example:**
+To retrieve the currently cached value after it has been populated:
 
 ```scala mdoc:compile-only
 import zio._
@@ -254,13 +267,15 @@ Manually refreshes the cached value by re-executing the `acquire` effect.
 
 **Signature:**
 ```scala
-def refresh(implicit trace: Trace): IO[Error, Unit]
+trait Cached[Error, Resource] {
+  def refresh: IO[Error, Unit]
+}
 ```
 
 **Returns:** An effect that completes when the refresh is done, or fails if the refresh fails.
 
 **Description:**
-The `refresh` method explicitly triggers a cache refresh by re-running the `acquire` effect. It blocks until the refresh completes. Unlike automatic refresh, refresh errors prevent the cache from being updated while allowing the previously cached value to remain.
+The `Cached#refresh` method explicitly triggers a cache refresh by re-running the `acquire` effect. It blocks until the refresh completes. Unlike automatic refresh, refresh errors prevent the cache from being updated while allowing the previously cached value to remain.
 
 **Behavior:**
 - Re-executes the `acquire` effect
@@ -269,7 +284,7 @@ The `refresh` method explicitly triggers a cache refresh by re-running the `acqu
 - Blocks until the refresh completes (uninterruptible during the actual acquisition)
 - In `auto` caches, refreshes also happen automatically according to the schedule
 
-**Example:**
+To manually refresh a cache and retrieve the updated value:
 
 ```scala mdoc:compile-only
 import zio._
@@ -295,10 +310,11 @@ object RefreshExample extends ZIOAppDefault {
 
 A key feature of `Cached` is that failed refreshes don't invalidate previously successful cached values. This provides graceful degradation when refresh operations temporarily fail.
 
-**Example:**
+To observe how a cache maintains the previous value when a refresh fails:
 
 ```scala mdoc:compile-only
 import zio._
+import zio.test.TestClock
 
 object GracefulDegradationExample extends ZIOAppDefault {
   def run = ZIO.scoped {
@@ -318,11 +334,11 @@ object GracefulDegradationExample extends ZIOAppDefault {
 }
 ```
 
-In this example, even though the refresh fails (because the ref contains a `Left`), the `get` still returns `"initial-data"`. The previous successful value is preserved, allowing the application to continue functioning with stale data rather than crashing.
+In this example, even though the refresh fails (because the ref contains a `Left`), the `Cached#get` still returns `"initial-data"`. The previous successful value is preserved, allowing the application to continue functioning with stale data rather than crashing.
 
 ## Scoped Resource Management
 
-`Cached` uses ZIO's resource system to manage its lifetime. Both `manual` and `auto` return a scoped effect:
+`Cached` uses ZIO's resource system to manage its lifetime. Both `Cached.manual` and `Cached.auto` return a scoped effect:
 
 ```scala mdoc:compile-only
 import zio._
@@ -345,7 +361,8 @@ The `ZIO.scoped` combinator creates a `Scope`, passes it to the cache creation, 
 
 The `Schedule` type provides powerful timing policies for `auto` caches. Here are some common patterns:
 
-**Fixed Interval Refresh:**
+To set up a cache that refreshes at a fixed interval:
+
 ```scala mdoc:compile-only
 import zio._
 
@@ -353,7 +370,8 @@ val acquire = ZIO.succeed(42)
 val cache = Cached.auto(acquire, Schedule.spaced(5.seconds))
 ```
 
-**Fixed Delay Between Refreshes:**
+To refresh the cache after a fixed delay between successive refreshes:
+
 ```scala mdoc:compile-only
 import zio._
 
@@ -361,7 +379,8 @@ val acquire = ZIO.succeed(42)
 val cache = Cached.auto(acquire, Schedule.fixed(5.seconds))
 ```
 
-**Limited Refreshes:**
+To limit automatic refreshes to a maximum number of times:
+
 ```scala mdoc:compile-only
 import zio._
 
@@ -380,6 +399,8 @@ val cache = Cached.auto(acquireWithRetry, Schedule.spaced(5.seconds))
 ```
 
 ## Common Patterns
+
+Here are some practical examples of using `Cached` for common scenarios:
 
 ### Caching with Resource Acquisition
 

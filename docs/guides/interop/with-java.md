@@ -97,3 +97,38 @@ def readFile(file: AsynchronousFileChannel): Task[Chunk[Byte]] = for {
 ```
 
 As you can see, ZIO provides a CPS-style API here which is a bit different from the two sections above, but hey still super elegant.
+
+## ThreadLocal Synchronization
+
+Many Java libraries and frameworks use `ThreadLocal` variables to store context-specific data that should be accessible from anywhere in the call stack without explicit parameter passing. Examples include SLF4J's MDC (Mapped Diagnostic Context), OpenTelemetry tracing context, and Spring Security's security context.
+
+When integrating ZIO with such libraries, fibers may execute on different threads as they suspend and resume. This breaks the assumption that a single `ThreadLocal` value is always associated with a single logical task.
+
+ZIO provides [`ThreadLocalBridge`](../../reference/state-management/threadlocal-bridge.md), a service that synchronizes ZIO fiber-local state (`FiberRef`) with Java `ThreadLocal` variables. This enables seamless interoperability with legacy code that relies on thread-local storage:
+
+```scala
+import zio._
+
+// Create a ThreadLocal for storing request IDs
+val requestIdThreadLocal = new ThreadLocal[Option[String]] {
+  override def initialValue() = None
+}
+
+// Set up a synchronized FiberRef
+val example = ZIO.scoped {
+  ThreadLocalBridge.makeFiberRef[String]("default-request-id") { requestId =>
+    requestIdThreadLocal.set(Some(requestId))
+  }.flatMap { ref =>
+    // Now ZIO code and legacy Java code can share request context
+    for {
+      _ <- callLegacyLibraryFunction()
+      _ <- ref.set("new-request-id")
+      _ <- callLegacyLibraryFunctionAgain()
+    } yield ()
+  }
+}.provide(ThreadLocalBridge.live)
+```
+
+For detailed information about `ThreadLocalBridge`, including advanced usage patterns, error handling, and integration scenarios, refer to the [ThreadLocalBridge documentation](../../reference/state-management/threadlocal-bridge.md).
+
+To learn how to use `ThreadLocalBridge` in practice, check out the [Getting Started with ThreadLocalBridge](../getting-started-threadlocal-bridge.md) tutorial, which walks through building a complete example with real-world library integration.
