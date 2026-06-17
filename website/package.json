@@ -14,7 +14,7 @@
     "patch-guides": "bash ./patch-guides.sh"
   },
   "dependencies": {
-    "@babel/plugin-transform-parameters": "^7.18.8",
+    "@babel/plugin-transform-parameters": "^8.0.0",
     "@bytebrain.ai/bytebrain-ui": "0.0.8",
     "@docusaurus/core": "^3.5.2",
     "@docusaurus/plugin-client-redirects": "^3.5.2",
