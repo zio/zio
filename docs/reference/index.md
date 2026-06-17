@@ -60,7 +60,6 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 - **[Hub](concurrency/hub.md)** — A `Hub` is an asynchronous message hub that allows publishers to efficiently broadcast values to many subscribers.
 - **[Promise](concurrency/promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.
-- **[Dequeue](concurrency/dequeue.md)** — A `Dequeue[A]` is a read-only queue that allows you to asynchronously dequeue elements. It represents the consumer half of the queue interface, enabling type-safe read-only views.
 - **[Enqueue](concurrency/enqueue.md)** — An `Enqueue[A]` is a write-only queue that allows you to asynchronously enqueue elements. It represents the producer half of the queue interface.
 - **[Queue](concurrency/queue.md)** — A `Queue` is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers. It combines `Dequeue[A]` and `Enqueue[A]` for complete read-write access.
 - **[Semaphore](concurrency/semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.

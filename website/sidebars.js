@@ -277,7 +277,6 @@ module.exports = {
               ]
             },
             "reference/concurrency/promise",
-            "reference/concurrency/dequeue",
             "reference/concurrency/queue",
             "reference/concurrency/hub",
             "reference/concurrency/semaphore"
