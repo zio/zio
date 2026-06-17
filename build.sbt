@@ -202,6 +202,8 @@ lazy val root3 = project
     ) *
   )
 
+lazy val zioExamples = RootProject(file("zio-examples"))
+
 lazy val root = project
   .in(file("."))
   .settings(
@@ -214,7 +216,7 @@ lazy val root = project
     ),
     welcomeMessage
   )
-  .aggregate(root213)
+  .aggregate(root213, zioExamples)
   .enablePlugins(ScalaJSPlugin)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
