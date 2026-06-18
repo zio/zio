@@ -581,6 +581,6 @@ For performance-critical code, avoid frequent value changes or complex link func
 
 ## See Also
 
-- **[Getting Started with ThreadLocalBridge](../../tutorials/getting-started-threadlocal-bridge.md)** — A tutorial that teaches how to use `ThreadLocalBridge` for Java interoperability, starting from ThreadLocal basics and building up to real-world library integration with SLF4J MDC.
+- **[Getting Started with ThreadLocalBridge](../../guides/tutorials/getting-started-threadlocal-bridge.md)** — A tutorial that teaches how to use `ThreadLocalBridge` for Java interoperability, starting from ThreadLocal basics and building up to real-world library integration with SLF4J MDC.
 - **[FiberRef](./fiberref.md)** — The fiber-local reference type that `ThreadLocalBridge` synchronizes with ThreadLocal.
 - **[Java Interoperability](../../guides/interop/with-java.md)** — General patterns for interoperating with Java code in ZIO applications.
