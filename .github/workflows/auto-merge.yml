@@ -4,11 +4,6 @@ on:
   pull_request_target:
     types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
-    inputs:
-      actor_filter:
-        description: 'Bot actor to process (leave blank for both)'
-        required: false
-        default: ''
 
 permissions:
   contents: write
@@ -32,6 +27,7 @@ jobs:
       - name: Backfill auto-merge for existing bot PRs
         if: github.event_name == 'workflow_dispatch'
         run: |
+          set -euo pipefail
           for actor in "app/zio-scala-steward" "renovate[bot]"; do
             gh pr list \
               --author "$actor" \

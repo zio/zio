@@ -10,11 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor == 'renovate[bot]' || github.actor == 'app/zio-scala-steward'
     steps:
-      - name: Git Checkout
-        uses: actions/checkout@v6.0.3
-        with:
-          fetch-depth: 1000
-          fetch-tags: true
       - name: Approve PR
         run: gh pr review --approve ${{ github.event.number }}
         env:
