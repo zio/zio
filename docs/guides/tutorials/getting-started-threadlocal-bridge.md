@@ -449,36 +449,6 @@ This example shows:
 
 This is the power of `ThreadLocalBridge`: seamless integration with legacy Java libraries without manual thread-local management.
 
-## Running the Examples
-
-All examples in this tutorial are self-contained and can be run locally. To run the examples from your machine, first clone the ZIO repository:
-
-```bash
-git clone https://github.com/zio/zio.git
-cd zio
-git checkout main
-```
-
-To run the simple request tracker example:
-
-```bash
-sbt "docs/mdoc --in docs/guides/getting-started-threadlocal-bridge.md --run SimpleRequestTracker.trackRequest"
-```
-
-To run the SLF4J example:
-
-```bash
-sbt "docs/mdoc --in docs/guides/getting-started-threadlocal-bridge.md --run SLF4JExample.handleConcurrentRequests"
-```
-
-To verify that all examples compile without errors:
-
-```bash
-sbt "docs/mdoc --in docs/guides/getting-started-threadlocal-bridge.md"
-```
-
-All examples in this tutorial are written with `mdoc`, so they're guaranteed to compile and run correctly with the ZIO version in the repository.
-
 ## What You've Learned
 
 Congratulations! You've completed the tutorial on ThreadLocalBridge. Here's what you now understand:
@@ -504,26 +474,44 @@ Good luck integrating ZIO with your Java dependencies! 🚀
 
 ## Running the Examples
 
-All examples mentioned in this tutorial have corresponding runnable Scala files in the `zio-examples` module. You can run them locally using sbt:
+All examples in this tutorial have corresponding runnable Scala files in the `zio-examples` module. Run them in order to progressively build your understanding of `ThreadLocalBridge` in practice.
 
-1. **Concept1Example.scala** — Understanding ThreadLocal Limitations with ZIO Fibers
-   ```bash
-   sbt "threadlocal-bridge/runMain threadlocalbridge.Concept1Example"
-   ```
+### Concept1Example — Understanding ThreadLocal Limitations with ZIO Fibers
 
-2. **Concept2Example.scala** — Introducing ThreadLocalBridge
-   ```bash
-   sbt "threadlocal-bridge/runMain threadlocalbridge.Concept2Example"
-   ```
+```scala
+@THREADLOCAL_CONCEPT1_SOURCE@
+```
 
-3. **Concept3Example.scala** — Fiber Isolation with ThreadLocalBridge
-   ```bash
-   sbt "threadlocal-bridge/runMain threadlocalbridge.Concept3Example"
-   ```
+```bash
+sbt "threadlocal-bridge/runMain threadlocalbridge.Concept1Example"
+```
 
-4. **CompleteExample.scala** — Request Context Propagation with ThreadLocalBridge
-   ```bash
-   sbt "threadlocal-bridge/runMain threadlocalbridge.CompleteExample"
-   ```
+### Concept2Example — Introducing ThreadLocalBridge
 
-Each example is fully self-contained and demonstrates the concepts from this tutorial. Run them in order to progressively build your understanding of `ThreadLocalBridge` in practice.
+```scala
+@THREADLOCAL_CONCEPT2_SOURCE@
+```
+
+```bash
+sbt "threadlocal-bridge/runMain threadlocalbridge.Concept2Example"
+```
+
+### Concept3Example — Fiber Isolation with ThreadLocalBridge
+
+```scala
+@THREADLOCAL_CONCEPT3_SOURCE@
+```
+
+```bash
+sbt "threadlocal-bridge/runMain threadlocalbridge.Concept3Example"
+```
+
+### CompleteExample — Request Context Propagation with ThreadLocalBridge
+
+```scala
+@THREADLOCAL_COMPLETE_SOURCE@
+```
+
+```bash
+sbt "threadlocal-bridge/runMain threadlocalbridge.CompleteExample"
+```
