@@ -1,11 +1,14 @@
-name: Auto-approve Renovate's PRs
+name: Auto-approve bot dependency PRs
 
 on: pull_request_target
 
+permissions:
+  pull-requests: write
+
 jobs:
-  auto-approve-renovate-prs:
+  auto-approve-bot-prs:
     runs-on: ubuntu-latest
-    if: github.actor == 'renovate[bot]'
+    if: github.actor == 'renovate[bot]' || github.actor == 'app/zio-scala-steward'
     steps:
       - name: Git Checkout
         uses: actions/checkout@v6.0.3
