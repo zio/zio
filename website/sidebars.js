@@ -502,7 +502,7 @@ module.exports = {
         "guides/tutorials/build-a-restful-webservice",
         "guides/tutorials/build-a-graphql-webservice",
         "guides/tutorials/gracefully-shutdown-zio-application",
-        "guides/tutorials/getting-started-threadlocal-bridge",
+        "tutorials/getting-started-threadlocal-bridge",
       ]
     },
     {

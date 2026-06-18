@@ -489,7 +489,7 @@ Now that you understand the basics of `ThreadLocalBridge`, here's what you can e
 
 - **Interested in resource management?** Explore the [Scope documentation](../reference/resource/scope.md) to understand how scopes work and why they're essential for cleanup.
 
-- **Need to integrate with other Java libraries?** Look at the [Java Interoperability guide](./interop/with-java.md) for more patterns on working with Java code in ZIO applications.
+- **Need to integrate with other Java libraries?** Look at the [Java Interoperability guide](../guides/interop/with-java.md) for more patterns on working with Java code in ZIO applications.
 
 Good luck integrating ZIO with your Java dependencies! 🚀
 

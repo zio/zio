@@ -131,4 +131,4 @@ val example = ZIO.scoped {
 
 For detailed information about `ThreadLocalBridge`, including advanced usage patterns, error handling, and integration scenarios, refer to the [ThreadLocalBridge documentation](../../reference/state-management/threadlocal-bridge.md).
 
-To learn how to use `ThreadLocalBridge` in practice, check out the [Getting Started with ThreadLocalBridge](../getting-started-threadlocal-bridge.md) tutorial, which walks through building a complete example with real-world library integration.
+To learn how to use `ThreadLocalBridge` in practice, check out the [Getting Started with ThreadLocalBridge](../../tutorials/getting-started-threadlocal-bridge.md) tutorial, which walks through building a complete example with real-world library integration.
