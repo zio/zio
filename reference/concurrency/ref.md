@@ -32,12 +32,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$19857/0x00007f307f0cdf40@6b22eae6
+//   eval = zio.Ref$$$Lambda$19929/0x00007fd5aaf24d68@78842605
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$19857/0x00007f307f0cdf40@66d2d571
+//   eval = zio.Ref$$$Lambda$19929/0x00007fd5aaf24d68@ae51998
 // )
 
 sealed trait State
@@ -48,7 +48,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$19857/0x00007f307f0cdf40@24fea4d6
+//   eval = zio.Ref$$$Lambda$19929/0x00007fd5aaf24d68@139214
 // )
 ```
 
@@ -65,7 +65,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$19857/0x00007f307f0cdf40@4bc55543
+//   eval = zio.Ref$$$Lambda$19929/0x00007fd5aaf24d68@443ec80
 // )
 ```
 
@@ -77,7 +77,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$19857/0x00007f307f0cdf40@29d2f0b8
+//   eval = zio.Ref$$$Lambda$19929/0x00007fd5aaf24d68@5626760f
 // )
 ```
 
