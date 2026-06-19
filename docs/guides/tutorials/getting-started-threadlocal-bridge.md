@@ -478,9 +478,18 @@ All examples in this tutorial have corresponding runnable Scala files in the `zi
 
 ### Concept1Example — Understanding ThreadLocal Limitations with ZIO Fibers
 
-```scala
+A forked fiber runs on a different thread and sees the `ThreadLocal`'s initial value instead of what the main fiber set — this is the problem `ThreadLocalBridge` solves.
+
+<details>
+  <summary>zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept1Example.scala</summary>
+
+```scala title="zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept1Example.scala" showLineNumbers
 @THREADLOCAL_CONCEPT1_SOURCE@
 ```
+
+</details>
+
+Observe the broken `ThreadLocal` propagation firsthand:
 
 ```bash
 sbt "threadlocal-bridge/runMain threadlocalbridge.Concept1Example"
@@ -488,9 +497,18 @@ sbt "threadlocal-bridge/runMain threadlocalbridge.Concept1Example"
 
 ### Concept2Example — Introducing ThreadLocalBridge
 
-```scala
+`ThreadLocalBridge.makeFiberRef` wraps a `ThreadLocal` in a `FiberRef` that stays in sync via a link function. `FiberRef.locally` scopes a value to a block and restores it afterwards.
+
+<details>
+  <summary>zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept2Example.scala</summary>
+
+```scala title="zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept2Example.scala" showLineNumbers
 @THREADLOCAL_CONCEPT2_SOURCE@
 ```
+
+</details>
+
+See correct context propagation with `ThreadLocalBridge` in action:
 
 ```bash
 sbt "threadlocal-bridge/runMain threadlocalbridge.Concept2Example"
@@ -498,9 +516,18 @@ sbt "threadlocal-bridge/runMain threadlocalbridge.Concept2Example"
 
 ### Concept3Example — Fiber Isolation with ThreadLocalBridge
 
-```scala
+Covers two scenarios: a nested fiber chain where each level scopes its own value, and parallel fibers running simultaneously with isolated contexts — no cross-fiber bleed.
+
+<details>
+  <summary>zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept3Example.scala</summary>
+
+```scala title="zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept3Example.scala" showLineNumbers
 @THREADLOCAL_CONCEPT3_SOURCE@
 ```
+
+</details>
+
+Verify fiber isolation across nested and parallel hierarchies:
 
 ```bash
 sbt "threadlocal-bridge/runMain threadlocalbridge.Concept3Example"
@@ -508,9 +535,18 @@ sbt "threadlocal-bridge/runMain threadlocalbridge.Concept3Example"
 
 ### CompleteExample — Request Context Propagation with ThreadLocalBridge
 
-```scala
+Three concurrent requests each carrying a `RequestContext` (request ID, user, correlation ID) processed in parallel across database queries, API calls, and logging — all context-isolated with no manual threading.
+
+<details>
+  <summary>zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/CompleteExample.scala</summary>
+
+```scala title="zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/CompleteExample.scala" showLineNumbers
 @THREADLOCAL_COMPLETE_SOURCE@
 ```
+
+</details>
+
+Run the complete end-to-end example:
 
 ```bash
 sbt "threadlocal-bridge/runMain threadlocalbridge.CompleteExample"
