@@ -476,15 +476,14 @@ Good luck integrating ZIO with your Java dependencies! 🚀
 
 All examples in this tutorial have corresponding runnable Scala files in the `zio-examples` module. Run them in order to progressively build your understanding of `ThreadLocalBridge` in practice.
 
-### Concept1Example — Understanding ThreadLocal Limitations with ZIO Fibers
+### Concept1Example — Understanding ThreadLocal Limitations with ZIO Fibersxx
 
 A forked fiber runs on a different thread and sees the `ThreadLocal`'s initial value instead of what the main fiber set — this is the problem `ThreadLocalBridge` solves.
 
 <details>
   <summary>zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept1Example.scala</summary>
 
-```scala title="zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept1Example.scala" showLineNumbers
-@THREADLOCAL_CONCEPT1_SOURCE@
+```scala mdoc:embed:zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept1Example.scala:showLineNumbers showLineNumbers 
 ```
 
 </details>
@@ -502,8 +501,7 @@ sbt "threadlocal-bridge/runMain threadlocalbridge.Concept1Example"
 <details>
   <summary>zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept2Example.scala</summary>
 
-```scala title="zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept2Example.scala" showLineNumbers
-@THREADLOCAL_CONCEPT2_SOURCE@
+```scala mdoc:embed:zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept2Example.scala:showLineNumbers
 ```
 
 </details>
@@ -521,8 +519,7 @@ Covers two scenarios: a nested fiber chain where each level scopes its own value
 <details>
   <summary>zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept3Example.scala</summary>
 
-```scala title="zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept3Example.scala" showLineNumbers
-@THREADLOCAL_CONCEPT3_SOURCE@
+```scala mdoc:embed:zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept3Example.scala:showLineNumbers
 ```
 
 </details>
@@ -540,8 +537,7 @@ Three concurrent requests each carrying a `RequestContext` (request ID, user, co
 <details>
   <summary>zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/CompleteExample.scala</summary>
 
-```scala title="zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/CompleteExample.scala" showLineNumbers
-@THREADLOCAL_COMPLETE_SOURCE@
+```scala mdoc:embed:zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/CompleteExample.scala:showLineNumbers
 ```
 
 </details>

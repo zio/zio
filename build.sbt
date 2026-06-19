@@ -824,17 +824,8 @@ lazy val docs = project.module
       "ZIO_CONFIG_VERSION"             -> ZioConfigVersion,
       "ZIO_JSON_VERSION"               -> ZioJsonVersion
     ),
-    mdocVariables ++= {
-      val examplesDir = (LocalRootProject / baseDirectory).value /
-        "zio-examples" / "threadlocal-bridge" / "src" / "main" / "scala" / "threadlocalbridge"
-      Map(
-        "THREADLOCAL_CONCEPT1_SOURCE" -> IO.read(examplesDir / "Concept1Example.scala"),
-        "THREADLOCAL_CONCEPT2_SOURCE" -> IO.read(examplesDir / "Concept2Example.scala"),
-        "THREADLOCAL_CONCEPT3_SOURCE" -> IO.read(examplesDir / "Concept3Example.scala"),
-        "THREADLOCAL_COMPLETE_SOURCE" -> IO.read(examplesDir / "CompleteExample.scala")
-      )
-    },
     libraryDependencies ++= Seq(
+      "dev.zio" %% "zio-sbt-source" % "0.5.1+17-62420051+20260619-2306-SNAPSHOT",
       `zio-http`,
       `distage-core`,
       `logstage-core`,
