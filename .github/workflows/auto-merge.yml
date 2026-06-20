@@ -1,4 +1,4 @@
-name: Auto-approve bot dependency PRs
+name: Auto-merge bot dependency PRs
 
 on:
   pull_request_target:
@@ -6,24 +6,25 @@ on:
   workflow_dispatch:
 
 permissions:
+  contents: write
   pull-requests: write
 
 jobs:
-  auto-approve-bot-prs:
+  auto-merge:
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event.pull_request.user.login == 'renovate[bot]' ||
       github.event.pull_request.user.login == 'app/zio-scala-steward'
     steps:
-      - name: Approve PR
+      - name: Enable auto-merge for bot PR
         if: github.event_name == 'pull_request_target'
-        run: gh pr review --approve ${{ github.event.number }}
+        run: gh pr merge --auto --squash ${{ github.event.number }}
         env:
-          GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
 
-      - name: Backfill auto-approve for existing bot PRs
+      - name: Backfill auto-merge for existing bot PRs
         if: github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
@@ -33,8 +34,8 @@ jobs:
               --state open \
               --json number \
               --jq '.[].number' | \
-            xargs -I{} gh pr review --approve {}
+            xargs -I{} gh pr merge --auto --squash {}
           done
         env:
-          GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
