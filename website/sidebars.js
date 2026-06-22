@@ -231,6 +231,7 @@ module.exports = {
               [
                 "reference/state-management/fiberref",
                 "reference/state-management/zstate",
+                "reference/state-management/threadlocal-bridge",
               ]
           }
         ]
@@ -308,6 +309,7 @@ module.exports = {
       link: { type: "doc", id: "reference/resource/index" },
       items: [
         "reference/resource/scope",
+        "reference/resource/cached",
         "reference/resource/zpool",
         "reference/resource/zkeyedpool",
         "reference/resource/scopedref",
@@ -500,6 +502,7 @@ module.exports = {
         "guides/tutorials/build-a-restful-webservice",
         "guides/tutorials/build-a-graphql-webservice",
         "guides/tutorials/gracefully-shutdown-zio-application",
+        "guides/tutorials/getting-started-threadlocal-bridge",
       ]
     },
     {
