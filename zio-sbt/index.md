@@ -11,9 +11,9 @@ _ZIO SBT_ contains multiple sbt plugins that are useful for ZIO projects. It pro
 Add the following lines to your `project/plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.5.3")
-addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.5.3")
-addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.5.3")
+addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.6.0")
+addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.6.0")
+addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.6.0")
 ```
 
 Then you can enable them by using the following code in your `build.sbt` file:
@@ -100,7 +100,7 @@ ZIO SBT CI plugin generates a default GitHub workflow that includes common CI ta
 To use ZIO SBT CI plugin, add the following lines to your `plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.5.3")
+addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.6.0")
 
 resolvers ++= Resolver.sonatypeOssRepos("public")
 ```
@@ -128,87 +128,6 @@ This will generate a GitHub workflow file inside the `.github/workflows` directo
 > 
 > To use this plugin, we also need to install [ZIO Assistant](https://github.com/apps/zio-assistant) bot.
 
-## ZIO SBT GitHub Query Plugin
-
-ZIO SBT GitHub Query is an sbt plugin for fetching GitHub issues/PRs and building a searchable SQLite database with full-text search.
-
-### Installation
-
-Add to `plugins.sbt`:
-
-```scala
-addSbtPlugin("dev.zio" % "zio-sbt-gh-query" % "0.5.3")
-```
-
-The plugin is auto-enabled. Configure in `build.sbt`:
-
-```scala
-// Required: specify your GitHub repository
-ghRepo := "your-org/your-repo"
-
-// Optional: override the default data directory (defaults to .zio-sbt)
-ghDir := file(".zio-sbt")
-```
-
-### Commands
-
-| Command | Description |
-|---------|-------------|
-| `gh-sync` | Fetch data from GitHub and build/update the search database. On first run (or with `--force`), does a full fetch and rebuild. On subsequent runs, fetches only new/updated items incrementally. |
-| `gh-query <query>` | Full-text search across issues and PRs. Supports `--verbose` flag to include body text. |
-| `gh-status` | Show database statistics (issue/PR/comment counts, last fetch time). |
-
-### Usage
-
-```bash
-# Fetch all issues/PRs and build the database
-sbt gh-sync
-
-# Incrementally fetch new/updated items
-sbt gh-sync
-
-# Re-fetch everything and rebuild from scratch
-sbt "gh-sync --force"
-
-# Basic search query
-sbt "gh-query codec"
-
-# Search with full body content
-sbt "gh-query --verbose codec"
-
-# Check database statistics
-sbt gh-status
-```
-
-### Dependencies
-
-The plugin checks for all required dependencies before running any command and reports clear
-error messages with install instructions if anything is missing.
-
-| Dependency | Required by | Install |
-|---|---|---|
-| `bash` | `gh-sync` | https://www.gnu.org/software/bash/ |
-| `gh` (GitHub CLI) | `gh-sync` | https://cli.github.com |
-| `jq` | `gh-sync` | https://jqlang.github.io/jq/download/ |
-| `python3` | all commands | https://www.python.org/downloads/ |
-| `sqlite3` with [FTS5](https://www.sqlite.org/fts5.html) | `gh-sync`, `gh-query` | Ensure your Python's sqlite3 is built with FTS5 support |
-
-Before running `gh-sync` for the first time, authenticate the GitHub CLI:
-
-```bash
-gh auth login
-```
-
-The authenticated account must have read access to the target repository.
-
-### Database Schema
-
-The plugin creates a SQLite database with:
-
-- `issues` table - stores issues and PRs
-- `comments` table - stores issue and PR comments
-- `search_index` - FTS5 full-text search index (requires SQLite built with FTS5 enabled)
-
 ## ZIO SBT Source
 
 ZIO SBT Source is a Scala 2.13 + Scala 3 cross-compiled library that provides utilities for self-documenting example code. It includes the `ExprEval` macro, which captures the source text of expressions at compile time and prints them alongside their evaluated results at runtime.
@@ -218,7 +137,7 @@ ZIO SBT Source is a Scala 2.13 + Scala 3 cross-compiled library that provides ut
 Add the following line to your `libraryDependencies` in `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.5.3"
+libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.6.0"
 ```
 
 ### Features
@@ -269,6 +188,48 @@ show {
   "hello"
 }
 ```
+
+### SourceFile: Embedding Source Code in Documentation
+
+The `SourceFile` utility provides methods for embedding source files into mdoc documentation with support for syntax highlighting and line numbers:
+
+```scala
+
+// Embed a source file in mdoc
+SourceFile.printSource("path/to/Example.scala")
+```
+
+This generates a fenced code block with the file's language tag detected from its extension.
+
+### EmbedSourceModifier: mdoc Plugin for Source Embedding
+
+The `EmbedSourceModifier` extends mdoc with an `embed` directive for embedding source files directly from markdown.
+Use the modifier name `embed` followed by the file path:
+
+```
+\`\`\`scala mdoc:embed:path/to/Example.scala
+\`\`\`
+```
+
+Renders as a fenced code block with syntax highlighting based on file extension.
+
+#### Docusaurus Line Numbers
+
+To enable line numbers in [Docusaurus](https://docusaurus.io) code blocks, add the `:showLineNumbers` flag (or kebab-case `:show-line-numbers` alias):
+
+```
+\`\`\`scala mdoc:embed:path/to/Example.scala:showLineNumbers
+\`\`\`
+```
+
+or
+
+```
+\`\`\`scala mdoc:embed:path/to/Example.scala:show-line-numbers
+\`\`\`
+```
+
+Both forms emit `showLineNumbers` in the code fence header, enabling line numbering in the rendered documentation.
 
 ### Implementation Details
 
