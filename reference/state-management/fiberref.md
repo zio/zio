@@ -927,3 +927,7 @@ object Main extends ZIOAppDefault {
     
 }
 ```
+
+## See Also
+
+- **[ThreadLocalBridge](./threadlocal-bridge.md)** — Synchronize `FiberRef` with Java `ThreadLocal` variables for interoperability with legacy Java libraries.
