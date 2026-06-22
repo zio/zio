@@ -825,7 +825,7 @@ lazy val docs = project.module
       "ZIO_JSON_VERSION"               -> ZioJsonVersion
     ),
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-sbt-source" % "0.5.1+17-62420051+20260619-2306-SNAPSHOT",
+      "dev.zio" %% "zio-sbt-source" % "0.6.0",
       `zio-http`,
       `distage-core`,
       `logstage-core`,
