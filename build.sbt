@@ -202,6 +202,8 @@ lazy val root3 = project
     ) *
   )
 
+lazy val zioExamples = RootProject(file("zio-examples"))
+
 lazy val root = project
   .in(file("."))
   .settings(
@@ -214,7 +216,7 @@ lazy val root = project
     ),
     welcomeMessage
   )
-  .aggregate(root213)
+  .aggregate(root213, zioExamples)
   .enablePlugins(ScalaJSPlugin)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -823,6 +825,7 @@ lazy val docs = project.module
       "ZIO_JSON_VERSION"               -> ZioJsonVersion
     ),
     libraryDependencies ++= Seq(
+      "dev.zio" %% "zio-sbt-source" % "0.6.0",
       `zio-http`,
       `distage-core`,
       `logstage-core`,
