@@ -140,28 +140,10 @@ const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t) =>
   t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-function useTick(running) {
-  const [tick, setTick] = useState(0);
-  const intervalRef = useRef(null);
-  useEffect(() => {
-    if (!running) return;
-    const prefersReduced =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (prefersReduced) return;
-    const step = () => {
-      if (!document.hidden) setTick((t) => t + 1);
-    };
-    intervalRef.current = setInterval(step, 33); // ~30fps
-    return () => clearInterval(intervalRef.current);
-  }, [running]);
-  return tick;
-}
-
 // ── State ─────────────────────────────────────────────────────────────────────
 
 function createFiber(id) {
-  return { id, state: "idle", x: 0, targetX: 0, progress: 0, arrivalOrder: -1 };
+  return { id, state: "idle", progress: 0, arrivalOrder: -1 };
 }
 
 function createBarrierState(parties) {
@@ -333,7 +315,6 @@ export default function CyclicBarrierDiagram() {
   const C = useTheme("auto");
   const [parties, setParties] = useState(4);
   const [state, setState] = useState(() => createBarrierState(4));
-  const tick = useTick(true);
   const logEndRef = useRef(null);
 
   const addLog = useCallback((text, colorKey = "text") => {
@@ -436,7 +417,13 @@ export default function CyclicBarrierDiagram() {
 
   // ── Animation loop ────────────────────────────────────────────────────────
   useEffect(() => {
-    setState((prev) => {
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReduced) return;
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      setState((prev) => {
       let fibers = [...prev.fibers];
       let phase = prev.phase;
       let waitingCount = prev.waitingCount;
@@ -556,7 +543,9 @@ export default function CyclicBarrierDiagram() {
             : prev.log,
       };
     });
-  }, [tick, parties]);
+    }, 33); // ~30fps
+    return () => clearInterval(interval);
+  }, [parties]);
 
   // ── SVG layout ────────────────────────────────────────────────────────────
   const svgW = 700;
