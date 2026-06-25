@@ -148,13 +148,18 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
     } else {
+      var notify = true
       if ((worker eq null) || worker.blocking) {
         globalQueue.offer(runnable)
       } else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
-      } else ()
-      val currentState = state.get
-      maybeUnparkWorker(currentState)
+      } else {
+        notify = worker.localQueue.size() >= ZScheduler.localWakeupThreshold
+      }
+      if (notify) {
+        val currentState = state.get
+        maybeUnparkWorker(currentState)
+      }
       true
     }
   }
@@ -185,6 +190,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       // We have to yield, add the runnable to the local / global queue so that it can be scheduled accordingly
       else if (!worker.localQueue.offer(runnable)) {
         handleFullWorkerQueue(worker, runnable)
+      } else {
+        notify = worker.localQueue.size() >= ZScheduler.localWakeupThreshold
       }
 
       if (notify) {
@@ -462,7 +469,8 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 }
 
 private object ZScheduler {
-  private val poolSize = java.lang.Runtime.getRuntime.availableProcessors
+  private val poolSize             = java.lang.Runtime.getRuntime.availableProcessors
+  private val localWakeupThreshold = 64
 
   def markCurrentWorkerAsBlocking(): Unit = {
     val worker = workerOrNull()
