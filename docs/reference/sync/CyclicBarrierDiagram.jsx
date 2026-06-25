@@ -1082,7 +1082,7 @@ export default function CyclicBarrierDiagram() {
             >
               {state.log.map((entry, i) => (
                 <div
-                  key={`${entry.time}-${i}`}
+                  key={`${entry.time}-${entry.text}`}
                   style={{
                     color: resolveColor(entry.colorKey),
                     opacity: i === state.log.length - 1 ? 1 : 0.7,
