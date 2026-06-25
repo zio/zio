@@ -128,6 +128,12 @@ Let's introduce each one:
   - When one of the `_waiting` fibers is interrupted, the barrier will be broken and the value of `_broken` will be changed to `true`.
   - We can access this value using `isBroken` method on a `CyclicBarrier`.
 
+## Diagram
+
+The following diagram visualizes how fibers interact with a CyclicBarrier as they progress through synchronization points. It demonstrates the flow of fibers awaiting the barrier, the barrier being released when all parties arrive, and how the barrier resets for subsequent cycles.
+
+<CyclicBarrierDiagram />
+
 ## Operations
 
 Let's take a look at the operations defined on a `CyclicBarrier`, then we'll drill down to the important ones:
