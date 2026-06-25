@@ -366,7 +366,7 @@ export default function CyclicBarrierDiagram() {
               ...f,
               state: "approaching",
               progress: 0,
-              arrivalOrder: prev.waitingCount,
+              arrivalOrder: prev.fibers.filter((f) => f.state !== "idle").length,
             }
       );
       return { ...prev, fibers: newFibers };
@@ -396,7 +396,7 @@ export default function CyclicBarrierDiagram() {
               time: Date.now(),
             },
             {
-              text: "Barrier reset to initial state",
+              text: "Barrier resetting…",
               colorKey: "accent",
               time: Date.now(),
             },
