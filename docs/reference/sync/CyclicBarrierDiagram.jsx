@@ -106,13 +106,17 @@ function useSystemTheme() {
       return luminance < 0.45;
     }
 
-    // Check on mount and poll for changes (host may switch theme)
+    // Check on mount
     detectFromBackground();
-    const interval = setInterval(detectFromBackground, 1000);
+
+    // Observe class/attribute changes on <html> and <body> that signal a theme switch
+    const observer = new MutationObserver(detectFromBackground);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme", "style"] });
+    observer.observe(document.body, { attributes: true, attributeFilter: ["class", "data-theme", "style"] });
 
     return () => {
       mq?.removeEventListener?.("change", mqHandler);
-      clearInterval(interval);
+      observer.disconnect();
     };
   }, []);
 
@@ -138,20 +142,18 @@ const easeInOut = (t) =>
 
 function useTick(running) {
   const [tick, setTick] = useState(0);
-  const raf = useRef(null);
+  const intervalRef = useRef(null);
   useEffect(() => {
     if (!running) return;
-    let alive = true;
-    const loop = () => {
-      if (!alive) return;
-      setTick((t) => t + 1);
-      raf.current = requestAnimationFrame(loop);
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (prefersReduced) return;
+    const step = () => {
+      if (!document.hidden) setTick((t) => t + 1);
     };
-    raf.current = requestAnimationFrame(loop);
-    return () => {
-      alive = false;
-      cancelAnimationFrame(raf.current);
-    };
+    intervalRef.current = setInterval(step, 33); // ~30fps
+    return () => clearInterval(intervalRef.current);
   }, [running]);
   return tick;
 }
@@ -162,7 +164,7 @@ function createFiber(id) {
   return { id, state: "idle", x: 0, targetX: 0, progress: 0, arrivalOrder: -1 };
 }
 
-function createBarrierState(parties, C) {
+function createBarrierState(parties) {
   return {
     fibers: Array.from({ length: parties }, (_, i) => createFiber(i)),
     phase: "waiting",
@@ -330,7 +332,7 @@ function BarrierWall({ x, y1, y2, state, progress }) {
 export default function CyclicBarrierDiagram() {
   const C = useTheme("auto");
   const [parties, setParties] = useState(4);
-  const [state, setState] = useState(() => createBarrierState(4, C));
+  const [state, setState] = useState(() => createBarrierState(4));
   const tick = useTick(true);
   const logEndRef = useRef(null);
 
@@ -401,7 +403,7 @@ export default function CyclicBarrierDiagram() {
           ],
         };
       }
-      return createBarrierState(parties, null);
+      return createBarrierState(parties);
     });
   }, [parties]);
 
@@ -413,7 +415,7 @@ export default function CyclicBarrierDiagram() {
       brokenTimer.current = setTimeout(() => {
         setState((prev) => {
           if (prev.phase !== "broken") return prev;
-          const fresh = createBarrierState(parties, null);
+          const fresh = createBarrierState(parties);
           return {
             ...fresh,
             cycle: prev.cycle + 1,
@@ -602,8 +604,7 @@ export default function CyclicBarrierDiagram() {
     <ThemeContext.Provider value={C}>
       <div
         style={{
-          background: C.bg,
-          minHeight: "100vh",
+          background: "transparent",
           padding: "24px 16px",
           fontFamily: FONT,
           color: C.text,
@@ -679,8 +680,13 @@ export default function CyclicBarrierDiagram() {
           <svg
             viewBox={`0 0 ${svgW} ${svgH}`}
             width="100%"
+            role="img"
+            aria-labelledby="cyclic-barrier-svg-title"
             style={{ display: "block" }}
           >
+            <title id="cyclic-barrier-svg-title">
+              CyclicBarrier animation: {state.fibers.length} fibers, phase {state.phase}, {state.waitingCount} waiting
+            </title>
             <rect
               x={0}
               y={0}
@@ -928,9 +934,10 @@ export default function CyclicBarrierDiagram() {
               {[3, 4, 5, 6].map((n) => (
                 <button
                   key={n}
+                  aria-label={`Set parties to ${n}`}
                   onClick={() => {
                     setParties(n);
-                    setState(createBarrierState(n, null));
+                    setState(createBarrierState(n));
                     addLog(`CyclicBarrier.make(${n})`, "accent");
                   }}
                   style={{
@@ -1075,7 +1082,7 @@ export default function CyclicBarrierDiagram() {
             >
               {state.log.map((entry, i) => (
                 <div
-                  key={i}
+                  key={`${entry.time}-${i}`}
                   style={{
                     color: resolveColor(entry.colorKey),
                     opacity: i === state.log.length - 1 ? 1 : 0.7,
