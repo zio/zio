@@ -1887,18 +1887,27 @@ object Schedule {
     if (dayOfMonth == day && initial) now
     else if (
       dayOfMonth < day
-      && day <= now.getMonth.maxLength()
+      && day <= maxDays(now)
     ) now.`with`(DAY_OF_MONTH, day.toLong)
     else findNextMonth(now, day, 1)
   }
 
   @tailrec
-  private def findNextMonth(now: OffsetDateTime, day: Int, months: Int): OffsetDateTime =
-    if (day <= now.getMonth.plus(months.toLong).maxLength()) {
-      val next = now.plusMonths(months.toLong).`with`(DAY_OF_MONTH, day.toLong)
+  private def findNextMonth(now: OffsetDateTime, day: Int, months: Int): OffsetDateTime = {
+    val nextMonth = now.plusMonths(months.toLong)
+    if (day <= maxDays(nextMonth)) {
+      val next = nextMonth.`with`(DAY_OF_MONTH, day.toLong)
       if (next.getDayOfMonth == day) next
       else findNextMonth(now, day, months + 1)
     } else findNextMonth(now, day, months + 1)
+  }
+
+  private def maxDays(now: OffsetDateTime): Int =
+    if (
+      now.getMonthValue == 2
+      && now.toLocalDate.isLeapYear
+    ) 29
+    else now.getMonth.minLength()
 
   private def nextHour(now: OffsetDateTime, hour: Int, initial: Boolean): OffsetDateTime =
     if (now.getHour == hour && initial) now
