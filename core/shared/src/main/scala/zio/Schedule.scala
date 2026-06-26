@@ -1882,15 +1882,23 @@ object Schedule {
     now.`with`(temporalAdjuster)
   }
 
-  private def nextDayOfMonth(now: OffsetDateTime, day: Int, initial: Boolean): OffsetDateTime =
-    if (now.getDayOfMonth == day && initial) now
-    else if (now.getDayOfMonth < day) now.`with`(DAY_OF_MONTH, day.toLong)
+  private def nextDayOfMonth(now: OffsetDateTime, day: Int, initial: Boolean): OffsetDateTime = {
+    val dayOfMonth = now.getDayOfMonth
+    if (dayOfMonth == day && initial) now
+    else if (
+      dayOfMonth < day
+      && day <= now.getMonth.maxLength()
+    ) now.`with`(DAY_OF_MONTH, day.toLong)
     else findNextMonth(now, day, 1)
+  }
 
+  @tailrec
   private def findNextMonth(now: OffsetDateTime, day: Int, months: Int): OffsetDateTime =
-    if (now.`with`(DAY_OF_MONTH, day.toLong).plusMonths(months.toLong).getDayOfMonth == day)
-      now.`with`(DAY_OF_MONTH, day.toLong).plusMonths(months.toLong)
-    else findNextMonth(now, day, months + 1)
+    if (day <= now.getMonth.plus(months.toLong).maxLength()) {
+      val next = now.plusMonths(months.toLong).`with`(DAY_OF_MONTH, day.toLong)
+      if (next.getDayOfMonth == day) next
+      else findNextMonth(now, day, months + 1)
+    } else findNextMonth(now, day, months + 1)
 
   private def nextHour(now: OffsetDateTime, hour: Int, initial: Boolean): OffsetDateTime =
     if (now.getHour == hour && initial) now
