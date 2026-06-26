@@ -8,6 +8,7 @@ import Ecosystem from '@site/src/components/sections/Ecosystem';
 import CodingAgent from '@site/src/components/sections/CodingAgent';
 import Sponsors from '@site/src/components/sections/Sponsors';
 import Zionomicon from '@site/src/components/sections/Zionomicon';
+import Testimonials from '@site/src/components/sections/Testimonials';
 
 // Construct the home page from all components
 export default function WelcomePage() {
@@ -25,6 +26,7 @@ export default function WelcomePage() {
         <CodingAgent />
         <Features />
         <Ecosystem title = "Ecosystem" subtitle="A rich ecosystem of libraries built on ZIO to solve real-world problems"/>
+        <Testimonials />
         <Zionomicon />
         <Sponsors />
       </main>
