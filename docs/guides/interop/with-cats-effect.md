@@ -155,7 +155,11 @@ The reason a `cats.effect.Timer[zio.Task]` instance is not provided by the defau
 
 If we're using `RIO` for a custom environment then our environment must use the `Clock` service, e.g. `R <: Clock` to get a timer.
 
-### Converting Resource to ZManaged
+### Converting Resource to ZManaged (Legacy - Deprecated in ZIO 2.x)
+
+:::warning
+This section describes `ZManaged`, which is deprecated in ZIO 2.x. For new code, use `Resource#toScoped` instead. See [Converting Resource to Scoped](#converting-resource-to-scoped) for the recommended approach.
+:::
 
 We have an extension method defined on `Resource` called `Resource#toManaged` which converts `Resource` to `ZManaged`.
 For example, assume we have the following `File` API:
@@ -211,7 +215,11 @@ object CatsEffectResourceInterop extends CatsApp {
 }
 ```
 
-### Converting ZManaged to Resource
+### Converting ZManaged to Resource (Legacy - Deprecated in ZIO 2.x)
+
+:::warning
+This section describes `ZManaged`, which is deprecated in ZIO 2.x. For new code, use `Resource.scoped` instead. See [Converting Scoped to Resource](#converting-scoped-to-resource) for the recommended approach.
+:::
 
 We have an extension method on `ZManaged` called `ZManaged#toResource` which converts a ZIO managed resource to Cats Effect resource:
 
@@ -258,7 +266,7 @@ object ZManagedToResource extends cats.effect.IOApp {
     effect.as(cats.effect.ExitCode.Success)
 }
 ```
-### Converting Resource to Scoped
+### Converting Resource to Scoped (Recommended for ZIO 2.x)
 
 We have an extension method defined on `Resource` called `Resource#toScoped` which converts `Resource` to `ZIO` with `Scope`.
 
@@ -315,7 +323,7 @@ object CatsEffectResourceInterop extends CatsApp {
 }
 ```
 
-### Converting Scoped to Resource
+### Converting Scoped to Resource (Recommended for ZIO 2.x)
 
 We have an extension method defined on `Resource` called `Resource#scoped` which creates a `Resource` from `ZIO` with `Scope`.
 
