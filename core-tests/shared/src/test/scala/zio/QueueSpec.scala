@@ -868,7 +868,7 @@ object QueueSpec extends ZIOBaseSpec {
           }
         }
       )
-    } @@ jvm(samples(500) @@ sequential),
+    } @@ jvm(samples(500)) @@ sequential,
     test("isEmpty") {
       for {
         queue <- Queue.bounded[Int](2)
