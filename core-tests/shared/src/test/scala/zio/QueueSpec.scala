@@ -1,6 +1,7 @@
 package zio
 
 import zio.QueueSpecUtil._
+import zio.concurrent.CountdownLatch
 import zio.test.Assertion._
 import zio.test.TestAspect.{exceptJS, jvm, nonFlaky, samples, sequential}
 import zio.test._
@@ -910,7 +911,29 @@ object QueueSpec extends ZIOBaseSpec {
         test("takeBetween with min 1")(testSuspension(_.takeBetween(1, 10))),
         test("takeBetween with min >= 1")(testSuspension(_.takeBetween(5, 10)))
       )
-    } @@ TestAspect.timeout(5.seconds)
+    } @@ TestAspect.timeout(5.seconds),
+    test("offerAll does not silently drop messages (i10884)") {
+      ZIO
+        .foreachPar(1 to 1000)(_ =>
+          for {
+            queue  <- Queue.bounded[Int](10)
+            pulled <- Ref.make[List[Int]](Nil)
+            latch  <- CountdownLatch.make(5)
+            fibers <-
+              ZIO.foreach(1 to 5)(_ =>
+                ZIO.uninterruptibleMask(r => r(latch.countDown *> queue.take).flatMap(v => pulled.update(v :: _))).fork
+              )
+            _         <- latch.await
+            f         <- ZIO.foreachPar(fibers)(_.interrupt).fork // and then interrupt all of them
+            remaining <- queue.offerAll(1 to 5)
+            _         <- f.await
+            items     <- queue.takeAll
+            p         <- pulled.get
+            total      = p.size + items.size + remaining.size
+          } yield assertTrue(total == 5)
+        )
+        .map(_.foldLeft(assertTrue(true))(_ && _))
+    } @@ exceptJS(nonFlaky)
   )
 }
 

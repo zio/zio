@@ -260,7 +260,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core-tests"))
-  .dependsOn(core, tests, testRunner)
+  .dependsOn(core, tests, testRunner, concurrent)
   .settings(stdSettings("core-tests"))
   .settings(crossProjectSettings)
   .settings(publish / skip := true)
