@@ -477,7 +477,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           equalTo(List(expected))
         }
       },
-      test("does not skip skip February for 29 days") {
+      test("does not skip February for 29 days") {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
           in._1.map(t => t._1.withNano(0))
 
