@@ -1,6 +1,6 @@
 # Handling Resources
 
-> Ensuring that your applications never leak resources is one of the keys to maximizing application throughput, minimizing latency, and maximizing per-node uptime.
+> Learn how to manage resources safely in ZIO with Scope, acquire-release patterns, and ensure no resource leaks even under failure or interruption.
 
 Ensuring that your applications never leak resources is one of the keys to maximizing application throughput, minimizing latency, and maximizing per-node uptime.
 
@@ -29,7 +29,7 @@ val finalized: IO[String, Unit] =
 // finalized: IO[String, Unit] = DynamicNoBox(
 //   trace = "repl.MdocSession.MdocApp.finalized(handling-resources.md:19)",
 //   update = 1L,
-//   f = zio.ZIO$$$Lambda$19581/0x00007f267ee9e1a0@488f37e0
+//   f = zio.ZIO$$$Lambda$19567/0x00007fecaaef2bb0@25b93f7f
 // )
 ```
 

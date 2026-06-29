@@ -1,6 +1,6 @@
 # Performance
 
-> ZIO is a high-performance framework that is powered by non-blocking fibers (which will move to _virtual threads_ under Loom).
+> Optimize your ZIO applications for maximum throughput and minimal latency with batching, caching, and streaming techniques.
 
 ZIO is a high-performance framework that is powered by non-blocking fibers (which will move to _virtual threads_ under Loom).
 

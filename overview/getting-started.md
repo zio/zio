@@ -1,6 +1,6 @@
 # Getting Started with ZIO
 
-> The `zio-knowledge` skill teaches your coding agent to fetch live documentation from zio.dev before answering any ZIO question — so you always get accurate, up-to-date answers, not guesses from stale training data:
+> Get started with ZIO, a powerful functional effect system for Scala that enables asynchronous, concurrent, and parallel programming.
 
 ## Teach Your Coding Agent Latest ZIO Knowledge
 

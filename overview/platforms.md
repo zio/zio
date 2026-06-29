@@ -1,6 +1,6 @@
 # Platforms
 
-> ZIO provides a consistent interface across platforms to the maximum extent possible, allowing developers to write code once and deploy it everywhere. However, there are some unavoidable differences between platforms to be aware of.
+> Configure ZIO for different platforms including JVM, JavaScript, and Native with platform-specific services and runtimes.
 
 ZIO provides a consistent interface across platforms to the maximum extent possible, allowing developers to write code once and deploy it everywhere. However, there are some unavoidable differences between platforms to be aware of.
 
