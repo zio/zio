@@ -3,6 +3,13 @@ id: getting-started
 title: "Getting Started with ZIO"
 sidebar_label: "Getting Started"
 slug: "getting-started"
+description: "Get started with ZIO, a powerful functional effect system for Scala that enables asynchronous, concurrent, and parallel programming."
+keywords:
+  - "ZIO Getting Started"
+  - "Scala Functional Programming"
+  - "Effect System"
+  - "Asynchronous Programming"
+  - "Concurrent Programming"
 ---
 
 ## Teach Your Coding Agent Latest ZIO Knowledge
