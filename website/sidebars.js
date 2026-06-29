@@ -525,6 +525,13 @@ module.exports = {
         "guides/migrate/from-cats-effect",
         "guides/migrate/from-monix",
       ]
+    },
+    {
+      type: "category",
+      label: "Best Practices",
+      items: [
+        "guides/best-practices",
+      ]
     }
   ],
   "ecosystem-sidebar": [
