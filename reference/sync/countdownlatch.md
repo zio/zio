@@ -1,6 +1,6 @@
 # CountdownLatch
 
-> A synchronization aid that allows one or more fibers to wait until a set of operations being performed in other fibers completes.
+> A synchronization primitive that allows fibers to wait until a set of operations in other fibers complete.
 
 A synchronization aid that allows one or more fibers to wait until a set of operations being performed in other fibers completes.
 

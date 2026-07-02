@@ -1,6 +1,6 @@
 # ConcurrentSet
 
-> A `ConcurrentSet` is a Set wrapper over `java.util.concurrent.ConcurrentHashMap`.
+> Thread-safe set wrapper using ConcurrentHashMap for concurrent ZIO operations.
 
 A `ConcurrentSet` is a Set wrapper over `java.util.concurrent.ConcurrentHashMap`.
 

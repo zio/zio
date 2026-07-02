@@ -182,13 +182,13 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Scheduling](https://zio.dev/reference/stream/zstream/scheduling.md): ZStream scheduling combinators for controlling emission timing and spacing of stream outputs using configurable schedule policies.
 - [Streams Are Chunked by Default](https://zio.dev/reference/stream/zstream/streams-are-chunked-by-default.md): Every time we are working with streams, we are always working with chunks. There are no streams with individual elements, these streams have always...
 - [Type Aliases](https://zio.dev/reference/stream/zstream/type-aliases.md): The `ZStream` data type, has two type aliases:
-- [ConcurrentMap](https://zio.dev/reference/sync/concurrentmap.md): A `ConcurrentMap` is a wrapper over `java.util.concurrent.ConcurrentHashMap`.
-- [ConcurrentSet](https://zio.dev/reference/sync/concurrentset.md): A `ConcurrentSet` is a Set wrapper over `java.util.concurrent.ConcurrentHashMap`.
-- [CountdownLatch](https://zio.dev/reference/sync/countdownlatch.md): A synchronization aid that allows one or more fibers to wait until a set of operations being performed in other fibers completes.
-- [CyclicBarrier](https://zio.dev/reference/sync/cyclicbarrier.md): A synchronization aid that allows a set of fibers to all wait for each other to reach a common barrier point.
+- [ConcurrentMap](https://zio.dev/reference/sync/concurrentmap.md): Thread-safe concurrent data structure for atomic key-value pair operations
+- [ConcurrentSet](https://zio.dev/reference/sync/concurrentset.md): Thread-safe set wrapper using ConcurrentHashMap for concurrent ZIO operations.
+- [CountdownLatch](https://zio.dev/reference/sync/countdownlatch.md): A synchronization primitive that allows fibers to wait until a set of operations in other fibers complete.
+- [CyclicBarrier](https://zio.dev/reference/sync/cyclicbarrier.md): Enables multiple fibers to synchronize at a common barrier point that resets cyclically for repeated synchronization cycles.
 - [Introduction to ZIO's Synchronization Primitives](https://zio.dev/reference/sync/index.md): Guide to ZIO's synchronization primitives and concurrent data structures for safely managing shared resources in concurrent environments.
 - [MVar](https://zio.dev/reference/sync/mvar.md): A single-element mutable buffer that synchronizes concurrent fibers, enabling semaphores, latches, and producer-consumer patterns.
-- [ReentrantLock](https://zio.dev/reference/sync/reentrantlock.md): A `ReentrantLock` is a lock which can be acquired multiple times by the same fiber. When a fiber acquires (`lock`) a reentrant lock, it will become...
+- [ReentrantLock](https://zio.dev/reference/sync/reentrantlock.md): Lock mechanism that allows the same fiber to acquire it multiple times with optional fairness policies.
 - [Annotating Tests](https://zio.dev/reference/test/aspects/annotating-tests.md): We can annotate the execution time of each test using the `timed` test aspect:
 - [Before, After, and Around Test Aspects](https://zio.dev/reference/test/aspects/before-after-around.md): 1. We can run an effect _before_, _after_, or _around_ every test:
 - [Conditional Aspects](https://zio.dev/reference/test/aspects/conditional.md): When we apply a conditional aspect, it will run the spec only if the specified predicate is satisfied.
@@ -296,7 +296,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [ZIO Events](https://zio.dev/events/index.md): ZIO has a number of events that are organized by the community all around the world. These events are a great way to learn about ZIO, meet other ZI...
 - [Frequently Answered Questions (FAQ)](https://zio.dev/faq.md): Guidance on encoding contextual values like UserId and CorrelationId in ZIO applications, covering design patterns and the Z prefix convention.
 - [ZIO Adopters](https://zio.dev/adopters.md): Following is a partial list of companies happily using ZIO in production to craft concurrent applications.
-- [Compile Time Errors for Handling Combinators](https://zio.dev/can_fail.md): ZIO provides a variety of combinators to handle errors such as `orElse`, `catchAll`, `catchSome`, `option`, `either`, and `retry`. However, these c...
+- [Compile Time Errors for Handling Combinators](https://zio.dev/can_fail.md): Error handling combinators in ZIO that require CanFail implicit evidence for compile-time safety
 - [Code of Conduct](https://zio.dev/code-of-conduct.md): Outlines the ZIO project's Code of Conduct, community standards, moderation governance structure, and the role of the Steering Committee and BDFL.
 - [Coding Guidelines](https://zio.dev/coding-guidelines.md): These are coding guidelines strictly for ZIO contributors for ZIO projects and 
 - [Contributing to The ZIO Documentation](https://zio.dev/contributing-to-documentation.md): A comprehensive guide for contributing to the ZIO documentation, covering editing methods via GitHub and local development, the Markdown-based tool...

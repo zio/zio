@@ -1,6 +1,6 @@
 # ConcurrentMap
 
-> A `ConcurrentMap` is a wrapper over `java.util.concurrent.ConcurrentHashMap`.
+> Thread-safe concurrent data structure for atomic key-value pair operations
 
 A `ConcurrentMap` is a wrapper over `java.util.concurrent.ConcurrentHashMap`.
 

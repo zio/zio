@@ -1,6 +1,6 @@
 # CyclicBarrier
 
-> A synchronization aid that allows a set of fibers to all wait for each other to reach a common barrier point.
+> Enables multiple fibers to synchronize at a common barrier point that resets cyclically for repeated synchronization cycles.
 
 A synchronization aid that allows a set of fibers to all wait for each other to reach a common barrier point.
 

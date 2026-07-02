@@ -1,6 +1,6 @@
 # Compile Time Errors for Handling Combinators
 
-> ZIO provides a variety of combinators to handle errors such as `orElse`, `catchAll`, `catchSome`, `option`, `either`, and `retry`. However, these combinators only make sense for effects that can fail (i.e. where the error type is not `Nothing`). To help you identify code that doesn't make sense, error handling combinators require implicit evidence `CanFail[E]`, which is automatically available for all types except `Nothing`. The table below includes a list of combinators that only make sense for effects that can fail along with value preserving rewrites.
+> Error handling combinators in ZIO that require CanFail implicit evidence for compile-time safety
 
 ZIO provides a variety of combinators to handle errors such as `orElse`, `catchAll`, `catchSome`, `option`, `either`, and `retry`. However, these combinators only make sense for effects that can fail (i.e. where the error type is not `Nothing`). To help you identify code that doesn't make sense, error handling combinators require implicit evidence `CanFail[E]`, which is automatically available for all types except `Nothing`. The table below includes a list of combinators that only make sense for effects that can fail along with value preserving rewrites.
 
