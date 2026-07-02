@@ -1,6 +1,13 @@
 ---
 id: cyclicbarrier
-title: "CyclicBarrier"
+title: CyclicBarrier
+description: "Enables multiple fibers to synchronize at a common barrier point that resets cyclically for repeated synchronization cycles."
+keywords:
+  - CyclicBarrier
+  - "Fiber Synchronization"
+  - "Synchronization Barriers"
+  - "Barrier Breakage"
+  - "Cyclic Reset"
 ---
 
 import CyclicBarrierDiagram from './CyclicBarrierDiagram.jsx';
