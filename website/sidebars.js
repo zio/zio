@@ -503,6 +503,7 @@ module.exports = {
         "guides/tutorials/build-a-graphql-webservice",
         "guides/tutorials/gracefully-shutdown-zio-application",
         "guides/tutorials/getting-started-threadlocal-bridge",
+        "guides/best-practices",
       ]
     },
     {
@@ -524,13 +525,6 @@ module.exports = {
         "guides/migrate/from-akka",
         "guides/migrate/from-cats-effect",
         "guides/migrate/from-monix",
-      ]
-    },
-    {
-      type: "category",
-      label: "Best Practices",
-      items: [
-        "guides/best-practices",
       ]
     }
   ],
