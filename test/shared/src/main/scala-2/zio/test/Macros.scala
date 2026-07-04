@@ -34,6 +34,17 @@ private[test] object Macros {
     }
   }
 
+  def testResultToZIO_impl(c: blackbox.Context)(testResult: c.Tree): c.Tree = {
+    import c.universe._
+
+    val position = if (testResult.pos == NoPosition) c.enclosingPosition else testResult.pos
+    c.abort(
+      position,
+      "`assertTrue` returns a `TestResult`, not a `ZIO`. If this is inside `ZIO#flatMap`, use " +
+        "`.map(... => assertTrue(...))` instead, or wrap the assertion in `ZIO.succeed(...)` when a `ZIO` value is required."
+    )
+  }
+
   private[test] val fieldInAnonymousClassPrefix = "$anon.this."
 
   def assertZIO_impl(c: blackbox.Context)(effect: c.Tree)(assertion: c.Tree): c.Tree = {

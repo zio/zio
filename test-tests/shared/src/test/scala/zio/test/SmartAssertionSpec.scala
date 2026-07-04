@@ -244,6 +244,16 @@ object SmartAssertionSpec extends ZIOBaseSpec {
         result <- resultZIO
       } yield assertTrue(result.is(_.left).contains("type mismatch"))
     } @@ scala2Only,
+    test("assertTrue reports actionable diagnostic when used as a ZIO") {
+      val resultZIO = typeCheck("""
+      import zio.ZIO
+      val foo = ZIO.succeed(1)
+      foo.flatMap(result => assertTrue(result == 12))
+      """)
+      for {
+        result <- resultZIO
+      } yield assertTrue(result.is(_.left).contains("`assertTrue` returns a `TestResult`, not a `ZIO`"))
+    } @@ scala2Only,
     test("comparison compiles when comparing different primitive types") {
       val a  = 1
       val b  = 2
