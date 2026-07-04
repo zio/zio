@@ -22,6 +22,7 @@ import zio.{UIO, ZIO, Trace}
 
 import scala.annotation.tailrec
 import scala.compiletime.testing.{typeCheckErrors, Error}
+import scala.language.implicitConversions
 
 trait CompileVariants {
 
@@ -44,6 +45,9 @@ trait CompileVariants {
 
   inline def assertTrue(inline exprs: => Boolean*): TestResult =
     ${ SmartAssertMacros.smartAssert('exprs) }
+
+  implicit def liftTestResultToZIO[R, E](testResult: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
+    TestResult.liftTestResultToZIORuntime[R, E](testResult)
 
   inline def assert[A](inline value: => A)(
     inline assertion: Assertion[A]

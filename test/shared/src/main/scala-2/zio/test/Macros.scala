@@ -34,15 +34,51 @@ private[test] object Macros {
     }
   }
 
-  def testResultToZIO_impl(c: blackbox.Context)(testResult: c.Tree): c.Tree = {
+  def liftTestResultToZIO_impl[R: c.WeakTypeTag, E: c.WeakTypeTag](
+    c: blackbox.Context
+  )(testResult: c.Tree)(trace: c.Tree): c.Tree = {
     import c.universe._
 
-    val position = if (testResult.pos == NoPosition) c.enclosingPosition else testResult.pos
-    c.abort(
-      position,
-      "`assertTrue` returns a `TestResult`, not a `ZIO`. If this is inside `ZIO#flatMap`, use " +
-        "`.map(... => assertTrue(...))` instead, or wrap the assertion in `ZIO.succeed(...)` when a `ZIO` value is required."
-    )
+    def isAssertTrue(tree: Tree): Boolean =
+      tree match {
+        case Apply(function, _)       => isAssertTrue(function)
+        case TypeApply(function, _)   => isAssertTrue(function)
+        case Select(_, TermName(nme)) => nme == "assertTrue"
+        case Ident(TermName(nme))     => nme == "assertTrue"
+        case Block(_, expr)           => isAssertTrue(expr)
+        case _                        => false
+      }
+
+    def isFlatMapCallbackPosition: Boolean = {
+      val position = if (testResult.pos == NoPosition) c.enclosingPosition else testResult.pos
+
+      if (position == NoPosition || position.source == null) false
+      else {
+        val content = new String(position.source.content)
+        val point   = math.max(0, math.min(position.point, content.length))
+        val before  = content.substring(math.max(0, point - 400), point)
+        val index   = before.lastIndexOf(".flatMap")
+
+        if (index < 0) false
+        else {
+          val context = before.substring(index)
+          context.contains("=>") && !context.contains("*>")
+        }
+      }
+    }
+
+    if (isAssertTrue(testResult) && isFlatMapCallbackPosition) {
+      val position = if (testResult.pos == NoPosition) c.enclosingPosition else testResult.pos
+      c.abort(
+        position,
+        "`assertTrue` returns a `TestResult`, not a `ZIO`. If this is inside `ZIO#flatMap`, use " +
+          "`.map(... => assertTrue(...))` instead, or wrap the assertion in `ZIO.succeed(...)` when a `ZIO` value is required."
+      )
+    } else {
+      val r = weakTypeOf[R]
+      val e = weakTypeOf[E]
+      q"_root_.zio.test.TestResult.liftTestResultToZIORuntime[$r, $e]($testResult)($trace)"
+    }
   }
 
   private[test] val fieldInAnonymousClassPrefix = "$anon.this."

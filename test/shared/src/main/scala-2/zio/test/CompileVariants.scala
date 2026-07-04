@@ -39,12 +39,8 @@ trait CompileVariants {
   def assertTrue(expr: Boolean, exprs: Boolean*): TestResult = macro SmartAssertMacros.assert_impl
   def assertTrue(expr: Boolean): TestResult = macro SmartAssertMacros.assertOne_impl
 
-  /**
-   * Emits an actionable diagnostic when a `TestResult` is used where a `ZIO`
-   * value is required, for example as the result of a `ZIO#flatMap` callback.
-   */
-  implicit def testResultToZIO(testResult: TestResult): ZIO[Any, Nothing, TestResult] =
-    macro Macros.testResultToZIO_impl
+  implicit def liftTestResultToZIO[R, E](testResult: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
+    macro Macros.liftTestResultToZIO_impl[R, E]
 
   /**
    * Checks the assertion holds for the given value.
