@@ -55,7 +55,7 @@ object TestResult {
   def anySuccesses(asserts: Iterable[TestResult])(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
     anySuccesses(!assertCompletes, asserts.toSeq: _*)
 
-  def liftTestResultToZIORuntime[R, E](result: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
+  implicit def liftTestResultToZIO[R, E](result: TestResult)(implicit trace: Trace): ZIO[R, E, TestResult] =
     if (result.isSuccess)
       ZIO.succeed(result)
     else
