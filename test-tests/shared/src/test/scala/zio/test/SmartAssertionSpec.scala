@@ -245,7 +245,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       } yield assertTrue(result.is(_.left).contains("type mismatch"))
     } @@ scala2Only,
     test("assertTrue reports actionable diagnostic when used as a ZIO") {
-      val resultZIO = typeCheck("""
+      val resultZIO: ZIO[Any, Nothing, Either[String, Unit]] = typeCheck("""
       package repro8668 {
 
       import zio.{Scope, ZIO}
