@@ -31,21 +31,11 @@ private[test] object Macros {
       c.Expr(q"zio.ZIO.succeed(scala.util.Right(()))")
     } catch {
       case e: TypecheckException =>
-        val message = typeCheckMessage(codeString, e.getMessage)
+        val message = TypeCheckMessages.fromTypeCheckException(codeString, e.getMessage)
         c.Expr(q"zio.ZIO.succeed(scala.util.Left($message))")
       case t: Throwable => c.Expr(q"""zio.ZIO.die(new RuntimeException("Compilation failed: " + ${t.getMessage}))""")
     }
   }
-
-  private[test] def typeCheckMessage(codeString: String, message: String): String =
-    if (
-      message.contains("macro has not been expanded") &&
-      codeString.contains(".flatMap") &&
-      codeString.contains("assertTrue")
-    )
-      "`assertTrue` returns a `TestResult`, not a `ZIO`. If this is inside `ZIO#flatMap`, use " +
-        "`.map(... => assertTrue(...))` instead, or wrap the assertion in `ZIO.succeed(...)` when a `ZIO` value is required."
-    else message
 
   private[test] val fieldInAnonymousClassPrefix = "$anon.this."
 

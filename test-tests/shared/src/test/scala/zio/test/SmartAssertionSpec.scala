@@ -245,7 +245,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       } yield assertTrue(result.is(_.left).contains("type mismatch"))
     } @@ scala2Only,
     test("assertTrue reports actionable diagnostic when used as a ZIO") {
-      val message = Macros.typeCheckMessage(
+      val message = TypeCheckMessages.fromTypeCheckException(
         "foo.flatMap(result => assertTrue(result == 12))",
         "macro has not been expanded"
       )
