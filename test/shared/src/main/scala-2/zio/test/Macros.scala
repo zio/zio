@@ -32,8 +32,11 @@ private[test] object Macros {
     } catch {
       case e: TypecheckException =>
         val message =
-          if (e.getMessage.contains("macro has not been expanded") && codeString.contains(".flatMap") && codeString
-                .contains("assertTrue"))
+          if (
+            e.getMessage.contains("macro has not been expanded") &&
+            codeString.contains(".flatMap") &&
+            codeString.contains("assertTrue")
+          )
             "`assertTrue` returns a `TestResult`, not a `ZIO`. If this is inside `ZIO#flatMap`, use " +
               "`.map(... => assertTrue(...))` instead, or wrap the assertion in `ZIO.succeed(...)` when a `ZIO` value is required."
           else e.getMessage
