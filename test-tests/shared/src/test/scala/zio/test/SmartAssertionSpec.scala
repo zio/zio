@@ -247,14 +247,14 @@ object SmartAssertionSpec extends ZIOBaseSpec {
     test("assertTrue reports actionable diagnostic when used as a ZIO") {
       val resultZIO = typeCheck("""
       import zio.{Scope, ZIO}
-      import zio.test._
+      import zio.test.{Spec, TestEnvironment, ZIOSpecDefault, suite, test}
 
       object FooSpec extends ZIOSpecDefault {
         val foo = ZIO.succeed(1)
 
         override def spec: Spec[TestEnvironment with Scope, Any] = suite("FooSuite")(
           test("foo test")(
-            foo.flatMap(result => assertTrue(result == 12))
+            foo.flatMap(result => zio.test.assertTrue(result == 12))
           )
         )
       }
