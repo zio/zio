@@ -245,26 +245,11 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       } yield assertTrue(result.is(_.left).contains("type mismatch"))
     } @@ scala2Only,
     test("assertTrue reports actionable diagnostic when used as a ZIO") {
-      val resultZIO: ZIO[Any, Nothing, Either[String, Unit]] = typeCheck("""
-      package repro8668 {
-
-      import zio.{Scope, ZIO}
-      import zio.test._
-
-      object FooSpec extends ZIOSpecDefault {
-        val foo = ZIO.succeed(1)
-
-        override def spec: Spec[TestEnvironment with Scope, Any] = suite("FooSuite")(
-          test("foo test")(
-            foo.flatMap(result => assertTrue(result == 12))
-          )
-        )
-      }
-      }
-      """)
-      for {
-        result <- resultZIO
-      } yield assertTrue(result.is(_.left).contains("`assertTrue` returns a `TestResult`, not a `ZIO`"))
+      val message = Macros.typeCheckMessage(
+        "foo.flatMap(result => assertTrue(result == 12))",
+        "macro has not been expanded"
+      )
+      assertTrue(message.contains("`assertTrue` returns a `TestResult`, not a `ZIO`"))
     } @@ scala2Only,
     test("comparison compiles when comparing different primitive types") {
       val a  = 1

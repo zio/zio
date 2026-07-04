@@ -455,6 +455,16 @@ object SmartAssertMacros {
 }
 
 object Macros {
+  private[test] def typeCheckMessage(codeString: String, message: String): String =
+    if (
+      message.contains("macro has not been expanded") &&
+      codeString.contains(".flatMap") &&
+      codeString.contains("assertTrue")
+    )
+      "`assertTrue` returns a `TestResult`, not a `ZIO`. If this is inside `ZIO#flatMap`, use " +
+        "`.map(... => assertTrue(...))` instead, or wrap the assertion in `ZIO.succeed(...)` when a `ZIO` value is required."
+    else message
+
   def assertZIO_impl[R: Type, E: Type, A: Type](
     effect: Expr[ZIO[R, E, A]]
   )(assertion: Expr[Assertion[A]])(using Quotes): Expr[ZIO[R, E, TestResult]] = {
