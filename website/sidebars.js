@@ -503,7 +503,7 @@ module.exports = {
         "guides/tutorials/build-a-graphql-webservice",
         "guides/tutorials/gracefully-shutdown-zio-application",
         "guides/tutorials/getting-started-threadlocal-bridge",
-        "guides/best-practices",
+        "guides/tutorials/best-practices",
       ]
     },
     {
