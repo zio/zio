@@ -410,3 +410,4 @@ All the source code associated with this article is available on the [ZIO Quicks
 
 - [Service Pattern](service-pattern.md) — Learn the four essential elements of ZIO Service Pattern: definition, implementation, dependencies, and ZLayer constructor lifting.
 - [Dependency Injection](../di/index.md) — Explore ZIO's built-in dependency injection system using ZIO Environment and ZLayer for type-safe, composable service management.
+- [Tutorial: Hot-Swapping Services with Reloadable](../../guides/tutorials/reloadable-services.md) — A step-by-step learning tutorial for newcomers to Reloadable services.
