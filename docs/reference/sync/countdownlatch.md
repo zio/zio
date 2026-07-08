@@ -1,7 +1,14 @@
 ---
 id: countdownlatch
-title: "CountdownLatch"
+title: CountdownLatch
+description: "A synchronization primitive that allows fibers to wait until a set of operations in other fibers complete."
+keywords:
+  - "Synchronization Primitive"
+  - "Countdown Latch"
+  - "Fiber Coordination"
+  - "Concurrency Control"
 ---
+
 A synchronization aid that allows one or more fibers to wait until a set of operations being performed in other fibers completes.
 
 A `CountDownLatch` is initialized with a given count. The `await` method block until the current count reaches zero due to invocations of the `countDown` method, after which all waiting fibers are released and any subsequent invocations of `await` return immediately. This is a one-shot phenomenon -- the count cannot be reset. If you need a version that

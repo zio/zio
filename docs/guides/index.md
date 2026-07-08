@@ -26,6 +26,7 @@ The following guides have been written to help you get started with ZIO with min
 9. [How to Monitor a ZIO Application Using ZIO's Built-in Metric System?](tutorials/monitor-a-zio-application-using-zios-built-in-metric-system.md)
 10. [How to Produce/Consume Data To/From Kafka Topics?](/zio-kafka/tutorial)
 11. [How to Debug a ZIO Application?](tutorials/debug-a-zio-application.md)
+12. [How to Hot-Swap Services with Reloadable?](tutorials/reloadable-services.md)
 
 ## Integration Guides
 
