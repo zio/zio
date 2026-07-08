@@ -30,6 +30,7 @@ Kafka has a mature Java client for producing and consuming events, but it has a 
   - automatic or manual starting offset
   - supports external commits
   - retries after authentication/authorization errors
+  - detects [silent authorization failures](detecting-authorization-failures.md) when a READ ACL is revoked at runtime
   - exposes metrics
   - diagnostics API
 - Producing:
@@ -41,7 +42,7 @@ Kafka has a mature Java client for producing and consuming events, but it has a 
   - exposes metrics
 - Admin API:
   - exposes all the admin client methods with a ZIO based interface
-  - safer than the wrapped java client by limiting the number of concurrent operations
+  - safer than the wrapped java client by waiting for the operation to be done
 - Proper errors when broker expects SSL (no [OOM crashes](https://issues.apache.org/jira/browse/KAFKA-4090))
 - Test kit with embedded kafka broker
 - Well documented
@@ -55,8 +56,8 @@ See the [zio-kafka tutorial](tutorial.md) for a grand tour of the different ways
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.6.0"
-libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.6.0" % Test
+libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.7.0"
+libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.7.0" % Test
 ```
 
 Snapshots are available on Sonatype's snapshot repository https://oss.sonatype.org/content/repositories/snapshots.

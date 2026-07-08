@@ -52,7 +52,7 @@ In this example, we create a fiber-local request ID and automatically synchroniz
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@7f2b70eb
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@3639a437
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -80,9 +80,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@3b0c1c06
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@2d755afd
 // )
 ```
 
@@ -129,7 +129,7 @@ Below is a complete example showing how to wrap a Java `ThreadLocal` and use it 
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@7b3ff95e
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@31543787
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -159,9 +159,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@7e20e99a
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@7d27489
 // )
 ```
 
@@ -190,7 +190,7 @@ To use `ThreadLocalBridge` in your application, include `ThreadLocalBridge.live`
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@572ec6ba
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@392c0406
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -205,9 +205,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@70420e4
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@1cd78433
 // )
 ```
 
@@ -249,7 +249,7 @@ Setting a value automatically triggers the link function, so the `ThreadLocal` i
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@4a95d252
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@355c295a
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -266,9 +266,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@2ebe175f
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@2579971f
 // )
 ```
 
@@ -298,7 +298,7 @@ This is useful for extracting information while updating the state in one operat
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@3cb56f23
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@556be341
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -315,9 +315,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@64468664
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@472134e1
 // )
 ```
 
@@ -347,7 +347,7 @@ This is useful for scoped context changes, such as temporarily changing the requ
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@5c21cbcd
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@6e4bc0cb
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -378,9 +378,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@58afc53d
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@4c3a7090
 // )
 ```
 
@@ -411,7 +411,7 @@ Reading the current value does not trigger synchronization since the `ThreadLoca
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@47c3a3a1
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@593e5af8
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -427,9 +427,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@6f4d715a
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@4c7d02b6
 // )
 ```
 
@@ -459,7 +459,7 @@ When you modify the `FiberRef` value, the link function synchronizes the change 
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@7e7a10bc
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@3b77a62
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -486,9 +486,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@4264fc60
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@79b443d2
 // )
 ```
 
@@ -507,7 +507,7 @@ When a child fiber forks from the parent, it inherits the parent's current value
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@5fae77d5
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@57d79d41
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -530,9 +530,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@2d163b97
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@784b4ce3
 // )
 ```
 
@@ -547,7 +547,7 @@ When using combinators like `ZIO.collectAllPar` or other parallel composition op
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@2ebec3aa
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@72626e85
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -569,9 +569,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@34766baf
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@2c07d759
 // )
 ```
 
@@ -586,7 +586,7 @@ If the link function throws an exception, it will propagate as a defect (unhandl
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@17e0314b
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@735f9034
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -606,9 +606,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@48388659
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@2bd4d58a
 // )
 ```
 
@@ -625,7 +625,7 @@ When the scope exits (whether due to success, failure, or interruption), the fin
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@476aaf76
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@20dbf682
 
 val example = {
   val scoped = ZIO.scoped {
@@ -647,9 +647,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//       eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //     ),
-//     successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@fb92dd5
+//     successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@352a657f
 //   ),
 //   successK = <function1>
 // )

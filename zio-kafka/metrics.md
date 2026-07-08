@@ -47,6 +47,13 @@ See the [tuning guide](consumer-tuning.md#using-metrics-to-tune-the-consumer) fo
 | gauge     | `ziokafka_consumer_partitions_paused_in_latest_poll`  | The number of partitions paused in the latest poll call (because of backpressure). |
 | counter   | `ziokafka_consumer_poll_auth_errors`                  | The number of polls that ended with an authentication or authorization error.      |
 
+:::note
+Note that `ziokafka_consumer_poll_auth_errors` only tracks errors surfaced directly during `poll()` calls. Silent
+runtime authorization failures (such as a revoked `READ` ACL) are silently swallowed by `poll()` and will not increment
+this metric. To detect and surface these failures as exceptions, configure the empty-poll metadata-refresh probe (
+see [Detecting Authorization Failures](detecting-authorization-failures.md)).
+:::
+
 ### Partition stream metrics
 
 These metrics are updated after every poll.

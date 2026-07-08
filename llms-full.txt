@@ -643,7 +643,7 @@ val finalized: IO[String, Unit] =
 // finalized: IO[String, Unit] = DynamicNoBox(
 //   trace = "repl.MdocSession.MdocApp.finalized(handling-resources.md:19)",
 //   update = 1L,
-//   f = zio.ZIO$$$Lambda$19601/0x00007f895ef3f188@6d3eb6cc
+//   f = zio.ZIO$$$Lambda$19612/0x00007f2a26ee3aa8@572fc27e
 // )
 ```
 
@@ -2351,12 +2351,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20013/0x00007f895f01d5f8@278f0348
+//   eval = zio.Ref$$$Lambda$20024/0x00007f2a26fccd68@119a92c5
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20013/0x00007f895f01d5f8@50201878
+//   eval = zio.Ref$$$Lambda$20024/0x00007f2a26fccd68@2b734063
 // )
 
 sealed trait State
@@ -2367,7 +2367,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20013/0x00007f895f01d5f8@1002e47c
+//   eval = zio.Ref$$$Lambda$20024/0x00007f2a26fccd68@4610d557
 // )
 ```
 
@@ -2384,7 +2384,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20013/0x00007f895f01d5f8@28fa082
+//   eval = zio.Ref$$$Lambda$20024/0x00007f2a26fccd68@5910f049
 // )
 ```
 
@@ -2396,7 +2396,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20013/0x00007f895f01d5f8@5e94f090
+//   eval = zio.Ref$$$Lambda$20024/0x00007f2a26fccd68@4cc39bfc
 // )
 ```
 
@@ -14390,7 +14390,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20172/0x00007f895f0c61f8@3eaa1a57
+//   eval = zio.Supervisor$$$Lambda$20183/0x00007f2a2706db18@31873548
 // )
 ```
 
@@ -15192,7 +15192,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$20140/0x00007f895f09e690@f7dc720
+//     f = zio.ZIO$$$Lambda$20151/0x00007f2a27037dc0@3b6b448b
 //   ),
 //   successK = <function1>
 // )
@@ -17071,6 +17071,7 @@ All the source code associated with this article is available on the [ZIO Quicks
 
 - [Service Pattern](service-pattern.md) — Learn the four essential elements of ZIO Service Pattern: definition, implementation, dependencies, and ZLayer constructor lifting.
 - [Dependency Injection](../di/index.md) — Explore ZIO's built-in dependency injection system using ZIO Environment and ZLayer for type-safe, composable service management.
+- [Tutorial: Hot-Swapping Services with Reloadable](../../guides/tutorials/reloadable-services.md) — A step-by-step learning tutorial for newcomers to Reloadable services.
 
 ---
 
@@ -19071,7 +19072,7 @@ In this example, we create a fiber-local request ID and automatically synchroniz
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@7f2b70eb
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@3639a437
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -19099,9 +19100,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@3b0c1c06
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@2d755afd
 // )
 ```
 
@@ -19148,7 +19149,7 @@ Below is a complete example showing how to wrap a Java `ThreadLocal` and use it 
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@7b3ff95e
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@31543787
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -19178,9 +19179,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@7e20e99a
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@7d27489
 // )
 ```
 
@@ -19209,7 +19210,7 @@ To use `ThreadLocalBridge` in your application, include `ThreadLocalBridge.live`
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@572ec6ba
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@392c0406
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -19224,9 +19225,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@70420e4
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@1cd78433
 // )
 ```
 
@@ -19268,7 +19269,7 @@ Setting a value automatically triggers the link function, so the `ThreadLocal` i
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@4a95d252
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@355c295a
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -19285,9 +19286,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@2ebe175f
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@2579971f
 // )
 ```
 
@@ -19317,7 +19318,7 @@ This is useful for extracting information while updating the state in one operat
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@3cb56f23
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@556be341
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -19334,9 +19335,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@64468664
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@472134e1
 // )
 ```
 
@@ -19366,7 +19367,7 @@ This is useful for scoped context changes, such as temporarily changing the requ
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@5c21cbcd
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@6e4bc0cb
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -19397,9 +19398,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@58afc53d
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@4c3a7090
 // )
 ```
 
@@ -19430,7 +19431,7 @@ Reading the current value does not trigger synchronization since the `ThreadLoca
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@47c3a3a1
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@593e5af8
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -19446,9 +19447,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@6f4d715a
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@4c7d02b6
 // )
 ```
 
@@ -19478,7 +19479,7 @@ When you modify the `FiberRef` value, the link function synchronizes the change 
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@7e7a10bc
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@3b77a62
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -19505,9 +19506,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@4264fc60
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@79b443d2
 // )
 ```
 
@@ -19526,7 +19527,7 @@ When a child fiber forks from the parent, it inherits the parent's current value
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@5fae77d5
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@57d79d41
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -19549,9 +19550,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@2d163b97
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@784b4ce3
 // )
 ```
 
@@ -19566,7 +19567,7 @@ When using combinators like `ZIO.collectAllPar` or other parallel composition op
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@2ebec3aa
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@72626e85
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -19588,9 +19589,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@34766baf
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@2c07d759
 // )
 ```
 
@@ -19605,7 +19606,7 @@ If the link function throws an exception, it will propagate as a defect (unhandl
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@17e0314b
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@735f9034
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -19625,9 +19626,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@48388659
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@2bd4d58a
 // )
 ```
 
@@ -19644,7 +19645,7 @@ When the scope exits (whether due to success, failure, or interruption), the fin
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@476aaf76
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@20dbf682
 
 val example = {
   val scoped = ZIO.scoped {
@@ -19666,9 +19667,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//       eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //     ),
-//     successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@fb92dd5
+//     successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@352a657f
 //   ),
 //   successK = <function1>
 // )
@@ -23398,14 +23399,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@2806dfdb
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@2aa825eb
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@971267b
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@6df6f475
 ```
 
 ## From ZIO
@@ -29819,9 +29820,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$19572/0x00007f895ef2a1e0@9ea2c03
+//             onState = zio.ZIO$$$Lambda$19583/0x00007f2a26ecf220@4a65e4e6
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$19581/0x00007f895ef30aa0@4ce8a35a
+//           successK = zio.test.package$ZTest$$$Lambda$19592/0x00007f2a26ed9c10@f6763ce
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -30515,6 +30516,7 @@ The following guides have been written to help you get started with ZIO with min
 9. [How to Monitor a ZIO Application Using ZIO's Built-in Metric System?](tutorials/monitor-a-zio-application-using-zios-built-in-metric-system.md)
 10. [How to Produce/Consume Data To/From Kafka Topics?](/zio-kafka/tutorial)
 11. [How to Debug a ZIO Application?](tutorials/debug-a-zio-application.md)
+12. [How to Hot-Swap Services with Reloadable?](tutorials/reloadable-services.md)
 
 ## Integration Guides
 
@@ -31445,7 +31447,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+80-5dba2e46-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+83-c7b46f3b-SNAPSHOT"
 ```
 
 ## Example
@@ -37847,9 +37849,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$19562/0x00007f895ef1dda0@9e5cb87
+//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
 //   ),
-//   successK = zio.ZIO$$$Lambda$19563/0x00007f895ef1e058@7c8d72a9
+//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@573fc8b1
 // )
 ```
 
@@ -39112,6 +39114,514 @@ Now that we have the metrics as a REST API, we can add this endpoint to our Prom
 In this tutorial, we have learned how to define metrics and apply them to our application. We have also learned how to provide the metrics as a REST API which then can be polled by a Prometheus server.
 
 All the source code associated with this article is available on the [ZIO Quickstart](http://github.com/zio/zio-quickstarts) on GitHub.
+
+---
+
+## Tutorial: Hot-Swapping Services with Reloadable
+
+## Introduction
+
+Welcome! In this tutorial we explore one of ZIO's most compelling runtime features: the ability to **hot-swap a service** while the application keeps running.
+
+Imagine your application connects to a database using credentials stored in a configuration file. When the credentials rotate, you want to tear down the old connection pool and build a fresh one without restarting the process. That is exactly what `Reloadable[Service]` lets you do.
+
+By the end of this tutorial you will be able to:
+
+- Wrap any resource-managed `ZLayer` in a `Reloadable` using `Reloadable.manual`.
+- Reach the current live service instance through `Reloadable.get[Service]`.
+- Trigger an explicit, atomic hot-swap with `Reloadable.reload[Service]` and watch resource teardown and acquisition happen in the console.
+- Schedule a non-blocking background refresh with `Reloadable.reloadFork[Service]`.
+- Drive periodic automatic reloads with `Reloadable.auto(layer, Schedule.fixed(n.seconds))`.
+
+**Prerequisites:** You should be comfortable with `ZIO[R, E, A]`, `ZLayer`, `ZIO.acquireRelease` / `ZLayer.scoped`, and the concept of a `Scope`. No prior knowledge of `Reloadable` or `ScopedRef` is needed.
+
+We recommend reading from top to bottom — every section builds on the previous one.
+
+---
+
+## 1. The Problem: Services With Resources
+
+Most real-world services acquire resources when they start (open a file, establish a connection, allocate a thread pool) and release them when they stop. ZIO models this lifecycle with `ZLayer.scoped` and `ZIO.acquireRelease`.
+
+To make this concrete, let's define a `Counter` service that *logs its own acquire and release events*. We will use this service throughout the tutorial because its output makes the lifecycle immediately visible:
+
+```scala
+
+// The service interface.
+trait Counter {
+  def increment: UIO[Unit]
+  def get: UIO[Int]
+}
+
+// A layer that acquires a fresh Counter and logs when it is acquired/released.
+val counterLayer: ZLayer[Any, Nothing, Counter] = ZLayer.scoped {
+  for {
+    ref     <- Ref.make(0)             // mutable state for the counter
+    counter  = new Counter {
+                 def increment = ref.update(_ + 1)
+                 def get       = ref.get
+               }
+    _       <- ZIO.debug(">>> Counter acquired")  // visible on acquire
+    _       <- ZIO.addFinalizer(             // runs when the scope closes
+                 ZIO.debug("<<< Counter released")
+               )
+  } yield counter
+}
+```
+
+Line-by-line:
+- `Ref.make(0)` — allocates an in-memory counter; in a real service this would be a connection pool or file handle.
+- `ZIO.debug(">>> Counter acquired")` — prints when the service is first built; lets us see *when* acquisition happens.
+- `ZIO.addFinalizer(...)` — registers a cleanup effect that runs when the scope closes, i.e., when the service is torn down.
+
+Let's verify the layer works on its own before adding `Reloadable`:
+
+```scala
+
+trait Counter { def increment: UIO[Unit]; def get: UIO[Int] }
+
+val counterLayer: ZLayer[Any, Nothing, Counter] = ZLayer.scoped {
+  for {
+    ref     <- Ref.make(0)
+    counter  = new Counter { def increment = ref.update(_ + 1); def get = ref.get }
+    _       <- ZIO.debug(">>> Counter acquired")
+    _       <- ZIO.addFinalizer(ZIO.debug("<<< Counter released"))
+  } yield counter
+}
+
+object VerifyCounter extends ZIOAppDefault {
+  def run =
+    ZIO.serviceWithZIO[Counter] { c =>
+      c.increment *> c.increment *> c.get.flatMap(n => ZIO.debug(s"Count: $n"))
+    }.provide(counterLayer)
+}
+```
+
+Line-by-line:
+- `ZIO.serviceWithZIO[Counter]` — retrieves the `Counter` from the environment and passes it to the callback; equivalent to `ZIO.service[Counter].flatMap(c => ...)`.
+- `c.increment *> c.increment` — two sequential increments on the same in-memory counter instance.
+- `c.get.flatMap(n => ZIO.debug(s"Count: $n"))` — reads the current count and prints it.
+- `.provide(counterLayer)` — injects the layer, opening its scope, running the body, then closing the scope.
+
+Expected output:
+
+```
+>>> Counter acquired
+Count: 2
+<<< Counter released
+```
+
+The acquire message appears before any work, and the release message appears when the application exits. This is the resource lifecycle we will observe across reloads.
+
+---
+
+## 2. Wrapping a Layer with `Reloadable.manual`
+
+`Reloadable[Service]` is a thin wrapper around any service that adds two capabilities: getting the current live instance, and replacing it with a freshly-built one at runtime. The simplest constructor is `Reloadable.manual`, which accepts any `ZLayer[In, E, Out]` and returns a `ZLayer[In, E, Reloadable[Out]]`:
+
+```scala
+
+trait Counter { def increment: UIO[Unit]; def get: UIO[Int] }
+
+val counterLayer: ZLayer[Any, Nothing, Counter] = ZLayer.scoped {
+  for {
+    ref     <- Ref.make(0)
+    counter  = new Counter { def increment = ref.update(_ + 1); def get = ref.get }
+    _       <- ZIO.debug(">>> Counter acquired")
+    _       <- ZIO.addFinalizer(ZIO.debug("<<< Counter released"))
+  } yield counter
+}
+
+// Lift the plain layer into a reloadable one.
+// The environment type changes from Counter to Reloadable[Counter].
+val reloadableLayer: ZLayer[Any, Nothing, Reloadable[Counter]] =
+  Reloadable.manual(counterLayer)
+```
+
+Line-by-line:
+- `Reloadable.manual(counterLayer)` — captures `counterLayer` and wraps it so the same build recipe can be run again on demand.
+- The result type is `ZLayer[Any, Nothing, Reloadable[Counter]]`, not `ZLayer[Any, Nothing, Counter]`. Callers see `Reloadable[Counter]` in their environment, which is an explicit signal that the service can be swapped.
+
+:::note
+`Reloadable.manual` does not require any changes to the original `counterLayer`. Any existing `ZLayer.scoped` layer works unchanged.
+:::
+
+---
+
+## 3. Accessing the Current Instance with `Reloadable.get`
+
+Once the environment holds a `Reloadable[Counter]`, we need a way to talk to the *currently live* `Counter`. `Reloadable.get[Counter]` is the accessor effect:
+
+```scala
+
+trait Counter { def increment: UIO[Unit]; def get: UIO[Int] }
+
+val counterLayer: ZLayer[Any, Nothing, Counter] = ZLayer.scoped {
+  for {
+    ref     <- Ref.make(0)
+    counter  = new Counter { def increment = ref.update(_ + 1); def get = ref.get }
+    _       <- ZIO.debug(">>> Counter acquired")
+    _       <- ZIO.addFinalizer(ZIO.debug("<<< Counter released"))
+  } yield counter
+}
+
+object GetExample extends ZIOAppDefault {
+  def run = {
+    val program: ZIO[Reloadable[Counter], Any, Unit] =
+      for {
+        c     <- Reloadable.get[Counter]   // obtain the live Counter
+        _     <- c.increment               // use it as any plain Counter
+        _     <- c.increment
+        count <- c.get
+        _     <- ZIO.debug(s"Count: $count")
+      } yield ()
+
+    program.provide(Reloadable.manual(counterLayer))
+  }
+}
+```
+
+Expected output:
+
+```
+>>> Counter acquired
+Count: 2
+<<< Counter released
+```
+
+Notice the call pattern:
+- `Reloadable.get[Counter]` — a static accessor on the companion object; equivalent to `ZIO.service[Reloadable[Counter]].flatMap(_.get)`.
+- The returned `Counter` is the *same instance* for the lifetime of a reload boundary; calling `Reloadable.get` multiple times before a reload always returns the same object.
+
+---
+
+## 4. Hot-Swapping with `Reloadable.reload`
+
+This is the core capability. `Reloadable.reload[Counter]` is a single effect that does two things in one *uninterruptible* step:
+
+1. Closes the current `Counter`'s resource scope, running all registered finalizers.
+2. Builds a brand-new `Counter` from the original layer recipe.
+
+The old instance is gone; the new one is in place. No caller can observe a half-torn-down service:
+
+```scala
+
+trait Counter { def increment: UIO[Unit]; def get: UIO[Int] }
+
+val counterLayer: ZLayer[Any, Nothing, Counter] = ZLayer.scoped {
+  for {
+    ref     <- Ref.make(0)
+    counter  = new Counter { def increment = ref.update(_ + 1); def get = ref.get }
+    _       <- ZIO.debug(">>> Counter acquired")
+    _       <- ZIO.addFinalizer(ZIO.debug("<<< Counter released"))
+  } yield counter
+}
+
+object ReloadExample extends ZIOAppDefault {
+  def run = {
+    val program: ZIO[Reloadable[Counter], Any, Unit] =
+      for {
+        c1     <- Reloadable.get[Counter]
+        _      <- c1.increment
+        _      <- c1.increment
+        before <- c1.get
+        _      <- ZIO.debug(s"Before reload: $before")     // prints 2
+
+        _      <- Reloadable.reload[Counter]               // ← the hot-swap
+
+        c2     <- Reloadable.get[Counter]
+        _      <- c2.increment
+        after  <- c2.get
+        _      <- ZIO.debug(s"After reload: $after")       // prints 1
+      } yield ()
+
+    program.provide(Reloadable.manual(counterLayer))
+  }
+}
+```
+
+Expected output:
+
+```
+>>> Counter acquired
+Before reload: 2
+<<< Counter released
+>>> Counter acquired
+After reload: 1
+<<< Counter released
+```
+
+Line-by-line:
+- `c1 <- Reloadable.get[Counter]` — fetches the *currently live* instance; all method calls on `c1` go to the same object until the next reload.
+- `c1.increment *> c1.increment` — two increments on the first instance; its internal count is now 2.
+- `Reloadable.reload[Counter]` — one uninterruptible step: closes the old scope (prints `<<< Counter released`), then builds a fresh instance (prints `>>> Counter acquired`).
+- `c2 <- Reloadable.get[Counter]` — fetches the *newly built* instance; its count starts at 0.
+- `c2.increment` — one increment on the fresh instance; its count is now 1.
+
+Notice the aha moment: `<<< Counter released` appears *between* the two "Before/After" messages. The old instance — with its count of 2 — was torn down, and the new instance started fresh at 0. One call to `Reloadable.reload` orchestrated both halves atomically.
+
+:::tip
+Try changing the code to call `Reloadable.reload[Counter]` a second time between the two `ZIO.debug` lines and observe that a second acquire/release cycle appears in the output.
+:::
+
+---
+
+## 5. Background Refresh with `Reloadable.reloadFork`
+
+Sometimes you want to trigger a reload without blocking the current fiber. `Reloadable.reloadFork[Counter]` forks the reload onto a daemon fiber and returns immediately. If the reload fails, the error is logged via `ignoreLogged` — it is neither swallowed silently nor allowed to crash the calling fiber:
+
+```scala
+
+trait Counter { def increment: UIO[Unit]; def get: UIO[Int] }
+
+val counterLayer: ZLayer[Any, Nothing, Counter] = ZLayer.scoped {
+  for {
+    ref     <- Ref.make(0)
+    counter  = new Counter { def increment = ref.update(_ + 1); def get = ref.get }
+    _       <- ZIO.debug(">>> Counter acquired")
+    _       <- ZIO.addFinalizer(ZIO.debug("<<< Counter released"))
+  } yield counter
+}
+
+object ForkExample extends ZIOAppDefault {
+  def run = {
+    val program: ZIO[Reloadable[Counter], Any, Unit] =
+      for {
+        c1 <- Reloadable.get[Counter]
+        _  <- c1.increment
+        _  <- c1.increment
+
+        _  <- Reloadable.reloadFork[Counter]            // returns immediately
+        _  <- ZIO.debug("Main fiber continues here")   // may appear before acquire/release
+        _  <- ZIO.sleep(100.millis)                    // give the daemon time to finish
+
+        c2    <- Reloadable.get[Counter]
+        after <- c2.get
+        _     <- ZIO.debug(s"After fork-reload: $after")
+      } yield ()
+
+    program.provide(Reloadable.manual(counterLayer))
+  }
+}
+```
+
+Expected output (order of the first three lines may vary):
+
+```
+>>> Counter acquired
+Main fiber continues here
+<<< Counter released
+>>> Counter acquired
+After fork-reload: 0
+<<< Counter released
+```
+
+Line-by-line:
+- `Reloadable.reloadFork[Counter]` — forks the reload effect onto a daemon fiber and returns `UIO[Unit]` immediately; the calling fiber does not wait.
+- `ZIO.debug("Main fiber continues here")` — executes right after the fork, potentially before the daemon completes.
+- `ZIO.sleep(100.millis)` — a brief pause to let the daemon fiber finish before the next `Reloadable.get`; in production you would not add an explicit sleep.
+- `c2 <- Reloadable.get[Counter]` — retrieves the reloaded instance; its count is 0 because `Ref.make(0)` ran again during the background rebuild.
+
+The key observation is that `"Main fiber continues here"` can appear *before* the release/acquire pair because `reloadFork` does not block the calling fiber. Use `reloadFork` for best-effort background refreshes where a failure should be logged rather than propagated.
+
+---
+
+## 6. Automatic Scheduled Reloads with `Reloadable.auto`
+
+For many use cases — rotating credentials, refreshing caches, picking up config changes — you want reloads to happen automatically on a fixed schedule. `Reloadable.auto` accepts your original layer and a `Schedule`, then manages a background daemon fiber for you:
+
+```scala
+
+trait Counter { def increment: UIO[Unit]; def get: UIO[Int] }
+
+val counterLayer: ZLayer[Any, Nothing, Counter] = ZLayer.scoped {
+  for {
+    ref     <- Ref.make(0)
+    counter  = new Counter { def increment = ref.update(_ + 1); def get = ref.get }
+    _       <- ZIO.debug(">>> Counter acquired")
+    _       <- ZIO.addFinalizer(ZIO.debug("<<< Counter released"))
+  } yield counter
+}
+
+object AutoReloadExample extends ZIOAppDefault {
+  // Reload the Counter every 2 seconds, automatically.
+  val autoLayer: ZLayer[Any, Nothing, Reloadable[Counter]] =
+    Reloadable.auto(counterLayer, Schedule.fixed(2.seconds))
+
+  def run = {
+    val program: ZIO[Reloadable[Counter], Any, Unit] =
+      for {
+        c1     <- Reloadable.get[Counter]
+        _      <- c1.increment *> c1.increment *> c1.increment
+        before <- c1.get
+        _      <- ZIO.debug(s"Before auto-reload: $before")
+
+        _      <- ZIO.sleep(3.seconds)                 // wait for at least one auto-reload
+
+        c2     <- Reloadable.get[Counter]
+        after  <- c2.get
+        _      <- ZIO.debug(s"After auto-reload: $after")
+      } yield ()
+
+    program.provide(autoLayer)
+  }
+}
+```
+
+Expected output:
+
+```
+>>> Counter acquired
+Before auto-reload: 3
+<<< Counter released
+>>> Counter acquired
+After auto-reload: 0
+<<< Counter released
+```
+
+Line-by-line for `Reloadable.auto`:
+- `Reloadable.auto(counterLayer, Schedule.fixed(2.seconds))` — every 2 seconds the daemon re-runs `counterLayer`, tearing down the old instance and building a new one.
+- The daemon fiber is lifecycle-managed: it is forked when the layer's scope opens and interrupted when the scope closes, so there is no fiber leak.
+- The application code never calls `Reloadable.reload` — the schedule drives it automatically.
+
+:::note
+`Reloadable.auto` is equivalent to calling `Reloadable.reloadFork` on the given schedule inside a managed fiber. The daemon loop runs `reload.ignoreLogged.schedule(schedule)` and is shut down cleanly when the application stops.
+:::
+
+---
+
+## 7. Putting It All Together
+
+Here is a self-contained program that demonstrates all five concepts in one place:
+
+```scala
+
+// ── Service definition ──────────────────────────────────────────────────────
+trait Counter {
+  def increment: UIO[Unit]
+  def get: UIO[Int]
+}
+
+// ── Service implementation with visible lifecycle ────────────────────────────
+val counterLayer: ZLayer[Any, Nothing, Counter] = ZLayer.scoped {
+  for {
+    ref     <- Ref.make(0)
+    counter  = new Counter {
+                 def increment = ref.update(_ + 1)
+                 def get       = ref.get
+               }
+    _       <- ZIO.debug(">>> Counter acquired")
+    _       <- ZIO.addFinalizer(ZIO.debug("<<< Counter released"))
+  } yield counter
+}
+
+// ── Main program ─────────────────────────────────────────────────────────────
+object FullExample extends ZIOAppDefault {
+
+  val program: ZIO[Reloadable[Counter], Any, Unit] =
+    for {
+      // 1. Get the initial instance and use it.
+      c1    <- Reloadable.get[Counter]
+      _     <- c1.increment *> c1.increment
+      v1    <- c1.get
+      _     <- ZIO.debug(s"Initial count: $v1")        // 2
+
+      // 2. Explicit atomic hot-swap.
+      _     <- Reloadable.reload[Counter]
+
+      // 3. Fresh instance starts at 0.
+      c2    <- Reloadable.get[Counter]
+      _     <- c2.increment
+      v2    <- c2.get
+      _     <- ZIO.debug(s"After manual reload: $v2")  // 1
+
+      // 4. Fork a background reload (non-blocking).
+      _     <- Reloadable.reloadFork[Counter]
+      _     <- ZIO.sleep(50.millis)                    // wait for daemon to finish
+
+      // 5. Another fresh instance.
+      c3    <- Reloadable.get[Counter]
+      v3    <- c3.get
+      _     <- ZIO.debug(s"After fork reload: $v3")    // 0
+    } yield ()
+
+  def run = program.provide(Reloadable.manual(counterLayer))
+}
+```
+
+Expected output:
+
+```
+>>> Counter acquired
+Initial count: 2
+<<< Counter released
+>>> Counter acquired
+After manual reload: 1
+<<< Counter released
+>>> Counter acquired
+After fork reload: 0
+<<< Counter released
+```
+
+Line-by-line:
+- `Reloadable.manual(counterLayer)` — the single layer that powers all three reload strategies; the original `counterLayer` is unchanged.
+- Each `Reloadable.reload[Counter]` call replaces the running instance and resets its count to 0.
+- `Reloadable.reloadFork[Counter]` followed by `ZIO.sleep(50.millis)` — fires the reload in the background and waits long enough for the daemon to complete before checking the count.
+
+Three complete acquire/release cycles, each driven by a different reload strategy, all from the same original `counterLayer` without any changes to the layer itself.
+
+---
+
+## 8. Running the Examples
+
+The companion source files live in the `zio-examples/reloadable-services` project of the ZIO repository. Clone the repository and then run any example from the sbt shell:
+
+```bash
+git clone https://github.com/zio/zio.git
+cd zio/zio-examples/reloadable-services
+```
+
+To compile all companion examples at once:
+
+```bash
+sbt compile
+```
+
+To run each concept example individually:
+
+```bash
+sbt "runMain reloadableservices.ReloadableManualExample"
+sbt "runMain reloadableservices.ReloadableReloadExample"
+sbt "runMain reloadableservices.ReloadableAutoExample"
+sbt "runMain reloadableservices.ReloadableFullExample"
+```
+
+The only dependency you need is the core ZIO library:
+
+```
+libraryDependencies += "dev.zio" %% "zio" % "2.1.26"
+```
+
+---
+
+## 9. What You've Learned
+
+You started this tutorial with no knowledge of `Reloadable` and a plain `ZLayer`-based service. Here is what you can now do:
+
+- **Wrap any `ZLayer` in a `Reloadable`** using `Reloadable.manual(layer)` — no changes to the layer itself are required.
+- **Access the live service** with `Reloadable.get[Counter]`, which always returns the most recently built instance.
+- **Atomically hot-swap the service** with `Reloadable.reload[Counter]` — the old finalizers run, the new acquirers run, and no caller sees an inconsistent state.
+- **Trigger a non-blocking background refresh** with `Reloadable.reloadFork[Counter]`, which logs errors rather than propagating them.
+- **Drive automatic periodic reloads** with `Reloadable.auto(layer, Schedule.fixed(n.seconds))`, which manages the daemon fiber's lifecycle automatically.
+
+---
+
+## 10. Where to Go Next
+
+- [Reloadable Services Reference](../../reference/service-pattern/reloadable-services.md) — The full reference covering `ServiceReloader` from `zio-macros`, which eliminates `Reloadable[T]` from the environment type using a transparent proxy.
+- [ScopedRef Reference](../../reference/resource/scopedref.md) — The underlying primitive that powers `Reloadable`: a mutable reference whose value owns a resource scope.
+- [ZLayer Reference](../../reference/contextual/zlayer.md) — Deep dive into how `ZLayer` models dependency graphs and resource lifecycles.
+- [Schedule Reference](../../reference/schedule/index.md) — All the built-in schedules you can combine to control the auto-reload interval.
 
 ---
 
@@ -94275,6 +94785,13 @@ failure. In zio-kafka 2.5.0 `runloopTimeout` defaults to 4 minutes, a little bit
 When `rebalance-safe-commits` is enabled, additional settings are needed for long-running processes. See
 [preventing duplicates](preventing-duplicates.md) for more details.
 
+### Long-running processes and silent authorization failures
+
+When topics are quiet or experience long idle periods, configuring a low threshold for silent authorization failure
+detection (`emptyPollCountToMetaRefresh`) can trigger excessive metadata queries.
+See [detecting authorization failures](detecting-authorization-failures.md) for how to tune this setting for low-volume
+topics.
+
 ## Using metrics to tune the consumer
 
 Zio-Kafka exposes [metrics](metrics.md) that can be used to further tune the consumer. To interpret these metrics you need to know how zio-kafka works internally.
@@ -94676,8 +95193,9 @@ val consumer: ZIO[Scope, Throwable, Consumer] =
 
 The consumer settings are not only used for passing properties to the underlying Kafka consumer. You can also configure
 zio-kafka features such as `rebalanceSafeCommits` (see [preventing duplicates](preventing-duplicates.md)), manual offset
-retrieval (see [offset retrieval](partition-assignment-and-offset-retrieval.md)), and the pre-fetch strategy (see
-[consumer tuning](consumer-tuning.md)).
+retrieval (see [offset retrieval](partition-assignment-and-offset-retrieval.md)), the pre-fetch strategy (see
+[consumer tuning](consumer-tuning.md)), and silent authorization failure detection
+(see [detecting authorization failures](detecting-authorization-failures.md)).
 
 Notice that the consumer requires a `Scope` in the environment. When this scope closes, the consumer closes its
 connection with the Kafka cluster. A scope can be created with the `ZIO.scoped` method:
@@ -94745,6 +95263,49 @@ The `provide` section of the main program could look like this:
 
 ---
 
+## Detecting Authorization Failures
+
+When a Kafka consumer's `READ` access control list (ACL) is revoked at runtime, the Apache Kafka broker stops sending
+records to the consumer for the affected topic. However, the underlying Java Kafka consumer client's `poll()` method
+silently returns zero records instead of throwing an error. In a standard stream setup, this causes ZIO-Kafka's consumer
+stream (such as `consumeWith` or custom runloops) to run indefinitely in a silent, zombie-like state, without any
+indication that authorization was lost.
+
+To detect these silent authorization losses, ZIO-Kafka provides an _opt-in_ metadata-refresh probe. By configuring
+`ConsumerSettings.withEmptyPollCountToMetaRefresh(n)`, you instruct ZIO-Kafka to count consecutive empty polls for each
+active topic. (We define 'empty poll' as a `poll()` operation resulting in zero records for a topic.) Once a topic
+reaches `n` consecutive polls that return no records, the consumer issues a `committed()` request to the broker for the
+assigned partitions of that topic. Unlike `poll()`, calling `committed()` forces a broker round-trip that immediately
+throws a `TopicAuthorizationException` if access is denied, causing the consumer to fail.
+
+Here is how you can configure the probe in your consumer settings:
+
+```scala
+
+val settings = ConsumerSettings(List("localhost:9092"))
+  .withGroupId("my-group")
+  .withEmptyPollCountToMetaRefresh(3) // Triggers a probe after 3 consecutive empty polls
+```
+
+### When to use this feature
+
+You should use this feature if your Kafka cluster enforces dynamic topic-level ACLs that may be revoked at runtime, and
+you want your consumer application to fail-fast, generate alerts, or restart to refresh credentials when authorization
+is lost. Setting the threshold to a small value (such as `3` or `5`) ensures that your application detects the
+permission loss within a few poll intervals.
+
+For low-volume topics that are naturally quiet or experience long idle periods, setting a higher threshold for
+`emptyPollCountToMetaRefresh` is prudent. If the threshold is set too low, the consumer will frequently hit the empty
+poll threshold and execute `committed()` queries against the broker, creating unnecessary network traffic and metadata
+request load on your Kafka cluster.
+
+### When to avoid this feature
+
+This feature is disabled by default (`None`) and should remain disabled if you do not use dynamic topic-level ACLs, as
+keeping it turned off avoids all bookkeeping and potential broker overhead.
+
+---
+
 ## Getting Started with ZIO Kafka
 
 [ZIO Kafka](https://github.com/zio/zio-kafka) is a Kafka client for ZIO. It provides a purely functional, streams-based interface to the Kafka
@@ -94773,6 +95334,7 @@ Kafka has a mature Java client for producing and consuming events, but it has a 
   - automatic or manual starting offset
   - supports external commits
   - retries after authentication/authorization errors
+  - detects [silent authorization failures](detecting-authorization-failures.md) when a READ ACL is revoked at runtime
   - exposes metrics
   - diagnostics API
 - Producing:
@@ -94784,7 +95346,7 @@ Kafka has a mature Java client for producing and consuming events, but it has a 
   - exposes metrics
 - Admin API:
   - exposes all the admin client methods with a ZIO based interface
-  - safer than the wrapped java client by limiting the number of concurrent operations
+  - safer than the wrapped java client by waiting for the operation to be done
 - Proper errors when broker expects SSL (no [OOM crashes](https://issues.apache.org/jira/browse/KAFKA-4090))
 - Test kit with embedded kafka broker
 - Well documented
@@ -94798,8 +95360,8 @@ See the [zio-kafka tutorial](tutorial.md) for a grand tour of the different ways
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.6.0"
-libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.6.0" % Test
+libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.7.0"
+libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.7.0" % Test
 ```
 
 Snapshots are available on Sonatype's snapshot repository https://oss.sonatype.org/content/repositories/snapshots.
@@ -95009,6 +95571,13 @@ See the [tuning guide](consumer-tuning.md#using-metrics-to-tune-the-consumer) fo
 | gauge     | `ziokafka_consumer_partitions_resumed_in_latest_poll` | The number of partitions resumed in the latest poll call.                          |
 | gauge     | `ziokafka_consumer_partitions_paused_in_latest_poll`  | The number of partitions paused in the latest poll call (because of backpressure). |
 | counter   | `ziokafka_consumer_poll_auth_errors`                  | The number of polls that ended with an authentication or authorization error.      |
+
+:::note
+Note that `ziokafka_consumer_poll_auth_errors` only tracks errors surfaced directly during `poll()` calls. Silent
+runtime authorization failures (such as a revoked `READ` ACL) are silently swallowed by `poll()` and will not increment
+this metric. To detect and surface these failures as exceptions, configure the empty-poll metadata-refresh probe (
+see [Detecting Authorization Failures](detecting-authorization-failures.md)).
+:::
 
 ### Partition stream metrics
 

@@ -14,8 +14,9 @@ val consumer: ZIO[Scope, Throwable, Consumer] =
 
 The consumer settings are not only used for passing properties to the underlying Kafka consumer. You can also configure
 zio-kafka features such as `rebalanceSafeCommits` (see [preventing duplicates](preventing-duplicates.md)), manual offset
-retrieval (see [offset retrieval](partition-assignment-and-offset-retrieval.md)), and the pre-fetch strategy (see
-[consumer tuning](consumer-tuning.md)).
+retrieval (see [offset retrieval](partition-assignment-and-offset-retrieval.md)), the pre-fetch strategy (see
+[consumer tuning](consumer-tuning.md)), and silent authorization failure detection
+(see [detecting authorization failures](detecting-authorization-failures.md)).
 
 Notice that the consumer requires a `Scope` in the environment. When this scope closes, the consumer closes its
 connection with the Kafka cluster. A scope can be created with the `ZIO.scoped` method:

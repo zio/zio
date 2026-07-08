@@ -107,6 +107,13 @@ failure. In zio-kafka 2.5.0 `runloopTimeout` defaults to 4 minutes, a little bit
 When `rebalance-safe-commits` is enabled, additional settings are needed for long-running processes. See
 [preventing duplicates](preventing-duplicates.md) for more details.
 
+### Long-running processes and silent authorization failures
+
+When topics are quiet or experience long idle periods, configuring a low threshold for silent authorization failure
+detection (`emptyPollCountToMetaRefresh`) can trigger excessive metadata queries.
+See [detecting authorization failures](detecting-authorization-failures.md) for how to tune this setting for low-volume
+topics.
+
 ## Using metrics to tune the consumer
 
 Zio-Kafka exposes [metrics](metrics.md) that can be used to further tune the consumer. To interpret these metrics you need to know how zio-kafka works internally.
