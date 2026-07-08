@@ -495,8 +495,6 @@ The only dependency you need is the core ZIO library:
 libraryDependencies += "dev.zio" %% "zio" % "@VERSION@"
 ```
 
-`Reloadable` lives in `package zio`, so `import zio._` is the only import required.
-
 ---
 
 ## 9. What You've Learned
