@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zio.examples
+package reloadableservices
 
 import zio._
 

@@ -467,26 +467,26 @@ Three complete acquire/release cycles, each driven by a different reload strateg
 
 ## 8. Running the Examples
 
-The companion source files live in the `examples` module of the ZIO repository. Clone the repository and then run any example from the sbt shell:
+The companion source files live in the `zio-examples/reloadable-services` project of the ZIO repository. Clone the repository and then run any example from the sbt shell:
 
 ```bash
 git clone https://github.com/zio/zio.git
-cd zio
+cd zio/zio-examples/reloadable-services
 ```
 
 To compile all companion examples at once:
 
 ```bash
-sbt "examplesJVM/compile"
+sbt compile
 ```
 
 To run each concept example individually:
 
 ```bash
-sbt "examplesJVM/runMain zio.examples.ReloadableManualExample"
-sbt "examplesJVM/runMain zio.examples.ReloadableReloadExample"
-sbt "examplesJVM/runMain zio.examples.ReloadableAutoExample"
-sbt "examplesJVM/runMain zio.examples.ReloadableFullExample"
+sbt "runMain reloadableservices.ReloadableManualExample"
+sbt "runMain reloadableservices.ReloadableReloadExample"
+sbt "runMain reloadableservices.ReloadableAutoExample"
+sbt "runMain reloadableservices.ReloadableFullExample"
 ```
 
 The only dependency you need is the core ZIO library:
