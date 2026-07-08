@@ -491,8 +491,10 @@ sbt "runMain reloadableservices.ReloadableFullExample"
 
 The only dependency you need is the core ZIO library:
 
-```scala
-libraryDependencies += "dev.zio" %% "zio" % "@VERSION@"
+```scala mdoc:passthrough
+println(s"""```""")
+println(s"""libraryDependencies += "dev.zio" %% "zio" % "${zio.BuildInfo.version.split('+').head}"""")
+println(s"""```""")
 ```
 
 ---
