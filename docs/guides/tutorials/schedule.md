@@ -1,6 +1,7 @@
 ---
 id: schedule
 title: "Schedule Step by Step — Retry and Repeat Policies in ZIO"
+sidebar_label: "Retry and Repeat Policies with Schedule"
 description: "Learn how ZIO's Schedule works as a pure state machine, and build retry and repeat policies from primitives, composition, and the Driver API."
 keywords: ["Schedule Step Function", "Exponential Backoff", "Schedule Composition", "Retry Policy", "Schedule Driver API", "Repeat Policy", "Schedule Primitives"]
 ---
@@ -14,8 +15,8 @@ We start in Section 1 by putting schedules to work right away with `.repeat` and
 
 **By the end of this tutorial you will be able to:**
 - Explain the three-part `step` contract and trace a schedule's execution by hand
-- Use `Schedule.recurs`, `spaced`, `exponential`, `fixed`, and `forever` as standalone policies
-- Transform schedule output with `map`, `as`, and `collectAll`
+- Use `Schedule.recurs`, `Schedule.spaced`, `Schedule.exponential`, `Schedule.fixed`, and `Schedule.forever` as standalone policies
+- Transform schedule output with `Schedule#map`, `Schedule#as`, and `Schedule#collectAll`
 - Compose two schedules with `&&`, `||`, and `++` to express real-world policies
 - Drive a schedule manually through the `Driver` API to observe each step without sleeping
 
@@ -133,7 +134,9 @@ object Decision {
 To see the step function in action without any real sleeping, every `Schedule` exposes a `run` method that simulates steps using the `interval.start` of each `Continue` as the `now` for the next call:
 
 ```scala
-final def run(now: OffsetDateTime, input: Iterable[In]): URIO[Env, Chunk[Out]]
+trait Schedule[-Env, -In, +Out] extends Serializable {
+  final def run(now: OffsetDateTime, input: Iterable[In]): URIO[Env, Chunk[Out]]
+}
 ```
 
 `run` does not sleep — it steps through the schedule as quickly as the list of inputs allows, collecting each output into a `Chunk`. This makes it ideal for understanding what a schedule produces.
@@ -141,7 +144,9 @@ final def run(now: OffsetDateTime, input: Iterable[In]): URIO[Env, Chunk[Out]]
 We can build a schedule from scratch using `Schedule.unfold`, which constructs a state machine from an initial value and a transition function:
 
 ```scala
-def unfold[A](a: => A)(f: A => A): Schedule.WithState[A, Any, Any, A]
+object Schedule {
+  def unfold[A](a: => A)(f: A => A): Schedule.WithState[A, Any, Any, A]
+}
 ```
 
 Each call to `step` emits the current state as the output, then advances to `f(state)`, and always continues:
@@ -167,9 +172,11 @@ object StepContract extends ZIOAppDefault {
 Chunk(1,2,4,8,16)
 ```
 
-The five inputs are consumed one per step. Each step emits the *current* state (before the doubling), so the outputs are 1, 2, 4, 8, 16. Because `unfold` always returns `Continue`, `run` stops only when it exhausts the input list.
+The five inputs are consumed one per step. Each step emits the *current* state (before the doubling), so the outputs are 1, 2, 4, 8, 16. Because `Schedule.unfold` always returns `Continue`, `Schedule#run` stops only when it exhausts the input list.
 
-Everything in `Schedule`'s companion object — `recurs`, `exponential`, `spaced`, `forever` — is built by composing `unfold` with small transformations. Understanding `unfold` means we can read any schedule's source and reason about its behaviour.
+
+
+Everything in `Schedule`'s companion object — `Schedule.recurs`, `Schedule.exponential`, `Schedule.spaced`, `Schedule.forever` — is built by composing `Schedule.unfold` with small transformations. Understanding `Schedule.unfold` means we can read any schedule's source and reason about its behaviour.
 
 ---
 
@@ -218,8 +225,10 @@ val fibBackoff: Schedule[Any, Any, Duration] =
 `Schedule.exponential(base, factor)` is defined as:
 
 ```scala
-def exponential(base: Duration, factor: Double = 2.0): Schedule.WithState[Long, Any, Any, Duration] =
-  delayed[Any, Any](forever.map(i => base * math.pow(factor, i.doubleValue)))
+object Schedule {
+  def exponential(base: Duration, factor: Double = 2.0): Schedule.WithState[Long, Any, Any, Duration] =
+    delayed[Any, Any](forever.map(i => base * math.pow(factor, i.doubleValue)))
+}
 ```
 
 It maps the `forever` step index through the exponential formula and feeds the resulting duration to `delayed`, which converts output durations into actual sleep intervals. The output emitted at each step is the delay *for that step*, not the cumulative time.
@@ -242,7 +251,7 @@ object ExponentialDemo extends ZIOAppDefault {
 1 m, 2 m, 4 m, 8 m, 16 m
 ```
 
-Each element is the delay that would be slept before the corresponding repetition. The `run` method advances the simulated clock by each interval without actually sleeping, so this completes instantly regardless of the durations involved.
+Each element is the delay that would be slept before the corresponding repetition. The `Schedule#run` method advances the simulated clock by each interval without actually sleeping, so this completes instantly regardless of the durations involved.
 
 :::note
 `Schedule.spaced(d)` adds a fixed gap *after* each run, measuring from the moment the effect finishes. `Schedule.fixed(d)` aligns to wall-clock windows: if an effect runs long and misses its window, it does not pile up extra runs — it simply waits for the next window boundary.
@@ -250,9 +259,9 @@ Each element is the delay that would be slept before the corresponding repetitio
 
 ---
 
-## 4. Transforming schedule output with map, as, and collectAll
+## 4. Transforming schedule output with Schedule#map, Schedule#as, and Schedule#collectAll
 
-Because `Out` is just the second element of the tuple returned by `step`, we can transform it with the same combinators we use on any functor: `map`, `as`, `fold`, and `collectAll`. These transformations affect only what the schedule *emits* — they do not change when or whether it continues.
+Because `Out` is just the second element of the tuple returned by `Schedule#step`, we can transform it with the same combinators we use on any functor: `Schedule#map`, `Schedule#as`, `Schedule#fold`, and `Schedule#collectAll`. These transformations affect only what the schedule *emits* — they do not change when or whether it continues.
 
 `Schedule#map` applies a function to every output value:
 
@@ -307,10 +316,10 @@ object CollectAllDemo extends ZIOAppDefault {
 Chunk(0,1,2,3,4,5)
 ```
 
-`Schedule.recurs(5)` emits the step index 0 through 5 (because `recurs(n)` uses `forever.whileOutput(_ < n)` and the final output at the `Done` step is `n`). `collectAll` gathers all six outputs into a single `Chunk` that `repeat` returns.
+`Schedule.recurs(5)` emits the step index 0 through 5 (because `Schedule.recurs(n)` uses `Schedule.forever.whileOutput(_ < n)` and the final output at the `Done` step is `n`). `Schedule#collectAll` gathers all six outputs into a single `Chunk` that `ZIO#repeat` returns.
 
 :::tip
-`Schedule#delays` and `Schedule#repetitions` are specialized aliases: `delays` converts a schedule's output to the delay `Duration` between steps, and `repetitions` converts it to the number of times the schedule has continued so far.
+`Schedule#delays` and `Schedule#repetitions` are specialized aliases: `Schedule#delays` converts a schedule's output to the delay `Duration` between steps, and `Schedule#repetitions` converts it to the number of times the schedule has continued so far.
 :::
 
 ---
@@ -411,7 +420,7 @@ val cumulativeDelay: Schedule[Any, Any, Duration] =
   Schedule.exponential(1.second) >>> Schedule.elapsed
 ```
 
-`Schedule.elapsed` emits the total elapsed time since the first step. By piping the exponential delay output into `elapsed`, we get a schedule whose output is the running sum of all delays so far.
+`Schedule.elapsed` emits the total elapsed time since the first step. By piping the exponential delay output into `Schedule.elapsed`, we get a schedule whose output is the running sum of all delays so far.
 
 ---
 
@@ -419,7 +428,7 @@ val cumulativeDelay: Schedule[Any, Any, Duration] =
 
 Every `Schedule` can produce a `Driver` — a stateful, effectful runner that exposes one step at a time. `ZIO.repeat` and `ZIO.retry` use `Driver` internally, and we can use it directly for testing or for building custom orchestration logic.
 
-We obtain a `Driver` by calling `schedule.driver`, which returns a `UIO[Schedule.Driver[State, Env, In, Out]]`:
+We obtain a `Driver` by calling `Schedule#driver`, which returns a `UIO[Schedule.Driver[State, Env, In, Out]]`:
 
 ```scala
 final case class Driver[+State, -Env, -In, +Out](
@@ -430,9 +439,9 @@ final case class Driver[+State, -Env, -In, +Out](
 )
 ```
 
-`Driver#next(in)` does everything in one effect: it calls `step`, sleeps for the interval if the decision is `Continue`, and returns the output. When the schedule returns `Done`, `next` stores the final output in `last` and then *fails* with `None.type`. This failure is how the driver signals that the schedule is exhausted.
+`Driver#next(in)` does everything in one effect: it calls `Schedule#step`, sleeps for the interval if the decision is `Continue`, and returns the output. When the schedule returns `Done`, `Driver#next` stores the final output in `Driver#last` and then *fails* with `None.type`. This failure is how the driver signals that the schedule is exhausted.
 
-Here we drive `Schedule.recurs(3)` step by step. Because `recurs` uses zero-duration intervals, no real sleeping occurs, so we do not need `TestClock`:
+Here we drive `Schedule.recurs(3)` step by step. Because `Schedule.recurs` uses zero-duration intervals, no real sleeping occurs, so we do not need `TestClock`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -467,12 +476,12 @@ Step 2 → 2
 Done  → last output was 3
 ```
 
-The first three calls to `driver.next(())` succeed because `forever.whileOutput(_ < 3)` emits 0, 1, and 2 with `Continue` decisions. On the fourth call, `forever` would emit 3, but `whileOutput(_ < 3)` sees `3 < 3 = false` and changes the `Continue` to `Done`. The driver stores output `3` in `last` and returns a failing effect.
+The first three calls to `driver.next(())` succeed because `Schedule.forever.whileOutput(_ < 3)` emits 0, 1, and 2 with `Continue` decisions. On the fourth call, `Schedule.forever` would emit 3, but `whileOutput(_ < 3)` sees `3 < 3 = false` and changes the `Continue` to `Done`. The driver stores output `3` in `Driver#last` and returns a failing effect.
 
-`driver.reset` restores `initial` so we can replay the schedule from the beginning — useful in tests where we want to reuse the same driver across multiple assertions.
+`Driver#reset` restores `Schedule#initial` so we can replay the schedule from the beginning — useful in tests where we want to reuse the same driver across multiple assertions.
 
 :::tip
-`Schedule.run(now, inputs)` (the pure simulation method from Section 2) is equivalent to manually driving a schedule with a `Driver` and ignoring the sleep intervals. Use `run` for unit tests on schedule output; use `Driver` when you need full control over the effect loop, such as streaming results or integrating with external rate-limiters.
+`Schedule#run(now, inputs)` (the pure simulation method from Section 2) is equivalent to manually driving a schedule with a `Driver` and ignoring the sleep intervals. Use `Schedule#run` for unit tests on schedule output; use `Driver` when you need full control over the effect loop, such as streaming results or integrating with external rate-limiters.
 :::
 
 ---
@@ -520,7 +529,7 @@ Final result: 200 OK
 Walking through the moving parts:
 
 - `httpRequest(counter)` fails with a `String` error for the first three calls and succeeds on the fourth.
-- `tapError(...)` logs each failure *before* the retry decision, so the log line appears immediately when the request fails rather than after any backoff delay.
+- `ZIO#tapError(...)` logs each failure *before* the retry decision, so the log line appears immediately when the request fails rather than after any backoff delay.
 - `retryPolicy` is built from two schedules intersected with `&&`. `Schedule.exponential(100.millis)` contributes the delay: 100 ms, 200 ms, 400 ms, 800 ms, and 1 600 ms. `Schedule.recurs(5)` contributes the count: stop after 5 retries. Because the request succeeds on attempt 4, only 3 retries are actually needed.
 - `.catchAll(...)` converts a terminal failure — when both the initial attempt and all retries are exhausted — into a plain success value, so the program does not crash.
 
@@ -534,7 +543,7 @@ val jitteredPolicy: Schedule[Any, Any, (Duration, Long)] =
   Schedule.exponential(100.millis).jittered && Schedule.recurs(5)
 ```
 
-`jittered` internally uses `ZIO.Random` to generate the scaling factor, which is why the `Env` type parameter of the schedule remains `Any` (Random is part of the default ZIO environment).
+`Schedule#jittered` internally uses `zio.Random` to generate the scaling factor, which is why the `Env` type parameter of the schedule remains `Any` (Random is part of the default ZIO environment).
 
 ---
 
@@ -572,7 +581,7 @@ sbt "runMain schedulebasics.HttpRetryApp"
 `Schedule` is part of ZIO core and requires no extra dependency. Add ZIO core to your own project with:
 
 ```sbt
-libraryDependencies += "dev.zio" %% "zio" % "<version>"
+libraryDependencies += "dev.zio" %% "zio" % "@VERSION@"
 ```
 
 ---
@@ -581,11 +590,11 @@ libraryDependencies += "dev.zio" %% "zio" % "<version>"
 
 This tutorial traced a complete path from "use a schedule" to "understand how a schedule works internally":
 
-- **The step-function contract.** Every `Schedule` is a pure state machine with `initial: State` and `step(now, in, state): ZIO[Env, Nothing, (State, Out, Decision)]`. The runtime reads each `Decision` and sleeps; the schedule never touches threads.
-- **Primitive factories.** `recurs(n)`, `spaced(d)`, `exponential(base)`, `fixed(d)`, `forever`, `once`, and `stop` are all built from `unfold` and delay helpers. Reading their implementations in terms of the step contract is now straightforward.
-- **Output transformation.** `map`, `as`, and `collectAll` transform `Out` without affecting when or whether the schedule continues. `collectAll` gathers every per-step output into a `Chunk` returned at the end.
+- **The step-function contract.** Every `Schedule` is a pure state machine with `Schedule#initial: State` and `Schedule#step(now, in, state): ZIO[Env, Nothing, (State, Out, Decision)]`. The runtime reads each `Decision` and sleeps; the schedule never touches threads.
+- **Primitive factories.** `Schedule.recurs(n)`, `Schedule.spaced(d)`, `Schedule.exponential(base)`, `Schedule.fixed(d)`, `Schedule.forever`, `Schedule.once`, and `Schedule.stop` are all built from `Schedule.unfold` and delay helpers. Reading their implementations in terms of the step contract is now straightforward.
+- **Output transformation.** `Schedule#map`, `Schedule#as`, and `Schedule#collectAll` transform `Out` without affecting when or whether the schedule continues. `Schedule#collectAll` gathers every per-step output into a `Chunk` returned at the end.
 - **Binary composition.** `&&` intersects two schedules (both must agree to continue; later interval wins). `||` unions them (either can continue; earlier interval wins). `++` sequences them (first runs to Done, then second takes over). `>>>` pipes the output of one schedule as the input of another.
-- **The Driver API.** `schedule.driver` returns a `UIO[Driver[State, Env, In, Out]]` whose `next(in)` steps once — sleeping inside the ZIO runtime — and fails with `None.type` when the schedule is exhausted. `ZIO.repeat` and `ZIO.retry` use this same API internally.
+- **The Driver API.** `Schedule#driver` returns a `UIO[Driver[State, Env, In, Out]]` whose `Driver#next(in)` steps once — sleeping inside the ZIO runtime — and fails with `None.type` when the schedule is exhausted. `ZIO.repeat` and `ZIO.retry` use this same API internally.
 
 ---
 
@@ -593,9 +602,9 @@ This tutorial traced a complete path from "use a schedule" to "understand how a 
 
 With the step-function mental model in hand, the following topics are natural next steps:
 
-- **[Schedule reference](../reference/schedule/index.md).** The reference documentation for `Schedule` covers every combinator and factory method in detail, including `windowed`, `upTo`, `resetAfter`, `whileInput`, `untilOutput`, `addDelay`, `modifyDelayZIO`, and the cron-like helpers `secondOfMinute`, `minuteOfHour`, `hourOfDay`, `dayOfWeek`, and `dayOfMonth`.
-- **[Built-in schedules](../reference/schedule/built-in-schedules.md).** The built-in schedules reference page catalogs every factory method in the `Schedule` companion object with concise descriptions and signatures.
-- **[Retry strategies](../reference/schedule/retrying.md).** The retrying reference page shows patterns for combining schedules with error types, including filtering which errors trigger a retry using `Schedule#whileInput`.
-- **[Repetition patterns](../reference/schedule/repetition.md).** The repetition reference page covers `ZIO#repeatUntil`, `ZIO#repeatWhile`, and `ZIO#repeatN` for common cases where a full schedule is not needed.
+- **[Schedule reference](../../reference/schedule/index.md).** The reference documentation for `Schedule` covers every combinator and factory method in detail, including `windowed`, `upTo`, `resetAfter`, `whileInput`, `untilOutput`, `addDelay`, `modifyDelayZIO`, and the cron-like helpers `secondOfMinute`, `minuteOfHour`, `hourOfDay`, `dayOfWeek`, and `dayOfMonth`.
+- **[Built-in schedules](../../reference/schedule/built-in-schedules.md).** The built-in schedules reference page catalogs every factory method in the `Schedule` companion object with concise descriptions and signatures.
+- **[Retry strategies](../../reference/schedule/retrying.md).** The retrying reference page shows patterns for combining schedules with error types, including filtering which errors trigger a retry using `Schedule#whileInput`.
+- **[Repetition patterns](../../reference/schedule/repetition.md).** The repetition reference page covers `ZIO#repeatUntil`, `ZIO#repeatWhile`, and `ZIO#repeatN` for common cases where a full schedule is not needed.
 - **ZStream scheduling.** `ZStream.fromSchedule(schedule)` treats any schedule as a finite or infinite source of `Out` values, stepping once per emitted element. This connects scheduling to the broader stream processing API.
 - **Test scheduling.** ZIO Test's `TestClock` lets you advance simulated time instantly, eliminating real sleeping in tests that use `spaced`, `exponential`, or any other delay-based schedule. This is the standard approach for unit-testing retry and repeat logic.

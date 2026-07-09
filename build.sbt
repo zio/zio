@@ -820,6 +820,7 @@ lazy val docs = project.module
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     resolvers += Resolver.sonatypeCentralSnapshots,
     mdocVariables ++= Map(
+      "VERSION"                        -> version.value.split('+').head,
       "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion,
       "ZIO_CONFIG_VERSION"             -> ZioConfigVersion,
       "ZIO_JSON_VERSION"               -> ZioJsonVersion

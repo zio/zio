@@ -38,4 +38,4 @@ val repeated = action retryOrElse (policy, orElse)
 
 ## See Also
 
-- [Schedule Step by Step — Retry and Repeat Policies in ZIO](../../guides/schedule.md) — A hands-on tutorial covering `ZIO#retry`, exponential backoff with `&&`, output transformation, schedule composition, and the `Driver` API with worked examples.
+- [Schedule Step by Step — Retry and Repeat Policies in ZIO](../../guides/tutorials/schedule.md) — A hands-on tutorial covering `ZIO#retry`, exponential backoff with `&&`, output transformation, schedule composition, and the `Driver` API with worked examples.

@@ -1,5 +1,5 @@
 import explicitdeps.ExplicitDepsPlugin.autoImport.*
-import mdoc.MdocPlugin.autoImport.{mdocIn, mdocOut}
+import mdoc.MdocPlugin.autoImport.{mdocIn, mdocOut, mdocVariables}
 import sbt.*
 import sbt.Keys.*
 import sbtbuildinfo.*
@@ -301,7 +301,8 @@ object BuildHelper {
 
   def mdocSettings(docsDir: String, outDir: String) = Seq[sbt.Def.Setting[_]](
     mdocIn  := baseDirectory.value / docsDir,
-    mdocOut := (LocalRootProject / baseDirectory).value / outDir
+    mdocOut := (LocalRootProject / baseDirectory).value / outDir,
+    mdocVariables += "VERSION" -> version.value.split('+').head
   )
 
   implicit class ModuleHelper(p: Project) {

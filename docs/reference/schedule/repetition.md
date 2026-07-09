@@ -40,4 +40,4 @@ val repeated = action repeatOrElse (policy, orElse)
 
 ## See Also
 
-- [Schedule Step by Step — Retry and Repeat Policies in ZIO](../../guides/schedule.md) — A hands-on tutorial covering `ZIO#repeat`, primitive schedule factories, output transformation, binary composition (`&&`, `||`, `++`), and the `Driver` API with worked examples.
+- [Schedule Step by Step — Retry and Repeat Policies in ZIO](../../guides/tutorials/schedule.md) — A hands-on tutorial covering `ZIO#repeat`, primitive schedule factories, output transformation, binary composition (`&&`, `||`, `++`), and the `Driver` API with worked examples.
