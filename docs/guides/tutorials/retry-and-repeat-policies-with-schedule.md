@@ -1,5 +1,5 @@
 ---
-id: schedule
+id: retry-and-repeat-policies-with-schedule
 title: "Schedule Step by Step — Retry and Repeat Policies in ZIO"
 sidebar_label: "Retry and Repeat Policies with Schedule"
 description: "Learn how ZIO's Schedule works as a pure state machine, and build retry and repeat policies from primitives, composition, and the Driver API."
