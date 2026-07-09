@@ -643,7 +643,7 @@ val finalized: IO[String, Unit] =
 // finalized: IO[String, Unit] = DynamicNoBox(
 //   trace = "repl.MdocSession.MdocApp.finalized(handling-resources.md:19)",
 //   update = 1L,
-//   f = zio.ZIO$$$Lambda$19612/0x00007f2a26ee3aa8@572fc27e
+//   f = zio.ZIO$$$Lambda$19615/0x00007effe9f70f60@4fd95891
 // )
 ```
 
@@ -2351,12 +2351,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20024/0x00007f2a26fccd68@119a92c5
+//   eval = zio.Ref$$$Lambda$20036/0x00007effe9693868@e02dd4
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20024/0x00007f2a26fccd68@2b734063
+//   eval = zio.Ref$$$Lambda$20036/0x00007effe9693868@1c8dfa09
 // )
 
 sealed trait State
@@ -2367,7 +2367,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20024/0x00007f2a26fccd68@4610d557
+//   eval = zio.Ref$$$Lambda$20036/0x00007effe9693868@7c812956
 // )
 ```
 
@@ -2384,7 +2384,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20024/0x00007f2a26fccd68@5910f049
+//   eval = zio.Ref$$$Lambda$20036/0x00007effe9693868@6337e6ae
 // )
 ```
 
@@ -2396,7 +2396,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20024/0x00007f2a26fccd68@4cc39bfc
+//   eval = zio.Ref$$$Lambda$20036/0x00007effe9693868@109689ab
 // )
 ```
 
@@ -14390,7 +14390,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20183/0x00007f2a2706db18@31873548
+//   eval = zio.Supervisor$$$Lambda$20188/0x00007effe9f8c8d0@7f17d81d
 // )
 ```
 
@@ -15192,7 +15192,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$20151/0x00007f2a27037dc0@3b6b448b
+//     f = zio.ZIO$$$Lambda$20163/0x00007effe9e6a738@758467f
 //   ),
 //   successK = <function1>
 // )
@@ -16152,6 +16152,10 @@ val orElse: (E, Option[B]) => ZIO[R1, E2, B] = ???
 val repeated = action repeatOrElse (policy, orElse)
 ```
 
+## See Also
+
+- [Schedule Step by Step — Retry and Repeat Policies in ZIO](../../guides/tutorials/retry-and-repeat-policies-with-schedule.md) — A hands-on tutorial covering `ZIO#repeat`, primitive schedule factories, output transformation, binary composition (`&&`, `||`, `++`), and the `Driver` API with worked examples.
+
 ---
 
 ## Retrying(Schedule)
@@ -16183,6 +16187,10 @@ val orElse: (E, S) => ZIO[R1, E1, A1] = ???
 
 val repeated = action retryOrElse (policy, orElse)
 ```
+
+## See Also
+
+- [Schedule Step by Step — Retry and Repeat Policies in ZIO](../../guides/tutorials/retry-and-repeat-policies-with-schedule.md) — A hands-on tutorial covering `ZIO#retry`, exponential backoff with `&&`, output transformation, schedule composition, and the `Driver` API with worked examples.
 
 ---
 
@@ -19072,7 +19080,7 @@ In this example, we create a fiber-local request ID and automatically synchroniz
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@3639a437
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@40012307
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -19100,9 +19108,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
+//     eval = zio.Scope$$$Lambda$19576/0x00007effea484ca8@b7eaa86
 //   ),
-//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@2d755afd
+//   successK = zio.ZIO$$$Lambda$19577/0x00007effea484f60@697ec37b
 // )
 ```
 
@@ -19149,7 +19157,7 @@ Below is a complete example showing how to wrap a Java `ThreadLocal` and use it 
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@31543787
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@6d002d94
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -19179,9 +19187,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
+//     eval = zio.Scope$$$Lambda$19576/0x00007effea484ca8@b7eaa86
 //   ),
-//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@7d27489
+//   successK = zio.ZIO$$$Lambda$19577/0x00007effea484f60@3be69f0d
 // )
 ```
 
@@ -19210,7 +19218,7 @@ To use `ThreadLocalBridge` in your application, include `ThreadLocalBridge.live`
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@392c0406
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@530c8560
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -19225,9 +19233,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
+//     eval = zio.Scope$$$Lambda$19576/0x00007effea484ca8@b7eaa86
 //   ),
-//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@1cd78433
+//   successK = zio.ZIO$$$Lambda$19577/0x00007effea484f60@3bb0ec68
 // )
 ```
 
@@ -19269,7 +19277,7 @@ Setting a value automatically triggers the link function, so the `ThreadLocal` i
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@355c295a
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@24bf77c5
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -19286,9 +19294,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
+//     eval = zio.Scope$$$Lambda$19576/0x00007effea484ca8@b7eaa86
 //   ),
-//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@2579971f
+//   successK = zio.ZIO$$$Lambda$19577/0x00007effea484f60@473c2316
 // )
 ```
 
@@ -19318,7 +19326,7 @@ This is useful for extracting information while updating the state in one operat
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@556be341
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@1d6d81f3
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -19335,9 +19343,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
+//     eval = zio.Scope$$$Lambda$19576/0x00007effea484ca8@b7eaa86
 //   ),
-//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@472134e1
+//   successK = zio.ZIO$$$Lambda$19577/0x00007effea484f60@43e2ea3e
 // )
 ```
 
@@ -19367,7 +19375,7 @@ This is useful for scoped context changes, such as temporarily changing the requ
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@6e4bc0cb
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@2eb6e1e8
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -19398,9 +19406,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
+//     eval = zio.Scope$$$Lambda$19576/0x00007effea484ca8@b7eaa86
 //   ),
-//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@4c3a7090
+//   successK = zio.ZIO$$$Lambda$19577/0x00007effea484f60@255ef058
 // )
 ```
 
@@ -19431,7 +19439,7 @@ Reading the current value does not trigger synchronization since the `ThreadLoca
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@593e5af8
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@1180133a
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -19447,9 +19455,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
+//     eval = zio.Scope$$$Lambda$19576/0x00007effea484ca8@b7eaa86
 //   ),
-//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@4c7d02b6
+//   successK = zio.ZIO$$$Lambda$19577/0x00007effea484f60@7e62d6e3
 // )
 ```
 
@@ -19479,7 +19487,7 @@ When you modify the `FiberRef` value, the link function synchronizes the change 
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@3b77a62
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@250fad2c
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -19506,9 +19514,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
+//     eval = zio.Scope$$$Lambda$19576/0x00007effea484ca8@b7eaa86
 //   ),
-//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@79b443d2
+//   successK = zio.ZIO$$$Lambda$19577/0x00007effea484f60@7570cabe
 // )
 ```
 
@@ -19527,7 +19535,7 @@ When a child fiber forks from the parent, it inherits the parent's current value
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@57d79d41
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@48969feb
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -19550,9 +19558,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
+//     eval = zio.Scope$$$Lambda$19576/0x00007effea484ca8@b7eaa86
 //   ),
-//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@784b4ce3
+//   successK = zio.ZIO$$$Lambda$19577/0x00007effea484f60@1f1ea043
 // )
 ```
 
@@ -19567,7 +19575,7 @@ When using combinators like `ZIO.collectAllPar` or other parallel composition op
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@72626e85
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@43cfcf25
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -19589,9 +19597,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
+//     eval = zio.Scope$$$Lambda$19576/0x00007effea484ca8@b7eaa86
 //   ),
-//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@2c07d759
+//   successK = zio.ZIO$$$Lambda$19577/0x00007effea484f60@31a6fd3f
 // )
 ```
 
@@ -19606,7 +19614,7 @@ If the link function throws an exception, it will propagate as a defect (unhandl
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@735f9034
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@57542b68
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -19626,9 +19634,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
+//     eval = zio.Scope$$$Lambda$19576/0x00007effea484ca8@b7eaa86
 //   ),
-//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@2bd4d58a
+//   successK = zio.ZIO$$$Lambda$19577/0x00007effea484f60@f97454
 // )
 ```
 
@@ -19645,7 +19653,7 @@ When the scope exits (whether due to success, failure, or interruption), the fin
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@20dbf682
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@4337c6dc
 
 val example = {
   val scoped = ZIO.scoped {
@@ -19667,9 +19675,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
+//       eval = zio.Scope$$$Lambda$19576/0x00007effea484ca8@b7eaa86
 //     ),
-//     successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@352a657f
+//     successK = zio.ZIO$$$Lambda$19577/0x00007effea484f60@1ce64d03
 //   ),
 //   successK = <function1>
 // )
@@ -23399,14 +23407,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@2aa825eb
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@1a224fe
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@6df6f475
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@464c4d3
 ```
 
 ## From ZIO
@@ -29820,9 +29828,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$19583/0x00007f2a26ecf220@4a65e4e6
+//             onState = zio.ZIO$$$Lambda$19586/0x00007effea1d8f88@79c606f8
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$19592/0x00007f2a26ed9c10@f6763ce
+//           successK = zio.test.package$ZTest$$$Lambda$19595/0x00007effea1df7e0@3cc487a4
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -31447,7 +31455,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+83-c7b46f3b-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+86-143473c1-SNAPSHOT"
 ```
 
 ## Example
@@ -37849,9 +37857,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$19573/0x00007f2a26ec7000@7d0e39ca
+//     eval = zio.Scope$$$Lambda$19576/0x00007effea484ca8@b7eaa86
 //   ),
-//   successK = zio.ZIO$$$Lambda$19574/0x00007f2a26ec72b8@573fc8b1
+//   successK = zio.ZIO$$$Lambda$19577/0x00007effea484f60@4ad5d442
 // )
 ```
 
@@ -39622,6 +39630,595 @@ You started this tutorial with no knowledge of `Reloadable` and a plain `ZLayer`
 - [ScopedRef Reference](../../reference/resource/scopedref.md) — The underlying primitive that powers `Reloadable`: a mutable reference whose value owns a resource scope.
 - [ZLayer Reference](../../reference/contextual/zlayer.md) — Deep dive into how `ZLayer` models dependency graphs and resource lifecycles.
 - [Schedule Reference](../../reference/schedule/index.md) — All the built-in schedules you can combine to control the auto-reload interval.
+
+---
+
+## Schedule Step by Step — Retry and Repeat Policies in ZIO
+
+## Introduction
+
+`Schedule[-Env, -In, +Out]` is ZIO's composable policy for recurring effects. A schedule does not schedule threads or set timers — it is a pure step function that, given the current time and the latest value from your effect, returns exactly three things: a fresh internal state, an output value, and a `Decision` that is either `Continue(interval)` (sleep until `interval.start`, then run again) or `Done` (stop).
+
+The ZIO runtime reads each `Decision` and sleeps accordingly. The schedule stays purely functional; no mutable state or threads are involved until a `Driver` interprets it inside a running fiber.
+
+We start in Section 1 by putting schedules to work right away with `.repeat` and `.retry`. Then we peel back the layers one at a time: the step-function contract, primitive factory methods, output transformations, binary composition, and finally the `Driver` API for manual orchestration.
+
+**By the end of this tutorial you will be able to:**
+- Explain the three-part `step` contract and trace a schedule's execution by hand
+- Use `Schedule.recurs`, `Schedule.spaced`, `Schedule.exponential`, `Schedule.fixed`, and `Schedule.forever` as standalone policies
+- Transform schedule output with `Schedule#map`, `Schedule#as`, and `Schedule#collectAll`
+- Compose two schedules with `&&`, `||`, and `++` to express real-world policies
+- Drive a schedule manually through the `Driver` API to observe each step without sleeping
+
+**Prerequisites:** Familiarity with `ZIO[R, E, A]`, `flatMap`, `map`, `orDie`, `ZIO.succeed`, `ZIO.fail`, and the conceptual meaning of `ZIO.repeat` and `ZIO.retry`.
+
+---
+
+## 1. Using a Schedule with repeat and retry
+
+A `Schedule` value plugs directly into `ZIO#repeat` or `ZIO#retry`. The runtime takes care of sleeping and looping; all we provide is the policy.
+
+`ZIO#repeat(schedule)` runs the effect once immediately, then checks the schedule after each success. It keeps repeating as long as the schedule says `Continue`, and returns the schedule's last output value when the schedule says `Done`:
+
+```scala
+
+object HelloRepeat extends ZIOAppDefault {
+  def run =
+    ZIO.unit                           // the effect to repeat
+      .repeat(Schedule.recurs(4))      // repeat 4 additional times = 5 runs total
+      .flatMap(n => Console.printLine(s"Final schedule output: $n"))
+      .orDie
+}
+```
+
+Running `HelloRepeat` prints:
+
+```
+Final schedule output: 4
+```
+
+The value `4` is the last output emitted by `Schedule.recurs(4)` — the 0-based index of the final step. The effect itself ran five times: once initially and four more times directed by the schedule.
+
+We can make that run-count concrete by using a `Ref` as a counter:
+
+```scala
+
+object RepeatCounter extends ZIOAppDefault {
+  def run = for {
+    counter <- Ref.make(0)              // starts at zero
+    _       <- counter.update(_ + 1)   // increments by one on every run
+                 .repeat(Schedule.recurs(3))
+    count   <- counter.get
+    _       <- Console.printLine(s"Effect ran $count times")
+  } yield ()
+  // 1 initial run + 3 repeats = 4 total
+}
+```
+
+```
+Effect ran 4 times
+```
+
+`ZIO#retry(policy)` works in the other direction: the schedule receives the *error* value after each failure, and the runtime retries as long as the policy says `Continue`. We can observe this with an always-failing effect:
+
+```scala
+
+object RetryOnce extends ZIOAppDefault {
+  // Increments a counter, then fails with the new count as the error message
+  def alwaysFail(ref: Ref[Int]): IO[String, Nothing] =
+    ref.updateAndGet(_ + 1).flatMap(n => ZIO.fail(s"Error: $n"))
+
+  def run = for {
+    ref    <- Ref.make(0)
+    result <- alwaysFail(ref)
+                .retry(Schedule.once)              // allow exactly 1 retry
+                .catchAll(err => ZIO.succeed(err)) // capture the final error
+    _      <- Console.printLine(result)
+  } yield ()
+}
+```
+
+```
+Error: 2
+```
+
+`Schedule.once` permits one retry, so the effect runs twice in total. The first attempt produces `"Error: 1"` and the second `"Error: 2"`. Since both fail, the final error is `"Error: 2"`.
+
+:::tip
+`ZIO#repeat` consumes effect *successes*; `ZIO#retry` consumes effect *errors*. The schedule's `In` type must match whichever channel it reads.
+:::
+
+---
+
+## 2. The step-function contract: initial, step, and Decision
+
+Every `Schedule` is a pure state machine defined by exactly two abstract members:
+
+```scala
+trait Schedule[-Env, -In, +Out] extends Serializable {
+  type State
+  def initial: State
+  def step(now: OffsetDateTime, in: In, state: State)(implicit trace: Trace)
+    : ZIO[Env, Nothing, (State, Out, Decision)]
+}
+```
+
+`initial` provides the seed value for the opaque `State` type. `step` takes three arguments — the current wall-clock time, the latest input from the effect, and the current state — and returns a `ZIO` that produces a three-element tuple: the next state, an output value, and a `Decision`.
+
+`Decision` is a sealed ADT with two cases:
+
+```scala
+sealed trait Decision
+
+object Decision {
+  final case class Continue(interval: Intervals) extends Decision
+  case object Done                               extends Decision
+}
+```
+
+`Continue(interval)` tells the runtime to sleep until `interval.start` and then run the effect again, passing the new state to the next `step` call. `Done` tells the runtime to stop and return the schedule's last output.
+
+To see the step function in action without any real sleeping, every `Schedule` exposes a `run` method that simulates steps using the `interval.start` of each `Continue` as the `now` for the next call:
+
+```scala
+trait Schedule[-Env, -In, +Out] extends Serializable {
+  final def run(now: OffsetDateTime, input: Iterable[In]): URIO[Env, Chunk[Out]]
+}
+```
+
+`run` does not sleep — it steps through the schedule as quickly as the list of inputs allows, collecting each output into a `Chunk`. This makes it ideal for understanding what a schedule produces.
+
+We can build a schedule from scratch using `Schedule.unfold`, which constructs a state machine from an initial value and a transition function:
+
+```scala
+object Schedule {
+  def unfold[A](a: => A)(f: A => A): Schedule.WithState[A, Any, Any, A]
+}
+```
+
+Each call to `step` emits the current state as the output, then advances to `f(state)`, and always continues:
+
+```scala
+
+object StepContract extends ZIOAppDefault {
+  // A schedule that emits 1, 2, 4, 8, 16, ... (doubling state)
+  val doublingSchedule: Schedule[Any, Any, Long] =
+    Schedule.unfold(1L)(_ * 2)    // initial = 1; each step: new state = state * 2
+
+  def run = for {
+    now    <- Clock.currentDateTime
+    // run simulates 5 steps without sleeping
+    output <- doublingSchedule.run(now, List.fill(5)(()))
+    _      <- Console.printLine(output)
+  } yield ()
+}
+```
+
+```
+Chunk(1,2,4,8,16)
+```
+
+The five inputs are consumed one per step. Each step emits the *current* state (before the doubling), so the outputs are 1, 2, 4, 8, 16. Because `Schedule.unfold` always returns `Continue`, `Schedule#run` stops only when it exhausts the input list.
+
+Everything in `Schedule`'s companion object — `Schedule.recurs`, `Schedule.exponential`, `Schedule.spaced`, `Schedule.forever` — is built by composing `Schedule.unfold` with small transformations. Understanding `Schedule.unfold` means we can read any schedule's source and reason about its behaviour.
+
+---
+
+## 3. Primitive factory methods: recurs, spaced, exponential, forever, and friends
+
+The `Schedule` companion object provides ready-made schedules for the most common policies. All of them are defined in terms of `unfold`, `forever`, and delay helpers, so they share the same three-part contract we just studied.
+
+Here are the most frequently used factory methods along with what they emit and when they stop:
+
+```scala
+
+// recurs(n): repeat exactly n additional times; emits 0-based step index
+val thrice: Schedule[Any, Any, Long] =
+  Schedule.recurs(3)            // emits 0, 1, 2 (3 steps), then Done
+
+// forever: repeat without bound; emits the step index
+val always: Schedule[Any, Any, Long] =
+  Schedule.forever              // emits 0, 1, 2, 3, ... indefinitely
+
+// once: repeat exactly once; emits Unit
+val one: Schedule[Any, Any, Unit] =
+  Schedule.once                 // emits () once, then Done
+
+// stop: never recur; emits Unit and immediately Done
+val noop: Schedule[Any, Any, Unit] =
+  Schedule.stop
+
+// spaced(d): repeat with a fixed gap of d after each run; emits the step index
+val everySecond: Schedule[Any, Any, Long] =
+  Schedule.spaced(1.second)     // gap = 1 second between runs
+
+// fixed(d): wall-clock-aligned window; does not pile up if the effect runs late
+val onTheClock: Schedule[Any, Any, Long] =
+  Schedule.fixed(10.seconds)    // emits 0, 1, 2, ... on each 10-second window
+
+// exponential(base, factor): delay grows as base * factor^n; emits the delay Duration
+val backoff: Schedule[Any, Any, Duration] =
+  Schedule.exponential(100.millis)   // 100ms, 200ms, 400ms, 800ms, ...
+
+// fibonacci(one): delay follows the fibonacci sequence; emits the delay Duration
+val fibBackoff: Schedule[Any, Any, Duration] =
+  Schedule.fibonacci(100.millis)     // 100ms, 100ms, 200ms, 300ms, 500ms, ...
+```
+
+`Schedule.exponential(base, factor)` is defined as:
+
+```scala
+object Schedule {
+  def exponential(base: Duration, factor: Double = 2.0): Schedule.WithState[Long, Any, Any, Duration] =
+    delayed[Any, Any](forever.map(i => base * math.pow(factor, i.doubleValue)))
+}
+```
+
+It maps the `forever` step index through the exponential formula and feeds the resulting duration to `delayed`, which converts output durations into actual sleep intervals. The output emitted at each step is the delay *for that step*, not the cumulative time.
+
+We can confirm the doubling sequence using `schedule.run`:
+
+```scala
+
+object ExponentialDemo extends ZIOAppDefault {
+  def run = for {
+    now    <- Clock.currentDateTime
+    delays <- Schedule.exponential(1.minute).run(now, List.fill(5)(()))
+    _      <- Console.printLine(delays.map(_.render).mkString(", "))
+  } yield ()
+}
+```
+
+```
+1 m, 2 m, 4 m, 8 m, 16 m
+```
+
+Each element is the delay that would be slept before the corresponding repetition. The `Schedule#run` method advances the simulated clock by each interval without actually sleeping, so this completes instantly regardless of the durations involved.
+
+:::note
+`Schedule.spaced(d)` adds a fixed gap *after* each run, measuring from the moment the effect finishes. `Schedule.fixed(d)` aligns to wall-clock windows: if an effect runs long and misses its window, it does not pile up extra runs — it simply waits for the next window boundary.
+:::
+
+---
+
+## 4. Transforming schedule output with Schedule#map, Schedule#as, and Schedule#collectAll
+
+Because `Out` is just the second element of the tuple returned by `Schedule#step`, we can transform it with the same combinators we use on any functor: `Schedule#map`, `Schedule#as`, `Schedule#fold`, and `Schedule#collectAll`. These transformations affect only what the schedule *emits* — they do not change when or whether it continues.
+
+`Schedule#map` applies a function to every output value:
+
+```scala
+
+object MapDemo extends ZIOAppDefault {
+  // Turn the raw step index into a human-readable message
+  val labeled: Schedule[Any, Any, String] =
+    Schedule.recurs(3).map(n => s"attempt ${n + 1} of 4")
+
+  def run = for {
+    now    <- Clock.currentDateTime
+    labels <- labeled.run(now, List.fill(4)(()))
+    _      <- ZIO.foreach(labels)(Console.printLine(_))
+  } yield ()
+}
+```
+
+```
+attempt 1 of 4
+attempt 2 of 4
+attempt 3 of 4
+attempt 4 of 4
+```
+
+`Schedule#as` replaces every output with a constant value, which is useful when the step index carries no meaning in your domain:
+
+```scala
+
+// Retry up to 5 times; the schedule output is () rather than a raw Long
+val silentRetry: Schedule[Any, Any, Unit] =
+  Schedule.recurs(5).as(())
+```
+
+`Schedule#collectAll` accumulates *every* output into a `Chunk`. The schedule continues for as long as the underlying schedule would continue, and returns all outputs together as a single `Chunk` once it is done:
+
+```scala
+
+object CollectAllDemo extends ZIOAppDefault {
+  def run =
+    ZIO.unit
+      .repeat(Schedule.recurs(5).collectAll)
+      .flatMap(chunk => Console.printLine(chunk))
+      .orDie
+}
+```
+
+```
+Chunk(0,1,2,3,4,5)
+```
+
+`Schedule.recurs(5)` emits the step index 0 through 5 (because `Schedule.recurs(n)` uses `Schedule.forever.whileOutput(_ < n)` and the final output at the `Done` step is `n`). `Schedule#collectAll` gathers all six outputs into a single `Chunk` that `ZIO#repeat` returns.
+
+:::tip
+`Schedule#delays` and `Schedule#repetitions` are specialized aliases: `Schedule#delays` converts a schedule's output to the delay `Duration` between steps, and `Schedule#repetitions` converts it to the number of times the schedule has continued so far.
+:::
+
+---
+
+## 5. Composing two schedules with &&, ||, and ++
+
+The real power of `Schedule` emerges when we combine two policies. ZIO provides three primary binary composition operators, each merging the `Decision` values from both schedules in a different way.
+
+### Intersection with `&&`
+
+`s1 && s2` continues only when *both* schedules say `Continue`, taking the *later* of the two start intervals. The output is a tuple `(out1, out2)`. If either schedule says `Done`, the combined schedule also says `Done`:
+
+```scala
+
+object IntersectionDemo extends ZIOAppDefault {
+  // Exponential backoff, capped at 3 additional retries
+  val cappedBackoff: Schedule[Any, Any, (Duration, Long)] =
+    Schedule.exponential(1.minute) && Schedule.recurs(2)
+
+  def run = for {
+    now    <- Clock.currentDateTime
+    output <- cappedBackoff.run(now, 1 to 10)
+    _      <- ZIO.foreachDiscard(output) { case (d, n) =>
+                Console.printLine(s"step $n: delay ${d.render}")
+              }
+  } yield ()
+}
+```
+
+```
+step 0: delay 1 m
+step 1: delay 2 m
+step 2: delay 4 m
+```
+
+Although we supplied 10 inputs, `Schedule.recurs(2)` fires `Done` after its third step (outputs 0, 1, 2). The intersection respects that limit, stopping after exactly 3 elements even though `exponential` would continue indefinitely. This is the standard pattern for "exponential backoff with a maximum retry count."
+
+### Union with `||`
+
+`s1 || s2` continues when *either* schedule says `Continue`, taking the *earlier* of the two start intervals. The output is again a tuple `(out1, out2)`. The combined schedule only stops when *both* say `Done`:
+
+```scala
+
+// Keep backing off exponentially OR at most every 30 seconds — whichever fires sooner
+val boundedExp: Schedule[Any, Any, (Duration, Long)] =
+  Schedule.exponential(500.millis) || Schedule.spaced(30.seconds)
+```
+
+`boundedExp` never waits longer than 30 seconds between retries because `spaced(30.seconds)` always fires with a 30-second interval. The exponential component dominates the early steps (500ms, 1s, 2s, …) and the spaced component kicks in as a ceiling once the exponential delay exceeds 30 seconds.
+
+### Sequencing with `++`
+
+`s1 ++ s2` (also spelled `s1.andThen(s2)`) runs the first schedule to completion, then hands control to the second. The output type is the wider of the two `Out` types:
+
+```scala
+
+// Retry 3 times immediately, then switch to a 5-second cadence for up to 10 more attempts
+val multiPhase: Schedule[Any, Any, Long] =
+  Schedule.recurs(3) ++ (Schedule.spaced(5.seconds) && Schedule.recurs(9)).map(_._2)
+```
+
+We can verify sequencing behaviour by running a combined schedule and observing the total step count:
+
+```scala
+
+object AndThenDemo extends ZIOAppDefault {
+  // 3 immediate steps (recurs(2)), then 3 spaced steps ((spaced && recurs(2)).map)
+  val twoFastThenThreeSlow: Schedule[Any, Any, Long] =
+    Schedule.recurs(2) ++ (Schedule.spaced(1.second) && Schedule.recurs(2)).map(_._2)
+
+  def run = for {
+    now    <- Clock.currentDateTime
+    output <- twoFastThenThreeSlow.run(now, 1 to 10)
+    _      <- Console.printLine(s"Total steps: ${output.length}")
+  } yield ()
+}
+```
+
+```
+Total steps: 6
+```
+
+The first phase (`recurs(2)`) contributes 2 steps with no delay. The second phase (`spaced(1.second) && recurs(3)`) contributes 3 steps with a 1-second gap each. Together the schedule runs exactly 5 additional repetitions before stopping.
+
+### Piping with `>>>`
+
+`s1 >>> s2` pipes the *output* of `s1` as the *input* to `s2`. This is less common than the three operators above but is useful when the output of one schedule drives the logic of another:
+
+```scala
+
+// Measure cumulative time elapsed across all retry delays
+val cumulativeDelay: Schedule[Any, Any, Duration] =
+  Schedule.exponential(1.second) >>> Schedule.elapsed
+```
+
+`Schedule.elapsed` emits the total elapsed time since the first step. By piping the exponential delay output into `Schedule.elapsed`, we get a schedule whose output is the running sum of all delays so far.
+
+---
+
+## 6. Driving a schedule manually with the Driver API
+
+Every `Schedule` can produce a `Driver` — a stateful, effectful runner that exposes one step at a time. `ZIO.repeat` and `ZIO.retry` use `Driver` internally, and we can use it directly for testing or for building custom orchestration logic.
+
+We obtain a `Driver` by calling `Schedule#driver`, which returns a `UIO[Schedule.Driver[State, Env, In, Out]]`:
+
+```scala
+final case class Driver[+State, -Env, -In, +Out](
+  next  : In => ZIO[Env, None.type, Out],  // advance one step; fails with None when Done
+  last  : IO[NoSuchElementException, Out], // retrieve the most recent output
+  reset : UIO[Unit],                       // restore initial state
+  state : UIO[State]                       // inspect the current state
+)
+```
+
+`Driver#next(in)` does everything in one effect: it calls `Schedule#step`, sleeps for the interval if the decision is `Continue`, and returns the output. When the schedule returns `Done`, `Driver#next` stores the final output in `Driver#last` and then *fails* with `None.type`. This failure is how the driver signals that the schedule is exhausted.
+
+Here we drive `Schedule.recurs(3)` step by step. Because `Schedule.recurs` uses zero-duration intervals, no real sleeping occurs, so we do not need `TestClock`:
+
+```scala
+
+object DriverDemo extends ZIOAppDefault {
+  def run = for {
+    driver <- Schedule.recurs(3).driver     // acquire the stateful runner
+
+    // Three successful steps: next returns the step index (0, 1, 2)
+    out0   <- driver.next(())
+    _      <- Console.printLine(s"Step 0 → $out0")
+
+    out1   <- driver.next(())
+    _      <- Console.printLine(s"Step 1 → $out1")
+
+    out2   <- driver.next(())
+    _      <- Console.printLine(s"Step 2 → $out2")
+
+    // The fourth step: whileOutput(_ < 3) fires Done because 3 < 3 = false.
+    // next fails with None; last holds the output produced at the Done step.
+    _      <- driver.next(()).catchAll { _ =>
+                driver.last.flatMap(n => Console.printLine(s"Done  → last output was $n"))
+              }
+  } yield ()
+}
+```
+
+```
+Step 0 → 0
+Step 1 → 1
+Step 2 → 2
+Done  → last output was 3
+```
+
+The first three calls to `driver.next(())` succeed because `Schedule.forever.whileOutput(_ < 3)` emits 0, 1, and 2 with `Continue` decisions. On the fourth call, `Schedule.forever` would emit 3, but `whileOutput(_ < 3)` sees `3 < 3 = false` and changes the `Continue` to `Done`. The driver stores output `3` in `Driver#last` and returns a failing effect.
+
+`Driver#reset` restores `Schedule#initial` so we can replay the schedule from the beginning — useful in tests where we want to reuse the same driver across multiple assertions.
+
+:::tip
+`Schedule#run(now, inputs)` (the pure simulation method from Section 2) is equivalent to manually driving a schedule with a `Driver` and ignoring the sleep intervals. Use `Schedule#run` for unit tests on schedule output; use `Driver` when you need full control over the effect loop, such as streaming results or integrating with external rate-limiters.
+:::
+
+---
+
+## 7. Putting It All Together
+
+We now have everything we need to write a realistic HTTP retry policy. The scenario: an HTTP endpoint is flaky and fails the first three attempts. We want to retry with exponential backoff, but cap the number of extra attempts at five. Each failure should be logged before the next attempt:
+
+```scala
+
+object HttpRetryApp extends ZIOAppDefault {
+
+  // Simulates an HTTP request: fails the first three attempts, then succeeds
+  def httpRequest(counter: Ref[Int]): IO[String, String] =
+    counter.updateAndGet(_ + 1).flatMap { attempt =>
+      if (attempt <= 3) ZIO.fail(s"503 Service Unavailable (attempt $attempt)")
+      else ZIO.succeed("200 OK")
+    }
+
+  // Policy: exponential backoff with a hard cap of 5 additional attempts.
+  // && requires both schedules to say Continue; the earlier to stop wins.
+  // The output is (Duration, Long) — the delay and the retry count.
+  val retryPolicy: Schedule[Any, Any, (Duration, Long)] =
+    Schedule.exponential(100.millis) && Schedule.recurs(5)
+
+  def run = for {
+    counter <- Ref.make(0)
+    result  <- httpRequest(counter)
+                 .tapError(err => Console.printLine(s"  Request failed: $err"))
+                 .retry(retryPolicy)
+                 .catchAll(err => ZIO.succeed(s"Exhausted retries: $err"))
+    _       <- Console.printLine(s"Final result: $result")
+  } yield ()
+}
+```
+
+```
+  Request failed: 503 Service Unavailable (attempt 1)
+  Request failed: 503 Service Unavailable (attempt 2)
+  Request failed: 503 Service Unavailable (attempt 3)
+Final result: 200 OK
+```
+
+Walking through the moving parts:
+
+- `httpRequest(counter)` fails with a `String` error for the first three calls and succeeds on the fourth.
+- `ZIO#tapError(...)` logs each failure *before* the retry decision, so the log line appears immediately when the request fails rather than after any backoff delay.
+- `retryPolicy` is built from two schedules intersected with `&&`. `Schedule.exponential(100.millis)` contributes the delay: 100 ms, 200 ms, 400 ms, 800 ms, and 1 600 ms. `Schedule.recurs(5)` contributes the count: stop after 5 retries. Because the request succeeds on attempt 4, only 3 retries are actually needed.
+- `.catchAll(...)` converts a terminal failure — when both the initial attempt and all retries are exhausted — into a plain success value, so the program does not crash.
+
+To add jitter (randomized delay scaling, which reduces retry storms in distributed systems), replace `Schedule.exponential(100.millis)` with `Schedule.exponential(100.millis).jittered`, which multiplies each delay by a random factor between 0.8 and 1.2:
+
+```scala
+
+// Same policy with ±20% jitter applied to every exponential delay
+val jitteredPolicy: Schedule[Any, Any, (Duration, Long)] =
+  Schedule.exponential(100.millis).jittered && Schedule.recurs(5)
+```
+
+`Schedule#jittered` internally uses `zio.Random` to generate the scaling factor, which is why the `Env` type parameter of the schedule remains `Any` (Random is part of the default ZIO environment).
+
+---
+
+## 8. Running the Examples
+
+The companion source files for this tutorial live in the `zio-examples/schedule-basics` directory of the ZIO repository. Clone the repository and change into that directory:
+
+```bash
+git clone https://github.com/zio/zio.git
+cd zio/zio-examples/schedule-basics
+```
+
+To compile all examples without running them:
+
+```bash
+sbt compile
+```
+
+To run each example individually from the sbt shell:
+
+```bash
+sbt "runMain schedulebasics.HelloRepeat"
+sbt "runMain schedulebasics.RepeatCounter"
+sbt "runMain schedulebasics.RetryOnce"
+sbt "runMain schedulebasics.StepContract"
+sbt "runMain schedulebasics.ExponentialDemo"
+sbt "runMain schedulebasics.MapDemo"
+sbt "runMain schedulebasics.CollectAllDemo"
+sbt "runMain schedulebasics.IntersectionDemo"
+sbt "runMain schedulebasics.AndThenDemo"
+sbt "runMain schedulebasics.DriverDemo"
+sbt "runMain schedulebasics.HttpRetryApp"
+```
+
+`Schedule` is part of ZIO core and requires no extra dependency. Add ZIO core to your own project with:
+
+```sbt
+libraryDependencies += "dev.zio" %% "zio" % "2.1.26"
+```
+
+---
+
+## 9. What You've Learned
+
+This tutorial traced a complete path from "use a schedule" to "understand how a schedule works internally":
+
+- **The step-function contract.** Every `Schedule` is a pure state machine with `Schedule#initial: State` and `Schedule#step(now, in, state): ZIO[Env, Nothing, (State, Out, Decision)]`. The runtime reads each `Decision` and sleeps; the schedule never touches threads.
+- **Primitive factories.** `Schedule.recurs(n)`, `Schedule.spaced(d)`, `Schedule.exponential(base)`, `Schedule.fixed(d)`, `Schedule.forever`, `Schedule.once`, and `Schedule.stop` are all built from `Schedule.unfold` and delay helpers. Reading their implementations in terms of the step contract is now straightforward.
+- **Output transformation.** `Schedule#map`, `Schedule#as`, and `Schedule#collectAll` transform `Out` without affecting when or whether the schedule continues. `Schedule#collectAll` gathers every per-step output into a `Chunk` returned at the end.
+- **Binary composition.** `&&` intersects two schedules (both must agree to continue; later interval wins). `||` unions them (either can continue; earlier interval wins). `++` sequences them (first runs to Done, then second takes over). `>>>` pipes the output of one schedule as the input of another.
+- **The Driver API.** `Schedule#driver` returns a `UIO[Driver[State, Env, In, Out]]` whose `Driver#next(in)` steps once — sleeping inside the ZIO runtime — and fails with `None.type` when the schedule is exhausted. `ZIO.repeat` and `ZIO.retry` use this same API internally.
+
+---
+
+## 10. Where to Go Next
+
+With the step-function mental model in hand, the following topics are natural next steps:
+
+- **[Schedule reference](../../reference/schedule/index.md).** The reference documentation for `Schedule` covers every combinator and factory method in detail, including `windowed`, `upTo`, `resetAfter`, `whileInput`, `untilOutput`, `addDelay`, `modifyDelayZIO`, and the cron-like helpers `secondOfMinute`, `minuteOfHour`, `hourOfDay`, `dayOfWeek`, and `dayOfMonth`.
+- **[Built-in schedules](../../reference/schedule/built-in-schedules.md).** The built-in schedules reference page catalogs every factory method in the `Schedule` companion object with concise descriptions and signatures.
+- **[Retry strategies](../../reference/schedule/retrying.md).** The retrying reference page shows patterns for combining schedules with error types, including filtering which errors trigger a retry using `Schedule#whileInput`.
+- **[Repetition patterns](../../reference/schedule/repetition.md).** The repetition reference page covers `ZIO#repeatUntil`, `ZIO#repeatWhile`, and `ZIO#repeatN` for common cases where a full schedule is not needed.
+- **ZStream scheduling.** `ZStream.fromSchedule(schedule)` treats any schedule as a finite or infinite source of `Out` values, stepping once per emitted element. This connects scheduling to the broader stream processing API.
+- **Test scheduling.** ZIO Test's `TestClock` lets you advance simulated time instantly, eliminating real sleeping in tests that use `spaced`, `exponential`, or any other delay-based schedule. This is the standard approach for unit-testing retry and repeat logic.
 
 ---
 
