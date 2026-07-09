@@ -490,6 +490,7 @@ module.exports = {
       type: "category",
       label: "Tutorial Guides",
       items: [
+        "guides/schedule",
         "guides/tutorials/configurable-zio-application",
         "guides/tutorials/encode-and-decode-json-data",
         "guides/tutorials/enable-logging-in-a-zio-application",
