@@ -300,8 +300,8 @@ object BuildHelper {
   }
 
   def mdocSettings(docsDir: String, outDir: String) = Seq[sbt.Def.Setting[_]](
-    mdocIn  := baseDirectory.value / docsDir,
-    mdocOut := (LocalRootProject / baseDirectory).value / outDir,
+    mdocIn                     := baseDirectory.value / docsDir,
+    mdocOut                    := (LocalRootProject / baseDirectory).value / outDir,
     mdocVariables += "VERSION" -> version.value.split('+').head
   )
 
