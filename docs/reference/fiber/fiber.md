@@ -730,4 +730,4 @@ All of the pieces of machinery that ZIO gives us are 100% asynchronous and non-b
 
 ## See Also
 
-- **[The Differ Data Type](../../guides/tutorials/compositional-fiberref-updates-with-differ.md)** — Learn how `Differ[Value, Patch]` enables ZIO's runtime to merge concurrent fiber updates on `FiberRef` in a compositional way; understanding how `combine` is called at fiber join time deepens intuition about the fiber lifecycle.
+- **[The Differ Data Type](../../guides/compositional-fiberref-updates-with-differ.md)** — Learn how `Differ[Value, Patch]` enables ZIO's runtime to merge concurrent fiber updates on `FiberRef` in a compositional way; understanding how `combine` is called at fiber join time deepens intuition about the fiber lifecycle.
