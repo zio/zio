@@ -13,6 +13,10 @@ The following guides have been written to help you get started with ZIO with min
 3. [ZIO Quickstart: Building a GraphQL Web Service](quickstarts/graphql-webservice.md)
 4. [ZIO Quickstart: Building a gRPC Server and Client](https://scalapb.github.io/zio-grpc/docs/quickstart/)
 
+## Guides
+
+1. [The Differ Data Type](differ.md) — Learn how `Differ[Value, Patch]` powers compositional, patch-based `FiberRef` updates that faithfully merge concurrent fiber changes.
+
 ## Tutorial Guides
 
 1. [How to Make a ZIO Application Configurable?](tutorials/make-a-zio-application-configurable.md)
