@@ -505,7 +505,7 @@ module.exports = {
         "guides/tutorials/gracefully-shutdown-zio-application",
         "guides/tutorials/getting-started-threadlocal-bridge",
         "guides/tutorials/reloadable-services",
-        "guides/differ",
+        "guides/tutorials/compositional-fiberref-updates-with-differ",
       ]
     },
     {

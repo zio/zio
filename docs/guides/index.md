@@ -15,7 +15,7 @@ The following guides have been written to help you get started with ZIO with min
 
 ## Guides
 
-1. [The Differ Data Type](differ.md) — Learn how `Differ[Value, Patch]` powers compositional, patch-based `FiberRef` updates that faithfully merge concurrent fiber changes.
+1. [The Differ Data Type](tutorials/compositional-fiberref-updates-with-differ.md) — Learn how `Differ[Value, Patch]` powers compositional, patch-based `FiberRef` updates that faithfully merge concurrent fiber changes.
 
 ## Tutorial Guides
 
