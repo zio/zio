@@ -31,9 +31,9 @@ export default function Hero() {
         />
 
         <h1 className="w-full max-w-5xl text-3xl leading-tight font-black tracking-tight md:text-5xl">
-          Type-safe, composable asynchronous and{' '}
-          <span className="gradient-text">concurrent</span> programming for
-          Scala
+          Type-safe, composable{' '}
+          <span className="gradient-text">asynchronous</span> and concurrent
+          programming for Scala
         </h1>
 
         <p className="max-w-2xl text-lg text-zinc-600 dark:text-zinc-400">
