@@ -23,9 +23,9 @@ const config = {
       id: 'announcementBar',
       content:
         '📚 <b>ZIONOMICON</b>, updated for ZIO 2.1, is out now! Grab <a href="https://zionomicon.com" target="_blank">your free copy</a> and level up your ZIO skills 🚀',
-      backgroundColor: 'rgb(190, 105, 255)',
-      textColor: 'rgba(220, 173, 240, 1)',
-      isCloseable: false,
+      backgroundColor: '#ececec',
+      textColor: '#1a1a1a',
+      isCloseable: true,
     },
     image: 'https://zio.dev/img/zio.png',
     algolia: {
