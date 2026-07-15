@@ -14,9 +14,10 @@ ZIO contains a few data types that can help you solve complex problems in asynch
     - [STM](#stm)
 5. [Resource Management](#resource-management)
 6. [Streaming](#streaming)
-7. [Metrics](#metrics)
-8. [Testing](#testing)
-9. [Miscellaneous](#miscellaneous)
+7. [Logging](#logging)
+8. [Metrics](#metrics)
+9. [Testing](#testing)
+10. [Miscellaneous](#miscellaneous)
 
 ## Core Data Types
 - **[ZIO](core/zio/zio.md)** — `ZIO` is a value that models an effectful program, which might fail or succeed.
@@ -100,6 +101,10 @@ ZIO contains a few data types that can help you solve complex problems in asynch
     + **[Sink](stream/zsink/index.md)** — `Sink[InErr, A, OutErr, L, B]` is a type alias for `ZSink[Any, InErr, A, OutErr, L, B]`.
 - **[ZPipeline](stream/zpipeline.md)** — `ZPipeline` is a polymorphic stream transformer.
 - **[SubscriptionRef](stream/subscriptionref.md)** — `SubscriptionRef[A]` contains a current value of type `A` and a stream that can be consumed to observe all changes to that value.
+
+## Logging
+
+- **[ZLogger](observability/logging/zlogger.md)** — `ZLogger[-Message, +Output]` is ZIO's pure functional logging interface. It can be composed, filtered, and fan-out across multiple destinations without global mutable state.
 
 ## Metrics
 

@@ -393,3 +393,8 @@ We can see that both log lines have the same `correlation-id` annotation.
 In this tutorial, we learned how to enable logging in a ZIO application and how to use the built-in logging facilities of ZIO without requiring any additional dependencies.
 
 All the source code associated with this article is available on the [ZIO Quickstart](http://github.com/zio/zio-quickstarts) on Github.
+
+## See Also
+
+- **[ZLogger](../../reference/observability/logging/zlogger.md)** — Reference documentation for `ZLogger[-Message, +Output]`: the functional logging interface used by `ZIO.log*`, its combinators, and how to install custom loggers via `Runtime.addLogger`.
+- **[Introduction to Logging in ZIO](../../reference/observability/logging/index.md)** — Overview of ZIO's logging facade, log levels, spans, and contextual annotations.
