@@ -369,6 +369,7 @@ module.exports = {
       label: "Observability",
       items: [
         "reference/observability/logging",
+        "reference/z-logger",
         {
           type: "category",
           label: "Metrics",
