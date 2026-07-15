@@ -194,21 +194,41 @@ button.fixed.bg-orange-400 {
   background-color: transparent !important;
   background-image: var(--gradient-brand) !important;
   color: #ffffff !important;
-  /* Rest state: clip the button's width from the left so only the trailing
-     "Chat!" shows; the pinned right edge keeps it hugging the corner. Hover
-     expands to full width, revealing "ZIO Chat!". */
-  max-width: 4.75rem !important;
+  /* Rest state: a circular chat-bubble icon tucked in the corner. The text
+     label is collapsed (font-size:0) and the width clamped to a circle; hover
+     expands max-width and restores the label to reveal the full "ZIO Chat!". */
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+  height: 3.5rem !important;
+  min-width: 3.5rem !important;
+  max-width: 3.5rem !important;
+  padding: 0 1rem !important;
+  margin: 0 1rem 1rem 0 !important;
   overflow: hidden !important;
   white-space: nowrap !important;
-  text-align: right !important;
-  transition: max-width 0.28s ease, filter 0.2s ease !important;
-  border-top-left-radius: 0.5rem !important;
-  border-bottom-left-radius: 0.5rem !important;
+  font-size: 0 !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25) !important;
+  transition: max-width 0.3s ease, filter 0.2s ease !important;
+}
+
+/* White chat-bubble glyph, sized independently of the collapsed label. */
+button.fixed.bg-orange-400::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 1.6rem;
+  height: 1.6rem;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-6 5V4a2 2 0 0 1 2-2z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-6 5V4a2 2 0 0 1 2-2z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 button.fixed.bg-orange-400:hover,
 button.fixed.bg-orange-400:focus-visible {
   max-width: 14rem !important;
+  font-size: 1.25rem !important;
   filter: brightness(0.96);
 }
 
