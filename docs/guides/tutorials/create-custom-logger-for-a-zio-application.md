@@ -221,5 +221,5 @@ All the source code associated with this article is available on the [ZIO Quicks
 
 ## See Also
 
-- **[ZLogger](../../reference/z-logger.md)** — Reference documentation for `ZLogger[-Message, +Output]`: construction with `ZLogger.simple`, predefined instances, combinators (`++`, `+>`, `<+`), `contramap`, `filterLogLevel`, and `ZTestLogger` for in-memory test assertions.
-- **[Introduction to Logging in ZIO](../../reference/observability/logging.md)** — Overview of ZIO's logging facade, log levels, spans, and annotations.
+- **[ZLogger](../../reference/observability/logging/zlogger.md)** — Reference documentation for `ZLogger[-Message, +Output]`: construction with `ZLogger.simple`, predefined instances, combinators (`++`, `+>`, `<+`), `contramap`, `filterLogLevel`, and `ZTestLogger` for in-memory test assertions.
+- **[Introduction to Logging in ZIO](../../reference/observability/logging/index.md)** — Overview of ZIO's logging facade, log levels, spans, and annotations.

@@ -1,5 +1,5 @@
 ---
-id: z-logger
+id: zlogger
 title: "ZLogger"
 description: "ZIO's functional logging trait: ZLogger[-Message, +Output] with composable fan-out, contramap, filterLogLevel, and ZTestLogger utilities."
 keywords:
@@ -562,7 +562,7 @@ val conditional: UIO[Int] =
 `ZLogger` operates within a larger ecosystem of ZIO types that manage its lifecycle and ambient availability:
 
 - **`FiberRef.currentLoggers`** — The `FiberRef[Set[ZLogger[String, Any]]]` that every fiber inherits from its parent. Modifying it with `locallyScoped` or `locallyScopedWith` is the low-level mechanism underlying `Runtime.addLogger` and `Runtime.removeDefaultLoggers`. This fiber-ref is documented in the state management reference.
-- **`Runtime.addLogger`** — `def addLogger(logger: ZLogger[String, Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit]` — a `ZLayer` that adds a logger for the duration of a scope by delegating to `ZIO.withLoggerScoped`. See the [Runtime](./core/runtime.md) reference.
+- **`Runtime.addLogger`** — `def addLogger(logger: ZLogger[String, Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit]` — a `ZLayer` that adds a logger for the duration of a scope by delegating to `ZIO.withLoggerScoped`. See the [Runtime](../../core/runtime.md) reference.
 - **`Runtime.removeDefaultLoggers`** — A `ZLayer` that removes all platform default loggers from `FiberRef.currentLoggers` for the duration of the scope.
 - **`ZIO.withLogger`** — `def withLogger[R, E, A <: ZLogger[String, Any], B](logger: => A)(zio: => ZIO[R, E, B])(implicit tag: Tag[A], trace: Trace): ZIO[R, E, B]` — installs a logger for the lifetime of a single ZIO effect.
 - **`ZIO.withLoggerScoped`** — `def withLoggerScoped[A <: ZLogger[String, Any]](logger: => A)(implicit tag: Tag[A], trace: Trace): ZIO[Scope, Nothing, Unit]` — installs a logger tied to a `Scope`.
@@ -570,7 +570,7 @@ val conditional: UIO[Int] =
 - **`ZTestLogger`** — The `zio-test` subtype that replaces the console with in-memory capture; described in the Subtypes section above.
 ## See Also
 
-- **[Introduction to Logging in ZIO](./observability/logging.md)** — Overview of ZIO's logging facade, log levels, log spans, and contextual annotations that feed into every `ZLogger` invocation.
-- **[Runtime](./core/runtime.md)** — Documents `Runtime.addLogger`, `Runtime.removeDefaultLoggers`, and the fiber-ref plumbing that makes logger installation scoped.
-- **[Tutorial: How to Enable Logging in a ZIO Application](../guides/tutorials/enable-logging-in-a-zio-application.md)** — Step-by-step guide to using `ZIO.log*` in a real application, configuring log levels, spans, and annotations.
-- **[Tutorial: How to Create a Custom Logger for a ZIO Application](../guides/tutorials/create-custom-logger-for-a-zio-application.md)** — Shows how to implement a `ZLogger` from scratch and wire it into the ZIO runtime with `Runtime.addLogger`.
+- **[Introduction to Logging in ZIO](index.md)** — Overview of ZIO's logging facade, log levels, log spans, and contextual annotations that feed into every `ZLogger` invocation.
+- **[Runtime](../../core/runtime.md)** — Documents `Runtime.addLogger`, `Runtime.removeDefaultLoggers`, and the fiber-ref plumbing that makes logger installation scoped.
+- **[Tutorial: How to Enable Logging in a ZIO Application](../../../guides/tutorials/enable-logging-in-a-zio-application.md)** — Step-by-step guide to using `ZIO.log*` in a real application, configuring log levels, spans, and annotations.
+- **[Tutorial: How to Create a Custom Logger for a ZIO Application](../../../guides/tutorials/create-custom-logger-for-a-zio-application.md)** — Shows how to implement a `ZLogger` from scratch and wire it into the ZIO runtime with `Runtime.addLogger`.

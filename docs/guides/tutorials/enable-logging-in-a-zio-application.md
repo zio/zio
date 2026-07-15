@@ -492,5 +492,5 @@ All the source code associated with this article is available on the [ZIO Quicks
 
 ## See Also
 
-- **[ZLogger](../../reference/z-logger.md)** — Reference documentation for `ZLogger[-Message, +Output]`: the functional logging interface used by `ZIO.log*`, its combinators, and how to install custom loggers via `Runtime.addLogger`.
-- **[Introduction to Logging in ZIO](../../reference/observability/logging.md)** — Overview of ZIO's logging facade, log levels, spans, and contextual annotations.
+- **[ZLogger](../../reference/observability/logging/zlogger.md)** — Reference documentation for `ZLogger[-Message, +Output]`: the functional logging interface used by `ZIO.log*`, its combinators, and how to install custom loggers via `Runtime.addLogger`.
+- **[Introduction to Logging in ZIO](../../reference/observability/logging/index.md)** — Overview of ZIO's logging facade, log levels, spans, and contextual annotations.

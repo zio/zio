@@ -105,7 +105,7 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 ## Logging
 
-- **[ZLogger](z-logger.md)** — `ZLogger[-Message, +Output]` is ZIO's pure functional logging interface. It can be composed, filtered, and fan-out across multiple destinations without global mutable state.
+- **[ZLogger](observability/logging/zlogger.md)** — `ZLogger[-Message, +Output]` is ZIO's pure functional logging interface. It can be composed, filtered, and fan-out across multiple destinations without global mutable state.
 
 ## Metrics
 
