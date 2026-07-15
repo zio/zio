@@ -194,10 +194,24 @@ button.fixed.bg-orange-400 {
   background-color: transparent !important;
   background-image: var(--gradient-brand) !important;
   color: #ffffff !important;
+  /* Rest state: tuck most of the button off the right edge, leaving a ~48px
+     sliver to catch the eye. Slides fully in on hover/focus. */
+  transform: translateX(calc(100% - 48px)) !important;
+  transition: transform 0.28s ease, filter 0.2s ease !important;
+  border-top-left-radius: 0.5rem !important;
+  border-bottom-left-radius: 0.5rem !important;
 }
 
-button.fixed.bg-orange-400:hover {
-  filter: brightness(0.94);
+button.fixed.bg-orange-400:hover,
+button.fixed.bg-orange-400:focus-visible {
+  transform: translateX(0) !important;
+  filter: brightness(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.fixed.bg-orange-400 {
+    transition: none !important;
+  }
 }
 
 /* ── Footer link hover ────────────────────────────────────────────────── */
