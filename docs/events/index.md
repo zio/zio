@@ -25,28 +25,42 @@ Every Friday the [Ziverge](https://ziverge.com/) team hosts a Zymposium, an hour
 
 ### Functional Scala 2024
 
+You can find the recordings on the [Functional Scala 2024 playlist](https://www.youtube.com/playlist?list=PLvdARMfvom9CuM40p_Yr3UAtlADSKC2Js).
+
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLvdARMfvom9CuM40p_Yr3UAtlADSKC2Js" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 ### Functional Scala 2023
+
+You can find the recordings on the [Functional Scala 2023 playlist](https://www.youtube.com/playlist?list=PLvdARMfvom9DCDLfWzukYMiY9nY4nrNDz).
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLvdARMfvom9DCDLfWzukYMiY9nY4nrNDz" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 ### ZIO World 2023
 
+You can find the recordings on the [ZIO World 2023 playlist](https://www.youtube.com/playlist?list=PLvdARMfvom9DaohnWcFxBllxkDoBCymx3).
+
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLvdARMfvom9DaohnWcFxBllxkDoBCymx3" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 ### Functional Scala 2022
+
+You can find the recordings on the [Functional Scala 2022 playlist](https://www.youtube.com/playlist?list=PLvdARMfvom9A0L97KNywK1lWEeHYDLX0P).
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLvdARMfvom9A0L97KNywK1lWEeHYDLX0P" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 ### ZIO World 2022
 
+You can find the recordings on the [ZIO World 2022 playlist](https://www.youtube.com/playlist?list=PLvdARMfvom9CK_nXP41eioIXZLHvME5gB).
+
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLvdARMfvom9CK_nXP41eioIXZLHvME5gB" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 ### Functional Scala 2021
 
+You can find the recordings on the [Functional Scala 2021 playlist](https://www.youtube.com/playlist?list=PLvdARMfvom9COGPlva4OnTkFEXzXhhqNH).
+
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLvdARMfvom9COGPlva4OnTkFEXzXhhqNH" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
 ### ZIO World 2021
+
+You can find the recordings on the [ZIO World 2021 playlist](https://www.youtube.com/playlist?list=PLvdARMfvom9COFgVauwWQ9PsCBOsDmHJm).
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/videoseries?list=PLvdARMfvom9COFgVauwWQ9PsCBOsDmHJm" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
