@@ -24,12 +24,11 @@ export default function Hero() {
       <div className="container flex flex-col items-center gap-6 text-center">
         <span className="eyebrow">Purely functional effect system</span>
 
-        <p
-          className="text-primary leading-none font-black tracking-tight"
-          style={{ fontSize: 'clamp(3.5rem, 10vw, 6rem)' }}
-        >
-          {siteConfig.title || 'ZIO'}
-        </p>
+        <img
+          className="h-20 md:h-24"
+          src="/img/navbar_brand2x.png"
+          alt={`${siteConfig.title}`}
+        />
 
         <h1 className="w-full max-w-5xl text-3xl leading-tight font-black tracking-tight md:text-5xl">
           Type-safe, composable asynchronous and{' '}
