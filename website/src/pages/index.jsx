@@ -31,7 +31,6 @@ export default function WelcomePage() {
         </Reveal>
         <Reveal>
           <Ecosystem
-            eyebrow="Libraries"
             title="Ecosystem"
             subtitle="A rich ecosystem of libraries built on ZIO to solve real-world problems"
           />

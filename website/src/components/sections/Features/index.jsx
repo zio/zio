@@ -7,7 +7,7 @@ import { features } from './data';
 
 export default function Features() {
   return (
-    <SectionWrapper eyebrow="Why ZIO" title="Features">
+    <SectionWrapper title="Features">
       <div className="container grid list-none grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         {features.map((item, idx) => (
           <div
