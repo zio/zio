@@ -189,6 +189,16 @@ a {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* ── ByteBrain chat toggle: match brand red instead of default orange ─── */
+button.fixed.bg-orange-400 {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+button.fixed.bg-orange-400:hover {
+  background-color: #c82020 !important;
+}
+
 /* ── Footer link hover ────────────────────────────────────────────────── */
 .footer__link-item:hover {
   color: #e14747;
