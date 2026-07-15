@@ -194,47 +194,27 @@ button.fixed.bg-orange-400 {
   background-color: transparent !important;
   background-image: var(--gradient-brand) !important;
   color: #ffffff !important;
-  /* Rest state: a circular chat-bubble icon tucked in the corner. The text
-     label is collapsed (font-size:0) and the width clamped to a circle; hover
-     expands max-width and restores the label to reveal the full "ZIO Chat!". */
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 0.5rem !important;
-  height: 3.5rem !important;
-  min-width: 3.5rem !important;
-  max-width: 3.5rem !important;
-  padding: 0 1rem !important;
-  margin: 0 1rem 1rem 0 !important;
-  overflow: hidden !important;
-  white-space: nowrap !important;
-  font-size: 0 !important;
-  border-radius: 9999px !important;
+  /* Rest state: the full "ZIO Chat!" pill is tucked off the right edge, leaving
+     only a slim gradient sliver peeking to hint at it. Hover / keyboard focus
+     slides it fully into view. */
+  transform: translateX(calc(100% - 16px)) !important;
+  transition: transform 0.3s ease, filter 0.2s ease !important;
+  border-radius: 9999px 0 0 9999px !important;
+  padding: 0.6rem 1.25rem !important;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25) !important;
-  transition: max-width 0.3s ease, filter 0.2s ease !important;
-}
-
-/* White chat-bubble glyph, sized independently of the collapsed label. */
-button.fixed.bg-orange-400::before {
-  content: '';
-  flex: 0 0 auto;
-  width: 1.6rem;
-  height: 1.6rem;
-  background-color: currentColor;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-6 5V4a2 2 0 0 1 2-2z'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-6 5V4a2 2 0 0 1 2-2z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 button.fixed.bg-orange-400:hover,
 button.fixed.bg-orange-400:focus-visible {
-  max-width: 14rem !important;
-  font-size: 1.25rem !important;
+  transform: translateX(0) !important;
   filter: brightness(0.96);
 }
 
 @media (prefers-reduced-motion: reduce) {
   button.fixed.bg-orange-400 {
     transition: none !important;
+    /* No slide for reduced-motion: show a compact but visible tab. */
+    transform: translateX(calc(100% - 3.25rem)) !important;
   }
 }
 
