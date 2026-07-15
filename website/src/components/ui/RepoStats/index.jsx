@@ -16,10 +16,13 @@ function formatStars(n) {
  */
 export default function RepoStats() {
   const [stars, setStars] = useState(repoStats.stars);
+  const [version, setVersion] = useState(repoStats.version);
 
   useEffect(() => {
     let active = true;
-    fetch(`https://api.github.com/repos/${repoStats.owner}/${repoStats.repo}`)
+    const base = `https://api.github.com/repos/${repoStats.owner}/${repoStats.repo}`;
+
+    fetch(base)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (active && data && typeof data.stargazers_count === 'number') {
@@ -29,6 +32,18 @@ export default function RepoStats() {
       .catch(() => {
         /* keep fallback */
       });
+
+    fetch(`${base}/releases/latest`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (active && data && data.tag_name) {
+          setVersion(data.tag_name);
+        }
+      })
+      .catch(() => {
+        /* keep fallback */
+      });
+
     return () => {
       active = false;
     };
@@ -37,7 +52,7 @@ export default function RepoStats() {
   const items = [
     { value: formatStars(stars), label: 'stars' },
     { value: repoStats.contributors, label: 'contributors' },
-    { value: repoStats.version, label: 'latest' },
+    { value: version, label: 'latest' },
   ];
 
   return (
