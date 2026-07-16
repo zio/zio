@@ -193,31 +193,38 @@ a {
 button.fixed.bg-orange-400 {
   background-color: transparent !important;
   background-image: var(--gradient-brand) !important;
-  color: #ffffff !important;
   /* Crisp-style launcher: a round chat-bubble button pinned bottom-right,
-     always visible, with a gentle scale on hover. The text label is kept in the
-     DOM for screen readers but hidden visually (font-size:0). */
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+     always visible, with a gentle scale on hover. The "ZIO Chat!" text stays in
+     the DOM for screen readers but is fully hidden: transparent, zero font-size,
+     indented and clipped. The icon is drawn as an absolutely-centered ::before
+     so the hidden text can't affect it. */
+  position: fixed !important;
+  color: transparent !important;
   width: 3.75rem !important;
   height: 3.75rem !important;
   min-width: 3.75rem !important;
   padding: 0 !important;
   margin: 0 1.25rem 1.25rem 0 !important;
   font-size: 0 !important;
+  line-height: 0 !important;
+  text-indent: -9999px !important;
+  overflow: hidden !important;
   border-radius: 9999px !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28) !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease !important;
 }
 
-/* White chat-bubble glyph. */
+/* White chat-bubble glyph, absolutely centered regardless of the hidden text. */
 button.fixed.bg-orange-400::before {
   content: '';
-  flex: 0 0 auto;
-  width: 1.6rem;
-  height: 1.6rem;
-  background-color: currentColor;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: 1.6rem !important;
+  height: 1.6rem !important;
+  text-indent: 0 !important;
+  background-color: #ffffff !important;
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-6 5V4a2 2 0 0 1 2-2z'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-6 5V4a2 2 0 0 1 2-2z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
