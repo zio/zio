@@ -70,8 +70,311 @@
   --ifm-color-primary-lightest: #e76969;
 }
 
+:root {
+  --gradient-brand: linear-gradient(90deg, #dc2626, #f59e0b);
+  --brand-shadow: rgba(220, 38, 38, 0.12);
+}
+
 a {
   font-weight: 500;
+}
+
+/* ── Modern refresh: shared brand primitives ───────────────────────────── */
+
+/* Small uppercase eyebrow label above section titles / hero. */
+.eyebrow {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+  padding: 0.28rem 0.85rem;
+  border-radius: 999px;
+}
+
+[data-theme='dark'] .eyebrow {
+  color: #f87171;
+  background: rgba(220, 38, 38, 0.16);
+}
+
+/* Red→amber clipped text for keyword emphasis in headings. */
+.gradient-text {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Short gradient bar under section titles. */
+.gradient-rule {
+  width: 48px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--gradient-brand);
+  margin: 0.85rem auto 0;
+}
+
+/* Tightened, heavier heading treatment for homepage sections. */
+.section-title {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0.5rem 0 0;
+}
+
+/* ── Modern card ──────────────────────────────────────────────────────── */
+/* Reusable across Features / Ecosystem / CodingAgent cards. */
+.card-modern {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  background: var(--ifm-card-background-color, #fff);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.card-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-brand);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+[data-theme='dark'] .card-modern {
+  border-color: var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+}
+
+/* Gradient-tinted rounded icon tile inside cards. */
+.card-icon-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.8rem;
+  color: #dc2626;
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.12), rgba(245, 158, 11, 0.12));
+}
+
+[data-theme='dark'] .card-icon-tile {
+  color: #f87171;
+}
+
+/* ── Navbar: sticky translucent + blur ────────────────────────────────── */
+.navbar {
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  border-bottom: 1px solid var(--color-gray-200, rgba(0, 0, 0, 0.08));
+}
+
+:root {
+  --ifm-navbar-background-color: rgba(246, 246, 246, 0.8);
+}
+
+[data-theme='dark'] {
+  --ifm-navbar-background-color: rgba(15, 15, 15, 0.8);
+}
+
+[data-theme='dark'] .navbar {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ── ByteBrain chat toggle: match brand red instead of default orange ─── */
+button.fixed.bg-orange-400 {
+  background-color: transparent !important;
+  background-image: var(--gradient-brand) !important;
+  /* Crisp-style launcher: a round chat-bubble button pinned bottom-right,
+     always visible, with a gentle scale on hover. The "ZIO Chat!" text stays in
+     the DOM for screen readers but is fully hidden: transparent, zero font-size,
+     indented and clipped. The icon is drawn as an absolutely-centered ::before
+     so the hidden text can't affect it. */
+  position: fixed !important;
+  color: transparent !important;
+  width: 3.75rem !important;
+  height: 3.75rem !important;
+  min-width: 3.75rem !important;
+  padding: 0 !important;
+  margin: 0 1.25rem 1.25rem 0 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  text-indent: -9999px !important;
+  overflow: hidden !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease !important;
+}
+
+/* White chat-bubble glyph, absolutely centered regardless of the hidden text. */
+button.fixed.bg-orange-400::before {
+  content: '';
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: 1.6rem !important;
+  height: 1.6rem !important;
+  text-indent: 0 !important;
+  background-color: #ffffff !important;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-6 5V4a2 2 0 0 1 2-2z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-6 5V4a2 2 0 0 1 2-2z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+button.fixed.bg-orange-400:hover,
+button.fixed.bg-orange-400:focus-visible {
+  transform: scale(1.06) !important;
+  box-shadow: 0 12px 30px rgba(220, 38, 38, 0.35) !important;
+  filter: brightness(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.fixed.bg-orange-400 {
+    transition: none !important;
+  }
+  button.fixed.bg-orange-400:hover,
+  button.fixed.bg-orange-400:focus-visible {
+    transform: none !important;
+  }
+}
+
+/* ── ByteBrain chat window: brand-consistent + modern ────────────────────
+   The library ships a blue/black themed popup. These scoped overrides (under
+   the .zio-chat wrapper so they never leak to bg-blue/bg-black elsewhere)
+   retheme it to the red/amber system, theme-aware. */
+
+/* Popup panel (flex-col rounded-md bg-gray-100). */
+.zio-chat .rounded-md.bg-gray-100 {
+  background: #ffffff !important;
+  border: 1px solid var(--ifm-color-emphasis-200) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22) !important;
+}
+
+[data-theme='dark'] .zio-chat .rounded-md.bg-gray-100 {
+  background: #181818 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Assistant/bot message bubbles (bg-blue-600) → neutral readable surface with
+   a red accent edge. White-on-gradient was too low-contrast to read. */
+.zio-chat .bg-blue-600 {
+  background: #f4f4f5 !important;
+  color: #1a1a1a !important;
+  border-left: 3px solid #dc2626 !important;
+}
+
+.zio-chat .bg-blue-600 * {
+  color: #1a1a1a !important;
+}
+
+.zio-chat .bg-blue-600 a {
+  color: #dc2626 !important;
+}
+
+[data-theme='dark'] .zio-chat .bg-blue-600 {
+  background: #242526 !important;
+  color: #ececec !important;
+}
+
+[data-theme='dark'] .zio-chat .bg-blue-600 *:not(a) {
+  color: #ececec !important;
+}
+
+[data-theme='dark'] .zio-chat .bg-blue-600 a {
+  color: #f87171 !important;
+}
+
+/* User message bubbles (bg-blue-500) → brand red, white text. */
+.zio-chat .bg-blue-500 {
+  background: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+.zio-chat .bg-blue-500 * {
+  color: #ffffff !important;
+}
+
+/* Bot message bubbles (bg-gray-300 / text-gray-600). */
+.zio-chat .bg-gray-300 {
+  background: #f1f1f1 !important;
+}
+
+.zio-chat .text-gray-600 {
+  color: #333333 !important;
+}
+
+[data-theme='dark'] .zio-chat .bg-gray-300 {
+  background: #242526 !important;
+}
+
+[data-theme='dark'] .zio-chat .text-gray-600 {
+  color: #e5e5e5 !important;
+}
+
+/* Send button (bg-black / hover:bg-gray-900) → brand red. */
+.zio-chat .bg-black {
+  background: #dc2626 !important;
+  border-radius: 10px !important;
+}
+
+.zio-chat .bg-black:hover {
+  background: #b91c1c !important;
+}
+
+/* Header links. */
+.zio-chat a.text-white:hover {
+  color: #0f0f0f !important;
+}
+
+/* ── Footer link hover ────────────────────────────────────────────────── */
+.footer__link-item:hover {
+  color: #e14747;
+  text-decoration: none;
+}
+
+/* ── Motion: scroll reveal + reduced-motion guard ─────────────────────── */
+.reveal {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+    will-change: opacity, transform;
+  }
+
+  .reveal.reveal--visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  .card-modern:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 30px var(--brand-shadow);
+    border-color: rgba(220, 38, 38, 0.35);
+  }
+
+  .card-modern:hover::before {
+    opacity: 1;
+  }
+}
+
+/* Reduced-motion / no-JS: cards still get a static hover accent. */
+@media (prefers-reduced-motion: reduce) {
+  .card-modern:hover {
+    border-color: rgba(220, 38, 38, 0.35);
+  }
 }
 
 .header-github-link:hover {
