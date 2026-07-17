@@ -59,7 +59,7 @@
     "blended-include-code-plugin": "0.1.2",
     "clsx": "2.1.1",
     "docusaurus-plugin-copy-page-button": "^0.8.0",
-    "docusaurus-plugin-llms": "0.4.0",
+    "docusaurus-plugin-llms": "0.5.0",
     "highlight.js": "11.11.1",
     "node-fetch": "^3.3.2",
     "postcss": "8.5.19",
