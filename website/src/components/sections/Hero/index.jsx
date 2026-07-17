@@ -4,6 +4,7 @@ import Link from '@docusaurus/Link';
 import { FaArrowRight, FaStar } from 'react-icons/fa6';
 
 import RepoStats from '@site/src/components/ui/RepoStats';
+import OnboardAgentButton from '@site/src/components/ui/OnboardAgentButton';
 
 export default function Hero() {
   const context = useDocusaurusContext();
@@ -41,6 +42,10 @@ export default function Hero() {
           functional effect system — with rich concurrency, resource safety, and
           testability built in.
         </p>
+
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <OnboardAgentButton />
+        </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link
