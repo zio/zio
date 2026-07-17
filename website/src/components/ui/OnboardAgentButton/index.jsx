@@ -55,7 +55,7 @@ export default function OnboardAgentButton() {
       className="hover:border-primary hover:text-primary flex items-center gap-2 rounded-full border border-zinc-300 px-6 py-2.5 text-base font-semibold leading-normal text-zinc-800 transition-colors dark:border-zinc-700 dark:text-zinc-100"
     >
       <span>{copied ? 'Copied!' : 'Onboard your agent to ZIO'}</span>
-      <span className="flex items-center gap-1" aria-hidden="true">
+      <span className="flex items-center gap-1 text-zinc-800 dark:text-zinc-100" aria-hidden="true">
         <ClaudeLogo />
         <CodexLogo />
         <CursorLogo />
