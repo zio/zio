@@ -24,10 +24,10 @@ export default function WelcomePage() {
 
       <main>
         <Reveal>
-          <Features />
+          <CodeShowcase />
         </Reveal>
         <Reveal>
-          <CodeShowcase />
+          <Features />
         </Reveal>
         <Reveal>
           <Ecosystem
