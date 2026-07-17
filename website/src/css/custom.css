@@ -126,7 +126,7 @@ a {
 }
 
 /* ── Modern card ──────────────────────────────────────────────────────── */
-/* Reusable across Features / Ecosystem / CodingAgent cards. */
+/* Reusable across Features / Ecosystem cards. */
 .card-modern {
   position: relative;
   overflow: hidden;

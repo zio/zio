@@ -12,14 +12,6 @@ keywords:
   - "Concurrent Programming"
 ---
 
-## Teach Your Coding Agent Latest ZIO Knowledge
-
-The `zio-knowledge` skill teaches your coding agent to fetch live documentation from zio.dev before answering any ZIO question — so you always get accurate, up-to-date answers, not guesses from stale training data:
-
-```bash
-npx skills add zio/zio-skills --skill zio-knowledge
-```
-
 ## Installation
 
 Include ZIO in your project by adding the following to your `build.sbt` file:
