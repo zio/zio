@@ -1,5 +1,6 @@
 # Homepage Visual Polish — Design Spec
 
+**Status:** Abandoned — will not be implemented (user decision, 2026-07-17). Kept for reference only; do not execute.
 **Date:** 2026-07-17
 **Scope:** Visual polish of the zio.dev homepage only. No content, copy, section, or layout changes.
 **Branch:** `home-page-harmony`

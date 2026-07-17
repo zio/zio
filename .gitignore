@@ -41,3 +41,4 @@ website/ecosystem-sidebar.js
 docs/.crossref-state/state.json
 /.flowrite/
 .superpowers/
+.scala-build/
