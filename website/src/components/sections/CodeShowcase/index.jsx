@@ -70,7 +70,7 @@ export default function CodeShowcase() {
       <div className={styles.innerContainer}>
         {/* Left Column */}
         <div className={styles.leftColumn}>
-          <h2>ZIO in Action</h2>
+          <h2>ZIO by Example</h2>
           <p className={styles.takeaway}>{active.takeaway}</p>
           <p>{active.description}</p>
           <div>
@@ -92,6 +92,7 @@ export default function CodeShowcase() {
                 <button
                   key={example.value}
                   id={`tab-${idx}`}
+                  data-label={example.label}
                   className={clsx(
                     styles.tab,
                     activeTab === idx && styles.tabActive,

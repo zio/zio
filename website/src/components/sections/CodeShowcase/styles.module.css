@@ -18,7 +18,7 @@
   display: grid;
   grid-template-columns: 2fr 3fr;
   gap: 4rem;
-  align-items: center;
+  align-items: start;
 }
 
 .leftColumn {
@@ -77,6 +77,9 @@
 
 .tab {
   flex-shrink: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
   padding: 0.75rem 1.25rem;
   border: none;
   background: transparent;
@@ -86,6 +89,17 @@
   white-space: nowrap;
   transition: color 0.2s ease;
   font-family: inherit;
+}
+
+/* Reserve the bold (active) width at all times so switching tabs never
+   reflows the tab strip. The hidden copy always renders at weight 600. */
+.tab::after {
+  content: attr(data-label);
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 600;
+  pointer-events: none;
 }
 
 .tab:hover {
@@ -108,6 +122,9 @@
   margin: 0;
   padding: 1.25rem 1rem;
   overflow: auto;
+  /* Hold a stable height across tabs (tallest snippet is ~15 lines) so the
+     panel does not jump when switching between short and long examples. */
+  min-height: 24rem;
   max-height: 500px;
   font-size: 0.875rem;
   line-height: 1.6;
