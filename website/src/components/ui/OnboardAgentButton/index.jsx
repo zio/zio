@@ -50,7 +50,7 @@ export default function OnboardAgentButton() {
     <button
       type="button"
       onClick={onClick}
-      title="Click to copy the setup instruction to your clipboard, then paste it into your coding agent"
+      title="Click to copy the setup instruction to your clipboard"
       aria-label="Copy the ZIO agent onboarding prompt to the clipboard"
       className="hover:border-primary hover:text-primary flex items-center gap-2 rounded-full border border-zinc-300 px-6 py-2.5 text-base font-semibold leading-normal text-zinc-800 transition-colors dark:border-zinc-700 dark:text-zinc-100"
     >
