@@ -4,6 +4,7 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 
 import Hero from '@site/src/components/sections/Hero';
 import Features from '@site/src/components/sections/Features';
+import CodeShowcase from '@site/src/components/sections/CodeShowcase';
 import Ecosystem from '@site/src/components/sections/Ecosystem';
 import Sponsors from '@site/src/components/sections/Sponsors';
 import Zionomicon from '@site/src/components/sections/Zionomicon';
@@ -24,6 +25,9 @@ export default function WelcomePage() {
       <main>
         <Reveal>
           <Features />
+        </Reveal>
+        <Reveal>
+          <CodeShowcase />
         </Reveal>
         <Reveal>
           <Ecosystem
