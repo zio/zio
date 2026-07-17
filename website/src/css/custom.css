@@ -161,6 +161,7 @@ a {
   justify-content: center;
   width: 2.75rem;
   height: 2.75rem;
+  font-size: 1.25rem;
   border-radius: 0.8rem;
   color: #dc2626;
   background: linear-gradient(135deg, rgba(220, 38, 38, 0.12), rgba(245, 158, 11, 0.12));
