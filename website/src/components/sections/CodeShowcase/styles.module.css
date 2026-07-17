@@ -1,147 +1,191 @@
-.grid {
-  display: grid;
-  grid-template-columns: 38% 62%;
-  gap: 2rem;
-  align-items: start;
-}
+/* Ported from zio-http's HomepageCodeSnippet styles
+   (website/src/components/HomepageCodeSnippet/styles.module.css). */
 
-.rail {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.railItem {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+.codeSnippetSection {
+  background-color: var(--ifm-color-emphasis-100);
+  padding: 5rem 0;
   width: 100%;
-  padding: 1rem 1.25rem;
-  border: none;
-  border-left: 3px solid transparent;
-  border-radius: 10px;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease;
 }
 
-.railItem:hover {
-  background: var(--ifm-color-emphasis-100);
+[data-theme='dark'] .codeSnippetSection {
+  background-color: var(--ifm-background-surface-color);
 }
 
-.railItemTitle {
+.innerContainer {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: 4rem;
+  align-items: center;
+}
+
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.leftColumn h2 {
+  color: var(--ifm-heading-color);
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.leftColumn p {
+  color: var(--ifm-text-color-secondary);
+  font-size: 1.1rem;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.leftColumn p.takeaway {
   font-weight: 600;
-  color: var(--ifm-color-emphasis-700);
-}
-
-.railItemActive {
-  border-left-color: var(--ifm-color-primary);
-  background: var(--ifm-card-background-color, #fff);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.railItemActive .railItemTitle {
-  color: var(--ifm-font-color-base);
-}
-
-.railItemActive:hover {
-  background: var(--ifm-card-background-color, #fff);
-}
-
-.railTakeaway {
-  font-size: 0.875rem;
-  font-weight: 500;
   color: var(--ifm-color-primary);
 }
 
-.railDescription {
-  font-size: 0.9rem;
-  line-height: 1.6;
-}
+/* Button uses default Infima styling that respects light/dark theme */
 
-[data-theme='dark'] .railItemActive {
-  background: var(--ifm-background-color);
-  border-color: var(--ifm-color-emphasis-300);
-  border-left-color: var(--ifm-color-primary);
-}
-
-[data-theme='dark'] .railItemActive:hover {
-  background: var(--ifm-background-color);
+.rightColumn {
+  display: flex;
+  flex-direction: column;
 }
 
 .codePanel {
-  border-radius: 14px;
-  border: 1px solid var(--ifm-color-emphasis-200);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background-color: #1e2030;
+  border-radius: 8px;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
 }
 
-[data-theme='dark'] .codePanel {
-  border-color: var(--ifm-color-emphasis-300);
+.tabBar {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: #161b22;
 }
 
-.codePanel :global(.theme-code-block) {
-  margin-bottom: 0;
-  border-radius: 0;
+.tabBar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
 }
 
-/* Mobile chip row, hidden on desktop */
-.chipRow {
-  display: none;
+.tab {
+  flex-shrink: 0;
+  padding: 0.75rem 1.25rem;
+  border: none;
+  background: transparent;
+  color: #8b949e;
+  cursor: pointer;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+  font-family: inherit;
 }
 
-.mobileDescription {
-  display: none;
+.tab:hover {
+  color: #e6edf3;
 }
 
-@media (max-width: 996px) {
-  .grid {
+.tabActive {
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--ifm-color-primary);
+}
+
+.codeArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.pre {
+  margin: 0;
+  padding: 1.25rem 1rem;
+  overflow: auto;
+  max-height: 500px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.codeLine {
+  display: block;
+}
+
+.lineNumber {
+  display: inline-block;
+  width: 2.5ch;
+  min-width: 2.5ch;
+  margin-right: 1.5rem;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.25);
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.lineContent {
+  display: inline;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background-color: #161b22;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.langBadge {
+  font-size: 0.75rem;
+  color: #8b949e;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.copyButton {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  color: #8b949e;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.copyButton:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.copyButtonCopied {
+  color: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+}
+
+@media screen and (max-width: 996px) {
+  .innerContainer {
     grid-template-columns: 1fr;
+    gap: 2rem;
   }
 
-  .rail {
-    display: none;
-  }
-
-  .chipRow {
-    display: flex;
-    gap: 0.5rem;
+  .tabBar {
     overflow-x: auto;
-    padding-bottom: 0.5rem;
-    margin-bottom: 1rem;
   }
 
-  .chip {
-    flex: 0 0 auto;
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--ifm-color-emphasis-200);
-    border-radius: 999px;
-    background: transparent;
-    color: var(--ifm-color-emphasis-700);
-    font-weight: 500;
-    white-space: nowrap;
-    cursor: pointer;
-    transition:
-      background-color 0.2s ease,
-      border-color 0.2s ease,
-      color 0.2s ease;
-  }
-
-  .chip:hover {
-    background: var(--ifm-color-emphasis-100);
-  }
-
-  .chipActive {
-    border-color: var(--ifm-color-primary);
-    color: var(--ifm-color-primary);
-    background: var(--ifm-color-emphasis-100);
-  }
-
-  .mobileDescription {
-    display: block;
-    margin-bottom: 1rem;
+  .pre {
+    overflow: auto;
+    max-height: 450px;
   }
 }

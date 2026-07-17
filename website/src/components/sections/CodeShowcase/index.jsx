@@ -1,168 +1,180 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import Highlight, { defaultProps } from 'prism-react-renderer';
+import dracula from 'prism-react-renderer/themes/dracula';
+import useIsBrowser from '@docusaurus/useIsBrowser';
+import Link from '@docusaurus/Link';
 import clsx from 'clsx';
-import CodeBlock from '@theme/CodeBlock';
-
-import SectionWrapper from '@site/src/components/ui/SectionWrapper';
-
-import { examples } from './data';
+import { FaCopy, FaCheck } from 'react-icons/fa6';
 import styles from './styles.module.css';
 
-const MOBILE_QUERY = '(max-width: 996px)';
+import { examples } from './data';
 
+// Editor-style code panel ported from zio-http's HomepageCodeSnippet
+// (website/src/components/HomepageCodeSnippet in the zio/zio-http repo).
 export default function CodeShowcase() {
-  const [activeValue, setActiveValue] = useState(examples[0].value);
-  const [isMobile, setIsMobile] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const isBrowser = useIsBrowser();
+  const timeoutRef = useRef(null);
 
   useEffect(() => {
-    const mql = window.matchMedia(MOBILE_QUERY);
-    const update = () => setIsMobile(mql.matches);
-    update();
-    mql.addEventListener('change', update);
-    return () => mql.removeEventListener('change', update);
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, []);
 
-  const activeIndex = examples.findIndex((e) => e.value === activeValue);
-  const active = examples[activeIndex];
-
-  const selectByIndex = (index, idPrefix, focusItem = true) => {
-    const next = examples[(index + examples.length) % examples.length];
-    setActiveValue(next.value);
-    if (focusItem) {
-      const el = document.getElementById(`${idPrefix}${next.value}`);
-      if (el) el.focus();
+  const handleTabClick = (idx) => {
+    setActiveTab(idx);
+    setCopied(false);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
     }
   };
 
-  const handleKeyDown = (idPrefix) => (event) => {
-    switch (event.key) {
-      case 'ArrowDown':
-      case 'ArrowRight':
-        event.preventDefault();
-        selectByIndex(activeIndex + 1, idPrefix);
-        break;
-      case 'ArrowUp':
-      case 'ArrowLeft':
-        event.preventDefault();
-        selectByIndex(activeIndex - 1, idPrefix);
-        break;
-      case 'Home':
-        event.preventDefault();
-        selectByIndex(0, idPrefix);
-        break;
-      case 'End':
-        event.preventDefault();
-        selectByIndex(examples.length - 1, idPrefix);
-        break;
-      default:
-        break;
+  const handleCopy = () => {
+    if (!isBrowser) return;
+
+    const textToCopy = examples[activeTab].code.trim();
+
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard API is not available');
+      }
+
+      navigator.clipboard
+        .writeText(textToCopy)
+        .then(() => {
+          setCopied(true);
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+          timeoutRef.current = setTimeout(() => {
+            setCopied(false);
+            timeoutRef.current = null;
+          }, 2000);
+        })
+        .catch((err) => {
+          console.error('Failed to copy:', err);
+        });
+    } catch (err) {
+      console.error('Failed to copy:', err);
     }
   };
+
+  const active = examples[activeTab];
 
   return (
-    <SectionWrapper
-      title="Show me the code"
-      subtitle="Five everyday problems, solved the ZIO way"
-    >
-      <div className="container">
-        <div className={styles.grid}>
+    <section className={styles.codeSnippetSection}>
+      <div className={styles.innerContainer}>
+        {/* Left Column */}
+        <div className={styles.leftColumn}>
+          <h2>ZIO in Action</h2>
+          <p className={styles.takeaway}>{active.takeaway}</p>
+          <p>{active.description}</p>
           <div>
-            <div
-              className={styles.rail}
-              role="tablist"
-              aria-orientation="vertical"
-              onKeyDown={handleKeyDown('code-showcase-tab-')}
+            <Link
+              className="button button--outline button--lg"
+              to="/overview/getting-started"
             >
-              {examples.map((example) => {
-                const isActive = example.value === activeValue;
-                return (
-                  <button
-                    key={example.value}
-                    id={`code-showcase-tab-${example.value}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    aria-controls="code-showcase-panel"
-                    tabIndex={isActive ? 0 : -1}
-                    className={clsx(styles.railItem, {
-                      [styles.railItemActive]: isActive,
-                    })}
-                    onClick={() => setActiveValue(example.value)}
-                  >
-                    <span className={styles.railItemTitle}>
-                      {example.label}
-                    </span>
-                    {isActive ? (
-                      <>
-                        <span className={styles.railTakeaway}>
-                          {example.takeaway}
-                        </span>
-                        <span
-                          className={clsx(
-                            styles.railDescription,
-                            'text-zinc-600 dark:text-zinc-400',
-                          )}
-                        >
-                          {example.description}
-                        </span>
-                      </>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div
-              className={styles.chipRow}
-              role="tablist"
-              aria-orientation="horizontal"
-              onKeyDown={handleKeyDown('code-showcase-chip-')}
-            >
-              {examples.map((example) => {
-                const isActive = example.value === activeValue;
-                return (
-                  <button
-                    key={example.value}
-                    id={`code-showcase-chip-${example.value}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    aria-controls="code-showcase-panel"
-                    tabIndex={isActive ? 0 : -1}
-                    className={clsx(styles.chip, {
-                      [styles.chipActive]: isActive,
-                    })}
-                    onClick={() => setActiveValue(example.value)}
-                  >
-                    {example.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <p
-              className={clsx(
-                styles.mobileDescription,
-                'text-zinc-600 dark:text-zinc-400',
-              )}
-            >
-              {active.description}
-            </p>
+              Explore the Docs
+            </Link>
           </div>
+        </div>
 
-          <div
-            className={styles.codePanel}
-            role="tabpanel"
-            id="code-showcase-panel"
-            aria-labelledby={
-              isMobile
-                ? `code-showcase-chip-${active.value}`
-                : `code-showcase-tab-${active.value}`
-            }
-          >
-            <CodeBlock language="scala">{active.code}</CodeBlock>
+        {/* Right Column */}
+        <div className={styles.rightColumn}>
+          <div className={styles.codePanel}>
+            {/* Tab Bar */}
+            <div className={styles.tabBar} role="tablist">
+              {examples.map((example, idx) => (
+                <button
+                  key={example.value}
+                  id={`tab-${idx}`}
+                  className={clsx(
+                    styles.tab,
+                    activeTab === idx && styles.tabActive,
+                  )}
+                  onClick={() => handleTabClick(idx)}
+                  aria-selected={activeTab === idx}
+                  aria-controls={`tabpanel-${idx}`}
+                  type="button"
+                  role="tab"
+                >
+                  {example.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Code Area */}
+            <div
+              id={`tabpanel-${activeTab}`}
+              className={styles.codeArea}
+              role="tabpanel"
+              aria-labelledby={`tab-${activeTab}`}
+            >
+              <Highlight
+                key={activeTab}
+                {...defaultProps}
+                theme={dracula}
+                code={active.code.trim()}
+                language="scala"
+              >
+                {({
+                  className,
+                  style,
+                  tokens,
+                  getLineProps,
+                  getTokenProps,
+                }) => (
+                  <pre className={`${className} ${styles.pre}`} style={style}>
+                    <code>
+                      {tokens.map((line, i) => (
+                        <div
+                          key={i}
+                          {...getLineProps({ line, key: i })}
+                          className={styles.codeLine}
+                        >
+                          <span className={styles.lineNumber}>{i + 1}</span>
+                          <span className={styles.lineContent}>
+                            {line.map((token, key) => (
+                              <span
+                                key={key}
+                                {...getTokenProps({ token, key })}
+                              />
+                            ))}
+                          </span>
+                        </div>
+                      ))}
+                    </code>
+                  </pre>
+                )}
+              </Highlight>
+            </div>
+
+            {/* Toolbar */}
+            <div className={styles.toolbar}>
+              <span className={styles.langBadge}>Scala</span>
+              {isBrowser && (
+                <button
+                  type="button"
+                  className={clsx(
+                    styles.copyButton,
+                    copied && styles.copyButtonCopied,
+                  )}
+                  onClick={handleCopy}
+                  aria-label={copied ? 'Copied!' : 'Copy code'}
+                  title={copied ? 'Copied!' : 'Copy to clipboard'}
+                >
+                  {copied ? <FaCheck size={14} /> : <FaCopy size={14} />}
+                  <span>{copied ? 'Copied!' : 'Copy'}</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </SectionWrapper>
+    </section>
   );
 }
