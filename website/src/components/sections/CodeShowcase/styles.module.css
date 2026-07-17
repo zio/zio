@@ -1,5 +1,5 @@
-/* Ported from zio-http's HomepageCodeSnippet styles
-   (website/src/components/HomepageCodeSnippet/styles.module.css). */
+/* Panel inspired by zio-http's HomepageCodeSnippet; the code area is a
+   Docusaurus @theme/CodeBlock so highlighting/copy come from the platform. */
 
 .codeSnippetSection {
   background-color: var(--ifm-color-emphasis-100);
@@ -35,16 +35,27 @@
   margin: 0;
 }
 
-.leftColumn p {
-  color: var(--ifm-text-color-secondary);
+.leftColumn p.takeaway {
+  font-weight: 600;
+  color: var(--ifm-color-primary);
   font-size: 1.1rem;
   line-height: 1.7;
   margin: 0;
 }
 
-.leftColumn p.takeaway {
-  font-weight: 600;
-  color: var(--ifm-color-primary);
+.points {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  list-style: disc;
+}
+
+.points li {
+  color: var(--ifm-text-color-secondary);
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 /* Button uses default Infima styling that respects light/dark theme */
@@ -55,10 +66,9 @@
 }
 
 .codePanel {
-  background-color: #1e2030;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--ifm-color-emphasis-200);
   display: flex;
   flex-direction: column;
 }
@@ -67,8 +77,8 @@
   display: flex;
   overflow-x: auto;
   scrollbar-width: none; /* Firefox */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: #161b22;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  background-color: var(--ifm-color-emphasis-100);
 }
 
 .tabBar::-webkit-scrollbar {
@@ -83,7 +93,7 @@
   padding: 0.75rem 1.25rem;
   border: none;
   background: transparent;
-  color: #8b949e;
+  color: var(--ifm-color-emphasis-600);
   cursor: pointer;
   font-size: 0.875rem;
   white-space: nowrap;
@@ -103,7 +113,7 @@
 }
 
 .tab:hover {
-  color: #e6edf3;
+  color: var(--ifm-color-emphasis-900);
 }
 
 .tabActive {
@@ -114,81 +124,19 @@
 
 .codeArea {
   flex: 1;
-  display: flex;
-  flex-direction: column;
 }
 
-.pre {
+/* Let the CodeBlock fill the panel: drop its own radius/shadow/margin, and
+   hold a stable height across tabs (tallest snippet ~15 lines) so the panel
+   does not jump between short and long examples. */
+.codeArea :global(.theme-code-block) {
   margin: 0;
-  padding: 1.25rem 1rem;
-  overflow: auto;
-  /* Hold a stable height across tabs (tallest snippet is ~15 lines) so the
-     panel does not jump when switching between short and long examples. */
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.codeArea :global(pre) {
   min-height: 24rem;
-  max-height: 500px;
-  font-size: 0.875rem;
-  line-height: 1.6;
-}
-
-.codeLine {
-  display: block;
-}
-
-.lineNumber {
-  display: inline-block;
-  width: 2.5ch;
-  min-width: 2.5ch;
-  margin-right: 1.5rem;
-  text-align: right;
-  color: rgba(255, 255, 255, 0.25);
-  user-select: none;
-  font-variant-numeric: tabular-nums;
-}
-
-.lineContent {
-  display: inline;
-}
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 1rem;
-  background-color: #161b22;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.langBadge {
-  font-size: 0.75rem;
-  color: #8b949e;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  font-family: var(--ifm-font-family-monospace);
-}
-
-.copyButton {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-  padding: 0.25rem 0.6rem;
-  font-size: 0.75rem;
-  color: #8b949e;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-family: inherit;
-}
-
-.copyButton:hover {
-  border-color: var(--ifm-color-primary);
-  color: var(--ifm-color-primary);
-}
-
-.copyButtonCopied {
-  color: var(--ifm-color-primary);
-  border-color: var(--ifm-color-primary);
 }
 
 @media screen and (max-width: 996px) {
@@ -197,12 +145,7 @@
     gap: 2rem;
   }
 
-  .tabBar {
-    overflow-x: auto;
-  }
-
-  .pre {
-    overflow: auto;
-    max-height: 450px;
+  .codeArea :global(pre) {
+    min-height: 0;
   }
 }
