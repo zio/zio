@@ -360,9 +360,15 @@ Run from `website/`: `npm run build` (several minutes)
 Expected: build succeeds. Then verify the SSR output:
 
 ```bash
-grep -c "Show me the code" build/index.html    # expected: ≥1
-grep -c "zipPar" build/index.html              # expected: ≥1
-grep -cF 'signing up $name' build/index.html   # expected: ≥1 (single quotes: keep $name out of bash)
+grep -c "Show me the code" build/index.html                    # expected: ≥1
+grep -c "zipPar" build/index.html                              # expected: ≥1
+grep -cF 'signing up' build/index.html                         # expected: ≥1
+grep -cF 'Wiring is checked at compile time' build/index.html  # expected: ≥1
+
+# Note: do NOT grep for the full literal 'signing up $name' — Prism syntax
+# highlighting tokenizes the $name interpolator into separate <span>s in the
+# SSR HTML, so the contiguous substring never appears. Verify the rendered
+# interpolator visually in the browser check instead.
 ```
 
 - [ ] **Step 5: Browser check**
