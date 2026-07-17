@@ -1,0 +1,147 @@
+.grid {
+  display: grid;
+  grid-template-columns: 38% 62%;
+  gap: 2rem;
+  align-items: start;
+}
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.railItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.railItem:hover {
+  background: var(--ifm-color-emphasis-100);
+}
+
+.railItemTitle {
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.railItemActive {
+  border-left-color: var(--ifm-color-primary);
+  background: var(--ifm-card-background-color, #fff);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.railItemActive .railItemTitle {
+  color: var(--ifm-font-color-base);
+}
+
+.railItemActive:hover {
+  background: var(--ifm-card-background-color, #fff);
+}
+
+.railTakeaway {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ifm-color-primary);
+}
+
+.railDescription {
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+[data-theme='dark'] .railItemActive {
+  background: var(--ifm-background-color);
+  border-color: var(--ifm-color-emphasis-300);
+  border-left-color: var(--ifm-color-primary);
+}
+
+[data-theme='dark'] .railItemActive:hover {
+  background: var(--ifm-background-color);
+}
+
+.codePanel {
+  border-radius: 14px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+[data-theme='dark'] .codePanel {
+  border-color: var(--ifm-color-emphasis-300);
+}
+
+.codePanel :global(.theme-code-block) {
+  margin-bottom: 0;
+  border-radius: 0;
+}
+
+/* Mobile chip row, hidden on desktop */
+.chipRow {
+  display: none;
+}
+
+.mobileDescription {
+  display: none;
+}
+
+@media (max-width: 996px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rail {
+    display: none;
+  }
+
+  .chipRow {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .chip {
+    flex: 0 0 auto;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--ifm-color-emphasis-200);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ifm-color-emphasis-700);
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  .chip:hover {
+    background: var(--ifm-color-emphasis-100);
+  }
+
+  .chipActive {
+    border-color: var(--ifm-color-primary);
+    color: var(--ifm-color-primary);
+    background: var(--ifm-color-emphasis-100);
+  }
+
+  .mobileDescription {
+    display: block;
+    margin-bottom: 1rem;
+  }
+}
