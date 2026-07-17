@@ -24,34 +24,34 @@ export default function CodeShowcase() {
   const activeIndex = examples.findIndex((e) => e.value === activeValue);
   const active = examples[activeIndex];
 
-  const selectByIndex = (index, focusItem = true) => {
+  const selectByIndex = (index, idPrefix, focusItem = true) => {
     const next = examples[(index + examples.length) % examples.length];
     setActiveValue(next.value);
     if (focusItem) {
-      const el = document.getElementById(`code-showcase-tab-${next.value}`);
+      const el = document.getElementById(`${idPrefix}${next.value}`);
       if (el) el.focus();
     }
   };
 
-  const handleKeyDown = (event) => {
+  const handleKeyDown = (idPrefix) => (event) => {
     switch (event.key) {
       case 'ArrowDown':
       case 'ArrowRight':
         event.preventDefault();
-        selectByIndex(activeIndex + 1);
+        selectByIndex(activeIndex + 1, idPrefix);
         break;
       case 'ArrowUp':
       case 'ArrowLeft':
         event.preventDefault();
-        selectByIndex(activeIndex - 1);
+        selectByIndex(activeIndex - 1, idPrefix);
         break;
       case 'Home':
         event.preventDefault();
-        selectByIndex(0);
+        selectByIndex(0, idPrefix);
         break;
       case 'End':
         event.preventDefault();
-        selectByIndex(examples.length - 1);
+        selectByIndex(examples.length - 1, idPrefix);
         break;
       default:
         break;
@@ -70,7 +70,7 @@ export default function CodeShowcase() {
               className={styles.rail}
               role="tablist"
               aria-orientation="vertical"
-              onKeyDown={handleKeyDown}
+              onKeyDown={handleKeyDown('code-showcase-tab-')}
             >
               {examples.map((example) => {
                 const isActive = example.value === activeValue;
@@ -115,7 +115,7 @@ export default function CodeShowcase() {
               className={styles.chipRow}
               role="tablist"
               aria-orientation="horizontal"
-              onKeyDown={handleKeyDown}
+              onKeyDown={handleKeyDown('code-showcase-chip-')}
             >
               {examples.map((example) => {
                 const isActive = example.value === activeValue;
