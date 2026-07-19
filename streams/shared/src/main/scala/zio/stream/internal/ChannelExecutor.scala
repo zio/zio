@@ -247,18 +247,46 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
               }
 
             case ZChannel.DeferedUpstream(mkChannel) =>
-              val inpAsChannel: ZChannel[Env, Any, Any, Any, Any, Any, Any] = execToPullingChannel(input)
+              // The environment the upstream executor captured from the enclosing pipe.
+              val inputProvidedEnv = input.providedEnv
 
-              // when input's provided env is null, we have to explicitly provide it with the 'outer' env
-              // otherwise any env provided by downstream will override the 'correct' env when the input channel executes effects.
               val nextChannel: Channel[Env] =
-                if (null ne input.providedEnv)
-                  mkChannel(inpAsChannel.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]])
-                else
+                if (null ne inputProvidedEnv) {
+                  // Clear the captured environment so the upstream's effects become "raw".
+                  // Otherwise they are already provided with `inputProvidedEnv`, which shadows
+                  // any environment transformation a pipeline applies to the upstream (e.g. via
+                  // `provideSomeEnvironment`), silently making it a no-op.
+                  input.providedEnv = null
+                  val inpAsChannel = execToPullingChannel(input)
+                  // Provide the upstream by overlaying the environment produced by the pipeline
+                  // (`pe`) on top of the captured base. This lets a pipeline transform the
+                  // upstream's environment, while still preserving the services the upstream
+                  // received from the enclosing scope that the pipeline does not itself provide.
+                  mkChannel(ZChannel.environmentWithChannel[Any] { pe =>
+                    inpAsChannel
+                      .asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]]
+                      .provideEnvironment(inputProvidedEnv.unionAll(pe))
+                  })
+                } else {
+                  val inpAsChannel = execToPullingChannel(input)
+                  // When input's provided env is null, we still have to explicitly provide the
+                  // upstream with the 'outer' env; otherwise any env provided by downstream would
+                  // override the 'correct' env when the input channel executes effects.
+                  // We read the outer env (`env`) as the base, but overlay the environment the
+                  // pipeline produces (`pe`, read at the point the upstream is used inside
+                  // `mkChannel`) on top of it via `unionAll`. This mirrors the non-null branch:
+                  // it lets a pipeline transform the upstream's environment while preserving the
+                  // services the upstream received from the enclosing scope that the pipeline does
+                  // not itself provide (env-neutral pipelines reduce to providing `env`).
                   ZChannel // TODO: can we eliminate the effect evaluation here? i.e. by usingFiber.currentFiber()
                     .environmentWithChannel[Env] { env =>
-                      mkChannel(inpAsChannel.provideEnvironment(env))
+                      mkChannel(ZChannel.environmentWithChannel[Any] { pe =>
+                        inpAsChannel
+                          .asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]]
+                          .provideEnvironment(env.unionAll(pe))
+                      })
                     }
+                }
 
               val previousInput = input
               input = null
