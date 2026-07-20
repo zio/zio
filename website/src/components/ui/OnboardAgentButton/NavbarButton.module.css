@@ -1,13 +1,13 @@
 .button {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  justify-content: center;
   margin: 0 0.5rem;
-  padding: 0.35rem 0.9rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: 999px;
   border: 1px solid transparent;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.95rem;
   color: #fff;
   background: var(--gradient-brand);
   cursor: pointer;
@@ -24,16 +24,5 @@
 @media (prefers-reduced-motion: no-preference) {
   .button:hover {
     transform: translateY(-1px);
-  }
-}
-
-/* Collapse to icon-only on narrow viewports to save navbar space. */
-@media (max-width: 996px) {
-  .button span {
-    display: none;
-  }
-
-  .button {
-    padding: 0.4rem 0.55rem;
   }
 }

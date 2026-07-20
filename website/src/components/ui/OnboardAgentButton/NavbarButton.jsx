@@ -36,7 +36,6 @@ export default function OnboardAgentNavbarButton() {
       ) : (
         <FaWandMagicSparkles aria-hidden="true" />
       )}
-      <span>{copied ? 'Copied!' : 'Onboard Agent'}</span>
     </button>
   );
 }
