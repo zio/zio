@@ -79,7 +79,6 @@ export default function CodeShowcase() {
       <div className={styles.innerContainer}>
         {/* Left Column */}
         <div className={styles.leftColumn}>
-          <span className="eyebrow">By example</span>
           <h2>ZIO by Example</h2>
           <p className={styles.takeaway}>{active.takeaway}</p>
           <ul className={styles.points}>
@@ -92,7 +91,7 @@ export default function CodeShowcase() {
               </li>
             ))}
           </ul>
-          <div>
+          <div className={styles.ctaWrap}>
             <Link className={styles.ctaButton} to="/overview/getting-started">
               <span>Explore the Docs</span>
               <FaArrowRight aria-hidden="true" />

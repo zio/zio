@@ -18,7 +18,7 @@
   display: grid;
   grid-template-columns: 2fr 3fr;
   gap: 4rem;
-  align-items: start;
+  align-items: stretch;
 }
 
 .leftColumn {
@@ -88,6 +88,13 @@
 
 [data-theme='dark'] .pointIcon {
   color: #f87171;
+}
+
+/* Pin the CTA to the bottom of the column so it stays put across tabs,
+   while the takeaway/points above vary in height. */
+.ctaWrap {
+  margin-top: auto;
+  padding-top: 0.5rem;
 }
 
 /* Pill CTA matching the hero buttons. */
