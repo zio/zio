@@ -2,9 +2,10 @@
 
 const path = require('path');
 
-const lightCodeTheme = require('prism-react-renderer/themes/github');
-const darkCodeTheme = require('prism-react-renderer/themes/vsDark');
-const { getEditUrl } = require('./editUrl')
+const { themes: prismThemes } = require('prism-react-renderer');
+const lightCodeTheme = prismThemes.github;
+const darkCodeTheme = prismThemes.vsDark;
+const { getEditUrl } = require('./editUrl');
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -265,7 +266,7 @@ const config = {
       return {
         name: 'docusaurus-tailwindcss',
         configurePostCss(postcssOptions) {
-          postcssOptions.plugins.push(require("@tailwindcss/postcss"));
+          postcssOptions.plugins.push(require('@tailwindcss/postcss'));
           return postcssOptions;
         },
       };
@@ -282,12 +283,12 @@ const config = {
           },
           {
             from: '/zio-http',
-            to: 'https://ziohttp.com'
+            to: 'https://ziohttp.com',
           },
           {
             from: '/tutorials/producing-consuming-data-from-kafka-topics',
-            to: '/zio-kafka/tutorial'
-          }
+            to: '/zio-kafka/tutorial',
+          },
         ],
       },
     ],

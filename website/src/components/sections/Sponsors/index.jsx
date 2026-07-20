@@ -7,7 +7,7 @@ import { sponsors } from './data';
 
 export default function Sponsors() {
   return (
-    <SectionWrapper eyebrow="Backed by" title="Our Sponsors">
+    <SectionWrapper title="Our Sponsors">
       <div className="container">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-around gap-12">
           {sponsors.map((sponsor, idx) => (

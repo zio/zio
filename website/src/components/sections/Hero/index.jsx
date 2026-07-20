@@ -11,7 +11,7 @@ export default function Hero() {
   const { siteConfig = {} } = context;
 
   return (
-    <section className="relative overflow-hidden py-16 md:py-24">
+    <section className="relative overflow-hidden pt-16 pb-10 md:pt-24">
       {/* Soft, theme-aware red radial glow behind the hero content. */}
       <div
         aria-hidden="true"

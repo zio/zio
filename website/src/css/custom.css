@@ -2,10 +2,10 @@
 
 /* You can override the default Infima variables here. */
 @layer theme, base, components, utilities;
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities);
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
 
-@config "../../tailwind.config.js";
+@config '../../tailwind.config.js';
 
 /*
   The default border color has changed to `currentColor` in Tailwind CSS v4,
@@ -16,7 +16,6 @@
   color utility to any element that depends on these defaults.
 */
 @layer base {
-
   *,
   ::after,
   ::before,
@@ -134,7 +133,10 @@ a {
   border: 1px solid var(--ifm-color-emphasis-200);
   background: var(--ifm-card-background-color, #fff);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .card-modern::before {
@@ -161,9 +163,14 @@ a {
   justify-content: center;
   width: 2.75rem;
   height: 2.75rem;
+  font-size: 1.25rem;
   border-radius: 0.8rem;
   color: #dc2626;
-  background: linear-gradient(135deg, rgba(220, 38, 38, 0.12), rgba(245, 158, 11, 0.12));
+  background: linear-gradient(
+    135deg,
+    rgba(220, 38, 38, 0.12),
+    rgba(245, 158, 11, 0.12)
+  );
 }
 
 [data-theme='dark'] .card-icon-tile {
@@ -189,151 +196,232 @@ a {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* ── ByteBrain chat toggle: match brand red instead of default orange ─── */
-button.fixed.bg-orange-400 {
-  background-color: transparent !important;
-  background-image: var(--gradient-brand) !important;
-  /* Crisp-style launcher: a round chat-bubble button pinned bottom-right,
+/* ByteBrain overrides live in the components layer: the widget's Tailwind
+   build ships utilities with `!important` (important: true) in the utilities
+   layer, and for important declarations an earlier layer wins — so plain
+   unlayered overrides lose to them. The components layer (declared before
+   utilities) is needed for these retheme rules to actually take effect. */
+@layer components {
+  /* ── ByteBrain chat toggle: match brand red instead of default orange ─── */
+  button.fixed.bg-orange-400 {
+    background-color: transparent !important;
+    background-image: var(--gradient-brand) !important;
+    /* Crisp-style launcher: a round chat-bubble button pinned bottom-right,
      always visible, with a gentle scale on hover. The "ZIO Chat!" text stays in
      the DOM for screen readers but is fully hidden: transparent, zero font-size,
      indented and clipped. The icon is drawn as an absolutely-centered ::before
      so the hidden text can't affect it. */
-  position: fixed !important;
-  color: transparent !important;
-  width: 3.75rem !important;
-  height: 3.75rem !important;
-  min-width: 3.75rem !important;
-  padding: 0 !important;
-  margin: 0 1.25rem 1.25rem 0 !important;
-  font-size: 0 !important;
-  line-height: 0 !important;
-  text-indent: -9999px !important;
-  overflow: hidden !important;
-  border-radius: 9999px !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28) !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease !important;
-}
-
-/* White chat-bubble glyph, absolutely centered regardless of the hidden text. */
-button.fixed.bg-orange-400::before {
-  content: '';
-  position: absolute !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  width: 1.6rem !important;
-  height: 1.6rem !important;
-  text-indent: 0 !important;
-  background-color: #ffffff !important;
-  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-6 5V4a2 2 0 0 1 2-2z'/%3E%3C/svg%3E") center / contain no-repeat;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-6 5V4a2 2 0 0 1 2-2z'/%3E%3C/svg%3E") center / contain no-repeat;
-}
-
-button.fixed.bg-orange-400:hover,
-button.fixed.bg-orange-400:focus-visible {
-  transform: scale(1.06) !important;
-  box-shadow: 0 12px 30px rgba(220, 38, 38, 0.35) !important;
-  filter: brightness(0.97);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  button.fixed.bg-orange-400 {
-    transition: none !important;
+    position: fixed !important;
+    color: transparent !important;
+    width: 3.75rem !important;
+    height: 3.75rem !important;
+    min-width: 3.75rem !important;
+    padding: 0 !important;
+    margin: 0 1.25rem 1.25rem 0 !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    text-indent: -9999px !important;
+    overflow: hidden !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28) !important;
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease,
+      filter 0.2s ease !important;
   }
+
+  /* White chat-bubble glyph, absolutely centered regardless of the hidden text. */
+  button.fixed.bg-orange-400::before {
+    content: '';
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 1.6rem !important;
+    height: 1.6rem !important;
+    text-indent: 0 !important;
+    background-color: #ffffff !important;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-6 5V4a2 2 0 0 1 2-2z'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-6 5V4a2 2 0 0 1 2-2z'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
+
   button.fixed.bg-orange-400:hover,
   button.fixed.bg-orange-400:focus-visible {
-    transform: none !important;
+    transform: scale(1.06) !important;
+    box-shadow: 0 12px 30px rgba(220, 38, 38, 0.35) !important;
+    filter: brightness(0.97);
   }
-}
 
-/* ── ByteBrain chat window: brand-consistent + modern ────────────────────
+  @media (prefers-reduced-motion: reduce) {
+    button.fixed.bg-orange-400 {
+      transition: none !important;
+    }
+    button.fixed.bg-orange-400:hover,
+    button.fixed.bg-orange-400:focus-visible {
+      transform: none !important;
+    }
+  }
+
+  /* ── ByteBrain chat window: brand-consistent + modern ────────────────────
    The library ships a blue/black themed popup. These scoped overrides (under
    the .zio-chat wrapper so they never leak to bg-blue/bg-black elsewhere)
    retheme it to the red/amber system, theme-aware. */
 
-/* Popup panel (flex-col rounded-md bg-gray-100). */
-.zio-chat .rounded-md.bg-gray-100 {
-  background: #ffffff !important;
-  border: 1px solid var(--ifm-color-emphasis-200) !important;
-  border-radius: 16px !important;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22) !important;
-}
+  /* Popup panel (flex-col rounded-md bg-gray-100) — match the homepage
+   card-modern language: 14px radius, 1px emphasis border, and a brand
+   gradient top edge. */
+  .zio-chat .rounded-md.bg-gray-100 {
+    position: relative !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+    border: 1px solid var(--ifm-color-emphasis-200) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22) !important;
+  }
 
-[data-theme='dark'] .zio-chat .rounded-md.bg-gray-100 {
-  background: #181818 !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-}
+  .zio-chat .rounded-md.bg-gray-100::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--gradient-brand);
+  }
 
-/* Assistant/bot message bubbles (bg-blue-600) → neutral readable surface with
-   a red accent edge. White-on-gradient was too low-contrast to read. */
-.zio-chat .bg-blue-600 {
-  background: #f4f4f5 !important;
-  color: #1a1a1a !important;
-  border-left: 3px solid #dc2626 !important;
-}
+  [data-theme='dark'] .zio-chat .rounded-md.bg-gray-100 {
+    background: #181818 !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
 
-.zio-chat .bg-blue-600 * {
-  color: #1a1a1a !important;
-}
+  /* Header title (text-[red] text-3xl) → brand gradient text, matching the
+   hero's gradient keyword and the section-title weight. */
+  .zio-chat h1 {
+    font-size: 1.5rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.02em !important;
+    margin-bottom: 1rem !important;
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent !important;
+  }
 
-.zio-chat .bg-blue-600 a {
-  color: #dc2626 !important;
-}
+  /* Bot message bubble. It is built from two stacked segments — a header
+   (bg-blue-600) and body parts (bg-blue-500). Give BOTH the same neutral,
+   readable surface with one continuous red accent stripe, so a single bot
+   answer reads as one consistent bubble (never blue, never two-toned). */
+  .zio-chat .bg-blue-600,
+  .zio-chat .bg-blue-500 {
+    background: #f4f4f5 !important;
+    color: #1a1a1a !important;
+    border-left: 3px solid #dc2626 !important;
+  }
 
-[data-theme='dark'] .zio-chat .bg-blue-600 {
-  background: #242526 !important;
-  color: #ececec !important;
-}
+  .zio-chat .bg-blue-600 *,
+  .zio-chat .bg-blue-500 * {
+    color: #1a1a1a !important;
+  }
 
-[data-theme='dark'] .zio-chat .bg-blue-600 *:not(a) {
-  color: #ececec !important;
-}
+  .zio-chat .bg-blue-600 a,
+  .zio-chat .bg-blue-500 a {
+    color: #dc2626 !important;
+  }
 
-[data-theme='dark'] .zio-chat .bg-blue-600 a {
-  color: #f87171 !important;
-}
+  [data-theme='dark'] .zio-chat .bg-blue-600,
+  [data-theme='dark'] .zio-chat .bg-blue-500 {
+    background: #242526 !important;
+    color: #ececec !important;
+  }
 
-/* User message bubbles (bg-blue-500) → brand red, white text. */
-.zio-chat .bg-blue-500 {
-  background: #dc2626 !important;
-  color: #ffffff !important;
-}
+  [data-theme='dark'] .zio-chat .bg-blue-600 *:not(a),
+  [data-theme='dark'] .zio-chat .bg-blue-500 *:not(a) {
+    color: #ececec !important;
+  }
 
-.zio-chat .bg-blue-500 * {
-  color: #ffffff !important;
-}
+  [data-theme='dark'] .zio-chat .bg-blue-600 a,
+  [data-theme='dark'] .zio-chat .bg-blue-500 a {
+    color: #f87171 !important;
+  }
 
-/* Bot message bubbles (bg-gray-300 / text-gray-600). */
-.zio-chat .bg-gray-300 {
-  background: #f1f1f1 !important;
-}
+  /* User message bubble (bg-gray-300 / text-gray-600) → soft red→amber
+   gradient tint, the same brand wash used by the card icon tiles and
+   eyebrow. Light and readable, distinct from the bot's neutral surface. */
+  .zio-chat .bg-gray-300 {
+    background: linear-gradient(
+      135deg,
+      rgba(220, 38, 38, 0.12),
+      rgba(245, 158, 11, 0.12)
+    ) !important;
+  }
 
-.zio-chat .text-gray-600 {
-  color: #333333 !important;
-}
+  .zio-chat .bg-gray-300,
+  .zio-chat .text-gray-600 {
+    color: #1a1a1a !important;
+  }
 
-[data-theme='dark'] .zio-chat .bg-gray-300 {
-  background: #242526 !important;
-}
+  .zio-chat .bg-gray-300 * {
+    color: #1a1a1a !important;
+  }
 
-[data-theme='dark'] .zio-chat .text-gray-600 {
-  color: #e5e5e5 !important;
-}
+  [data-theme='dark'] .zio-chat .bg-gray-300 {
+    background: linear-gradient(
+      135deg,
+      rgba(220, 38, 38, 0.22),
+      rgba(245, 158, 11, 0.18)
+    ) !important;
+  }
 
-/* Send button (bg-black / hover:bg-gray-900) → brand red. */
-.zio-chat .bg-black {
-  background: #dc2626 !important;
-  border-radius: 10px !important;
-}
+  [data-theme='dark'] .zio-chat .bg-gray-300,
+  [data-theme='dark'] .zio-chat .text-gray-600,
+  [data-theme='dark'] .zio-chat .bg-gray-300 * {
+    color: #ececec !important;
+  }
 
-.zio-chat .bg-black:hover {
-  background: #b91c1c !important;
-}
+  /* Send button (bg-black / hover:bg-gray-900) → brand red pill, matching
+   the homepage CTA buttons. */
+  .zio-chat .bg-black {
+    background: #dc2626 !important;
+    border-radius: 999px !important;
+  }
 
-/* Header links. */
-.zio-chat a.text-white:hover {
-  color: #0f0f0f !important;
-}
+  .zio-chat .bg-black:hover {
+    background: #b91c1c !important;
+  }
+
+  /* Header links. */
+  .zio-chat a.text-white:hover {
+    color: #0f0f0f !important;
+  }
+
+  /* ── Chat window open animation ───────────────────────────────────────────
+   The widget toggles its #container between `hidden` (display:none) and
+   `block`. When it becomes visible, play a slight slide-up + fade so the
+   chat box eases in from its bottom-right anchor instead of snapping. */
+  @keyframes zio-chat-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .zio-chat #container.block {
+    transform-origin: bottom right;
+    animation: zio-chat-in 0.22s ease-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .zio-chat #container.block {
+      animation: none;
+    }
+  }
+} /* end @layer components (ByteBrain chat overrides) */
 
 /* ── Footer link hover ────────────────────────────────────────────────── */
 .footer__link-item:hover {
@@ -350,7 +438,9 @@ button.fixed.bg-orange-400:focus-visible {
   .reveal {
     opacity: 0;
     transform: translateY(24px);
-    transition: opacity 0.6s ease, transform 0.6s ease;
+    transition:
+      opacity 0.6s ease,
+      transform 0.6s ease;
     will-change: opacity, transform;
   }
 
@@ -386,11 +476,13 @@ button.fixed.bg-orange-400:focus-visible {
   width: 24px;
   height: 24px;
   display: flex;
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'/%3E%3C/svg%3E") no-repeat;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'/%3E%3C/svg%3E")
+    no-repeat;
 }
 
 [data-theme='dark'] .header-github-link::before {
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='white' d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'/%3E%3C/svg%3E") no-repeat;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='white' d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'/%3E%3C/svg%3E")
+    no-repeat;
 }
 
 /* Announcement bar: matches navbar surfaces, red CTA accent, theme-aware.
@@ -401,7 +493,7 @@ button.fixed.bg-orange-400:focus-visible {
   font-size: 20px;
   background: #ececec;
   color: #1a1a1a;
-  border-bottom: 1px solid var(--color-gray-200, rgba(0, 0, 0, .1));
+  border-bottom: 1px solid var(--color-gray-200, rgba(0, 0, 0, 0.1));
 }
 
 .theme-announcement-bar a {
@@ -416,7 +508,7 @@ button.fixed.bg-orange-400:focus-visible {
 [data-theme='dark'] .theme-announcement-bar {
   background: #1c1c1c !important;
   color: #f0f0f0 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, .1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 [data-theme='dark'] .theme-announcement-bar a {
@@ -437,4 +529,36 @@ button.fixed.bg-orange-400:focus-visible {
 .theme-announcement-bar .close svg {
   width: 16px;
   height: 16px;
+}
+
+/* ── Homepage: one-section-per-scroll ─────────────────────────────────────
+   The jump is driven in JS (useFullpageScroll) so a single wheel/key gesture
+   animates to the adjacent section. This only supplies the scroll offset so a
+   section lands below the sticky navbar, not under it. Scoped to the homepage
+   via a class added to <html> on that route (see src/pages/index.jsx). */
+html.homepage-snap {
+  scroll-behavior: smooth;
+}
+
+html.homepage-snap .fp-section {
+  scroll-margin-top: 4.5rem;
+}
+
+/* Alternating (zebra) section backgrounds: the base page colour and a tinted
+   band, applied to every other homepage section. Matches the CodeShowcase
+   band so the whole page shares one two-tone rhythm. */
+.section-alt {
+  /* White band on the off-white (#f6f6f6) page reads clearly in light mode;
+     emphasis-100 was almost identical to the base and looked flat. */
+  background-color: #ffffff;
+}
+
+[data-theme='dark'] .section-alt {
+  background-color: var(--ifm-background-surface-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.homepage-snap {
+    scroll-behavior: auto;
+  }
 }
