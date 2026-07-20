@@ -336,6 +336,32 @@ button.fixed.bg-orange-400:focus-visible {
   color: #0f0f0f !important;
 }
 
+/* ── Chat window open animation ───────────────────────────────────────────
+   The widget toggles its #container between `hidden` (display:none) and
+   `block`. When it becomes visible, play a slight slide-up + fade so the
+   chat box eases in from its bottom-right anchor instead of snapping. */
+@keyframes zio-chat-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.zio-chat #container.block {
+  transform-origin: bottom right;
+  animation: zio-chat-in 0.22s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zio-chat #container.block {
+    animation: none;
+  }
+}
+
 /* ── Footer link hover ────────────────────────────────────────────────── */
 .footer__link-item:hover {
   color: #e14747;
