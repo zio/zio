@@ -3,7 +3,7 @@ import { Highlight, themes, Prism } from 'prism-react-renderer';
 import useIsBrowser from '@docusaurus/useIsBrowser';
 import Link from '@docusaurus/Link';
 import clsx from 'clsx';
-import { FaCopy, FaCheck } from 'react-icons/fa6';
+import { FaCopy, FaCheck, FaArrowRight } from 'react-icons/fa6';
 import styles from './styles.module.css';
 
 import { examples } from './data';
@@ -79,19 +79,23 @@ export default function CodeShowcase() {
       <div className={styles.innerContainer}>
         {/* Left Column */}
         <div className={styles.leftColumn}>
+          <span className="eyebrow">By example</span>
           <h2>ZIO by Example</h2>
           <p className={styles.takeaway}>{active.takeaway}</p>
           <ul className={styles.points}>
             {active.points.map((point, i) => (
-              <li key={i}>{point}</li>
+              <li key={i}>
+                <span className={styles.pointIcon} aria-hidden="true">
+                  <FaCheck />
+                </span>
+                <span>{point}</span>
+              </li>
             ))}
           </ul>
           <div>
-            <Link
-              className="button button--outline button--lg"
-              to="/overview/getting-started"
-            >
-              Explore the Docs
+            <Link className={styles.ctaButton} to="/overview/getting-started">
+              <span>Explore the Docs</span>
+              <FaArrowRight aria-hidden="true" />
             </Link>
           </div>
         </div>

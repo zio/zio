@@ -43,26 +43,79 @@
 }
 
 .leftColumn p.takeaway {
+  font-size: 1.25rem;
   font-weight: 600;
-  color: var(--ifm-color-primary);
+  line-height: 1.5;
+  color: var(--ifm-heading-color);
 }
 
 .points {
   margin: 0;
-  padding-left: 1.25rem;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  list-style: disc;
+  gap: 0.85rem;
+  list-style: none;
 }
 
 .points li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
   color: var(--ifm-text-color-secondary);
   font-size: 1rem;
   line-height: 1.5;
 }
 
-/* Button uses default Infima styling that respects light/dark theme */
+/* Gradient-tinted check tile, matching the Features card icon language. */
+.pointIcon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.1rem;
+  border-radius: 0.5rem;
+  font-size: 0.7rem;
+  color: #dc2626;
+  background: linear-gradient(
+    135deg,
+    rgba(220, 38, 38, 0.12),
+    rgba(245, 158, 11, 0.12)
+  );
+}
+
+[data-theme='dark'] .pointIcon {
+  color: #f87171;
+}
+
+/* Pill CTA matching the hero buttons. */
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  color: #fff;
+  background-color: var(--ifm-color-primary);
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.ctaButton:hover {
+  color: #fff;
+  text-decoration: none;
+  background-color: var(--ifm-color-primary-light);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ctaButton:hover {
+    transform: translateY(-2px);
+  }
+}
 
 .rightColumn {
   display: flex;
