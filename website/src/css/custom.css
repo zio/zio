@@ -531,28 +531,21 @@ a {
   height: 16px;
 }
 
-/* ── Homepage: gentle section scroll-snap ─────────────────────────────────
-   Scoped to the homepage via a class added to <html> on that route (see
-   src/pages/index.jsx). Proximity (not mandatory) so free scrolling is never
-   trapped — it only eases to a section edge when the user pauses near one. */
+/* ── Homepage: one-section-per-scroll ─────────────────────────────────────
+   The jump is driven in JS (useFullpageScroll) so a single wheel/key gesture
+   animates to the adjacent section. This only supplies the scroll offset so a
+   section lands below the sticky navbar, not under it. Scoped to the homepage
+   via a class added to <html> on that route (see src/pages/index.jsx). */
 html.homepage-snap {
-  scroll-snap-type: y mandatory;
   scroll-behavior: smooth;
-  /* Offset the sticky navbar so a snapped section sits below it, not under. */
-  scroll-padding-top: 4.5rem;
 }
 
-html.homepage-snap .main-wrapper > section, /* Hero */
-html.homepage-snap main > .reveal {
-  scroll-snap-align: start;
-  /* Force a stop at every section: one small scroll advances exactly one
-     section, and none can be skipped over in a single gesture. */
-  scroll-snap-stop: always;
+html.homepage-snap .fp-section {
+  scroll-margin-top: 4.5rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
   html.homepage-snap {
-    scroll-snap-type: none;
     scroll-behavior: auto;
   }
 }
