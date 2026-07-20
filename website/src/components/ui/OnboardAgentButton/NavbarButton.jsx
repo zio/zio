@@ -27,7 +27,7 @@ export default function OnboardAgentNavbarButton() {
     <button
       type="button"
       onClick={onClick}
-      title="Copy the setup instruction for your coding agent"
+      title="Copy the prompt to onboard your coding agent to ZIO"
       aria-label="Copy the ZIO agent onboarding prompt to the clipboard"
       className={styles.button}
     >
