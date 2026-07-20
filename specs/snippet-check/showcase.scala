@@ -32,12 +32,7 @@ def fetchOrders: Task[List[String]]     = ZIO.succeed(Nil)
 def fetchProfile(id: Int): Task[User]   = ZIO.succeed(User(id.toString))
 val userIds: List[Int]                  = List(1, 2, 3)
 
-sealed trait AppError
-case class NetworkError(msg: String) extends AppError
-case class ParseError(line: Int)     extends AppError
-
-val fetchConfig: ZIO[Any, AppError, Config] = ZIO.succeed(Config())
-val cachedConfig: UIO[Config]               = ZIO.succeed(Config())
+val cachedConfig: UIO[Config] = ZIO.succeed(Config())
 
 def openFile(path: String): IO[IOException, File]  = ZIO.succeed(new File)
 def closeFile(f: File): UIO[Unit]                  = ZIO.unit
@@ -63,32 +58,34 @@ object Snippet1 {
 
 // ── Snippet 2: Error handling ───────────────────────────────────────────
 object Snippet2 {
-  // fetchConfig: ZIO[Any, AppError, Config]
+  enum AppError:
+    case NetworkError(msg: String)
+    case ParseError(line: Int)
+
+  def fetchConfig: ZIO[Any, AppError, Config] = ???
+
   val program: ZIO[Any, Nothing, Config] =
     fetchConfig
       .retry(Schedule.exponential(100.millis) && Schedule.recurs(5))
-      .catchAll {
-        case NetworkError(_) => cachedConfig
-        case ParseError(_)   => ZIO.succeed(Config.fallback)
-      }
+      .catchAll:
+        case AppError.NetworkError(_) => cachedConfig
+        case AppError.ParseError(_)   => ZIO.succeed(Config.fallback)
 }
 
 // ── Snippet 3: Resource safety ──────────────────────────────────────────
 object Snippet3 {
   def analyze(path: String): ZIO[Any, IOException, Stats] =
-    ZIO.acquireReleaseWith(openFile(path))(closeFile) { file =>
+    ZIO.acquireReleaseWith(openFile(path))(closeFile): file =>
       computeStats(file)
-    }
 
   // Or compose many resources with Scope
   val app: ZIO[Any, Throwable, Unit] =
-    ZIO.scoped {
-      for {
+    ZIO.scoped:
+      for
         db   <- Database.connect
         file <- logFile("app.log")
         _    <- runMigrations(db, file)
-      } yield ()
-    } // released in reverse order — even on failure or interruption
+      yield () // released in reverse order — even on failure or interruption
 }
 
 // ── Snippet 4: Streaming ────────────────────────────────────────────────
@@ -105,15 +102,13 @@ object Snippet4 {
 
 // ── Snippet 5: Dependency Injection ─────────────────────────────────────
 object Snippet5 {
-  class UserService(db: Database, logger: Logger) {
+  class UserService(db: Database, logger: Logger):
     def signup(name: String): Task[User] =
       logger.info(s"signing up $name") *> db.insert(name)
-  }
 
-  object UserService {
+  object UserService:
     val live: ZLayer[Database & Logger, Nothing, UserService] =
       ZLayer.fromFunction(new UserService(_, _))
-  }
 
   val app: ZIO[UserService, Throwable, User] =
     ZIO.serviceWithZIO[UserService](_.signup("Ada"))

@@ -31,14 +31,18 @@ val profiles = ZIO.foreachPar(userIds)(fetchProfile)`,
       'Built-in retry policies recover from transient failures with backoff.',
       'The compiler proves when every error has been handled.',
     ],
-    code: `// fetchConfig: ZIO[Any, AppError, Config]
+    code: `enum AppError:
+  case NetworkError(msg: String)
+  case ParseError(line: Int)
+
+def fetchConfig: ZIO[Any, AppError, Config] = ???
+
 val program: ZIO[Any, Nothing, Config] =
   fetchConfig
     .retry(Schedule.exponential(100.millis) && Schedule.recurs(5))
-    .catchAll {
-      case NetworkError(_) => cachedConfig
-      case ParseError(_)   => ZIO.succeed(Config.fallback)
-    }`,
+    .catchAll:
+      case AppError.NetworkError(_) => cachedConfig
+      case AppError.ParseError(_)   => ZIO.succeed(Config.fallback)`,
   },
   {
     value: 'resources',
@@ -51,19 +55,17 @@ val program: ZIO[Any, Nothing, Config] =
       'Guaranteed on success, failure, or interruption alike.',
     ],
     code: `def analyze(path: String): ZIO[Any, IOException, Stats] =
-  ZIO.acquireReleaseWith(openFile(path))(closeFile) { file =>
+  ZIO.acquireReleaseWith(openFile(path))(closeFile): file =>
     computeStats(file)
-  }
 
 // Or compose many resources with Scope
 val app: ZIO[Any, Throwable, Unit] =
-  ZIO.scoped {
-    for {
+  ZIO.scoped:
+    for
       db   <- Database.connect
       file <- logFile("app.log")
       _    <- runMigrations(db, file)
-    } yield ()
-  } // released in reverse order — even on failure or interruption`,
+    yield () // released in reverse order — even on failure or interruption`,
   },
   {
     value: 'streaming',
@@ -94,15 +96,13 @@ val app: ZIO[Any, Throwable, Unit] =
       'Services are accessed from the environment with no manual wiring.',
       'A missing dependency is a compile error, not a runtime failure.',
     ],
-    code: `class UserService(db: Database, logger: Logger) {
+    code: `class UserService(db: Database, logger: Logger):
   def signup(name: String): Task[User] =
     logger.info(s"signing up $name") *> db.insert(name)
-}
 
-object UserService {
+object UserService:
   val live: ZLayer[Database & Logger, Nothing, UserService] =
     ZLayer.fromFunction(new UserService(_, _))
-}
 
 val app: ZIO[UserService, Throwable, User] =
   ZIO.serviceWithZIO[UserService](_.signup("Ada"))
