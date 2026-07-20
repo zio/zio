@@ -25,7 +25,7 @@ val profiles = ZIO.foreachPar(userIds)(fetchProfile)`,
     value: 'errors',
     label: 'Error handling',
     takeaway:
-      'Errors are typed and visible in the signature — the compiler knows what can fail and when you have handled it all.',
+      'Errors are typed — the compiler knows what can fail, and when you have handled it all.',
     points: [
       'Every possible failure is visible in the type, not hidden in exceptions.',
       'Built-in retry policies recover from transient failures with backoff.',
