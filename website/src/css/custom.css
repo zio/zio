@@ -544,6 +544,17 @@ html.homepage-snap .fp-section {
   scroll-margin-top: 4.5rem;
 }
 
+/* Alternating (zebra) section backgrounds: the base page colour and a tinted
+   band, applied to every other homepage section. Matches the CodeShowcase
+   band so the whole page shares one two-tone rhythm. */
+.section-alt {
+  background-color: var(--ifm-color-emphasis-100);
+}
+
+[data-theme='dark'] .section-alt {
+  background-color: var(--ifm-background-surface-color);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html.homepage-snap {
     scroll-behavior: auto;

@@ -43,7 +43,7 @@ export default function WelcomePage() {
         <Reveal className="fp-section">
           <Features />
         </Reveal>
-        <Reveal className="fp-section">
+        <Reveal className="fp-section section-alt">
           <Ecosystem
             title="Ecosystem"
             subtitle="A rich ecosystem of libraries built on ZIO to solve real-world problems"
@@ -52,7 +52,7 @@ export default function WelcomePage() {
         <Reveal className="fp-section">
           <Zionomicon />
         </Reveal>
-        <Reveal className="fp-section pb-16">
+        <Reveal className="fp-section section-alt pb-16">
           <Sponsors />
         </Reveal>
       </main>
