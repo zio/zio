@@ -536,7 +536,7 @@ a {
    src/pages/index.jsx). Proximity (not mandatory) so free scrolling is never
    trapped — it only eases to a section edge when the user pauses near one. */
 html.homepage-snap {
-  scroll-snap-type: y proximity;
+  scroll-snap-type: y mandatory;
   scroll-behavior: smooth;
   /* Offset the sticky navbar so a snapped section sits below it, not under. */
   scroll-padding-top: 4.5rem;
@@ -545,6 +545,8 @@ html.homepage-snap {
 html.homepage-snap .main-wrapper > section, /* Hero */
 html.homepage-snap main > .reveal {
   scroll-snap-align: start;
+  /* Never trap a section taller than the viewport: one gesture can leave it. */
+  scroll-snap-stop: normal;
 }
 
 @media (prefers-reduced-motion: reduce) {
