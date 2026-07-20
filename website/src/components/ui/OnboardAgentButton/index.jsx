@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ClaudeLogo, CodexLogo, CursorLogo, OpenCodeLogo } from './logos';
 
-const PROMPT =
+export const PROMPT =
   'Fetch https://zio.dev/start.md and follow the instructions to set up my environment for ZIO development.';
 
-async function copyPrompt(text) {
+export async function copyPrompt(text) {
   try {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);

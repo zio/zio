@@ -1,0 +1,39 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0.5rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--gradient-brand);
+  cursor: pointer;
+  transition:
+    filter 0.2s ease,
+    transform 0.2s ease;
+}
+
+.button:hover {
+  filter: brightness(1.08);
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .button:hover {
+    transform: translateY(-1px);
+  }
+}
+
+/* Collapse to icon-only on narrow viewports to save navbar space. */
+@media (max-width: 996px) {
+  .button span {
+    display: none;
+  }
+
+  .button {
+    padding: 0.4rem 0.55rem;
+  }
+}
