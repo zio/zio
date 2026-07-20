@@ -346,19 +346,38 @@ a {
     color: #f87171 !important;
   }
 
-  /* User message bubble (bg-gray-300 / text-gray-600) → solid brand red with
-   white text, the conventional accent for the person typing. */
+  /* User message bubble (bg-gray-300 / text-gray-600) → soft red→amber
+   gradient tint, the same brand wash used by the card icon tiles and
+   eyebrow. Light and readable, distinct from the bot's neutral surface. */
   .zio-chat .bg-gray-300 {
-    background: #dc2626 !important;
+    background: linear-gradient(
+      135deg,
+      rgba(220, 38, 38, 0.12),
+      rgba(245, 158, 11, 0.12)
+    ) !important;
   }
 
   .zio-chat .bg-gray-300,
   .zio-chat .text-gray-600 {
-    color: #ffffff !important;
+    color: #1a1a1a !important;
   }
 
   .zio-chat .bg-gray-300 * {
-    color: #ffffff !important;
+    color: #1a1a1a !important;
+  }
+
+  [data-theme='dark'] .zio-chat .bg-gray-300 {
+    background: linear-gradient(
+      135deg,
+      rgba(220, 38, 38, 0.22),
+      rgba(245, 158, 11, 0.18)
+    ) !important;
+  }
+
+  [data-theme='dark'] .zio-chat .bg-gray-300,
+  [data-theme='dark'] .zio-chat .text-gray-600,
+  [data-theme='dark'] .zio-chat .bg-gray-300 * {
+    color: #ececec !important;
   }
 
   /* Send button (bg-black / hover:bg-gray-900) → brand red pill, matching
