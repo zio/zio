@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Highlight, themes, Prism } from 'prism-react-renderer';
+import { Highlight, Prism } from 'prism-react-renderer';
+import { usePrismTheme } from '@docusaurus/theme-common';
 import useIsBrowser from '@docusaurus/useIsBrowser';
 import Link from '@docusaurus/Link';
 import clsx from 'clsx';
@@ -19,11 +20,12 @@ delete globalThis.Prism;
 
 // Editor-style code panel ported from zio-http's HomepageCodeSnippet
 // (website/src/components/HomepageCodeSnippet in the zio/zio-http repo):
-// always-dark dracula panel with a tab bar, line numbers, and a copy toolbar.
+// theme-aware editor panel with a tab bar, line numbers, and a copy toolbar.
 export default function CodeShowcase() {
   const [activeTab, setActiveTab] = useState(0);
   const [copied, setCopied] = useState(false);
   const isBrowser = useIsBrowser();
+  const prismTheme = usePrismTheme();
   const timeoutRef = useRef(null);
 
   useEffect(() => {
@@ -134,7 +136,7 @@ export default function CodeShowcase() {
             >
               <Highlight
                 key={activeTab}
-                theme={themes.dracula}
+                theme={prismTheme}
                 code={active.code.trim()}
                 language="scala"
               >

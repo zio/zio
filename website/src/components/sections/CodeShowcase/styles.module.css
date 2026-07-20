@@ -140,21 +140,42 @@
   flex-direction: column;
 }
 
+/* Theme-aware panel matching the card-modern language: 14px radius, an
+   emphasis border, and a brand gradient top edge. Surfaces follow the
+   Infima palette so it is light in light mode and dark in dark mode. */
 .codePanel {
-  background-color: #1e2030;
-  border-radius: 8px;
+  position: relative;
+  background-color: var(--ifm-card-background-color, #fff);
+  border-radius: 14px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
+}
+
+.codePanel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-brand);
+  z-index: 1;
+}
+
+[data-theme='dark'] .codePanel {
+  background-color: var(--ifm-background-color);
+  border-color: var(--ifm-color-emphasis-300);
 }
 
 .tabBar {
   display: flex;
   overflow-x: auto;
   scrollbar-width: none; /* Firefox */
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  background-color: #161b22;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  background-color: var(--ifm-color-emphasis-100);
 }
 
 .tabBar::-webkit-scrollbar {
@@ -169,7 +190,7 @@
   padding: 0.75rem 1.25rem;
   border: none;
   background: transparent;
-  color: #8b949e;
+  color: var(--ifm-color-emphasis-600);
   cursor: pointer;
   font-size: 0.875rem;
   white-space: nowrap;
@@ -189,7 +210,7 @@
 }
 
 .tab:hover {
-  color: #e6edf3;
+  color: var(--ifm-color-emphasis-900);
 }
 
 .tabActive {
@@ -226,7 +247,7 @@
   min-width: 2.5ch;
   margin-right: 1.5rem;
   text-align: right;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--ifm-color-emphasis-400);
   user-select: none;
   font-variant-numeric: tabular-nums;
 }
@@ -240,13 +261,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 1rem;
-  background-color: #161b22;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: var(--ifm-color-emphasis-100);
+  border-top: 1px solid var(--ifm-color-emphasis-200);
 }
 
 .langBadge {
   font-size: 0.75rem;
-  color: #8b949e;
+  color: var(--ifm-color-emphasis-600);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   font-family: var(--ifm-font-family-monospace);
@@ -257,11 +278,11 @@
   align-items: center;
   gap: 0.4rem;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 999px;
   padding: 0.25rem 0.6rem;
   font-size: 0.75rem;
-  color: #8b949e;
+  color: var(--ifm-color-emphasis-600);
   cursor: pointer;
   transition: all 0.15s ease;
   font-family: inherit;
