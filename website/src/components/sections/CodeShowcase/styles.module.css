@@ -3,7 +3,9 @@
 
 .codeSnippetSection {
   background-color: var(--ifm-color-emphasis-100);
-  padding: 5rem 0;
+  /* Match the shared SectionWrapper vertical padding (py-10 = 2.5rem) so the
+     gap between every homepage section is consistent. */
+  padding: 2.5rem 0;
   width: 100%;
 }
 
