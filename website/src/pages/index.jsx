@@ -52,7 +52,7 @@ export default function WelcomePage() {
         <Reveal className="fp-section">
           <Zionomicon />
         </Reveal>
-        <Reveal className="fp-section">
+        <Reveal className="fp-section pb-16">
           <Sponsors />
         </Reveal>
       </main>
