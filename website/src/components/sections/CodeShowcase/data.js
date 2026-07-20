@@ -105,7 +105,7 @@ object UserService:
     ZLayer.fromFunction(new UserService(_, _))
 
 val app: ZIO[UserService, Throwable, User] =
-  ZIO.serviceWithZIO[UserService](_.signup("Alice"))
+  ZIO.serviceWithZIO[UserService](_.signup("John"))
 
 // Compile-time-checked wiring: forget a layer and the build fails
 val runnable = app.provide(UserService.live, Database.live, Logger.live)`,
