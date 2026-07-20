@@ -252,17 +252,44 @@ button.fixed.bg-orange-400:focus-visible {
    the .zio-chat wrapper so they never leak to bg-blue/bg-black elsewhere)
    retheme it to the red/amber system, theme-aware. */
 
-/* Popup panel (flex-col rounded-md bg-gray-100). */
+/* Popup panel (flex-col rounded-md bg-gray-100) — match the homepage
+   card-modern language: 14px radius, 1px emphasis border, and a brand
+   gradient top edge. */
 .zio-chat .rounded-md.bg-gray-100 {
+  position: relative !important;
+  overflow: hidden !important;
   background: #ffffff !important;
   border: 1px solid var(--ifm-color-emphasis-200) !important;
-  border-radius: 16px !important;
+  border-radius: 14px !important;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22) !important;
+}
+
+.zio-chat .rounded-md.bg-gray-100::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-brand);
 }
 
 [data-theme='dark'] .zio-chat .rounded-md.bg-gray-100 {
   background: #181818 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Header title (text-[red] text-3xl) → brand gradient text, matching the
+   hero's gradient keyword and the section-title weight. */
+.zio-chat h1 {
+  font-size: 1.5rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+  margin-bottom: 1rem !important;
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
 }
 
 /* Assistant/bot message bubbles (bg-blue-600) → neutral readable surface with
@@ -321,10 +348,11 @@ button.fixed.bg-orange-400:focus-visible {
   color: #e5e5e5 !important;
 }
 
-/* Send button (bg-black / hover:bg-gray-900) → brand red. */
+/* Send button (bg-black / hover:bg-gray-900) → brand red pill, matching
+   the homepage CTA buttons. */
 .zio-chat .bg-black {
   background: #dc2626 !important;
-  border-radius: 10px !important;
+  border-radius: 999px !important;
 }
 
 .zio-chat .bg-black:hover {
