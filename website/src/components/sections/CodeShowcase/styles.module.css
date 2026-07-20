@@ -27,12 +27,23 @@
   gap: 1.5rem;
 }
 
+/* Match the shared .section-title language used by every other section. */
 .leftColumn h2 {
   color: var(--ifm-heading-color);
   font-size: 2.25rem;
-  font-weight: 700;
-  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
   margin: 0;
+}
+
+/* Left-aligned version of the shared .gradient-rule under section titles. */
+.headingRule {
+  width: 48px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--gradient-brand);
+  margin: -0.75rem 0 0;
 }
 
 .leftColumn p {

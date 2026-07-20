@@ -80,6 +80,7 @@ export default function CodeShowcase() {
         {/* Left Column */}
         <div className={styles.leftColumn}>
           <h2>The ZIO Way</h2>
+          <div className={styles.headingRule} />
           <p className={styles.takeaway}>{active.takeaway}</p>
           <ul className={styles.points}>
             {active.points.map((point, i) => (
