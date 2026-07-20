@@ -98,7 +98,6 @@ const config = {
         },
         { to: 'http://chat.zio.dev', label: 'Chat Bot', position: 'right' },
         { to: 'blog', label: 'Blog', position: 'right' },
-        { type: 'custom-onboardAgent', position: 'right' },
         {
           type: 'docsVersionDropdown',
           position: 'right',
