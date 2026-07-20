@@ -292,60 +292,56 @@ button.fixed.bg-orange-400:focus-visible {
   color: transparent !important;
 }
 
-/* Assistant/bot message bubbles (bg-blue-600) → neutral readable surface with
-   a red accent edge. White-on-gradient was too low-contrast to read. */
-.zio-chat .bg-blue-600 {
+/* Bot message bubble. It is built from two stacked segments — a header
+   (bg-blue-600) and body parts (bg-blue-500). Give BOTH the same neutral,
+   readable surface with one continuous red accent stripe, so a single bot
+   answer reads as one consistent bubble (never blue, never two-toned). */
+.zio-chat .bg-blue-600,
+.zio-chat .bg-blue-500 {
   background: #f4f4f5 !important;
   color: #1a1a1a !important;
   border-left: 3px solid #dc2626 !important;
 }
 
-.zio-chat .bg-blue-600 * {
+.zio-chat .bg-blue-600 *,
+.zio-chat .bg-blue-500 * {
   color: #1a1a1a !important;
 }
 
-.zio-chat .bg-blue-600 a {
+.zio-chat .bg-blue-600 a,
+.zio-chat .bg-blue-500 a {
   color: #dc2626 !important;
 }
 
-[data-theme='dark'] .zio-chat .bg-blue-600 {
+[data-theme='dark'] .zio-chat .bg-blue-600,
+[data-theme='dark'] .zio-chat .bg-blue-500 {
   background: #242526 !important;
   color: #ececec !important;
 }
 
-[data-theme='dark'] .zio-chat .bg-blue-600 *:not(a) {
+[data-theme='dark'] .zio-chat .bg-blue-600 *:not(a),
+[data-theme='dark'] .zio-chat .bg-blue-500 *:not(a) {
   color: #ececec !important;
 }
 
-[data-theme='dark'] .zio-chat .bg-blue-600 a {
+[data-theme='dark'] .zio-chat .bg-blue-600 a,
+[data-theme='dark'] .zio-chat .bg-blue-500 a {
   color: #f87171 !important;
 }
 
-/* User message bubbles (bg-blue-500) → brand red, white text. */
-.zio-chat .bg-blue-500 {
-  background: #dc2626 !important;
-  color: #ffffff !important;
-}
-
-.zio-chat .bg-blue-500 * {
-  color: #ffffff !important;
-}
-
-/* Bot message bubbles (bg-gray-300 / text-gray-600). */
+/* User message bubble (bg-gray-300 / text-gray-600) → solid brand red with
+   white text, the conventional accent for the person typing. */
 .zio-chat .bg-gray-300 {
-  background: #f1f1f1 !important;
+  background: #dc2626 !important;
 }
 
+.zio-chat .bg-gray-300,
 .zio-chat .text-gray-600 {
-  color: #333333 !important;
+  color: #ffffff !important;
 }
 
-[data-theme='dark'] .zio-chat .bg-gray-300 {
-  background: #242526 !important;
-}
-
-[data-theme='dark'] .zio-chat .text-gray-600 {
-  color: #e5e5e5 !important;
+.zio-chat .bg-gray-300 * {
+  color: #ffffff !important;
 }
 
 /* Send button (bg-black / hover:bg-gray-900) → brand red pill, matching
