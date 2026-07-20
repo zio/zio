@@ -2,8 +2,9 @@
 
 const path = require('path');
 
-const lightCodeTheme = require('prism-react-renderer/themes/github');
-const darkCodeTheme = require('prism-react-renderer/themes/vsDark');
+const { themes: prismThemes } = require('prism-react-renderer');
+const lightCodeTheme = prismThemes.github;
+const darkCodeTheme = prismThemes.vsDark;
 const { getEditUrl } = require('./editUrl')
 
 /** @type {import('@docusaurus/types').Config} */
