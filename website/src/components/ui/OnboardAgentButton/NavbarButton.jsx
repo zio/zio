@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { FaCheck, FaMicrochip } from 'react-icons/fa6';
+import { FaCheck, FaTerminal } from 'react-icons/fa6';
 
 import { PROMPT, copyPrompt } from './index';
 import styles from './NavbarButton.module.css';
@@ -34,7 +34,7 @@ export default function OnboardAgentNavbarButton() {
       {copied ? (
         <FaCheck aria-hidden="true" />
       ) : (
-        <FaMicrochip aria-hidden="true" />
+        <FaTerminal aria-hidden="true" />
       )}
     </button>
   );
