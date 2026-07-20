@@ -548,7 +548,9 @@ html.homepage-snap .fp-section {
    band, applied to every other homepage section. Matches the CodeShowcase
    band so the whole page shares one two-tone rhythm. */
 .section-alt {
-  background-color: var(--ifm-color-emphasis-100);
+  /* White band on the off-white (#f6f6f6) page reads clearly in light mode;
+     emphasis-100 was almost identical to the base and looked flat. */
+  background-color: #ffffff;
 }
 
 [data-theme='dark'] .section-alt {

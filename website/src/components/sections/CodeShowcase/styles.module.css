@@ -2,7 +2,8 @@
    (website/src/components/HomepageCodeSnippet/styles.module.css). */
 
 .codeSnippetSection {
-  background-color: var(--ifm-color-emphasis-100);
+  /* Match the shared .section-alt band so all tinted sections agree. */
+  background-color: #ffffff;
   /* Match the shared SectionWrapper vertical padding (py-10 = 2.5rem) so the
      gap between every homepage section is consistent. */
   padding: 2.5rem 0;
