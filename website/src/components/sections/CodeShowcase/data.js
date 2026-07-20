@@ -31,7 +31,8 @@ val profiles = ZIO.foreachPar(userIds)(fetchProfile)`,
       'Built-in retry policies recover from transient failures with backoff.',
       'The compiler proves when every error has been handled.',
     ],
-    code: `val program: ZIO[Any, Nothing, Config] =
+    code: `// fetchConfig: ZIO[Any, AppError, Config]
+val program: ZIO[Any, Nothing, Config] =
   fetchConfig
     .retry(Schedule.exponential(100.millis) && Schedule.recurs(5))
     .catchAll {

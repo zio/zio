@@ -63,6 +63,7 @@ object Snippet1 {
 
 // ── Snippet 2: Error handling ───────────────────────────────────────────
 object Snippet2 {
+  // fetchConfig: ZIO[Any, AppError, Config]
   val program: ZIO[Any, Nothing, Config] =
     fetchConfig
       .retry(Schedule.exponential(100.millis) && Schedule.recurs(5))
