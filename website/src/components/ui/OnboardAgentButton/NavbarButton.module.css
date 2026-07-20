@@ -1,28 +1,20 @@
+/* Ghost icon button that blends into the navbar like the other items
+   (Chat Bot, Blog, GitHub) — navbar link color, brand red on hover. */
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin: 0 0.5rem;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  font-size: 0.95rem;
-  color: #fff;
-  background: var(--gradient-brand);
+  margin: 0 0.4rem;
+  padding: 0.35rem;
+  border: none;
+  background: transparent;
+  color: var(--ifm-navbar-link-color);
+  font-size: 1.25rem;
+  line-height: 0;
   cursor: pointer;
-  transition:
-    filter 0.2s ease,
-    transform 0.2s ease;
+  transition: color 0.2s ease;
 }
 
 .button:hover {
-  filter: brightness(1.08);
-  color: #fff;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .button:hover {
-    transform: translateY(-1px);
-  }
+  color: var(--ifm-color-primary);
 }
