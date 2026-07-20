@@ -545,8 +545,9 @@ html.homepage-snap {
 html.homepage-snap .main-wrapper > section, /* Hero */
 html.homepage-snap main > .reveal {
   scroll-snap-align: start;
-  /* Never trap a section taller than the viewport: one gesture can leave it. */
-  scroll-snap-stop: normal;
+  /* Force a stop at every section: one small scroll advances exactly one
+     section, and none can be skipped over in a single gesture. */
+  scroll-snap-stop: always;
 }
 
 @media (prefers-reduced-motion: reduce) {
