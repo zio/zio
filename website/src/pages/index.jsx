@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Layout from '@theme/Layout';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 
@@ -14,6 +14,15 @@ import Reveal from '@site/src/components/ui/Reveal';
 export default function WelcomePage() {
   const context = useDocusaurusContext();
   const { siteConfig = {} } = context;
+
+  // Enable gentle section scroll-snapping on the homepage only (the class is
+  // scoped in custom.css); remove it when leaving so docs pages scroll freely.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add('homepage-snap');
+    return () => root.classList.remove('homepage-snap');
+  }, []);
+
   return (
     <Layout
       title={`${siteConfig.title}`}

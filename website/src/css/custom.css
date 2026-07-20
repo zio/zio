@@ -530,3 +530,26 @@ a {
   width: 16px;
   height: 16px;
 }
+
+/* ── Homepage: gentle section scroll-snap ─────────────────────────────────
+   Scoped to the homepage via a class added to <html> on that route (see
+   src/pages/index.jsx). Proximity (not mandatory) so free scrolling is never
+   trapped — it only eases to a section edge when the user pauses near one. */
+html.homepage-snap {
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
+  /* Offset the sticky navbar so a snapped section sits below it, not under. */
+  scroll-padding-top: 4.5rem;
+}
+
+html.homepage-snap .main-wrapper > section, /* Hero */
+html.homepage-snap main > .reveal {
+  scroll-snap-align: start;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.homepage-snap {
+    scroll-snap-type: none;
+    scroll-behavior: auto;
+  }
+}
