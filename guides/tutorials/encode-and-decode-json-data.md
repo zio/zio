@@ -62,6 +62,8 @@ The ZIO JSON library provides a default implementation for most of the primitive
 Let's start test some simple examples:
 
 ```scala
+import zio.test._
+import zio.json._
 
 test("decode from string") {
   val json    = "\"John Doe\""
@@ -83,6 +85,9 @@ test("decode from int") {
 It also supports higher-kinded types like `List` and `Option`:
 
 ```scala
+import zio.json._
+import zio.test._
+import zio.test.Assertion._
 
 test("decode from optional value") {
   val json = "null"
@@ -106,6 +111,8 @@ To have a new instance we implement the `JsonEncoder` and `JsonDecoder` interfac
 For example, if we have a type `Person` we can create instances of `JsonEncoder` and `JsonDecoder` for this type as below:
 
 ```scala
+import zio.json._
+import zio.json.internal.{Write, RetractReader}
 
 case class Person(name: String, age: Int)
 
@@ -128,6 +135,8 @@ Writing encoders and decoders from scratch is a complicated task and is not reco
 By using macro utilities, we can derive the instances of `JsonEncoder` and `JsonDecoder` for a case class using `DeriveJsonDecoder.gen[A]` and `DeriveJsonEncoder.gen[A]` macros:
 
 ```scala
+import zio.test._
+import zio.json._
 
 test("automatic derivation for case classes") {
   case class Person(name: String, age: Int)
@@ -153,6 +162,7 @@ case class Apple (poison: Boolean)   extends Fruit
 We can generate encoder and decoder for this ADT using the macros:
 
 ```scala
+import zio.json._
 
 object Fruit {
   implicit val decoder: JsonDecoder[Fruit] =
@@ -166,6 +176,8 @@ object Fruit {
 So then we can have the following tests:
 
 ```scala
+import zio.test._
+import zio.json._
 
 test("decode from custom adt") {
   val json =
@@ -208,6 +220,8 @@ trait JsonDecoder[A] {
 Example:
 
 ```scala
+import zio.test._
+import zio.json._
 
 test("mapping decoders") {
   case class Person(name: String, age: Int)
@@ -232,6 +246,8 @@ trait JsonEncoder[A] {
 Example:
 
 ```scala
+import zio.test._
+import zio.json._
 
 test("mapping encoders (contramap)") {
   case class Person(name: String, age: Int)

@@ -54,6 +54,9 @@ Like [histograms](histogram.md), summaries are used for _monitoring latencies_, 
 Create a summary that can hold `100` samples, the max age of the samples is `1 day` and the error margin is `3%`. The summary should report the `10%`, `50%` and `90%` Quantile. It can be applied to effects yielding an `Int`:
 
 ```scala
+import zio._
+import zio.metrics._
+import zio.metrics.Metric.Summary
 
 val summary: Summary[Double] =
   Metric.summary(

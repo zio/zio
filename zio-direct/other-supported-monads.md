@@ -15,6 +15,7 @@ libraryDependencies += "dev.zio" %% "zio-direct-streams" % "1.0.0-RC7"
 
 You can then use zio-direct with ZStream:
 ```scala
+import zio.direct.stream._
 
 val out =
   defer {
@@ -30,6 +31,8 @@ out.runCollect
 Note that if you are also using zio-direct with ZIO, you should rename the `defer` function to avoid conflicts:
 
 ```scala
+import zio.direct.stream.{ defer => deferStream, _ }
+import zio.direct._
 
 // The `run` function of ZStream is called `each`
 val outStream: ZStream[Any, Nothing, (Int, String)] =
@@ -66,6 +69,7 @@ In order to use zio-direct with ZPure, you first need to define a `deferWith[W, 
 > Due to limitations of Scala 3, you may need to create the state object type in a separate file (or you may get cyclical-dependency compile-time errors).
 ```scala
 val dc = deferWith[String, MyState]
+import dc._
 
 // The `run` function of ZStream is called `eval`
 val out =
@@ -83,6 +87,7 @@ out.provideState(MyState("foo")).run
 In order to avoid having to specify the state-type over and over again, several helpers are provided (they are imported from `dc._`).
 ```scala
 val dc = deferWith[String, MyState]
+import dc._
 
 // The `run` function of ZStream is called `eval`
 val out =
@@ -103,6 +108,7 @@ Support for Scala's `List` and `Future` objects is provided from zio-direct.
 
 To use zio-direct with `List` do the following:
 ```scala
+import zio.direct.list._
 
 val out =
   defer {
@@ -117,6 +123,8 @@ val out =
 
 To use zio-direct with `Future` do the following:
 ```scala
+import zio.direct.future._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 val out =
   defer {
@@ -133,6 +141,7 @@ Note that it is not necessary to implement ExecutionContext.Implicits.global. Yo
 implicitly pass in any ExecutionContext you want. It just needs to be in-scope when you
 call the `defer` function (i.e. `zio.direct.future.defer`).
 ```scala
+import zio.direct.future._
 
 def out(implicit ctx: ExecutionContext) =
   defer {

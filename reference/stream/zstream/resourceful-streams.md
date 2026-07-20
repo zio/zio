@@ -47,6 +47,7 @@ object ZStream {
 It is useful when need to add a finalizer to an existing stream. Assume we need to clean up the temporary directory after our streaming application ends:
 
 ```scala
+import zio.Console._
 
 def application: ZStream[Any, IOException, Unit] = ZStream.fromZIO(printLine("Application Logic."))
 def deleteDir(dir: Path): ZIO[Any, IOException, Unit] = printLine("Deleting file.")

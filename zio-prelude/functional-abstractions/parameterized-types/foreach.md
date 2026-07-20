@@ -136,6 +136,7 @@ For example, we can use the `forEach` operator with a function that returns a `V
 `Validation` is a data type that can either succeed with a value or fail with one or more errors. Using `forEach` with `Validation` corresponds to validating all the values in a collection, returning either a new collection of fully validated data or an accumulation of all validation errors that occurred.
 
 ```scala
+import zio.prelude._
 
 case class Person(name: String, age: Int)
 
@@ -234,6 +235,7 @@ def flip[F[+_]: ForEach, G[+_]: IdentityBoth : Covariant, S, A, B](fga: F[G[A]])
 This is the generalized version of the `collectAll` operator on `ZIO`.
 
 ```scala
+import zio._
 
 def collectAll[R, E, A](as: List[ZIO[R, E, A]]): ZIO[R, E, List[A]] =
   ZIO.foreach(as)(identity)
@@ -253,6 +255,7 @@ This is a very nice operator that lets us express a variety of ways of reducing 
 For example we could implement `sum` in terms of `foldMap` like this:
 
 ```scala
+import zio.prelude.newtypes._
 
 def sum[F[+_]: ForEach, A](as: F[A])(implicit identity: Identity[Sum[A]]): A =
   foldMap(as)(a => Sum[A](a))

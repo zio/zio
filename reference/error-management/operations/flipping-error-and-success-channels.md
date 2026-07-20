@@ -14,6 +14,7 @@ trait ZIO[-R, +E, +A] {
 Assume we have the following example:
 
 ```scala
+import zio._
 
 val evens: ZIO[Any, List[String], List[Int]] =
   ZIO.validate(List(1, 2, 3, 4, 5)) { n =>
@@ -27,6 +28,7 @@ val evens: ZIO[Any, List[String], List[Int]] =
 We want to reverse the order of errors. In order to do that instead of using `ZIO#mapError`, we can map the error channel by using flip operators:
 
 ```scala
+import zio._
 
 val r1: ZIO[Any, List[String], List[Int]] = evens.mapError(_.reverse)
 val r2: ZIO[Any, List[String], List[Int]] = evens.flip.map(_.reverse).flip

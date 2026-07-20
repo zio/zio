@@ -11,6 +11,8 @@ Let's try some examples:
 Assume we want to read a value from the input port and then print it to the console, we can use the `ZChannel.readWith` operator to do this:
 
 ```scala
+import zio._
+import zio.stream._
 
 val producer = 
   ZChannel.write(1)
@@ -32,6 +34,10 @@ val consumer =
 We can also recursively compose channels to create a more complex channel. In the following example, we are going to continuously read values from the console and write them back to the console:
 
 ```scala
+import zio._
+import zio.stream.ZChannel
+
+import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
   val producer: ZChannel[Any, Any, Any, Any, IOException, String, Nothing] =
@@ -67,6 +73,8 @@ object MainApp extends ZIOAppDefault {
 In this example, we are going to create a channel that replicates any input values to the output port.
 
 ```scala
+import zio._
+import zio.stream._
 
 object MainApp extends ZIOAppDefault {
   lazy val doubler: ZChannel[Any, Any, Int, Any, Nothing, Int, Unit] =
@@ -86,6 +94,8 @@ object MainApp extends ZIOAppDefault {
 We can also use `Ref` to create a channel with an updatable state. For example, we can create a channel that keeps track number of all the values that it has read and finally returns it as the done value:
 
 ```scala
+import zio._
+import zio.stream._
 
 object MainApp extends ZIOAppDefault {
   val counter = {
@@ -111,6 +121,10 @@ object MainApp extends ZIOAppDefault {
 Sometimes we want to remove duplicate values from the input port. We need to have a state that keeps track of the values that have been seen. So if a value is seen for the first time, we can write it to the output port. If a value is duplicated, we can ignore it:
 
 ```scala
+import zio._
+import zio.stream._
+
+import scala.collection.immutable.HashSet
 
 object MainApp extends ZIOAppDefault {
   val dedup =
@@ -146,6 +160,8 @@ With help of `ZChannel.buffer` or `ZChannel.bufferChunk`, we can create a channe
 Assume we have a channel written as follows:
 
 ```scala
+import zio._
+import zio.stream._
 
 def buffered(input: Int) =
   ZChannel

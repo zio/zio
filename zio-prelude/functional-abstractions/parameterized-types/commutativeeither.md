@@ -31,6 +31,9 @@ We can see this by noting that the requirement that the `either` operator is com
 `ZIO` provides a good example of why running the left value and then running the right value if it fails is not commutative and what a commutative operator would look like.
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 val helloZIO: ZIO[Console, IOException, Either[Unit, Unit]] =
   Console.printLine("Hello").orElseEither(Console.printLine("ZIO"))
@@ -68,6 +71,9 @@ We have to return either of the values but the order can't matter. The `raceEith
 It runs both effects concurrently, returning the first one to complete successfully and safely interrupting the other. With it we can make our example above satisfy the commutative law.
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 val helloZIO: ZIO[Console, IOException, Either[Unit, Unit]] =
   Console.printLine("Hello").raceEither(Console.printLine("ZIO"))
@@ -91,6 +97,7 @@ For an individual execution of this workflow either `Hello` or `ZIO` may be prin
 We can also see this interpretation of `orElseEitherPar` in terms of racing in its implementation for `ZStream`.
 
 ```scala
+import zio.stream._
 
 def orElseEitherPar[R, E, A, B](left: => ZStream[R, E, A], right: => ZStream[R, E, B]): ZStream[R, E, Either[A, B]] =
   left.mergeEither(right)
@@ -107,6 +114,7 @@ In many cases the implementation of the `orElseEitherPar` will involve actual co
 To see this, consider the following instance of the `CommutativeEither` abstraction for `Set`.
 
 ```scala
+import zio.prelude._
 
 implicit val SetCommutativeEither: CommutativeEither[Set] =
   new CommutativeEither[Set] {

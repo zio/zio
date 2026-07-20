@@ -11,6 +11,7 @@ One important feature of a ZIO application is that layers are shared by default,
 For example, assume we have the three `A`, `B`, and `C` services. The implementation of both `B` and `C` are dependent on the `A` service:
 
 ```scala
+import zio._
 
 trait A
 trait B
@@ -40,6 +41,7 @@ val c: ZLayer[A, Nothing, C] =
 Although both `b` and `c` layers require the `a` layer, the `a` layer is instantiated only once. It is shared with both `b` and `c`:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -61,6 +63,7 @@ object MainApp extends ZIOAppDefault {
 If we don't want to share a module, we should create a fresh, non-shared version of it through `ZLayer#fresh`.
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -84,6 +87,7 @@ If we don't provide a layer globally but instead provide them [locally](overridi
 In the following example, we provided the `A` layer two times locally and the ZIO doesn't memoize the construction of the `A` layer. So, it will be initialized two times:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -105,6 +109,7 @@ object MainApp extends ZIOAppDefault {
 We can memoize the `A` layer manually using the `ZLayer#memoize` operator. It will return a scoped effect that, if evaluated, will return the lazily computed result of this layer:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 

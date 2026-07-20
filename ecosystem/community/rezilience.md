@@ -28,6 +28,12 @@ libraryDependencies += "nl.vroste" %% "rezilience" % "<version>"
 Let's try an example of writing _Circuit Breaker_ policy for calling an external API:
 
 ```scala
+import nl.vroste.rezilience.CircuitBreaker.{CircuitBreakerCallError, State}
+import nl.vroste.rezilience._
+import zio._
+import zio.clock.Clock
+import zio.console.{Console, putStrLn}
+import zio.duration._
 
 object CircuitBreakerExample extends zio.App {
 

@@ -17,6 +17,7 @@ ZIO.attempt(Option("something")) // ZIO[Any, Throwable, Option[String]]
 With `Either` ZIO values, we can zoom in or out on the left or right side of an `Either`, as well as we can do the inverse and zoom out:
 
 ```scala
+import zio._
 
 val eitherEffect: ZIO[Any, Exception, Either[String, Int]] = ???
 

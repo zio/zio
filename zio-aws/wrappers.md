@@ -81,7 +81,7 @@ The following example from the `zio-aws-elasticsearch` library shows how the gen
 case class DescribePackagesFilter(name: Optional[DescribePackagesFilterName] = Optional.Absent, 
                                   value: Optional[Iterable[primitives.DescribePackagesFilterValue]] = Optional.Absent) {
     def buildAwsValue(): software.amazon.awssdk.services.elasticsearch.model.DescribePackagesFilter = {
-
+      import DescribePackagesFilter.zioAwsBuilderHelper.BuilderOps
       software.amazon.awssdk.services.elasticsearch.model.DescribePackagesFilter
         .builder()
         .optionallyWith(name.map(value => value.unwrap))(_.name)

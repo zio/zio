@@ -37,6 +37,7 @@ This snippet may generate a warning but it is still valid Scala code.
 In contrast, ZIO Prelude's `Equal` abstraction catches the bug and prevents this code from even compiling.
 
 ```scala
+import zio.prelude._
 
 final case class SequenceNumber(value: Int)
 
@@ -55,6 +56,7 @@ def isInitial(sequenceNumber: SequenceNumber): Boolean =
 To get the code to compile we have to fix the bug.
 
 ```scala
+import zio.prelude._
 
 case class SequenceNumber(value: Int)
 

@@ -32,6 +32,7 @@ libraryDependencies += "dev.zio" %% "zio-blocks-ringbuffer" % "0.0.33"
 ## Quick start
 
 ```scala
+import zio.blocks.ringbuffer.SpscRingBuffer
 
 val buf = SpscRingBuffer[String](1024) // capacity must be a power of 2
 
@@ -85,6 +86,7 @@ Use the most constrained variant that fits your threading model:
 ### SPSC with drain/fill
 
 ```scala
+import zio.blocks.ringbuffer.SpscRingBuffer
 
 val buf = SpscRingBuffer[java.lang.Integer](64)
 
@@ -101,6 +103,7 @@ println(s"Drained $drained elements")
 ### MPSC fan-in (multiple producers, single consumer)
 
 ```scala
+import zio.blocks.ringbuffer.MpscRingBuffer
 
 val buf = MpscRingBuffer[String](256)
 
@@ -125,6 +128,7 @@ new Thread(() => {
 ### SPMC fan-out (single producer, multiple consumers)
 
 ```scala
+import zio.blocks.ringbuffer.SpmcRingBuffer
 
 val buf = SpmcRingBuffer[String](256)
 
@@ -149,6 +153,7 @@ for (w <- 0 until 4) {
 ### Non-blocking try-once with fallback
 
 ```scala
+import zio.blocks.ringbuffer.MpmcRingBuffer
 
 val buf = MpmcRingBuffer[String](64)
 

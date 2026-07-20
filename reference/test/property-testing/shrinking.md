@@ -18,6 +18,7 @@ def reverse[T](list: List[T]): List[T] =
 We know that if we reverse a list twice, it should give us the original list, so let's check this property:
 
 ```scala
+import zio.test._
 
 suite("ReverseSpec"){
   // ∀ xs. reverse(reverse(xs)) == xs

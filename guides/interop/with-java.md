@@ -105,6 +105,7 @@ When integrating ZIO with such libraries, fibers may execute on different thread
 ZIO provides [`ThreadLocalBridge`](../../reference/state-management/threadlocal-bridge.md), a service that synchronizes ZIO fiber-local state (`FiberRef`) with Java `ThreadLocal` variables. This enables seamless interoperability with legacy code that relies on thread-local storage:
 
 ```scala
+import zio._
 
 // Create a ThreadLocal for storing request IDs
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {

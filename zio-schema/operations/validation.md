@@ -15,6 +15,10 @@ trait Schema[A] {
 Let's write a schema for the `Person` case class and add validation rules to it. For example, we can specify that the `age` field must be greater than 0 and less than 120 and the `name` field must be non-empty:
 
 ```scala
+import zio.Chunk
+import zio.schema._
+import zio.schema.Schema._
+import zio.schema.validation.Validation
 
 case class Person(name: String, age: Int)
 
@@ -44,6 +48,8 @@ object Person {
 Both fields of the `Person` case class have validation rules. Let's see what happens when we try to validate a `Person` value that does not conform to the validation rules:
 
 ```scala
+import zio._
+import zio.schema.validation._
 
 val result: Chunk[ValidationError] = Person.schema.validate(Person("John Doe", 130))
 println(result)

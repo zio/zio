@@ -6,6 +6,9 @@ import zio.Console._
 import zio.stream._
 
 ```scala
+import zio._
+import zio.Console._
+import zio.stream._
 
 val result: Task[Unit] = ZStream.fromIterable(0 to 100).foreach(printLine(_))
 ```

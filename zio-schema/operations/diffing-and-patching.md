@@ -17,6 +17,7 @@ The `diff` method takes two values of the same type `A` and returns a `Patch[A]`
 Here is a simple example that demonstrate the how to use `diff` and `patch`:
 
 ```scala
+import zio.schema._
 
 case class Person(name: String, age: Int)
 

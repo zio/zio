@@ -9,6 +9,7 @@ ZIO has a variety of operators that can filter values on the success channel bas
 - Running an alternative ZIO effect (`ZIO#filterOrElse` and `ZIO#filterOrElseWith`)
 
 ```scala
+import zio._
 
 def getNumber: ZIO[Any, Nothing, Int] =
   (Console.print("Please enter a non-negative number: ") *>

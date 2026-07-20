@@ -44,6 +44,10 @@ object Migration {
 Using the `Migration` ADT we can describe the migration steps and then we can apply them to the `DynamicValue`. Let's try a simple example:
 
 ```scala
+import zio.Chunk
+import zio.schema.meta.Migration.DeleteNode
+import zio.schema.meta.{Migration, NodePath}
+import zio.schema.{DeriveSchema, Schema}
 
 case class Person1(name: String, age: Int)
 
@@ -83,6 +87,8 @@ object Migration {
 It takes two `MetaSchema` values, the old and the new schema, and returns a `Chunk[Migration]` that describes the migrations steps. Let's try a simple example:
 
 ```scala
+import zio.schema._
+import zio.schema.meta._
 
 case class Person1(name: String, age: Int, language: String, height: Int)
 

@@ -47,6 +47,9 @@ breaking the format.
 Let's try an example:
 
 ```scala mdoc:compile-only
+import zio._
+import zio.schema.codec._
+import zio.schema.{DeriveSchema, Schema}
 
 case class Person(name: String, age: Int)
 
@@ -87,6 +90,10 @@ Protobuf object decoded to Person class: Person(John,42)
 The following example shows how to use Protobuf codecs to encode and decode streams of data:
 
 ```scala
+import zio._
+import zio.schema.codec.{BinaryCodec, ProtobufCodec}
+import zio.schema.{DeriveSchema, Schema}
+import zio.stream.ZStream
 
 case class Person(name: String, age: Int)
 

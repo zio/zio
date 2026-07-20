@@ -74,6 +74,7 @@ This allows the derivation to build a complete tree of `Lazy` instances, which a
 Create a `Lazy` value by passing a by-name expression to `Lazy.apply`:
 
 ```scala
+import zio.blocks.schema.Lazy
 
 // The expression is NOT evaluated here
 val lazyInt: Lazy[Int] = Lazy {

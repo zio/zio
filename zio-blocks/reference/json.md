@@ -29,6 +29,7 @@ Key design decisions:
 ### Using Constructors
 
 ```scala
+import zio.blocks.schema.json.Json
 
 // Object with named fields
 val person = Json.Object(
@@ -50,6 +51,8 @@ val nothing = Json.Null
 ### Parsing JSON Strings
 
 ```scala
+import zio.blocks.schema.json.Json
+import zio.blocks.schema.SchemaError
 
 // Safe parsing (returns Either)
 val parsed: Either[SchemaError, Json] = Json.parse("""{"name": "Alice", "age": 30}""")
@@ -63,6 +66,8 @@ val json = Json.parseUnsafe("""{"items": [1, 2, 3]}""")
 ZIO Blocks provides compile-time validated string interpolators for JSON:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 // JSON literal with compile-time validation
 val person = json"""{"name": "Alice", "age": 30}"""
@@ -86,6 +91,7 @@ The `Json` type provides unified methods for type testing and narrowing with pat
 `JsonType` also implements `Json => Boolean`, so it can be used directly as a predicate for filtering.
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonType}
 
 val json: Json = Json.parseUnsafe("""{"count": 42}""")
 
@@ -111,6 +117,7 @@ val strings = json.select.query(JsonType.String)  // all string values in the JS
 ### Direct Value Access
 
 ```scala
+import zio.blocks.schema.json.Json
 
 val obj = Json.Object("a" -> Json.Number(1))
 obj.fields  // Chunk(("a", Json.Number(1)))
@@ -126,6 +133,8 @@ arr.elements  // Chunk(Json.Number(1), Json.Number(2))
 Navigate into objects by key and arrays by index:
 
 ```scala
+import zio.blocks.schema.json.Json
+import zio.blocks.schema.SchemaError
 
 val json = Json.parseUnsafe("""{
   "users": [
@@ -152,6 +161,8 @@ val name: Either[SchemaError, String] = firstName.as[String]  // Right("Alice")
 Use `DynamicOptic` paths for complex navigation:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 val json = Json.parseUnsafe("""{
   "company": {
@@ -175,6 +186,7 @@ val sameName = json.get("company").get("employees")(0).get("name").as[String]
 `JsonSelection` is a fluent wrapper for navigation results, enabling composable chaining:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonSelection}
 
 val json = Json.parseUnsafe("""{"users": [{"name": "Alice"}]}""")
 
@@ -196,6 +208,8 @@ result.isFailure   // false
 ### Terminal Operations
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonSelection}
+import zio.blocks.schema.SchemaError
 
 val selection: JsonSelection = ???
 
@@ -224,6 +238,8 @@ val asDouble: Either[SchemaError, Double] = selection.as[Double]
 ### Setting Values
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 val json = Json.parseUnsafe("""{"user": {"name": "Alice", "age": 30}}""")
 
@@ -239,6 +255,8 @@ val result = json.setOrFail(p".user.email", Json.String("alice@example.com"))
 ### Modifying Values
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 val json = Json.parseUnsafe("""{"count": 10}""")
 
@@ -259,6 +277,8 @@ val result = json.modifyOrFail(p".count") {
 ### Deleting Values
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 val json = Json.parseUnsafe("""{"a": 1, "b": 2, "c": 3}""")
 
@@ -274,6 +294,8 @@ val result = json.deleteOrFail(p".missing")
 ### Inserting Values
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 val json = Json.parseUnsafe("""{"existing": 1}""")
 
@@ -289,6 +311,8 @@ val withNew = json.insert(p".newField", Json.String("value"))
 Transform children before parents:
 
 ```scala
+import zio.blocks.schema.json.Json
+import zio.blocks.schema.DynamicOptic
 
 val json = Json.parseUnsafe("""{"values": [1, 2, 3]}""")
 
@@ -307,6 +331,8 @@ val doubled = json.transformUp { (path, value) =>
 Transform parents before children:
 
 ```scala
+import zio.blocks.schema.json.Json
+import zio.blocks.schema.DynamicOptic
 
 val json = Json.parseUnsafe("""{"items": [{"x": 1}, {"x": 2}]}""")
 
@@ -325,6 +351,7 @@ val withId = json.transformDown { (path, value) =>
 Rename object keys throughout the structure:
 
 ```scala
+import zio.blocks.schema.json.Json
 
 val json = Json.parseUnsafe("""{"user_name": "Alice", "user_age": 30}""")
 
@@ -345,6 +372,7 @@ val camelCase = json.transformKeys { (path, key) =>
 Keep only values matching a predicate using `retain`, or remove values using `prune`:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonType}
 
 val json = Json.parseUnsafe("""{"a": 1, "b": null, "c": 2, "d": null}""")
 
@@ -362,6 +390,8 @@ val onlyNumbers = json.retain(_.is(JsonType.Number))
 Extract only specific paths:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 val json = Json.parseUnsafe("""{
   "user": {"name": "Alice", "email": "alice@example.com", "password": "secret"},
@@ -378,6 +408,7 @@ val projected = json.project(p".user.name", p".user.email")
 Split based on a predicate:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonType}
 
 val json = Json.parseUnsafe("""{"a": 1, "b": "text", "c": 2}""")
 
@@ -394,6 +425,7 @@ val (numbers, nonNumbers) = json.partition(_.is(JsonType.Number))
 Accumulate values from children to parents:
 
 ```scala
+import zio.blocks.schema.json.Json
 
 val json = Json.parseUnsafe("""{"values": [1, 2, 3, 4, 5]}""")
 
@@ -412,6 +444,8 @@ val sum = json.foldUp(BigDecimal(0)) { (path, value, acc) =>
 Accumulate values from parents to children:
 
 ```scala
+import zio.blocks.schema.json.Json
+import zio.blocks.schema.DynamicOptic
 
 val json = Json.parseUnsafe("""{"a": {"b": {"c": 1}}}""")
 
@@ -426,6 +460,7 @@ val paths = json.foldDown(Vector.empty[DynamicOptic]) { (path, value, acc) =>
 Combine two JSON values using different strategies:
 
 ```scala
+import zio.blocks.schema.json.{Json, MergeStrategy}
 
 val base = Json.parseUnsafe("""{"a": 1, "b": {"x": 10}}""")
 val overlay = Json.parseUnsafe("""{"b": {"y": 20}, "c": 3}""")
@@ -467,6 +502,7 @@ val custom = base.merge(overlay, MergeStrategy.Custom { (path, left, right) =>
 Clean up JSON values:
 
 ```scala
+import zio.blocks.schema.json.Json
 
 val json = Json.parseUnsafe("""{
   "z": 1,
@@ -497,6 +533,7 @@ val normalized = json.normalize
 ### Built-in Codecs
 
 ```scala
+import zio.blocks.schema.Schema
 
 // Primitives
 Schema[String].jsonCodec
@@ -522,6 +559,7 @@ Schema[java.util.UUID].jsonCodec
 ### Encoding/Decoding of Primitives
 
 ```scala
+import zio.blocks.schema._
 
 // Encode Scala values to Json
 val intJson = 42.toJson  // Json.Number(42)
@@ -537,6 +575,7 @@ val strResult = strJson.as[String]  // Right("hello")
 For complex types, use Schema-based derivation:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 
@@ -554,6 +593,7 @@ val decoded = json.as[Person]
 When a `Schema` is in scope, you can use convenient extension methods directly on values:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -583,6 +623,8 @@ These extension methods provide a more ergonomic API compared to explicitly crea
 ### Using the `as` Method
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -603,6 +645,7 @@ val personUnsafe: Person = json.asUnsafe[Person]
 ### Basic Printing
 
 ```scala
+import zio.blocks.schema.json.Json
 
 val json = Json.Object("name" -> Json.String("Alice"), "age" -> Json.Number(30))
 
@@ -614,6 +657,8 @@ val compact: String = json.print
 ### With Writer Config
 
 ```scala
+import zio.blocks.schema.json.Json
+import zio.blocks.schema.json.WriterConfig
 
 val json = Json.Object("name" -> Json.String("Alice"))
 
@@ -638,6 +683,7 @@ val indented4 = json.print(WriterConfig.withIndentionStep(4))
 | `preferredBufSize` | `32768` | Internal buffer size in bytes |
 
 ```scala
+import zio.blocks.schema.json.WriterConfig
 
 // Compact output (default)
 val compact = WriterConfig
@@ -668,6 +714,7 @@ val custom = WriterConfig
 | `checkForEndOfInput` | `true` | Error on trailing non-whitespace |
 
 ```scala
+import zio.blocks.schema.json.ReaderConfig
 
 // Default configuration
 val default = ReaderConfig
@@ -684,6 +731,7 @@ val largeDoc = ReaderConfig
 ### To Bytes
 
 ```scala
+import zio.blocks.schema.json.Json
 
 val json = Json.Object("x" -> Json.Number(1))
 
@@ -698,6 +746,7 @@ val bytes: Array[Byte] = json.printBytes
 Find all values matching a condition:
 
 ```scala
+import zio.blocks.schema.json.Json
 
 val json = Json.parseUnsafe("""{
   "users": [
@@ -718,6 +767,9 @@ val activeUsers = json.select.queryBoth { (path, value) =>
 Flatten to path-value pairs:
 
 ```scala
+import zio.blocks.schema.json.Json
+import zio.blocks.schema.DynamicOptic
+import zio.blocks.chunk.Chunk
 
 val json = Json.parseUnsafe("""{"a": {"b": 1, "c": 2}}""")
 
@@ -735,6 +787,7 @@ val pairs: Chunk[(DynamicOptic, Json)] = json.toKV
 Objects are compared **order-independently** (keys are compared as sorted sets):
 
 ```scala
+import zio.blocks.schema.json.Json
 
 val obj1 = Json.parseUnsafe("""{"a": 1, "b": 2}""")
 val obj2 = Json.parseUnsafe("""{"b": 2, "a": 1}""")
@@ -747,6 +800,7 @@ obj1 == obj2  // true (order-independent)
 JSON values have a total ordering for sorting:
 
 ```scala
+import zio.blocks.schema.json.Json
 
 val values = List(
   Json.String("z"),
@@ -767,6 +821,7 @@ Type ordering: Null < Boolean < Number < String < Array < Object
 `JsonDiffer` computes the difference between two JSON values, producing a [`JsonPatch`](./json-patch.md) that transforms the source into the target:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
 
 val source = Json.parseUnsafe("""{"name": "Alice", "age": 30}""")
 val target = Json.parseUnsafe("""{"name": "Alice", "age": 31, "active": true}""")
@@ -792,6 +847,9 @@ The differ uses optimal operations:
 ### Computing and Applying Patches
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.patch.PatchMode
+import zio.blocks.schema.SchemaError
 
 val original = Json.parseUnsafe("""{"count": 10, "items": ["a", "b"]}""")
 val modified = Json.parseUnsafe("""{"count": 15, "items": ["a", "b", "c"]}""")
@@ -820,6 +878,7 @@ val result3 = patch(original, PatchMode.Clobber)
 ### Composing Patches
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
 
 val patch1 = JsonPatch.diff(
   Json.parseUnsafe("""{"x": 1}"""),
@@ -844,6 +903,9 @@ val result = combined(Json.parseUnsafe("""{"x": 1}"""))
 `JsonPatch` can be converted to and from `DynamicPatch` for interoperability with the typed patching system:
 
 ```scala
+import zio.blocks.schema.json.JsonPatch
+import zio.blocks.schema.patch.DynamicPatch
+import zio.blocks.schema.SchemaError
 
 val jsonPatch: JsonPatch = ???
 
@@ -859,6 +921,8 @@ val restored: Either[SchemaError, JsonPatch] = JsonPatch.fromDynamicPatch(dynami
 Convert JSON to ZIO Blocks' semi-structured `DynamicValue`:
 
 ```scala
+import zio.blocks.schema.json.Json
+import zio.blocks.schema.DynamicValue
 
 val json = Json.parseUnsafe("""{"name": "Alice"}""")
 
@@ -874,6 +938,8 @@ This enables interoperability with other ZIO Blocks formats (Avro, TOON, etc.).
 Errors include path information for debugging:
 
 ```scala
+import zio.blocks.schema.json.Json
+import zio.blocks.schema.SchemaError
 
 val json = Json.parseUnsafe("""{"users": [{"name": "Alice"}]}""")
 
@@ -884,6 +950,8 @@ val result = json.get("users")(5).get("name").as[String]
 ### Error Properties
 
 ```scala
+import zio.blocks.schema.SchemaError
+import zio.blocks.schema.DynamicOptic
 
 val error: SchemaError = ???
 

@@ -9,6 +9,8 @@ A `TPriorityQueue[A]` is a mutable queue that can participate in STM transaction
 You can create an empty `TPriorityQueue` using the `empty` constructor:
 
 ```scala
+import zio._
+import zio.stm._
 
 val minQueue: STM[Nothing, TPriorityQueue[Int]] =
   TPriorityQueue.empty

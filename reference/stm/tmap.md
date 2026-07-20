@@ -9,6 +9,8 @@ A `TMap[A]` is a mutable map that can participate in transactions in STM.
 Creating an empty `TMap`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val emptyTMap: STM[Nothing, TMap[String, Int]] = TMap.empty[String, Int]
 ```
@@ -16,6 +18,8 @@ val emptyTMap: STM[Nothing, TMap[String, Int]] = TMap.empty[String, Int]
 Or creating a `TMap` with specified values:
 
 ```scala
+import zio._
+import zio.stm._
 
 val specifiedValuesTMap: STM[Nothing, TMap[String, Int]] = TMap.make(("a", 1), ("b", 2), ("c", 3))
 ```
@@ -23,6 +27,8 @@ val specifiedValuesTMap: STM[Nothing, TMap[String, Int]] = TMap.make(("a", 1), (
 Alternatively, you can create a `TMap` by providing a collection of tuple values:
 
 ```scala
+import zio._
+import zio.stm._
 
 val iterableTMap: STM[Nothing, TMap[String, Int]] = TMap.fromIterable(List(("a", 1), ("b", 2), ("c", 3)))
 ```
@@ -32,6 +38,8 @@ val iterableTMap: STM[Nothing, TMap[String, Int]] = TMap.fromIterable(List(("a",
 New key-value pair can be added to the map in the following way:
 
 ```scala
+import zio._
+import zio.stm._
 
 val putElem: UIO[TMap[String, Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2))
@@ -42,6 +50,8 @@ val putElem: UIO[TMap[String, Int]] = (for {
 Another way of adding an entry in the map is by using `merge`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val mergeElem: UIO[TMap[String, Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -56,6 +66,8 @@ If the key is not present in the map it behaves as a simple `put` method. It mer
 The simplest way to remove a key-value pair from `TMap` is using `delete` method that takes key:
 
 ```scala
+import zio._
+import zio.stm._
 
 val deleteElem: UIO[TMap[String, Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -66,6 +78,8 @@ val deleteElem: UIO[TMap[String, Int]] = (for {
 Also, it is possible to remove every key-value pairs that satisfy provided predicate:
 
 ```scala
+import zio._
+import zio.stm._
 
 val removedEvenValues: UIO[TMap[String, Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3), ("d", 4))
@@ -76,6 +90,8 @@ val removedEvenValues: UIO[TMap[String, Int]] = (for {
 Or you can keep all key-value pairs that match predicate function:
 
 ```scala
+import zio._
+import zio.stm._
 
 val retainedEvenValues: UIO[TMap[String, Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3), ("d", 4))
@@ -90,6 +106,8 @@ Note that `retainIf` and `removeIf` serve the same purpose as `filter` and `filt
 Value associated with the key can be obtained as follows: 
 
 ```scala
+import zio._
+import zio.stm._
 
 val elemGet: UIO[Option[Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -100,6 +118,8 @@ val elemGet: UIO[Option[Int]] = (for {
 Alternatively, you can provide a default value if entry by key is not present in the map:
 
 ```scala
+import zio._
+import zio.stm._
 
 val elemGetOrElse: UIO[Int] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -112,6 +132,8 @@ val elemGetOrElse: UIO[Int] = (for {
 The transform function `(K, V) => (K, V)` allows computing a new value for every entry in the map: 
 
 ```scala
+import zio._
+import zio.stm._
 
 val transformTMap: UIO[TMap[String, Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -122,6 +144,8 @@ val transformTMap: UIO[TMap[String, Int]] = (for {
 Note that it is possible to shrink a `TMap`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val shrinkTMap: UIO[TMap[String, Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -132,6 +156,8 @@ val shrinkTMap: UIO[TMap[String, Int]] = (for {
 The entries can be mapped effectfully via `transformSTM`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val transformSTMTMap: UIO[TMap[String, Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -142,6 +168,8 @@ val transformSTMTMap: UIO[TMap[String, Int]] = (for {
 The `transformValues` function `V => V` allows computing a new value for every value in the map: 
 
 ```scala
+import zio._
+import zio.stm._
 
 val transformValuesTMap: UIO[TMap[String, Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -152,6 +180,8 @@ val transformValuesTMap: UIO[TMap[String, Int]] = (for {
 The values can be mapped effectfully via `transformValuesSTM`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val transformValuesMTMap: UIO[TMap[String, Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -164,6 +194,8 @@ Note that both `transform` and `transformValues` serve the same purpose as `map`
 Folds the elements of a `TMap` using the specified associative binary operator:
 
 ```scala
+import zio._
+import zio.stm._
 
 val foldTMap: UIO[Int] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -174,6 +206,8 @@ val foldTMap: UIO[Int] = (for {
 The elements can be folded effectfully via `foldSTM`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val foldSTMTMap: UIO[Int] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -186,6 +220,8 @@ val foldSTMTMap: UIO[Int] = (for {
 `foreach` is used for performing an STM effect for each key-value pair in the map:
 
 ```scala
+import zio._
+import zio.stm._
 
 val foreachTMap = (for {
   tMap   <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -199,6 +235,8 @@ val foreachTMap = (for {
 Checking whether key-value pair is present in a `TMap`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tMapContainsValue: UIO[Boolean] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -211,6 +249,8 @@ val tMapContainsValue: UIO[Boolean] = (for {
 List of tuples can be obtained as follows:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tMapTuplesList: UIO[List[(String, Int)]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -221,6 +261,8 @@ val tMapTuplesList: UIO[List[(String, Int)]] = (for {
 List of keys can be obtained as follows:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tMapKeysList: UIO[List[String]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))
@@ -231,6 +273,8 @@ val tMapKeysList: UIO[List[String]] = (for {
 List of values can be obtained as follows:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tMapValuesList: UIO[List[Int]] = (for {
   tMap <- TMap.make(("a", 1), ("b", 2), ("c", 3))

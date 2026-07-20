@@ -33,6 +33,10 @@ We can use the `Commutative` abstraction to specify at the type level whether on
 For example, here is how we could define and test a `Commutative` instance for a version of the `RunningAverage` data type that we discussed in the introduction to functional abstractions:
 
 ```scala
+import zio.prelude._
+import zio.prelude.laws._
+import zio.test._
+import zio.test.laws._
 
 case class RunningAverage(sum: Long, count: Int)
 
@@ -98,6 +102,7 @@ In that case having a way of combining values that is commutative can be very us
 For an example of this we can look to the `mergeAllPar` operator on `ZIO`.
 
 ```scala
+import zio._
 
 object ZIO {
   def mergeAllPar[R, E, A, B](

@@ -78,6 +78,7 @@ object Resource {
 When you allocate a shared resource, reference counting ensures cleanup happens exactly once:
 
 ```scala
+import zio.blocks.scope._
 
 class DatabasePool extends AutoCloseable {
   def close(): Unit = println("Pool closed (after all services released)")
@@ -90,13 +91,13 @@ val poolResource = Resource.shared { scope =>
 
 // Allocate in ServiceA
 Scope.global.scoped { scopeA =>
-
+  import scopeA._
   val poolA: $[DatabasePool] = poolResource.allocate
   println("ServiceA allocated pool")
 
   // Allocate in ServiceB within a nested scope
   scopeA.scoped { scopeB =>
-
+    import scopeB._
     val poolB: $[DatabasePool] = poolResource.allocate
     println("ServiceB allocated same pool instance (reference count incremented)")
 
@@ -125,6 +126,7 @@ object Resource {
 When you allocate a unique resource, each allocation is independent:
 
 ```scala
+import zio.blocks.scope._
 
 class RequestCache extends AutoCloseable {
   def close(): Unit = println("Request cache closed")
@@ -137,7 +139,7 @@ val cacheResource = Resource.unique { scope =>
 
 // Two allocations in the same scope produce different instances
 Scope.global.scoped { scope =>
-
+  import scope._
   println("Creating first cache...")
   val cache1: $[RequestCache] = cacheResource.allocate
 
@@ -165,6 +167,7 @@ A classic architecture uses shared resources to solve **diamond dependencies**, 
 Without shared resources, each service would receive a different `Logger` instance. With `Resource.shared`, both services automatically receive the same singleton instance:
 
 ```scala
+import zio.blocks.scope._
 
 class Logger extends AutoCloseable {
   def log(msg: String): Unit = println(s"LOG: $msg")
@@ -190,6 +193,7 @@ class CachingApp(val productService: ProductService, val orderService: OrderServ
 }
 
 Scope.global.scoped { scope =>
+  import scope._
 
   // Use Wire.shared[Logger] to ensure only one instance is created
   val app: $[CachingApp] = allocate(
@@ -230,6 +234,7 @@ Most applications need more than one shared resource. Here's a realistic example
 Here's the implementation:
 
 ```scala
+import zio.blocks.scope._
 
 class Logger extends AutoCloseable {
   def log(msg: String): Unit = println(s"[LOG] $msg")
@@ -269,6 +274,7 @@ class CachingApp(
 }
 
 Scope.global.scoped { scope =>
+  import scope._
 
   // Both Logger and MetricsCollector are shared (singleton instances)
   val app: $[CachingApp] = allocate(
@@ -307,6 +313,7 @@ object Resource {
 Here's how to use it:
 
 ```scala
+import zio.blocks.scope._
 
 case class Config(debug: Boolean)
 
@@ -331,6 +338,8 @@ object Resource {
 Here's an example with file handling:
 
 ```scala
+import zio.blocks.scope._
+import java.io.FileInputStream
 
 val fileResource = Resource.acquireRelease {
   new FileInputStream("data.txt")
@@ -352,6 +361,9 @@ object Resource {
 Here's an example with a stream:
 
 ```scala
+import zio.blocks.scope._
+import java.io.BufferedInputStream
+import java.io.FileInputStream
 
 val streamResource = Resource.fromAutoCloseable {
   new BufferedInputStream(new FileInputStream("data.bin"))
@@ -377,6 +389,7 @@ object Resource {
 Here's a realistic example showing reference counting and automatic cleanup:
 
 ```scala
+import zio.blocks.scope._
 
 class ExpensiveComponent extends AutoCloseable {
   println("ExpensiveComponent initialized (expensive operation)")
@@ -389,6 +402,7 @@ val sharedResource = Resource.shared { scope =>
 
 // Multiple services allocating the same shared resource
 Scope.global.scoped { scope =>
+  import scope._
 
   // First allocation initializes the component
   println("ServiceA allocating...")
@@ -396,7 +410,7 @@ Scope.global.scoped { scope =>
 
   // ServiceB in a nested scope receives the same instance
   scope.scoped { innerScope =>
-
+    import innerScope._
     println("ServiceB allocating (same instance, ref count += 1)...")
     val componentB: $[ExpensiveComponent] = sharedResource.allocate
     println("Both services have the same instance")
@@ -421,6 +435,7 @@ object Resource {
 Here's an example showing fresh instances:
 
 ```scala
+import zio.blocks.scope._
 
 var counter = 0
 
@@ -445,6 +460,7 @@ object Resource {
 To derive a resource for a type that has no constructor dependencies:
 
 ```scala
+import zio.blocks.scope._
 
 class MetricsCollector extends AutoCloseable {
   def record(event: String): Unit = println(s"Recording: $event")
@@ -475,6 +491,7 @@ object Resource {
 To derive a resource for a type whose dependencies are provided via wires:
 
 ```scala
+import zio.blocks.scope._
 
 case class Config(host: String, port: Int)
 
@@ -516,6 +533,7 @@ trait Resource[+A] {
 Here's a usage example:
 
 ```scala
+import zio.blocks.scope._
 
 val portResource = Resource(8080)
 val urlResource = portResource.map(port => s"http://localhost:$port")
@@ -534,6 +552,7 @@ trait Resource[+A] {
 Here's an example with dependent resources:
 
 ```scala
+import zio.blocks.scope._
 
 case class DbConfig(url: String)
 
@@ -561,6 +580,7 @@ trait Resource[+A] {
 Here's an example combining multiple resources:
 
 ```scala
+import zio.blocks.scope._
 
 case class DbConfig(url: String)
 
@@ -590,6 +610,7 @@ implicit class ResourceOps[A](private val r: Resource[A]) {
 To allocate a resource and use its value inside a scope:
 
 ```scala
+import zio.blocks.scope._
 
 class Database extends AutoCloseable {
   def query(sql: String): String = s"Result: $sql"
@@ -597,7 +618,7 @@ class Database extends AutoCloseable {
 }
 
 Scope.global.scoped { implicit scope =>
-
+  import scope._
   val db: $[Database] = Resource.fromAutoCloseable(new Database).allocate
   $(db)(_.query("SELECT 1"))
 }
@@ -622,6 +643,7 @@ implicit class ScopedResourceOps[A](private val sr: $[Resource[A]]) {
 Here's a realistic example where a database pool (a scoped object) has a method that returns a Resource for individual connections:
 
 ```scala
+import zio.blocks.scope._
 
 class Connection extends AutoCloseable {
   def query(sql: String): String = s"Result: $sql"
@@ -634,7 +656,7 @@ class Pool extends AutoCloseable {
 }
 
 Scope.global.scoped { implicit scope =>
-
+  import scope._
   val pool: $[Pool]           = Resource.fromAutoCloseable(new Pool).allocate
   val conn: $[Connection]     = $(pool)(_.lease()).allocate
   $(conn)(_.query("SELECT 1"))
@@ -694,6 +716,8 @@ This example demonstrates creating and automatically cleaning up temporary files
  */
 
 package scope.examples
+
+import zio.blocks.scope._
 
 /**
  * Demonstrates `scope.defer(...)` for registering manual cleanup actions.
@@ -806,6 +830,8 @@ This example demonstrates the acquire-release pattern using Resource to manage d
 
 package scope.examples
 
+import zio.blocks.scope._
+
 /**
  * Configuration for database connection.
  *
@@ -896,7 +922,7 @@ final class Database(config: DbConfig) extends AutoCloseable {
   val config = DbConfig("localhost", 5432, "myapp")
 
   Scope.global.scoped { scope =>
-
+    import scope._
     println("[Scope] Entering scoped region\n")
 
     // Allocate the database resource. Because Database extends AutoCloseable,
@@ -956,6 +982,9 @@ This example demonstrates Resource.shared to create a singleton logger instance 
  */
 
 package scope.examples
+
+import zio.blocks.scope._
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Demonstrates `Wire.shared` vs `Wire.unique` and diamond dependency patterns.
@@ -1060,7 +1089,7 @@ object CachingSharedLoggerExample {
 
     println("─── Resource Acquisition ───")
     Scope.global.scoped { scope =>
-
+      import scope._
       val app: $[CachingApp] = allocate(
         Resource.from[CachingApp](
           Wire.shared[Logger],
@@ -1120,6 +1149,9 @@ This example demonstrates using Resource.shared for a database connection pool�
  */
 
 package scope.examples
+
+import zio.blocks.scope._
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Demonstrates `Resource.Shared` with reference counting and nested resource
@@ -1212,13 +1244,13 @@ final class ConnectionPool(config: PoolConfig) extends AutoCloseable {
     Resource.fromAutoCloseable(new ConnectionPool(poolConfig))
 
   Scope.global.scoped { appScope =>
-
+    import appScope._
     println("[App] Allocating pool\n")
     val pool: $[ConnectionPool] = poolResource.allocate
 
     println("--- ServiceA doing work (connection scoped to this block) ---")
     appScope.scoped { workScope =>
-
+      import workScope._
       val p: $[ConnectionPool]   = lower(pool)
       val c: $[PooledConnection] = $(p)(_.acquire).allocate
       val result                 = $(c)(_.execute("SELECT * FROM service_a_table"))
@@ -1228,7 +1260,7 @@ final class ConnectionPool(config: PoolConfig) extends AutoCloseable {
 
     println("--- ServiceB doing work ---")
     appScope.scoped { workScope =>
-
+      import workScope._
       val p: $[ConnectionPool]   = lower(pool)
       val c: $[PooledConnection] = $(p)(_.acquire).allocate
       val result                 = $(c)(_.execute("SELECT * FROM service_b_table"))
@@ -1238,7 +1270,7 @@ final class ConnectionPool(config: PoolConfig) extends AutoCloseable {
 
     println("--- Multiple connections in same scope ---")
     appScope.scoped { workScope =>
-
+      import workScope._
       val p: $[ConnectionPool]   = lower(pool)
       val a: $[PooledConnection] = $(p)(_.acquire).allocate
       val b: $[PooledConnection] = $(p)(_.acquire).allocate
@@ -1290,6 +1322,8 @@ This example demonstrates combining Resource with transaction boundaries. Shows 
  */
 
 package scope.examples
+
+import zio.blocks.scope._
 
 /**
  * Transaction Boundary Example
@@ -1370,7 +1404,7 @@ object TransactionBoundaryExample {
     println("Demonstrating Resource-returning beginTransaction method\n")
 
     Scope.global.scoped { connScope =>
-
+      import connScope._
       // Allocate the connection in the outer scope
       val conn: $[DbConnection] = Resource.fromAutoCloseable(new DbConnection("db-001")).allocate
       println()
@@ -1379,7 +1413,7 @@ object TransactionBoundaryExample {
       println("--- Transaction 1: Insert user ---")
       val result1: TxResult =
         connScope.scoped { txScope =>
-
+          import txScope._
           val c: $[DbConnection]   = lower(conn)
           val tx: $[DbTransaction] = $(c)(_.beginTransaction("tx-001")).allocate
           val rows                 = $(tx)(_.execute("INSERT INTO users VALUES (1, 'Alice')"))
@@ -1392,7 +1426,7 @@ object TransactionBoundaryExample {
       println("--- Transaction 2: Transfer funds ---")
       val result2: TxResult =
         connScope.scoped { txScope =>
-
+          import txScope._
           val c: $[DbConnection]   = lower(conn)
           val tx: $[DbTransaction] = $(c)(_.beginTransaction("tx-002")).allocate
           val rows1                = $(tx)(_.execute("UPDATE accounts SET balance = balance - 100 WHERE id = 1"))
@@ -1406,7 +1440,7 @@ object TransactionBoundaryExample {
       println("--- Transaction 3: Auto-rollback (no explicit commit) ---")
       val result3: TxResult =
         connScope.scoped { txScope =>
-
+          import txScope._
           val c: $[DbConnection]   = lower(conn)
           val tx: $[DbTransaction] = $(c)(_.beginTransaction("tx-003")).allocate
           $(tx)(_.execute("DELETE FROM audit_log"))
@@ -1456,6 +1490,8 @@ This example demonstrates Resource.from macro to automatically build a complex d
  */
 
 package scope.examples
+
+import zio.blocks.scope._
 
 /**
  * Demonstrates auto-wiring a layered web service using
@@ -1548,7 +1584,7 @@ class UserController(repo: UserRepository) extends AutoCloseable {
 
   // Allocate within a scoped block; cleanup runs on scope exit
   Scope.global.scoped { scope =>
-
+    import scope._
     val controller: $[UserController] = allocate(controllerResource)
 
     println("\n=== Handling requests ===")

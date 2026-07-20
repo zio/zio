@@ -28,6 +28,7 @@ A `Schedule` value plugs directly into `ZIO#repeat` or `ZIO#retry`. The runtime 
 `ZIO#repeat(schedule)` runs the effect once immediately, then checks the schedule after each success. It keeps repeating as long as the schedule says `Continue`, and returns the schedule's last output value when the schedule says `Done`:
 
 ```scala
+import zio._
 
 object HelloRepeat extends ZIOAppDefault {
   def run =
@@ -49,6 +50,7 @@ The value `4` is the last output emitted by `Schedule.recurs(4)` — the 0-based
 We can make that run-count concrete by using a `Ref` as a counter:
 
 ```scala
+import zio._
 
 object RepeatCounter extends ZIOAppDefault {
   def run = for {
@@ -69,6 +71,7 @@ Effect ran 4 times
 `ZIO#retry(policy)` works in the other direction: the schedule receives the *error* value after each failure, and the runtime retries as long as the policy says `Continue`. We can observe this with an always-failing effect:
 
 ```scala
+import zio._
 
 object RetryOnce extends ZIOAppDefault {
   // Increments a counter, then fails with the new count as the error message
@@ -146,6 +149,7 @@ object Schedule {
 Each call to `step` emits the current state as the output, then advances to `f(state)`, and always continues:
 
 ```scala
+import zio._
 
 object StepContract extends ZIOAppDefault {
   // A schedule that emits 1, 2, 4, 8, 16, ... (doubling state)
@@ -178,6 +182,7 @@ The `Schedule` companion object provides ready-made schedules for the most commo
 Here are the most frequently used factory methods along with what they emit and when they stop:
 
 ```scala
+import zio._
 
 // recurs(n): repeat exactly n additional times; emits 0-based step index
 val thrice: Schedule[Any, Any, Long] =
@@ -226,6 +231,7 @@ It maps the `forever` step index through the exponential formula and feeds the r
 We can confirm the doubling sequence using `schedule.run`:
 
 ```scala
+import zio._
 
 object ExponentialDemo extends ZIOAppDefault {
   def run = for {
@@ -255,6 +261,7 @@ Because `Out` is just the second element of the tuple returned by `Schedule#step
 `Schedule#map` applies a function to every output value:
 
 ```scala
+import zio._
 
 object MapDemo extends ZIOAppDefault {
   // Turn the raw step index into a human-readable message
@@ -279,6 +286,7 @@ attempt 4 of 4
 `Schedule#as` replaces every output with a constant value, which is useful when the step index carries no meaning in your domain:
 
 ```scala
+import zio._
 
 // Retry up to 5 times; the schedule output is () rather than a raw Long
 val silentRetry: Schedule[Any, Any, Unit] =
@@ -288,6 +296,7 @@ val silentRetry: Schedule[Any, Any, Unit] =
 `Schedule#collectAll` accumulates *every* output into a `Chunk`. The schedule continues for as long as the underlying schedule would continue, and returns all outputs together as a single `Chunk` once it is done:
 
 ```scala
+import zio._
 
 object CollectAllDemo extends ZIOAppDefault {
   def run =
@@ -319,6 +328,7 @@ The real power of `Schedule` emerges when we combine two policies. ZIO provides 
 `s1 && s2` continues only when *both* schedules say `Continue`, taking the *later* of the two start intervals. The output is a tuple `(out1, out2)`. If either schedule says `Done`, the combined schedule also says `Done`:
 
 ```scala
+import zio._
 
 object IntersectionDemo extends ZIOAppDefault {
   // Exponential backoff, capped at 3 additional retries
@@ -348,6 +358,7 @@ Although we supplied 10 inputs, `Schedule.recurs(2)` fires `Done` after its thir
 `s1 || s2` continues when *either* schedule says `Continue`, taking the *earlier* of the two start intervals. The output is again a tuple `(out1, out2)`. The combined schedule only stops when *both* say `Done`:
 
 ```scala
+import zio._
 
 // Keep backing off exponentially OR at most every 30 seconds — whichever fires sooner
 val boundedExp: Schedule[Any, Any, (Duration, Long)] =
@@ -361,6 +372,7 @@ val boundedExp: Schedule[Any, Any, (Duration, Long)] =
 `s1 ++ s2` (also spelled `s1.andThen(s2)`) runs the first schedule to completion, then hands control to the second. The output type is the wider of the two `Out` types:
 
 ```scala
+import zio._
 
 // Retry 3 times immediately, then switch to a 5-second cadence for up to 10 more attempts
 val multiPhase: Schedule[Any, Any, Long] =
@@ -370,6 +382,7 @@ val multiPhase: Schedule[Any, Any, Long] =
 We can verify sequencing behaviour by running a combined schedule and observing the total step count:
 
 ```scala
+import zio._
 
 object AndThenDemo extends ZIOAppDefault {
   // 3 immediate steps (recurs(2)), then 3 spaced steps ((spaced && recurs(2)).map)
@@ -395,6 +408,7 @@ The first phase (`recurs(2)`) contributes 2 steps with no delay. The second phas
 `s1 >>> s2` pipes the *output* of `s1` as the *input* to `s2`. This is less common than the three operators above but is useful when the output of one schedule drives the logic of another:
 
 ```scala
+import zio._
 
 // Measure cumulative time elapsed across all retry delays
 val cumulativeDelay: Schedule[Any, Any, Duration] =
@@ -425,6 +439,7 @@ final case class Driver[+State, -Env, -In, +Out](
 Here we drive `Schedule.recurs(3)` step by step. Because `Schedule.recurs` uses zero-duration intervals, no real sleeping occurs, so we do not need `TestClock`:
 
 ```scala
+import zio._
 
 object DriverDemo extends ZIOAppDefault {
   def run = for {
@@ -471,6 +486,7 @@ The first three calls to `driver.next(())` succeed because `Schedule.forever.whi
 We now have everything we need to write a realistic HTTP retry policy. The scenario: an HTTP endpoint is flaky and fails the first three attempts. We want to retry with exponential backoff, but cap the number of extra attempts at five. Each failure should be logged before the next attempt:
 
 ```scala
+import zio._
 
 object HttpRetryApp extends ZIOAppDefault {
 
@@ -515,6 +531,7 @@ Walking through the moving parts:
 To add jitter (randomized delay scaling, which reduces retry storms in distributed systems), replace `Schedule.exponential(100.millis)` with `Schedule.exponential(100.millis).jittered`, which multiplies each delay by a random factor between 0.8 and 1.2:
 
 ```scala
+import zio._
 
 // Same policy with ±20% jitter applied to every exponential delay
 val jitteredPolicy: Schedule[Any, Any, (Duration, Long)] =

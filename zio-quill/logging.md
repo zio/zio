@@ -27,6 +27,7 @@ object Example {
   case class Person(id: Int, name: String, age: Int)
   case class Address(owner:Int, street: String)
   val ctx = new SqlMirrorContext(PostgresDialect, Literal)
+  import ctx._
 
   val people = run(query[Person])
   val addresses = run(query[Person])

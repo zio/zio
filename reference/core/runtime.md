@@ -41,6 +41,7 @@ Runtime Systems have a lot of responsibilities:
 There are two common ways to run a ZIO effect. Most of the time, we use the [`ZIOAppDefault`](zioapp.md) trait. There are, however, some advanced use cases for which we need to directly feed a ZIO effect into the runtime system's `unsafe.run` method:
 
 ```scala
+import zio._
 
 object RunZIOEffectUsingUnsafeRun extends scala.App {
   val myAppLogic = for {
@@ -116,6 +117,7 @@ We mainly use `ZIO#provideXYZ` operators to provide a new runtime configuration 
 By providing (`ZIO#provideXYZ`) runtime configuration layers to a ZIO workflow, we can change the runtime configs easily:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
@@ -140,6 +142,7 @@ Application is about to exit!
 To provide runtime configuration to a specific region of a ZIO application, we should provide the configuration layer only to that specific region:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
@@ -175,6 +178,7 @@ The `bootstrap` layer is a special layer that is mainly used to acquire and rele
 By using this technique, after initialization of the top-level runtime, it will provide the `bootstrap` layer to the ZIO application given through the `run` method.
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
@@ -203,6 +207,7 @@ Although using this method will apply the configuration layer to the whole ZIO a
 To elaborate more on this, let's look at the following example:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val addSimpleLogger: ZLayer[Any, Nothing, Unit] =
@@ -238,6 +243,7 @@ ZIO offers two ways to utilize virtual threads:
 1. For the main executor (handles non-blocking ZIO operations):
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -253,6 +259,7 @@ object MainApp extends ZIOAppDefault {
 2. For the blocking executor (handles blocking operations):
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -283,6 +290,7 @@ val runtime: Runtime[Any] =
 Let's try a fully working example:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -309,6 +317,7 @@ Keep in mind that only the "bootstrap" layer of applications will be combined wh
 Another use-case of top-level runtimes is when we want to integrate our ZIO application inside a legacy application:
 
 ```scala
+import zio._
 
 object MainApp {
   val sl4jlogger: ZLogger[String, Any] = ???

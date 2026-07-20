@@ -56,6 +56,9 @@ This project also has a [sbt integration](https://github.com/hnaderi/sbt-k8s) yo
 We can define any kubernetes object:
 
 ```scala
+import dev.hnaderi.k8s._  // base packages
+import dev.hnaderi.k8s.implicits._  // implicit coversions and helpers
+import dev.hnaderi.k8s.manifest._  // manifest syntax
 
 val config = ConfigMap(
   metadata = ObjectMeta(
@@ -89,6 +92,8 @@ val config2 = ConfigMap(
 And we can connect to our cluster and send requests:
 
 ```scala
+import dev.hnaderi.k8s.client.APIs
+import dev.hnaderi.k8s.client.ZIOKubernetesClient
 
 // This example uses `kubectl proxy` to simplify authentication
 val client = ZIOKubernetesClient.make("http://localhost:8001")
@@ -97,6 +102,9 @@ val nodes = ZIOKubernetesClient.send(APIs.nodes.list())
 
 Runnable example:
 ```scala
+import dev.hnaderi.k8s.client._
+import zio.http.Client
+import zio._
 
 //NOTE run `kubectl proxy` before running this example
 object ZIOExample extends ZIOAppDefault {

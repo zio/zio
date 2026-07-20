@@ -5,6 +5,8 @@
 logger layer with configuration from config provider:
 
 ```scala
+import zio.logging.consoleLogger
+import zio.{ ConfigProvider, Runtime }
 
 val configProvider: ConfigProvider = ???
 
@@ -14,6 +16,8 @@ val logger = Runtime.removeDefaultLoggers >>> Runtime.setConfigProvider(configPr
 logger layer with given configuration:
 
 ```scala
+import zio.logging.{ consoleLogger, ConsoleLoggerConfig }
+import zio.Runtime
 
 val config: ConsoleLoggerConfig = ???
 
@@ -55,6 +59,10 @@ You can find the source code [here](https://github.com/zio/zio-logging/tree/mast
 
 ```scala
 package zio.logging.example
+
+import zio.config.typesafe.TypesafeConfigProvider
+import zio.logging.consoleLogger
+import zio.{ Cause, Config, ConfigProvider, ExitCode, Runtime, Scope, URIO, ZIO, ZIOAppDefault, ZLayer }
 
 object ConsoleColoredApp extends ZIOAppDefault {
 
@@ -143,6 +151,11 @@ Expected console output:
 
 ```scala
 package zio.logging.example
+
+import zio.logging.{ LogAnnotation, consoleJsonLogger }
+import zio.{ ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, _ }
+
+import java.util.UUID
 
 object ConsoleJsonApp extends ZIOAppDefault {
 

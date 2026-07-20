@@ -42,6 +42,8 @@ Serializers and deserializers for custom data types can be created from scratch,
 serdes. For example, to create a serde for an `Instant` from a serde for a `Long`:
 
 ```scala
+import java.time.Instant
+import zio.kafka.serde._
 
 val instantSerde: Serde[Any, Instant] =
   Serdes.long.inmap(java.time.Instant.ofEpochMilli)(_.toEpochMilli)
@@ -61,6 +63,10 @@ failures are converted to a `Failure` using the `asTry` method. (Method `asTry` 
 Below is an example of skipping records that fail to deserialize. The offset is passed downstream to be committed.
 
 ```scala
+import zio._, stream._
+import zio.kafka.consumer._
+import zio.kafka.serde._
+import scala.util.{Try, Success, Failure}
 
 val keySerde = Serdes.string
 val valueSerde = Serdes.string.asTry   // <-- using `.asTry`
@@ -99,6 +105,8 @@ handling.
 Here is an example:
 
 ```scala
+import zio._, stream._
+import zio.kafka.consumer._
 
 def deserialize(value: Array[Byte]): ZIO[Any, Throwable, Message] = ???
 

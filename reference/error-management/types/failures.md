@@ -13,6 +13,7 @@ trait ZIO {
 Let's try to model some failures using this constructor:
 
 ```scala
+import zio._
 
 val f1: ZIO[Any, String, Nothing] = ZIO.fail("Oh uh!")
 val f2: ZIO[Any, String, Int]     = ZIO.succeed(5) *> ZIO.fail("Oh uh!")
@@ -21,6 +22,7 @@ val f2: ZIO[Any, String, Int]     = ZIO.succeed(5) *> ZIO.fail("Oh uh!")
 Now, let's try to run a failing effect and see what happens:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run = ZIO.succeed(5) *> ZIO.fail("Oh uh!")
@@ -44,6 +46,7 @@ val f3: ZIO[Any, Exception, Nothing] =
 Or using user-defined failure types (domain errors):
 
 ```scala
+import zio._
 
 case class NegativeNumberException(msg: String) extends Exception(msg)
 

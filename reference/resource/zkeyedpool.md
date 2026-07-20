@@ -39,6 +39,7 @@ object ZKeyedPool {
 For example The `ZKeyedPool.make(key => resource(key), 3)` creates a pool of resources where each key has a pool of size 3:
 
 ```scala
+import zio._
 
 object ZKeyedPoolExample extends ZIOAppDefault {
   def resource(key: String): ZIO[Scope, Nothing, String] = ZIO.acquireRelease(

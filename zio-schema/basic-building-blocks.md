@@ -83,7 +83,10 @@ The `Sequence` can be anything that can be isomorphic to a list.
 Here is an example schema for list of `Person`s:
 
 ```scala
-
+import zio._
+import zio.schema._
+import zio.schema.Schema._
+  
 case class Person(name: String, age: Int)
 
 object Person {
@@ -103,7 +106,10 @@ val personListSchema: Schema[List[Person]] =
 ZIO Schema has `Schema.list[A]`, `Schema.chunk[A]` and `Schema.vector[A]` constructors that create `Schema[List[A]]`, `Schema[Chunk[A]]` and `Schema[Vector[A]]` for us:
 
 ```scala
-
+import zio._
+import zio.schema._
+import zio.schema.Schema._
+  
 case class Person(name: String, age: Int)
 
 object Person {
@@ -134,7 +140,10 @@ object Schema {
 It stores the key and value schemas. Like `Sequence`, instead of using `Map` directly, we can use the `Schema.map[K, V]` constructor:
 
 ```scala
-
+import zio._
+import zio.schema._
+import zio.schema.Schema._
+  
 case class Person(name: String, age: Int)
 
 object Person {
@@ -163,7 +172,10 @@ object Schema {
 To create a `Schema` for a `Set[A]`, we can use the above type class directly or use the `Schema.set[A]` constructor:
 
 ```scala
-
+import zio._
+import zio.schema._
+import zio.schema.Schema._
+  
 case class Person(name: String, age: Int)
 
 object Person {
@@ -232,6 +244,7 @@ As we can see, they take a `TypeId`, a number of fields of type `Field`, and a c
 Here is an example of defining schema for `Person` data type:
 
 ```scala
+import zio.schema._
 
 final case class Person(name: String, age: Int)
 
@@ -416,6 +429,7 @@ object Schema {
 So we can easily create a `Schema` for a tuple of n elements, just by calling `Schema[(A1, A2, ..., An)]`:
 
 ```scala
+import zio.schema._
 
 val tuple2: Schema[(String, Int)]          = Schema[(String, Int)]
 val tuple3: Schema[(String, Int, Boolean)] = Schema[(String, Int, Boolean)]

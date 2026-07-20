@@ -8,6 +8,9 @@ A command-line application interacting with an external API might require some f
 
  OAuth2 is added to a CLI App as an `Options[OAuth2Token]`. The token can be stored and the user can specify the path, so it is not necessary to repeat authentication. We can create it as with other options:
 ```scala
+import zio.cli._
+import zio.cli.oauth2.OAuth2Provider
+import zio.cli.oauth2.OAuth2Provider._
 
 val clientId = "clientId"
 
@@ -50,6 +53,8 @@ val facebookOAuth = Options.oauth2(OAuth2Provider.Facebook(appId, clientToken), 
 To create a custom OAuth2 provider, it suffices to extend the trait `OAuth2Provider`.
 The methods that need to be overrided are the following:
 ```scala
+import zio.cli.oauth2.AuthorizationResponse
+import java.net.http.HttpRequest
 
 trait OAuth2Provider {
   
@@ -66,6 +71,8 @@ trait OAuth2Provider {
 ``` 
 Two other methods that might need to be overrided depending on the particular provider are 
 ```scala
+import java.net.http.HttpRequest
+import zio.cli.oauth2._
 
 trait OAuth2Provider {
   
@@ -109,6 +116,9 @@ It defaults to decoding from standard JSON format.
 The construction of an OAuth2 provider will be dependent on the particular API that we would like to access. The first step is to define `name` and `clientIdentifier`. The value `clientIdentifier` can be obtained as a field of the case class representing our Provider. Then we construct the core of the Provider. Observe that the methods `authorizationRequest` and `accessTokenRequest` construct an `HttpRequest` from the library **ZIO Http**. They represent a POST request to GitHub API.
 
 ```scala
+import zio.cli.oauth2._
+import java.net.http.HttpRequest
+import java.net.URI
 
 final case class GithubExample(clientId: String) extends OAuth2Provider {
     override val name = "Github"
@@ -145,6 +155,11 @@ This example shows how to integrate OAuth2 in a ZIO `CliApp`. We are going to ma
 
 The first step is to define the `Options` that provides an `OAuth2Token
 ```scala
+import zio.Console.printLine
+import zio.cli.HelpDoc.Span.text
+import zio.cli.oauth2.OAuth2Provider
+import zio.cli.oauth2._
+import zio.cli._
 
 val githubOAuth: Options[OAuth2Token] = Options.oauth2(OAuth2Provider.Github("sampleId"), List("repo"))
 ```

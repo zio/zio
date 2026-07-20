@@ -64,6 +64,7 @@ Supported Scala versions: **2.13.x** and **3.x**.
 Here's a minimal example showing resource allocation, usage, and cleanup. This example introduces a canonical `Database` stub that we'll reuse throughout this guide:
 
 ```scala
+import zio.blocks.scope._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -72,6 +73,7 @@ final class Database extends AutoCloseable {
 
 val out: String =
   Scope.global.scoped { scope =>
+    import scope._
 
     val db: $[Database] =
       Resource.fromAutoCloseable(new Database).allocate
@@ -102,11 +104,11 @@ Scope's compile-time safety comes from *three reinforcing layers* that work toge
 ```scala
 // does not compile:
 Scope.global.scoped { scope1 =>
-
+  import scope1._
   val db1 = allocate(new Database)
 
   scope1.scoped { scope2 =>
-
+    import scope2._
     val x: scope2.$[Database] = db1  // Error: type mismatch
     // scope2.$[Database] is not compatible with scope1.$[Database]
   }
@@ -117,11 +119,11 @@ To safely use a parent scope's resource in a child scope, use `lower`:
 
 ```scala
 Scope.global.scoped { outer =>
-
+  import outer._
   val db = allocate(new Database)
 
   outer.scoped { inner =>
-
+    import inner._
     val dbInChild = inner.lower(db)  // ✓ Correct: retags for child scope
     $(dbInChild)(_.query("SELECT 1"))
   }
@@ -161,7 +163,7 @@ By requiring a lambda literal, the macro can analyze the actual code syntax. It 
 ```scala
 // does not compile:
 Scope.global.scoped { scope =>
-
+  import scope._
   val db = allocate(new Database)
   db  // Error: No given instance of Unscoped[$[Database]]
 }
@@ -172,7 +174,7 @@ Closures over resources are also rejected:
 ```scala
 // does not compile:
 Scope.global.scoped { scope =>
-
+  import scope._
   val db = allocate(new Database)
   () => db.query("SELECT 1")  // Error: No given instance of Unscoped[() => String]
   // (the closure captures db)
@@ -183,7 +185,7 @@ Only types with an `Unscoped` instance can cross the scope boundary—typically 
 
 ```scala
 Scope.global.scoped { scope =>
-
+  import scope._
   val db = allocate(new Database)
   $(db)(_.query("SELECT 1"))  // ✓ Correct: returns String, which is Unscoped
 }
@@ -200,9 +202,10 @@ In `Scope.global`, the `$[A]` type is an identity type (i.e., `$[A] = A`). Final
 Use `Scope.global` to access the root scope:
 
 ```scala
+import zio.blocks.scope._
 
 val result: String = Scope.global.scoped { scope =>
-
+  import scope._
   "no resources allocated"
 }
 ```
@@ -214,6 +217,7 @@ val result: String = Scope.global.scoped { scope =>
 The lambda receives the child scope as a parameter. You can import its members to use the short form `$[A]` instead of `scope.$[A]`:
 
 ```scala
+import zio.blocks.scope._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -221,6 +225,7 @@ final class Database extends AutoCloseable {
 }
 
 Scope.global.scoped { scope =>
+  import scope._
 
   val db: $[Database] =
     Resource.fromAutoCloseable(new Database).allocate
@@ -243,6 +248,7 @@ This is useful for resource pools, lazy initialization, or service factories whe
 Here's a practical application initialization pattern:
 
 ```scala
+import zio.blocks.scope._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -256,7 +262,7 @@ val db = appResources.scope.allocate(Resource.fromAutoCloseable(new Database))
 try {
   // Use database from anywhere in the application
   val result = appResources.scope.scoped { scope =>
-
+    import scope._
     // Can create child scopes and use parent resources with lower()
     val dbInChild = scope.lower(db)
     $(dbInChild)(_.query("SELECT 1"))
@@ -290,6 +296,7 @@ The first overload accepts any `Resource`. The second is a convenience for `Auto
 If the scope is already closed, `allocate` throws `IllegalStateException`. Otherwise, the resource is acquired eagerly and its finalizer is registered to run LIFO when the scope closes:
 
 ```scala
+import zio.blocks.scope._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -297,6 +304,7 @@ final class Database extends AutoCloseable {
 }
 
 Scope.global.scoped { scope =>
+  import scope._
 
   // Using Resource factory
   val db1: $[Database] =
@@ -317,6 +325,7 @@ The `$` operator safely accesses a scoped value by enforcing it is only used as 
 **Single value:** Use infix or unqualified syntax:
 
 ```scala
+import zio.blocks.scope._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -324,6 +333,7 @@ final class Database extends AutoCloseable {
 }
 
 Scope.global.scoped { scope =>
+  import scope._
 
   val db: $[Database] = allocate(new Database)
 
@@ -340,6 +350,7 @@ Scope.global.scoped { scope =>
 **Multiple values:** Use unqualified syntax only:
 
 ```scala
+import zio.blocks.scope._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -352,6 +363,7 @@ final class Cache extends AutoCloseable {
 }
 
 Scope.global.scoped { scope =>
+  import scope._
 
   val db: $[Database] = allocate(new Database)
   val cache: $[Cache] = allocate(new Cache)
@@ -375,6 +387,7 @@ If a result type is `Unscoped[B]` (pure data), `$` auto-unwraps it to `B`. Other
 This is useful when a child scope needs access to resources allocated in its parent:
 
 ```scala
+import zio.blocks.scope._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -382,11 +395,13 @@ final class Database extends AutoCloseable {
 }
 
 Scope.global.scoped { outer =>
+  import outer._
 
   val db: $[Database] = allocate(new Database)
 
   // Create an inner scope that needs the database
   outer.scoped { inner =>
+    import inner._
 
     // Retag the parent's database into the child
     val dbInChild: inner.$[Database] = inner.lower(db)
@@ -412,6 +427,8 @@ trait Finalizer {
 `defer` is useful for resources that are not wrapped in `Resource`, or when you need explicit control over finalization. Here's a practical example—managing a temporary file and a logger that don't implement `AutoCloseable`:
 
 ```scala
+import zio.blocks.scope._
+import java.nio.file._
 
 // A logger that needs manual cleanup but doesn't implement AutoCloseable
 class Logger {
@@ -420,6 +437,7 @@ class Logger {
 }
 
 Scope.global.scoped { scope =>
+  import scope._
 
   // Create a temporary file (not AutoCloseable from standard library)
   val tempFile = Files.createTempFile("app", ".tmp")
@@ -462,6 +480,7 @@ Once `isClosed` returns `true`, subsequent calls to `allocate`, `open`, or `$` t
 Here's a practical example—a resource manager that guards against using a closed scope:
 
 ```scala
+import zio.blocks.scope._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -491,7 +510,7 @@ class DatabaseService {
     } else {
       try {
         Right(serviceScope.scope.scoped { scope =>
-
+          import scope._
           val dbInChild = scope.lower(db)
           $(dbInChild)(_.query(query))
         })
@@ -543,6 +562,7 @@ Ownership is used to detect cross-thread scope misuse. Thread ownership rules:
 Calling `scoped { }` on a scope you don't own throws `IllegalStateException` at runtime:
 
 ```scala
+import zio.blocks.scope._
 
 Scope.global.scoped { scope =>
   // On the thread that entered scoped, isOwner is true
@@ -564,6 +584,8 @@ Scope.global.scoped { scope =>
 Thread-owned scopes cannot be used to create child scopes from a different thread:
 
 ```scala
+import zio.blocks.scope._
+import java.util.concurrent._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -574,14 +596,14 @@ val executor = Executors.newFixedThreadPool(1)
 
 try {
   Scope.global.scoped { scope =>
-
+    import scope._
     val db = allocate(new Database)
 
     // Try to create a child scope from a different thread
     val future = executor.submit { () =>
       try {
         scope.scoped { childScope =>
-
+          import childScope._
           val dbInChild = childScope.lower(db)
           $(dbInChild)(_.query("SELECT 1"))
         }
@@ -605,6 +627,8 @@ try {
 Open scopes are unowned and usable from any thread:
 
 ```scala
+import zio.blocks.scope._
+import java.util.concurrent._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -620,7 +644,7 @@ try {
   // Use the resource from a worker thread
   val future = executor.submit { () =>
     poolScope.scope.scoped { scope =>
-
+      import scope._
       val dbInChild = scope.lower(db)
       $(dbInChild)(_.query("SELECT 1"))
     }
@@ -646,6 +670,9 @@ A `scoped { }` block can only return values that have an `Unscoped` instance—t
 For built-in types like `String`, `Int`, or `List[String]`, `Unscoped` instances exist automatically. However, when your custom type contains a field whose type has no predefined `Unscoped` instance (such as `java.util.Date`, a legacy Java type that is pure data but not automatically recognized), automatic derivation won't work. In such cases, you must provide an `Unscoped` instance explicitly, asserting that your type holds only pure data:
 
 ```scala
+import java.util.Date
+import zio.blocks.scope._
+import zio.blocks.scope.Unscoped
 
 // java.util.Date has no predefined Unscoped instance, so Unscoped.derived
 // won't work here — we must provide the instance explicitly
@@ -656,7 +683,7 @@ object QueryResult {
 }
 
 Scope.global.scoped { scope =>
-
+  import scope._
   // ... acquire database ...
   QueryResult(List("a", "b"), 2, new Date())  // Returns safely
 }
@@ -675,6 +702,7 @@ Use `Scope#scoped` when the resource lifetime is lexically bounded. Lexical scop
 Here's a basic pattern showing how to acquire and use a resource within a single scope:
 
 ```scala
+import zio.blocks.scope._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -682,6 +710,7 @@ final class Database extends AutoCloseable {
 }
 
 Scope.global.scoped { scope =>
+  import scope._
 
   val db = allocate(new Database)
   $(db)(_.query("SELECT * FROM users"))
@@ -696,6 +725,7 @@ The only trade-off is that you must know the scope's lifetime upfront and cannot
 When resources depend on each other, nest `scoped` blocks to express the hierarchy. Parent scopes always outlive their children, so you can safely use parent resources in child scopes:
 
 ```scala
+import zio.blocks.scope._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -707,11 +737,13 @@ final class Connection extends AutoCloseable {
 }
 
 Scope.global.scoped { outerScope =>
+  import outerScope._
 
   val db = allocate(new Database)
 
   // Child scope for connection
   outerScope.scoped { innerScope =>
+    import innerScope._
 
     val conn = allocate(new Connection)
     // Use conn and db here
@@ -730,6 +762,7 @@ Use `Scope#open()` when the resource lifetime is not lexically bounded. Open sco
 The trade-off is that you accept full responsibility for cleanup: forgetting to call `close()` leaves resources open, and any exception during cleanup must be explicitly handled. Here's the key pattern—returning an `OpenScope` handle from a function:
 
 ```scala
+import zio.blocks.scope._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -758,6 +791,7 @@ try {
 Here's an example using `Wire` and `Resource.from` within a scope:
 
 ```scala
+import zio.blocks.scope._
 
 final class Config(val dbUrl: String)
 
@@ -777,7 +811,7 @@ final class App(service: UserService) {
 // Wire describes the dependency graph: App -> UserService -> Database -> Config
 // Resource.from uses the Wire to automatically construct the entire graph
 Scope.global.scoped { scope =>
-
+  import scope._
   val config = Config("jdbc:postgres://localhost/db")
   val app = allocate(Resource.from[App](
     Wire(config)
@@ -796,11 +830,12 @@ For more details on `Wire` sharing strategies, resource composition, and advance
 Wrap your entire application's resource acquisition in a single lexical scope:
 
 ```scala
+import zio.blocks.scope._
 
 object MyApp {
   def main(args: Array[String]): Unit = {
     Scope.global.scoped { scope =>
-
+      import scope._
       // All resources acquired here
       // Automatic cleanup when main exits
     }
@@ -823,6 +858,7 @@ Build resource acquisition/release logic outside the scope, then `Scope#allocate
 **Example: Using `.zip()` to combine independent resources:**
 
 ```scala
+import zio.blocks.scope._
 
 final class Database extends AutoCloseable {
   def query(sql: String): String = s"result: $sql"
@@ -841,7 +877,7 @@ val appResources = dbResource.zip(cacheResource)
 
 // Allocate once inside scope
 Scope.global.scoped { scope =>
-
+  import scope._
   val (db, cache) = allocate(appResources)
   // Use both — cleanup happens in LIFO order (cache first, then db)
 }
@@ -850,6 +886,7 @@ Scope.global.scoped { scope =>
 **Example: Using `.flatMap()` for dependent resources:**
 
 ```scala
+import zio.blocks.scope._
 
 final class Config(val host: String, val port: Int)
 
@@ -866,7 +903,7 @@ val dbResource = configResource.flatMap { cfg =>
 
 // Allocate the dependent chain
 Scope.global.scoped { scope =>
-
+  import scope._
   val db = allocate(dbResource)
   // db was initialized with config; cleanup happens in reverse order
 }
@@ -914,7 +951,7 @@ The following compile errors occur when `Scope` type rules are violated. All exa
 
 ```scala
 Scope.global.scoped { scope =>
-
+  import scope._
   val db: $[Database] = allocate(new Database)
   // ... usage or error ...
 }
@@ -1060,6 +1097,8 @@ This example demonstrates how to allocate a database connection within a scope, 
 
 package scope.examples
 
+import zio.blocks.scope._
+
 /**
  * Configuration for database connection.
  *
@@ -1150,7 +1189,7 @@ final class Database(config: DbConfig) extends AutoCloseable {
   val config = DbConfig("localhost", 5432, "myapp")
 
   Scope.global.scoped { scope =>
-
+    import scope._
     println("[Scope] Entering scoped region\n")
 
     // Allocate the database resource. Because Database extends AutoCloseable,
@@ -1208,6 +1247,9 @@ This example demonstrates allocating multiple connections from a pool within the
  */
 
 package scope.examples
+
+import zio.blocks.scope._
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Demonstrates `Resource.Shared` with reference counting and nested resource
@@ -1300,13 +1342,13 @@ final class ConnectionPool(config: PoolConfig) extends AutoCloseable {
     Resource.fromAutoCloseable(new ConnectionPool(poolConfig))
 
   Scope.global.scoped { appScope =>
-
+    import appScope._
     println("[App] Allocating pool\n")
     val pool: $[ConnectionPool] = poolResource.allocate
 
     println("--- ServiceA doing work (connection scoped to this block) ---")
     appScope.scoped { workScope =>
-
+      import workScope._
       val p: $[ConnectionPool]   = lower(pool)
       val c: $[PooledConnection] = $(p)(_.acquire).allocate
       val result                 = $(c)(_.execute("SELECT * FROM service_a_table"))
@@ -1316,7 +1358,7 @@ final class ConnectionPool(config: PoolConfig) extends AutoCloseable {
 
     println("--- ServiceB doing work ---")
     appScope.scoped { workScope =>
-
+      import workScope._
       val p: $[ConnectionPool]   = lower(pool)
       val c: $[PooledConnection] = $(p)(_.acquire).allocate
       val result                 = $(c)(_.execute("SELECT * FROM service_b_table"))
@@ -1326,7 +1368,7 @@ final class ConnectionPool(config: PoolConfig) extends AutoCloseable {
 
     println("--- Multiple connections in same scope ---")
     appScope.scoped { workScope =>
-
+      import workScope._
       val p: $[ConnectionPool]   = lower(pool)
       val a: $[PooledConnection] = $(p)(_.acquire).allocate
       val b: $[PooledConnection] = $(p)(_.acquire).allocate
@@ -1376,6 +1418,8 @@ This example shows how to allocate temporary file resources and ensure they are 
  */
 
 package scope.examples
+
+import zio.blocks.scope._
 
 /**
  * Demonstrates `scope.defer(...)` for registering manual cleanup actions.
@@ -1486,6 +1530,8 @@ This example demonstrates managing database transactions within a scope, showing
 
 package scope.examples
 
+import zio.blocks.scope._
+
 /**
  * Transaction Boundary Example
  *
@@ -1565,7 +1611,7 @@ object TransactionBoundaryExample {
     println("Demonstrating Resource-returning beginTransaction method\n")
 
     Scope.global.scoped { connScope =>
-
+      import connScope._
       // Allocate the connection in the outer scope
       val conn: $[DbConnection] = Resource.fromAutoCloseable(new DbConnection("db-001")).allocate
       println()
@@ -1574,7 +1620,7 @@ object TransactionBoundaryExample {
       println("--- Transaction 1: Insert user ---")
       val result1: TxResult =
         connScope.scoped { txScope =>
-
+          import txScope._
           val c: $[DbConnection]   = lower(conn)
           val tx: $[DbTransaction] = $(c)(_.beginTransaction("tx-001")).allocate
           val rows                 = $(tx)(_.execute("INSERT INTO users VALUES (1, 'Alice')"))
@@ -1587,7 +1633,7 @@ object TransactionBoundaryExample {
       println("--- Transaction 2: Transfer funds ---")
       val result2: TxResult =
         connScope.scoped { txScope =>
-
+          import txScope._
           val c: $[DbConnection]   = lower(conn)
           val tx: $[DbTransaction] = $(c)(_.beginTransaction("tx-002")).allocate
           val rows1                = $(tx)(_.execute("UPDATE accounts SET balance = balance - 100 WHERE id = 1"))
@@ -1601,7 +1647,7 @@ object TransactionBoundaryExample {
       println("--- Transaction 3: Auto-rollback (no explicit commit) ---")
       val result3: TxResult =
         connScope.scoped { txScope =>
-
+          import txScope._
           val c: $[DbConnection]   = lower(conn)
           val tx: $[DbTransaction] = $(c)(_.beginTransaction("tx-003")).allocate
           $(tx)(_.execute("DELETE FROM audit_log"))
@@ -1649,6 +1695,8 @@ This example shows how to build an HTTP client pipeline with interceptors for lo
  */
 
 package scope.examples
+
+import zio.blocks.scope._
 
 /**
  * HTTP Client Pipeline Example
@@ -1717,7 +1765,7 @@ final class HttpClient(config: ApiConfig) extends AutoCloseable {
   val config = ApiConfig("https://api.example.com", "secret-key-123")
 
   Scope.global.scoped { scope =>
-
+    import scope._
     // Step 1: Allocate the HTTP client (automatically cleaned up when scope closes)
     val client: $[HttpClient] = allocate(Resource[HttpClient](new HttpClient(config)))
 
@@ -1786,6 +1834,9 @@ This example demonstrates allocating a logger once at the top level and sharing 
  */
 
 package scope.examples
+
+import zio.blocks.scope._
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Demonstrates `Wire.shared` vs `Wire.unique` and diamond dependency patterns.
@@ -1890,7 +1941,7 @@ object CachingSharedLoggerExample {
 
     println("─── Resource Acquisition ───")
     Scope.global.scoped { scope =>
-
+      import scope._
       val app: $[CachingApp] = allocate(
         Resource.from[CachingApp](
           Wire.shared[Logger],
@@ -1948,6 +1999,8 @@ This example shows how to build a multi-layered web service using Scope for depe
  */
 
 package scope.examples
+
+import zio.blocks.scope._
 
 /**
  * Demonstrates auto-wiring a layered web service using
@@ -2040,7 +2093,7 @@ class UserController(repo: UserRepository) extends AutoCloseable {
 
   // Allocate within a scoped block; cleanup runs on scope exit
   Scope.global.scoped { scope =>
-
+    import scope._
     val controller: $[UserController] = allocate(controllerResource)
 
     println("\n=== Handling requests ===")
@@ -2082,6 +2135,8 @@ This example demonstrates loading configuration from a file within a scope, ensu
  */
 
 package scope.examples
+
+import zio.blocks.scope._
 
 /**
  * Demonstrates the `Unscoped` marker trait behavior.
@@ -2169,7 +2224,7 @@ class SecretStore extends AutoCloseable {
 
   // ConfigData is Unscoped, so it escapes the scope as raw ConfigData
   val escapedConfig: ConfigData = Scope.global.scoped { scope =>
-
+    import scope._
     val reader: $[ConfigReader] = allocate(Resource(new ConfigReader))
 
     // $(reader)(f) auto-unwraps to ConfigData (Unscoped)
@@ -2183,7 +2238,7 @@ class SecretStore extends AutoCloseable {
 
   println("SecretStore stays scoped:")
   Scope.global.scoped { scope =>
-
+    import scope._
     val secrets: $[SecretStore] = allocate(Resource(new SecretStore))
 
     $(secrets) { s =>
@@ -2224,6 +2279,8 @@ This example shows how to build a plugin system that discovers and loads plugins
  */
 
 package scope.examples
+
+import zio.blocks.scope._
 
 /**
  * Plugin Architecture Example — Trait Injection via Subtype Wires
@@ -2310,7 +2367,7 @@ final class CheckoutService(gateway: PaymentGateway) extends AutoCloseable {
   )
 
   Scope.global.scoped { scope =>
-
+    import scope._
     val checkout: $[CheckoutService] = allocate(stripeResource)
     $(checkout) { c =>
       val result = c.processOrder("ORD-001", BigDecimal("99.99"))
@@ -2326,7 +2383,7 @@ final class CheckoutService(gateway: PaymentGateway) extends AutoCloseable {
   )
 
   Scope.global.scoped { scope =>
-
+    import scope._
     val checkout: $[CheckoutService] = allocate(paypalResource)
     $(checkout) { c =>
       val result = c.processOrder("ORD-002", BigDecimal("149.99"))
@@ -2365,6 +2422,9 @@ This example demonstrates how Scope enforces thread ownership, preventing cross-
  */
 
 package scope.examples
+
+import zio.blocks.scope._
+import java.util.concurrent.{Executors, CountDownLatch}
 
 /**
  * Simulates a stateful resource that tracks which thread owns it.
@@ -2418,7 +2478,7 @@ final class ThreadAwareResource(val name: String) extends AutoCloseable {
 
     // Scope.Child is owned by the current thread (main)
     scope.scoped { child =>
-
+      import child._
       println(s"[Main] Created child scope on thread: $currentThread")
       println(s"[Main] Child scope isOwner: ${child.isOwner} (true only for the creating thread)")
 
@@ -2437,7 +2497,7 @@ final class ThreadAwareResource(val name: String) extends AutoCloseable {
   println("--- Part 2: Unowned scope via open() (for cross-thread) ---\n")
 
   Scope.global.scoped { scope =>
-
+    import scope._
     val mainThread = Thread.currentThread().getName
     println(s"[Main] On thread: $mainThread\n")
 
@@ -2464,7 +2524,7 @@ final class ThreadAwareResource(val name: String) extends AutoCloseable {
 
             // Using the unowned scope from a different thread - this works!
             childScope.scoped { workerChild =>
-
+              import workerChild._
               println(s"[Worker] Created child of unowned scope")
 
               val res: $[ThreadAwareResource] =
@@ -2500,6 +2560,7 @@ If you tried to pass a Scope.Child to another thread and call scoped on it,
 you would get an IllegalStateException:
 
   Scope.global.scoped { scope =>
+    import scope._
 
     // This scope is owned by the main thread
     val executor = Executors.newSingleThreadExecutor()
@@ -2546,6 +2607,8 @@ This example shows how to detect and handle circular dependencies in resource ma
  */
 
 package scope.examples
+
+import zio.blocks.scope._
 
 /**
  * Demonstrates compile-time cycle detection in ZIO Blocks Scope.
@@ -2632,7 +2695,7 @@ class Application(a: ServiceAImpl, @annotation.unused b: ServiceBApi) {
   println("Demonstrating compile-time cycle detection and how to break cycles.\n")
 
   Scope.global.scoped { scope =>
-
+    import scope._
     println("Creating application with proper dependency structure...")
 
     // Wire.shared[ServiceBImpl] provides both ServiceBImpl and ServiceBApi (via subtyping)
@@ -2683,6 +2746,10 @@ This example demonstrates how to integrate Scope with legacy libraries that don'
  */
 
 package scope.examples
+
+import zio.blocks.scope._
+
+import scala.annotation.nowarn
 
 /**
  * Demonstrates `leak(scopedValue)` for third-party library interop.
@@ -2756,7 +2823,7 @@ object LegacyProtocolHandler {
   println("Demonstrating leak() for passing scoped resources to third-party code.\n")
 
   Scope.global.scoped { scope =>
-
+    import scope._
     // Allocate the socket as a scoped resource.
     // The socket is tagged with the scope's type, preventing accidental escape.
     val scopedSocket: $[ManagedSocket] = allocate(
@@ -2821,6 +2888,8 @@ This example shows how to use Scope to manage test fixtures and resources in int
  */
 
 package scope.examples
+
+import zio.blocks.scope._
 
 /**
  * Demonstrates combining DI-wired services with manually-managed test fixtures.
@@ -2924,7 +2993,7 @@ object IntegrationTestHarnessExample {
 
     // Run in a scoped block - all resources cleaned up on exit
     Scope.global.scoped { scope =>
-
+      import scope._
       println("Allocating resources...")
       val harness: $[(TestFixture, AppUnderTest)] = allocate(testHarnessResource)
       println()

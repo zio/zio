@@ -64,6 +64,7 @@ libraryDependencies += "dev.zio" %% "zio-blocks-schema" % "0.0.33"
 We carry forward the product catalog domain and the Part 3 independent `Expr` ADT. The key additions in Part 4 are bridge extension methods, schema-driven table names, and statement builder types. The `Expr` ADT used here is the same independent design from Part 3.
 
 ```scala
+import zio.blocks.schema._
 
 // --- Table reference ---
 
@@ -902,6 +903,7 @@ For batch inserts, create one `InsertStmt` per row and render each separately. T
 Here is a complete example combining schema-driven table names, bridge extensions, all four statement builders, and the renderers. The `Expr` ADT, extension methods, SQL rendering, and builder types are defined in `Common.scala` and `package.scala` — the usage code stays focused on building queries:
 
 ```scala
+import zio.blocks.schema._
 
 // --- Table reference with schema-driven names ---
 

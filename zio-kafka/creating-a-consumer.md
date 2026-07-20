@@ -5,6 +5,8 @@
 Create a consumer with `Consumer.make`, passing some `ConsumerSettings`:
 
 ```scala
+import zio.*
+import zio.kafka.consumer.{ Consumer, ConsumerSettings }
 
 val consumerSettings: ConsumerSettings =
   ConsumerSettings(List("localhost:9092")).withGroupId("group")
@@ -42,6 +44,8 @@ If your application uses the [ZIO service pattern](https://zio.dev/reference/ser
 be provided as a layer. Here's an example of how to construct a consumer layer:
 
 ```scala
+import zio.*
+import zio.kafka.consumer.{ Consumer, ConsumerSettings }
 
 val consumerLayer: Layer[Any, Throwable, Consumer] =
   ZLayer.scoped { // (1)

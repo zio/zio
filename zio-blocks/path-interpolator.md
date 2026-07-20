@@ -29,6 +29,7 @@ The interpolator is **type-safe**, **compile-time validated**, and **performance
 Import the schema package to enable the path interpolator:
 
 ```scala
+import zio.blocks.schema._
 
 // Now you can use p"..." anywhere
 val path = p".users[0].name"
@@ -207,7 +208,7 @@ p"<café>"          // Unicode case names
 **Chained cases:**
 
 ```scala
-p"<C>"       // Nested variants
+p"<A><B><C>"       // Nested variants
 ```
 
 ### Schema Search
@@ -437,6 +438,7 @@ There is **no runtime parsing**, **no reflection**, and **no performance penalty
 ### Accessing Nested Fields
 
 ```scala
+import zio.blocks.schema._
 
 case class Address(street: String, city: String, zipCode: String)
 case class Person(name: String, age: Int, address: Address)
@@ -531,6 +533,10 @@ val apiKeyPath = p"""config{"api_key"}"""
 ### Manual Construction (Before)
 
 ```scala
+import zio.blocks.schema.DynamicOptic
+import zio.blocks.schema.DynamicOptic.Node
+import zio.blocks.schema.DynamicValue
+import zio.blocks.schema.PrimitiveValue
 
 // Simple path - verbose and error-prone
 val path1 = DynamicOptic(Vector(
@@ -563,6 +569,7 @@ val path3 = DynamicOptic(Vector(
 ### Path Interpolator (After)
 
 ```scala
+import zio.blocks.schema._
 
 // Simple path - clean and readable
 val path1 = p".users[0].email"
@@ -596,6 +603,7 @@ val emailPath = basePath(p"[*].email")
 ### Working with DynamicValue
 
 ```scala
+import zio.blocks.schema._
 
 val data: DynamicValue = ...
 
@@ -609,6 +617,7 @@ val updated = data.set(p".users[0].age", DynamicValue.fromInt(30))
 ### Integration with Schema Optics
 
 ```scala
+import zio.blocks.schema._
 
 case class User(name: String, email: String)
 object User extends CompanionOptics[User] {

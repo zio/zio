@@ -9,6 +9,7 @@ Conceptually, we can think of a `ZSet[A, B]` as a `Map[A, B]`, where `A` represe
 We can then define a `Set` as a `ZSet` where the measure of how many times each element appears is a `Boolean`.
 
 ```scala
+import zio.prelude.ZSet
 
 type Set[+A] = ZSet[A, Boolean]
 ```
@@ -20,6 +21,8 @@ However, we can also define many other variants of sets by choosing different ty
 For example, by using the `Natural` new type from ZIO Prelude, which describes integers greater than or equal to zero, we can define the type of a `MultiSet` or "bag" in some programming languages.
 
 ```scala
+import zio.prelude.ZSet
+import zio.prelude.newtypes.Natural
 
 type MultiSet[+A] = ZSet[A, Natural]
 ```

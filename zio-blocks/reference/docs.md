@@ -34,6 +34,7 @@ final case class Doc(blocks: Chunk[Block], metadata: Map[String, String] = Map.e
 
 **Example:**
 ```scala
+import zio.blocks.docs._
 
 val doc = Parser.parse("# Hello World").toOption.get
 val markdown = doc.toString           // "# Hello World\n"
@@ -146,6 +147,7 @@ object Parser {
 
 **Example:**
 ```scala
+import zio.blocks.docs._
 
 val result = Parser.parse("# Hello\n\nThis is **bold**.")
 // Right(Doc(Chunk(
@@ -246,7 +248,7 @@ val doc = Parser.parse("# Hello\n\n**Bold**").toOption.get
 // Full document with <!DOCTYPE html>, <html>, <head>, <body>
 val fullHtml = HtmlRenderer.render(doc)
 
-// Just the content: HelloBold
+// Just the content: <h1>Hello</h1><p><strong>Bold</strong></p>
 val fragment = HtmlRenderer.renderFragment(doc)
 ```
 
@@ -293,6 +295,7 @@ println(terminal)  // Displays with colors and formatting
 Build documents with compile-time validated Markdown syntax:
 
 ```scala
+import zio.blocks.docs._
 
 val name = "World"
 val greeting = md"# Hello $name"
@@ -362,6 +365,8 @@ val doc = md"Here's an example:\n\n$snippet"
 ### Building Documents Programmatically
 
 ```scala
+import zio.blocks.docs._
+import zio.blocks.chunk.Chunk
 
 val doc = Doc(Chunk(
   Heading(HeadingLevel.H1, Chunk(Text("Title"))),

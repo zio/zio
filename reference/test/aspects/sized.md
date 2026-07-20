@@ -5,6 +5,8 @@
 To change the default _size_ used by [sized generators](../property-testing/built-in-generators.md#sized-generators) we can use `size` test aspect:
 
 ```scala
+import zio._
+import zio.test.{ test, _ }
 
 test("generating small list of characters") {
   check(Gen.small(Gen.listOfN(_)(Gen.alphaNumericChar))) { n =>

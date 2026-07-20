@@ -9,6 +9,8 @@ A `TSet[A]` is a mutable set that can participate in transactions in STM.
 Creating an empty `TSet`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val emptyTSet: STM[Nothing, TSet[Int]] = TSet.empty[Int]
 ```
@@ -16,6 +18,8 @@ val emptyTSet: STM[Nothing, TSet[Int]] = TSet.empty[Int]
 Or creating a `TSet` with specified values:
 
 ```scala
+import zio._
+import zio.stm._
 
 val specifiedValuesTSet: STM[Nothing, TSet[Int]] = TSet.make(1, 2, 3)
 ```
@@ -23,6 +27,8 @@ val specifiedValuesTSet: STM[Nothing, TSet[Int]] = TSet.make(1, 2, 3)
 Alternatively, you can create a `TSet` by providing a collection of values:
 
 ```scala
+import zio._
+import zio.stm._
 
 val iterableTSet: STM[Nothing, TSet[Int]] = TSet.fromIterable(List(1, 2, 3))
 ```
@@ -34,6 +40,8 @@ In case there are duplicates provided, the last one is taken.
 The new element can be added to the set in the following way:
 
 ```scala
+import zio._
+import zio.stm._
 
 val putElem: UIO[TSet[Int]] = (for {
   tSet <- TSet.make(1, 2)
@@ -48,6 +56,8 @@ In case the set already contains the element, no modification will happen.
 The simplest way to remove an element from `TSet` is using `delete` method:
 
 ```scala
+import zio._
+import zio.stm._
 
 val deleteElem: UIO[TSet[Int]] = (for {
   tSet <- TSet.make(1, 2, 3)
@@ -58,6 +68,8 @@ val deleteElem: UIO[TSet[Int]] = (for {
 Also, it is possible to remove every element that satisfies provided predicate:
 
 ```scala
+import zio._
+import zio.stm._
 
 val removedEvenElems: UIO[TSet[Int]] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
@@ -68,6 +80,8 @@ val removedEvenElems: UIO[TSet[Int]] = (for {
 Or you can keep all the elements that match predicate function:
 
 ```scala
+import zio._
+import zio.stm._
 
 val retainedEvenElems: UIO[TSet[Int]] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
@@ -83,6 +97,8 @@ Union of the sets A and B represents the set of elements belonging to set A or s
 Using `A union B` method modifies set `A`.
 
 ```scala
+import zio._
+import zio.stm._
 
 // unionTSet = {1, 2, 3, 4, 5, 6}
 val unionTSet: UIO[TSet[Int]] = (for {
@@ -98,6 +114,8 @@ The intersection of the sets A and B is the set of elements belonging to both A 
 Using `A intersect B` method modifies set `A`.
 
 ```scala
+import zio._
+import zio.stm._
 
 // intersectionTSet = {3, 4}
 val intersectionTSet: UIO[TSet[Int]] = (for {
@@ -113,6 +131,8 @@ The difference between sets A and B is the set containing elements of set A but 
 Using `A diff B` method modifies set `A`.
 
 ```scala
+import zio._
+import zio.stm._
 
 // diffTSet = {1, 2}
 val diffTSet: UIO[TSet[Int]] = (for {
@@ -127,6 +147,8 @@ val diffTSet: UIO[TSet[Int]] = (for {
 The transform function `A => A` allows computing a new value for every element in the set: 
 
 ```scala
+import zio._
+import zio.stm._
 
 val transformTSet: UIO[TSet[Int]] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
@@ -137,6 +159,8 @@ val transformTSet: UIO[TSet[Int]] = (for {
 Note that it is possible to shrink a `TSet`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val shrinkTSet: UIO[TSet[Int]] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
@@ -150,6 +174,8 @@ Note that `transform` serves the same purpose as `map`. The reason for naming it
 The elements can be mapped effectfully via `transformSTM`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val transformSTMTSet: UIO[TSet[Int]] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
@@ -160,6 +186,8 @@ val transformSTMTSet: UIO[TSet[Int]] = (for {
 Folds the elements of a `TSet` using the specified associative binary operator:
 
 ```scala
+import zio._
+import zio.stm._
 
 val foldTSet: UIO[Int] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
@@ -170,6 +198,8 @@ val foldTSet: UIO[Int] = (for {
 The elements can be folded effectfully via `foldSTM`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val foldSTMTSet: UIO[Int] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
@@ -182,6 +212,8 @@ val foldSTMTSet: UIO[Int] = (for {
 `foreach` is used for performing an STM effect for each element in set:
 
 ```scala
+import zio._
+import zio.stm._
 
 val foreachTSet = (for {
   tSet   <- TSet.make(1, 2, 3, 4)
@@ -195,6 +227,8 @@ val foreachTSet = (for {
 Checking whether the element is present in a `TSet`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tSetContainsElem: UIO[Boolean] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
@@ -207,6 +241,8 @@ val tSetContainsElem: UIO[Boolean] = (for {
 List of set elements can be obtained as follows:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tSetToList: UIO[List[Int]] = (for {
   tSet <- TSet.make(1, 2, 3, 4)
@@ -219,6 +255,8 @@ val tSetToList: UIO[List[Int]] = (for {
 Set's size can be obtained as follows:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tSetSize: UIO[Int] = (for {
   tSet <- TSet.make(1, 2, 3, 4)

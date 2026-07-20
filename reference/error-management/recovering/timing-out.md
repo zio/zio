@@ -9,6 +9,7 @@ ZIO lets us timeout any effect using the `ZIO#timeout` method, which returns a n
 Assume we have the following effect:
 
 ```scala
+import zio._
 
 val myApp =
   for {
@@ -23,6 +24,7 @@ We should note that when we use the `ZIO#timeout` operator on the `myApp`, it do
 1. The original effect returns before the timeout elapses so the output will be `Some` of the produced value by the original effect:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -46,6 +48,7 @@ object MainApp extends ZIOAppDefault {
     - If the effect is interruptible it will be immediately interrupted, and finally, the timeout operation produces `None` value.
 
    ```scala mdoc:compile-only
+   import zio._
 
    object MainApp extends ZIOAppDefault {
      def run =
@@ -66,6 +69,7 @@ object MainApp extends ZIOAppDefault {
     - If the effect is uninterruptible it will be blocked until the original effect safely finished its work, and then the timeout operator produces the `None` value:
 
    ```scala mdoc:compile-only
+   import zio._
 
    object MainApp extends ZIOAppDefault {
      def run =
@@ -108,6 +112,7 @@ By using this technique, the original effect will be interrupted in the backgrou
 This operator is similar to the previous one, but it also allows us to manually create the final result type:
 
 ```scala
+import zio._
 
 val delayedNextInt: ZIO[Any, Nothing, Int] =
   Random.nextIntBounded(10).delay(2.second)
@@ -127,6 +132,8 @@ val r3: ZIO[Any, Nothing, Int] =
 In case of elapsing the timeout, we can produce a particular error message:
 
 ```scala
+import zio._
+import scala.concurrent.TimeoutException
 
 val r1: ZIO[Any, TimeoutException, Int] =
   delayedNextInt.timeoutFail(new TimeoutException)(1.second)

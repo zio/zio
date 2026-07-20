@@ -9,7 +9,7 @@ ZIO Blocks provides convenient extension methods on any value that has a `Schema
 To use the extension syntax, import the schema package:
 
 ```scala
-
+import zio.blocks.schema._
 ```
 
 This brings the extension methods into scope for any type with an implicit `Schema` instance.
@@ -17,6 +17,7 @@ This brings the extension methods into scope for any type with an implicit `Sche
 ## Quick Example
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -50,6 +51,7 @@ val result = alice.applyPatch(patch) // Person("Bob", 30)
 Converts a value to a `Json` AST (abstract syntax tree):
 
 ```scala
+import zio.blocks.schema._
 
 case class Point(x: Int, y: Int)
 object Point {
@@ -70,6 +72,7 @@ json.get("y").as[Int]  // Right(20)
 Converts a value directly to a JSON string:
 
 ```scala
+import zio.blocks.schema._
 
 case class User(name: String, email: String)
 object User {
@@ -86,6 +89,7 @@ val jsonStr = user.toJsonString
 Converts a value to a UTF-8 encoded byte array. This is useful for efficient serialization when working with binary protocols or network I/O:
 
 ```scala
+import zio.blocks.schema._
 
 case class Message(id: Long, content: String)
 object Message {
@@ -106,6 +110,7 @@ val bytes: Array[Byte] = msg.toJsonBytes
 Parses a JSON string into a typed value:
 
 ```scala
+import zio.blocks.schema._
 
 case class Config(host: String, port: Int)
 object Config {
@@ -127,6 +132,8 @@ val error = invalid.fromJson[Config]
 Parses a UTF-8 byte array into a typed value:
 
 ```scala
+import zio.blocks.schema._
+import java.nio.charset.StandardCharsets
 
 case class Event(name: String, timestamp: Long)
 object Event {
@@ -147,6 +154,7 @@ val result: Either[SchemaError, Event] = jsonBytes.fromJson[Event]
 Converts a value to a human-readable string representation using `DynamicValue`:
 
 ```scala
+import zio.blocks.schema._
 
 case class Address(street: String, city: String, zip: String)
 object Address {
@@ -169,6 +177,7 @@ ZIO Blocks includes a powerful patching system for computing and applying differ
 Computes the difference between two values, returning a `Patch`:
 
 ```scala
+import zio.blocks.schema._
 
 case class Product(name: String, price: Double, stock: Int)
 object Product {
@@ -187,6 +196,7 @@ patch.isEmpty  // false
 An identical comparison produces an empty patch:
 
 ```scala
+import zio.blocks.schema._
 
 case class Item(id: Int, name: String)
 object Item {
@@ -203,6 +213,7 @@ samePatch.isEmpty  // true
 Applies a patch to a value, returning the modified value. Uses lenient mode by default, which means operations that can't be applied are silently skipped:
 
 ```scala
+import zio.blocks.schema._
 
 case class Counter(name: String, value: Int)
 object Counter {
@@ -222,6 +233,8 @@ val result = counter.applyPatch(patch)
 Applies a patch strictly, returning an `Either` that contains an error if any operation fails:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.patch.Patch
 
 case class Record(id: String, version: Int)
 object Record {
@@ -245,6 +258,7 @@ val emptyResult = record.applyPatchStrict(Patch.empty[Record])
 ### JSON Roundtrip
 
 ```scala
+import zio.blocks.schema._
 
 case class Order(id: Long, items: List[String], total: BigDecimal)
 object Order {
@@ -267,6 +281,7 @@ val decoded2 = jsonBytes.fromJson[Order]
 ### Patch Roundtrip
 
 ```scala
+import zio.blocks.schema._
 
 case class Settings(theme: String, fontSize: Int, notifications: Boolean)
 object Settings {
@@ -291,6 +306,7 @@ assert(result == customized)
 The JSON encoding handles special characters, Unicode, and escape sequences correctly:
 
 ```scala
+import zio.blocks.schema._
 
 case class Text(content: String)
 object Text {
@@ -313,6 +329,7 @@ val decoded2 = json2.fromJson[Text]
 ### Empty and Null Values
 
 ```scala
+import zio.blocks.schema._
 
 case class Profile(name: String, bio: Option[String])
 object Profile {

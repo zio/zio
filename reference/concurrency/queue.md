@@ -7,6 +7,7 @@
 A `Queue[A]` contains values of type `A` and has two basic operations: `offer`, which places an `A` in the `Queue`, and `take` which removes and returns the oldest value in the `Queue`.
 
 ```scala
+import zio._
 
 val res: UIO[Int] = for {
   queue <- Queue.bounded[Int](100)

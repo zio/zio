@@ -15,6 +15,8 @@ To be a valid `Equivalence` the functions `to` and `from` must satisfy an identi
 Simple examples of an equivalence relationship would be between an `List[A]` and a `Chunk[A]`. We can transform any `List` into a `Chunk` using the `Chunk.fromIterable` operator, and we can transform any `Chunk` into a `List` using the `toList` operator:
 
 ```scala
+import zio.Chunk
+import zio.prelude.Equivalence
 
 def listChunkEquivalence[A]: Equivalence[List[A], Chunk[A]] =
   Equivalence(Chunk.fromIterable, _.toList)
@@ -56,6 +58,9 @@ Beyond this there are not a lot of operators on the `Equivalence` data type itse
 In particular, if we have what we believe to be an equivalence relationship between two types `A` and `B` ZIO Prelude makes it easy for us to test this.
 
 ```scala
+import zio.prelude.laws._
+import zio.test._
+import zio.test.laws._
 
 object EquivalenceSpec extends ZIOSpecDefault {
 

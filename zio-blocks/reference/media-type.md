@@ -54,6 +54,7 @@ Media types are fundamental to content negotiation in HTTP, file type detection,
 A quick example:
 
 ```scala
+import zio.blocks.mediatype._
 
 // Compile-time validated media type
 val json = mediaType"application/json"
@@ -91,6 +92,7 @@ Supported Scala versions: 2.13.x and 3.x.
 We can create a `MediaType` by specifying the main type and subtype directly. All other fields have sensible defaults:
 
 ```scala
+import zio.blocks.mediatype.MediaType
 
 // Minimal — just mainType and subType
 val plain = MediaType("text", "plain")
@@ -113,6 +115,7 @@ val json = MediaType(
 `MediaType.parse` parses a standard media type string in the format `mainType/subType[; key=value]*`:
 
 ```scala
+import zio.blocks.mediatype.{MediaType, MediaTypes}
 
 // Simple type
 val json: Either[String, MediaType] = MediaType.parse("application/json")
@@ -138,6 +141,7 @@ MediaType.parse("application/")   // Left("Invalid media type: subtype cannot be
 When we are certain the input is valid, `unsafeFromString` returns a `MediaType` directly or throws an `IllegalArgumentException`:
 
 ```scala
+import zio.blocks.mediatype.MediaType
 
 val json = MediaType.unsafeFromString("application/json")
 // MediaType("application", "json", compressible = true, ...)
@@ -151,6 +155,7 @@ val json = MediaType.unsafeFromString("application/json")
 The `mediaType"..."` interpolator validates the media type at compile time. Invalid types produce compile errors, not runtime failures:
 
 ```scala
+import zio.blocks.mediatype._
 
 val json     = mediaType"application/json"
 val htmlUtf8 = mediaType"text/html; charset=utf-8"
@@ -176,6 +181,7 @@ mediaType"application/"    → "Invalid media type: subtype cannot be empty"
 `MediaType.forFileExtension` finds a `MediaType` by its associated file extension. The lookup is case-insensitive and strips a leading `.` if present:
 
 ```scala
+import zio.blocks.mediatype.MediaType
 
 MediaType.forFileExtension("json")  // Some(MediaType("application", "json", ...))
 MediaType.forFileExtension(".html") // Some(MediaType("text", "html", ...))
@@ -213,6 +219,7 @@ The `MediaTypes` object contains 2,600+ predefined media type constants auto-gen
 Since many subtype names contain special characters (hyphens, dots, plus signs), predefined constants use backtick identifiers:
 
 ```scala
+import zio.blocks.mediatype.MediaTypes
 
 // Common application types
 val json      = MediaTypes.application.`json`
@@ -237,6 +244,7 @@ val any       = MediaTypes.any
 Each category object has an `all` field returning a `List[MediaType]` of all types in that category. The top-level `allMediaTypes` aggregates every category:
 
 ```scala
+import zio.blocks.mediatype.MediaTypes
 
 // All types in a category
 val appTypes: List[zio.blocks.mediatype.MediaType] = MediaTypes.application.all
@@ -250,6 +258,7 @@ val everything: List[zio.blocks.mediatype.MediaType] = MediaTypes.allMediaTypes
 Each predefined instance comes with rich metadata from the IANA registry:
 
 ```scala
+import zio.blocks.mediatype.MediaTypes
 
 val json = MediaTypes.application.`json`
 json.compressible   // true
@@ -274,6 +283,7 @@ html.fileExtensions // List("html", "htm", "shtml")
 Returns the complete media type string by combining `mainType` and `subType` with a `/` separator:
 
 ```scala
+import zio.blocks.mediatype.MediaType
 
 val mt = MediaType("application", "json")
 mt.fullType // "application/json"
@@ -299,6 +309,7 @@ The matching rules are:
 3. **Parameter subset** — when `ignoreParameters = false` (the default), all parameters in `this` must exist in `other` with matching values (case-insensitive). Extra parameters in `other` are allowed.
 
 ```scala
+import zio.blocks.mediatype._
 
 val json    = mediaType"application/json"
 val textAll = mediaType"text/*"
@@ -337,6 +348,7 @@ object MediaType {
 ```
 
 ```scala
+import zio.blocks.mediatype.MediaType
 
 MediaType.forFileExtension("json")  // Some(MediaType("application", "json", ...))
 MediaType.forFileExtension(".html") // Some(MediaType("text", "html", ...))
@@ -362,6 +374,7 @@ object MediaType {
 When the parsed type matches a predefined instance, that instance is returned (preserving reference equality and all metadata). Parameters from the input string are merged into the result:
 
 ```scala
+import zio.blocks.mediatype.{MediaType, MediaTypes}
 
 // Returns predefined instance with full metadata
 val json = MediaType.parse("application/json")
@@ -393,6 +406,7 @@ object MediaType {
 For valid input, it returns the corresponding `MediaType` (reusing predefined instances when possible). For invalid input, it throws an exception with a descriptive message:
 
 ```scala
+import zio.blocks.mediatype.MediaType
 
 val json = MediaType.unsafeFromString("application/json")
 
@@ -407,6 +421,7 @@ val json = MediaType.unsafeFromString("application/json")
 We can use `matches` with wildcard types to implement HTTP-style content negotiation:
 
 ```scala
+import zio.blocks.mediatype._
 
 def negotiate(
   accept: List[MediaType],
@@ -426,6 +441,7 @@ negotiate(accept, available)
 Combine `forFileExtension` with file path processing to detect content types:
 
 ```scala
+import zio.blocks.mediatype.MediaType
 
 def detectContentType(filename: String): Option[MediaType] = {
   val ext = filename.lastIndexOf('.') match {

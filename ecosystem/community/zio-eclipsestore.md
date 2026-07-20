@@ -40,6 +40,11 @@ libraryDependencies ++= Seq(
 A simple demo showcasing batch operations, typed roots, and query execution:
 
 ```scala
+import io.github.riccardomerolla.zio.eclipsestore.config.EclipseStoreConfig
+import io.github.riccardomerolla.zio.eclipsestore.domain.{Query, RootDescriptor}
+import io.github.riccardomerolla.zio.eclipsestore.service.{EclipseStoreService, LifecycleCommand}
+import zio.*
+import scala.collection.mutable.ListBuffer
 
 object MyApp extends ZIOAppDefault:
   def run =

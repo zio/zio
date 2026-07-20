@@ -28,6 +28,16 @@ libraryDependencies += "org.tpolecat" %% "doobie-h2"   % "0.13.4"
 Let's try an example of simple _Doobie_ program:
 
 ```scala
+import doobie.implicits._
+import io.github.gaelrenoux.tranzactio.doobie
+import io.github.gaelrenoux.tranzactio.doobie.{Connection, Database, TranzactIO, tzio}
+import org.h2.jdbcx.JdbcDataSource
+import zio.blocking.Blocking
+import zio.clock.Clock
+import zio.console.{Console, putStrLn}
+import zio.{ExitCode, Has, URIO, ZIO, ZLayer, blocking}
+
+import javax.sql.DataSource
 
 object TranzactIOExample extends zio.App {
 

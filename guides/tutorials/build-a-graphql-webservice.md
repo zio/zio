@@ -92,8 +92,12 @@ After defining all the queries, in order to serve the GraphQL API, we need to pe
 3. Serve the resulting `HttpApp` instance using the `Server.start` method of the _ZIO HTTP_ module.
 
 ```scala
+import caliban._
+import caliban.quick._
 
 object MainApp extends zio.ZIOAppDefault {
+  import caliban.schema.ArgBuilder.auto._
+  import caliban.schema.Schema.auto._
 
   private val employees = List(
     Employee("Alex", Role.DevOps),

@@ -22,6 +22,8 @@ throws a `TopicAuthorizationException` if access is denied, causing the consumer
 Here is how you can configure the probe in your consumer settings:
 
 ```scala
+import zio.*
+import zio.kafka.consumer.ConsumerSettings
 
 val settings = ConsumerSettings(List("localhost:9092"))
   .withGroupId("my-group")

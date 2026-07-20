@@ -9,6 +9,7 @@ Conceptually, a scope represents the lifetime of one or more resources. The reso
 The `Scope` data type takes this idea and represents it as a first class value.
 
 ```scala
+import zio._
 
 trait Scope {
   def addFinalizerExit(finalizer: Exit[Any, Any] => UIO[Any]): UIO[Unit]
@@ -25,6 +26,7 @@ The `addFinalizerExit` operator lets us add a finalizer to the `Scope`. Based on
 In the following example, we create a `Scope`, add a finalizer to it, and then close the scope:
 
 ```scala
+import zio._
 
 for {
   scope <- Scope.make
@@ -63,6 +65,10 @@ In combination with the ZIO environment, `Scope` gives us an extremely powerful 
 We can define a resource using operators such as `ZIO.acquireRelease`, which lets us construct a scoped value from an `acquire` and `release` workflow. For example, here is how we might define a simple resource:
 
 ```scala
+import zio._
+
+import java.io.IOException
+import scala.io._
 
 def acquire(name: => String): ZIO[Any, IOException, Source] =
   ZIO.attemptBlockingIO(Source.fromFile(name))
@@ -87,7 +93,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19331/0x00007f8d66dbd050@73a75e2b
+//     f = zio.ZIO$$$Lambda$19360/0x00007f534eeaca10@15195541
 //   ),
 //   successK = <function1>
 // )
@@ -118,6 +124,7 @@ In some cases ZIO applications may provide a `Scope` for us for resources that w
 Please note that like any other services that we can obtain from the ZIO environment, we can do the same with `Scope`. By calling `ZIO.service[Scope]` we can obtain the `Scope` service and then use it to manage resources by adding finalizers to it:
 
 ```scala
+import zio._
 
 val resourcefulApp: ZIO[Scope, Nothing, Unit] =
   for {
@@ -211,6 +218,7 @@ We will commonly want to convert scoped resources into other ZIO data types, par
 We can easily do this using the `scoped` constructor on each of these data types. For example, here is how we might convert the `source` resource above into a `ZStream` of the contents:
 
 ```scala
+import zio.stream._
 
 def lines(name: => String): ZStream[Any, IOException, String] =
   ZStream.scoped(source(name)).flatMap { source =>
@@ -278,6 +286,7 @@ object ZIO {
 In the following example, we obtained a `Scope` and added a finalizer to it, and then extended its lifetime to the lifetime of the `resource1` and `resource2`:
 
 ```scala
+import zio._
 
 object ExtendingScopesExample extends ZIOAppDefault {
   val resource1: ZIO[Scope, Nothing, Unit] =

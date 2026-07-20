@@ -13,6 +13,7 @@ val expMaxElapsed = (Schedule.exponential(10.milliseconds) >>> Schedule.elapsed)
 2. Retry only when a specific exception occurs:
 
 ```scala
+import scala.concurrent.TimeoutException
 
 val whileTimeout = Schedule.exponential(10.milliseconds) && Schedule.recurWhile[Throwable] {
   case _: TimeoutException => true

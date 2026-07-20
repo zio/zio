@@ -55,7 +55,7 @@ libraryDependencies += "dev.zio" %% "zio-blocks-schema" % "0.0.33"
 ```
 
 ```scala
-
+import zio.blocks.schema._
 ```
 
 ## Domain Setup
@@ -514,6 +514,7 @@ println(selectSql)
 Here is a complete, self-contained example that defines the independent expression ADT, translates from `SchemaExpr`, and generates advanced SQL:
 
 ```scala
+import zio.blocks.schema._
 
 // --- Domain ---
 

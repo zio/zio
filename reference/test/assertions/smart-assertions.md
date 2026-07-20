@@ -9,6 +9,8 @@ The smart assertion is a simple way to assert both _ordinary values_ and _ZIO ef
 In the following example, we assert simple ordinary values using the `assertTrue` method:
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 test("sum"){
   assertTrue(1 + 1 == 2)
@@ -32,6 +34,8 @@ test("multiple assertions"){
 The `assertTrue` method can also be used to assert [ZIO effects](../../core/zio/zio.md):
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 test("updating ref") {
   for {
@@ -55,6 +59,7 @@ Each `assertTrue` returns a `AssertResult`, so they have the same operators as `
 1. **`&&`** - This is the logical and operator to make sure that both assertions are true:
 
 ```scala
+import zio.test._
 
 test("&&") {
   check(Gen.int <*> Gen.int) { case (x: Int, y: Int) =>
@@ -66,6 +71,7 @@ test("&&") {
 2. **||** - This is the logical or operator to make sure that at least one of the assertions is true:
 
 ```scala
+import zio.test._
 
 suite("||")(
   test("false || true") {
@@ -86,6 +92,7 @@ suite("||")(
 3. **`!`** - This is the logical not operator to negate the assertion:
 
 ```scala
+import zio.test._
 
 suite("unary !") (
     test("negate true") {
@@ -100,6 +107,7 @@ suite("unary !") (
 4. **implies** - This is the logical implies operator to make sure that the first assertion implies the second assertion. It is equivalent to `!p || q` which is a conditional statement of the form "if p, then q" where p and q are propositions. The `==>` operator is an alias for `implies`.
 
 ```scala
+import zio.test._
 
 suite("implies") (
   test("true implies true")(
@@ -129,6 +137,7 @@ The `implies` assertion is true if either the p is false or when both p and q ar
 5. **iff** - This is the logical iff operator to make sure that the first assertion is true if and only if the second assertion is true. It is equivalent to `(p implies q) && (q implies p)`. The `<==>` operator is an alias for `iff`.
 
 ```scala
+import zio.test._
 
 suite("iff") (
   test("true iff true")(
@@ -158,6 +167,7 @@ Here is the truth table for the iff operator:
 6. **??**- We can add a custom message to the assertion using the `??` operator. This will be useful when assertion fails, and we want to provide more information about the failure:
 
 ```scala
+import zio.test._
 
 assertTrue(1 + 1 == 3) ?? "1 + 1 should be equal to 2"
 ```
@@ -175,6 +185,7 @@ There are two operators for testing optional values:
 1. **`TestLens#some`** - This operator is used to peek into the `Some` value:
 
 ```scala
+import zio.test._
 
 test("optional value is some(42)") {
   val sut: Option[Int] = Some(40 + 2)
@@ -185,6 +196,7 @@ test("optional value is some(42)") {
 2. **`TestLens#anything`** - This operator is used to assert that the value is `Some`:
 
 ```scala
+import zio.test._
 
 test("optional value is anything") {
   val sut: Option[Int] = Some(42)
@@ -197,6 +209,7 @@ test("optional value is anything") {
 1. **`TestLens#right`** - This operator is used to peek into the `Right` value:
 
 ```scala
+import zio.test._
 
 test("TestLens#right") {
   val sut: Either[Error, Int] = Right(40 + 2)
@@ -207,6 +220,7 @@ test("TestLens#right") {
 2. **`TestLens#left`** - This operator is used to peek into the `Left` value:
 
 ```scala
+import zio.test._
 
 case class Error(errorMessage: String)
 
@@ -219,6 +233,7 @@ test("TestLens#left") {
 3. **`TestLens#anything`** - This operator is used to assert that the value is `Right`:
 
 ```scala
+import zio.test._
 
 test("TestLens#anything") {
   val sut: Either[Error, Int] = Right(42)
@@ -231,6 +246,8 @@ test("TestLens#anything") {
 1. **`TestLens#success`** - This operator transforms the [`Exit`](../../core/exit.md) value to its success type `A` if it is a `Exit.Success`, otherwise it will fail. So this can be used for asserting the success value of the `Exit`:
 
 ```scala
+import zio.Exit
+import zio.test._
 
 test("TestLens#success") {
   val sut: Exit[Error, Int] = Exit.succeed(42)
@@ -241,6 +258,8 @@ test("TestLens#success") {
 2. **`TestLens#failure`** - This operator transforms the `Exit` value to its failure type `E` if it is a `Exit.Failure`, otherwise it will fail. So this can be used for asserting the failure value of the `Exit`:
 
 ```scala
+import zio.Exit
+import zio.test._
 
 case class Error(errorMessage: String)
 
@@ -253,6 +272,8 @@ test("TestLens#failure") {
 3. **`TestLens#die`** - This operator transforms the `Exit` value to its die type `E` if it is a `Exit.Die`, otherwise it will fail. So this can be used for asserting the die value of the `Exit`:
 
 ```scala
+import zio.Exit
+import zio.test._
 
 test("TestLens#die") {
   val sut: Exit[Error, Int] = Exit.die(new RuntimeException("Boom!"))
@@ -263,6 +284,8 @@ test("TestLens#die") {
 4. **`TestLens#cause`** - This operator transforms the `Exit` value to its underlying [`Cause`](../../core/cause.md) value if it has one otherwise it will fail. So this can be used for asserting the cause of the `Exit`:
 
 ```scala
+import zio.{ZIO, Cause}
+import zio.test._
 
 test("TestLens#cause") {
   for {
@@ -275,6 +298,8 @@ test("TestLens#cause") {
 5. **`TestLens#interrupt`** - This operator transforms the `Exit` value to its interrupt value if it is a `Exit.Interrupt`, otherwise it will fail. So this can be used for asserting the interrupt value of the `Exit`:
 
 ```scala
+import zio.{durationInt, ZIO}
+import zio.test._
 
 test("TestLens#interrupt") {
   for {
@@ -288,6 +313,7 @@ test("TestLens#interrupt") {
 Sometimes we need to test values with more than one level of nesting. There is no difference in the way we test nested values:
 
 ```scala
+import zio.test._
 
 test("assertion of multiple nested values (TestLens#right.some)") {
   val sut: Either[Error, Option[Int]] = Right(Some(40 + 2))
@@ -302,6 +328,7 @@ Using `CustomAssertion` we can create our own custom assertions for use in `asse
 Here is an example of a custom assertion for a sealed trait and case classes:
 
 ```scala
+import zio.test._
 
 // Define the sealed trait and case classes
 sealed trait Book

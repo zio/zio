@@ -18,6 +18,9 @@ This article explores two methods for implementing reloadable services in ZIO:
 Before going into further detail, through this article whenever we use `Counter` class, we refere to this source code:
 
 ```scala
+import zio._
+
+import java.util.UUID
 
 trait Counter {
   def increment: UIO[Unit]
@@ -83,6 +86,7 @@ The two fundamental operations of `Reloadable` are as follows:
     For example, let's consider that we have acquired the `Reloadable[Counter]` service from the ZIO environment using the `ZIO.service[Reloadable[Counter]]` accessor. We can then use the `get` method to obtain the Counter instance and directly perform operations on it:
 
 ```scala
+import zio._
 
 val app: ZIO[Reloadable[Counter], Nothing, Unit] =
   for {
@@ -94,6 +98,7 @@ val app: ZIO[Reloadable[Counter], Nothing, Unit] =
 2. **`Reloadable#reload`**— This operation involves acquiring a new service and releasing the old one, thereby enabling the reloading of the service:
 
 ```scala
+import zio._
 
 val app: ZIO[Reloadable[Counter], Any, Unit] =
   for {
@@ -137,6 +142,7 @@ There are two fundamental approaches to creating reloadable services:
 Continuing the previous example, assume we have written the `Counter.live` as follows:
 
 ```scala
+import zio._
 
 object Counter {
   val live: ZLayer[Any, Nothing, Counter] = ZLayer.scoped {
@@ -176,6 +182,9 @@ object Counter {
 Now we can `provide` the `Counter.reloadable` layer to the app workflow and execute the application:
 
 ```scala
+import zio._
+
+import java.util.UUID
 
 object ReloadableExample extends ZIOAppDefault {
   val app: ZIO[Reloadable[Counter], Any, Unit] =
@@ -215,6 +224,7 @@ Observing the behavior, we notice that the service undergoes reloading, causing 
 Let's change the previous example to reload the Counter service automatically every 5 second. First we need to create auto reloadable service:
 
 ```scala
+import zio._
 
 object Counter {
   val live: ZLayer[Any, Nothing, Counter] = ???
@@ -227,6 +237,7 @@ object Counter {
 Or we can use `ZLayer#reloadableAuto` to convert a layer to auto reloadable service:
 
 ```scala
+import zio._
 
 object Counter {
   val live: ZLayer[Any, Nothing, Counter] = ???
@@ -239,6 +250,8 @@ object Counter {
 Finally, we don't require to manually execute `Reloadable#reload` and the service will be reloaded every 5 second:
 
 ```scala
+import zio._
+import java.util.UUID
 
 object AutoReloadableExample extends ZIOAppDefault {
   val app: ZIO[Reloadable[Counter], Any, Unit] =
@@ -286,6 +299,10 @@ With this approach, there is no longer a need to retrieve `Reloadable[Counter]` 
 Let's see how we can rewrite the `Reloadable.manual` example with this approach:
 
 ```scala
+import zio._
+import zio.macros._
+
+import java.util.UUID
 
 object ServiceReloaderExample extends ZIOAppDefault {
 
@@ -311,6 +328,8 @@ object ServiceReloaderExample extends ZIOAppDefault {
 To create a reloadable layer, we need to import `zio.macros._`. Subsequently, by invoking the `ZLayer#reloadable` method, we can transform the `live` layer into a layer that depends on `ServiceReloader` and provides `Counter` services:
 
 ```scala
+import zio._
+import zio.macros._
 
 object Counter {
 
@@ -324,6 +343,7 @@ object Counter {
 We can further enhance this application by decoupling the reload process from the application logic. In doing so, each time the service is reloaded, subsequent calls to the service will be served with the freshly reloaded services:
 
 ```scala
+import zio._
 
 object ServiceReloaderParallelWorkflowExample extends ZIOAppDefault {
   def reloadWorkflow =

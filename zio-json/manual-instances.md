@@ -79,6 +79,11 @@ We can use `.mapOrFail` to take the result of another `JsonDecoder` and try to c
 Say we are using the [`refined`](https://github.com/fthomas/refined) library to ensure that a `Person` data type only holds a non-empty string in its `name` field
 
 ```scala
+import zio.json._
+import zio.json.interop.refined._
+
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.collection.NonEmpty
 
 case class Person(name: String Refined NonEmpty)
 

@@ -40,6 +40,7 @@ So in other words, `ZLayer` is a type-safe data type that describes the asynchro
 For example, a `ZLayer` of type `ZLayer[Any, Nothing, Formatter]` is a constructor that doesn't take any services from the input and returns `Formatter` as output. Also, a `ZLayer` of type `ZLayer[Formatter with Compiler, Nothing, Editor]` is a constructor that takes `Formatter` and `Compiler` services from the input and returns `Editor` as output:
 
 ```scala
+import zio._
 
 object Formatter {
   val layer: ZLayer[Any, Nothing, Formatter] =
@@ -95,6 +96,7 @@ If we have a dependency that requires an effectful computation to be initialized
 In the following example, without the help of `ZIO#flatMap` or `ZLayer`, we can't easily create an instance of the `Editor` class:
 
 ```scala
+import zio._
 
 case class Counter(ref: Ref[Int]) {
   def inc: UIO[Unit] = ref.update(_ + 1)
@@ -193,6 +195,7 @@ object Editor {
 Let's try another example. Assume we have a `ZIO` effect that reads the application config from a file, we can create a layer from that:
 
 ```scala
+import zio._
 
 case class AppConfig(poolSize: Int)
   
@@ -212,6 +215,7 @@ Some components of our applications need to be scoped, meaning they undergo a re
 The `ZLayer` relies on the powerful `Scope` data type and this makes this process extremely simple. We can lift any scoped `ZIO` to `ZLayer` by providing a scoped resource to the `ZLayer.scoped` constructor:
 
 ```scala
+import zio._
 
 case class A(a: Int)
 object A {
@@ -249,6 +253,8 @@ We can see that the `A` service is initialized and carefull released when the ap
 Here is another example that uses auto closeable resources:
 
 ```scala
+import zio._
+import scala.io.BufferedSource
 
 val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
   ZLayer.scoped {
@@ -261,6 +267,9 @@ val fileLayer: ZLayer[Any, Throwable, BufferedSource] =
 Finally, let's see a real-world example of creating a layer from scoped resources. Assume we have the following `UserRepository` service:
 
 ```scala
+import zio._
+import scala.io.Source._
+import java.io.{FileInputStream, FileOutputStream, Closeable}
 
 trait DBConfig
 trait Transactor
@@ -324,6 +333,7 @@ object KafkaProducer {
 While with `ZLayer`, we can easily use blocking operations:
 
 ```scala
+import zio._
 
 class ProducerInput
 
@@ -348,6 +358,7 @@ object KafkaProducer {
 With `Zlayer` all layers in the dependency graph are executed in parallel:
 
 ```scala
+import zio._
 
 case class A(a: Int)
 object A {

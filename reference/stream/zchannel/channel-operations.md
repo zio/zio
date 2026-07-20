@@ -7,6 +7,7 @@
 The values from the output port of the first channel are passed to the input port of the second channel when we pipe a channel to another channel:
 
 ```scala
+import zio.stream._
 
 (ZChannel.writeAll(1,2,3) >>> (ZChannel.read[Int] <*> ZChannel.read[Int])).runCollect.debug
 // Output: (Chunk(),(1,2))
@@ -17,6 +18,8 @@ The values from the output port of the first channel are passed to the input por
 In order to sequence channels, we can use the `ZChannel#flatMap` operator. When we use the `flatMap` operator, we have the ability to chain two channels together. After the first channel is finished, we can create a new channel based on the terminal value of the first channel:
 
 ```scala
+import zio._
+import zio.stream._
 
 ZChannel
   .fromZIO(
@@ -38,6 +41,7 @@ ZChannel
 Suppose there is a channel that creates a new channel for each element of the outer channel and emits them to the output port. We can use `concatOut` to concatenate all the inner channels into a single channel:
 
 ```scala
+import zio.stream._
 
 ZChannel
   .writeAll("a", "b", "c")
@@ -53,6 +57,7 @@ ZChannel
 We can do the same with `ZChannel.concatAll`:
 
 ```scala
+import zio.stream._
 
 ZChannel
   .concatAll(
@@ -75,6 +80,7 @@ We have two categories of `zip` operators: ordinary `zipXYZ` operators which run
 1. `zip`/`<*>` operator:
 
 ```scala
+import zio.stream._
 
 val first = ZChannel.write(1,2,3) *> ZChannel.succeed("Done!")
 val second = ZChannel.write(4,5,6) *> ZChannel.succeed("Bye!")
@@ -102,6 +108,7 @@ val second = ZChannel.write(4,5,6) *> ZChannel.succeed("Bye!")
 The ordinary `map` operator is used to map the done value of a channel:
 
 ```scala
+import zio.stream._
 
 ZChannel.writeAll(1, 2, 3).map(_ => 5).runCollect.debug 
 // (Chunk(1,2,3),5)
@@ -112,6 +119,7 @@ ZChannel.writeAll(1, 2, 3).map(_ => 5).runCollect.debug
 To map the done value of the input port, we use the `contramap` operator:
 
 ```scala
+import zio.stream._
 
 (ZChannel.succeed("5") >>>
   ZChannel
@@ -129,6 +137,8 @@ To map the done value of the input port, we use the `contramap` operator:
 To map the failure value of a channel, we use the `mapError` operator:
 
 ```scala
+import zio._
+import zio.stream._
 
 val channel =
   ZChannel
@@ -141,6 +151,7 @@ val channel =
 To map the output elements of a channel, we use the `mapOutput` operator:
 
 ```scala
+import zio.stream._
 
 ZChannel.writeAll(1,2,3).mapOut(_ * 2).runCollect.debug
 // Output: (Chunk(2,4,6),())
@@ -151,6 +162,7 @@ ZChannel.writeAll(1,2,3).mapOut(_ * 2).runCollect.debug
 To map the input elements of a channel, we use the `contramapIn` operator:
 
 ```scala
+import zio.stream._
 
 (ZChannel.write("123") >>> ZChannel.read[Int].contramapIn[String](_.toInt * 2)).runCollect.debug
 // Output: (Chunk(),(246))
@@ -163,6 +175,8 @@ Merge operators are used to merging multiple channels into a single channel. The
 Assume we have the following channel:
 
 ```scala
+import zio._
+import zio.stream._
 
 def iterate(
     from: Int,
@@ -181,6 +195,8 @@ def iterate(
 Now let's merge some channels:
 
 ```scala
+import zio._
+import zio.stream._
 
 ZChannel
   .mergeAllUnbounded(
@@ -202,6 +218,7 @@ We have another operator called `ZChannel.mergeAll`, which allows us to specify 
 Note that if we want to merge channels sequentially, we can use the `zip` or `flatMap` operators:
 
 ```scala
+import zio.stream._
 
 (iterate(1, 3) <*> iterate(4, 6) <*> iterate(6, 9)).runCollect.debug
 // Output: (Chunk(1,2,3,4,5,6,7,8,9),())
@@ -212,6 +229,7 @@ Note that if we want to merge channels sequentially, we can use the `zip` or `fl
 1. `collectElements` collects all the elements of the channel along with its done value as a tuple and returns a new channel with a terminal value of that tuple:
 
 ```scala
+import zio.stream._
 
 ZChannel.writeAll(1,2,3,4,5)
   .collectElements
@@ -223,6 +241,7 @@ ZChannel.writeAll(1,2,3,4,5)
 2. `emitCollect` is like the `collectElements` operator, but it emits the result of the collection to the output port of the new channel:
 
 ```scala
+import zio.stream._
 
 ZChannel.writeAll(1,2,3,4,5)
   .emitCollect
@@ -246,6 +265,7 @@ We can convert a channel to other data types using the `ZChannel.toXYZ` methods:
 `concatMap` is a combination of two operators: mapping and concatenation. Using this operator, we can map every emitted element of a channel (outer channel) to a new channel (inner channels), and then concatenate all the inner channels into a single channel. The concatenation is done **sequentially**, so we use this operator when the order of the elements is important:
 
 ```scala
+import zio.stream._
 
 ZChannel
   .writeAll("a", "b", "c")
@@ -267,6 +287,8 @@ In the above example, we create a new channel for every element of the outer cha
 `mergeMap` is a combination of two operators: mapping and merging. Using this operator, we can map every emitted element of a channel (outer channel) to a new channel (inner channel), and then run all the inner channels in parallel and merge them into a single channel. The merge operation is done **in parallel**, so we use this operator when the order of the elements is not important, and we want to process all inner channels in parallel:
 
 ```scala
+import zio.stream._
+import zio.stream.ZChannel._
 
 ZChannel
   .writeAll("a", "b", "c")
@@ -289,6 +311,7 @@ ZChannel
 `collect` is a combination of two operations: filtering and mapping. Using this operator, we can filter the elements of a channel using a partial function, and then map the filtered elements:
 
 ```scala
+import zio.stream._
 
 ZChannel
   .writeAll((1 to 10): _*)

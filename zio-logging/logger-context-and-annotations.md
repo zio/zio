@@ -24,6 +24,7 @@ to all log messages emitted by the `myResponseHandler(request)` effect.
 The user of the library is allowed to add a custom `LogAnnotation`:
 
 ```scala
+import zio.logging.LogAnnotation
 
 val customLogAnnotation = LogAnnotation[Int]("custom_annotation", _ + _, _.toString)
 ```

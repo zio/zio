@@ -32,6 +32,8 @@ Without `Allows`, these constraints can only be checked at runtime, producing co
 `Allows[A, S]` is an upper bound. A type `A` that uses only a strict subset of what `S` permits also satisfies it — just as `A <: Foo` does not require that `A` uses every method of `Foo`. Upper bound semantics is the right choice because a lower bound would require using every shape (impractical), exact matching would require naming every shape used (too rigid), whereas upper bound says "your type may use any of these shapes" — a permission, not a mandate.
 
 ```scala
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 // Both satisfy Record[Primitive | Optional[Primitive]] — the upper bound
 
@@ -49,10 +51,11 @@ val ev2: Allows[UserRowOpt, Record[Primitive | Optional[Primitive]]] = implicitl
 
 `Allows[A, S]` is not instantiated directly. Instead, you summon an evidence value at the point where you need the constraint. The macro automatically verifies the constraint at compile time.
 
-<Tabs groupId="scala-version" defaultValue="scala2">
-  <TabItem value="scala2" label="Scala 2">
+  
 
 ```scala
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 def toJson[A](doc: A)(implicit ev: Allows[A, Record[Primitive]]): String = ???
 
@@ -60,10 +63,12 @@ def toJson[A](doc: A)(implicit ev: Allows[A, Record[Primitive]]): String = ???
 val evidence = implicitly[Allows[Int, Primitive]]
 ```
 
-  </TabItem>
-  <TabItem value="scala3" label="Scala 3">
+  
+  
 
 ```scala
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 def toJson[A](doc: A)(using Allows[A, Record[Primitive]]): String = ???
 
@@ -72,8 +77,7 @@ case class Person(name: String, age: Int)
 val json = toJson(Person("Alice", 30))  // Compiles if Person satisfies Record[Primitive]
 ```
 
-  </TabItem>
-</Tabs>
+  
 
 The constraint is checked once, at the call site. If the type `A` does not satisfy `S`, you get a compile-time error with a precise message showing exactly which field violates the grammar.
 
@@ -128,6 +132,8 @@ The macro that powers `Allows` checks the constraint **at compile time** and emi
 The `Primitive` parent class is the catch-all: it accepts any of the 30 Schema 2 primitive types. For stricter control — such as when the target serialisation format only supports a subset — use the specific subtype nodes in `Allows.Primitive`:
 
 ```scala
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 // Only JSON-representable scalars (no UUID, Char, java.time.*)
 type JsonPrimitive =
@@ -147,6 +153,8 @@ def aggregate[A](data: A)(using Allows[A, Record[Numeric]]): Double = ???
 A type annotated with `Primitive.Int` satisfies `Primitive` (the catch-all) because `Primitive.Int extends Primitive`:
 
 ```scala
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 val ev: Allows[Int, Primitive] = implicitly  // Primitive (catch-all) — ✓
 val sp: Allows[Int, Primitive.Int] = implicitly  // Primitive.Int (specific) — ✓
@@ -159,6 +167,8 @@ JSON's primitive value set is `null | boolean | number | string`. Types such as 
 A JSON document grammar is straightforward: a JSON value is either a record (JSON object) or a sequence (JSON array), and `Self` handles all nesting:
 
 ```scala
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 type JsonPrimitive =
   Primitive.Boolean | Primitive.Int | Primitive.Long | Primitive.Double |
@@ -183,32 +193,34 @@ A type with a UUID or Instant field fails at compile time with this error:
 
 Union types express "or" in the grammar.
 
-<Tabs groupId="scala-version" defaultValue="scala2">
-  <TabItem value="scala2" label="Scala 2">
+  
 
 Uses the infix operator `` Primitive `|` Optional[Primitive] `` from `Allows`:
 
 ```scala
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 def writeCsv[A](rows: Seq[A])(implicit
   ev: Allows[A, Record[Primitive | Optional[Primitive]]]
 ): Unit = ???
 ```
 
-  </TabItem>
-  <TabItem value="scala3" label="Scala 3">
+  
+  
 
 Uses native union type syntax:
 
 ```scala
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 def writeCsv[A](rows: Seq[A])(using
   Allows[A, Record[Primitive | Optional[Primitive]]]
 ): Unit = ???
 ```
 
-  </TabItem>
-</Tabs>
+  
 
 Both spellings compile and produce the same semantic behavior. The grammar is identical — the only difference is how the union type is expressed.
 
@@ -217,6 +229,9 @@ Both spellings compile and produce the same semantic behavior. The grammar is id
 ### Flat Record (CSV, RDBMS Row)
 
 ```scala
+import zio.blocks.schema.Schema
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 // Flat record: only primitives and optional primitives allowed
 def writeCsv[A: Schema](rows: Seq[A])(using
@@ -241,6 +256,9 @@ If a user passes a type with nested records, they get a precise compile-time err
 Published events are typically sealed traits of flat record cases. No `Variant` node is needed — sealed traits are automatically unwrapped:
 
 ```scala
+import zio.blocks.schema.Schema
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 // DomainEvent is a sealed trait; its cases must each satisfy Record[Primitive | Sequence[Primitive]]
 def publish[A: Schema](event: A)(using
@@ -260,6 +278,9 @@ If a case of the sealed trait has a nested record field, the error names that ca
 A document store accepts arbitrarily nested records but not `DynamicValue` leaves. The `Self` node expresses the recursive grammar:
 
 ```scala
+import zio.blocks.schema.Schema
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 type JsonDocument =
   Record[Primitive | Self | Optional[Primitive | Self] | Sequence[Primitive | Self] | Allows.Map[Primitive, Primitive | Self]]
@@ -278,6 +299,9 @@ But rejects:
 ### GraphQL / Tree Structures (Self)
 
 ```scala
+import zio.blocks.schema.Schema
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 def graphqlType[A: Schema]()(using
   Allows[A, Record[Primitive | Optional[Self] | Sequence[Self]]]
@@ -294,6 +318,8 @@ object TreeNode { implicit val schema: Schema[TreeNode] = Schema.derived }
 The `Sequence[A]` node accepts any collection type. When a DSL needs to restrict to a specific kind of collection — for example, a DynamoDB `Set` operation that is only valid on sets, not lists — use the `Sequence` subtypes:
 
 ```scala
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 // Only an immutable List is accepted
 val listOnly: Allows[List[Int], Sequence.List[Primitive]] = implicitly
@@ -308,7 +334,7 @@ val vecOnly: Allows[Vector[String], Sequence.Vector[Primitive]] = implicitly
 val arrOnly: Allows[Array[Int], Sequence.Array[Primitive]] = implicitly
 
 // Only a Chunk
-
+import zio.blocks.chunk.Chunk
 val chkOnly: Allows[Chunk[String], Sequence.Chunk[Primitive]] = implicitly
 ```
 
@@ -325,6 +351,8 @@ val bad: Allows[Set[Int], Sequence.List[Primitive]] = implicitly
 A DynamoDB grammar can encode the distinction between set types and list types exactly, without any additional runtime proof. We use `Sequence.Set` to narrow the grammar to sets-only operations:
 
 ```scala
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 type N  = Primitive.Int | Primitive.Long | Primitive.Float | Primitive.Double | Primitive.Short
 type S  = Primitive.String
@@ -346,6 +374,9 @@ The primary motivation (GitHub issue #1172) is DSL methods that must constrain b
 To use `IsType[A]` with a polymorphic `A`, require `IsNominalType[A]` from `zio-blocks-typeid` at the call site. This ensures the macro always sees a concrete type when it evaluates `IsType[A]`:
 
 ```scala
+import zio.blocks.schema.comptime.Allows
+import Allows._
+import zio.blocks.typeid.IsNominalType
 
 // `To` must be a Set whose element type is exactly `A`.
 // IsNominalType[A] ensures A is concrete at the call site — an unresolved
@@ -372,6 +403,7 @@ A mismatch between the element type and `A` is a compile-time error:
 `IsType[A]` can also appear as a standalone constraint, or anywhere a grammar node is accepted:
 
 ```scala
+import zio.blocks.schema.comptime.Allows
 
 // Int satisfies IsType[Int] exactly
 val ev: Allows[Int, Allows.IsType[Int]] = implicitly
@@ -398,6 +430,10 @@ val ev2: Allows[List[String], Allows.Sequence[Allows.IsType[String]]] = implicit
 The `Wrapped[A]` node matches ZIO Prelude `Newtype` and `Subtype` wrappers. The underlying type must satisfy `A`. Here's an example:
 
 ```scala
+import zio.prelude.Newtype
+import zio.blocks.schema.Schema
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 // ZIO Prelude Newtype pattern:
 object ProductCode extends Newtype[String]
@@ -421,6 +457,8 @@ opaque type UserId = java.util.UUID
 Sealed traits and enums are **automatically unwrapped** by the macro. Whenever a sealed type is encountered at any grammar check position, the macro recursively checks every case against the same grammar. This makes a `Variant` grammar node unnecessary.
 
 ```scala
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 sealed trait Shape
 case class Circle(radius: Double)                    extends Shape
@@ -457,6 +495,9 @@ Multiple violations are reported in a single compilation pass — the user sees 
 `Record[A]` is vacuously true for case objects and zero-field records, since there are no fields to violate the constraint:
 
 ```scala
+import zio.blocks.schema.Schema
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 case object EmptyEvent
 implicit val schema: Schema[EmptyEvent.type] = Schema.derived
@@ -490,6 +531,8 @@ Both Scala versions produce the same macro behavior and the same error messages.
 You can use `Allows` **without** `Schema`:
 
 ```scala
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 // Pure shape constraint, no Schema required
 def writeCsv[A](rows: Seq[A])(using Allows[A, Record[Primitive | Optional[Primitive]]]): Unit = ???
@@ -498,6 +541,9 @@ def writeCsv[A](rows: Seq[A])(using Allows[A, Record[Primitive | Optional[Primit
 Or combine them when runtime encoding **and** shape validation are both needed:
 
 ```scala
+import zio.blocks.schema.Schema
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 // Shape constraint + runtime encoding
 def writeCsv[A: Schema](rows: Seq[A])(using
@@ -547,6 +593,12 @@ sbt "schema-examples/runMain comptime.AllowsCsvExample"
  */
 
 package comptime
+
+import zio.blocks.schema._
+import zio.blocks.schema.comptime.Allows
+import Allows.{Primitive, Record, `|`}
+import Allows.{Optional => AOptional}
+import util.ShowExpr.show
 
 // ---------------------------------------------------------------------------
 // CSV serializer example using Allows[A, S] compile-time shape constraints
@@ -666,6 +718,12 @@ sbt "schema-examples/runMain comptime.AllowsEventBusExample"
 
 package comptime
 
+import zio.blocks.schema._
+import zio.blocks.schema.comptime.Allows
+import Allows.{Primitive, Record, Sequence, `|`}
+import Allows.{Optional => AOptional}
+import util.ShowExpr.show
+
 // ---------------------------------------------------------------------------
 // Event bus / message broker example using Allows[A, S]
 //
@@ -781,6 +839,12 @@ sbt "schema-examples/runMain comptime.AllowsGraphQLTreeExample"
  */
 
 package comptime
+
+import zio.blocks.schema._
+import zio.blocks.schema.comptime.Allows
+import Allows.{Primitive, Record, Sequence, `|`}
+import Allows.{Optional => AOptional, Self => ASelf}
+import util.ShowExpr.show
 
 // ---------------------------------------------------------------------------
 // GraphQL / tree structure example using Self for recursive grammars
@@ -916,6 +980,11 @@ sbt "schema-examples/runMain comptime.AllowsSealedTraitExample"
 
 package comptime
 
+import zio.blocks.schema._
+import zio.blocks.schema.comptime.Allows
+import Allows.{Primitive, Record}
+import util.ShowExpr.show
+
 // ---------------------------------------------------------------------------
 // Sealed trait auto-unwrap example
 //
@@ -1021,6 +1090,11 @@ Demonstrates how Allows constraints are verified at compile time — the code be
  */
 
 package comptime
+
+import zio.blocks.schema._
+import zio.blocks.schema.comptime.Allows
+import Allows.{Primitive, Record, `|`}
+import Allows.{Map => AMap, Optional => AOptional}
 
 // ---------------------------------------------------------------------------
 // Realistic RDBMS example using Allows[A, S] compile-time shape constraints
@@ -1225,6 +1299,11 @@ Demonstrates how Allows enforces recursive schema constraints at compile time:
  */
 
 package comptime
+
+import zio.blocks.schema._
+import zio.blocks.schema.comptime.Allows
+import Allows.{Record, Sequence, `|`}
+import Allows.{Optional => AOptional, Self => ASelf}
 
 // ---------------------------------------------------------------------------
 // Realistic JSON document-store example using Allows[A, S]

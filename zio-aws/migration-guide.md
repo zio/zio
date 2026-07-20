@@ -12,13 +12,23 @@ Previously the zio-aws packages had the root package `io.github.vigoo.zioaws`. B
 So imports for something using the EC2 and ElasticBeanstalk APIs would change from:
 
 ```scala
-
+import io.github.vigoo.zioaws.core._
+import io.github.vigoo.zioaws.ec2.Ec2
+import io.github.vigoo.zioaws.ec2.model._
+import io.github.vigoo.zioaws.elasticbeanstalk.ElasticBeanstalk
+import io.github.vigoo.zioaws.elasticbeanstalk.model._
 ```
 
 to 
 
 ```scala
-
+import zio.aws.core._
+import zio.aws.ec2.Ec2
+import zio.aws.ec2.model._
+import zio.aws.ec2.model.primitives._
+import zio.aws.elasticbeanstalk.ElasticBeanstalk
+import zio.aws.elasticbeanstalk.model._
+import zio.aws.elasticbeanstalk.model.primitives._
 ```
 
 Some other changes to the imports may be necessary because of switching to the new service pattern of ZIO, described below.

@@ -33,6 +33,9 @@ For example the `any` value for `ZIO` is `unit`. The `unit` workflow doesn't do 
 So we can always `flatten` a `ZIO` workflow constructed by mapping over the `unit` value to the original workflow back.
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 val helloIdentity: ZIO[Console, IOException, Unit] =
   ZIO.unit.map { _ =>
@@ -73,6 +76,7 @@ val anyList: List[Any] =
 By combining the structure described by the `IdentityFlatten` abstraction and the `Covariant` abstraction we can also define the `succeed` operator we saw from `IdentityBoth`.
 
 ```scala
+import zio.prelude._
 
 def succeed[F[+_]: IdentityFlatten : Covariant, A](a: => A): F[A] =
   IdentityFlatten[F].any.map(_ => a)

@@ -37,6 +37,7 @@ sealed trait TypeId[A <: AnyKind] {
 Derive a `TypeId` for any type using the `TypeId.of` macro and then inspect the type's structure at runtime:
 
 ```scala
+import zio.blocks.typeid._
 
 case class Person(name: String, age: Int)
 
@@ -96,6 +97,7 @@ object TypeId {
 Derive a TypeId using the macro:
 
 ```scala
+import zio.blocks.typeid._
 
 case class User(id: Long, email: String)
 ```
@@ -131,6 +133,7 @@ In Scala 3, the `[A <: AnyKind]` bound allows derivation for type constructors (
 The most common use case is accepting `TypeId[A]` as an implicit parameter:
 
 ```scala
+import zio.blocks.typeid._
 
 case class User(id: Long, email: String)
 
@@ -205,7 +208,7 @@ object TypeId {
 ```
 
 ```scala
-
+import zio.blocks.typeid._
 ```
 
 ```scala
@@ -271,6 +274,7 @@ sealed trait TypeId[A <: AnyKind] {
 ```
 
 ```scala
+import zio.blocks.typeid._
 
 case class Order(id: String, total: Double)
 val orderId = TypeId.of[Order]
@@ -317,6 +321,7 @@ sealed trait TypeId[A <: AnyKind] {
 When we derive a `TypeId` for a custom type, the owner captures its full hierarchical location. We can then use `TypeId#fullName` to see how the owner combines with the type name:
 
 ```scala
+import zio.blocks.typeid._
 
 case class User(id: Long, name: String)
 ```
@@ -386,6 +391,7 @@ sealed trait TypeId[A <: AnyKind] {
 To see how `TypeId` preserves type parameter information, we define several generic types with different variance patterns. Each demonstrates a different type parameter characteristic:
 
 ```scala
+import zio.blocks.typeid._
 
 sealed trait Container[+A]
 case class Box[+A](value: A) extends Container[A]
@@ -477,6 +483,7 @@ final case class TypeParam(
 To inspect individual fields of a type parameter, we can extract and examine each one:
 
 ```scala
+import zio.blocks.typeid._
 
 sealed trait Functor[F[_]]
 ```
@@ -512,6 +519,7 @@ paramF.isTypeConstructor
 `TypeParam` provides convenience predicates for checking variance without inspecting the raw `variance` field:
 
 ```scala
+import zio.blocks.typeid._
 
 sealed trait Box[+A]
 sealed trait Sink[-T]
@@ -571,6 +579,7 @@ sealed trait TypeId[A <: AnyKind] {
 Setup some custom generic types with different type argument patterns:
 
 ```scala
+import zio.blocks.typeid._
 
 case class Pair[A, B](first: A, second: B)
 case class Container[T](value: T)
@@ -626,6 +635,7 @@ args(1)
 For more complex types, `typeArgs` captures the full structure of the arguments, including unions, intersections, function types, and tuples:
 
 ```scala
+import zio.blocks.typeid._
 
 // Union types (Scala 3)
 case class Handler[T](process: T | String)
@@ -685,6 +695,7 @@ sealed trait TypeId[A <: AnyKind] {
 Setup some generic types with different arities:
 
 ```scala
+import zio.blocks.typeid._
 
 case class Single[A](value: A)           // Arity 1
 case class Pair[A, B](a: A, b: B)       // Arity 2
@@ -716,6 +727,7 @@ TypeId.of[Pair[String, Int]].arity
 A **proper type** (also called a ground type or monomorphic type) is a fully instantiated type with no unresolved type parameters. It's the opposite of a type constructor — you can directly instantiate values of a proper type, whereas a type constructor needs type arguments before it's usable. The `isProperType` predicate returns `true` when `arity == 0`, helping distinguish concrete types from abstract type constructors:
 
 ```scala
+import zio.blocks.typeid._
 
 case class Single[A](value: A)
 case class Pair[A, B](a: A, b: B)
@@ -749,6 +761,7 @@ TypeId.of[List].isProperType
 A **type constructor** is a parameterized type that cannot be instantiated directly — it requires concrete type arguments first. For example, `List` is a type constructor (you can't have a value of type `List`, only `List[Int]` or `List[String]`). The `isTypeConstructor` predicate returns `true` when `arity > 0`, indicating the type needs to be applied with arguments before use. This is useful for generic programming where you work with families of related types:
 
 ```scala
+import zio.blocks.typeid._
 
 case class Single[A](value: A)
 case class Pair[A, B](a: A, b: B)
@@ -782,6 +795,7 @@ TypeId.of[Int].isTypeConstructor
 An **applied type** is a generic type that has been instantiated with concrete type arguments. For example, `List[Int]` is an applied type (`List` applied to `Int`), while `List` by itself is a type constructor with no arguments applied. The `isApplied` predicate returns `true` when `typeArgs.nonEmpty`, helping distinguish between abstract type constructors and concrete instantiated types. This is useful for code generators that need to know whether a type is ready for use:
 
 ```scala
+import zio.blocks.typeid._
 
 case class Single[A](value: A)
 case class Pair[A, B](a: A, b: B)
@@ -828,6 +842,7 @@ sealed trait TypeId[A <: AnyKind] {
 Define types representing different classifications:
 
 ```scala
+import zio.blocks.typeid._
 
 sealed trait Animal
 case class Dog(name: String) extends Animal
@@ -965,7 +980,7 @@ TypeId.of[Product2[String, Int]].isProduct
 Understanding the distinction between `isSum`, `isEither`, and `isOption`:
 
 ```scala
-
+import zio.blocks.typeid._
 // For standard library types, use isEither and isOption
 TypeId.of[Option[String]].isOption
 // res116: Boolean = true
@@ -999,6 +1014,7 @@ sealed trait TypeId[A <: AnyKind] {
 Define a type hierarchy with direct and transitive relationships:
 
 ```scala
+import zio.blocks.typeid._
 
 sealed trait Animal
 sealed trait Mammal extends Animal
@@ -1046,6 +1062,7 @@ TypeId.of[List[Dog]].isSubtypeOf(TypeId.of[List[Animal]])
 **Scala 3 exclusive features:** In Scala 3, `isSubtypeOf` handles advanced type relationships that Scala 2 cannot. These examples show what works in Scala 3:
 
 ```scala
+import zio.blocks.typeid._
 
 // Scala 3: Enum cases
 enum Color {
@@ -1102,6 +1119,7 @@ sealed trait TypeId[A <: AnyKind] {
 Check supertyping relationships using the same hierarchy:
 
 ```scala
+import zio.blocks.typeid._
 
 sealed trait Animal
 sealed trait Mammal extends Animal
@@ -1158,6 +1176,7 @@ sealed trait TypeId[A <: AnyKind] {
 Check type equivalence with practical examples:
 
 ```scala
+import zio.blocks.typeid._
 
 sealed trait Animal
 sealed trait Mammal extends Animal
@@ -1197,6 +1216,7 @@ dogId.isEquivalentTo(catId)
 Type aliases normalize to the same type, making them equivalent:
 
 ```scala
+import zio.blocks.typeid._
 
 type UserId = String
 type Username = String
@@ -1234,6 +1254,7 @@ sealed trait TypeId[A <: AnyKind] {
 ```
 
 ```scala
+import zio.blocks.typeid._
 
 trait Swimmer { def swim(): Unit = () }
 trait Flyer   { def fly(): Unit  = () }
@@ -1268,6 +1289,7 @@ sealed trait TypeId[A <: AnyKind] {
 ```
 
 ```scala
+import zio.blocks.typeid._
 
 @deprecated("use NewData instead", "2.0")
 @transient
@@ -1298,6 +1320,7 @@ sealed trait TypeId[A <: AnyKind] {
 ```
 
 ```scala
+import zio.blocks.typeid._
 
 trait Logger { def log(msg: String): Unit }
 trait Service { self: Logger => def doWork(): Unit = log("working") }
@@ -1326,6 +1349,7 @@ sealed trait TypeId[A <: AnyKind] {
 ```
 
 ```scala
+import zio.blocks.typeid._
 
 type Age = Int
 type Name = String
@@ -1358,6 +1382,7 @@ sealed trait TypeId[A <: AnyKind] {
 ```
 
 ```scala
+import zio.blocks.typeid._
 
 opaque type Email = String
 opaque type UserId = Int
@@ -1438,6 +1463,7 @@ TypeId.of[List[Int]].classTag
 A concrete use case is a generic storage allocator that creates the right array type from a `TypeId`:
 
 ```scala
+import zio.blocks.typeid._
 
 def makeStorage(size: Int, id: TypeId[?]): Array[?] =
   id.classTag.newArray(size)
@@ -1475,6 +1501,7 @@ def isPrimitive(value: Any): Boolean =
 This is fragile: if you forget one primitive (e.g. `Unit`) the check silently breaks. With `classTag` the same question reduces to a single comparison that can never miss a case — `ClassTag.AnyRef` is the universal fallback for every reference type, so anything that is not `AnyRef` must be a primitive:
 
 ```scala
+import zio.blocks.typeid._
 
 def isPrimitive(id: TypeId[?]): Boolean =
   id.classTag != scala.reflect.ClassTag.AnyRef
@@ -1508,6 +1535,7 @@ sealed trait TypeId[A <: AnyKind] {
 ```
 
 ```scala
+import zio.blocks.typeid._
 
 type Age = Int
 ```
@@ -1543,6 +1571,8 @@ sealed trait TypeId[A <: AnyKind] {
 ```
 
 ```scala
+import zio.blocks.typeid._
+import zio.blocks.chunk.Chunk
 
 // JVM only
 case class User(name: String, age: Int)
@@ -1566,7 +1596,8 @@ userId.construct(Chunk("Bob"))
 Collection types accept variadic arguments representing elements. Sequence-like types (`List`, `Vector`, `Set`, `Seq`, `IndexedSeq`, `Array`, `ArraySeq`, `Chunk`) each pass a variadic sequence of elements:
 
 ```scala
-
+import zio.blocks.typeid._
+import zio.blocks.chunk.Chunk
 ```
 
 ```scala
@@ -1624,6 +1655,7 @@ object TypeId {
 ```
 
 ```scala
+import zio.blocks.typeid._
 
 type Age = Int
 ```
@@ -1648,6 +1680,7 @@ object TypeId {
 ```
 
 ```scala
+import zio.blocks.typeid._
 
 type UserId = Int
 ```
@@ -1699,6 +1732,7 @@ unapplied.name
 The companion object provides extractors for pattern matching on TypeId classification:
 
 ```scala
+import zio.blocks.typeid._
 
 case class User(id: Long, email: String)
 val userId = TypeId.of[User]
@@ -1776,6 +1810,7 @@ This distinction matters when you need to capture the type constructor itself (f
 Define your own generic types and derive their TypeIds to see how type parameters are captured:
 
 ```scala
+import zio.blocks.typeid._
 
 sealed trait Container[+A]
 case class Box[+A](value: A) extends Container[A]
@@ -1902,6 +1937,7 @@ cacheStringIntId.typeArgs
 Variance matters for type safety, polymorphism, and API design. TypeId captures variance information, enabling runtime inspection and validation:
 
 ```scala
+import zio.blocks.typeid._
 
 sealed trait Container[+A]
 sealed trait Cache[K, +V]
@@ -1965,6 +2001,7 @@ Variance.Covariant.flip
 TypeId captures kind information at runtime, allowing you to inspect and validate the structure of types:
 
 ```scala
+import zio.blocks.typeid._
 
 sealed trait Container[+A]
 case class Box[+A](value: A) extends Container[A]
@@ -2035,6 +2072,7 @@ runnableId.typeParams.head.kind.arity
 Three key methods work together to express the full range of type relationships:
 
 ```scala
+import zio.blocks.typeid._
 
 sealed trait Animal
 sealed trait Mammal extends Animal
@@ -2119,6 +2157,7 @@ These methods are essential for building type-safe registries, implementing gene
 TypeId exposes each annotation as an `Annotation` object containing the annotation's type and its arguments. This is essential for frameworks that need to read compile-time metadata (like JPA, validation libraries, or custom serialization frameworks) but want to remain generic and support multiple annotation schemes:
 
 ```scala
+import zio.blocks.typeid._
 
 @transient
 case class ImportantData(id: Int, payload: String)
@@ -2145,6 +2184,7 @@ TypeId.of[Plain].annotations
 Annotations can have arguments and parameters. Create a custom annotation to see how arguments are captured:
 
 ```scala
+import zio.blocks.typeid._
 
 // Custom annotation with parameters
 case class ApiEndpoint(version: Int, deprecated: Boolean = false) extends scala.annotation.StaticAnnotation
@@ -2205,6 +2245,7 @@ Owner gives you the tools to make these decisions at runtime.
 When you derive a TypeId, the `owner` property captures where the type is defined:
 
 ```scala
+import zio.blocks.typeid._
 
 case class MyType(x: Int)
 ```
@@ -2247,6 +2288,7 @@ object Outer {
 The owner of `Inner` has three segments: `com`, `example` (packages), and `Outer` (term):
 
 ```scala
+import zio.blocks.typeid._
 
 object ExampleModule {
   case class Config(timeout: Int)
@@ -2269,6 +2311,7 @@ When the macro encounters a singleton type (a `TermRef` in Scala's reflection AP
 Derive TypeIds for singleton values to see them resolve to their underlying type:
 
 ```scala
+import zio.blocks.typeid._
 
 object HttpStatus {
   val OK = 200
@@ -2314,7 +2357,7 @@ TypeRepr variants like `Intersection`, `Tuple`, `Union`, `TypeLambda`, and `Cont
 You encounter `TypeRepr` values when inspecting `typeArgs`, parent types in `defKind`, and alias targets:
 
 ```scala
-
+import zio.blocks.typeid._
 ```
 
 When you derive a TypeId for an applied type, the `typeArgs` are `TypeRepr` values representing the type arguments:
@@ -2356,7 +2399,7 @@ Here is a reference of the different `TypeRepr` variants you may encounter when 
 For type-indexed collections where the type parameter doesn't matter, erase it:
 
 ```scala
-
+import zio.blocks.typeid._
 ```
 
 ```scala
@@ -2405,6 +2448,7 @@ TypeId provides instances for common types:
 TypeId is central to ZIO Blocks' schema system. Every `Reflect` node carries an associated TypeId:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -2499,6 +2543,9 @@ Demonstrates deriving TypeIds for case classes, accessing their properties (name
  */
 
 package typeid
+
+import zio.blocks.typeid.*
+import util.ShowExpr.show
 
 /**
  * TypeId Basic Example
@@ -2626,6 +2673,8 @@ object TypeIdBasicExample extends App {
     TypeId.of[(Int, String, Boolean)].isTuple
   )
 
+  import zio.blocks.typeid._
+
   sealed trait Animal
 
   sealed trait Mammal extends Animal
@@ -2684,6 +2733,8 @@ object TypeIdBasicExample extends App {
   show(
     entryId.parents
   )
+
+  import zio.blocks.typeid._
 
   // A trait can extend multiple traits
   trait Swimmer {
@@ -2754,6 +2805,9 @@ Demonstrates subtype checking with `isSubtypeOf`, `isSupertypeOf`, and `isEquiva
  */
 
 package typeid
+
+import zio.blocks.typeid._
+import util.ShowExpr.show
 
 /**
  * TypeId Subtyping Example
@@ -2874,6 +2928,9 @@ Demonstrates type alias handling, normalization to underlying types, structural 
  */
 
 package typeid
+
+import zio.blocks.typeid._
+import util.ShowExpr.show
 
 /**
  * TypeId Normalization Example
@@ -3017,6 +3074,9 @@ Demonstrates how TypeId preserves the semantic distinction of opaque types, enab
  */
 
 package typeid
+
+import zio.blocks.typeid._
+import util.ShowExpr.show
 
 /**
  * Opaque Types Example

@@ -13,7 +13,7 @@ To _derive_ a type-class for a case class or a algebraic data type you can inclu
 To make it work you need to import the `DeriveDiff` object/trait:
 
 ```scala
-
+import zio.test.magnolia.DeriveDiff._
 ```
 
 An example of a difference output inside a test may look like this

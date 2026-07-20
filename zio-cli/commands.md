@@ -23,6 +23,7 @@ It's possible to create a `Command` using the `apply` method. You must always sp
 in the CLI, but you can also specify options and/or arguments:
 
 ```scala
+import zio.cli._
 
 object Command {
   def apply(name: String) = ???
@@ -53,6 +54,8 @@ If we have more than one command, we can create a new `Command` that allows to c
 
 `|` is just an alias for `orElse`. In the Git CLI, it is possible to choose between different commands. This can be realized using `orElse`.
 ```scala
+import zio.cli._
+import java.nio.file.Path
 
 val gitAdd: Command[Unit] = Command("add")
 val gitClone: Command[Path] = Command("clone", Options.directory("directory"))
@@ -65,6 +68,8 @@ val newCommand: Command[Any] = gitAdd orElse gitClone
 This method wraps the types in an `Either` class.
 
 ```scala
+import zio.cli._
+import java.nio.file.Path
 
 val gitAdd: Command[Unit] = Command("add")
 val gitClone: Command[Path] = Command("clone", Options.directory("directory"))
@@ -76,6 +81,8 @@ val newCommand: Command[Either[Unit, Path]] = gitAdd orElseEither gitClone
 Method `withHelp` returns a new command with the parameter `HelpDoc` or `String` as the `helpDoc` of the command.
 
 ```scala
+import zio.cli._
+import java.nio.file.Path
 
 val helpGit = "This is command git."
 val helpGitAdd = "Stages changes in the working repository."

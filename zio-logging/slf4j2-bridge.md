@@ -11,6 +11,7 @@ libraryDependencies += "dev.zio" %% "zio-logging-slf4j2-bridge" % "2.5.3"
 and use one of the `Slf4jBridge` layers when setting up logging:
 
 ```scala
+import zio.logging.slf4j.Slf4jBridge
 
 program.provideCustom(Slf4jBridge.init())
 ```
@@ -29,6 +30,8 @@ logging parts may contain message and log parameters construction, which may be 
 SLF4J logger name is stored in log annotation with key `logger_name` (`zio.logging.loggerNameAnnotationKey`), following log format
 
 ```scala
+import zio.logging.slf4j.Slf4jBridge
+import zio.logging.LoggerNameExtractor
 
 val loggerName = LoggerNameExtractor.loggerNameAnnotationOrTrace
 val loggerNameFormat = loggerName.toLogFormat()
@@ -50,6 +53,8 @@ val logFilter: LogFilter[String] = logFilterConfig.toFilter
 SLF4J bridge with custom logger can be setup:
 
 ```scala
+import zio.logging.slf4j.Slf4jBridge
+import zio.logging.consoleJsonLogger
 
 val logger = Runtime.removeDefaultLoggers >>> consoleJsonLogger() >+> Slf4jBridge.init()
 ```
@@ -67,6 +72,11 @@ You can find the source code [here](https://github.com/zio/zio-logging/tree/mast
 
 ```scala
 package zio.logging.example
+
+import zio.logging.{ ConsoleLoggerConfig, LogAnnotation, LogFilter, LogFormat, LoggerNameExtractor, consoleJsonLogger }
+import zio.{ ExitCode, LogLevel, Runtime, Scope, ZIO, ZIOAppArgs, ZIOAppDefault, ZLayer }
+
+import java.util.UUID
 
 object Slf4jBridgeExampleApp extends ZIOAppDefault {
 

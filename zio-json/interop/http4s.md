@@ -15,6 +15,8 @@ libraryDependencies ++= Seq(
 ## Usage
 
 ```scala
+import zio.json._
+import zio.json.interop.http4s._
 
 final case class Greeting(greeting: String)
 

@@ -7,6 +7,7 @@ Sequential combinators such as `ZIO#zip` and `ZIO.foreach` stop when they reach 
 In the following example, we can see that the `ZIO#zip` operator will fail as soon as it reaches the first failure. As a result, we only see the first error in the stack trace:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val f1: ZIO[Any, Nothing, Int] = ZIO.succeed(1)
@@ -31,6 +32,7 @@ object MainApp extends ZIOAppDefault {
 There is also the `ZIO.foreach` operator that takes a collection and an effectful operation, then tries to apply the transformation to all elements of the collection. This operator also has the same error management behavior. It fails when it encounters the first error:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val myApp: ZIO[Any, String, List[Int]] =
@@ -66,6 +68,7 @@ trait ZIO[-R, +E, +A] {
 If any of effecful operations doesn't fail, it results like the `zip` operator. Otherwise, when it reaches the first error it won't stop, instead, it will continue the zip operation until reach the final effect while combining:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val f1 = ZIO.succeed(1).debug
@@ -94,6 +97,7 @@ object MainApp extends ZIOAppDefault {
 The `ZIO#validatePar` operator is similar to the `ZIO#validate` operator zips two effects but in parallel. As this operator doesn't fail fast, unlike the `ZIO#zipPar` if it reaches a failure, it won't interrupt another running effect. If both effects fail, it will combine their causes with `Cause.Both`:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val f1 = ZIO.succeed(1).debug
@@ -144,6 +148,7 @@ Another difference is that this operator is lossy, which means if there are erro
 In the lossy scenario, it will collect all errors in the error channel, which cause the failure:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val res: ZIO[Any, ::[String], List[Int]] =
@@ -166,6 +171,7 @@ object MainApp extends ZIOAppDefault {
 In the success scenario when we have no errors at all, all the successes will be collected in the success channel:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val res: ZIO[Any, ::[String], List[Int]] =
@@ -202,6 +208,7 @@ object ZIO {
 In the failure scenario, it will collect all errors in the failure channel, and it causes the failure:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val res: ZIO[Any, List[String], Int] =
@@ -223,6 +230,7 @@ object MainApp extends ZIOAppDefault {
 In the success scenario it will return the first success value:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val res: ZIO[Any, List[String], Int] =
@@ -256,6 +264,7 @@ Note that this operator is an unexceptional effect, which means the type of the 
 Let's try an example of collecting even numbers from the range of 0 to 7:
 
 ```scala
+import zio._
 
 val res: ZIO[Any, Nothing, (Iterable[String], Iterable[Int])] =
   ZIO.partition(List.range(0, 7)){ n =>

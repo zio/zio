@@ -44,6 +44,7 @@ To demonstrate this, let's try an example. In this example, instead of using the
 First, we need a counter service like the below:
 
 ```scala
+import zio._
 
 case class Counter(value: Ref[Int]) {
   def inc: UIO[Unit] = value.update(_ + 1)
@@ -64,6 +65,8 @@ object Counter {
 We use this service to count the number of times the tests are executed, by calling the `Counter.inc` operator after each test:
 
 ```scala
+import zio._
+import zio.test._
 
 object MySpecs extends ZIOSpecDefault {
   def spec = {

@@ -11,6 +11,7 @@ Scala types at compile time, a `DynamicOptic` is a sequence of **navigation step
 applied at runtime:
 
 ```scala
+import zio.blocks.schema._
 
 // Build a path: .users[0].name
 val path = DynamicOptic.root.field("users").at(0).field("name")
@@ -108,6 +109,7 @@ Key design decisions:
 Every `DynamicOptic` starts from `root` (the identity/empty path) or one of the pre-built singletons:
 
 ```scala
+import zio.blocks.schema.DynamicOptic
 
 val root = DynamicOptic.root // empty path: "."
 val elems = DynamicOptic.elements // "[*]"
@@ -121,6 +123,7 @@ val inner = DynamicOptic.wrapped // ".~"
 Chain builder methods on `DynamicOptic.root` (or any existing optic) to construct paths fluently:
 
 ```scala
+import zio.blocks.schema._
 
 // Navigate into a record field, then a sequence index, then another field
 val path = DynamicOptic.root.field("users").at(0).field("name")
@@ -160,6 +163,7 @@ The [`p"..."` path interpolator](../path-interpolator.md) provides a concise com
 `DynamicOptic` values:
 
 ```scala
+import zio.blocks.schema._
 
 // Equivalent builder vs interpolator
 val builderPath     : DynamicOptic = DynamicOptic.root.field("users").at(0).field("name")
@@ -186,6 +190,7 @@ See [Path Interpolator](../path-interpolator.md) for the full syntax reference.
 Every typed `Optic[S, A]` can be converted to a `DynamicOptic` via `toDynamic`:
 
 ```scala
+import zio.blocks.schema._
 
 case class Address(street: String, city: String)
 
@@ -217,6 +222,7 @@ See [Optics](./optics.md) for more on typed optics.
 `DynamicOptic` values compose via the `apply` method, which concatenates their node sequences:
 
 ```scala
+import zio.blocks.schema._
 
 val users = DynamicOptic.root.field("users")
 val first = DynamicOptic.root.at(0)
@@ -242,6 +248,7 @@ val emails = users(p"[*].email")
 For example, the `DynamicValue#get` method uses `DynamicOptic` to navigate and extract values:
 
 ```scala
+import zio.blocks.schema._
 
 val data = DynamicValue.Record(
   "users" -> DynamicValue.Sequence(
@@ -267,6 +274,7 @@ metaprogramming.
 1. The `Schema#get` method takes a `DynamicOptic` path and returns the `Reflect` for the nested component at that path, if it exists. This allows you to programmatically explore the structure of a schema:
 
 ```scala
+import zio.blocks.schema._
 
 case class Address(street: String, city: String)
 
@@ -288,6 +296,7 @@ val streetReflect: Option[Reflect.Bound[?]] =
 2. The `DynamicSchema#get` method works similarly, allowing you to navigate a `DynamicSchema` structure:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 
@@ -304,6 +313,7 @@ val nameReflect: Option[Reflect.Unbound[_]] =
 3. By applying a `DynamicOptic` directly to a `Reflect` value, you can navigate the reflected structure of a type:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 
@@ -377,6 +387,7 @@ expected Email, but got Push
 `DynamicOptic` has an implicit `Schema[DynamicOptic]` defined in its companion object, which means it can be serialized and deserialized just like any other schema-equipped type. This enables storing optic paths in databases, sending them over the wire, or including them in configuration files:
 
 ```scala
+import zio.blocks.schema._
 
 // Schema[DynamicOptic] is available implicitly
 val opticSchema: Schema[DynamicOptic] = Schema[DynamicOptic]

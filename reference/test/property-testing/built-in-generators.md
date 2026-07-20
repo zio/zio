@@ -11,6 +11,8 @@ ZIO Test provides generators for primitive types such as `Gen.int`, `Gen.string`
 Let's create an `Int` generator:
 
 ```scala
+import zio._
+import zio.test._
 
 val intGen: Gen[Any, Int] = Gen.int
 ```
@@ -85,6 +87,7 @@ Note that there is an empty generator called `Gen.empty`, which generates no val
 1. `Gen.elements` — Constructs a non-deterministic generator that only generates randomly from the fixed values:
 
 ```scala
+import java.time._
 
 Gen.elements(
   DayOfWeek.MONDAY,
@@ -174,6 +177,7 @@ val genCommands: Gen[Any, List[Command]] =
 We are now ready to test the generated list of commands:
 
 ```scala
+import zio.test.{ test, _ }
 
 test("unfoldGen") {
   check(genCommands) { commands =>
@@ -312,6 +316,8 @@ val func2: Gen[Any, (Int, Int) => Int] = Gen.function2(Gen.int)
 Now we can test this property:
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 test("ZIO.foldLeft should have the same result with List.foldLeft") {
   check(Gen.listOf(Gen.int), Gen.int, func2) { case (in, zero, f) =>
@@ -356,7 +362,7 @@ test("ZIO.foldLeft should have the same result with List.foldLeft") {
 Let's see some example of chained ZIO effects:
 
   ```scala mdoc:compile-only
-
+  import zio._
   val effect1 = ZIO(2).flatMap(x => ZIO(x * 2))
   val effect2 = ZIO(1) *> ZIO(2)
   ```

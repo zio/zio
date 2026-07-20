@@ -9,6 +9,8 @@
 Creating an empty `TArray`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val emptyTArray: STM[Nothing, TArray[Int]] = TArray.empty[Int]
 ```
@@ -16,6 +18,8 @@ val emptyTArray: STM[Nothing, TArray[Int]] = TArray.empty[Int]
 Or creating a `TArray` with specified values:
 
 ```scala
+import zio._
+import zio.stm._
 
 val specifiedValuesTArray: STM[Nothing, TArray[Int]] = TArray.make(1, 2, 3)
 ```
@@ -23,6 +27,8 @@ val specifiedValuesTArray: STM[Nothing, TArray[Int]] = TArray.make(1, 2, 3)
 Alternatively, you can create a `TArray` by providing a collection of values:
 
 ```scala
+import zio._
+import zio.stm._
 
 val iterableTArray: STM[Nothing, TArray[Int]] = TArray.fromIterable(List(1, 2, 3))
 ```
@@ -32,6 +38,8 @@ val iterableTArray: STM[Nothing, TArray[Int]] = TArray.fromIterable(List(1, 2, 3
 The n-th element of the array can be obtained as follows:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tArrayGetElem: UIO[Int] = (for {
   tArray <- TArray.make(1, 2, 3, 4)
@@ -46,6 +54,8 @@ Accessing the non-existing indexes aborts the transaction with `ArrayIndexOutOfB
 Updating the n-th element of an array can be done as follows:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tArrayUpdateElem: UIO[TArray[Int]] = (for {
   tArray <- TArray.make(1, 2, 3, 4)
@@ -56,6 +66,8 @@ val tArrayUpdateElem: UIO[TArray[Int]] = (for {
 Updating the n-th element of an array can be done effectfully via `updateSTM`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tArrayUpdateMElem: UIO[TArray[Int]] = (for {
   tArray <- TArray.make(1, 2, 3, 4)
@@ -70,6 +82,8 @@ Updating the non-existing indexes aborts the transaction with `ArrayIndexOutOfBo
 The transform function `A => A` allows computing a new value for every element in the array: 
 
 ```scala
+import zio._
+import zio.stm._
 
 val transformTArray: UIO[TArray[Int]] = (for {
   tArray <- TArray.make(1, 2, 3, 4)
@@ -80,6 +94,8 @@ val transformTArray: UIO[TArray[Int]] = (for {
 The elements can be mapped effectfully via `transformSTM`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val transformSTMTArray: UIO[TArray[Int]] = (for {
   tArray <- TArray.make(1, 2, 3, 4)
@@ -90,6 +106,8 @@ val transformSTMTArray: UIO[TArray[Int]] = (for {
 Folds the elements of a `TArray` using the specified associative binary operator:
 
 ```scala
+import zio._
+import zio.stm._
 
 val foldTArray: UIO[Int] = (for {
   tArray <- TArray.make(1, 2, 3, 4)
@@ -100,6 +118,8 @@ val foldTArray: UIO[Int] = (for {
 The elements can be folded effectfully via `foldSTM`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val foldSTMTArray: UIO[Int] = (for {
   tArray <- TArray.make(1, 2, 3, 4)
@@ -112,6 +132,8 @@ val foldSTMTArray: UIO[Int] = (for {
 `foreach` is used for performing an STM effect for each element in the array:
 
 ```scala
+import zio._
+import zio.stm._
 
 val foreachTArray = (for {
   tArray <- TArray.make(1, 2, 3, 4)

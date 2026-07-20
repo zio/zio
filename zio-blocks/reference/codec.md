@@ -23,6 +23,8 @@ End users rarely interact with `Codec` directly. Instead, they work with format-
 Given a `Schema[A]`, you can derive a codec for any supported format by calling `Schema[A].derive(format)`, which uses the `Deriver` associated with that format to generate the appropriate codec instance. For example, to derive a JSON codec:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 case class Person(name: String, age: Int)
 
@@ -110,6 +112,8 @@ All built-in serialization formats (JSON, Avro, TOON, MessagePack, Thrift) exten
 The primary way to obtain a codec is through `Schema[A].derive`:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -123,6 +127,9 @@ val jsonCodec: JsonCodec[Person] = Schema[Person].derive(JsonFormat)
 This works with any format:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
+import zio.blocks.schema.toon._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -138,6 +145,8 @@ val toonCodec = Schema[Person].derive(ToonFormat)
 For more control over the derived codec, use `deriving` to get a `DerivationBuilder`. This lets you override instances for specific substructures or inject modifiers before finalizing:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 case class Person(name: String, age: Int)
 object Person extends CompanionOptics[Person] {
@@ -163,6 +172,9 @@ val codec: JsonCodec[Person] = Schema[Person]
 `Schema` also provides `decode` and `encode` methods that internally call `derive` (with caching) and then delegate to the codec:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
+import java.nio.ByteBuffer
 
 case class Person(name: String, age: Int)
 object Person {
@@ -183,6 +195,8 @@ val result: Either[SchemaError, Person] = Schema[Person].decode(JsonFormat)(buff
 Each `Format` object contains a `Deriver[TC]` that can also be passed to `derive`:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -205,6 +219,8 @@ While the base `Codec` class defines only `encode(value, output)` and `decode(in
 `JsonCodec[A]` provides the following overloads beyond the base `ByteBuffer` API:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -224,6 +240,7 @@ val jsonStr: String = codec.encodeToString(person)
 val fromStr: Either[SchemaError, Person] = codec.decode("""{"name":"Alice","age":30}""")
 
 // InputStream / OutputStream
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
 val os = new ByteArrayOutputStream()
 codec.encode(person, os)
@@ -237,6 +254,8 @@ val fromStream: Either[SchemaError, Person] = codec.decode(is)
 `ToonCodec[A]` provides the same set of overloads:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.toon._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -280,6 +299,8 @@ Format-specific derivers support configuration options that control encoding beh
 ### JSON Configuration
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 case class Person(
   firstName: String,
@@ -320,6 +341,8 @@ val json = codec.encodeToString(Person("Alice", "Smith"))
 ### TOON Configuration
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.toon._
 
 case class Person(
   firstName: String,
@@ -343,6 +366,8 @@ val codec = Schema[Person].derive(customDeriver)
 All `decode` operations return `Either[SchemaError, A]`. `SchemaError` includes path information that pinpoints where in the data structure decoding failed:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 case class Address(street: String, city: String)
 

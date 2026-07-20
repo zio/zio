@@ -49,6 +49,7 @@ By using `ensuring`/`onExit` in our ZIO application, we are explicitly specifyin
 The overall process is like this:
 
 ```scala
+import zio._
 
 object GracefulShutdownExample extends ZIOAppDefault {
 

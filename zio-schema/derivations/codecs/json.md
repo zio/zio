@@ -27,6 +27,9 @@ object JsonCodec {
 Let's try an example to see how it works:
 
 ```scala
+import zio._
+import zio.json._
+import zio.schema.{DeriveSchema, Schema}
 
 case class Person(name: String, age: Int)
 
@@ -62,6 +65,9 @@ object JsonCodec {
 Let's try an example:
 
 ```scala
+import zio._
+import zio.schema.codec.BinaryCodec
+import zio.schema.{DeriveSchema, Schema}
 
 case class Person(name: String, age: Int)
 

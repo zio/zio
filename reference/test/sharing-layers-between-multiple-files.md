@@ -15,6 +15,7 @@ When layers of the same type are defined at the class level within different tes
 Before we start, let's remember the `Counter` service in the previous [section](sharing-layers-within-the-same-file.md):
 
 ```scala
+import zio._
 
 case class Counter(value: Ref[Int]) {
   def inc: UIO[Unit] = value.update(_ + 1)
@@ -35,6 +36,8 @@ object Counter {
 Now, let's assume we have two specs in different files, and we want to share the `Counter` service between them. First, we need to create a base class that contains the shared bootstrap layer:
 
 ```scala
+import zio._
+import zio.test._
 
 abstract class SharedCounterSpec extends ZIOSpec[Counter] {
   override val bootstrap: ZLayer[Any, Nothing, Counter] = Counter.layer
@@ -46,6 +49,8 @@ Now it's time to create the specs. Each spec is extending the `SharedCounterSpec
 Spec1.scala:
 
 ```scala
+import zio._
+import zio.test._
 
 object Spec1 extends SharedCounterSpec {
   override def spec =
@@ -58,6 +63,8 @@ object Spec1 extends SharedCounterSpec {
 Spec2.scala:
 
 ```scala
+import zio._
+import zio.test._
 
 object Spec2 extends SharedCounterSpec {
   override def spec: Spec[Scope with Counter, Any] =

@@ -29,6 +29,8 @@ object DeriveGen {
 In the following example, we will derive a generator for the `Person` class using the `DeriveGen.gen` operator:
 
 ```scala
+import zio.schema.{DeriveGen, DeriveSchema, Schema}
+import zio.test.{Gen, Sized}
 
 case class Person(name: String, age: Int)
 
@@ -36,6 +38,8 @@ object Person {
   implicit val schema: Schema[Person] = DeriveSchema.gen
   val gen: Gen[Sized, Person]         = DeriveGen.gen
 }
+
+import zio.test._
 
 object ExampleSpec extends ZIOSpecDefault {
   def spec =

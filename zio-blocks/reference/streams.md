@@ -35,6 +35,8 @@ Key properties:
 ## Quick start
 
 ```scala
+import zio.blocks.streams.*
+import zio.blocks.chunk.Chunk
 
 // Create a stream, transform it, consume it
 val result: Either[Nothing, Chunk[Int]] =
@@ -260,8 +262,10 @@ You interact with `Reader` in two situations:
 2. **Manual pull** -- open a stream for element-by-element control via `stream.start`
 
 ```scala
+import zio.blocks.scope.*
 
 Scope.global.scoped { scope =>
+  import scope.*
 
   // Open a stream for manual pulling
   val reader: $[Reader[Int]] = Stream.range(1, 6).start(using scope)
@@ -317,6 +321,8 @@ Streams integrate with `zio.blocks.scope.Scope` for deterministic finalization. 
 The primary resource-safe constructor. Acquires a resource, uses it to produce a stream, and guarantees the release function runs on close:
 
 ```scala
+import java.io.BufferedReader
+import java.io.FileReader
 
 val lines: Stream[Nothing, String] =
   Stream.fromAcquireRelease(
@@ -351,6 +357,7 @@ val lines: Stream[Nothing, String] =
 Integrates with `zio.blocks.scope.Resource` directly:
 
 ```scala
+import zio.blocks.scope.Resource
 
 val resource: Resource[BufferedReader] =
   Resource.fromAutoCloseable(new BufferedReader(new FileReader("data.txt")))
@@ -382,9 +389,10 @@ val withDefer: Stream[Nothing, Int] =
 For manual pull-based consumption with scope-managed lifetime:
 
 ```scala
+import zio.blocks.scope.*
 
 Scope.global.scoped { scope =>
-
+  import scope.*
   val reader = Stream.range(1, 100).start(using scope)
   // reader is automatically closed when scope exits
 }
@@ -397,6 +405,8 @@ Scope.global.scoped { scope =>
 ### Creating streams
 
 ```scala
+import zio.blocks.streams.*
+import zio.blocks.chunk.Chunk
 
 // From explicit elements
 Stream(1, 2, 3)                              // Stream[Nothing, Int]
@@ -641,6 +651,8 @@ val handled = risky.catchDefect {
 ### Resource safety patterns
 
 ```scala
+import zio.blocks.streams.*
+import zio.blocks.scope.*
 
 // Bracket pattern: acquire/use/release
 def fileLines(path: String): Stream[Nothing, String] =
@@ -681,6 +693,10 @@ On the JVM, `NioStreams` and `NioSinks` provide zero-copy integration with `java
 #### `NioStreams` -- creating streams from NIO sources
 
 ```scala
+import zio.blocks.streams.*
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.file.{Paths, StandardOpenOption}
 
 // From a ByteBuffer
 val buf = ByteBuffer.wrap(Array[Byte](1, 2, 3, 4, 5))
@@ -708,6 +724,9 @@ ch2.close() // caller is responsible for closing
 #### `NioSinks` -- writing to NIO targets
 
 ```scala
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
+import java.nio.file.{Paths, StandardOpenOption}
 
 // Write to a ByteBuffer
 val outBuf = ByteBuffer.allocate(1024)
@@ -731,6 +750,7 @@ outCh.close()
 ### Pipeline composition
 
 ```scala
+import zio.blocks.streams.*
 
 // Build reusable transformation steps
 val parseInts: Pipeline[String, Int] =

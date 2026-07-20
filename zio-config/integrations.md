@@ -29,6 +29,7 @@ Zio-config can directly load it from enumeratum's `enum` without relying on auto
   }
 
   // Load using zio-config
+  import zio.config.enumeratum._
 
   val mapProvider =
     ConfigProvider.fromMap(Map(
@@ -55,6 +56,9 @@ This is a simple example to showcase the capability.
 
 ```scala
 
+  import _root_.scalaz._, Scalaz._
+  import zio.config.scalaz.instances._
+
  // Across the application, there can be various effect types, but there is only one addition!
  def add[F[_]: Applicative, A: Monoid](primary: F[A], secondary: F[A]): F[A] =
     primary.<*>(Applicative[F].map(secondary)(secondary => (primary: A) => primary.mappend(secondary)))
@@ -72,6 +76,10 @@ In addition to it, it can also load cats/scalaz specific datatypes
 
 ```scala
 
+  import zio.config.scalaz._
+  import _root_.scalaz.Maybe
+
+  
   val config: Config[Maybe[Int]] = maybe(Config.int("age"))
   
 ```

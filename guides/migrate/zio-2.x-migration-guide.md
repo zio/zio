@@ -57,6 +57,7 @@ trait ZIO[-R, +E, +A] {
 Assume we have written the `FooLibrary` as below:
 
 ```scala
+import zio._
 
 object FooLibrary {
   def foo = bar.flatMap(x => ZIO.succeed(x * 2))  // line 4
@@ -68,6 +69,7 @@ object FooLibrary {
 Without _implicit trace parameter_, the user of our library will get so many unrelated stack trace messages:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run = FooLibrary.foo
@@ -81,6 +83,7 @@ object MainApp extends ZIOAppDefault {
 To avoid messing up our user's execution trace, we should add implicit trace parameters to our methods:
 
 ```scala
+import zio._
 
 object FooLibrary {
   def foo(implicit trace: Trace) = bar.flatMap(x => ZIO.succeed(x * 2))
@@ -169,6 +172,7 @@ Using the following code snippet, we demonstrate how we used to access and provi
 
 ```scala
 // ZIO 1.x
+import zio._
 
 case class Config(url: String, port: Int)
 
@@ -189,6 +193,7 @@ To migrate this snippet to ZIO 2.x, we need to remove all the `Has` service wrap
 
 ```scala
 // ZIO 2.x
+import zio._
 
 case class Config(url: String, port: Int)
 
@@ -521,6 +526,12 @@ In ZIO 1.x we used default ZIO services such as `Clock`, `Console`, `Random`, an
 For example, in ZIO 1.x, we have the following boilerplate code to print random numbers every second. The environment type of the `myApp` effect is `Console with Clock with Random`:
 
 ```scala
+import zio._
+import zio.clock.Clock
+import zio.duration.durationInt
+import zio.random.Random
+import java.io.IOException
+import zio.console._
 
 object MainApp extends App {
   val myApp: ZIO[Clock with Console with Random, IOException, Unit] =
@@ -543,6 +554,9 @@ To improve on this, in ZIO 2.x, we deleted default services from the environment
 Therefore, the previous example In ZIO 2.x can be rewritten very simply as below:
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 object MainApp extends App {
   val myApp: ZIO[Any, IOException, Unit] =
@@ -599,6 +613,7 @@ For example:
   - `ZIO.withSystem`/`ZIO.withSystemScoped`
 
 ```scala
+import zio._
 
 object MyClockLive extends Clock {
   ... 
@@ -616,6 +631,8 @@ ZIO.withClock(MyClockLive)(effect)
 6. In ZIO some services have an alternative implementation rather than the default one. In ZIO 1.x, the default implementation of these services was provided by the environment. So when we wanted to use the default implementation, we didn't have to provide them explicitly at the end of the world. But in case we wanted to use an alternative implementation, we had to provide them explicitly. For example, to use the java implementation of `Clock`, we had to provide the `Clock.javaClock` layer:
 
 ```scala
+import zio._
+import zio.clock.Clock
 
 object MainApp extends App {
   def run(args: List[String]) =
@@ -634,6 +651,7 @@ object MainApp extends App {
 By removal of default services from the environment, their corresponding layers were removed. So we should call them directly as follows:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -659,6 +677,8 @@ The same approach applies to the `Random` service:
 In ZIO 1.x, we were used to writing ZIO applications using the `zio.App` trait:
 
 ```scala
+import zio.App
+import zio.Console._
 
 object MyApp extends zio.App {
   def run(args: List[String]) = 
@@ -669,6 +689,8 @@ object MyApp extends zio.App {
 Now in ZIO 2.x, the `zio.App` trait is deprecated and, we have the `zio.ZIOAppDefault` trait which is simpler than the former approach (Note that the `ZApp` is also deprecated, and we should use the `ZIOAppDefault` instead):
 
 ```scala
+import zio.ZIOAppDefault
+import zio.Console._
 
 object MyApp extends ZIOAppDefault {
   def run =
@@ -718,6 +740,7 @@ trait Runtime[+R] {
 For example, if we wanted to integrate a ZIO workflow with a legacy unsafe code, we used to write something like this:
 
 ```scala
+import zio._
 
 object MainApp {
   val zioWorkflow: ZIO[Any, Nothing, Int] = ???
@@ -754,6 +777,7 @@ trait Runtime[+R] { self =>
 So to migrate the previous code to ZIO 2.x, we need to use the `Unsafe` data type like below:
 
 ```diff
+import zio._
 
 object MainApp {
   val zioWorkflow: ZIO[Any, Nothing, Int] = ???
@@ -786,6 +810,7 @@ Unsafe.unsafely {
 If we want to support Scala 2 we need to use a slightly more verbose syntax with `unsafe` and a lambda that takes an implicit value of `Unsafe`:
 
 ```scala
+import zio._
 
 Unsafe.unsafe { implicit unsafe =>
   Runtime.default.unsafe.run(Console.printLine("Hello, World!"))
@@ -849,6 +874,9 @@ Using the `addObserver` method, we can add a callback function of type `Exit[E, 
 
 ```scala
 // ZIO 1.x
+import zio._
+import zio.console._
+import zio.duration._
 
 Runtime.default.unsafeRunAsync(
   console.putStrLn("After 3 seconds I will return 5").delay(3.seconds).as(5)
@@ -864,6 +892,7 @@ We can rewrite it in ZIO 2.x as follows:
 
 ```scala
 // ZIO 2.x
+import zio._
 
 Unsafe.unsafe { implicit unsafe =>
   Runtime.default.unsafe
@@ -906,6 +935,8 @@ In ZIO 1.x, we had the `Platform` data type useful for providing custom executio
 Here is an example of creating a custom `Runtime` in ZIO 1.x:
 
 ```scala
+import zio._
+import zio.internal.Executor
 
 object MainApp extends zio.App {
   val customExecutor: Executor = ???
@@ -939,6 +970,7 @@ In ZIO 2.x, the whole `Platform` was deleted and instead, we have several out-of
 Let's see how a previous example can be rewritten in ZIO 2.x:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val customExecutor: zio.Executor = ???
@@ -967,6 +999,7 @@ To access information about the configuration of our ZIO program as we are runni
 When we access a `Runtime` using `ZIO.runtime` it will inherit all the configuration of the current workflow so if we use it to run effects they will be run with the same logger and so on:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val workflow1 = ZIO.debug("workflow1 is running") *> ZIO.log("This line will never get logged")
@@ -988,6 +1021,7 @@ object MainApp extends ZIOAppDefault {
 In ZIO 2.x, to create a custom runtime in mixed applications we combine all the layers that do our customization and then perform the `Runtime.unsafe.fromLayer` operation:
 
 ```scala
+import zio._
 
 object MainApp {
   val sl4jlogger: ZLogger[String, Any] = ???
@@ -1036,6 +1070,10 @@ So if we run the following code if the `ioBoundWorkflow` starts executing before
 
 ```scala
 // ZIO 1.x
+import zio._
+import zio.duration.durationInt
+
+import scala.annotation.tailrec
 
 object MainApp extends App {
 
@@ -1073,6 +1111,9 @@ But the one thing that makes ZIO 2.x more powerful than ZIO 1.x is that if the p
 
 ```scala
 // ZIO 2.x
+import zio._
+
+import scala.annotation.tailrec
 
 object MainApp extends ZIOAppDefault {
 
@@ -1400,6 +1441,7 @@ In ZIO 1.x, if we mistakenly forget to provide some requirements, we have some c
 
 ```scala
 // ZIO 1.x
+import zio._
 
 case class Config(host: String, port: Int)
 
@@ -1434,6 +1476,7 @@ myApp.exitCode
 In ZIO 2.x, we have descriptive errors. Let's try the above example in ZIO 2.x:
 
 ```scala
+import zio._
 
 case class Config(host: String, port: Int)
 
@@ -1478,6 +1521,7 @@ This will print the following error message:
 It also warns if we provide more layers than needed:
 
 ```scala
+import zio._
 
 case class Config(host: String, port: Int)
 
@@ -1551,6 +1595,7 @@ In this example, by applying the `fooLayer` to the `fooWithBarWithBaz` effect it
 Furthermore, we can compose multiple layers together and then eliminate services from the environmental effects:
 
 ```scala
+import zio._
 
 trait Foo
 trait Bar
@@ -1580,6 +1625,7 @@ object MainApp extends ZIOAppDefault {
 It helps us to provide contextual environments like the DSL below:
 
 ```scala
+import zio._
 
 trait Connection
 
@@ -1679,6 +1725,8 @@ Now, here is the implementation of the `Baz` service based on the _Service Patte
 
 ```scala
 // ZIO 2.x
+
+import zio._
 
 // Defining the Service Interface
 trait Baz {
@@ -1924,6 +1972,10 @@ val effect: ZIO[Any, IOException, FileInputStream] = ???
 Finally, let's try a full example of converting a ZManaged codebase to the Scoped one. Assume we have written the following `transfer` function in ZIO 1.x using `ZManaged`:
 
 ```scala
+import zio._
+import zio.blocking._
+
+import java.io._
 
 def close(resource: Closeable): URIO[Blocking, Unit] =
   effectBlockingIO(resource.close()).orDie
@@ -1962,6 +2014,9 @@ def transfer(from: String, to: String): ZIO[Blocking, IOException, Unit] = {
 As of ZIO 2.x, we should rewrite it as follows:
 
 ```scala
+import zio._
+
+import java.io._
 
 def close(resource: Closeable): UIO[Unit] =
   ZIO.attempt(resource.close()).orDie
@@ -2091,6 +2146,7 @@ In ZIO 2.x, sharing layers is much simpler.
 Use `ZIOSpec[YourSharedType]` and plug your layer into the `bootstrap` field.
 
 ```scala
+import zio.test._
 
 class SharedService()
 
@@ -2126,7 +2182,7 @@ in order to run the tests.
 Note - If you assign the results of a function call to `bootstrap`, like this:
 
 ```scala
-
+import zio.test._
 class SharedService()
 
 object LayerBuilder {
@@ -2434,6 +2490,7 @@ Every data type in ZIO (`ZIO`, `ZStream`, etc.) has a variety of constructor fun
 While these are precise, ZIO 2.0 provides the `ZIO.from` constructor which can intelligently choose the most likely constructor based on the input type. So instead of writing `ZIO.fromEither(Right(3))` we can easily write `ZIO.from(Right(3))`. Let's try some of them:
 
 ```scala
+import zio.stream.ZStream
 
 ZIO.fromOption(Some("Ok!"))
 ZIO.from(Some("Ok!"))
@@ -2469,6 +2526,7 @@ sealed trait ZState[S] {
 We can `set`, `get`, and `update` the state which is part of the ZIO environment using `ZIO.setState`, `ZIO.getState`, and `ZIO.updateState` operations:
 
 ```scala
+import zio._
 
 object ZStateExample extends zio.ZIOAppDefault {
   final case class MyState(counter: Int)
@@ -2593,6 +2651,8 @@ ZIO 1.x's execution trace is not as useful as it could be, because it contains t
 Let's say we have the following application in ZIO 1.x:
 
 ```scala
+import zio._
+import zio.console.Console
 
 object TracingExample extends zio.App {
 
@@ -2656,6 +2716,7 @@ The execution trace is informative, but it doesn't lead us to the exact point, w
 Let's rewrite the previous example in ZIO 2.x:
 
 ```scala
+import zio._
 
 object TracingExample extends ZIOAppDefault {
 

@@ -61,6 +61,7 @@ Basic operations are provided to manipulate the values in the `ConcurrentSet`:
 Given:
 
 ```scala
+import zio.concurrent.ConcurrentSet
 
 for {
   emptySet  <- ConcurrentSet.empty[Int] 

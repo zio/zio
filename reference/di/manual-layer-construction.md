@@ -19,6 +19,7 @@ Layers can be composed together horizontally with the `++` operator. When we com
 We can compose `fooLayer` and `barLayer` _horizontally_ to build a layer that has the requirements of both, to provide the capabilities of both, through `fooLayer ++ barLayer`:
 
 ```scala
+import zio._
 
 val fooLayer: ZLayer[A, Throwable, B] = ???        // A ==> B
 val barLayer: ZLayer[C, Nothing  , D] = ???        // C ==> D
@@ -34,6 +35,7 @@ We can also compose layers _vertically_ using the `>>>` operator, meaning the ou
 For example if we have a layer that requires `A` and produces `B`, we can compose this with another layer that requires `B` and produces `C`; this composition produces a layer that requires `A` and produces `C`. The feed operator, `>>>`, stack them on top of each other by using vertical composition. This sort of composition is like _function composition_, feeding an output of one layer to an input of another:
 
 ```scala
+import zio._
 
 val fooLayer: ZLayer[A, Throwable, B] = ???  // A ==> B
 val barLayer: ZLayer[B, Nothing  , C] = ???  // B ==> C
@@ -47,6 +49,7 @@ val horizontal: ZLayer[A, Throwable, C] =    // A ==> C
 ZLayer has a `passthrough` operator which returns a new layer that produces the outputs of this layer but also passes-through the inputs:
 
 ```scala
+import zio._
 
 val fooLayer: ZLayer[A, Nothing, B] = ???  // A ==> B
 
@@ -65,6 +68,7 @@ By default, the `ZLayer` hides intermediate dependencies when composing vertical
 Let's include the `B` service into the upstream dependencies of the final layer using the `ZIO.service[B]`. We can think of `ZIO.service[B]` as an _identity function_ (`B ==> B`).
 
 ```scala
+import zio._
 
 val fooLayer: ZLayer[A, Throwable, B] = ???  // A  ==> B
 val barLayer: ZLayer[B, Throwable, C] = ???  // B  ==> C
@@ -80,6 +84,7 @@ val finalLayer: ZLayer[A & B, Throwable, C] = // A & B ==> C
 Or we may want to include the middle services in the output channel of the final layer, resulting in a new layer with the inputs of the first layer and the outputs of both layers:
 
 ```scala
+import zio._
 
 val fooLayer: ZLayer[A, Throwable, B] = ??? // A  ==> B
 val barLayer: ZLayer[B, Throwable, C] = ??? // B  ==> C
@@ -95,6 +100,7 @@ val finalLayer: ZLayer[A, Throwable, B & C] = // A ==> B & C
 We can do the same with the `>+>` operator:
 
 ```scala
+import zio._
 
 val fooLayer: ZLayer[A, Throwable, B] = ??? // A  ==> B
 val barLayer: ZLayer[B, Throwable, C] = ??? // B  ==> C
@@ -106,6 +112,7 @@ val finalLayer: ZLayer[A, Throwable, B & C] = // A ==> B & C
 This technique is useful when we want to defer the creation of some intermediate services and require them as part of the input of the final layer. For example, assume we have these two layers:
 
 ```scala
+import zio._
 
 val fooLayer: ZLayer[A    , Throwable, B] = ???   // A     ==> B
 val barLayer: ZLayer[B & C, Throwable, D] = ???   // B & C ==> D
@@ -117,6 +124,7 @@ val finalLayer: ZLayer[A & C, Throwable, D] = // A & C ==> B & D
 So we can defer the creation of the `C` layer using `ZLayer.service[C]`:
 
 ```scala
+import zio._
 
 val fooLayer: ZLayer[A    , Throwable, B] = ??? // A ==> B 
 val barLayer: ZLayer[B & C, Throwable, D] = ??? // B & C ==> D
@@ -132,6 +140,7 @@ val layer: ZLayer[A & C, Throwable, D] =        // A & C ==> D
 Here is an example in which we passthrough all requirements to bake a `Cake` so all the requirements are available to all the downstream services:
 
 ```scala
+import zio._
 
 trait Baker 
 trait Ingredients
@@ -170,6 +179,7 @@ Given a layer, it is possible to update one or more components it provides. We u
 1. **Using the `update` Method** — This method allows us to replace one requirement with a different implementation:
 
 ```scala
+import zio._
 
 val origin: ZLayer[Any, Nothing, String & Int & Double] = 
   ZLayer.succeedEnvironment(ZEnvironment[String, Int, Double]("foo", 123, 1.3))
@@ -182,6 +192,9 @@ val updated3 = origin.update[Double](_ - 0.3)
 Here is an example of updating a config layer:
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 case class AppConfig(poolSize: Int)
 
@@ -212,6 +225,7 @@ object MainApp extends ZIOAppDefault {
 2. **Using Horizontal Composition** — Another way to update a requirement is to horizontally compose in a layer that provides the updated service. The resulting composition will replace the old layer with the new one:
 
 ```scala
+import zio._
 
 val origin: ZLayer[Any, Nothing, String & Int & Double] =
   ZLayer.succeedEnvironment(ZEnvironment[String, Int, Double]("foo", 123, 1.3))
@@ -222,6 +236,9 @@ val updated = origin ++ ZLayer.succeed(321)
 Let's see an example of updating a config layer:
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 case class AppConfig(poolSize: Int)
 

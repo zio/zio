@@ -33,6 +33,7 @@ What it means to run the left value and then if it fails run the right value dep
 For `ZIO` the meaning is quite straightforward. The `orElseEither` operator runs the left `ZIO` workflow and returns its result if it succeeds, otherwise it runs the right `ZIO` workflow and returns its result.
 
 ```scala
+import zio._
 
 def orElseEither[R, E, A, B](left: => ZIO[R, E, A], right: => ZIO[R, E, B]): ZIO[R, E, Either[A, B]] =
   left.foldZIO(_ => right.map(b => Right(b)), a => ZIO.succeed(Left(a)))
@@ -75,6 +76,7 @@ Notice in both cases we did not need to evaluate the `right` value if the `left`
 Another interpretation of `orElseEither` comes from collections. Consider the following implementation of the `orElseEither` operator for `Chunk`.
 
 ```scala
+import zio.prelude._
 
 implicit val ChunkAssociativeEither: AssociativeEither[Chunk] =
   new AssociativeEither[Chunk] {

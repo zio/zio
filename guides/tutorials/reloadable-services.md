@@ -29,6 +29,7 @@ Most real-world services acquire resources when they start (open a file, establi
 To make this concrete, let's define a `Counter` service that *logs its own acquire and release events*. We will use this service throughout the tutorial because its output makes the lifecycle immediately visible:
 
 ```scala
+import zio._
 
 // The service interface.
 trait Counter {
@@ -60,6 +61,7 @@ Line-by-line:
 Let's verify the layer works on its own before adding `Reloadable`:
 
 ```scala
+import zio._
 
 trait Counter { def increment: UIO[Unit]; def get: UIO[Int] }
 
@@ -103,6 +105,7 @@ The acquire message appears before any work, and the release message appears whe
 `Reloadable[Service]` is a thin wrapper around any service that adds two capabilities: getting the current live instance, and replacing it with a freshly-built one at runtime. The simplest constructor is `Reloadable.manual`, which accepts any `ZLayer[In, E, Out]` and returns a `ZLayer[In, E, Reloadable[Out]]`:
 
 ```scala
+import zio._
 
 trait Counter { def increment: UIO[Unit]; def get: UIO[Int] }
 
@@ -136,6 +139,7 @@ Line-by-line:
 Once the environment holds a `Reloadable[Counter]`, we need a way to talk to the *currently live* `Counter`. `Reloadable.get[Counter]` is the accessor effect:
 
 ```scala
+import zio._
 
 trait Counter { def increment: UIO[Unit]; def get: UIO[Int] }
 
@@ -188,6 +192,7 @@ This is the core capability. `Reloadable.reload[Counter]` is a single effect tha
 The old instance is gone; the new one is in place. No caller can observe a half-torn-down service:
 
 ```scala
+import zio._
 
 trait Counter { def increment: UIO[Unit]; def get: UIO[Int] }
 
@@ -254,6 +259,7 @@ Try changing the code to call `Reloadable.reload[Counter]` a second time between
 Sometimes you want to trigger a reload without blocking the current fiber. `Reloadable.reloadFork[Counter]` forks the reload onto a daemon fiber and returns immediately. If the reload fails, the error is logged via `ignoreLogged` — it is neither swallowed silently nor allowed to crash the calling fiber:
 
 ```scala
+import zio._
 
 trait Counter { def increment: UIO[Unit]; def get: UIO[Int] }
 
@@ -314,6 +320,7 @@ The key observation is that `"Main fiber continues here"` can appear *before* th
 For many use cases — rotating credentials, refreshing caches, picking up config changes — you want reloads to happen automatically on a fixed schedule. `Reloadable.auto` accepts your original layer and a `Schedule`, then manages a background daemon fiber for you:
 
 ```scala
+import zio._
 
 trait Counter { def increment: UIO[Unit]; def get: UIO[Int] }
 
@@ -378,6 +385,7 @@ Line-by-line for `Reloadable.auto`:
 Here is a self-contained program that demonstrates all five concepts in one place:
 
 ```scala
+import zio._
 
 // ── Service definition ──────────────────────────────────────────────────────
 trait Counter {

@@ -21,6 +21,8 @@ Modifiers can be applied in two ways:
 1. **Programmatic API**: Using the `Schema#modifier` and `Schema#modifiers` methods to attach modifiers to the entire schema or, for field-level modifiers, attach them to specific fields using optics when deriving codecs. This approach keeps your domain types clean and allows you to separate schema configuration from your data model:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 // Clean domain type - zero dependencies
 case class User(
@@ -69,6 +71,8 @@ Please note that when deriving codecs, you can access these modifiers programmat
 2. **Annotation Syntax**: Using the `@` syntax to annotate fields and cases directly in your case classes and sealed traits. These annotations are processed during schema derivation to attach the corresponding modifiers to the schema elements. At runtime, you can access these modifiers through the `Reflect` structure of the schema.
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.Modifier._
 
 @Modifier.config("db.table-name", "users")
 case class User(
@@ -137,6 +141,7 @@ The `transient` modifier marks a field as transient, meaning it will be excluded
 The `rename` modifier changes the serialized name of a field or variant case. This is useful when the field name in your Scala code differs from the expected name in the serialized format.
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(
   @Modifier.rename("user_name") name: String,
@@ -151,6 +156,7 @@ object Person {
 You can also use `rename` on variant cases to customize the discriminator value:
 
 ```scala
+import zio.blocks.schema._
 
 sealed trait PaymentMethod
 
@@ -170,6 +176,7 @@ object PaymentMethod {
 The `alias` modifier provides an alternative name for a term during decoding. This is useful for supporting multiple names during schema evolution or data migration.
 
 ```scala
+import zio.blocks.schema._
 
 case class MyClass(
   @Modifier.rename("NewName")
@@ -194,6 +201,7 @@ This pattern is particularly useful when migrating data formats without breaking
 The `config` modifier attaches arbitrary key-value metadata to a term (record fields or variant cases) or a type itself. The convention for keys is `<format>.<property>`, allowing format-specific configuration.
 
 ```scala
+import zio.blocks.schema._
 
 case class Event(
   @Modifier.config("protobuf.field-id", "1") id: Long,
@@ -216,6 +224,7 @@ Reflect modifiers annotate reflect values (types themselves). Currently, only `c
 You can attach configuration to the type itself using the `Schema#modifier` method:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 
@@ -229,6 +238,7 @@ object Person {
 Or add multiple modifiers at once:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 
@@ -246,6 +256,7 @@ object Person {
 Or annotate the case class directly:
 
 ```scala
+import zio.blocks.schema._
 
 @Modifier.config("db.table-name", "person_table")
 @Modifier.config("schema.version", "v2")
@@ -261,6 +272,7 @@ object Person {
 You can access modifiers programmatically through the `Reflect` structure:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(
   @Modifier.rename("full_name") name: String,
@@ -288,6 +300,7 @@ reflect match {
 All modifier types have built-in `Schema` instances, enabling them to be serialized and deserialized:
 
 ```scala
+import zio.blocks.schema._
 
 // Schema instances for individual modifiers
 Schema[Modifier.transient]

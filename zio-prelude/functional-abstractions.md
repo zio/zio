@@ -1,292 +1,114 @@
 # Introduction
 
-> ZIO Prelude features a next generation approach to functional abstractions. This approach is based on the following ideas:
+> ZIO Prelude features a set of fundamental functional abstractions for working with concrete data types.
 
-ZIO Prelude features a next generation approach to functional abstractions. This approach is based on the following ideas:
+ZIO Prelude features a set of fundamental functional abstractions for working with concrete data types.
 
-1. **Algebraic** - Abstractions should describe fundamental algebraic properties.
-2. **Compositional** - These abstractions should describe properties that are orthogonal to each other, allowing definition of higher level abstractions as the composition of more basic ones.
-3. **Lawful** - Abstractions should be defined in terms of laws.
+These abstractions fall into two categories.
 
-The functional abstractions in ZIO Prelude can be broadly divided into two categories.
+## Properties Of Concrete Types
 
-- **[Abstractions For Concrete Types](concrete-types/index.md)** - These abstractions define properties of concrete types, such as `Int` and `String`, as well as ways of combining those values.
-- **[Abstractions For Parameterized Types](parameterized-types/index.md)** - These abstractions define properties of parameterized types such as `List` and `ZIO` and ways of combining them.
+The first set of abstractions describe different properties that values of a data type may have. For example, we may be able to compare them for equality, hash them, or order them.
 
-As we will see, there is a deep symmetry between the abstractions defined on concrete and parameterized types, such as concepts of _associative operations_, _commutative operations_, and _identity_. This reflects the fundamental nature of these algebraic properties and their ability to unify what were previously separate concepts.
+All of these properties can be thought of as functions `A => ???` or `(A, A) => ???`. They give us a way of taking one or more values of a data type and converting them into some other data type, whether that is a `Boolean` indicating whether two values are equal or an `Int` that is the result of hashing a single value.
 
-## Abstractions
+These properties are often already described in the Scala standard library in some way, but the abstractions in ZIO Prelude give us the tools to define them in ways that are more type safe, extensible, and compositional.
 
-An _abstraction_ describes some common structure that different data types share. In Scala, we can encode this using a trait that describes that common structure in terms of a set of operators as well as laws that those operators must follow.
+For example, the `Equal` type class prevents us from doing equality checks on unrelated types or types that do not have a meaningful definition of equality, which can be a source of bugs when using the `==` operator from the Scala standard library. We can also define these properties for data types that we do not control, for example providing a custom way of hashing a data type implemented by someone else.
 
-For example, we can think of many data types that share the structure of having an associative combining operation. Integer addition is associative, as is string concatenation and list concatenation, among others.
+### Equal
 
-We can describe this common structure using the `Associative` trait.
+The `Equal` abstraction describes a type that can be compared for equality. Its fundamental representation is as a function `(A, A) => Boolean`.
 
-```scala
-trait Associative[A] {
-  def combine(left: => A, right: => A): A
-}
-```
+The `Equal` abstraction allows us to define what it means for two instances of a type to be equal, avoiding pitfalls in Scala such as reference equality for arrays. It also lets us avoid bugs caused by accidentally comparing two unrelated types or checking equality for types such as functions that do not have well-defined notions of equality.
 
-We can then define various concrete values that extend this trait to describe how different data types share this common structure.
+### Ord
 
-```scala
-val IntAssociative: Associative[Int] =
-  new Associative[Int] {
-    def combine(left: => Int, right: => Int): Int =
-      left + right
-  }
-// IntAssociative: Associative[Int] = repl.MdocSession$MdocApp$$anon$1@28717b33
-```
+The `Ord` abstraction builds on the `Equal` abstraction and describes a type that has a total ordering. Its fundamental representation is as a function `(A, A) => Ordering`, where `Ordering` can either be `LessThan`, `EqualTo` or `GreaterThan`.
 
-Note however that the signature of the trait is not sufficient to define the abstraction.
+The `Ord` abstraction serves much the same purpose as the `Ordering` type class from the Scala standard library, but it has improved type inference due to its use of variance. It also integrates with the other functional abstractions in ZIO Prelude, so for example defining an ordering for a type also defines a way of comparing instances of that type for equality that is by definition consistent with the ordering.
 
-The signature merely says that we must take two `A` values and return an `A` value. It doesn't say anything about what this combining operation is supposed to do with the value.
+### Hash
 
-With just that signature we could do anything we want in the implementation of `combine` such as subtracting one integer from the other, which is definitely not associative.
+The `Hash` abstraction builds on the `Equal` abstraction in a different way, describing a type that can be hashed. Its fundamental representation is as a function `A => Int`.
 
-```scala
-val IntNotAssociative: Associative[Int] =
-  new Associative[Int] {
-    def combine(left: => Int, right: => Int): Int =
-      left - right // don't do this
-  }
-// IntNotAssociative: Associative[Int] = repl.MdocSession$MdocApp$$anon$2@1993d53d
-```
+The `Hash` abstraction allows us to define our own way of hashing data types instead of being forced to use the implementation of `hashCode` for existing data types. It also ensures that the definition of the hash is consistent with the definition of equality, another common source of bugs.
 
-This shows that abstractions are not meaningful without laws. Abstractions describe some common structure that is shared between different data types but without laws we don't know what this structure is supposed to be.
+### Debug
 
-In this case the law is that the combining operation must be associative, which we can write in pseudocode as.
+The `Debug` abstraction describes a type that can be rendered for debugging purposes. Its fundamental representation is as a function `A => Repr`, where `A` is a structured representation of the value that supports rendering in various formats.
+
+The `Debug` abstraction allows us to define how a data type should be rendered, for example rendering an `Array` to display its values rather than just its memory location. The more structured representation also allows rendering in different formats, for example including fully qualified names in the rendering of the data type so the rendering is itself valid Scala code.
+
+## Combining Concrete Types
+
+The second set of abstractions describe different ways of combining two values of a given type. These can all be thought of as functions `(A, A) => A`.
+
+Combining is quite fundamental because it is how we build more complex structures from simpler ones.
+
+Generally unary operators are not very interesting because they don't add additional structure, they just modify existing structure.
+
+In contrast, given the ability to combine two values of a given type we can create a new value of that type with richer structure. And if we can do that once we can do it again and again after that, creating values with arbitrarily complex structure.
+
+The abstractions in ZIO Prelude for describing combining values are each based on fundamental algebraic properties that the combining operation can have.
+
+### Associative
+
+The most basic such abstraction is `Associative`, which describes a combining operation that is associative.
 
 ```scala
 (a <> b) <> c === a <> (b <> c)
 ```
 
-Here `<>` represents the combining operation and `a`, `b`, and `c` represent any possible combination of values of the given type.
+This essentially means that if we are combining three values then the order of operations doesn't matter. We can combine `a` and `b` and then combine the result with `c` or we can combine `b` and `c` and then combine `a` with the result.
 
-Every abstraction in ZIO Prelude is described by a trait like the one above and is defined in terms of a set of laws.
+This is quite an important property for being able to build more complex structures from simpler ones. Otherwise the result of sequentially building more complex structures from simpler ones is not well defined because it depends on the order of operations and there are an exponentially increasing number of ways we could order these operations as we combine more and more values.
 
-ZIO Prelude provides **instances for these abstractions** for a variety of types from ZIO and the Scala standard library. ZIO Prelude also provides **tools for testing** that instances of an abstraction satisfy the appropriate laws.
+There are also an extremely large number of data types that can be combined using associative operations.
 
-## Using Abstractions
+For example integers can be combined associatively using addition and multiplication, among other operations. String concatenation is also associative, as is concatenation of lists of any concrete type.
 
-There are several ways you can use the abstractions described in this library.
+For these reasons the `Associative` abstraction forms the root of the set of abstractions for describing ways to combine concrete types in ZIO Prelude.
 
-The first and most direct, which actually does not require depending on ZIO Prelude at all, is to use these abstractions as inspiration for defining operators on your own data type.
+### Commutative
 
-The common structure described by these abstractions exists independent of any library. You don't need ZIO Prelude to define an associative combining operation on your own data type.
-
-However, thinking about whether an associative combining operation exists for your data type, and what it would look like, can help you write better code.
-
-As a simple example, say you want to compute the average of values from some large data set, and you would like to split the work up between different concurrent processes or possibly even different nodes in a distributed network.
-
-Your first stab at the accumulator for the running average might look like this:
+The `Commutative` abstraction builds on the `Associative` abstraction by describing a combining operation that is not only associative but also commutative.
 
 ```scala
-case class RunningAverage(value: Double)
+a <> b === b <> a
 ```
 
-However, if you think about it for a minute you will realize that this data type does not support an associative combining operation for combining two averages. This is going to be a serious problem because it means the result is not going to be well-defined if you combine averages from different processes or nodes.
+This means that not only does the order of operations not matter, but the order in which we combine the values also does not matter.
 
-Thinking about the abstractions in ZIO Prelude you might come up with a representation like this:
+Commutativity is a powerful property that gives us additional ability to reason about our code. For instance, if the values we are combining are in an arbitrary order, say because they are being produced asynchronously by multiple concurrent processes, then commutativity guarantees that we will get the same result no matter what order we combine them in.
+
+Commutativity is a stronger property than associativity but that also means there are fewer ways of combining values that are commutative than there are ways of combining that are associative. For example, integer addition and multiplication are commutative but string concatenation is not.
+
+### Identity
+
+The `Identity` abstraction builds on the `Associative` abstraction in a different way. It describes a combining operation that is not only associative but also has an identity element.
 
 ```scala
-case class RunningAverage(sum: Double, count: Int) { self =>
-  def average: Double =
-    sum / count
-  def combine(that: RunningAverage): RunningAverage =
-    RunningAverage(self.sum + that.sum, self.count + that.count)
-}
-
-object RunningAverage {
-  val empty: RunningAverage =
-    RunningAverage(0.0, 0)
-}
+a <> identity === a
+identity <> a === a
 ```
 
-Now this data type does have an associative combining operation. In fact the combining operation is both associative and commutative and has an identity element.
+This identity element is a "neutral value" that can be combined with any other value an unlimited number of times with the combining function and does not change the other value.
 
-This will make it much easier for you to solve your problem because now the different processes or nodes can compute the averages for their partitions independently, and you can combine them in any order.
+For example `0` is an identity element with respect to addition, `1` is an identity element with respect to multiplication, the empty string is an identity element with respect to string concatenation, and the empty list is an identity element with respect to list concatenation.
 
-And you didn't need to use any code from ZIO Prelude to do this. ZIO Prelude was hopefully just a good source of ideas of different algebraic properties that can exist and how they can be important.
+An identity element gives us a "starting point" for combining values that we know will never change the value. It also tells us when we can safely eliminate a value from the combining operation because we know the value will never change the result.
 
-This is a great way to get started with functional abstractions. Your colleagues don't have to learn anything new, you just get to write better code because you are taking advantage of these algebraic properties.
+### Inverse
 
-This is also the approach taken by ZIO ecosystem libraries.
-
-ZIO ecosystem libraries generally do not directly expose any functional abstractions but still expose a highly compositional interface because their design is based on algebraic properties like this. Users don't have to learn about these abstractions unless they want to, they just get to benefit from better library design.
-
-## Using Type Classes
-
-The second way you can use the abstractions in ZIO Prelude is by leveraging the _type classes_ defined in the library to take the boilerplate out of your own code.
-
-Type classes are a way of encoding functional abstractions in Scala and other programming languages. In the type class pattern, we take the same code as above but define the instances of the type class as `implicit`.
+The `Inverse` abstraction further builds on the `Identity` abstraction with the concept of an inverse to the combining operation.
 
 ```scala
-
-trait Associative[A] {
-  def combine(left: => A, right: => A): A
-}
-
-object Associative {
-
-  implicit val IntAssociative: Associative[Int] =
-    new Associative[Int] {
-      def combine(left: => Int, right: => Int): Int =
-        left + right
-    }
-
-  implicit def ListAssociative[A]: Associative[List[A]] =
-    new Associative[List[A]] {
-      def combine(left: => List[A], right: => List[A]): List[A] =
-        left ::: right
-    }
-}
+inverse(a, a) === identity
 ```
 
-If the instance of the type class depends on other parameters, like the `A` in `ListAssociative` we define it as an `implicit def`. Otherwise, we define it as an `implicit val`.
+Whereas the combining operation adds structure the inverse operation takes it away, so that combining any value with itself using the inverse operation removes all structure and just returns the identity element.
 
-We can think of the `implicit` keyword as associating the type `Int` with the value `IntAssociative`. So now if we ask the Scala compiler for the `Associative` instance for `Int` it will be able to find it.
+Defining the inverse as a binary operator rather than a unary operator like this allows us to define an inverse operation even for types that do not have inverse values. 
 
-In the type class pattern we also typically define extension methods that will be available on any data type for which an instance of the type class is defined.
-
-```scala
-implicit final class AssociativeSyntax[A](private val self: A) {
-  def <>(that: => A)(implicit associative: Associative[A]): A =
-    associative.combine(self, that)
-}
-```
-
-This machinery allows us to use the `<>` operator to combine values of any type as long as an `Associative` instance is defined for it.
-
-```scala
-val int: Int =
-  1 <> 2
-// int: Int = 3
-
-val list: List[Int] =
-  List(1, 2, 3) <> List(4, 5, 6)
-// list: List[Int] = List(1, 2, 3, 4, 5, 6)
-```
-
-Of course, we didn't really need all of this machinery to add two numbers or concatenate two lists, but where this pattern gets powerful is when we can use it to combine more complex data types in a principled way.
-
-For example, say we have an application where users can vote on content they are interested in learning more about. We might have a data structure to keep track of the number of votes for different topics like this.
-
-```scala
-final case class Topic(value: String)
-final case class Votes(value: Int)
-final case class VoteMap(map: Map[Topic, Votes])
-```
-
-A common thing we might want to do is combine two `VoteMap` values, for example if the user has a local copy of the `VoteMap` and we want to update it with a new batch of votes from the server.
-
-We could do that manually like this.
-
-```scala
-final case class Topic(value: String)
-
-final case class Votes(value: Int) { self =>
-  def combine(that: Votes): Votes =
-    Votes(self.value + that.value)
-}
-
-final case class VoteMap(map: Map[Topic, Votes]) { self =>
-  def combine(that: VoteMap): VoteMap =
-    VoteMap(that.map.foldLeft(self.map) { case (map, (topic, votes)) =>
-      map + (topic -> map.getOrElse(topic, Votes(0)).combine(votes))
-    })
-}
-```
-
-This isn't the worst, but it isn't really the kind of code we want to be writing. We want to be thinking about the logic of our application rather than how to combine maps.
-
-This is where ZIO Prelude can help.
-
-The way we're combining these maps actually follows a pattern. If a key is in a single map we include it in the combined map with its associated key and if a key is in both maps we include it in the combined map with the result of combining the values associated with that key.
-
-We might see that ourselves, but it would be hard to generalize that logic in a way that is worth factoring out. How often are we going to combine maps like this and what exactly does it mean to combine the keys?
-
-Let's look at how ZIO Prelude can help us clean this up.
-
-```scala
-
-case class Topic(value: String)
-
-case class Votes(value: Int)
-
-object Votes {
-  implicit val VotesAssociative: Associative[Votes] =
-    new Associative[Votes] {
-      def combine(left: => Votes, right: => Votes): Votes =
-        Votes(left.value + right.value)
-    }
-}
-
-case class VoteMap(map: Map[Topic, Votes])
-
-object VoteMap {
-  implicit val VoteMapAssociative: Associative[VoteMap] =
-    new Associative[VoteMap] {
-      def combine(left: => VoteMap, right: => VoteMap): VoteMap =
-        VoteMap(left.map <> right.map)
-    }
-}
-```
-
-All of that logic of combining the two maps just goes away!
-
-ZIO Prelude knows that we can define an associative combining operation for any two values of type `Map[A, B]` as long as there is an associative combining operation for the `B` values. All we have to do is tell ZIO Prelude how to combine the `B` values, which in this case is quite simple, and it can do the rest.
-
-This is a great example of the practical value that ZIO Prelude can bring. It took this low level logic of how to combine these two maps and just handled it for us.
-
-## Using Generic Programming
-
-The third way you can use the abstractions in ZIO Prelude is by leveraging type classes to do generic programming at the level of these abstractions.
-
-For example, you might find yourself doing a lot of "map reduce" type operations on collections like this.
-
-```scala
-def wordCount(lines: List[String]): Int =
-  lines.map(_.split(" ").length).sum
-```
-
-You might like this way of working with collections and wonder how you can generalize it.
-
-A first step could be to recognize that `sum` is just a particular combining operation that has an identity element. You could then use the `Identity` abstraction in ZIO Prelude to generalize over data types that support this kind of combining operation with an identity element.
-
-```scala
-def mapReduce[A, B](as: List[A])(f: A => B)(implicit identity: Identity[B]): B =
-  ???
-```
-
-You might want to go even further though and generalize over the collection type. You can clearly implement a similar operator for a `Vector` or another collection type so how do you generalize over that?
-
-You could do that with ZIO Prelude's `ForEach` abstraction, which describes parameterized data types with some structure where the elements in the structure can be replaced while preserving the structure itself.
-
-Using this, you could rewrite your operator like so.
-
-```scala
-def mapReduce[F[+_]: ForEach, A, B: Identity](as: F[A])(f: A => B): B =
-  ???
-```
-
-This example illustrates some of the benefits as well as the pitfalls of generic programming using type classes.
-
-If you want to do generic programming in terms of type classes, ZIO Prelude can go as far as you want to go.
-
-However, there is a definite trade off in these three snippets.
-
-The first one is overly specific but is understandable to any Scala programmer. The last one is beautiful and elegant if you understand the necessary concepts but incomprehensible otherwise.
-
-In addition, there is a danger in using type classes to do generic programming that we reinvent the wheel. The generalized "map reduce" operator we developed is just the existing `foldMap` operator from ZIO Prelude!
-
-```scala
-def mapReduce[F[+_]: ForEach, A, B: Identity](as: F[A])(f: A => B): B =
-  as.foldMap(f)
-```
-
-This illustrates the risk that sufficiently general abstractions or operators are likely to already be defined by a functional programming library.
-
-None of this is meant to argue against this style of generic programming but merely to point out that it is one of several ways to use these functional abstractions and none of them are necessarily "better" than others. The right approach to using these abstractions is the one that works for you and your team.
+For example subtraction would be an inverse operation with addition being the combining operation and zero being the identity element. And we can define it on the natural numbers as well as the integers.

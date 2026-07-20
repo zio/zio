@@ -29,6 +29,9 @@ object MessagePackCodec {
 Let's try an example to see how it works:
 
 ```scala
+import zio._
+import zio.schema.codec._
+import zio.schema.{DeriveSchema, Schema}
 
 case class Person(name: String, age: Int)
 

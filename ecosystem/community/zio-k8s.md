@@ -41,6 +41,15 @@ Or the asynchronous version:
 This is an example of printing the tail logs of a container:
 
 ```scala
+import com.coralogix.zio.k8s.client.K8sFailure
+import com.coralogix.zio.k8s.client.config.httpclient._
+import com.coralogix.zio.k8s.client.model.K8sNamespace
+import com.coralogix.zio.k8s.client.v1.pods
+import com.coralogix.zio.k8s.client.v1.pods.Pods
+import zio._
+import zio.console.Console
+
+import scala.languageFeature.implicitConversions
 
 object ZIOK8sLogsExample extends zio.App {
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = (args match {

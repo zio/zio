@@ -9,6 +9,8 @@ Following filter
 [//]: # (TODO: make snippet type-checked using mdoc)
 
 ```scala
+import zio.LogLevel
+import zio.logging.LogFilter
 
 val filter = LogFilter.logLevelByName(
     LogLevel.Debug,
@@ -47,6 +49,8 @@ the configuration for filter (`zio.logging.LogFilter.LogLevelByNameConfig`) has 
 this configuration is equivalent to following:
 
 ```scala
+import zio.LogLevel
+import zio.logging.LogFilter
 
 val config =
   LogFilter.LogLevelByNameConfig(LogLevel.Debug, Map("io.netty" -> LogLevel.Info, "io.grpc.netty" -> LogLevel.Info))

@@ -14,6 +14,7 @@ trait ZIO[-R, +E, +A] {
 Before continuing, let's take a look again at the `validate` function we have written earlier:
 
 ```scala
+import zio._
 
 sealed trait AgeValidationException extends Exception
 case class NegativeAgeException(age: Int) extends AgeValidationException
@@ -34,6 +35,7 @@ Now we are ready to use `ZIO#either` and `ZIO#absolve` operations:
 The `ZIO#either` convert a `ZIO[R, E, A]` effect to another effect in which its failure (`E`) and success (`A`) channel have been lifted into an `Either[E, A]` data type as success channel of the `ZIO` data type:
 
 ```scala
+import zio._
 
 val age: Int = ???
 
@@ -45,6 +47,8 @@ The resulting effect is an unexceptional effect and cannot fail, because the fai
 This method is useful for recovering from `ZIO` effects that may fail:
 
 ```scala
+import zio._
+import java.io.IOException
 
 val myApp: ZIO[Any, IOException, Unit] =
   for {
@@ -63,6 +67,7 @@ val myApp: ZIO[Any, IOException, Unit] =
 The `ZIO#abolve` operator and the `ZIO.absolve` constructor perform the inverse. They submerge the error case of an `Either` into the `ZIO`:
 
 ```scala
+import zio._
 
 val age: Int = ???
 validate(age) // ZIO[Any, AgeValidationException, Int]
@@ -73,6 +78,7 @@ validate(age) // ZIO[Any, AgeValidationException, Int]
 Here is another example:
 
 ```scala
+import zio._
 
 def sqrt(input: ZIO[Any, Nothing, Double]): ZIO[Any, String, Double] =
   ZIO.absolve(

@@ -18,6 +18,7 @@ trait ZIO[-R, +E, +A] {
 Let's try an example:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val myApp: ZIO[Any, NumberFormatException, Int] =

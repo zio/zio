@@ -9,6 +9,9 @@ In this section, we will discuss important features of the ZIO Test which help u
 The library includes built-in _testable versions_ of all the standard ZIO services (`Clock`, `Console`, `System`, and `Random`). For example, the `TestClock` has some timing actions that enables us to control the passage of time. So instead of waiting for timeouts and passage of time, we can adjust the time in our test:
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.Assertion._
 
 test("timeout") {
   for {
@@ -50,6 +53,7 @@ So in ZIO Test, we have nice resource management which enables us to have tests 
 Support for property based testing is included out-of-the-box through the `check` method and its variants and the `Gen` and `Sample` classes. For example, here is how we could write a property to test that integer addition is associative.
 
 ```scala
+import zio.test._
 
 val associativity =
   check(Gen.int, Gen.int, Gen.int) { (x, y, z) =>
@@ -62,6 +66,9 @@ If a property fails, the failure will be automatically shrunk to the smallest fa
 ZIO Test also supports automatic derivation of generators using the ZIO Test Magnolia module:
 
 ```scala
+import zio._
+import zio.test._
+import zio.test.magnolia._
 
 case class Point(x: Double, y: Double)
 
@@ -88,6 +95,8 @@ For example, we can apply a timeout to a test by using `test @@ timeout(60.secon
 Test aspects are _highly composable_, so we can combine multiple test aspects together:
 
 ```scala
+import zio.test._
+import zio.test.TestAspect._
 
 test("another zio test")(???) @@ timeout(60.seconds) @@ jvmOnly
 ```

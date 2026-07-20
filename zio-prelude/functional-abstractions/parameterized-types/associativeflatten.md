@@ -37,6 +37,9 @@ To see what this looks like let's start as we have before with `ZIO`.
 A common mistake we might make when getting started with `ZIO` is accidentally creating a nested `ZIO` workflow like this:
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 val greet: ZIO[Random, Nothing, ZIO[Console, IOException, Unit]] =
   Random.nextIntBounded(100).map { n =>

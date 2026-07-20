@@ -13,6 +13,9 @@ In the first mode, the `TestRandom` is a purely functional pseudo-random number 
 The random seed can be set using `setSeed` and `TestRandom` is guaranteed to return the same sequence of values for any given seed. This is useful for deterministically generating a sequence of pseudo-random values and powers the property based testing functionality in ZIO Test:
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.Assertion._
 
 test("Use setSeed to generate stable values") {
   for {
@@ -38,9 +41,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$19777/0x00007f8d66e86728@655e079
+//             onState = zio.ZIO$$$Lambda$19806/0x00007f534ef80eb8@5c563e90
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$19786/0x00007f8d66e8c128@43577ed7
+//           successK = zio.test.package$ZTest$$$Lambda$19815/0x00007f534ef865c0@1954ab7e
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -56,6 +59,9 @@ In the second mode, `TestRandom` maintains an internal buffer of values that can
 `TestRandom` will automatically take values from the buffer if a value of the appropriate type is available and otherwise generate a pseudo-random value, so there is nothing we need to do to switch between the two modes. Just generate random values as we normally would to get pseudo-random values, or feed in values of our own to get those values back.
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.Assertion._
 
 test("One can provide its own list of ints") {
   for {

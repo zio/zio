@@ -23,6 +23,13 @@ Test example:
 ```scala
 package zio.logging.example
 
+import zio.logging.{ LogAnnotation, logContext }
+import zio.test.Assertion._
+import zio.test._
+import zio.{ Chunk, LogLevel, Runtime, ZIO, ZIOAspect, _ }
+
+import java.util.UUID
+
 object LoggingSpec extends ZIOSpecDefault {
 
   override def spec: Spec[TestEnvironment, Any] = suite("LoggingSpec")(

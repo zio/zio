@@ -7,6 +7,7 @@ A `ZEnvironment[R]` is a built-in type-level map for the [`ZIO`](../core/zio/zio
 For example, assume we have written a `ZEnvironment` containing all [built-in services](../services/index.md) as below:
 
 ```scala
+import zio._
 
 val environment: ZEnvironment[Console & Clock & Random & System] =
   ZEnvironment[Console, Clock, Random, System](
@@ -50,6 +51,8 @@ We can eliminate the environment of `ZIO[R, E, A]` by providing `ZEnvironment[R]
 Also, we can access the **whole** environment using `ZIO.environment`:
 
 ```scala
+import zio._ 
+import java.io.IOException
 
 case class AppConfig(poolSize: Int)
 
@@ -75,6 +78,7 @@ In most cases, we do not require using `ZIO.environment` to access the whole env
 To create an empty ZIO environment:
 
 ```scala
+import zio._
 
 val empty: ZEnvironment[Any] = ZEnvironment.empty
 ```
@@ -82,6 +86,7 @@ val empty: ZEnvironment[Any] = ZEnvironment.empty
 To create a ZIO environment from a simple value:
 
 ```scala
+import zio._
 
 case class AppConfig(host: String, port: Int)
 val config: ZEnvironment[AppConfig] = ZEnvironment(AppConfig("localhost", 8080))
@@ -92,6 +97,7 @@ val config: ZEnvironment[AppConfig] = ZEnvironment(AppConfig("localhost", 8080))
 To **combine** two or multiple environment we can use `union` or `++` operator:
 
 ```scala
+import zio._
 
 case class AppConfig(host: String, port: Int)
 
@@ -102,6 +108,7 @@ val app: ZEnvironment[AppConfig] =
 To **add** a service to an environment:
 
 ```scala
+import zio._
 
 case class AppConfig(host: String, port: Int)
 
@@ -112,6 +119,7 @@ val app: ZEnvironment[AppConfig] =
 To retrieve a service from the environment, we use `get` method:
 
 ```scala
+import zio._
 
 case class AppConfig(host: String, port: Int)
 
@@ -139,6 +147,7 @@ A service can be updated at the specified key using the `ZIO#updateServiceAt` op
 Let's see how we can create a layer comprising multiple instances of `AppConfig`:
 
 ```scala
+import zio._
 
 case class AppConfig(host: String, port: Int)
 
@@ -158,6 +167,7 @@ object AppConfig {
 And here is the application which uses different `AppConfig` from the ZIO environment based on the value of the `APP_ENV` environment variable:
 
 ```scala
+import zio._
 
 object MultipleConfigExample extends ZIOAppDefault {
 
@@ -182,6 +192,9 @@ object MultipleConfigExample extends ZIOAppDefault {
 Here is an example of providing multiple instances of the `Database` service to the ZIO environment:
 
 ```scala
+import zio._
+
+import java.nio.charset.StandardCharsets
 
 trait Database {
   def add(key: String, value: Array[Byte]): ZIO[Any, Throwable, Unit]

@@ -5,6 +5,7 @@
 Random service provides utilities to generate random numbers. It's a functional wrapper of `scala.util.Random`. This service contains various different pseudo-random generators like `nextInt`, `nextBoolean` and `nextDouble`. Each random number generator functions return a `[URIO](../core/zio/urio.md)[Random, T]` value.
 
 ```scala
+import zio._
 
 for {
   randomInt    <- Random.nextInt
@@ -19,6 +20,7 @@ for {
 Random service has a `setSeed` which helps us to alter the state of the random generator. It is useful for setting up a test version of Random service when we need to reproduce always the same sequence of numbers.
 
 ```scala
+import zio._
 
 for {
   _        <- Random.setSeed(0)

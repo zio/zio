@@ -13,6 +13,7 @@ case class Banana(curvature: Double)
 To produce JSON from our data we define a `JsonEncoder` like this:
 
 ```scala
+import zio.json._
 
 object Banana {
   implicit val encoder: JsonEncoder[Banana] =
@@ -39,6 +40,7 @@ case class Apple (poison: Boolean)   extends Fruit
 we can generate the encoder for the entire `sealed` family
 
 ```scala
+import zio.json._
 
 object Fruit {
   implicit val encoder: JsonEncoder[Fruit] =
@@ -88,6 +90,7 @@ trait JsonEncoder[A] {
 We can use `contramap` from an already existing encoder:
 
 ```scala
+import zio.json._
 
 case class FruitCount(value: Int)
 

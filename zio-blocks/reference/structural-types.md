@@ -42,6 +42,8 @@ case class User(name: String, age: Int)
 Without structural types, converting between `Person` and `User` requires manual translation. With structural types, they both have the same structural schema:
 
 ```scala
+import scala.language.reflectiveCalls
+import zio.blocks.schema.Schema
 
 case class Person(name: String, age: Int)
 case class User(name: String, age: Int)
@@ -64,6 +66,7 @@ Use the `Schema#structural` method on any schema to get the corresponding struct
 **Scala 3:** Using transparent inline — the return type is inferred to the full refinement type:
 
 ```scala
+import zio.blocks.schema.Schema
 
 case class Person(name: String, age: Int)
 object Person {
@@ -77,6 +80,7 @@ val structuralSchema: Schema[{ def name: String; def age: Int }] = personSchema.
 **Scala 2:** Implicit derivation — returns `Schema[ts.StructuralType]` (path-dependent type):
 
 ```scala
+import zio.blocks.schema.Schema
 
 case class Person(name: String, age: Int)
 object Person {
@@ -97,6 +101,7 @@ The following type categories can be converted to structural schemas:
 Both Scala 2 and 3 support structural conversion of case classes:
 
 ```scala
+import zio.blocks.schema.Schema
 
 case class Address(street: String, city: String, zipCode: Int)
 object Address {
@@ -113,6 +118,7 @@ val structural = schema.structural
 Tuples convert to structural records with field names derived from positions:
 
 ```scala
+import zio.blocks.schema.Schema
 
 type StringIntBool = (String, Int, Boolean)
 implicit val schema: Schema[StringIntBool] = Schema.derived[StringIntBool]
@@ -127,6 +133,7 @@ val structuralSchema = tupleSchema.structural
 Nested product fields keep their nominal types; only the outer product is structuralized:
 
 ```scala
+import zio.blocks.schema.Schema
 
 case class Address(street: String, city: String)
 object Address {
@@ -152,6 +159,7 @@ val structuralSchema = personSchema.structural
 Opaque type aliases are unwrapped to their underlying type:
 
 ```scala
+import zio.blocks.schema.Schema
 
 opaque type UserId = String
 
@@ -171,6 +179,7 @@ val structural = schema.structural
 Sealed traits and enums convert to union types with nested method syntax:
 
 ```scala
+import zio.blocks.schema.Schema
 
 sealed trait Shape
 object Shape {
@@ -191,6 +200,7 @@ val structural = schema.structural
 **Enum syntax** (Scala 3):
 
 ```scala
+import zio.blocks.schema.Schema
 
 enum Color {
   case Red, Green, Blue
@@ -215,6 +225,7 @@ Cases appear in **alphabetical order** in the union type. This alphabetical orde
 Create a schema directly for a structural type without a nominal base:
 
 ```scala
+import zio.blocks.schema.Schema
 
 // No case class needed — define the schema for the shape directly
 val personStructural = Schema.derived[{ def name: String; def age: Int }]
@@ -242,6 +253,8 @@ Common scenarios:
 Set up two types with identical structural shape:
 
 ```scala
+import zio.blocks.schema.Schema
+import zio.blocks.schema.SchemaError
 
 case class Person(name: String, age: Int)
 object Person {
@@ -285,6 +298,7 @@ Structural types integrate seamlessly with ZIO Blocks' broader ecosystem:
 Structural schemas work with [Schema Evolution](./schema-evolution/into.md) macros for cross-type conversion. When two types share the same structural shape, the conversion machinery can work across type boundaries:
 
 ```scala
+import zio.blocks.schema.Schema
 
 case class Person(name: String, age: Int)
 object Person {
@@ -309,6 +323,7 @@ val dtoSchema = Schema.derived[PersonDTO]
 Structural types are also supported by the `Binding.of` macro for high-performance serialization via register-based encoding:
 
 ```scala
+import zio.blocks.schema.binding.Binding
 
 // Direct structural type serialization (JVM only)
 val binding = Binding.of[{ def name: String; def age: Int }]

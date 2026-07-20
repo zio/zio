@@ -38,6 +38,15 @@ docker run -it \
 Now we can run the following example:
 
 ```scala
+import org.apache.pulsar.client.api.{PulsarClientException, Schema}
+import zio._
+import zio.blocking._
+import zio.clock._
+import zio.console._
+import zio.pulsar._
+import zio.stream._
+
+import java.nio.charset.StandardCharsets
 
 object StreamingExample extends zio.App {
   val topic = "my-topic"

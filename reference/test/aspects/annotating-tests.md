@@ -7,6 +7,8 @@
 We can annotate the execution time of each test using the `timed` test aspect:
 
 ```scala
+import zio._
+import zio.test.{ test, _ }
 
 suite("a timed suite")(
   test("A")(Live.live(ZIO.sleep(100.millis)).map(_ => assertTrue(true))),
@@ -32,6 +34,8 @@ ZIO Test allows us to define some arbitrary tags. By labeling tests with one or 
 Let's tag all slow tests and run them separately:
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 object TaggedSpecsExample extends ZIOSpecDefault {
   def spec =

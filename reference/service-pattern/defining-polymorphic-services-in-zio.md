@@ -25,6 +25,7 @@ trait KeyValueStore[K, V, E, F[_, _]] {
 In the next step, we are going to write its accessors (note: [accessor methods](accessor-methods.md) are deprecated). We might end up with the following snippet code:
 
 ```scala
+import zio._
 
 object KeyValueStore {
   def get[K, V, E](key: K): ZIO[KeyValueStore[K, V, E, IO], E, V] =
@@ -77,6 +78,7 @@ could not find implicit value for izumi.reflect.Tag[K]. Did you forget to put on
 As the compiler says, we should put `Tag` as a context-bound for `K`, `V`, and `E` type parameters:
 
 ```scala
+import zio._
 
 object KeyValueStore {
   def get[K: Tag, V: Tag, E: Tag](key: K): ZIO[KeyValueStore[K, V, E, IO], E, V] =
@@ -117,6 +119,7 @@ object InmemoryKeyValueStore {
 The last step is to use the service in a ZIO application:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 

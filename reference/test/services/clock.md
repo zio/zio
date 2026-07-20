@@ -13,6 +13,8 @@ Instead of waiting for actual time to pass, `sleep` and methods implemented in t
 For example, here is how we can test `ZIO#timeout` using `TestClock`:
 
 ```scala
+import zio._
+import zio.test._
 
 for {
   fiber  <- ZIO.sleep(5.minutes).timeout(1.minute).fork
@@ -32,6 +34,9 @@ When the clock is adjusted, any effects scheduled to run on or before the new cl
 For example, here is how we can test an effect that recurs with a fixed delay:
 
 ```scala
+import zio._
+import zio.Queue
+import zio.test._
 
 for {
   q <- Queue.unbounded[Unit]
@@ -57,6 +62,11 @@ The key thing to note here is that after each recurrence the next recurrence is 
 Thanks to the call to `TestClock.adjust(1.minute)` we moved the time instantly 1 minute.
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import java.util.concurrent.TimeUnit
+import zio.Clock.currentTime
+import zio.test.Assertion.isGreaterThanEqualTo
 
 test("One can move time very fast") {
   for {
@@ -72,6 +82,9 @@ test("One can move time very fast") {
 `TestClock` affects also all code running asynchronously that is scheduled to run after a certain time:
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.Assertion.equalTo
 
 test("One can control time as he see fit") {
   for {
@@ -94,6 +107,9 @@ This is a pattern that will very often be used when `sleep` and `TestClock` are 
 A more complex example leveraging dependencies and multiple services is shown below:
 
 ```scala
+import zio.test.Assertion._
+import zio.test._
+import zio.{test => _, _}
 
 trait SchedulingService {
   def schedule(promise: Promise[Unit, Int]): ZIO[Any, Exception, Boolean]
@@ -140,6 +156,10 @@ The pattern with `Promise` and `await` can be generalized when we need to wait f
 Even if you have a non-trivial flow of data from multiple streams that can produce at different intervals and would like to test snapshots of data at a particular point in time `Queue` can help with that.
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import zio.stream._
+import zio.test.Assertion.equalTo
 
 test("zipLatest") {
   val s1 = ZStream.iterate(0)(_ + 1).schedule(Schedule.fixed(100.milliseconds))
@@ -165,6 +185,10 @@ However, we can use a live clock to simulate events, enabling a fixed ratio of '
 The test below creates a stream of 30 elements that are spaced 1 second apart. The test advances the clock by 1 second 30 times, allowing the stream to generate all 30 elements.
 
 ```scala
+import zio._
+import zio.stream._
+import zio.test.{test, _}
+import zio.test.Assertion._
 
 test("test clock") {
   val stream = ZStream.iterate(0)(_ + 1).schedule(Schedule.spaced(1.second))
@@ -183,6 +207,11 @@ The test doesn't work because the fast forward is too fast and by the time the s
 The problem is that the `Schedule` needs a clock to do the spacing. We can't use the test clock since this is what we need to change. We opt to use the live clock instead with the `@@ withLiveClock` test aspect. We also use `Schedule.spaced` to dictate the spacing of the events in real time.
 
 ```scala
+import zio._
+import zio.stream._
+import zio.test.{test, _}
+import zio.test.Assertion._
+import zio.test.TestAspect._
 
 test("live clock") {
   val stream = ZStream.iterate(0)(_ + 1).schedule(Schedule.spaced(1.second))

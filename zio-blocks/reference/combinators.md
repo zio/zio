@@ -45,6 +45,7 @@ The `Tuples` module combines values into flat tuples and separates them back.
 `Tuples.Tuples[L, R]` combines two values into a flattened tuple.
 
 ```scala
+import zio.blocks.combinators.Tuples
 
 // Basic combination
 val result1: (Int, String) = Tuples.combine(1, "hello")
@@ -61,6 +62,7 @@ val result3: (Int, String, Boolean, Double) = Tuples.combine((1, "hello"), (true
 Unit and EmptyTuple values are automatically eliminated:
 
 ```scala
+import zio.blocks.combinators.Tuples
 
 // Unit on left - returns right value
 val result1: Int = Tuples.combine((), 42)
@@ -77,6 +79,7 @@ val result3: String = Tuples.combine(EmptyTuple, "world")
 Nested tuples are automatically flattened:
 
 ```scala
+import zio.blocks.combinators.Tuples
 
 // Tuple + value flattens to larger tuple
 val result1: (Int, String, Boolean) = Tuples.combine((1, "a"), true)
@@ -93,6 +96,7 @@ val result3: (Int, String, (Boolean, Double)) = Tuples.combine((1, "a"), (true, 
 `separate` is accessed via the unified typeclass instance and splits a tuple into its init (all but last) and last element.
 
 ```scala
+import zio.blocks.combinators.Tuples
 
 // 2-tuple separation
 val t2 = summon[Tuples.Tuples[Int, String]]  // Scala 3
@@ -116,6 +120,7 @@ val (left3, right3): ((Int, String, Boolean), Double) = t4.separate((1, "hello",
 The output type is computed at compile time via the `Out` type member:
 
 ```scala
+import zio.blocks.combinators.Tuples
 
 // Access the combiner with explicit output type
 val combiner: Tuples.Tuples.WithOut[Int, String, (Int, String)] = 
@@ -143,6 +148,7 @@ The `Eithers` module canonicalizes Either types to left-nested form and separate
 `Eithers.Eithers[L, R]` transforms an `Either[L, R]` into its left-nested canonical form.
 
 ```scala
+import zio.blocks.combinators.Eithers
 
 // Atomic Either - unchanged
 val result1: Either[Int, String] = Eithers.combine(Left(42): Either[Int, String])
@@ -177,6 +183,7 @@ This transformation preserves values while reassociating the structure:
 `separate` is accessed via the unified typeclass instance and peels the rightmost alternative from a canonical Either:
 
 ```scala
+import zio.blocks.combinators.Eithers
 
 val e = summon[Eithers.Eithers[Int, String]]
 val input: Either[Int, String] = Left(42)
@@ -199,6 +206,7 @@ The `Unions` module converts between Either types and Scala 3 union types.
 `Unions.Unions[L, R]` converts an `Either[L, R]` to a union type `L | R`:
 
 ```scala
+import zio.blocks.combinators.Unions
 
 val either: Either[Int, String] = Left(42)
 val union: Int | String = Unions.combine(either)
@@ -214,6 +222,7 @@ val union2: Int | String = Unions.combine(either2)
 `separate` is accessed via the unified typeclass instance and discriminates a union type back to Either:
 
 ```scala
+import zio.blocks.combinators.Unions
 
 val u = summon[Unions.Unions.WithOut[Int, String, Int | String]]
 val result: Either[Int, String] = u.separate(42: Int | String)
@@ -227,12 +236,13 @@ val result2: Either[Int, String] = u.separate("hello": Int | String)
 Union types collapse same types (`A | A` = `A`), making them ambiguous. The separator rejects overlapping types at compile time:
 
 ```scala
+import zio.blocks.combinators.Unions
 
 // Compile error: Union types must contain unique types
 // val u = summon[Unions.Unions.WithOut[Int, Int, Int | Int]]
 
 // Use Either for same-type alternation instead:
-
+import zio.blocks.combinators.Eithers
 val either: Either[Int, Int] = Left(1)  // Distinguishable via Left/Right
 ```
 
@@ -254,6 +264,7 @@ val value: Int | String = 42  // Works reliably
 ### With Implicit Parameters (Scala 2)
 
 ```scala
+import zio.blocks.combinators.Tuples
 
 def combineAll[A, B, C](a: A, b: B, c: C)(
   implicit ab: Tuples.Tuples[A, B],
@@ -270,6 +281,7 @@ val result = combineAll(1, "hello", true)
 ### With Context Parameters (Scala 3)
 
 ```scala
+import zio.blocks.combinators.Tuples
 
 def combineAll[A, B, C](a: A, b: B, c: C)(using
   ab: Tuples.Tuples[A, B],
@@ -287,6 +299,7 @@ val result = combineAll(1, "hello", true)
 The `Out`, `Left`, and `Right` type members are path-dependent:
 
 ```scala
+import zio.blocks.combinators.Tuples
 
 def process[L, R](l: L, r: R)(using t: Tuples.Tuples[L, R]): (L, R) =
   t.separate(t.combine(l, r))
@@ -297,6 +310,7 @@ val result: (Int, String) = process(1, "hello")
 ### Type Aliases for Clarity
 
 ```scala
+import zio.blocks.combinators.Tuples
 
 // Typeclass with known output type
 type IntStringTuples = Tuples.Tuples.WithOut[Int, String, (Int, String)]

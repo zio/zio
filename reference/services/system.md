@@ -10,6 +10,7 @@ Environment variables are global operating system level variables available to a
 The `env` function retrieves the value of an environment variable:
 
 ```scala
+import zio._
 
 for {
   user <- System.env("USER")
@@ -26,6 +27,7 @@ for {
 Also, the System service has a `property` function to retrieve the value of a system property:
 
 ```scala
+import zio._
 
 for {
   user <- System.property("LOG_LEVEL")

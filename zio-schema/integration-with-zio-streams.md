@@ -9,6 +9,10 @@ We can use the `ZPipline` to transform (encode/decode) a stream of values of typ
 For example, assume we have a stream of `Person` values, and we want to encode them into a stream of bytes and then convert back to `Person` values. We can do this as follows:
 
 ```scala
+import zio._
+import zio.stream._
+import zio.schema._
+import zio.schema.codec.JsonCodec
 
 object Main extends ZIOAppDefault {
   case class Person(name: String, age: Int)

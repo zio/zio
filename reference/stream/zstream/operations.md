@@ -39,6 +39,7 @@ val s4 = s3.takeRight(3)
 
 **map** — Applies a given function to all element of this stream to produce another stream:
 ```scala
+import zio.stream._
 
 val intStream: UStream[Int] = ZStream.fromIterable(0 to 100)
 val stringStream: UStream[String] = intStream.map(_.toString)
@@ -427,6 +428,8 @@ abstract class ZStream[-R, +E, +O] {
 In the example below, exam results are grouped into buckets and counted:
 
 ```scala
+import zio._
+import zio.stream._
 
   case class Exam(person: String, score: Int)
 
@@ -526,6 +529,9 @@ val groupedResult: ZStream[Any, Nothing, Chunk[Int]] =
 It allows grouping events by time or chunk size, whichever is satisfied first. In the example below every chunk consists of 30 elements and is produced every 3 seconds.
 
 ```scala
+import zio._
+import zio.Duration._
+import zio.stream._
 
 val groupedWithinResult: ZStream[Any, Nothing, Chunk[Int]] =
   ZStream.fromIterable(0 to 10)
@@ -608,7 +614,7 @@ By default, when we merge two streams using `ZStream#merge` operation, the newly
 Here is an example of specifying termination strategy when merging two streams:
 
 ```scala
-
+import zio.stream.ZStream.HaltStrategy
 val s1 = ZStream.iterate(1)(_+1).take(5).rechunk(1)
 val s2 = ZStream.repeat(0).rechunk(1)
 

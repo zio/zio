@@ -12,6 +12,9 @@ There are various ways that zio-config can interact with refined library.
 Take a look at `zio.config.refined` package.
 
 ```scala
+ import zio.Config
+ import zio.ConfigProvider
+ import zio.config._, refined._
 
 ```
 
@@ -20,6 +23,7 @@ A few examples are given below.
 ## Basic Example
 
 ```scala
+ import eu.timepit.refined.types.string.NonEmptyString
 
  case class Jdbc(username: NonEmptyString, password: NonEmptyString)
 
@@ -36,7 +40,8 @@ If you need to directly interact with `Predicate`s (ex: `NonEmpty`), then
 `refine[A, P]` method is useful.
 
 ```scala
-
+ import eu.timepit.refined._, api._, string._, collection._
+ 
  type NonEmptyString = String Refined NonEmpty
  
  val refinedConfig: Config[NonEmptyString] = 
@@ -58,6 +63,8 @@ This shows the composable nature of zio-config.
 Take a look at the below example
 
 ```scala
+ import eu.timepit.refined._, api._, numeric._, collection._
+ import zio.config.magnolia.deriveConfig
 
  case class MyConfig(url: String, port: Int)
 
@@ -74,6 +81,11 @@ Take a look at the below example
 You can also use auto derivations with refined.
 
 ```scala
+import zio.ConfigProvider
+import eu.timepit.refined.W
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.collection.{ NonEmpty, Size }
+import zio.config.magnolia.deriveConfig
 
 object RefinedReadConfig extends App {
   case class RefinedProd(

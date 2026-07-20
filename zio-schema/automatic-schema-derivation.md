@@ -32,6 +32,8 @@ final case class Customer(person: Person, paymentMethod: PaymentMethod)
 We can easily use auto derivation to create schemas:
 
 ```scala
+import zio.schema._
+import zio.schema.codec._
 
 final case class Person(name: String, age: Int)
 

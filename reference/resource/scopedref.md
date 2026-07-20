@@ -38,6 +38,7 @@ So we have two options to create a `ScopedRef`:
 Let's see how changing the value of a `ScopedRef` automatically releases the old resource:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run = for {

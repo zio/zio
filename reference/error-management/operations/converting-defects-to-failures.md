@@ -15,6 +15,7 @@ trait ZIO[-R, +E, +A] {
 Below are examples of the `ZIO#absorb` and `ZIO#resurrect` operators:
 
 ```scala
+import zio._
 
 val effect1 =
   ZIO.fail(new IllegalArgumentException("wrong argument"))  // ZIO[Any, IllegalArgumentException, Nothing]
@@ -34,6 +35,7 @@ So what is the difference between `ZIO#absorb` and `ZIO#resurrect` operators?
 The `ZIO#absorb` can recover from both `Die` and `Interruption` causes. Using this operator we can absorb failures, defects and interruptions using `ZIO#absorb` operation. It attempts to convert all causes into a failure, throwing away all information about the cause of the error:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val effect1 =
@@ -60,6 +62,7 @@ application exited successfully: ()
 Whereas, the `ZIO#resurrect` will only recover from `Die` causes:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val effect1 =

@@ -78,6 +78,9 @@ mySet:1|g|#token:myKey-12
 ## The ZIO metrics DataDog example
 
 ```scala
+import zio.Console._
+import zio._
+import zio.metrics.connectors._
 
 val instrumentedSample = new InstrumentedSample() {}
 ```

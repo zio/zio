@@ -58,9 +58,17 @@ All imports change from `zio.schema` to `zio.blocks.schema`:
 
 ```scala
 // Before
+import zio.schema._
+import zio.schema.annotation._
+import zio.schema.codec._
+import zio.schema.meta._
 
 // After
-
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
+import zio.blocks.schema.derive._
+import zio.blocks.schema.patch._
+import zio.blocks.schema.json._
 ```
 
 ---
@@ -107,14 +115,14 @@ Automatic derivation syntax is essentially unchanged:
 
 ```scala
 // ZIO Schema 1.x — Scala 2: type inferred from ascription; Scala 3: type param required
-
+import zio.schema._
 final case class Person(name: String, age: Int)
 object Person {
   implicit val schema: Schema[Person] = DeriveSchema.gen[Person]
 }
 
 // ZIO Blocks Schema — identical call in Scala 2 and Scala 3
-
+import zio.blocks.schema._
 final case class Person(name: String, age: Int)
 object Person {
   implicit val schema: Schema[Person] = Schema.derived[Person]
@@ -146,6 +154,7 @@ The underlying representation changes: ZIO Schema uses `Schema.Primitive[A](stan
 **Before (ZIO Schema 1.x):**
 
 ```scala
+import zio.schema._
 
 final case class Address(street: String, city: String, postCode: String)
 final case class Person(name: String, age: Int, address: Address)
@@ -158,6 +167,7 @@ object Person {
 **After (ZIO Blocks Schema):**
 
 ```scala
+import zio.blocks.schema._
 
 final case class Address(street: String, city: String, postCode: String)
 final case class Person(name: String, age: Int, address: Address)
@@ -192,6 +202,7 @@ Manual construction is still possible in ZIO Blocks Schema (by assembling a `Ref
 **Before (ZIO Schema 1.x):**
 
 ```scala
+import zio.schema._
 
 sealed trait Shape
 case class Circle(radius: Double)                   extends Shape
@@ -205,6 +216,7 @@ object Shape {
 **After (ZIO Blocks Schema):**
 
 ```scala
+import zio.blocks.schema._
 
 sealed trait Shape
 case class Circle(radius: Double)                   extends Shape
@@ -296,6 +308,7 @@ ZIO Schema's `NonEmptyChunk` and `NonEmptyMap` schemas do not have direct equiva
 val schema: Schema[NonEmptyChunk[String]] = Schema[NonEmptyChunk[String]]
 
 // ZIO Blocks Schema — model as a validated wrapper
+import zio.blocks.schema._
 
 final case class NonEmptyList[A] private (values: List[A])
 object NonEmptyList {
@@ -360,6 +373,7 @@ If you encounter a "could not find implicit value for parameter typeId: TypeId[B
 **Before (ZIO Schema 1.x):**
 
 ```scala
+import zio.schema._
 
 case class Tree(value: Int, children: List[Tree])
 object Tree {
@@ -374,6 +388,7 @@ object Tree {
 **After (ZIO Blocks Schema):**
 
 ```scala
+import zio.blocks.schema._
 
 case class Tree(value: Int, children: List[Tree])
 object Tree {
@@ -395,6 +410,7 @@ ZIO Schema uses an open `Chunk[Any]` annotation system. ZIO Blocks Schema replac
 
 ```scala
 // ZIO Schema 1.x
+import zio.schema.annotation._
 
 final case class User(name: String, @transientField password: String)
 object User {
@@ -402,6 +418,7 @@ object User {
 }
 
 // ZIO Blocks Schema
+import zio.blocks.schema._
 
 // Transient fields must have a default value in ZIO Blocks Schema.
 // Because transient fields are excluded from serialization, the decoder
@@ -416,10 +433,12 @@ object User {
 
 ```scala
 // ZIO Schema 1.x — @fieldName annotation
+import zio.schema.annotation._
 
 final case class Product(@fieldName("product_name") name: String, price: Double)
 
 // ZIO Blocks Schema — @Modifier.rename annotation
+import zio.blocks.schema._
 
 final case class Product(@Modifier.rename("product_name") name: String, price: Double)
 ```
@@ -428,10 +447,12 @@ final case class Product(@Modifier.rename("product_name") name: String, price: D
 
 ```scala
 // ZIO Schema 1.x — @fieldNameAliases annotation
+import zio.schema.annotation._
 
 final case class Config(@fieldNameAliases("max-size", "max_size") maxSize: Int)
 
 // ZIO Blocks Schema — @Modifier.alias annotation (one alias per annotation)
+import zio.blocks.schema._
 
 final case class Config(
   @Modifier.alias("max-size")
@@ -447,6 +468,7 @@ final case class Config(
 // e.g., @fieldDefaultValue, @optionalField, or codec-specific annotations
 
 // ZIO Blocks Schema — use @Modifier.config with convention "format.property"
+import zio.blocks.schema._
 
 final case class Message(
   @Modifier.config("protobuf.field-id", "1") id: Long,
@@ -458,6 +480,7 @@ final case class Message(
 
 ```scala
 // ZIO Schema 1.x
+import zio.schema.annotation._
 
 @discriminatorName("type")
 sealed trait Event
@@ -465,6 +488,7 @@ sealed trait Event
 case class UserCreated(userId: String) extends Event
 
 // ZIO Blocks Schema — use Modifier.rename on the case, Modifier.config for discriminator
+import zio.blocks.schema._
 
 sealed trait Event
 @Modifier.rename("user_created")
@@ -501,17 +525,19 @@ ZIO Schema has separate codec APIs in each codec sub-module (e.g., `JsonCodec.js
 ```scala
 // ZIO Schema 1.x — each codec module has its own factory
 // JsonCodec.jsonCodec returns a zio.json.JsonCodec (a text codec from the zio-json library)
-
+import zio.schema.codec.JsonCodec
 val jsonCodec = JsonCodec.jsonCodec(Person.schema)
 
 // ProtobufCodec.protobufCodec returns a BinaryCodec[A] (Chunk[Byte] in / out)
-
+import zio.schema.codec.ProtobufCodec
 val protoCodec: BinaryCodec[Person] = ProtobufCodec.protobufCodec(Person.schema)
 
 // ZIO Blocks Schema — all codecs via schema.derive(Format); return type inferred
-
+import zio.blocks.schema._
+import zio.blocks.schema.json.JsonFormat
 val jsonCodec = Person.schema.derive(JsonFormat)   // inferred: JsonCodec[Person]
 
+import zio.blocks.schema.avro.AvroFormat
 val avroCodec = Person.schema.derive(AvroFormat)
 ```
 
@@ -523,13 +549,13 @@ The codec interface differs significantly between the two libraries:
 
 ```scala
 // ZIO Schema 1.x — Protobuf (true BinaryCodec: Chunk[Byte] in/out)
-
+import zio.schema.codec.ProtobufCodec
 val codec: BinaryCodec[Person] = ProtobufCodec.protobufCodec(Person.schema)
 val encoded: Chunk[Byte]              = codec.encode(Person("Alice", 30))
 val decoded: Either[DecodeError, Person] = codec.decode(encoded)
 
 // ZIO Schema 1.x — JSON (zio-json JsonCodec: String in/out)
-
+import zio.schema.codec.JsonCodec
 val jsonCodec = JsonCodec.jsonCodec(Person.schema)
 val json: String                       = jsonCodec.encodeJson(Person("Alice", 30), None).toString
 val fromJson: Either[String, Person]   = jsonCodec.decodeJson(json)
@@ -537,6 +563,9 @@ val fromJson: Either[String, Person]   = jsonCodec.decodeJson(json)
 
 ```scala
 // ZIO Blocks Schema — all formats use ByteBuffer (binary) or CharBuffer (text)
+import zio.blocks.schema._
+import zio.blocks.schema.json.JsonFormat
+import java.nio.ByteBuffer
 
 val person = Person("Alice", 30)
 
@@ -558,11 +587,11 @@ JSON support is built into the core `zio-blocks-schema` module — no separate d
 ```scala
 // ZIO Schema 1.x — requires a separate zio-schema-json module
 libraryDependencies += "dev.zio" %% "zio-schema-json" % "1.x.x"
-
+import zio.schema.codec.JsonCodec
 val codec = JsonCodec.jsonCodec(Person.schema)  // returns zio.json.JsonCodec
 
 // ZIO Blocks Schema — built into zio-blocks-schema; no extra dependency
-
+import zio.blocks.schema.json.JsonFormat
 val codec = Person.schema.derive(JsonFormat)  // returns JsonCodec[Person]
 ```
 
@@ -606,12 +635,12 @@ In ZIO Schema, primitive values are stored inline in `DynamicValue.Primitive[A](
 
 ```scala
 // ZIO Schema 1.x — value and StandardType are separate constructor arguments
-
+import zio.schema.{DynamicValue, StandardType}
 val pv: DynamicValue = DynamicValue.Primitive(42, StandardType[Int])
 val ps: DynamicValue = DynamicValue.Primitive("hello", StandardType[String])
 
 // ZIO Blocks Schema — value is wrapped in a PrimitiveValue case class
-
+import zio.blocks.schema.{DynamicValue, PrimitiveValue}
 val pv: DynamicValue = DynamicValue.Primitive(PrimitiveValue.Int(42))
 val ps: DynamicValue = DynamicValue.Primitive(PrimitiveValue.String("hello"))
 ```
@@ -639,6 +668,8 @@ Two things change: `toDynamic` is renamed `toDynamicValue` (still on `Schema[A]`
 ZIO Blocks `DynamicValue` has a rich operation API that was absent in ZIO Schema. Where ZIO Schema required you to convert back to a typed value to manipulate data, you can now operate directly on `DynamicValue`:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.chunk.Chunk
 
 val record = DynamicValue.Record(
   Chunk(
@@ -725,6 +756,8 @@ ZIO Schema uses an `AccessorBuilder` pattern that delegates optic creation to an
 **Before (ZIO Schema 1.x with `zio-schema-optics`):**
 
 ```scala
+import zio.schema._
+import zio.schema.optics._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -739,6 +772,7 @@ Optics are generated by the macro derivation and placed directly in the companio
 
 ```scala
 // Scala 3 — optics generated in companion via macro
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 object Person extends CompanionOptics[Person] {
@@ -755,6 +789,7 @@ lens.modify(person, _.toUpperCase)  // Person("ALICE", 30)
 
 ```scala
 // Scala 2 — obtain lenses from the schema
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -772,6 +807,7 @@ object Person {
 The four optic types in ZIO Blocks are `Lens`, `Prism`, `Optional`, and `Traversal`. Their usage API is similar to standard optics libraries:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -797,6 +833,7 @@ val renamed: Person = nameLens.replace(person, "Bob")        // Person("Bob", 30
 For sealed traits, use `Prism`:
 
 ```scala
+import zio.blocks.schema._
 
 sealed trait Shape
 case class Circle(radius: Double)    extends Shape
@@ -819,6 +856,7 @@ Shape.circlePrism.reverseGet(Circle(3.0))   // Circle(3.0): Shape
 ZIO Blocks introduces `SchemaExpr[S, A]`, a typed expression language built on top of optics. There is no equivalent in ZIO Schema. These allow you to build inspectable, composable predicates and computations:
 
 ```scala
+import zio.blocks.schema._
 
 case class Product(name: String, price: Double, inStock: Boolean)
 object Product {
@@ -877,6 +915,8 @@ The error type changes from `String` to `SchemaError`.
 ZIO Schema has no structured API for creating patches programmatically. ZIO Blocks Schema provides one through `Patch` smart constructors:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.patch._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -910,6 +950,11 @@ ZIO Schema does not have a general `Deriver[TC]` interface. Each codec module im
 ZIO Blocks Schema introduces `Deriver[TC]`, a unified interface for deriving any type class `TC[_]` from a schema. This replaces ad-hoc codec-specific derivation:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
+import zio.blocks.schema.derive.Deriver
+import zio.blocks.docs.Doc
+import zio.blocks.typeid.TypeId
 
 // Define a type class
 trait Show[A] {
@@ -985,6 +1030,9 @@ Person.show.show(Person("Alice", 30))  // Person(name = "Alice", age = 30)
 ZIO Schema uses a composable `Validation[A]` ADT as an annotation, attached via `@validate(...)` or `.validation(...)`:
 
 ```scala
+import zio.schema._
+import zio.schema.validation._
+import zio.schema.annotation._
 
 case class User(
   @validate(Validation.greaterThan(0)) age: Int,
@@ -1003,6 +1051,7 @@ schema.validate(User(-1, "Al"))
 ZIO Blocks Schema has a simpler, non-composable `Validation[A]` that is embedded inside `PrimitiveType[A]` and checked during `DynamicSchema.check`. It is not composable with `And`/`Or`/`Not`:
 
 ```scala
+import zio.blocks.schema._
 
 // Validation is checked during DynamicSchema.check — not during fromDynamicValue
 val dynSchema = Schema[Int].toDynamicSchema
@@ -1017,6 +1066,7 @@ dynSchema.conforms(invalid)  // true (no validation constraint on the base Int s
 For validated types, use `Schema[A].transform` with a throwing `to` function, which signals failure during `fromDynamicValue`:
 
 ```scala
+import zio.blocks.schema._
 
 // Validated positive integer
 val positiveIntSchema: Schema[Int] =
@@ -1034,6 +1084,7 @@ positiveIntSchema.fromDynamicValue(
 For struct-level validation across multiple fields, implement validation in the `to` function of a wrapper:
 
 ```scala
+import zio.blocks.schema._
 
 final case class AgeRange(min: Int, max: Int)
 object AgeRange {

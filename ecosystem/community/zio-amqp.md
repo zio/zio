@@ -29,6 +29,11 @@ Then we need to create `my_exchange` and `my_queue` and bind the queue to the ex
 Now we can run the example below:
 
 ```scala
+import nl.vroste.zio.amqp._
+import nl.vroste.zio.amqp.model._
+import zio._
+
+import java.net.URI
 
 object ZIOAMQPExample extends ZIOAppDefault {
 

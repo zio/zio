@@ -11,6 +11,8 @@ A `TRef[A]` is a mutable reference to an immutable value, which can participate 
 Creating a `TRef` inside a transaction:
 
 ```scala
+import zio._
+import zio.stm._
 
 val createTRef: STM[Nothing, TRef[Int]] = TRef.make(10)
 ```
@@ -18,6 +20,8 @@ val createTRef: STM[Nothing, TRef[Int]] = TRef.make(10)
 Or creating a `TRef` inside a transaction, and immediately committing the transaction, which allows you to store and pass along the reference.
 
 ```scala
+import zio._
+import zio.stm._
 
 val commitTRef: UIO[TRef[Int]] = TRef.makeCommit(10)
 ```
@@ -27,6 +31,8 @@ val commitTRef: UIO[TRef[Int]] = TRef.makeCommit(10)
 Retrieving the value in a single transaction: 
 
 ```scala
+import zio._
+import zio.stm._
 
 val retrieveSingle: UIO[Int] = (for {
   tRef <- TRef.make(10)
@@ -37,6 +43,8 @@ val retrieveSingle: UIO[Int] = (for {
 Or on multiple transactional statements:
 
 ```scala
+import zio._
+import zio.stm._
 
 val retrieveMultiple: UIO[Int] = for {
   tRef <- TRef.makeCommit(10)
@@ -51,6 +59,8 @@ Setting the value overwrites the existing content of a reference.
 Setting the value in a single transaction:
 
 ```scala
+import zio._
+import zio.stm._
 
 val setSingle: UIO[Int] = (for {
   tRef <- TRef.make(10)
@@ -62,6 +72,8 @@ val setSingle: UIO[Int] = (for {
 Or on multiple transactions:
 
 ```scala
+import zio._
+import zio.stm._
 
 val setMultiple: UIO[Int] = for {
   tRef <- TRef.makeCommit(10)
@@ -76,6 +88,8 @@ The update function `A => A` allows computing a new value for the `TRef` using t
 Updating the value in a single transaction:
 
 ```scala
+import zio._
+import zio.stm._
 
 val updateSingle: UIO[Int] = (for {
   tRef <- TRef.make(10)
@@ -86,6 +100,8 @@ val updateSingle: UIO[Int] = (for {
 Or on multiple transactions:
 
 ```scala
+import zio._
+import zio.stm._
 
 val updateMultiple: UIO[Int] = for {
   tRef <- TRef.makeCommit(10)
@@ -100,6 +116,8 @@ The modify function `A => (B, A): B` works similar to `update`, but allows extra
 Modify the value in a single transaction:
 
 ```scala
+import zio._
+import zio.stm._
 
 val modifySingle: UIO[(String, Int)] = (for {
   tRef <- TRef.make(10)
@@ -111,6 +129,8 @@ val modifySingle: UIO[(String, Int)] = (for {
 Or on multiple transactions:
 
 ```scala
+import zio._
+import zio.stm._
 
 val modifyMultiple: UIO[(String, Int)] = for {
   tRef <- TRef.makeCommit(10)
@@ -123,6 +143,8 @@ val modifyMultiple: UIO[(String, Int)] = for {
 Here is a scenario where we use a `TRef` to hand-off a value between two [`Fiber`](../fiber/fiber.md)s
 
 ```scala
+import zio._
+import zio.stm._
 
 def transfer(tSender: TRef[Int],
              tReceiver: TRef[Int],

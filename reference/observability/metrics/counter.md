@@ -38,7 +38,8 @@ Here are some of the use cases:
 Create a counter named `countAll` which is incremented by `1` every time it is invoked:
 
 ```scala
-
+import zio._
+import zio.metrics._
 val countAll = Metric.counter("countAll").fromConst(1)
 ```
 

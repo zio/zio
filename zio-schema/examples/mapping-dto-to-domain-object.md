@@ -7,6 +7,12 @@ When we write layered applications, where different layers are decoupled from ea
 One way to do this is to write codec for `PersonDTO` and convert the JSON String to the `PersonDTO` and then convert `PersonDTO` to `Person`. This approach is not very convenient and we need to write some boilerplate code. With ZIO Schema we can simplify this process and write a codec for `Person` that uses a specialized schema for `Person`, i.e. `personDTOMapperSchema`, which describes `Person` data type in terms of transformation from `PersonDTO` to `Person` and vice versa. With this approach, we can directly convert the JSON string to `Person` in one step:
 
 ```scala
+import zio._
+import zio.json.JsonCodec
+import zio.schema.codec.JsonCodec._
+import zio.schema.{DeriveSchema, Schema}
+
+import java.time.LocalDate
 
 object MainApp extends ZIOAppDefault {
 
@@ -97,6 +103,10 @@ In the next example, we will see how we can use schema migration, when we need t
 In this example, similar to the previous one, we will define the schema for `Person` in terms of schema transformation from `PersonDTO` to `Person` and vice versa. The only difference is that we will utilize the `Schema#migrate` method to map `PersonDTO` to `Person`. This method returns `Either[String, PersonDTO => Either[String, Person]]`. If the migration is successful, we will receive `Right` with a function that converts `PersonDTO` to `Either[String, Person]`. Otherwise, if there is an error, we will receive `Left` along with an error message:
 
 ```scala
+import zio._
+import zio.schema.{DeriveSchema, Schema}
+
+import java.time.LocalDate
 
 object MainApp extends ZIOAppDefault {
 

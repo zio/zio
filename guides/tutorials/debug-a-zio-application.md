@@ -59,6 +59,7 @@ The `print` statements are the easiest way for lazy programmers to debug their c
 When we use functional effects like `ZIO`, we are creating the description of the computation that we want to run. For example, assume we have the following code:
 
 ```scala
+import zio._
 
 val effect: ZIO[Any, Nothing, Unit] = ZIO.succeed(3).map(_ * 2)
 ```
@@ -74,6 +75,7 @@ This is not the expected output. We want to see the result of the computation, n
 So keep in mind that, unlike the ordinary scala print statements, we can't use print statements directly to debug functional effects, unless we unsafely run the computation:
 
 ```scala
+import zio._
 
 val effect: ZIO[Any, Nothing, Int] = 
   ZIO.succeed(3).map(_ * 2)
@@ -93,6 +95,7 @@ Simple _print statements_ are not composable with ZIO applications. So we can't 
 For example, assume we have written the Fibonacci function using the `ZIO` data type:
 
 ```scala
+import zio._
 
 def fib(n: Int): ZIO[Any, Nothing, Int] = {
   if (n <= 1) ZIO.succeed(n)
@@ -103,6 +106,7 @@ def fib(n: Int): ZIO[Any, Nothing, Int] = {
 We can debug this program by utilizing the `ZIO#debug` effect:
 
 ```scala
+import zio._
 
 def fib(n: Int): ZIO[Any, Nothing, Int] = {
   if (n <= 1) ZIO.succeed(n).debug(s"fib($n) = $n")
@@ -139,6 +143,7 @@ The `ZIO#debug` effect taps into the called function and prints its output. It d
 We have the same effect as the following:
 
 ```scala
+import zio.stream._
 
 ZStream
   .fromIterable(1 to 3)

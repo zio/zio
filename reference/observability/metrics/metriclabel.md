@@ -15,6 +15,8 @@ For example, we can append following labels (dimensions) to our metric aspects:
 - Datacenter Zone (us-east, eu-west)
 
 ```scala
+import zio._
+import zio.metrics._
 
 val counter = Metric.counter("http_requests")
   .tagged(

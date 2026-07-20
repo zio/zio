@@ -31,6 +31,8 @@ The most common use case is deriving a JSON Schema from an existing `Schema[A]`.
 ### Basic Derivation
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -53,6 +55,8 @@ jsonSchema.conforms(invalid) // false
 For more control, derive through `JsonCodec`:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 case class User(email: String, active: Boolean)
 object User {
@@ -71,6 +75,7 @@ val jsonSchema = codec.toJsonSchema
 The simplest schemas accept or reject all values:
 
 ```scala
+import zio.blocks.schema.json.JsonSchema
 
 // Accepts any valid JSON value
 val acceptAll = JsonSchema.True
@@ -84,6 +89,7 @@ val rejectAll = JsonSchema.False
 Create schemas that validate specific JSON types:
 
 ```scala
+import zio.blocks.schema.json.{JsonSchema, JsonSchemaType}
 
 // Single type
 val stringSchema = JsonSchema.ofType(JsonSchemaType.String)
@@ -104,6 +110,7 @@ val isBoolean = JsonSchema.boolean
 Create schemas for string validation:
 
 ```scala
+import zio.blocks.schema.json.{JsonSchema, NonNegativeInt, RegexPattern}
 
 // String with length constraints (compile-time validated literals)
 val username = JsonSchema.string(
@@ -127,6 +134,7 @@ val uuid = JsonSchema.string(format = Some("uuid"))
 Create schemas for number validation:
 
 ```scala
+import zio.blocks.schema.json.{JsonSchema, PositiveNumber}
 
 // Number with range
 val percentage = JsonSchema.number(
@@ -150,6 +158,8 @@ val evenNumber = JsonSchema.integer(
 Create schemas for array validation:
 
 ```scala
+import zio.blocks.chunk.NonEmptyChunk
+import zio.blocks.schema.json.{JsonSchema, JsonSchemaType, NonNegativeInt}
 
 // Array of strings
 val stringArray = JsonSchema.array(
@@ -183,6 +193,8 @@ val point2D = JsonSchema.array(
 Create schemas for object validation:
 
 ```scala
+import zio.blocks.schema.json.{JsonSchema, JsonSchemaType}
+import zio.blocks.chunk.ChunkMap
 
 // Object with properties
 val person = JsonSchema.obj(
@@ -207,6 +219,8 @@ val strictPerson = JsonSchema.obj(
 ### Enum and Const
 
 ```scala
+import zio.blocks.chunk.NonEmptyChunk
+import zio.blocks.schema.json.{JsonSchema, Json}
 
 // Enum of string values
 val status = JsonSchema.enumOfStrings(NonEmptyChunk("pending", "active", "completed"))
@@ -229,6 +243,7 @@ val alwaysTrue = JsonSchema.constOf(Json.Boolean(true))
 Combine schemas using logical operators:
 
 ```scala
+import zio.blocks.schema.json.{JsonSchema, JsonSchemaType}
 
 val stringSchema = JsonSchema.ofType(JsonSchemaType.String)
 val numberSchema = JsonSchema.ofType(JsonSchemaType.Number)
@@ -254,6 +269,7 @@ val nullableString = stringSchema || nullSchema
 Make any schema nullable:
 
 ```scala
+import zio.blocks.schema.json.{JsonSchema, JsonSchemaType}
 
 val stringSchema = JsonSchema.ofType(JsonSchemaType.String)
 
@@ -268,6 +284,7 @@ val nullableString = stringSchema.withNullable
 Apply different schemas based on conditions:
 
 ```scala
+import zio.blocks.schema.json.{JsonSchema, JsonSchemaType, NonNegativeInt}
 
 // If type is string, require minLength
 val conditionalSchema = JsonSchema.Object(
@@ -282,6 +299,8 @@ val conditionalSchema = JsonSchema.Object(
 Apply schemas when properties are present:
 
 ```scala
+import zio.blocks.schema.json.{JsonSchema, JsonSchemaType}
+import zio.blocks.chunk.ChunkMap
 
 // If "credit_card" exists, require "billing_address"
 val paymentSchema = JsonSchema.Object(
@@ -300,6 +319,8 @@ val paymentSchema = JsonSchema.Object(
 ### Basic Validation
 
 ```scala
+import zio.blocks.schema.json.{JsonSchema, Json, JsonSchemaType}
+import zio.blocks.chunk.ChunkMap
 
 val schema = JsonSchema.obj(
   properties = Some(ChunkMap(
@@ -332,6 +353,7 @@ schema.conforms(invalidJson) // false
 Control validation behavior:
 
 ```scala
+import zio.blocks.schema.json.{JsonSchema, Json, ValidationOptions}
 
 val schema = JsonSchema.string(format = Some("email"))
 val value = Json.String("not-an-email")
@@ -350,6 +372,8 @@ schema.check(value, lenientOptions) // None
 Validation errors include path information:
 
 ```scala
+import zio.blocks.schema.json.{JsonSchema, Json, JsonSchemaType}
+import zio.blocks.chunk.ChunkMap
 
 val schema = JsonSchema.obj(
   properties = Some(ChunkMap(
@@ -381,6 +405,7 @@ schema.check(invalid) match {
 ### Parsing from JSON
 
 ```scala
+import zio.blocks.schema.json.{JsonSchema, Json}
 
 // From JSON string
 val parsed = JsonSchema.parse("""
@@ -404,6 +429,7 @@ val fromJson = JsonSchema.fromJson(json)
 ### Serializing to JSON
 
 ```scala
+import zio.blocks.schema.json.{JsonSchema, NonNegativeInt}
 
 val schema = JsonSchema.string(
   NonNegativeInt.literal(1),
@@ -443,6 +469,8 @@ Format validation is enabled by default. Use `ValidationOptions.annotationOnly` 
 JSON Schema 2020-12 introduces `unevaluatedProperties` and `unevaluatedItems` for validating properties/items not matched by any applicator keyword:
 
 ```scala
+import zio.blocks.chunk.{ChunkMap, NonEmptyChunk}
+import zio.blocks.schema.json.{JsonSchema, JsonSchemaType}
 
 // Reject any properties not defined in properties or patternProperties
 val strictObject = JsonSchema.Object(
@@ -529,6 +557,8 @@ The implementation passes **817 of 844 tests** (97%+) from the official JSON Sch
 ## Complete Example
 
 ```scala
+import zio.blocks.chunk.{ChunkMap, NonEmptyChunk}
+import zio.blocks.schema.json._
 
 // Define a complex schema
 val userSchema = JsonSchema.obj(

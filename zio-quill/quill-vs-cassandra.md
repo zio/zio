@@ -60,6 +60,11 @@ This section compares how the different libraries let the user query a column fa
 
 **Java Driver (v3.0.0)**
 ```
+import com.datastax.driver.core._
+import com.datastax.driver.core.querybuilder.QueryBuilder
+import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache }
+
+import scala.jdk.CollectionConverters._
 
 object JavaDriver extends App {
 
@@ -108,6 +113,11 @@ The Java driver requires explicit handling of a `PreparedStatement`s cache to av
 
 **Phantom (v1.22.0)**
 ```
+import com.websudos.phantom.connectors.RootConnector
+import com.websudos.phantom.db._
+import com.websudos.phantom.dsl._
+
+import scala.concurrent.Future
 
 object Phantom extends App {
 
@@ -150,10 +160,15 @@ Phantom requires mapping classes to lift the database model to DSL types. The qu
 
 **Quill**
 ```scala
+import io.getquill._
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object Quill extends App {
 
   val db = new CassandraAsyncContext(SnakeCase, "db")
+
+  import db._
 
   case class WeatherStation(country: String, city: String, stationId: String, entry: Int, value: Int)
 
@@ -182,6 +197,11 @@ This section compares how the different libraries let the user compose queries.
 The Query Builder allows the user to partially construct queries and add filters later:
 
 ```
+import com.datastax.driver.core._
+import com.datastax.driver.core.querybuilder.{ QueryBuilder, Select}
+import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache }
+
+import scala.jdk.CollectionConverters._
 
 object JavaDriver extends App {
 
@@ -233,6 +253,11 @@ The DSL has limited composition compatibility.
 
 **Phantom (v1.22.0)**
 ```
+import com.websudos.phantom.connectors.RootConnector
+import com.websudos.phantom.db._
+import com.websudos.phantom.dsl._
+
+import scala.concurrent.Future
 
 object Phantom extends App {
 
@@ -288,10 +313,15 @@ Phantom allows the user certain level of composability, but it gets a bit verbos
 
 **Quill**
 ```scala
+import io.getquill._
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object Quill extends App {
 
   val db = new CassandraAsyncContext(SnakeCase, "db")
+
+  import db._
 
   case class WeatherStation(country: String, city: String, stationId: String, entry: Int, value: Int)
 
@@ -343,6 +373,16 @@ This section would allow us to compare how the different libraries let us read c
 
 **Java Driver (v3.0.0)**
 ```
+import java.nio.ByteBuffer
+import java.nio.charset.Charset
+
+import com.datastax.driver.core._
+import com.datastax.driver.core.exceptions.InvalidTypeException
+import com.datastax.driver.core.querybuilder.QueryBuilder
+import com.datastax.driver.core.utils.Bytes
+import com.google.common.cache.{ CacheBuilder, CacheLoader, LoadingCache }
+
+import scala.jdk.CollectionConverters._
 
 object JavaDriver extends App {
 
@@ -420,6 +460,15 @@ It is necessary to create a new `TypeCodec` and register it in the `CodecRegistr
 
 **Phantom (v1.22.0)**
 ```
+import com.websudos.phantom.builder.primitives.Primitive
+import com.websudos.phantom.builder.query.CQLQuery
+import com.websudos.phantom.builder.syntax.CQLSyntax
+import com.websudos.phantom.connectors.RootConnector
+import com.websudos.phantom.db._
+import com.websudos.phantom.dsl._
+
+import scala.concurrent.Future
+import scala.util.Try
 
 object Phantom extends App {
 
@@ -489,10 +538,15 @@ It is necessary to define a new `Column` type to be used when defining the data 
 
 **Quill**
 ```scala
+import io.getquill._
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object Quill extends App {
 
   val db = new CassandraAsyncContext(SnakeCase, "db")
+
+  import db._
 
   case class Country(code: String) extends AnyVal
 

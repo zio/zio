@@ -7,7 +7,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+104-91aba10a-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+109-26f83142-SNAPSHOT"
 ```
 
 ## Example
@@ -17,9 +17,13 @@ Your main function can extend [`ZIOAppDefault`](../../reference/core/zioapp.md) 
 This example uses [scala-js-dom](https://github.com/scala-js/scala-js-dom) to access the DOM; to run the example you
 will need to add that library as a dependency to your `build.sbt`.
 
-It assumes you have a ``  somewhere in your HTML, into which the ZIO output is written.
+It assumes you have a `<div id="app">`  somewhere in your HTML, into which the ZIO output is written.
 
 ```scala
+import java.util.concurrent.TimeUnit
+import org.scalajs.dom.{document,Element}
+import zio._
+import zio.Clock._
 
 object Main extends ZIOAppDefault {
 

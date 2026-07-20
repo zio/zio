@@ -17,6 +17,11 @@ libraryDependencies += "info.senia" %% "zio-test-akka-http" % "2.0.0-RC5"
 An example of writing Akka HTTP Route test spec:
 
 ```scala
+import akka.http.scaladsl.model.HttpResponse
+import akka.http.scaladsl.server.Directives.complete
+import zio.test.Assertion._
+import zio.test._
+import zio.test.akkahttp.AkkaZIOSpecDefault
 
 object MySpec extends AkkaZIOSpecDefault {
   def spec =

@@ -11,6 +11,7 @@ Let's start learning this service pattern by writing a `DocRepo` service:
 Traits are how we define services. A service could be all the stuff that is related to one concept with singular responsibility. We define the service definition with a trait named `DocRepo`:
 
 ```scala
+import zio._
 
 final case class Doc(
   title: String,
@@ -185,6 +186,8 @@ object InmemoryMetadataRepo {
 This is how ZIO services are created. Let's use the `DocRepo` service in our application. We should provide `DocRepo` layer to be able to run the application:
 
 ```scala
+import zio._
+import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
   val app =

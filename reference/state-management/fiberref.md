@@ -13,6 +13,7 @@ We can think of `FiberRef` as Java's `ThreadLocal` on steroids. So, just like we
 As opposed to `Ref[A]`, the value of a `FiberRef[A]` is bound to an executing fiber. Different fibers who hold the same `FiberRef[A]` can independently set and retrieve values of the reference, without collisions.
 
 ```scala
+import zio._
 
 for {
   fiberRef <- FiberRef.make[Int](0)
@@ -30,6 +31,7 @@ To illustrate this, let's try to find a solution to the _Structured Logging_ pro
 So assume we have written the following code:
 
 ```scala
+import zio._
 
 for {
   _ <- Logging.log("Hello World!")
@@ -80,6 +82,7 @@ One solution is to use the ZIO environment to store the state. It addresses the 
 
 ```scala
 // Solution 1: Using the ZIO environment to store the contextual state
+import zio._
 
 object Logging {
   type Annotation = Map[String, String]
@@ -123,6 +126,7 @@ Let's see how to use `FiberRef` to implement the logging service:
 
 ```scala
 // Solution 2: Using the FiberRef to store the contextual state
+import zio._
 
 trait Logger {
   def logAnnotate[R, E, A](key: String, value: String)(
@@ -158,6 +162,7 @@ object Logging extends Logger {
 Now we can write a program that logs some information:
 
 ```scala
+import zio._
 
 object FiberRefLoggingExample extends ZIOAppDefault {
   def run =
@@ -200,6 +205,7 @@ All requests processed
 To take it a step further, let's modify the previous example to allow the user to change the underlying logging service:
 
 ```scala
+import zio._
 
 trait Logger {
   def logAnnotate[R, E, A](key: String, value: String)(
@@ -211,6 +217,7 @@ trait Logger {
 ```
 
 ```scala
+import zio._
 
 object Logging {
 
@@ -268,6 +275,7 @@ object Logging {
 Now, changing the default logger is made easy with the Logging.withLogger function. Let's disable the default logger for a specific section of our example by utilizing Logging.silentLogger:
 
 ```scala
+import zio._
 
 object FiberRefChangeDefaultLoggerExample extends ZIOAppDefault {
   def run = for {
@@ -331,7 +339,7 @@ In ZIO we have several use cases for `FiberRef`. Let's discuss some of them:
 1. Whenever we use `ZIO.withParallelism`, we can specify the parallelism factor for a region of code. So this information will be stored inside a `FiberRef`, without any need to pass it around all effects explicitly. When we exit the region, the parallelism factor will be restored to the original value:
 
 ```scala
-
+import zio._
 object MainApp extends ZIOAppDefault {
   def myJob(name: String) =
     ZIO.foreachParDiscard(1 to 3)(i =>
@@ -354,6 +362,7 @@ object MainApp extends ZIOAppDefault {
 2. Using `ZIOAspect.annotated` we can annotate the effect with some contextual information, e.g. the `correlation_id`. This information will be stored inside a `FiberRef`, which will be propagated to all fibers that are created from the same parent fiber. Each fiber will have its own set of annotations. When we log inside a fiber, the logging service will use the fiber's specific annotations to create the log message:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -392,6 +401,7 @@ message="Goodbye!"
 3. Log levels are also maintained by using `FiberRef`. They are stored inside a `FiberRef`, and whenever we want, we can change the log level using the `ZIO.logLevel` operator:
 
 ```scala
+import zio._
 
 for {
   _ <- ZIO.log("Application started!")
@@ -409,6 +419,7 @@ for {
 4. The same goes for when we access the environment (e.g. `ZIO.service`), or when we provide a layer to a ZIO effect (e.g. `ZIO#provide`). ZIO uses `FiberRef` under the hood to store the environment:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   private val fooLayer = ZLayer.succeed("foo")
@@ -441,6 +452,7 @@ There are several other use cases for `FiberRef` in ZIO itself. We just covered 
 You can also use `locally` to scope `FiberRef` value only for a given effect:
 
 ```scala
+import zio._
 
 for {
   correlationId <- FiberRef.make[String]("")
@@ -454,6 +466,7 @@ for {
 Let's explore the distinction between `Ref` and `FiberRef` through two practical examples:
 
 ```scala
+import zio._
 
 object RefExample extends ZIOAppDefault {
 
@@ -481,6 +494,7 @@ right2: 6
 It is apparent that the `ref` is shared between the `left` and `right` fibers. However, when using FiberRef, each fiber has its own separate storage, isolating them from one another:
 
 ```scala
+import zio._
 
 object FiberRefExample extends ZIOAppDefault {
   def run =
@@ -519,6 +533,7 @@ Let's go back to the `FiberRef`s analog called `ThreadLocal` and see how it work
 So if we create a `FiberRef` and set its value to `5`, and we pass this `FiberRef` to a child fiber, it sees the value `5`. If the child fiber modifies the value from `5` to `6`, the parent fiber can't see that change. So the child fiber gets its own copy of the `FiberRef`, and it can modify it locally. Those changes will not affect the parent fiber:
 
 ```scala
+import zio._
 
 for {
   fiberRef <- FiberRef.make(5)
@@ -540,6 +555,7 @@ ZIO does not only support to propagate `FiberRef` values from parents to childs,
 If we `join` a fiber then the value of its `FiberRef` is merged back into the parent fiber. The default strategy for merging back, is **replacement**. This means whenever a forked fiber joined to its parent fiber, the value of its parent will be replaced with the value of its child `FiberRef`:
 
 ```scala
+import zio._
 
 for {
   fiberRef <- FiberRef.make(5)
@@ -556,6 +572,7 @@ Each fiber has its own `FiberRef` and can modify it independently. Therefore, wh
 As we can see, `child1` is the last fiber, so its value, which is `6`, gets merged back into its parent:
 
 ```scala
+import zio._
 
 for {
   fiberRef <- FiberRef.make(5)
@@ -572,6 +589,7 @@ for {
 Furthermore, we have the ability to customize the initialization of a value when a fiber is forked, as well as the method of value combination when merging back the values. To achieve this, you can specify the desired behavior when making the `FiberRef` using `FiberRef#make`:
 
 ```scala
+import zio._
 
 for {
   fiberRef <- FiberRef.make(initial = 0, join = math.max)
@@ -589,6 +607,7 @@ In this example, when the child fiber joins its parent, it employs the max funct
 It is important to note that `await` has no such merge behavior. So `await` waits for the child fiber to finish and gives us its value as an `Exit`, without ever merging any `FiberRef` values back into the parent:
 
 ```scala
+import zio._
 
 for {
   fiberRef <- FiberRef.make(5)
@@ -605,6 +624,7 @@ for {
 We can inherit the values from all `FiberRef`s from an existing `Fiber` using the `Fiber#inheritAll` method:
 
 ```scala
+import zio._
 
 for {
   fiberRef <- FiberRef.make[Int](0)
@@ -619,6 +639,7 @@ for {
 Note that `inheritAll` is automatically called on `join`. However, `join` will wait for merging the **final** values, while `inheritAll` will merge the **current** values and then continue:
 
 ```scala
+import zio._
 
 val withJoin =
     for {
@@ -630,6 +651,7 @@ val withJoin =
 ```
 
 ```scala
+import zio._
 
 val withoutJoin =
     for {
@@ -650,6 +672,7 @@ In the previous section, we learned the following:
 Let's examine these two rules with a simple example:
 
 ```scala
+import zio._
 
 object Main extends ZIOAppDefault {
   val retries: FiberRef[Int] =
@@ -684,6 +707,7 @@ As we can see from the program's output, when we delayed the `f1` workflow, it b
 While developing the program, we might want to add additional configurations, such as `intervals`. In this case, we can easily include another `FiberRef` that holds the `intervals` config:
 
 ```scala
+import zio._
 
 object Main extends ZIOAppDefault {
 
@@ -719,6 +743,7 @@ This illustrates that by incorporating more `FiberRef`s, we can concurrently upd
 Since the two configurations are interconnected, it might be beneficial to create a new data type utilizing `Map[String, Int]`. This approach eliminates the necessity of encoding retry configurations in two distinct `FiberRef`s:
 
 ```scala
+import zio._
 
 object Main extends ZIOAppDefault {
   val retryConfig: FiberRef[Map[String, Int]] =
@@ -805,6 +830,7 @@ ZIO includes some utilities which helps us to create `Differ` instances for more
 Let's implement a `Differ` for `retryConfig` which is a FiberRef of type `Map[String, Int]`:
 
 ```scala
+import zio._
 
 val differ   = Differ.map[String, Int, Int => Int](Differ.update[Int])
 val patch1   = differ.diff(Map("retries" -> 3), Map("retries" -> 5))
@@ -825,6 +851,7 @@ Map(retries -> 5, intervals -> 3)
 In previous section, we have successfully updated the `retries` and `intervals` values using compositional updates. Now we can use this differ to make the updates of our `FiberRef` composable:
 
 ```scala
+import zio._
 
 object Main extends ZIOAppDefault {
 
@@ -886,6 +913,7 @@ case class RetryConfig(
 We can create a `Differ` for `RetryConfig` using the `Differ#transform` function:
 
 ```scala
+import zio._
 
 val differ: Differ[RetryConfig, (Int => Int, Int => Int)] =
   Differ
@@ -900,6 +928,7 @@ val differ: Differ[RetryConfig, (Int => Int, Int => Int)] =
 Now, as same as before, we can use this `differ` to make the updates of our new `FiberRef` composable:
 
 ```scala
+import zio._
 
 object Main extends ZIOAppDefault {
 

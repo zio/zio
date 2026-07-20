@@ -14,6 +14,7 @@ trait ZIO[-R, +E, +A] {
 In the following example, we expose and then untrace the underlying cause:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val f1: ZIO[Any, String, Int] =

@@ -44,6 +44,7 @@ When working with schema-described data, we often need to express computations o
 The typical way to build expressions is through the operator syntax on [Optic](./optics.md) values:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 
@@ -88,6 +89,7 @@ Supported Scala versions: 2.13.x and 3.x.
 The comparison operators `===`, `>`, `>=`, `<`, `<=`, and `!=` on `Optic[S, A]` create `SchemaExpr.Relational` nodes. Each operator has two overloads — one comparing against a literal value, and one comparing against another optic:
 
 ```scala
+import zio.blocks.schema._
 
 case class Product(name: String, price: Double, stock: Int)
 
@@ -113,6 +115,7 @@ val named: SchemaExpr[Product, Boolean]     = Product.name === "Widget"
 The `&&`, `||`, and `!` (unary) operators on boolean-focused optics create `SchemaExpr.Logical` and `SchemaExpr.Not` nodes:
 
 ```scala
+import zio.blocks.schema._
 
 case class User(name: String, active: Boolean, verified: Boolean)
 
@@ -135,6 +138,7 @@ val notActive: SchemaExpr[User, Boolean]         = !User.active
 The `+`, `-`, and `*` operators on numeric-focused optics create `SchemaExpr.Arithmetic` nodes. These require an implicit `IsNumeric[A]` instance, which is provided for `Byte`, `Short`, `Int`, `Long`, `Float`, `Double`, `BigInt`, and `BigDecimal`:
 
 ```scala
+import zio.blocks.schema._
 
 case class Order(quantity: Int, unitPrice: Double)
 
@@ -156,6 +160,7 @@ val increased : SchemaExpr[Order, Int]    = Order.quantity + 1
 The `concat`, `matches`, and `length` methods on string-focused optics create `SchemaExpr.StringConcat`, `SchemaExpr.StringRegexMatch`, and `SchemaExpr.StringLength` nodes:
 
 ```scala
+import zio.blocks.schema._
 
 case class Email(address: String, subject: String)
 
@@ -177,6 +182,7 @@ val subjectLen: SchemaExpr[Email, Int]      = Email.subject.length
 Boolean-typed `SchemaExpr` values can be combined with `&&` and `||`:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 
@@ -200,6 +206,7 @@ val adultOrAlice: SchemaExpr[Person, Boolean] = isAdult || isAlice
 For advanced use cases, we can construct `SchemaExpr` nodes directly:
 
 ```scala
+import zio.blocks.schema._
 
 case class Item(price: Int)
 
@@ -234,6 +241,7 @@ trait SchemaExpr[A, +B] {
 ```
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 
@@ -271,6 +279,7 @@ trait SchemaExpr[A, +B] {
 In the following example we are evaluating a simple optic expression to extract the `name` field from a `Person` and retrieving it as a `DynamicValue`:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 
@@ -300,6 +309,7 @@ trait SchemaExpr[A, +B] {
 In the following example we are evaluating a combined expression that checks if a `Person` is an adult (age >= 18) and has the name "Alice". The result of evaluating this expression against a `Person` instance will be `true` if both conditions are met, and `false` otherwise:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 
@@ -328,6 +338,7 @@ trait SchemaExpr[A, +B] {
 In the following example we are evaluating a combined expression that checks if a `Person` is an adult (age >= 18) or has the name "Alice". The result of evaluating this expression against a `Person` instance will be `true` if either condition is met, and `false` only if both conditions are not met:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 
@@ -393,6 +404,7 @@ object SchemaExpr {
 Created via the `!` (unary negation) operator on boolean optics:
 
 ```scala
+import zio.blocks.schema._
 
 case class User(active: Boolean)
 
@@ -503,6 +515,7 @@ object SchemaExpr {
 Created via the `concat` method on string optics:
 
 ```scala
+import zio.blocks.schema._
 
 case class Greeting(prefix: String)
 
@@ -537,6 +550,7 @@ object SchemaExpr {
 Created via the `matches` method on string optics:
 
 ```scala
+import zio.blocks.schema._
 
 case class Email(address: String)
 
@@ -566,6 +580,7 @@ object SchemaExpr {
 Created via the `length` method on string optics:
 
 ```scala
+import zio.blocks.schema._
 
 case class Message(body: String)
 
@@ -594,6 +609,7 @@ Not all expression nodes use these traits — `StringRegexMatch` and `StringLeng
 Expression evaluation returns `Either[OpticCheck, Seq[B]]`. The `Left` case contains an [`OpticCheck`](./optics.md) with detailed diagnostic information about what went wrong — for example, an unexpected case in a prism, an empty collection in a traversal, or a missing key.
 
 ```scala
+import zio.blocks.schema._
 
 case class Shape(kind: String)
 

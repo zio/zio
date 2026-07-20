@@ -52,6 +52,7 @@ In contrast, in the case of `Scope` there is tremendous value in reflecting the 
 The other potential use of the ZIO environment is describing the dependencies of our business logic itself. Normally, we implement higher level services in terms of lower level services using [constructor based dependency injection with ZLayer](../di/index.md).
 
 ```scala
+import zio._
 
 trait HighLevelService {
   def doSomething: ZIO[Any, Nothing, Unit]
@@ -118,6 +119,7 @@ This style avoids any usage of the ZIO environment that is not a local capabilit
 There can be a feeling that defining this final `ApplicationLevelService` is unnecessary, and we would like to be able to write our business logic in terms of high level services directly without making it another service:
 
 ```scala
+import zio._
 
 object Main extends ZIOAppDefault {
 

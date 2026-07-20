@@ -45,6 +45,7 @@ Every `Schema#fromDynamicValue`, every `Codec#decode`, and every optic traversal
 Here is a quick taste of how `SchemaError` behaves:
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 // Create a simple message error
 val err = SchemaError("Age must be positive")
@@ -71,6 +72,7 @@ object SchemaError {
 ```
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val err = SchemaError("Value must be positive")
 println(err.message)  // Value must be positive
@@ -89,6 +91,7 @@ object SchemaError {
 Here we create a message error at the root, and another with an explicit path:
 
 ```scala
+import zio.blocks.schema.{DynamicOptic, SchemaError}
 
 // Root-level message (same as SchemaError.apply)
 val atRoot = SchemaError.message("Unexpected null")
@@ -113,6 +116,7 @@ object SchemaError {
 Here is an example:
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val err = SchemaError.validationFailed("Age must be between 0 and 150")
 println(err.message)  // Age must be between 0 and 150
@@ -132,6 +136,7 @@ object SchemaError {
 The first overload is used by codecs — `trace` is the list of path nodes accumulated during decoding. Pass `Nil` when constructing an error manually and use the `at*` methods to set the path. The second overload wraps a nested `SchemaError` with additional context; the nested failures are rendered under a "Caused by:" section.
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 // Root-level conversion failure
 val err = SchemaError.conversionFailed(Nil, "Expected a positive integer")
@@ -159,6 +164,7 @@ object SchemaError {
 ```
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val err = SchemaError.missingField(Nil, "email").atField("user")
 println(err.message)  // Missing field 'email' at: .user
@@ -175,6 +181,7 @@ object SchemaError {
 ```
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val err = SchemaError.duplicatedField(Nil, "id").atField("record")
 println(err.message)  // Duplicated field 'id' at: .record
@@ -191,6 +198,7 @@ object SchemaError {
 ```
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val err = SchemaError
   .expectationMismatch(Nil, "Expected Record, got Sequence")
@@ -209,6 +217,7 @@ object SchemaError {
 ```
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val err = SchemaError.unknownCase(Nil, "Triangle").atField("shape")
 println(err.message)  // Unknown case 'Triangle' at: .shape
@@ -229,6 +238,7 @@ final case class SchemaError(errors: ::[SchemaError.Single]) {
 ```
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val err = SchemaError("first failure") ++ SchemaError("second failure")
 println(err.message)
@@ -247,6 +257,7 @@ final case class SchemaError(errors: ::[SchemaError.Single]) {
 ```
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val err = SchemaError("something went wrong")
 assert(err.getMessage == err.message)
@@ -265,6 +276,7 @@ final case class SchemaError(errors: ::[SchemaError.Single]) {
 ```
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val nameError = SchemaError.missingField(Nil, "name")
 val ageError  = SchemaError.conversionFailed(Nil, "Age must be positive")
@@ -293,6 +305,7 @@ final case class SchemaError(errors: ::[SchemaError.Single]) {
 ```
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 // Codec decoding 'city' inside 'address' inside 'user'
 val err = SchemaError.missingField(Nil, "city")
@@ -312,6 +325,7 @@ final case class SchemaError(errors: ::[SchemaError.Single]) {
 ```
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val err = SchemaError("invalid phone number").atIndex(2).atField("phones")
 println(err.message)  // invalid phone number at: .phones[2]
@@ -328,6 +342,7 @@ final case class SchemaError(errors: ::[SchemaError.Single]) {
 ```
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val err = SchemaError("conversion failed").atField("value").atCase("Right")
 println(err.message)  // conversion failed at: <Right>.value
@@ -344,6 +359,7 @@ final case class SchemaError(errors: ::[SchemaError.Single]) {
 ```
 
 ```scala
+import zio.blocks.schema.{DynamicValue, SchemaError}
 
 val key = DynamicValue.string("config")
 val err = SchemaError("missing required entry").atKey(key)
@@ -355,6 +371,7 @@ println(err.message)  // missing required entry at: {"config"}
 All path methods can be chained. Each call prepends to the existing path, so the outermost call appears as the leftmost segment in the rendered message.
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val err = SchemaError("value out of range")
   .atField("amount")       // innermost — added first
@@ -368,6 +385,7 @@ println(err.message)
 Path annotation applies to **every** `Single` inside the error, so combined errors accumulate paths correctly:
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val error1 = SchemaError.missingField(Nil, "name")
 val error2 = SchemaError.conversionFailed(Nil, "age must be positive")
@@ -405,6 +423,7 @@ SchemaError.Single (sealed trait)
 We can pattern match on `errors` to handle specific failure kinds:
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val err = SchemaError.missingField(Nil, "email") ++
           SchemaError.conversionFailed(Nil, "age must be positive")
@@ -434,6 +453,7 @@ sealed trait IntoError extends SchemaError.Single {
 Represents a failed type or value conversion. When a `cause: Option[SchemaError]` is present, the rendered `message` includes a "Caused by:" section showing the nested failures.
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 // Single nested cause
 val inner1 = SchemaError.conversionFailed(Nil, "name is blank")
@@ -460,6 +480,7 @@ println(outer2.message)
 `Schema#fromDynamicValue` returns `Either[SchemaError, A]`. Every codec accumulates path nodes during decoding and calls `atField`, `atIndex`, or `atCase` as it unwinds, producing a fully-annotated `SchemaError` on failure.
 
 ```scala
+import zio.blocks.schema.{Schema, SchemaError}
 
 case class Person(name: String, age: Int)
 
@@ -483,6 +504,7 @@ See [Schema](./schema.md) and [DynamicValue](./dynamic-value.md) for the full en
 `Schema#transform` accepts `to` and `from` functions that can throw `SchemaError` to signal validation failures during encoding or decoding. We use `SchemaError.validationFailed` (which wraps a `ConversionFailed`) to turn a smart-constructor rejection into a structured schema error:
 
 ```scala
+import zio.blocks.schema.{Schema, SchemaError}
 
 case class PositiveInt private (value: Int)
 
@@ -513,6 +535,7 @@ The [Validation](./validation.md) system uses `SchemaError` to report constraint
 Path annotation (`atField`, `atIndex`, `atKey`, `atCase`) builds a [`DynamicOptic`](./dynamic-optic.md) inside each error. Operations such as `DynamicValue#setOrFail` and `DynamicValue#modifyAtPathOrFail` return `Either[SchemaError, DynamicValue]`, using the same factory methods.
 
 ```scala
+import zio.blocks.schema.{DynamicOptic, DynamicValue, Schema, SchemaError}
 
 val data   = DynamicValue.Sequence(DynamicValue.int(1), DynamicValue.int(2))
 val optic  = DynamicOptic.root.at(10)
@@ -529,6 +552,7 @@ result match {
 Because `SchemaError` extends `Exception`, it can be thrown and caught with standard try/catch (In functional code, prefer `Either[SchemaError, A]` or `Option[SchemaError]` instead):
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 try {
   throw SchemaError("Unexpected data shape")

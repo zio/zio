@@ -45,6 +45,9 @@ case class HttpServerConfig(host: String, port: Int, nThreads: Int)
 Next, we need to define the configuration descriptor that describes the configuration data type. The best practice is to define the configuration descriptor in the companion object of the configuration data type:
 
 ```scala
+import zio.config._
+import zio.Config
+import zio.config.magnolia.deriveConfig
 
 object HttpServerConfig {
   implicit val config: Config[HttpServerConfig] =
@@ -57,6 +60,7 @@ object HttpServerConfig {
 By utilizing the `ZIO.config[HttpServerConfig]` function, we can obtain access to the configuration information that has been read by the current `ConfigProvider`:
 
 ```scala
+import zio._
 
 ZIO.config[HttpServerConfig].flatMap { config =>
   ??? // Do something with the configuration
@@ -66,6 +70,9 @@ ZIO.config[HttpServerConfig].flatMap { config =>
 The above code is a ZIO effect that will access the `HttpServerConfig` configuration data and then by using flatMap, we can do something with it, for example, we can print it:
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 val workflow: ZIO[Any, Exception, Unit] =
   ZIO.config[HttpServerConfig].flatMap { config =>
@@ -80,6 +87,10 @@ val workflow: ZIO[Any, Exception, Unit] =
 Let's run the above workflow and see the output:
 
 ```scala
+import zio._
+import zio.config.magnolia._
+
+import java.io.IOException
 
 case class HttpServerConfig(host: String, port: Int)
 
@@ -129,6 +140,16 @@ Great! We have ZIO application that can access the configuration data. It works!
 
 ```scala title="documentation/guides/tutorials/make-a-zio-app-configurable/src/main/scala/dev/zio/quickstart/MainApp.scala" 
 package dev.zio.quickstart
+
+import dev.zio.quickstart.config.HttpServerConfig
+import dev.zio.quickstart.counter.CounterRoutes
+import dev.zio.quickstart.download.DownloadRoutes
+import dev.zio.quickstart.greet.GreetingRoutes
+import dev.zio.quickstart.users.{InmemoryUserRepo, UserRoutes}
+import zio._
+import zio.config.typesafe._
+import zio.http._
+import zio.http.netty.NettyConfig
 
 object MainApp extends ZIOAppDefault {
   override val bootstrap: ZLayer[ZIOAppArgs, Any, Any] =
@@ -227,6 +248,8 @@ HOCON supports substitutions, so in the above configuration, we can use the envi
 To be able to read the configuration data from the HOCON files, we can use the `TypesafeConfigProvider` to read the configuration data from the `application.conf` file:
 
 ```scala
+import zio._
+import zio.config.typesafe.TypesafeConfigProvider
 
 Runtime.setConfigProvider(
   TypesafeConfigProvider.fromResourcePath()
@@ -237,6 +260,16 @@ Then we should change the default `ConfigProvider` to the new one by using `Runt
 
 ```scala title="documentation/guides/tutorials/make-a-zio-app-configurable/src/main/scala/dev/zio/quickstart/MainApp.scala" 
 package dev.zio.quickstart
+
+import dev.zio.quickstart.config.HttpServerConfig
+import dev.zio.quickstart.counter.CounterRoutes
+import dev.zio.quickstart.download.DownloadRoutes
+import dev.zio.quickstart.greet.GreetingRoutes
+import dev.zio.quickstart.users.{InmemoryUserRepo, UserRoutes}
+import zio._
+import zio.config.typesafe._
+import zio.http._
+import zio.http.netty.NettyConfig
 
 object MainApp extends ZIOAppDefault {
   override val bootstrap: ZLayer[ZIOAppArgs, Any, Any] =

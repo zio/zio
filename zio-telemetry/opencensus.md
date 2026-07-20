@@ -18,6 +18,10 @@ First, add the following dependency to your build.sbt:
 To use ZIO Telemetry, you will need a `Tracing` service in your environment. You also need to provide a `tracer` implementation:
 
 ```scala
+import zio.telemetry.opencensus.Tracing
+import zio.telemetry.opencensus.implicits._
+import zio._
+import io.opencensus.trace.Status
 
 val tracerLayer = ZLayer.succeed(io.opencensus.trace.Tracing.getTracer)
 
@@ -25,6 +29,7 @@ val errorMapper = ErrorMapper[Throwable] { case _ => Status.UNKNOWN }
 
 val app =
   ZIO.serviceWithZIO[Tracing] { tracing =>
+    import tracing.aspects._
 
     (for {
       _       <- tracing.putAttributes(Map("foo" -> "bar"))
@@ -38,7 +43,8 @@ on `ZIO`s are available to support starting child spans and adding attributes.
 
 ```scala
 ZIO.serviceWithZIO[Tracing] { tracing =>
-
+  import tracing.aspects._
+  
   // start a new root span and set some attributes
   val zio1 = ZIO.unit @@ root("root span", attributes = ("foo", "bar))
   // start a child of the current span
@@ -56,7 +62,8 @@ are not referentially transparent.
 
 ```scala
 ZIO.serviceWithZIO[Tracing] { tracing =>
-
+  import tracing.aspects._
+  
   val textFormat                           = Tracing.getPropagationComponent().getB3Format()
   val carrier: mutable.Map[String, String] = mutable.Map().empty
 

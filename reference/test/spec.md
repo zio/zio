@@ -15,6 +15,11 @@ All standard test services are located at the `zio.test` package. They are test 
 Let's see how we can test the `sayHello` function, which uses the `Console` service:
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.Assertion._
+
+import java.io.IOException
 
 def sayHello: ZIO[Any, IOException, Unit] =
   Console.printLine("Hello, World!")

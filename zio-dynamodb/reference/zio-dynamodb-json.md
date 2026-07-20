@@ -31,7 +31,7 @@ libraryDependencies ++= Seq(
 Add the following import to your code:
 
 ```scala
-
+import zio.dynamodb.json._
 ```
 
 ## Methods

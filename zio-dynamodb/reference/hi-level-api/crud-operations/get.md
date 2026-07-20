@@ -27,7 +27,7 @@ Sometimes working with a `Either[ItemError, From]` can be a little unwieldy so t
 The first approach is to use the ZIO `absolve` method to push all ItemErrors into the ZIO error channel
 
 ```scala
-
+import zio.dynamodb.syntax._
 for {
   person <- DynamoDBQuery.get("person")(Person.id.primaryKey === "1").execute.absolve
 } yield person
@@ -36,7 +36,7 @@ for {
 However sometimes we wish to treat `NotFound` as a success case and for this the `maybeFound` extension method can be imported to push the `DecodingError` into the ZIO error channel and handle `NotFound` as a successful operation by using an `Option` type. 
 
 ```scala
-
+import zio.dynamodb.syntax._
 for {
   maybePerson <- DynamoDBQuery.get("person")(Person.id.primaryKey === "1").execute.maybeFound
 } yield maybePerson

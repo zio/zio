@@ -70,6 +70,7 @@ $ touch src/main/scala/MainApp.scala
 Let's add the following lines to our `MainApp.scala` file:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run = 

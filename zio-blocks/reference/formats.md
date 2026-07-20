@@ -59,6 +59,8 @@ Here's a summary of the formats currently supported by ZIO Blocks. Each format p
 To add a new serialization format, define a `BinaryFormat` (or `TextFormat`) singleton with a custom `Deriver`:
 
 ```scala
+import zio.blocks.schema.codec.{BinaryCodec, BinaryFormat}
+import zio.blocks.schema.derive.Deriver
 
 // 1. Define your codec base class
 abstract class MyCodec[A] extends BinaryCodec[A]
@@ -77,6 +79,8 @@ For details on implementing a `Deriver`, see [Type-class Derivation](./type-clas
 All serialization formats in ZIO Blocks follow the same pattern: given a `Schema[A]`, you derive a codec by calling `derive` with a format object:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.toon._
 
 case class Person(name: String, age: Int)
 
@@ -109,6 +113,8 @@ libraryDependencies += "dev.zio" %% "zio-blocks-schema" % "<version>"
 ### Basic Usage
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 case class Person(name: String, age: Int)
 
@@ -136,6 +142,8 @@ Requires the Apache Avro library (1.12.x).
 ### Basic Usage
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.avro._
 
 case class Person(name: String, age: Int)
 
@@ -159,6 +167,9 @@ val decoded: Either[SchemaError, Person] = codec.decode(bytes)
 Each `AvroCodec` exposes an `avroSchema` property containing the Apache Avro schema:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.avro._
+import org.apache.avro.{Schema => AvroSchema}
 
 case class Person(name: String, age: Int)
 
@@ -204,6 +215,8 @@ println(avroSchema.toString(true))
 Sealed traits are encoded as Avro unions with an integer index prefix:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.avro._
 
 sealed trait Shape
 case class Circle(radius: Double) extends Shape
@@ -242,6 +255,8 @@ libraryDependencies += "dev.zio" %% "zio-blocks-schema-toon" % "<version>"
 ### Basic Usage
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.toon._
 
 case class Person(name: String, age: Int)
 
@@ -298,6 +313,8 @@ orders[2]{id,total}:
 The `ToonCodecDeriver` provides extensive configuration:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.toon._
 
 case class Person(firstName: String, lastName: String)
 object Person {
@@ -331,6 +348,8 @@ val codec = Schema[Person].derive(customDeriver)
 ### ADT Encoding Styles
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.toon._
 
 sealed trait Shape
 case class Circle(radius: Double) extends Shape
@@ -365,6 +384,8 @@ libraryDependencies += "dev.zio" %% "zio-blocks-schema-messagepack" % "<version>
 ### Basic Usage
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.msgpack._
 
 case class Person(name: String, age: Int)
 
@@ -415,6 +436,8 @@ MessagePack provides significant space savings compared to JSON:
 Sealed traits encode a variant index followed by the case value:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.msgpack._
 
 sealed trait Shape
 case class Circle(radius: Double) extends Shape
@@ -446,6 +469,8 @@ Requires the MongoDB BSON library (5.x).
 ### Basic Usage
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.bson._
 
 case class Person(name: String, age: Int)
 
@@ -466,8 +491,12 @@ val codec: BsonCodec[Person] = BsonSchemaCodec.bsonCodec(Schema[Person])
 BSON provides native support for MongoDB ObjectIds:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.bson._
+import org.bson.types.ObjectId
 
 // Import ObjectId schema
+import ObjectIdSupport.objectIdSchema
 
 case class Document(_id: ObjectId, title: String)
 
@@ -482,6 +511,9 @@ val codec = BsonSchemaCodec.bsonCodec(Schema[Document])
 ### Configuration Options
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.bson._
+import BsonSchemaCodec._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -507,6 +539,7 @@ val codec = BsonSchemaCodec.bsonCodec(Schema[Person], config)
 ### Sum Type Handling
 
 ```scala
+import zio.blocks.schema.bson.BsonSchemaCodec.SumTypeHandling
 
 // Option 1: Wrapper with class name as field key (default)
 SumTypeHandling.WrapperWithClassNameField
@@ -535,6 +568,9 @@ Requires the Apache Thrift library (0.22.x).
 ### Basic Usage
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.thrift._
+import java.nio.ByteBuffer
 
 case class Person(name: String, age: Int)
 
@@ -633,6 +669,8 @@ All formats support the full set of ZIO Blocks Schema primitive types:
 All formats return `Either[SchemaError, A]` for decoding operations. Errors include path information for debugging:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.toon._
 
 case class Person(name: String, age: Int)
 object Person {

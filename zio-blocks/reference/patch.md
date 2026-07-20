@@ -19,6 +19,8 @@ For **untyped JSON patching** without a schema, use [`JsonPatch`](./json-patch.m
 :::
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.patch._
 
 case class Person(name: String, age: Int)
 object Person extends CompanionOptics[Person] {
@@ -118,6 +120,7 @@ Supported numeric types:
 Patches support temporal arithmetic with `addDuration` and `addPeriod`:
 
 ```scala
+import java.time._
 
 case class Event(
   timestamp: Instant,
@@ -147,7 +150,7 @@ val postpone = Patch.addPeriodAndDuration(
 )
 
 // Add duration to a Duration field
-
+import Patch.DurationDummy.ForDuration
 val extendDuration = Patch.addDuration(Event.duration, Duration.ofMinutes(30))
 ```
 
@@ -217,6 +220,8 @@ object TodoList extends CompanionOptics[TodoList] {
   val items: Lens[TodoList, Vector[String]] = optic(_.items)
 }
 
+import Patch.CollectionDummy.ForVector
+
 val addItems = Patch.append(
   TodoList.items,
   Vector("Buy groceries", "Walk the dog")
@@ -229,7 +234,10 @@ addItems(list)  // TodoList(Vector("Existing task", "Buy groceries", "Walk the d
 Works with `Vector`, `List`, `Seq`, `IndexedSeq`, and `LazyList`. Use the appropriate implicit:
 
 ```scala
-
+import Patch.CollectionDummy.ForList
+import Patch.CollectionDummy.ForSeq
+import Patch.CollectionDummy.ForIndexedSeq
+import Patch.CollectionDummy.ForLazyList
 ```
 
 ### Inserting at Index
@@ -237,6 +245,7 @@ Works with `Vector`, `List`, `Seq`, `IndexedSeq`, and `LazyList`. Use the approp
 The `insertAt` operation inserts elements at a specific position:
 
 ```scala
+import Patch.CollectionDummy.ForVector
 
 val insertAtStart = Patch.insertAt(
   TodoList.items,
@@ -259,6 +268,7 @@ insertInMiddle(list)  // TodoList(Vector("A", "Second item", "Third item", "B", 
 The `deleteAt` operation removes elements starting at an index:
 
 ```scala
+import Patch.CollectionDummy.ForVector
 
 // Delete one element at index 1
 val deleteOne = Patch.deleteAt(TodoList.items, 1, 1)
@@ -287,6 +297,8 @@ object Project extends CompanionOptics[Project] {
   implicit val schema: Schema[Project] = Schema.derived
   val tasks: Lens[Project, Vector[Task]] = optic(_.tasks)
 }
+
+import Patch.CollectionDummy.ForVector
 
 // Create a patch for the nested Task type
 val increasePriority = Patch.increment(Task.priority, 1)
@@ -428,6 +440,8 @@ object Data extends CompanionOptics[Data] {
   val items: Lens[Data, Vector[Int]] = optic(_.items)
 }
 
+import Patch.CollectionDummy.ForVector
+
 // Try to delete at an invalid index
 val badDelete = Patch.deleteAt(Data.items, 10, 1)
 val data = Data(Vector(1, 2, 3))
@@ -553,7 +567,7 @@ val patch = Patch.increment(Account.balance, 100)
 val dynamicPatch = Schema[DynamicPatch].toDynamicValue(patch.dynamicPatch)
 
 // Serialize to JSON, Avro, MessagePack, etc.
-
+import zio.blocks.schema.json._
 val json = JsonEncoder.encode(patch.dynamicPatch)
 ```
 

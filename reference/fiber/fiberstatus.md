@@ -13,6 +13,7 @@ Each fiber can be in one of the following status:
 In the following example, we are going to `await` on a never-ending fiber and determine the id of that fiber, which we are blocking on:
 
 ```scala
+import zio._
 
 for {
   f1 <- ZIO.never.fork

@@ -23,6 +23,7 @@ The `is_add_commutative` predicate takes two inputs and checks if the `add` func
 The `Gen[A]` data type is used to generate random values of type `A`. ZIO Test provides numerous `Gen` instances for common types:
 
 ```scala
+import zio.test._
 
 val intGen: Gen[Any, Int] = Gen.int
 val stringGen: Gen[Sized, String] = Gen.string
@@ -69,6 +70,7 @@ In the previous example, we used `check` to test if the `add` function is commut
 By default, the `check` function, try to generate 200 samples. We can change this by using the `sample` test aspect:
 
 ```scala
+import zio.test._
 
 object AdditionSpec extends ZIOSpecDefault {
   def spec =

@@ -59,7 +59,7 @@ final class App(service: UserService) {
 
 // Manual wiring:
 Scope.global.scoped { scope =>
-
+  import scope._
   val config = Config("jdbc:postgres://localhost/db")
   val db = Resource.fromAutoCloseable(new Database(config)).allocate
   val service = new UserService($(db)(identity))
@@ -72,7 +72,7 @@ With `Wire` + `Resource.from`, the macro handles the dependency graph:
 
 ```scala
 Scope.global.scoped { scope =>
-
+  import scope._
   val app = Resource.from[App](
     Wire(Config("jdbc:postgres://localhost/db"))
   ).allocate
@@ -111,6 +111,8 @@ Supported Scala versions: 2.13.x and 3.x.
 The `Wire.shared[T]` macro inspects `T`'s primary constructor and generates a shared wire that reuses the same instance across dependents:
 
 ```scala
+import zio.blocks.scope._
+import zio.blocks.context.Context
 
 final case class Config(debug: Boolean)
 
@@ -122,7 +124,7 @@ final class Database(config: Config) extends AutoCloseable {
 val wire: Wire.Shared[Config, Database] = Wire.shared[Database]
 
 Scope.global.scoped { scope =>
-
+  import scope._
   val config = Config(debug = true)
   val deps = Context[Config](config)
   val db = allocate(wire.toResource(deps))
@@ -135,6 +137,8 @@ Scope.global.scoped { scope =>
 Like `Wire.shared[T]`, but creates a fresh instance each time the wire is used. Use for request-scoped or per-call services:
 
 ```scala
+import zio.blocks.scope._
+import zio.blocks.context.Context
 
 final class RequestHandler {
   val id = scala.util.Random.nextInt()
@@ -143,7 +147,7 @@ final class RequestHandler {
 val wire: Wire.Unique[Any, RequestHandler] = Wire.unique[RequestHandler]
 
 Scope.global.scoped { scope =>
-
+  import scope._
   val deps = Context.empty[Any]
   val resource = wire.toResource(deps)
 
@@ -163,6 +167,7 @@ Scope.global.scoped { scope =>
 Creates a shared wire that injects a value you already have. If the value is `AutoCloseable`, its `close()` method is automatically registered as a finalizer:
 
 ```scala
+import zio.blocks.scope._
 
 final case class Config(dbUrl: String)
 
@@ -170,7 +175,7 @@ val config = Config("jdbc:postgres://localhost/db")
 val wire: Wire.Shared[Any, Config] = Wire(config)
 
 Scope.global.scoped { scope =>
-
+  import scope._
   val cfg = allocate(wire.toResource(Context.empty[Any]))
   $(cfg)(_.dbUrl)
 }
@@ -181,6 +186,8 @@ Scope.global.scoped { scope =>
 Use this for custom construction logic when macro derivation doesn't fit:
 
 ```scala
+import zio.blocks.scope._
+import zio.blocks.context.Context
 
 final case class Config(timeout: Int)
 
@@ -195,7 +202,7 @@ val wire: Wire.Shared[Config, Client] =
   }
 
 Scope.global.scoped { scope =>
-
+  import scope._
   val config = Config(30)
   val deps = Context[Config](config)
   val client = allocate(wire.toResource(deps))
@@ -208,6 +215,8 @@ Scope.global.scoped { scope =>
 Like `Wire.Shared.fromFunction`, but for unique wires:
 
 ```scala
+import zio.blocks.scope._
+import zio.blocks.context.Context
 
 final class RequestContext {
   val id = scala.util.Random.nextInt()
@@ -219,7 +228,7 @@ val wire: Wire.Unique[Any, RequestContext] =
   }
 
 Scope.global.scoped { scope =>
-
+  import scope._
   val deps = Context.empty[Any]
   val resource = wire.toResource(deps)
 
@@ -246,6 +255,7 @@ The fundamental difference is **reuse semantics**:
 In the diamond pattern (where `App` depends on both `UserService` and `OrderService`, both of which depend on `Database`), a shared wire ensures `Database` is constructed once and both services receive the same instance:
 
 ```scala
+import zio.blocks.scope._
 
 final class Database {
   val id = scala.util.Random.nextInt()
@@ -274,7 +284,7 @@ val resource = Resource.from[App](
 )
 
 Scope.global.scoped { scope =>
-
+  import scope._
   val app = resource.allocate
   $(app)(_.check())  // true: Database is shared
 }
@@ -298,6 +308,7 @@ trait Wire[-In, +Out] {
 Here's how to use these methods:
 
 ```scala
+import zio.blocks.scope._
 
 val sharedWire = Wire.shared[String]
 val uniqueWire = Wire.unique[String]
@@ -322,6 +333,7 @@ trait Wire[-In, +Out] {
 Here's how to convert between sharing strategies:
 
 ```scala
+import zio.blocks.scope._
 
 val original = Wire.shared[String]
 
@@ -349,6 +361,8 @@ trait Wire[-In, +Out] {
 Here's how to use this method:
 
 ```scala
+import zio.blocks.scope._
+import zio.blocks.context.Context
 
 final case class Config(value: String)
 
@@ -358,7 +372,7 @@ val deps = Context[Config](Config("hello"))
 val resource: Resource[Config] = wire.toResource(deps)
 
 Scope.global.scoped { scope =>
-
+  import scope._
   val cfg = allocate(resource)
   $(cfg)(_.value)
 }
@@ -377,6 +391,8 @@ trait Wire.Shared[-In, +Out] {
 Here's how to use this method:
 
 ```scala
+import zio.blocks.scope._
+import zio.blocks.context.Context
 
 final class Service {
   def getName: String = "service"
@@ -385,7 +401,7 @@ final class Service {
 val wire = Wire.shared[Service]
 
 Scope.global.scoped { scope =>
-
+  import scope._
   val service = wire.asInstanceOf[Wire.Shared[Any, Service]].make(scope, Context.empty[Any])
   println(service.getName)
 }
@@ -403,6 +419,7 @@ When you call `Wire.shared[T]` or `Wire.unique[T]`, the macro performs these che
 Example with all three features:
 
 ```scala
+import zio.blocks.scope._
 
 final case class Config(dbUrl: String)
 
@@ -451,6 +468,7 @@ val wire = Wire.shared[App]  // ok
 `Wire` is designed for use with `Resource.from[T](wires*)`, which performs whole-graph dependency injection:
 
 ```scala
+import zio.blocks.scope._
 
 final case class AppConfig(dbUrl: String)
 
@@ -478,7 +496,7 @@ val appResource: Resource[App] = Resource.from[App](
 )
 
 Scope.global.scoped { scope =>
-
+  import scope._
   val app = allocate(appResource)
   $(app)(_.run())
 }
@@ -533,6 +551,9 @@ Basic wire construction demonstrates how to create and use `Wire` for dependency
  */
 
 package wire
+
+import zio.blocks.scope._
+import zio.blocks.context.Context
 
 /**
  * Demonstrates basic Wire construction patterns:
@@ -605,6 +626,7 @@ final class BasicApp(service: UserService) {
 
   // Allocate within a scope
   Scope.global.scoped { scope =>
+    import scope._
 
     println("[Scope] Entering scoped region\n")
 
@@ -648,6 +670,9 @@ Comparing shared vs unique semantics shows how shared wires reuse the same insta
  */
 
 package wire
+
+import zio.blocks.scope._
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Demonstrates the semantic difference between shared and unique wires:
@@ -706,6 +731,7 @@ final class UniqueDependencyApp(a: ServiceA, b: ServiceB) {
   )
 
   Scope.global.scoped { scope =>
+    import scope._
 
     println("[Scope] Entering scoped region\n")
 
@@ -723,6 +749,7 @@ final class UniqueDependencyApp(a: ServiceA, b: ServiceB) {
   )
 
   Scope.global.scoped { scope =>
+    import scope._
 
     println("[Scope] Entering scoped region\n")
 
@@ -764,6 +791,9 @@ Manual wire construction demonstrates how to use `fromFunction` for custom const
  */
 
 package wire
+
+import zio.blocks.scope._
+import zio.blocks.context.Context
 
 /**
  * Demonstrates manual wire construction using fromFunction:
@@ -870,6 +900,7 @@ final class ManualWireApp(client: HttpClient, auth: Authenticator) {
 
   // Allocate and run
   Scope.global.scoped { scope =>
+    import scope._
 
     println("[Scope] Entering scoped region\n")
 

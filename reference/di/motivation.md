@@ -12,6 +12,7 @@ So feel free to skip reading this section if you are not interested to learn the
 Assume we have two services called `Formatter` and `Compiler` like the below:
 
 ```scala
+import zio._
 
 class Formatter {
   def format(code: String): UIO[String] = 
@@ -122,6 +123,8 @@ class MockCompiler extends Compiler {
 val formatter = new MockFormatter() // Creating mock formatter
 val compiler  = new MockCompiler()  // Creating mock compiler
 val editor    = new EditorLive(formatter, compiler) // Assembling formatter and compiler into CodeEditor
+
+import zio.test._
 
 val expectedOutput = ???
 for {

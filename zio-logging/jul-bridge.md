@@ -15,6 +15,7 @@ libraryDependencies += "dev.zio" %% "zio-logging-jul-bridge" % "2.5.3"
 and use one of the `JULBridge` layers when setting up logging
 
 ```scala
+import zio.logging.jul.bridge.JULBridge
 
 program.provideCustom(JULBridge.init())
 ```
@@ -30,6 +31,8 @@ filtering in JUL is disabled and is implemented in JULBridge. This may cause deg
 JUL logger name is stored in log annotation with key `logger_name` (`zio.logging.loggerNameAnnotationKey`), following log format
 
 ```scala
+import zio.logging.jul.bridge.JULBridge
+import zio.logging.LoggerNameExtractor
 
 val loggerName = LoggerNameExtractor.loggerNameAnnotationOrTrace
 val loggerNameFormat = loggerName.toLogFormat()
@@ -51,6 +54,8 @@ val logFilter: LogFilter[String] = logFilterConfig.toFilter
 JUL bridge with custom logger can be setup:
 
 ```scala
+import zio.logging.jul.bridge.JULBridge
+import zio.logging.consoleJsonLogger
 
 val logger = Runtime.removeDefaultLoggers >>> consoleJsonLogger() >+> JULBridge.init()
 ```
@@ -65,6 +70,12 @@ You can find the source code [here](https://github.com/zio/zio-logging/tree/mast
 
 ```scala
 package zio.logging.example
+
+import zio.logging.jul.bridge.JULBridge
+import zio.logging.{ConsoleLoggerConfig, LogAnnotation, LogFilter, LogFormat, LoggerNameExtractor, consoleJsonLogger}
+import zio.{ExitCode, LogLevel, Runtime, Scope, ZIO, ZIOAppArgs, ZIOAppDefault, ZLayer}
+
+import java.util.UUID
 
 object JULBridgeExampleApp extends ZIOAppDefault {
 

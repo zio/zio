@@ -41,6 +41,8 @@ However, natural numbers have a well defined notion of subtraction so it feels l
 We can then define an `Inverse` instance for `Natural` like this:
 
 ```scala
+import zio.prelude._
+import zio.prelude.newtypes._
 
 implicit val NaturalInverse: Inverse[Natural] =
   new Inverse[Natural] {

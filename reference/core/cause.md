@@ -16,7 +16,7 @@ The following snippet shows how `Cause` is designed as a semiring data structure
 
 ```scala
 sealed abstract class Cause[+E] extends Product with Serializable { self =>
-
+  import Cause._
   def trace: Trace = ???
 
   final def ++[E1 >: E](that: Cause[E1]): Cause[E1] = Then(self, that)
@@ -45,6 +45,7 @@ There are several causes for various errors. In this section, we will describe e
 The `Empty` cause indicates the lack of errors. We use `Cause.empty` constructor to create an `Empty` cause. Using `ZIO.failCause` we can create a ZIO effect that has an empty cause:
 
 ```scala
+import zio._
 
 ZIO.failCause(Cause.empty).cause.debug
 // Empty
@@ -65,6 +66,7 @@ ZIO.attempt(5).cause.debug
 The `Fail` cause indicates the cause of an _expected error_ of type `E`. We can create one using the `Cause.fail` constructor:
 
 ```scala
+import zio._
 
 ZIO.failCause(Cause.fail("Oh uh!")).cause.debug
 // Fail(Oh uh!,Trace(Runtime(2,1646395282),Chunk(<empty>.MainApp.run(MainApp.scala:4))))
@@ -73,6 +75,7 @@ ZIO.failCause(Cause.fail("Oh uh!")).cause.debug
 Let's uncover the cause of some ZIO effects especially when we combine them:
 
 ```scala
+import zio._
 
 ZIO.fail("Oh uh!").cause.debug
 // Fail(Oh uh!,Trace(Runtime(2,1646395627),Chunk(<empty>.MainApp.run(MainApp.scala:3))))
@@ -99,6 +102,7 @@ myApp.cause.debug
 The `Die` cause indicates a defect, an _unexpected failure_ of type `Throwable`. It contains the stack trace of the defect that occurred. We can use `Cause.die` to create one:
 
 ```scala
+import zio._
 
 ZIO.failCause(Cause.die(new Throwable("Boom!"))).cause.debug
 // Die(java.lang.Throwable: Boom!,Trace(Runtime(2,1646479908),Chunk(<empty>.MainApp.run(MainApp.scala:3))))
@@ -107,6 +111,7 @@ ZIO.failCause(Cause.die(new Throwable("Boom!"))).cause.debug
 If we have a bug in our code and something throws an unexpected exception, that information would be described inside a `Die`. Let's try to investigate some ZIO code that will die:
 
 ```scala
+import zio._
 
 ZIO.succeed(5 / 0).cause.debug
 // Die(java.lang.ArithmeticException: / by zero,Trace(Runtime(2,1646480112),Chunk(zio.internal.FiberContext.runUntil(FiberContext.scala:538),<empty>.MainApp.run(MainApp.scala:3))))
@@ -122,6 +127,7 @@ It is worth noting that the latest example is wrapped by the `Stackless` cause i
 The `Interrupt` cause indicates a fiber interruption which contains information of the _fiber id_ of the interrupted fiber, and also the corresponding stack trace. Let's try an example of:
 
 ```scala
+import zio._
 
 ZIO.interrupt.cause.debug
 // Interrupt(Runtime(2,1646471715),Trace(Runtime(2,1646471715),Chunk(<empty>.MainApp.run(MainApp.scala:3))))
@@ -140,6 +146,7 @@ The `Stackless` cause stores stack traces and execution traces. It has a boolean
 For example, `ZIO.dieMessage` uses `Stackless`:
 
 ```scala
+import zio._
 
 ZIO.dieMessage("Boom!").cause.debug
 // Stackless(Die(java.lang.RuntimeException: Boom!,Trace(Runtime(2,1646477970),Chunk(<empty>.MainApp.run(MainApp.scala:3)))),true)
@@ -155,6 +162,7 @@ at <empty>.MainApp.run(MainApp.scala:3)"
 While `ZIO.die` doesn't use `Stackless` cause:
 
 ```scala
+import zio._
 
 ZIO.die(new Throwable("Boom!")).cause.debug
 // Die(java.lang.Exception: Boom!,Trace(Runtime(2,1646479093),Chunk(<empty>.MainApp.run(MainApp.scala:3))))
@@ -179,6 +187,7 @@ When we are doing parallel computation, the effect can fail for more than one re
 For example, if we run two parallel fibers with `zipPar` and all of them fail, their causes will be encoded with `Both`:
 
 ```scala
+import zio._
 
 val myApp: ZIO[Any, String, Unit] =
   for {
@@ -206,6 +215,7 @@ Other parallel operators are also the same, for example, ZIO encodes the underly
 ZIO uses `Then` cause to encode sequential errors. For example, if we perform ZIO's analog of `try-finally` (e.g. `ZIO#ensuring`), and both `try` and `finally` blocks fail, their causes are encoded with `Then`:
 
 ```scala
+import zio._
 
 val myApp =
   ZIO.fail("first")

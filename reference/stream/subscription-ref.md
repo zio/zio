@@ -5,6 +5,8 @@
 A `SubscriptionRef[A]` is a `Ref` that lets us subscribe to receive the current value along with all changes to that value.
 
 ```scala
+import zio._
+import zio.stream._
 
 trait SubscriptionRef[A] extends Ref.Synchronized[A] {
   def changes: ZStream[Any, Nothing, A]

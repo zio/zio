@@ -7,6 +7,7 @@
 In the following example, the type of the `validateNonNegativeNumber` function is `ZIO[Any, String, Int]` which denotes it is a typed exceptional effect. It can fail of type `String` but it still can die with the type of `NumberFormatException` defect:
 
 ```scala
+import zio._
 
 def validateNonNegativeNumber(input: String): ZIO[Any, String, Int] =
   input.toIntOption match {
@@ -26,6 +27,7 @@ def validateNonNegativeNumber(input: String): ZIO[Any, String, Int] =
 Also, its underlying fiber can be interrupted without affecting the type of the error channel:
 
 ```scala
+import zio._
 
 val myApp: ZIO[Any, String, Int] =
   for {

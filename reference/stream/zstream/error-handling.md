@@ -7,6 +7,7 @@
 If we have a stream that may fail, we might need to recover from the failure and run another stream, the `ZStream#orElse` takes another stream, so when the failure occurs it will switch over to the provided stream:
 
 ```scala
+import zio.stream._
 
 val s1 = ZStream(1, 2, 3) ++ ZStream.fail("Oh! Error!") ++ ZStream(4, 5)
 val s2 = ZStream(6, 7, 8)
@@ -64,6 +65,9 @@ val stream = s1.catchSome {
 And, to recover from a specific cause, we should use `ZStream#catchSomeCause` method:
 
 ```scala
+import zio._
+import zio.Cause._
+import zio.stream._
 
 val s1 = ZStream(1, 2, 3) ++ ZStream.dieMessage("Oh! Boom!") ++ ZStream(4, 5)
 val s2 = ZStream(7, 8, 9)
@@ -75,6 +79,8 @@ val stream = s1.catchSomeCause { case Die(value, _) => s2 }
 If our stream encounters an error, we can provide some cleanup task as ZIO effect to our stream by using the `ZStream#onError` method:
 
 ```scala
+import zio._
+import zio.stream._
 
 val stream = 
   (ZStream(1, 2, 3) ++ ZStream.dieMessage("Oh! Boom!") ++ ZStream(4, 5))

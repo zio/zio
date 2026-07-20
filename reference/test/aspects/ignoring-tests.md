@@ -5,6 +5,8 @@
 To ignore running a test, we can use the `ignore` test aspect:
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 test("an ignored test") {
   assertTrue(false)
@@ -14,6 +16,8 @@ test("an ignored test") {
 To fail all ignored tests, we can use the `success` test aspect:
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 suite("sample tests")(
   test("an ignored test") {

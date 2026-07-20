@@ -41,6 +41,7 @@ Notice that `A` appears in both the output type of the `decode` operator and the
 Let's try implementing an `invmap` operator for our `JsonCodec` type.
 
 ```scala
+import zio.prelude._
 
 trait JsonCodec[A] { self =>
 

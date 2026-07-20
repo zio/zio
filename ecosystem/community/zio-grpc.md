@@ -71,6 +71,13 @@ message HelloReply {
 The hello world server would be like this:
 
 ```scala
+import io.grpc.ServerBuilder
+import io.grpc.examples.helloworld.helloworld.ZioHelloworld.ZGreeter
+import io.grpc.examples.helloworld.helloworld.{HelloReply, HelloRequest}
+import io.grpc.protobuf.services.ProtoReflectionService
+import scalapb.zio_grpc.{ServerLayer, ServiceList}
+import zio.console.putStrLn
+import zio.{ExitCode, URIO, ZEnv, ZIO}
 
 object HelloWorldServer extends zio.App {
 
@@ -98,6 +105,12 @@ object HelloWorldServer extends zio.App {
 And this is an example of using its client:
 
 ```scala
+import io.grpc.ManagedChannelBuilder
+import io.grpc.examples.helloworld.helloworld.HelloRequest
+import io.grpc.examples.helloworld.helloworld.ZioHelloworld.GreeterClient
+import scalapb.zio_grpc.ZManagedChannel
+import zio.console._
+import zio.{ExitCode, URIO}
 
 object HelloWorldClient extends zio.App {
   def myApp =

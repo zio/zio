@@ -11,6 +11,7 @@ your codebase.
 ## Basic Use Cases
 
 ```scala
+import zio._
 
 class Database(connection: String)
 object Database {
@@ -38,6 +39,7 @@ When a service `A` has a constructor parameter `B` and there's an implicit `Conf
 automatically loads `B` using `ZIO.config`.
 
 ```scala
+import zio._
 
 case class APIClientConfig(appKey: String, secretKey: Config.Secret)
 object APIClientConfig {
@@ -83,6 +85,8 @@ A common scenario for this is when you want to discard a pre-defined default val
 Use `ZLayer.Derive.Default.service` for this purpose:
 
 ```scala
+import zio._
+import ZLayer.Derive.Default
 
 class Wheels(number: Int)
 object Wheels {
@@ -119,6 +123,7 @@ the `scoped` effect is executed during the layer's construction and finalization
 The 'resource' might be a background task, a lock file, or etc., that can be managed by [`Scope`](../resource/scope.md).
 
 ```scala
+import zio._
 
 trait Connection {
   def healthCheck: ZIO[Any, Throwable, Unit]
@@ -150,6 +155,8 @@ Additionally, there's the `ZLayer.Derive.AcquireRelease[R, E, A]` trait. This is
 distinctly.
 
 ```scala
+import zio._
+import java.io.File
 
 def acquireLockFile(path: String): ZIO[Any, Throwable, File] = ???
 def deleteFile(file: File): ZIO[Any, Throwable, Unit] = ???

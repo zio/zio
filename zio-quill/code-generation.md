@@ -95,6 +95,8 @@ You can invoke the SimpleJdbcCodegen like so:
 ````scala
 // provide DB credentials with a com.typesafe.config.Config object
 // (under the hood the credentials are used to create a HikariPool DataSource)
+import io.getquill.codegen.jdbc.SimpleJdbcCodegen
+import io.getquill.util.LoadConfig
 
 val snakecaseConfig = LoadConfig(configPrefix: String)
 val gen = new SimpleJdbcCodegen(snakecaseConfig, "com.my.project") {
@@ -103,6 +105,8 @@ val gen = new SimpleJdbcCodegen(snakecaseConfig, "com.my.project") {
 gen.writeFiles("src/main/scala/com/my/project")
 
 // or, provide an initialized DataSource
+import io.getquill.codegen.jdbc.SimpleJdbcCodegen
+import org.postgresql.ds.PGSimpleDataSource
 
 val pgDataSource = new PGSimpleDataSource()
 pgDataSource.setURL(
@@ -233,6 +237,8 @@ object MyCustomContext extends SqlMirrorContext[H2Dialect, Literal](H2Dialect, L
 `ComposeableTraitsJdbcCodegen` is designed to be customizable via composition. This is a longer list of customizable strategies:
 
 ```scala
+import io.getquill.codegen.jdbc.ComposeableTraitsJdbcCodegen
+import io.getquill.codegen.model._
 
 new ComposeableTraitsJdbcCodegen(...) {
 

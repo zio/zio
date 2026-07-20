@@ -15,6 +15,7 @@ Logger layer:
 [//]: # (TODO: make snippet type-checked using mdoc)
 
 ```scala
+import zio.logging.backend.JPL
 
 val logger = Runtime.removeDefaultLoggers >>> JPL.jpl
 ```
@@ -44,6 +45,12 @@ You can find the source code [here](https://github.com/zio/zio-logging/tree/mast
 
 ```scala
 package zio.logging.example
+
+import zio.logging.LogAnnotation
+import zio.logging.backend.JPL
+import zio.{ ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, _ }
+
+import java.util.UUID
 
 object JplSimpleApp extends ZIOAppDefault {
 

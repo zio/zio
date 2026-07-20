@@ -33,6 +33,8 @@ There is also a `ZPipeline.mapZIO` which is an effectful version of this constru
 For stateful transformations that can't be expressed with `map` or `mapZIO`, you can build pipelines directly from [`ZChannel`](zchannel/index.md) using `ZChannel.readWithCause`. Here is a pipeline that pairs each element with its predecessor:
 
 ```scala
+import zio.{ZNothing, Cause}
+import zio.stream.ZChannel
 
 def pairwise[A]: ZPipeline[Any, Nothing, A, (A, A)] =
   ZPipeline.fromChannel(pairwiseGo[A](None))
@@ -139,6 +141,9 @@ ZStream(2, 3, 4).via(
 **ZPipeline.deflate** — The `deflate` pipeline compresses a stream of bytes as specified by [RFC 1951](https://tools.ietf.org/html/rfc1951).
 
 ```scala
+import zio.stream.ZStream
+import zio.stream.ZPipeline.deflate
+import zio.stream.compression.{CompressionLevel, CompressionStrategy, FlushMode}
 
 def compressWithDeflate(clearText: ZStream[Any, Nothing, Byte]): ZStream[Any, Nothing, Byte] = {
   val bufferSize: Int = 64 * 1024 // Internal buffer size. Few times bigger than upstream chunks should work well.
@@ -156,6 +161,7 @@ def deflateWithDefaultParameters(clearText: ZStream[Any, Nothing, Byte]): ZStrea
 **ZPipeline.gzip** — The `gzip` pipeline compresses a stream of bytes as using _gzip_ method:
 
 ```scala
+import zio.stream.compression._
 
 ZStream
   .fromFileName("file.txt")
@@ -179,6 +185,9 @@ If we are reading `Content-Encoding: deflate`, `Content-Encoding: gzip` streams,
 **ZPipeline.inflate** — This pipeline allows decompressing stream of _deflated_ inputs, according to [RFC 1951](https://tools.ietf.org/html/rfc1951).
 
 ```scala
+import zio.stream.ZStream
+import zio.stream.ZPipeline.{ gunzip, inflate }
+import zio.stream.compression.CompressionException
 
 def decompressDeflated(deflated: ZStream[Any, Nothing, Byte]): ZStream[Any, CompressionException, Byte] = {
   val bufferSize: Int = 64 * 1024 // Internal buffer size. Few times bigger than upstream chunks should work well.
@@ -190,6 +199,9 @@ def decompressDeflated(deflated: ZStream[Any, Nothing, Byte]): ZStream[Any, Comp
 **ZPipeline.gunzip** — This pipeline can be used to decompress stream of _gzipped_ inputs, according to [RFC 1952](https://tools.ietf.org/html/rfc1952):
 
 ```scala
+import zio.stream.ZStream
+import zio.stream.ZPipeline.{ gunzip, inflate }
+import zio.stream.compression.CompressionException
 
 def decompressGzipped(gzipped: ZStream[Any, Nothing, Byte]): ZStream[Any, CompressionException, Byte] = {
   val bufferSize: Int = 64 * 1024 // Internal buffer size. Few times bigger than upstream chunks should work well.
@@ -200,6 +212,9 @@ def decompressGzipped(gzipped: ZStream[Any, Nothing, Byte]): ZStream[Any, Compre
 **ZPipeline.gunzipAuto** — This pipeline can be used to decompress stream of *possibly* _gzipped_ inputs, according to [RFC 1952](https://tools.ietf.org/html/rfc1952). If the input is gzipped, it will be decompressed; if not, it will be passed downstream as-is:
 
 ```scala
+import zio.stream.ZStream
+import zio.stream.ZPipeline.gunzipAuto
+import zio.stream.compression.CompressionException
 
 def decompressMaybeGzipped(maybeGzipped: ZStream[Any, Nothing, Byte]): ZStream[Any, CompressionException, Byte] = {
   val bufferSize: Int = 64 * 1024 // Internal buffer size. Few times bigger than upstream chunks should work well.
@@ -268,6 +283,7 @@ val lines: ZStream[Any, Throwable, String] =
 2. **Composing ZPipeline with ZSink** — One pipeline can be composed with a sink, resulting in a sink that processes elements by piping them through the pipeline and piping the results into the sink:
 
 ```scala
+import java.nio.charset.CharacterCodingException
 
 val refine: ZIO[Any, Throwable, Long] = {
   val stream: ZStream[Any, Throwable, Byte] = ZStream.fromFileName("file.txt")

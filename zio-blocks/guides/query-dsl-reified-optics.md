@@ -46,7 +46,7 @@ libraryDependencies += "dev.zio" %% "zio-blocks-schema" % "0.0.33"
 ```
 
 ```scala
-
+import zio.blocks.schema._
 ```
 
 This guide assumes familiarity with ZIO Blocks schemas and basic optics. See the [Schema](../reference/schema.md) and [Optics](../reference/optics.md) reference pages for background.
@@ -273,6 +273,7 @@ The `evalDynamic` method converts results to `DynamicValue` representations, ena
 The real power of reified optics emerges with nested data. Define a richer domain:
 
 ```scala
+import zio.blocks.schema._
 
 case class Address(city: String, country: String)
 object Address {
@@ -310,6 +311,7 @@ localSeller.eval(seller)
 For collection fields, use traversals to query across all elements:
 
 ```scala
+import zio.blocks.schema._
 
 case class LineItem(sku: String, price: Double, quantity: Int)
 object LineItem {
@@ -355,6 +357,7 @@ When a traversal-based expression produces multiple results, each element in the
 With `SchemaExpr` as a reified predicate, you can build a generic filter function that works with any schema-equipped type:
 
 ```scala
+import zio.blocks.schema._
 
 case class Product(
   name: String,
@@ -405,6 +408,7 @@ The `filter` function knows nothing about `Product` -- it works with any `Schema
 Here is a complete, self-contained example combining all the techniques from this guide:
 
 ```scala
+import zio.blocks.schema._
 
 // --- Domain ---
 

@@ -13,7 +13,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20293/0x00007f8d66ffe688@4485ce34
+//   eval = zio.Supervisor$$$Lambda$20322/0x00007f534f0f72c8@4fbf61a7
 // )
 ```
 
@@ -46,6 +46,8 @@ Now we can access all information of children fibers through the supervisor.
 In the following example we are going to periodically monitor the number of fibers throughout our application life cycle:
 
 ```scala
+import zio._
+import zio.Fiber.Status
 
 object SupervisorExample extends ZIOAppDefault {
 

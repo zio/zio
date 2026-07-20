@@ -15,6 +15,7 @@ Key properties of `ZLogger`:
 The following snippet shows the core `ZLogger` trait and its companion object:
 
 ```scala
+import zio._
 
 trait ZLogger[-Message, +Output] { self =>
 
@@ -52,29 +53,30 @@ This design means we can install, replace, or compose loggers at layer construct
 The following block demonstrates the four core ideas: building a custom logger with `ZLogger.simple`, adapting its input type with `ZLogger#contramap`, filtering by level with `ZLogger#filterLogLevel`, and exercising a logger's formatting in isolation with `ZLogger#test`:
 
 ```scala
+import zio._
 
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@dbd34c
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@29b5eb4
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@301d2fbf
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@37bdf0a2
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@30b15bad
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@328135d
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-07-17T04:04:04.552489170Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-07-20T12:37:08.716176178Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@5e7a4653
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@58b94fe7
 ```
 
 ## Construction / Creating Instances
@@ -94,6 +96,7 @@ object ZLogger {
 The factory evaluates the message thunk and passes the result to `log`; all other fields are discarded. We can use it to build a console logger or any pure message transformer:
 
 ```scala
+import zio._
 
 // A logger that prints only the raw message string
 val consoleLogger: ZLogger[String, Unit] =
@@ -117,6 +120,7 @@ object ZLogger {
 The primary uses are placeholder loggers in fan-out chains and test stubs where a specific return type is required:
 
 ```scala
+import zio._
 
 // Always returns 42, regardless of what is logged
 val constLogger: ZLogger[Any, Int] = ZLogger.succeed(42)
@@ -134,6 +138,7 @@ The `ZLogger` companion object declares two ready-made loggers that cover the mo
 We can use `ZLogger.default` to inspect what the ZIO runtime actually emits before it is piped to `println`. For example, to produce a formatted line for a message without a running fiber:
 
 ```scala
+import zio._
 
 val formatted: String = ZLogger.default.test("order placed")
 // e.g.: timestamp=2026-07-15T12:00:00Z level=INFO thread=#0 message="order placed"
@@ -142,6 +147,7 @@ val formatted: String = ZLogger.default.test("order placed")
 `ZLogger.none` is useful when we need to silence one branch in a fan-out pipeline. For example:
 
 ```scala
+import zio._
 
 // Runs ZLogger.default but discards ZLogger.none — Zippable[String, Unit].Out = String
 val withSilentBranch: ZLogger[String, String] = ZLogger.default ++ ZLogger.none
@@ -160,6 +166,7 @@ The core interface consists of the single abstract method `apply`, which the ZIO
 `ZLogger#apply` is the one method every `ZLogger` implementation must provide. The ZIO runtime fiber loop invokes it each time `ZIO.log*` fires. All parameters are eagerly supplied by the runtime except `message`, which is a thunk so that string interpolation is deferred until the logger actually needs the value. The full signature is:
 
 ```scala
+import zio._
 
 trait ZLogger[-Message, +Output] {
   def apply(
@@ -178,6 +185,7 @@ trait ZLogger[-Message, +Output] {
 We can implement a custom logger using an anonymous class — the SAM pattern — and have access to every log-event field inside the body:
 
 ```scala
+import zio._
 
 val structuredLogger: ZLogger[String, Unit] =
   new ZLogger[String, Unit] {
@@ -216,6 +224,7 @@ trait ZLogger[-Message, +Output] {
 We use `ZLogger#contramap` to adapt `ZLogger.default` so it accepts a custom event type as a message:
 
 ```scala
+import zio._
 
 // Adapts ZLogger.default to accept integers as log messages
 val intLogger: ZLogger[Int, String] =
@@ -240,6 +249,7 @@ trait ZLogger[-Message, +Output] {
 Mapping `ZLogger.default` with `println` is exactly how the JVM platform wires up its default logging pipeline:
 
 ```scala
+import zio._
 
 // Equivalent to how Runtime.defaultLoggers is built on the JVM
 val printingLogger: ZLogger[String, Unit] =
@@ -253,6 +263,7 @@ val printingLogger: ZLogger[String, Unit] =
 `ZLogger#filterLogLevel` returns a new logger whose output is `Some(output)` when the predicate holds and `None` when it does not. The underlying logger's `apply` is never called when the predicate returns `false`, so the message thunk is also never evaluated for filtered events. Its signature is:
 
 ```scala
+import zio._
 
 trait ZLogger[-Message, +Output] {
   final def filterLogLevel(f: LogLevel => Boolean): ZLogger[Message, Option[Output]]
@@ -262,6 +273,7 @@ trait ZLogger[-Message, +Output] {
 `ZLogger#filterLogLevel` is the last step in the JVM default logging pipeline, restricting console output to `Info` and above:
 
 ```scala
+import zio._
 
 // Equivalent to what Runtime.defaultLoggers installs on JVM
 val defaultPipeline: ZLogger[String, Option[Unit]] =
@@ -287,6 +299,7 @@ We can read the operators left to right: `++` keeps both outputs, `+>` keeps the
 `ZLogger#++` invokes both loggers on every log event and combines their outputs using the `Zippable` type class. When both outputs are `Unit`, the zipped result is also `Unit`. Its signature is:
 
 ```scala
+import zio._
 
 trait ZLogger[-Message, +Output] {
   def ++[M <: Message, O](
@@ -298,6 +311,7 @@ trait ZLogger[-Message, +Output] {
 Combining `ZLogger.default` with a custom console logger fans each event to both destinations:
 
 ```scala
+import zio._
 
 val customLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"CUSTOM: $msg"))
@@ -319,6 +333,7 @@ trait ZLogger[-Message, +Output] {
 This operator is useful when we need the side effects of the left logger but only care about the right logger's return value:
 
 ```scala
+import zio._
 
 val sideEffect: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](_ => ()) // imagine a metrics counter here
@@ -340,6 +355,7 @@ trait ZLogger[-Message, +Output] {
 We use `ZLogger#<+` when we want to attach a supplementary logger without changing the return type of the primary one:
 
 ```scala
+import zio._
 
 val metrics: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](_ => ()) // increment a counter in practice
@@ -363,6 +379,7 @@ trait ZLogger[-Message, +Output] {
 `ZLogger#test` makes it straightforward to verify that a custom formatter produces the expected output without spinning up a ZIO runtime:
 
 ```scala
+import zio._
 
 // Produce a formatted line without a live fiber
 val line: String = ZLogger.default.test("hello world")
@@ -393,6 +410,8 @@ Unlike a production logger, `ZTestLogger` writes to no external destination. It 
 The `ZTestLogger` companion provides two values. `ZTestLogger.default` is a `ZLayer[Any, Nothing, Unit]` that installs an in-memory `ZTestLogger` for the duration of a scope. `ZTestLogger.logOutput` is a `UIO[Chunk[ZTestLogger.LogEntry]]` that locates the first `ZTestLogger` in `FiberRef.currentLoggers` and returns its captured entries. When running inside `ZIOSpecDefault`, the test executor installs `ZTestLogger.default` automatically, so `ZTestLogger.logOutput` is available in any test body without an explicit `provide`:
 
 ```scala
+import zio._
+import zio.test.ZTestLogger
 
 // Demonstrate ZTestLogger usage as a plain ZIO effect (in real tests this runs inside a ZIOSpecDefault body
 // where ZTestLogger.default is installed automatically by the test executor)
@@ -412,6 +431,8 @@ val logDebugRunnable: ZIO[Any, Nothing, Unit] = logDebugProgram.provide(ZTestLog
 `ZTestLogger.LogEntry` is a `final case class` holding all eight log-event fields. Its `ZTestLogger.LogEntry#call` method replays the captured entry through any formatter, making it straightforward to assert on the full formatted output:
 
 ```scala
+import zio._
+import zio.test.ZTestLogger
 
 val formattingProgram: ZIO[Any, Nothing, Unit] = for {
   _      <- ZIO.log("order shipped")
@@ -466,6 +487,7 @@ The following sections cover patterns for customizing and extending ZIO's loggin
 The JVM platform wires its default console logger as a chain of three operations applied to `ZLogger.default`. Knowing the chain helps when extending or replacing it:
 
 ```scala
+import zio._
 
 object Runtime {
   // core/jvm/src/main/scala/zio/RuntimePlatformSpecific.scala
@@ -481,6 +503,7 @@ We can replicate or extend this pattern for custom pipelines: format with `ZLogg
 To swap out the platform default loggers and install a custom one, we combine `Runtime.removeDefaultLoggers` and `Runtime.addLogger` in the application's `bootstrap` layer:
 
 ```scala
+import zio._
 
 object MyApp extends ZIOAppDefault {
 
@@ -502,6 +525,7 @@ object MyApp extends ZIOAppDefault {
 For finer-grained control — for example, to install a logger only for the duration of a single request — we can use `ZIO.withLogger` for a delimited region or `ZIO.withLoggerScoped` for a `Scope`-based lifetime:
 
 ```scala
+import zio._
 
 val requestLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"[REQ] $msg"))
@@ -520,6 +544,7 @@ val program: ZIO[Any, Nothing, Unit] =
 We can retrieve the full set of currently active loggers via `ZIO.loggers` and react to it with `ZIO.loggersWith`:
 
 ```scala
+import zio._
 
 // Read the current logger set as an effect
 val inspect: UIO[Set[ZLogger[String, Any]]] = ZIO.loggers

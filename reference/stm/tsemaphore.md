@@ -9,6 +9,8 @@ holds a certain number of permits, and permits may be acquired or released.
 ## Create a TSemaphore
 Creating a `TSemaphore` with 10 permits:
 ```scala
+import zio._
+import zio.stm._
 
 val tSemaphoreCreate: STM[Nothing, TSemaphore] = TSemaphore.make(10L)
 ```
@@ -17,6 +19,8 @@ val tSemaphoreCreate: STM[Nothing, TSemaphore] = TSemaphore.make(10L)
 Acquiring a permit reduces the number of remaining permits that the `TSemaphore` contains. Acquiring a permit is done 
 when a user wants to access a common shared resource:
 ```scala
+import zio._
+import zio.stm._
 
 val tSemaphoreAcq: STM[Nothing, TSemaphore] = for {
   tSem <- TSemaphore.make(2L)
@@ -31,6 +35,8 @@ Note that if you try to acquire a permit when there are no more remaining permit
 Once you have finished accessing the shared resource, you must release your permit so other parties can access the 
 shared resource:
 ```scala
+import zio._
+import zio.stm._
 
 val tSemaphoreRelease: STM[Nothing, TSemaphore] = for {
   tSem <- TSemaphore.make(1L)
@@ -44,6 +50,8 @@ tSemaphoreRelease.commit
 ## Retrieve available permits
 You can query for the remaining amount of permits in the TSemaphore by using `available`:
 ```scala
+import zio._
+import zio.stm._
 
 val tSemaphoreAvailable: STM[Nothing, Long] = for {
   tSem <- TSemaphore.make(2L)
@@ -60,6 +68,8 @@ will report that there is a single permit left.
 You can choose to execute any arbitrary STM action that requires acquiring and releasing permit on TSemaphore as part
 of the same transaction. Rather than doing:
 ```scala
+import zio._
+import zio.stm._
 
 def yourSTMAction: STM[Nothing, Unit] = STM.unit
 
@@ -75,6 +85,8 @@ tSemaphoreWithoutPermit.commit
 ```
 You can simply use `withPermit` instead:
 ```scala
+import zio._
+import zio.stm._
 
 val tSemaphoreWithPermit: IO[Nothing, Unit] =
   for {
@@ -88,6 +100,8 @@ It is considered best practice to use `withPermit` over using an `acquire` and a
 ## Acquire and release multiple permits
 It is possible to acquire and release multiple permits at a time using `acquireN` and `releaseN`:
 ```scala
+import zio._
+import zio.stm._
 
 val tSemaphoreAcquireNReleaseN: STM[Nothing, Boolean] = for {
   sem <- TSemaphore.make(3L)

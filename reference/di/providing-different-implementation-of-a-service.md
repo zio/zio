@@ -9,6 +9,7 @@ One of the benefits of using dependency injection is that, we can write our appl
 In the next example, we have a ZIO application that uses the `AppConfig` service:
 
 ```scala
+import zio._
 
 case class AppConfig(poolSize: Int)
 
@@ -63,6 +64,9 @@ object MainApp extends ZIOAppDefault {
 In this example, we have a ZIO application that uses the `Logging` service. And we provided two implementations of the `Logging` service: `SimpleLogger` and `DateTimeLogger`:
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 trait Logging {
   def log(msg: String): ZIO[Any, IOException, Unit]
@@ -99,6 +103,7 @@ object SimpleLogger {
 Now, let's write a ZIO application that uses the `Logging` service:
 
 ```scala
+import zio._
 
 val myApp: ZIO[Logging, IOException, Unit] =
   for {

@@ -30,6 +30,7 @@ To satisfy these properties, rhe `none` value  must must be a value that fails w
 To see what this means, let's look at the `IdentityEither` instance for `Option`.
 
 ```scala
+import zio.prelude._
 
 implicit val OptionIdentityEither: IdentityEither[Option] =
   new IdentityEither[Option] {
@@ -62,6 +63,7 @@ def none[E]: Either[E, Nothing] =
 To define an identity value we would have to have the concept of an empty error. For example, if we created a data type that could fail without any error then the empty failure would be the `none` value.
 
 ```scala
+import zio.Chunk
 
 val noneOption: Either[Option[Nothing], Nothing] =
   Left(None)

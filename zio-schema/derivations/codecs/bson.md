@@ -29,6 +29,11 @@ object BsonSchemaCodec {
 Let's see an example of how to derive a BSON codec for a case class using ZIO Schema:
 
 ```scala
+import org.bson.BsonValue
+import zio._
+import zio.bson._
+import zio.schema.codec._
+import zio.schema.{DeriveSchema, Schema}
 
 case class Person(name: String, age: Int)
 

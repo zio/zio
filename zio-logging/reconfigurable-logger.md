@@ -7,6 +7,8 @@
 logger layer with configuration from `ConfigProvider` (example with [Console Logger)](console-logger.md)):
 
 ```scala
+import zio.logging.{ consoleLogger, ConsoleLoggerConfig, ReconfigurableLogger }
+import zio._
 
 val configProvider: ConfigProvider = ???
 
@@ -51,6 +53,13 @@ Application:
 
 ```scala
 package zio.logging.example
+
+import com.typesafe.config.ConfigFactory
+import zio.config.typesafe.TypesafeConfigProvider
+import zio.logging.{ ConsoleLoggerConfig, LogAnnotation, ReconfigurableLogger, _ }
+import zio.{ Config, ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, _ }
+
+import java.util.UUID
 
 object LoggerReconfigureApp extends ZIOAppDefault {
 
@@ -166,6 +175,15 @@ Application:
 
 ```scala
 package zio.logging.example
+
+import com.typesafe.config.ConfigFactory
+import zio.config.typesafe.TypesafeConfigProvider
+import zio.http._
+import zio.logging.api.http.ApiHandlers
+import zio.logging.{ ConfigurableLogger, ConsoleLoggerConfig, LogAnnotation, LoggerConfigurer, makeSystemOutLogger }
+import zio.{ ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, _ }
+
+import java.util.UUID
 
 object ConfigurableLoggerApp extends ZIOAppDefault {
 

@@ -13,6 +13,9 @@ When the acquire operation cannot be performed due to no more available `permits
 is semantically blocked, until the `permits` value is large enough again:
 
 ```scala
+import java.util.concurrent.TimeUnit
+import zio._
+import zio.Console._
 
 val task = for {
   _ <- printLine("start")

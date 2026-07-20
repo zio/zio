@@ -9,6 +9,7 @@ Unlike a `Queue`, where each value offered to the [Queue](queue.md) can be taken
 The fundamental operators on a `Hub` are `publish` and `subscribe`:
 
 ```scala
+import zio._
 
 trait Hub[A] {
   def publish(a: A): UIO[Boolean]
@@ -140,6 +141,7 @@ This can be extremely useful because it allows us to use a `Hub` anywhere we are
 For example, say we are using the `into` operator on `ZStream` to send all elements of a stream of financial transactions to a `Queue` for processing by a downstream consumer.
 
 ```scala
+import zio.stream._
 
 trait ZStream[-R, +E, +O] {
   def into(
@@ -171,6 +173,7 @@ Hubs play extremely well with streams.
 We can create a `ZStream` from a subscription to a hub using the `fromHub` operator.
 
 ```scala
+import zio.stream._
 
 object ZStream {
   def fromHub[O](hub: Hub[O]): ZStream[Any, Nothing, O] =

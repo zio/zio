@@ -27,6 +27,7 @@ We can think of the `Route[Env, Err]` as a description of an HTTP route that acc
 A simple `Route` can be defined as follows:
 
 ```scala
+import zio.http._
 
 val helloRoute: Route[Any, Nothing] =
   Method.GET / "hello" -> handler(Response.text("Hello, world!"))
@@ -37,6 +38,7 @@ We can say that `Route[Any, Nothing]` is a function that takes a `Request` and r
 Having multiple routes, we can collect them into a single `Routes` data type:
 
 ```scala
+import zio.http._
 
 val routes: Routes[Any, Nothing] =
   Routes(
@@ -48,6 +50,8 @@ val routes: Routes[Any, Nothing] =
 Finally, we can serve the routes using the `Server.serve` method:
 
 ```scala
+import zio._
+import zio.http._
 
 object MainApp extends ZIOAppDefault {
   def run = Server.serve(routes).provide(Server.default)
@@ -63,6 +67,7 @@ Let's try to model some HTTP applications using the `Route` data type. So first,
 The `Handler.succeed` constructor creates a `Handler` that always returns a successful response:
 
 ```scala
+import zio.http._
 
 val app: Handler[Any, Nothing, Any, Response] =
   Handler.succeed(Response.text("Hello, world!"))
@@ -71,6 +76,8 @@ val app: Handler[Any, Nothing, Any, Response] =
 We have the same constructor for failures called `Http.fail`. It creates a `Handler` application that always returns a failed response:
 
 ```scala
+import zio._
+import zio.http._
 
 val app: Handler[Any, Response, Any, Nothing] =
   handler(ZIO.fail(Response.internalServerError("Something went wrong")))
@@ -79,6 +86,7 @@ val app: Handler[Any, Response, Any, Nothing] =
 We can also create a `Handler` form a function. The `Handler.fromFunction` constructor takes a total function of type `A => B` and then creates a `Handler` that accepts an `A` and returns a `B`:
 
 ```scala
+import zio.http._
 
 val app: Handler[Any, Nothing, Int, Double] = Handler.fromFunction[Int](_ / 2.0)
 ```
@@ -97,6 +105,7 @@ There are lots of other constructors, to learn more about them, please refer to 
 The `Handler` data type is composable like `ZIO`. We can create new complex `Handler` by combining existing simple ones by using `flatMap`, `zip`, `andThen`, `orElse`, and `++` methods:
 
 ```scala
+import zio.http._
 
 val a           : Handler[Any, Nothing, Int, Double]    = ???
 val b           : Handler[Any, Nothing, Double, String] = ???
@@ -130,7 +139,7 @@ Other than the default constructor, we have several helper methods to create a `
 1. **`Response.ok`**: Creates a successful response with 200 status code.
 2. **`Response.text("Hello World")`**: Creates a successful response with 200 status code and a body of `Hello World`.
 3. **`Response.status(Status.BadRequest)`**: Creates a response with a status code of 400.
-4. **`Response.html("Hello World")`**: Creates a successful response with 200 status code and an HTML body of `Hello World`.
+4. **`Response.html("<h1>Hello World</h1>")`**: Creates a successful response with 200 status code and an HTML body of `<h1>Hello World</h1>`.
 5. **`Response.redirect("/")`**: Creates a successful response that redirects to the root path.
 
 On the other hand, we do not need to create a `Request` instead, we need to pattern-match incoming requests to decompose them and determine the appropriate action to take.
@@ -143,6 +152,7 @@ Each incoming request can be extracted into two parts using pattern matching:
 Let's see an example of how to pattern match on incoming requests:
 
 ```scala
+import zio.http._
 
 val httpApp: Route[Any, Nothing] =
   Method.GET / "greet" / string("name") ->
@@ -154,6 +164,8 @@ val httpApp: Route[Any, Nothing] =
 Using this DSL we only access the method and path of the incoming request. If we need to access the query string, the body, and more, we need to use the following DSL:
 
 ```scala
+import zio._
+import zio.http._
 
 val httpApp: Route[Any, Response] =
   Method.GET / "greet" ->
@@ -190,6 +202,8 @@ To enable this feature, we have included `sbt-revolver` in the project. For more
 First, we need to define a request handler that will handle `GET` requests to the `/greet` path:
 
 ```scala
+import zio._
+import zio.http._
 
 object GreetingRoutes {
   def apply(): Routes[Any, Response] =
@@ -228,6 +242,8 @@ In the above example, we have defined three routes:
 Next, we need to create a server for `GreetingRoutes`:
 
 ```scala
+import zio._
+import zio.http._
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -240,6 +256,7 @@ Now, we have three endpoints in our server. We can test the server according to 
 Note that if we have written other routes along with `GreetingRoutes`, such as `DownloadRoutes`, `CounterRoutes`, and `UserRoutes`, we can combine them together and start a server for that routes:
 
 ```scala
+import zio.http._
 
 Server.serve(
   GreetingRoutes() ++ DownloadRoutes() ++ CounterRoutes() ++ UserRoutes()

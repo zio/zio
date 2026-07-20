@@ -33,6 +33,7 @@ Key design decisions:
 Wraps scalar values in a `PrimitiveValue`:
 
 ```scala
+import zio.blocks.schema.DynamicValue
 
 // Using convenience constructors
 val str = DynamicValue.string("hello")
@@ -41,7 +42,7 @@ val flag = DynamicValue.boolean(true)
 val pi = DynamicValue.double(3.14159)
 
 // Using the Primitive case directly
-
+import zio.blocks.schema.PrimitiveValue
 val instant = DynamicValue.Primitive(
   PrimitiveValue.Instant(java.time.Instant.now())
 )
@@ -52,6 +53,8 @@ val instant = DynamicValue.Primitive(
 A collection of named fields, analogous to case classes or JSON objects:
 
 ```scala
+import zio.blocks.schema.DynamicValue
+import zio.blocks.chunk.Chunk
 
 // Using varargs constructor
 val person = DynamicValue.Record(
@@ -77,6 +80,7 @@ Field order is preserved and significant for equality. Use `sortFields` to norma
 A tagged union value, analogous to sealed traits:
 
 ```scala
+import zio.blocks.schema.DynamicValue
 
 // A Some variant containing a value
 val some = DynamicValue.Variant(
@@ -97,6 +101,8 @@ some.caseValue  // Some(DynamicValue.Primitive(...))
 An ordered collection of values:
 
 ```scala
+import zio.blocks.schema.DynamicValue
+import zio.blocks.chunk.Chunk
 
 // Using varargs constructor
 val numbers = DynamicValue.Sequence(
@@ -120,6 +126,8 @@ val empty = DynamicValue.Sequence.empty
 Key-value pairs where both keys and values are `DynamicValue`:
 
 ```scala
+import zio.blocks.schema.DynamicValue
+import zio.blocks.chunk.Chunk
 
 // String keys (common case)
 val config = DynamicValue.Map(
@@ -144,6 +152,7 @@ Unlike `Record` which uses String keys, `Map` supports arbitrary `DynamicValue` 
 Represents the absence of a value:
 
 ```scala
+import zio.blocks.schema.DynamicValue
 
 val absent = DynamicValue.Null
 ```
@@ -190,6 +199,7 @@ val absent = DynamicValue.Null
 Use `Schema.toDynamicValue` to convert typed Scala values to `DynamicValue`:
 
 ```scala
+import zio.blocks.schema.{Schema, DynamicValue}
 
 case class Person(name: String, age: Int)
 object Person {
@@ -210,6 +220,7 @@ val listDynamic = Schema[List[Int]].toDynamicValue(List(1, 2, 3))
 Use `Schema.fromDynamicValue` to convert `DynamicValue` back to typed Scala values:
 
 ```scala
+import zio.blocks.schema.{Schema, DynamicValue, SchemaError}
 
 case class Person(name: String, age: Int)
 object Person {
@@ -237,6 +248,7 @@ val error = Schema[Person].fromDynamicValue(badDynamic)
 Each `DynamicValue` has a corresponding `DynamicValueType` for runtime type checking:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicValueType}
 
 val dv = DynamicValue.Record("x" -> DynamicValue.int(1))
 
@@ -249,7 +261,7 @@ val record: Option[DynamicValue.Record] = dv.as(DynamicValueType.Record)
 // Some(Record(...))
 
 // Extract underlying value
-
+import zio.blocks.chunk.Chunk
 val fields: Option[Chunk[(String, DynamicValue)]] = 
   dv.unwrap(DynamicValueType.Record)
 ```
@@ -257,6 +269,7 @@ val fields: Option[Chunk[(String, DynamicValue)]] =
 ### Extracting Primitive Values
 
 ```scala
+import zio.blocks.schema.{DynamicValue, PrimitiveType, Validation}
 
 val dv = DynamicValue.int(42)
 
@@ -275,6 +288,7 @@ val stringValue: Option[String] = dv.asPrimitive(PrimitiveType.String(Validation
 Navigate using `get` methods that return `DynamicValueSelection`:
 
 ```scala
+import zio.blocks.schema.DynamicValue
 
 val data = DynamicValue.Record(
   "users" -> DynamicValue.Sequence(
@@ -301,6 +315,7 @@ val name = firstName.one  // Either[SchemaError, DynamicValue]
 Use `DynamicOptic` for complex path expressions:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicOptic}
 
 val data = DynamicValue.Record(
   "company" -> DynamicValue.Record(
@@ -322,6 +337,7 @@ val result = data.get(path).one  // Right(DynamicValue.Primitive(String("Alice")
 `DynamicValueSelection` wraps navigation results and provides fluent chaining:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicValueSelection}
 
 val selection: DynamicValueSelection = ???
 
@@ -350,6 +366,7 @@ selection.flatMap(dv => ???)  // Chain selections
 Update values at a path:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicOptic}
 
 val data = DynamicValue.Record(
   "user" -> DynamicValue.Record(
@@ -369,6 +386,7 @@ val updated = data.modify(path)(dv => DynamicValue.string("Bob"))
 Replace a value at a path:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicOptic}
 
 val data = DynamicValue.Record("x" -> DynamicValue.int(1))
 val path = DynamicOptic.root.field("x")
@@ -382,6 +400,7 @@ val updated = data.set(path, DynamicValue.int(99))
 Remove a value at a path:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicOptic}
 
 val data = DynamicValue.Record(
   "a" -> DynamicValue.int(1),
@@ -397,6 +416,7 @@ val updated = data.delete(DynamicOptic.root.field("a"))
 Add a value at a path (fails if path exists):
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicOptic}
 
 val data = DynamicValue.Record("a" -> DynamicValue.int(1))
 
@@ -412,6 +432,7 @@ val updated = data.insert(
 Use `*OrFail` variants for operations that should fail explicitly:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicOptic, SchemaError}
 
 val data = DynamicValue.Record("x" -> DynamicValue.int(1))
 val badPath = DynamicOptic.root.field("nonexistent")
@@ -431,6 +452,7 @@ val result: Either[SchemaError, DynamicValue] =
 - Adds `@ {type: "..."}` annotations for typed primitives (Instant, Duration, etc.)
 
 ```scala
+import zio.blocks.schema.{DynamicValue, PrimitiveValue}
 
 val person = DynamicValue.Record(
   "name" -> DynamicValue.string("Alice"),
@@ -466,6 +488,7 @@ Use `toEjson(indent)` to control indentation level.
 Merge two `DynamicValue` structures using configurable strategies:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicValueMergeStrategy}
 
 val left = DynamicValue.Record(
   "a" -> DynamicValue.int(1),
@@ -494,6 +517,7 @@ val merged = left.merge(right, DynamicValueMergeStrategy.Auto)
 | `Custom(f, r)` | Custom function with custom recursion control |
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicValueMergeStrategy}
 
 val list1 = DynamicValue.Sequence(DynamicValue.int(1), DynamicValue.int(2))
 val list2 = DynamicValue.Sequence(DynamicValue.int(3))
@@ -508,6 +532,7 @@ val concatted = list1.merge(list2, DynamicValueMergeStrategy.Concat)
 Transform `DynamicValue` structures for comparison or serialization:
 
 ```scala
+import zio.blocks.schema.DynamicValue
 
 val data = DynamicValue.Record(
   "z" -> DynamicValue.int(1),
@@ -541,6 +566,7 @@ data.normalize
 Apply functions to all values in a structure:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicOptic, PrimitiveValue}
 
 val data = DynamicValue.Record(
   "values" -> DynamicValue.Sequence(
@@ -567,6 +593,7 @@ val topDown = data.transformDown { (path, dv) => ??? }
 Rename all record fields:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicOptic}
 
 val data = DynamicValue.Record(
   "first_name" -> DynamicValue.string("Alice"),
@@ -588,6 +615,7 @@ val camelCase = data.transformFields { (path, name) =>
 Aggregate values from a `DynamicValue` tree:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicOptic, PrimitiveValue}
 
 val data = DynamicValue.Record(
   "a" -> DynamicValue.int(1),
@@ -610,6 +638,8 @@ val sum = data.foldUp(0) { (path, dv, acc) =>
 ### To JSON
 
 ```scala
+import zio.blocks.schema.DynamicValue
+import zio.blocks.schema.json.Json
 
 val dynamic = DynamicValue.Record(
   "name" -> DynamicValue.string("Alice"),
@@ -623,6 +653,8 @@ val json: Json = dynamic.toJson
 ### From JSON
 
 ```scala
+import zio.blocks.schema.DynamicValue
+import zio.blocks.schema.json.Json
 
 val json = Json.parseUnsafe("""{"name": "Alice", "age": 30}""")
 
@@ -635,6 +667,7 @@ val dynamic: DynamicValue = json.toDynamicValue
 Search recursively for values matching a predicate:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicValueType, PrimitiveValue}
 
 val data = DynamicValue.Record(
   "users" -> DynamicValue.Sequence(
@@ -658,6 +691,7 @@ val atDepth2 = data.select.queryPath(path => path.nodes.length == 2)
 Work with data when the schema isn't known at compile time:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, PrimitiveValue}
 
 def processAnyData(data: DynamicValue): DynamicValue = {
   // Add a timestamp to any record
@@ -678,6 +712,7 @@ def processAnyData(data: DynamicValue): DynamicValue = {
 Transform data between schema versions:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicOptic}
 
 def migrateV1toV2(data: DynamicValue): DynamicValue = {
   data.transformFields { (path, name) =>
@@ -700,6 +735,7 @@ def migrateV1toV2(data: DynamicValue): DynamicValue = {
 Build queries at runtime:
 
 ```scala
+import zio.blocks.schema.{DynamicValue, DynamicOptic}
 
 def buildPath(fields: List[String]): DynamicOptic =
   fields.foldLeft(DynamicOptic.root)(_.field(_))
@@ -725,6 +761,8 @@ val email = getValue(data, List("user", "profile", "email"))
 Use `DynamicValue` as an intermediate format:
 
 ```scala
+import zio.blocks.schema.{Schema, DynamicValue}
+import zio.blocks.schema.json.Json
 
 case class Person(name: String, age: Int)
 object Person {
@@ -746,6 +784,7 @@ val json2 = dynamic2.toJson
 `DynamicValue` has a total ordering for sorting and comparison:
 
 ```scala
+import zio.blocks.schema.DynamicValue
 
 val a = DynamicValue.int(1)
 val b = DynamicValue.int(2)
@@ -765,6 +804,8 @@ primitive < record  // true
 Compute differences between `DynamicValue` instances:
 
 ```scala
+import zio.blocks.schema.DynamicValue
+import zio.blocks.schema.patch.DynamicPatch
 
 val old = DynamicValue.Record(
   "name" -> DynamicValue.string("Alice"),

@@ -17,6 +17,11 @@ libraryDependencies ++= Seq(
 ## Usage
 
 ```scala
+import zio.json._
+import zio.json.interop.refined._
+
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.collection.NonEmpty
 
 case class Person(name: String Refined NonEmpty)
 

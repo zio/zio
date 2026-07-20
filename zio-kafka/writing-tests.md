@@ -16,6 +16,13 @@ library provides you.
 ## Testing a producer
 
 ```scala
+import org.apache.kafka.clients.producer.ProducerRecord
+import zio._
+import zio.kafka.serde.Serde
+import zio.kafka.testkit.Kafka
+import zio.kafka.testkit.KafkaTestUtils
+import zio.test.TestAspect.{timeout, withLiveClock}
+import zio.test._
 
 object ProducerSpec extends ZIOSpecDefault {
   override def spec: Spec[TestEnvironment & Scope, Any] =
@@ -109,6 +116,7 @@ best way to prevent interference is by making sure each test uses a different to
 the `sequential` aspect from zio-test to run the tests one by one.
 
 ```scala
+import zio.test.TestAspect.sequential
 
 suite("test suite")(
  // ... tests ...
@@ -118,6 +126,14 @@ suite("test suite")(
 ## Testing a consumer
 
 ```scala
+import zio._
+import zio.kafka.consumer.Subscription
+import zio.kafka.serde.Serde
+import zio.kafka.testkit.KafkaTestUtils
+import zio.kafka.testkit._
+import zio.test.Assertion.hasSameElements
+import zio.test.TestAspect.{timeout, withLiveClock}
+import zio.test._
 
 object ConsumerSpec extends ZIOSpecDefault {
 
@@ -260,6 +276,11 @@ The `KafkaRandom` trait provides a few methods to generate random values.
 To use it, you need to mix it in your test suite, like this:
 
 ```scala
+import zio.kafka.testkit.Kafka
+import zio.kafka.testkit.KafkaRandom
+import zio.kafka.testkit.KafkaTestUtils
+import zio.test._
+import zio._
 
 object MyServiceSpec extends ZIOSpecDefault with KafkaRandom {
   // Required when mixing in the `KafkaRandom` trait

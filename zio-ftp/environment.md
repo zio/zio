@@ -28,6 +28,10 @@ How to provide Blocking Environment ?
 Your main entrypoint should extend `zio.App` 
 
 ```scala
+import zio.App
+import zio.ZIO
+import zio.blocking.Blocking
+import java.io.IOException
 
 // Provide default environment(s) context such as (Blocking, Clock, Console,...) since it is provided by zio.App which extend zio.DefaultRuntime
 object MyApp extends App {
@@ -40,6 +44,9 @@ object MyApp extends App {
 or you can simply provide your own blocking context 
 
 ```scala
+import zio.ZIO
+import zio.blocking.Blocking
+import java.io.IOException
 
 val program: ZIO[Blocking, IOException, Unit] = ???
 // Blocking environment is not anymore required

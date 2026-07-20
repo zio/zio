@@ -232,6 +232,8 @@ The easiest way to use comparison operators with dates is to import them from th
 final case class Person(name: String, bornOn: java.util.Date)
 
 val ctx = new SqlMirrorContext(PostgresDialect, Literal)
+import ctx._
+import extras._ /* importing the > operator among other things */
 
 run(query[Person].filter(p => p.bornOn > lift(myDate)))
 ```
@@ -291,6 +293,8 @@ Quill uses `Encoder`s to encode query inputs and `Decoder`s to read values retur
 If the correspondent database type is already supported, use `encoder.contramap` and `decoder.map` to define encoders/decoders for
 the custom type. In this example, `String` is already supported by Quill and the `UUID` encoding from/to `String` is defined through a custom encoding:
 ```scala
+import java.util.UUID
+import ctx._
 
 implicit val encodeUUID: Encoder[UUID] = 
   implicitly[Encoder[String]].contramap((id: UUID) => id.toString)
@@ -301,7 +305,8 @@ implicit val decodeUUID: Decoder[UUID] =
 You can also MappedEncoding to define instances that convert to/from the target type.
 
 ```scala
-
+import java.util.UUID
+import ctx._                      // - Import MappedEncoding from the context 
 // import io.getquill.MappedEncoding - (or import MappedEncoding directly)
 
 implicit val encodeUUID = MappedEncoding[UUID, String](_.toString)
@@ -316,6 +321,8 @@ If the database type is not supported by Quill, it is possible to provide "raw" 
 ```scala
 trait UUIDEncodingExample {
   val jdbcContext: PostgresJdbcContext[Literal] // your context should go here
+
+  import jdbcContext._
 
   implicit val uuidDecoder: Decoder[UUID] =
     decoder((index, row) =>

@@ -39,6 +39,7 @@ In declarative error handling, we treat errors as values instead of throwing exc
 For example, the following program written with ZIO may fail with an error of type `AgeValidationException`:
 
 ```scala
+import zio._
 
 sealed trait AgeValidationException extends Exception
 case class NegativeAgeException(age: Int) extends AgeValidationException

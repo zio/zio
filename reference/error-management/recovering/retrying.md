@@ -19,6 +19,7 @@ trait ZIO[-R, +E, +A] {
 In this example, we try to read from a file. If we fail to do that, it will try five more times:
 
 ```scala
+import zio._
 
 val retriedOpenFile: ZIO[Any, IOException, Array[Byte]] =
   readFile("primary.data").retry(Schedule.recurs(5))
@@ -29,6 +30,7 @@ val retriedOpenFile: ZIO[Any, IOException, Array[Byte]] =
 In case of failure, a ZIO effect can be retried as many times as specified:
 
 ```scala
+import zio._
 
 val file = readFile("primary.data").retryN(5)
 ```
@@ -54,6 +56,7 @@ The `orElse` is the recovery function that has two inputs:
 So based on these two values, we can decide what to do as the fallback operation. Let's try an example:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -81,6 +84,7 @@ object MainApp extends ZIOAppDefault {
 This operator is almost the same as the **`ZIO#retryOrElse`** except it will return either result of the original or the fallback operation:
 
 ```scala
+import zio._
 
 trait LocalConfig
 trait RemoteConfig

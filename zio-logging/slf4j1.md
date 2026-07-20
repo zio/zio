@@ -20,6 +20,7 @@ where in the case of parallel executions it can happen that MDC will be reset by
 Logger layer:
 
 ```scala
+import zio.logging.backend.SLF4J
 
 val logger = Runtime.removeDefaultLoggers >>> SLF4J.slf4j
 ```
@@ -55,6 +56,12 @@ You can find the source code [here](https://github.com/zio/zio-logging/tree/mast
 
 ```scala
 package zio.logging.example
+
+import zio.logging.LogAnnotation
+import zio.logging.backend.SLF4J
+import zio.{ ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, _ }
+
+import java.util.UUID
 
 object Slf4jSimpleApp extends ZIOAppDefault {
 
@@ -118,6 +125,11 @@ which then is added to logs by log annotation.
 
 ```scala
 package zio.logging.example
+
+import zio.logging.backend.SLF4J
+import zio.{ ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, _ }
+
+import java.util.UUID
 
 trait Tracing {
   def getCurrentSpan(): UIO[String]

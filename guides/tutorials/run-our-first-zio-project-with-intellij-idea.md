@@ -61,6 +61,7 @@ IntelliJ IDEA provides a green run button beside any classes that is executable.
 IntelliJ IDEA can run tests in the `test` directory. Let's create a new test class `ExampleSpec` and add it to the `src/test/scala` directory:
 
 ```scala
+import zio.test._
 
 object ExampleSpec extends ZIOSpecDefault {
   def spec =

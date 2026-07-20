@@ -38,6 +38,10 @@ In ZIO, we can implement the sidecar pattern by using compositional apps, or by 
 In the following example, as we have multiple applications (`UserApp` and `DocumentApp`), we use compositional apps to implement this pattern:
 
 ```scala
+import zio._
+import zio.http._
+import zio.metrics.connectors.prometheus.PrometheusPublisher
+import zio.metrics.connectors.{MetricsConfig, prometheus}
 
 object UserApp extends ZIOAppDefault {
   def run = Server.serve(userHttpApp).provide(Server.defaultWithPort(8080))
@@ -73,6 +77,10 @@ object MainApp extends ZIOApp.Proxy(UserApp <> DocumentApp <> Metrics)
 If we had only one application, we could use the `bootstrap` layer to implement this pattern:
 
 ```scala
+import zio._
+import zio.http._
+import zio.metrics.connectors.prometheus.PrometheusPublisher
+import zio.metrics.connectors.{MetricsConfig, prometheus}
 
 object MetricsService {
   private val metricsConfig = ZLayer.succeed(MetricsConfig(5.seconds))

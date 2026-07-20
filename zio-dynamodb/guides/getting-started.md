@@ -13,6 +13,13 @@ libraryDependencies += "dev.zio" %% "zio-dynamodb" % 1.0.0-RC24
 ### Read & write data to/from DynamoDB
 
 ```scala
+import zio.aws.core.config
+import zio.aws.{ dynamodb, netty }
+import zio.dynamodb.DynamoDBQuery.{ get, put }
+import zio.dynamodb.{ DynamoDBExecutor }
+import zio.schema.{ DeriveSchema, Schema }
+import zio.ZIOAppDefault
+import zio.dynamodb.ProjectionExpression
 
 object Main extends ZIOAppDefault {
 

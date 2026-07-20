@@ -12,6 +12,7 @@ There is another simpler version of `ZIOApp` called `ZIOAppDefault`. We usually 
 The `ZIOAppDefault` has a `run` function, which is the main entry point for running a ZIO application on the JVM:
 
 ```scala
+import zio._
 
 object MyApp extends ZIOAppDefault {
   def run = for {
@@ -27,6 +28,7 @@ object MyApp extends ZIOAppDefault {
 ZIO has a service that contains command-line arguments of an application called `ZIOAppArgs`. We can access command-line arguments using the built-in `getArgs` method:
 
 ```scala
+import zio._
 
 object HelloApp extends ZIOAppDefault {
   def run = for {
@@ -45,6 +47,9 @@ object HelloApp extends ZIOAppDefault {
 In the ZIO app, by overriding its `bootstrap` value, we can map the current runtime to a customized one. Let's customize it by introducing our own executor:
 
 ```scala
+import zio._
+import zio.Executor
+import java.util.concurrent.{LinkedBlockingQueue, ThreadPoolExecutor, TimeUnit}
 
 object CustomizedRuntimeZIOApp extends ZIOAppDefault {
   override val bootstrap = Runtime.setExecutor(
@@ -76,6 +81,7 @@ A detailed explanation can be found on the [runtime](runtime.md) page.
 To compose ZIO applications, we can use `<>` operator:
 
 ```scala
+import zio._
 
 object MyApp1 extends ZIOAppDefault {    
   def run = ZIO.succeed(???)
@@ -102,6 +108,7 @@ Below are two examples: one where cleanup finishes within the timeout and one wh
 ### Example 1: Finalizer completes within the timeout
 
 ```scala
+import zio._
 
 object MyApp extends ZIOAppDefault {
   // Wait at most 30 seconds for all finalizers to complete on SIGINT
@@ -124,6 +131,7 @@ In this example, `MyApp` starts and logs `Acquiring resource...`. When you press
 
 ### Example 2: Finalizer exceeds the timeout
 ```scala
+import zio._
 
 object MyAppTimeout extends ZIOAppDefault {
   // Wait at most 5 seconds for finalizers to complete on SIGINT

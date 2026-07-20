@@ -17,6 +17,9 @@ libraryDependencies += "dev.zio" %% "zio-test-junit" % zioVersion % "test"
 To make our spec appear as a JUnit test to build tools and IDEs, we can simply extend `zio.test.junit.JUnitRunnableSpec`:
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.junit.JUnitRunnableSpec
 
 object MySpec extends JUnitRunnableSpec {
   def spec = suite("MySpec")(
@@ -46,6 +49,10 @@ Executed in 215 ms
 Or we can convert `MySpec` object to a scala `class` and annotate it with `@RunWith(classOf[ZTestJUnitRunner])`:
 
 ```scala
+import org.junit.runner.RunWith
+import zio._
+import zio.test.{test, _}
+import zio.test.junit.ZTestJUnitRunner
 
 @RunWith(classOf[ZTestJUnitRunner])
 class MySpec extends ZIOSpecDefault {

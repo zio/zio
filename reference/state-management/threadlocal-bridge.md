@@ -13,6 +13,7 @@
 The following shows the `ThreadLocalBridge` API:
 
 ```scala
+import zio._
 
 sealed trait ThreadLocalBridge {
   def makeFiberRef[A](initialValue: A)(link: A => Unit): ZIO[Scope, Nothing, FiberRef[A]]
@@ -47,12 +48,13 @@ The challenge arises from the fundamental difference between ZIO's fiber model a
 In this example, we create a fiber-local request ID and automatically synchronize it to a `ThreadLocal` so that a logging function can access it:
 
 ```scala
+import zio._
 
 // Simulating a logging framework that reads from ThreadLocal
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@18a8f106
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@314f4555
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -80,9 +82,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$19767/0x00007f8d66e7a350@7294bed7
+//     eval = zio.Scope$$$Lambda$19796/0x00007f534ef76950@47d94a00
 //   ),
-//   successK = zio.ZIO$$$Lambda$19768/0x00007f8d66e7a608@2778fb61
+//   successK = zio.ZIO$$$Lambda$19797/0x00007f534ef76c08@1a4e21eb
 // )
 ```
 
@@ -99,6 +101,7 @@ The primary way to create a synchronized `FiberRef` is using `ThreadLocalBridge#
 `ThreadLocalBridge#makeFiberRef` creates a new `FiberRef` that synchronizes its value with a `ThreadLocal` via a user-supplied callback function. Its signature is:
 
 ```scala
+import zio._
 
 trait ThreadLocalBridge {
   def makeFiberRef[A](initialValue: A)(link: A => Unit): ZIO[Scope, Nothing, FiberRef[A]]
@@ -124,12 +127,13 @@ These situations trigger the link function:
 Below is a complete example showing how to wrap a Java `ThreadLocal` and use it with a logging framework:
 
 ```scala
+import zio._
 
 // Step 1: Create a Java ThreadLocal to hold the request ID
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@5cbffdf2
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@6ae0f85c
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -159,9 +163,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$19767/0x00007f8d66e7a350@7294bed7
+//     eval = zio.Scope$$$Lambda$19796/0x00007f534ef76950@47d94a00
 //   ),
-//   successK = zio.ZIO$$$Lambda$19768/0x00007f8d66e7a608@7404861
+//   successK = zio.ZIO$$$Lambda$19797/0x00007f534ef76c08@3809e49f
 // )
 ```
 
@@ -170,6 +174,7 @@ val program = ZIO.scoped {
 `ThreadLocalBridge.live` provides the default implementation of the `ThreadLocalBridge` service. Its signature is:
 
 ```scala
+import zio._
 
 object ThreadLocalBridge {
   val live: ZLayer[Any, Nothing, ThreadLocalBridge] = ???
@@ -186,11 +191,12 @@ The `ThreadLocalBridge#live` layer:
 To use `ThreadLocalBridge` in your application, include `ThreadLocalBridge.live` in your layer composition:
 
 ```scala
+import zio._
 
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@494f5b00
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@2782e77f
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -205,9 +211,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$19767/0x00007f8d66e7a350@7294bed7
+//     eval = zio.Scope$$$Lambda$19796/0x00007f534ef76950@47d94a00
 //   ),
-//   successK = zio.ZIO$$$Lambda$19768/0x00007f8d66e7a608@31f26ba
+//   successK = zio.ZIO$$$Lambda$19797/0x00007f534ef76c08@cfe6d4f
 // )
 ```
 
@@ -227,6 +233,7 @@ This synchronous behavior ensures the `ThreadLocal` is always in sync with the f
 `FiberRef#set` atomically replaces the fiber-local value and synchronizes the new value to the `ThreadLocal`. Its signature is:
 
 ```scala
+import zio._
 
 trait FiberRef[A] {
   def set(value: A): UIO[Unit]
@@ -245,11 +252,12 @@ The method:
 Setting a value automatically triggers the link function, so the `ThreadLocal` is updated synchronously:
 
 ```scala
+import zio._
 
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@293c6347
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@77926e8
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -266,9 +274,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$19767/0x00007f8d66e7a350@7294bed7
+//     eval = zio.Scope$$$Lambda$19796/0x00007f534ef76950@47d94a00
 //   ),
-//   successK = zio.ZIO$$$Lambda$19768/0x00007f8d66e7a608@7f37b6e4
+//   successK = zio.ZIO$$$Lambda$19797/0x00007f534ef76c08@1dc0fdd4
 // )
 ```
 
@@ -277,6 +285,7 @@ val example = ZIO.scoped {
 `FiberRef#modify` applies a function to the current value and synchronizes the result to the `ThreadLocal`. Its signature is:
 
 ```scala
+import zio._
 
 trait FiberRef[A] {
   def modify[B](f: A => (B, A)): UIO[B]
@@ -294,11 +303,12 @@ The method:
 This is useful for extracting information while updating the state in one operation:
 
 ```scala
+import zio._
 
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@5a4c8ded
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@565af385
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -315,9 +325,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$19767/0x00007f8d66e7a350@7294bed7
+//     eval = zio.Scope$$$Lambda$19796/0x00007f534ef76950@47d94a00
 //   ),
-//   successK = zio.ZIO$$$Lambda$19768/0x00007f8d66e7a608@71e60570
+//   successK = zio.ZIO$$$Lambda$19797/0x00007f534ef76c08@e029324
 // )
 ```
 
@@ -326,6 +336,7 @@ val example = ZIO.scoped {
 `FiberRef#locally` creates a scoped region where the fiber-local value is temporarily replaced. Its signature is:
 
 ```scala
+import zio._
 
 trait FiberRef[A] {
   def locally[R, E, B](newValue: A)(body: ZIO[R, E, B]): ZIO[R, E, B]
@@ -343,11 +354,12 @@ The method:
 This is useful for scoped context changes, such as temporarily changing the request ID or user context:
 
 ```scala
+import zio._
 
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@22672567
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@4fe28fe3
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -378,9 +390,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$19767/0x00007f8d66e7a350@7294bed7
+//     eval = zio.Scope$$$Lambda$19796/0x00007f534ef76950@47d94a00
 //   ),
-//   successK = zio.ZIO$$$Lambda$19768/0x00007f8d66e7a608@2a4eee1e
+//   successK = zio.ZIO$$$Lambda$19797/0x00007f534ef76c08@6d078595
 // )
 ```
 
@@ -391,6 +403,7 @@ The output demonstrates how `FiberRef#locally` isolates value changes to a speci
 `FiberRef#get` retrieves the current fiber-local value without modifying it. Its signature is:
 
 ```scala
+import zio._
 
 trait FiberRef[A] {
   def get: UIO[A]
@@ -407,11 +420,12 @@ The method:
 Reading the current value does not trigger synchronization since the `ThreadLocal` is already at the correct value:
 
 ```scala
+import zio._
 
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@230d6b2a
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@4e48df36
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -427,9 +441,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$19767/0x00007f8d66e7a350@7294bed7
+//     eval = zio.Scope$$$Lambda$19796/0x00007f534ef76950@47d94a00
 //   ),
-//   successK = zio.ZIO$$$Lambda$19768/0x00007f8d66e7a608@2b759433
+//   successK = zio.ZIO$$$Lambda$19797/0x00007f534ef76c08@2ca3fa2b
 // )
 ```
 
@@ -455,11 +469,12 @@ This dual-phase mechanism ensures that:
 When you modify the `FiberRef` value, the link function synchronizes the change to the `ThreadLocal` immediately:
 
 ```scala
+import zio._
 
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@3b2c67f8
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@50d62a4e
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -486,9 +501,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$19767/0x00007f8d66e7a350@7294bed7
+//     eval = zio.Scope$$$Lambda$19796/0x00007f534ef76950@47d94a00
 //   ),
-//   successK = zio.ZIO$$$Lambda$19768/0x00007f8d66e7a608@70d24b82
+//   successK = zio.ZIO$$$Lambda$19797/0x00007f534ef76c08@24880ae1
 // )
 ```
 
@@ -503,11 +518,12 @@ The supervisor's `onSuspend` and `onResume` hooks are triggered automatically wh
 When a child fiber forks from the parent, it inherits the parent's current value, and the `ThreadLocal` reflects this inheritance:
 
 ```scala
+import zio._
 
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@3c28b64f
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@30bccf48
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -530,9 +546,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$19767/0x00007f8d66e7a350@7294bed7
+//     eval = zio.Scope$$$Lambda$19796/0x00007f534ef76950@47d94a00
 //   ),
-//   successK = zio.ZIO$$$Lambda$19768/0x00007f8d66e7a608@431ae4bb
+//   successK = zio.ZIO$$$Lambda$19797/0x00007f534ef76c08@60f5067d
 // )
 ```
 
@@ -543,11 +559,12 @@ The child fiber inherits the parent's current value (`"parent-value"`), not the 
 When using combinators like `ZIO.collectAllPar` or other parallel composition operators, each fiber maintains its own fiber-local value, and the `ThreadLocal` is properly synchronized as fibers suspend and resume across the thread pool:
 
 ```scala
+import zio._
 
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@5b460cc9
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@31070f1d
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -569,9 +586,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$19767/0x00007f8d66e7a350@7294bed7
+//     eval = zio.Scope$$$Lambda$19796/0x00007f534ef76950@47d94a00
 //   ),
-//   successK = zio.ZIO$$$Lambda$19768/0x00007f8d66e7a608@7eb8f160
+//   successK = zio.ZIO$$$Lambda$19797/0x00007f534ef76c08@635998d6
 // )
 ```
 
@@ -582,11 +599,12 @@ Each task sees its own locally-scoped value, even when running in parallel on di
 If the link function throws an exception, it will propagate as a defect (unhandled exception). Use defensive programming to prevent exceptions:
 
 ```scala
+import zio._
 
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@3c36f1
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@52d4ed03
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -606,9 +624,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$19767/0x00007f8d66e7a350@7294bed7
+//     eval = zio.Scope$$$Lambda$19796/0x00007f534ef76950@47d94a00
 //   ),
-//   successK = zio.ZIO$$$Lambda$19768/0x00007f8d66e7a608@457451e4
+//   successK = zio.ZIO$$$Lambda$19797/0x00007f534ef76c08@6f87bbde
 // )
 ```
 
@@ -621,11 +639,12 @@ Keep link functions **simple and side-effect free**. Do not perform I/O, blockin
 When the scope exits (whether due to success, failure, or interruption), the finalizer automatically resets the `ThreadLocal` to its initial value. This prevents `ThreadLocal` leaks and ensures clean state for subsequent code:
 
 ```scala
+import zio._
 
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@769df3df
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@734e13ee
 
 val example = {
   val scoped = ZIO.scoped {
@@ -647,9 +666,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$19767/0x00007f8d66e7a350@7294bed7
+//       eval = zio.Scope$$$Lambda$19796/0x00007f534ef76950@47d94a00
 //     ),
-//     successK = zio.ZIO$$$Lambda$19768/0x00007f8d66e7a608@5cbd0239
+//     successK = zio.ZIO$$$Lambda$19797/0x00007f534ef76c08@9d6e1c8
 //   ),
 //   successK = <function1>
 // )

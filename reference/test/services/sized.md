@@ -42,6 +42,8 @@ It applies the _size_ to the given function of type `Int => Gen[R, A]`. We shoul
 In the following example, we are creating a sized generator, which generates integer values within the specified range. In this generator, the lower bound is bound to zero, and the upper bound is bound to the _size_ value, which is obtained from the ZIO environment:
 
 ```scala
+import zio._
+import zio.test._
 
 val sizedInts: Gen[Any, Int] = 
   Gen.sized(Gen.int(0, _))
@@ -65,6 +67,8 @@ object Sized {
 ```
 
 ```scala
+import zio._
+import zio.test._
 
 val effect     : UIO[String] = ZIO.succeed("effect")
 val sizedEffect: UIO[String] = Sized.withSize(10)(effect)
@@ -73,6 +77,8 @@ val sizedEffect: UIO[String] = Sized.withSize(10)(effect)
 ZIO Test has a test aspect called `TestAspect.size` which is a helper method for this operation. This test aspect runs each test with the given _size_ value:
 
 ```scala
+import zio._
+import zio.test._
 
 object SizedSpec extends ZIOSpecDefault {
   def spec =

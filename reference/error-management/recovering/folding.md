@@ -25,6 +25,7 @@ trait ZIO[-R, +E, +A] {
 Let's try an example:
 
 ```scala
+import zio._
 
 lazy val DefaultData: Array[Byte] = Array(0, 0)
 
@@ -35,6 +36,7 @@ val primaryOrDefaultData: UIO[Array[Byte]] =
 We can ignore any failure and success values:
 
 ```scala
+import zio._
 
 val result: ZIO[Any, Nothing, Unit] =
   ZIO
@@ -46,6 +48,7 @@ val result: ZIO[Any, Nothing, Unit] =
 It is equivalent to use the `ZIO#ignore` operator instead:
 
 ```scala
+import zio._
 
 val result: ZIO[Any, Nothing, Unit] = ZIO.fail("Uh oh!").as(5).ignore
 ```
@@ -75,6 +78,7 @@ val urls: UIO[Content] =
 It's important to note that both `ZIO#fold` and `ZIO#foldZIO` operators cannot catch fiber interruptions. So the following application will crash due to `InterruptedException`:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run = (ZIO.interrupt *> ZIO.fail("Uh oh!")).fold(_ => (), _ => ())
@@ -111,6 +115,7 @@ Among the fold operators, these are the most powerful combinators. They can reco
 In the following example, we are printing the proper message according to what cause occurred due to failure:
 
 ```scala
+import zio._
 
 val exceptionalEffect: ZIO[Any, Throwable, Unit] = ???
 
@@ -129,6 +134,9 @@ val myApp: ZIO[Any, IOException, Unit] =
 When catching errors using this operator, if our cases were not exhaustive, we may receive a defect of the type `scala.MatchError` :
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
   val exceptionalEffect: ZIO[Any, Throwable, Unit] = ZIO.interrupt
@@ -174,6 +182,7 @@ trait ZIO[-R, +E, +A] {
 ```
 
 ```scala
+import zio._
 
 val result: ZIO[Any, Nothing, Int] =
   validate(5).foldTraceZIO(

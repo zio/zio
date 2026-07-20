@@ -23,6 +23,7 @@ Sets are used to count the occurrences of distinct string values:
 Create a `Frequency` to observe the occurrences of unique `Strings`. It can be applied to effects yielding a `String`:
 
 ```scala
+import zio.metrics._
 
 val freq = Metric.frequency("MySet")
 ```
@@ -30,6 +31,7 @@ val freq = Metric.frequency("MySet")
 Now we can generate some keys within an effect and start counting the occurrences for each value:
 
 ```scala
+import zio._
 
 (Random.nextIntBounded(10).map(v => s"MyKey-$v") @@ freq).repeatN(100)
 ```

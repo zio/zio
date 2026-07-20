@@ -7,6 +7,7 @@
 In the following example, we have an application that requires `AppConfig` layer, which itself requires `DBConfig` and `ServerConfig` layers:
 
 ```scala
+import zio._
 
 case class ServerConfig(host: String, port: Int)
 object ServerConfig {
@@ -47,6 +48,7 @@ object MainApp extends ZIOAppDefault {
 Suppose we have defined the `UserRepo`, `DocumentRepo`, `Database`, `BlobStorage`, and `Cache` services and their respective implementations as follows:
 
 ```scala
+import zio._
 
 case class User(email: String, name: String)
 
@@ -172,6 +174,7 @@ object BlobStorageLive {
 And then assume we have the following ZIO application:
 
 ```scala
+import zio._
 
 def myApp: ZIO[DocumentRepo & UserRepo, Throwable, Unit] =
   for {
@@ -185,6 +188,7 @@ def myApp: ZIO[DocumentRepo & UserRepo, Throwable, Unit] =
 The `myApp` requires `DocumentRepo` and `UserRepo` services to run. So we need to create a `ZLayer` which requires no services and produces `DocumentRepo` and `UserRepo`. We can manually create this layer using [vertical and horizontal layer composition](manual-layer-construction.md#vertical-and-horizontal-composition):
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -201,6 +205,7 @@ object MainApp extends ZIOAppDefault {
 Instead of creating the required layer manually, we can use the `ZIO#provide`. ZIO internally creates the dependency graph automatically based on all dependencies provided:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -221,6 +226,7 @@ object MainApp extends ZIOAppDefault {
 Let's say we want to provide different versions of the same service to different services. In this example, both `UserRepo` and `DocumentRepo` services require the `Cache` service. However, we want to provide different cache implementations for these two services. Our goal is to provide an `InmemoryCache` layer for `UserRepo` and a `PersistentCache` layer for the `DocumentRepo` service:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -243,6 +249,7 @@ Having covered the topic of [acquiring fresh layers](../../reference/di/dependen
 `DocumentRepo` and `UserRepo` services are dependent on an in-memory cache service. On the other hand, let's assume the cache service is quite simple, and we might be prone to cache conflicts between services. While sharing the cache service may cause some problems for our business logic, we should separate the cache service for both `DocumentRepo` and `UserRepo`:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -267,6 +274,7 @@ An upstream dependency that is used by many other services can be "passed-throug
 The following example shows how to passthrough all dependencies to the final layer:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -288,6 +296,7 @@ object MainApp extends ZIOAppDefault {
 One of the use cases of having explicit all dependencies in the final layer is that we can [update](../../reference/di/examples.md#an-example-of-updating-hidden-dependencies) those hidden layers using `ZLayer#update`. In the following example, we are replacing the `InmemoryCache` with another implementation called `PersistentCache`:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 

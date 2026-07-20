@@ -14,6 +14,7 @@ sbt testOnly HelloWorldSpec   // run a specific test
 To run a specific test by their labels, we can use the `-t "<label>"` option. Assume we have multiple tests like the below:
 
 ```scala
+import zio.test._
 
 object ExampleSpec extends ZIOSpecDefault {
   def spec = suite("clock")(

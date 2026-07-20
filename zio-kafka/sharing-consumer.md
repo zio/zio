@@ -7,6 +7,9 @@ Often in a single application, you want to consume from multiple Kafka topics an
 For each of the topics/patterns you subscribe to, you can define a dedicated stream to process the records, a dedicated `Deserializer` for the keys, and a dedicated `Deserializer` for the values. Other settings like poll interval and offset strategy are common to all subscriptions. For example, the value of the `max.poll.records` setting is the maximum number of records returned in each poll for all the subscriptions combined. If you need different settings for each topic/pattern, you need to create a `Consumer` instance per topic/pattern.
 
 ```scala
+import zio._
+import zio.Console.printLine
+import zio.kafka.consumer._
 
 // Create a single Consumer instance
 val consumerSettings: ConsumerSettings = ConsumerSettings(List("localhost:9092")).withGroupId("group")

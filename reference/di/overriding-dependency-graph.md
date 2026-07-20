@@ -9,6 +9,7 @@ We can create a [ZIO](../core/zio/zio.md) application by providing a local or a 
 It is usual when writing ZIO applications to provide layers at the end of the world. Then we provide layers to the whole ZIO application all at once. This pattern uses a single global environment for all ZIO applications:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val myApp: ZIO[ServiceA & ServiceB & ServiceC & ServiceD, Throwable, Unit] = ???
@@ -24,6 +25,7 @@ Occasionally, we may need to provide different environments for different parts 
 Providing a layer locally is analogous to overriding a method in an object-oriented paradigm. So we can think of that as overriding the global environment:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def myApp: ZIO[A & B & C, Throwable, Unit] = {

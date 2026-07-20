@@ -19,6 +19,7 @@ This trait serves as a boundary between scope management internals and user code
 `Finalizer` integrates with `Scope` to enable resource management patterns:
 
 ```scala
+import zio.blocks.scope.{Scope, Finalizer}
 
 def openConnection(url: String)(implicit fin: Finalizer): String = {
   fin.defer {
@@ -28,7 +29,7 @@ def openConnection(url: String)(implicit fin: Finalizer): String = {
 }
 
 Scope.global.scoped { scope =>
-
+  import scope._
   openConnection("https://example.com")
   // Connection closes when scope exits
   ()
@@ -46,9 +47,10 @@ By decoupling code that needs cleanup registration from code that manages the co
 Any `Scope` instance can be used as a `Finalizer` since `Scope extends Finalizer`:
 
 ```scala
+import zio.blocks.scope.Scope
 
 Scope.global.scoped { scope =>
-
+  import scope._
   // scope is both a Scope and a Finalizer
   val handle = scope.defer {
     println("Cleanup")
@@ -62,6 +64,7 @@ Scope.global.scoped { scope =>
 Functions can request a `Finalizer` via `implicit` parameter, enabling decoupled cleanup registration:
 
 ```scala
+import zio.blocks.scope.Finalizer
 
 def setupResource(name: String)(implicit fin: Finalizer): String = {
   fin.defer {
@@ -80,8 +83,10 @@ The `Finalizer` interface provides a single core operation for registering clean
 Registers a finalizer (cleanup action) to run when the scope closes. The cleanup action runs in LIFO order along with other finalizers registered on the same scope. Returns a `DeferHandle` that can cancel the registration before the scope closes:
 
 ```scala
+import zio.blocks.scope.Scope
 
 Scope.global.scoped { scope =>
+  import scope._
 
   val handle1 = scope.defer {
     println("Cleanup 1")
@@ -109,6 +114,7 @@ def defer(finalizer: => Unit)(implicit fin: Finalizer): DeferHandle
 This removes the need to write `fin.defer { cleanup }`. Here's the convenience function in use:
 
 ```scala
+import zio.blocks.scope.{Scope, defer, Finalizer}
 
 def setupWithCleanup()(implicit fin: Finalizer) = {
   defer {
@@ -117,7 +123,7 @@ def setupWithCleanup()(implicit fin: Finalizer) = {
 }
 
 Scope.global.scoped { scope =>
-
+  import scope._
   setupWithCleanup()
   // Cleanup prints when scope closes
   ()  // Return unit (which is Unscoped)
@@ -139,8 +145,10 @@ This means any `Scope` instance can be used where a `Finalizer` is expected. How
 Finalizers registered with `Finalizer#defer` run in **LIFO order** (last registered runs first) when the scope closes. This ensures that resources acquired in order can be cleaned up in reverse order:
 
 ```scala
+import zio.blocks.scope.Scope
 
 Scope.global.scoped { scope =>
+  import scope._
 
   scope.defer { println("First registered, runs last") }
   scope.defer { println("Second registered, runs first") }

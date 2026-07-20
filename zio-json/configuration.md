@@ -23,6 +23,7 @@ Here's an example json with most fields snake_cased and one kebab-cased:
 And here's the target case class:
 
 ```scala
+import zio.json._
 
 @jsonMemberNames(SnakeCase)
 case class FruitBasket(
@@ -40,6 +41,7 @@ It is also possible to change the type hint that is used to discriminate case cl
 For example, these annotations change the expected JSON of our `Fruit` family
 
 ```scala
+import zio.json._
 
 sealed trait Fruit
 
@@ -87,6 +89,7 @@ to all type hint values in hierarchy. Same transformations are provided as for `
 Here's an example:
 
 ```scala
+import zio.json._
 
 @jsonHintNames(SnakeCase)
 sealed trait FruitKind
@@ -259,12 +262,14 @@ For generating both Encoder and Decoder, simply use jsonDerive
 For example: 
 
 ```scala
+import zio.json._
 
 @jsonDerive case class Watermelon(pips: Int)
 ```
 It is equivalent to:
 
 ```scala
+import zio.json._
 
 case class Watermelon(pips: Int)
 
@@ -279,12 +284,14 @@ To generate only an encoder, we can set it as config parameter:
 For example:
 
 ```scala
+import zio.json._
 
 @jsonDerive(JsonDeriveConfig.Encoder) case class Watermelon(pips: Int)
 ```
 It is equivalent to:
 
 ```scala
+import zio.json._
 
 case class Watermelon(pips: Int)
 
@@ -299,12 +306,14 @@ To generate only a decoder, we can set it as config parameter:
 For example:
 
 ```scala modc:compile-only
+import zio.json._
 
 @jsonDerive(JsonDeriveConfig.Decoder) case class Watermelon(pips: Int)
 ```
 It is equivalent to:
 
 ```scala
+import zio.json._
 
 case class Watermelon(pips: Int)
 

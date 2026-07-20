@@ -79,14 +79,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@2aeea129
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@6eaf3fd2
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@714a2b15
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@51bf8e4
 ```
 
 ## From ZIO
@@ -166,7 +166,7 @@ Also, there is another constructor called **`ZStream.fromIterator`** that create
 **ZStream.fromIteratorZIO** — If we have an effectful Iterator that may throw Exception, we can use `fromIteratorZIO` to convert that to the ZIO Stream:
 
 ```scala
-
+import scala.io.Source
 val lines: ZStream[Any, Throwable, String] = 
   ZStream.fromIteratorZIO(ZIO.attempt(Source.fromFile("file.txt").getLines()))
 ```
@@ -236,7 +236,11 @@ val repeatZero: ZStream[Any, Nothing, Int] = ZStream.repeat(0)
 **ZStream.repeatWith** — This is another variant of `repeat`, which repeats according to the provided schedule. For example, the following stream produce zero value every second:
 
 ```scala
-
+import zio._
+import zio.Clock._
+import zio.Duration._
+import zio.Random._
+import zio.Schedule
 val repeatZeroEverySecond: ZStream[Any, Nothing, Int] = 
   ZStream.repeatWithSchedule(0, Schedule.spaced(1.seconds))
 ```
@@ -421,7 +425,7 @@ val s2: ZStream[Any, Nothing, Int] =
 **ZStream.fromPath** — Create ZIO Stream from a file:
 
 ```scala
-
+import java.nio.file.Paths
 val file: ZStream[Any, Throwable, Byte] = 
   ZStream.fromPath(Paths.get("file.txt"))
 ```

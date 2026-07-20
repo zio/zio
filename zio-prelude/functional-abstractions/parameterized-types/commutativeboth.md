@@ -31,6 +31,9 @@ We can see this because to produce a tuple `(A, B)` we need to run both the left
 To get a better sense of what it means for a combining operation on parameterized types to be commutative, let's start with looking at why the `zip` operator on `ZIO` is not commutative.
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 val helloZIO: ZIO[Console, IOException, Unit] =
   Console.printLine("Hello") <*> Console.printLine("ZIO")
@@ -108,8 +111,10 @@ This interpretation of `zipPar` as running the left and right values on separate
 To see this, let's look at a slightly simplified version of the `Validation` data type from ZIO Prelude and how we can define the `zipPar` operator for it.
 
 ```scala
+import zio.NonEmptyChunk
 
 sealed trait Validation[+E, +A] { self =>
+  import Validation._
 
   def zipPar[E1 >: E, B](that: Validation[E1, B]): Validation[E1, (A, B)] =
     (self, that) match {
@@ -131,6 +136,7 @@ We are not forking any fibers here, but notice how in our implementation of `zip
 Another interpretation of what it means to run two values in parallel comes from collections. We can combine values from two collections in parallel by zipping them together pairwise.
 
 ```scala
+import zio.prelude._
 
 implicit val ListCommutativeBoth: CommutativeBoth[List] =
   new CommutativeBoth[List] {
@@ -167,6 +173,7 @@ The zipped lists are identical after rearranging the order of tuples.
 Some instances of `CommutativeBoth` actually combine these interpretations. For example the `CommutativeBoth` instance for `ZStream` is implemented in terms of the `zip` operator on `ZStream`, which creates a new stream that pulls values from the left and the right streams pairwise, evaluating effects in the left and right streams on separate fibers.
 
 ```scala
+import zio.stream._
 
 def both[R, E, A, B](left: => ZStream[R, E, A], right: ZStream[R, E, B]): ZStream[R, E, (A, B)] =
   left.zip(right)

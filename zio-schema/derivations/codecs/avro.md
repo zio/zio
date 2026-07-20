@@ -39,6 +39,10 @@ The `decode` method takes a `Chunk[Byte]` which contains the Avro JSON Schema in
 Here is an example of how to use it:
 
 ```scala
+import zio._
+import zio.schema.Schema
+import zio.schema.DeriveSchema
+import zio.schema.codec.AvroSchemaCodec
 
 case class Person(name: String, age: Int)
 
@@ -82,6 +86,10 @@ object AvroCodec {
 Now, let's write an example and see how it works:
 
 ```scala
+import zio._
+import zio.schema.Schema
+import zio.schema.DeriveSchema
+import zio.schema.codec.{AvroCodec, BinaryCodec}
 
 case class Person(name: String, age: Int)
 
@@ -138,6 +146,9 @@ There tons of annotations that we can use. Let's introduce some of them:
 For example, to change the name of a field in the Avro schema, we can use the `AvroAnnotations.name` annotation:
 
 ```scala
+import zio.schema.Schema
+import zio.schema.DeriveSchema
+import zio.schema.codec.AvroAnnotations
 
 @AvroAnnotations.name("User")
 case class Person(name: String, age: Int)
@@ -150,6 +161,10 @@ object Person {
 Now, if we generate the Avro schema for the `Person` class, we will see that the name of the record is `User` instead of `Person`:
 
 ```scala
+import zio._
+import zio.schema.Schema
+import zio.schema.DeriveSchema
+import zio.schema.codec.AvroSchemaCodec
 
 object Main extends ZIOAppDefault {
   def run =

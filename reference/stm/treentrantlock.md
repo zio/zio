@@ -30,6 +30,7 @@ from a write lock to a read lock (automatically provided that you upgraded from 
 ## Creating a reentrant lock
 
 ```scala
+import zio.stm._
 
 val reentrantLock = TReentrantLock.make
 ```
@@ -37,6 +38,7 @@ val reentrantLock = TReentrantLock.make
 ## Acquiring a read lock
 
 ```scala
+import zio.stm._
 
 val program =
   (for {
@@ -50,6 +52,8 @@ val program =
 ## Acquiring a write lock
 
 ```scala
+import zio._
+import zio.stm._
 
 val writeLockProgram: UIO[Boolean] =
   (for {
@@ -63,6 +67,8 @@ val writeLockProgram: UIO[Boolean] =
 ## Multiple fibers can hold read locks
 
 ```scala
+import zio._
+import zio.stm._
 
 val multipleReadLocksProgram: UIO[(Int, Int)] = for {
   lock          <- TReentrantLock.make.commit
@@ -78,6 +84,8 @@ val multipleReadLocksProgram: UIO[(Int, Int)] = for {
 If your fiber already has a read lock then it is possible to upgrade the lock to a write lock provided that no other
 reader (other than your fiber) holds a lock
 ```scala
+import zio._
+import zio.stm._
 
 val upgradeDowngradeProgram: UIO[(Boolean, Boolean, Boolean, Boolean)] = for {
   lock               <- TReentrantLock.make.commit
@@ -102,6 +110,9 @@ Here is an example which demonstrates that a write lock can only be obtained by 
 the fiber attempting to acquire the write lock) have released their hold on the (read or write) lock.
 
 ```scala
+import zio._
+import zio.Console._
+import zio.stm._
 
 val writeLockDemoProgram: UIO[Unit] = for {
   l  <- TReentrantLock.make.commit
@@ -125,6 +136,9 @@ thanks to the `Scope` construct. The program described below is a safer version 
 don't hold onto any resources once we are done using the reentrant lock.
 
 ```scala
+import zio._
+import zio.Console._
+import zio.stm._
 
 val saferProgram: UIO[Unit] = for {
   lock <- TReentrantLock.make.commit

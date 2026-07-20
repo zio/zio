@@ -65,6 +65,8 @@ final case class Record[A](
 Here is an example of a `Binding.Record` for a simple `Person` case class:
 
 ```scala
+import zio.blocks.schema.binding._
+import zio.blocks.schema.binding.RegisterOffset._
 
 case class Person(name: String, age: Int)
 
@@ -112,6 +114,7 @@ final case class Variant[A](
 - `Matchers`: Given a value and a case index, safely downcast the value to the specific case type, or return null if it doesn't match.
 
 ```scala
+import zio.blocks.schema.binding._
 
 sealed trait Shape extends Product with Serializable
 case class Circle(radius: Double) extends Shape
@@ -301,6 +304,8 @@ final case class Wrapper[A, B](
 Here is an example of a `Binding.Wrapper` for an `Email` newtype:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
 
 case class Email(value: String)
 

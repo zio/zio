@@ -10,6 +10,8 @@
 The most basic forms of `HelpDoc` are headers and paragraphs. Method `HelpDoc.p` can create paragraphs from text, while methods `HelpDoc.h1`, `HelpDoc.h2` and `HelpDoc.h3` create headers of different levels.
 
 ```scala
+import zio.cli._
+import zio.cli.HelpDoc.Span
 
 val t = "text"
 
@@ -119,6 +121,7 @@ trait HelpDoc {
 
 It concatenates `HelpDoc`:
 ```scala
+import zio.cli._
 
 HelpDoc.h1("Header 1") + HelpDoc.p("paragraph content")
 ```
@@ -137,6 +140,7 @@ It shows the second `HelpDoc` only if the first one is empty. It could be used t
 The more common use case is through the operators `??` and `withHelp`.
 - `??` can be applied to `Options` and `Args`. It adds a string to the current description.
 ```scala
+import zio.cli._
 
 trait Options[A] {
   def ??(that: String): Options[A] // or Args[A]
@@ -147,6 +151,7 @@ val optionsWithHelp = Options.text("sample") ?? "description of options"
 
 - `withHelp` is applied to `Command`. It overwrites the current help of the command, so use it cautiously! On the other hand, you need to use it to add your desired `HelpDoc`
 ```scala
+import zio.cli._
 
 trait Options[A] {
   def withHelp(that: String): Command[A] // that is converted into a paragraph

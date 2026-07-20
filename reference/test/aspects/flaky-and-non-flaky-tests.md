@@ -7,6 +7,9 @@ Whenever we deal with concurrency issues or race conditions, we should ensure th
 It will run a test several times, by default 100 times, and if all those times pass, it will pass, otherwise, it will fail:
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.TestAspect._
 
 test("random value is always greater than zero") {
   for {

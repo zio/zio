@@ -18,6 +18,7 @@ trait ZIO[-R, +E, +A] {
 Here are two simple examples for these operators:
 
 ```scala
+import zio._
 
 def parseInt(input: String): ZIO[Any, NumberFormatException, Int] = ???
 
@@ -49,6 +50,7 @@ The `ZIO#mapAttempt` returns an effect whose success is mapped by the specified 
 Using operations that can throw exceptions inside of `ZIO#map` such as `effect.map(_.unsafeOpThatThrows)` will result in a defect (an unexceptional effect that will die). In the following example, when we use the `ZIO#map` operation. So, if the `String#toInt` operation throws `NumberFormatException` it will be converted to a defect:
 
 ```scala
+import zio._
 
 val result: ZIO[Any, Nothing, Int] =
   Console.readLine.orDie.map(_.toInt)
@@ -57,6 +59,7 @@ val result: ZIO[Any, Nothing, Int] =
 As a result, when the map operation is unsafe, it may lead to buggy programs that may crash, as shown below:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val myApp: ZIO[Any, Nothing, Unit] =
@@ -104,6 +107,7 @@ We can see that the error channel of `myApp` is typed as `Nothing`, so it's not 
 To prevent converting exceptions to defects, we can use `ZIO#mapAttempt` which converts any exceptions to exceptional effects:
 
 ```scala
+import zio._
 
 val result: ZIO[Any, Throwable, Int] =
   Console.readLine.orDie.mapAttempt(_.toInt)
@@ -112,6 +116,7 @@ val result: ZIO[Any, Throwable, Int] =
 Having typed errors helps us to catch errors explicitly and handle them in the right way:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val myApp: ZIO[Any, Nothing, Unit] =
@@ -147,6 +152,7 @@ trait ZIO[-R, +E, +A] {
 Here is a simple example:
 
 ```scala
+import zio._
 
 val result: ZIO[Any, String, Int] =
   Console.readLine.orDie.mapAttempt(_.toInt).mapBoth(

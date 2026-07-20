@@ -13,7 +13,7 @@ Let's explain how we can update a shared state effectfully with `Ref.Synchronize
 In the following example, we should pass in `updateEffect` to it which is the description of an update operation. So `Ref.Synchronized` is going to update the `ref` by running the `updateEffect`:
 
 ```scala
-
+import zio._
 for {
   ref <- Ref.Synchronized.make("current")
   updateEffect = ZIO.succeed("update")

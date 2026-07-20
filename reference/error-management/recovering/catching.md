@@ -15,6 +15,7 @@ trait ZIO[-R, +E, +A] {
 We can recover from all errors while reading a file and then fallback to another operation:
 
 ```scala
+import zio._
 
 val z: ZIO[Any, IOException, Array[Byte]] =
   readFile("primary.json").catchAll(_ =>
@@ -26,6 +27,7 @@ In the callback passed to `ZIO#catchAll`, we may return an effect with a differe
 When using `ZIO#catchAll` operator, the match cases should be exhaustive. Remember our `validate` function again:
 
 ```scala
+import zio._
 
 sealed trait AgeValidationException extends Exception
 case class NegativeAgeException(age: Int) extends AgeValidationException
@@ -42,6 +44,7 @@ def validate(age: Int): ZIO[Any, AgeValidationException, Int] =
 In the following example, we covered all the cases for the `catchAll` operator:
 
 ```scala
+import zio._
 
 val result: ZIO[Any, Nothing, Int] =
   validate(20)
@@ -75,6 +78,7 @@ Another important note about `ZIO#catchAll` is that this operator only can recov
 Let's try what happens if we `catchAll` on a dying effect:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val die: ZIO[Any, String, Nothing] =
@@ -92,6 +96,7 @@ object MainApp extends ZIOAppDefault {
 Also, if we have a fiber interruption, we can't catch that using this operator:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val interruptedEffect: ZIO[Any, String, Nothing] =
@@ -117,6 +122,7 @@ trait ZIO[-R, +E, +A] {
 In the following example, we are only catching failure of type `FileNotFoundException`:
 
 ```scala
+import zio._
 
 val data: ZIO[Any, IOException, Array[Byte]] =
   readFile("primary.data").catchSome {
@@ -140,6 +146,7 @@ trait ZIO[-R, +E, +A] {
 Let's try the `ZIO#catchAllDefect` operator:
 
 ```scala
+import zio._
 
 ZIO.dieMessage("Boom!")
   .catchAllDefect {
@@ -175,6 +182,7 @@ trait ZIO[-R, +E, +A] {
 With the help of the `ZIO#catchAllCause` operator we can catch all errors of an effect and recover from them:
 
 ```scala
+import zio._
 
 val exceptionalEffect = ZIO.attempt(???)
 
@@ -219,6 +227,7 @@ trait ZIO[-R, +E, +A] {
 In the below example, let's try to catch a failure on the line number 4:
 
 ```scala
+import zio._
 
 ZIO
   .fail("Oh uh!")

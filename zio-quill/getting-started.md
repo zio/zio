@@ -13,7 +13,7 @@ A simple ZIO + Quill application looks like this:
 case class Person(name: String, age: Int)
 
 class DataService(quill: Quill.Postgres[SnakeCase]) {
-
+  import quill._
   def getPeople: ZIO[Any, SQLException, List[Person]] = run(query[Person])
 }
 object DataService {

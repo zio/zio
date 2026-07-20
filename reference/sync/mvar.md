@@ -19,6 +19,7 @@ There are two ways to create an `MVar`:
 1. **`MVar.empty[A]`**— To create an `MVar` of type `A` that is _initially empty_, for example:
 
 ```scala
+import zio.concurrent.MVar
 
 val empty = MVar.empty[Int]
 ```
@@ -26,6 +27,7 @@ val empty = MVar.empty[Int]
 2. **`MVar.make[A]`**— To create an `MVar` of type `A` that is _initially full_, for example:
 
 ```scala
+import zio.concurrent.MVar
 
 val full = MVar.make(42)
 ```
@@ -85,6 +87,8 @@ Like the `put` and `take` operations, the `update` and `modify` operations are b
 We can use an `MVar` to implement a simple on/off latch:
 
 ```scala
+import zio._
+import zio.concurrent.MVar
 
 object MainApp extends ZIOAppDefault {
 
@@ -118,6 +122,8 @@ In the above example, we created an empty `MVar`, and then we created two `ZIO` 
 Assume we have a function `inc` that takes a `Ref[Int]` and increments its value by one as below:
 
 ```scala
+import zio._
+import zio.concurrent.MVar
 
 object MainApp extends ZIOAppDefault {
 
@@ -152,6 +158,8 @@ def inc(ref: Ref[Int]) =
 Although the solution to this problem is `Ref#update`, we want to use `MVar` to implement the same functionality for pedagogical purposes. So let's see how we can do that using `MVar`:
 
 ```scala
+import zio._
+import zio.concurrent.MVar
 
 object MainApp extends ZIOAppDefault {
 
@@ -184,6 +192,8 @@ So we used the `take` as `acquire` and the `put` as the `release` operation of t
 Note that, in the above solution, if any interruption occurs while we have acquired the semaphore (between `acquire` and `release` operations), the semaphore will not be released. So to prevent such a situation, we need to make sure that we always release the semaphore whether the critical section runs successfully or not. Let's model the whole solution in a new data type called `BinarySemaphore`:
 
 ```scala
+import zio._
+import zio.concurrent.MVar
 
 class BinarySemaphore private (mvar: MVar[Unit]) {
   def acquire: ZIO[Any, Nothing, Unit] = mvar.take
@@ -205,6 +215,8 @@ object BinarySemaphore {
 Now we can apply the `guard` function to the `inc` function of the previous example:
 
 ```scala
+import zio._
+import zio.concurrent.MVar
 
 object MainApp extends ZIOAppDefault {
 
@@ -233,6 +245,8 @@ object MainApp extends ZIOAppDefault {
 We can have synchronized mutable variables using the `MVar` data type:
 
 ```scala
+import zio._
+import zio.concurrent.MVar
 
 object MainApp extends ZIOAppDefault {
   def inc(state: MVar[Int]) =
@@ -262,6 +276,8 @@ Can we say this is the same as the previous `inc` function? No, because although
 We can use an `MVar` to implement a [producer/consumer](../concurrency/queue.md) channel:
 
 ```scala
+import zio._
+import zio.concurrent.MVar
 
 object MainApp extends ZIOAppDefault {
   def producer(state: MVar[Int]) =
@@ -287,6 +303,8 @@ In such a case we want to model a producer/consumer channel to make sure the pro
 If we add more consumers, the speed of consuming elements will be increased. Note that, by having multiple consumers, the data will not be duplicated through the consumers. If we have three consumers, each piece of data will be consumed only by one of the consumers:
 
 ```scala
+import zio._
+import zio.concurrent.MVar
 
 object MainApp extends ZIOAppDefault {
   def producer(state: MVar[Int]) =

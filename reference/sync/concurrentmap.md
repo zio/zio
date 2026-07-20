@@ -11,6 +11,9 @@ The `HashMap` in the Scala standard library is not thread-safe. This means that 
 For example, assume we have a `HashMap` with a key `foo` and a value of `0`. Let's see what happens if we perform the `inc` workflow 100 times concurrently:
 
 ```scala
+import zio._
+
+import scala.collection.mutable
 
 object MainApp extends ZIOAppDefault {
 
@@ -43,6 +46,8 @@ Since the `HashMap` is not thread-safe, every time we run this program, we might
 So we need a concurrent data structure that can be used safely in concurrent environments, which the `ConcurrentMap` does for us:
 
 ```scala
+import zio._
+import zio.concurrent.ConcurrentMap
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -63,6 +68,7 @@ object MainApp extends ZIOAppDefault {
 To make an empty `ConcurrentMap` we use `ConcurrentMap.empty`:
 
 ```scala
+import zio.concurrent.ConcurrentMap
 
 val empty = ConcurrentMap.empty[String, Int]
 ```
@@ -70,6 +76,7 @@ val empty = ConcurrentMap.empty[String, Int]
 And to make a `ConcurrentMap` with some initial values we use `ConcurrentMap.make` or `ConcurrentMap.fromIterable`:
 
 ```scala
+import zio.concurrent.ConcurrentMap
 
 val map1 = ConcurrentMap.make(("foo", 0), ("bar", 1), ("baz", 2))
 val map2 = ConcurrentMap.fromIterable(List(("foo", 0), ("bar", 1), ("baz", 2)))
@@ -130,6 +137,8 @@ Basic operations are provided to manipulate the values in the `ConcurrentMap`:
 Given:
 
 ```scala
+import zio.concurrent.ConcurrentMap
+import zio.{Chunk, ZIO}
 
 for {
   emptyMap <- ConcurrentMap.empty[Int, String]

@@ -15,6 +15,7 @@ trait ZIO[-R, +E, +A] {
 In the following example, we are trying to find a random prime number between 1000 and 10000. We will use the `ZIO#flatMapError` to collect all errors inside a `Ref` of type `List[String]`:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def isPrime(n: Int): Boolean =

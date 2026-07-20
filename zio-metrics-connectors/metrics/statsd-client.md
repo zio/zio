@@ -6,7 +6,8 @@ import zio.metrics._
 ```
 
 ```scala
-
+import zio._
+import zio.metrics._
 ```
 
 In a normal StatsD setup we will find a StatsD agent with an open UDP port where applications send their 
@@ -93,6 +94,13 @@ mySet:1|g|#token:myKey-12
 ## The ZIO Metrics StatsD example
 
 ```scala
+import java.net.InetSocketAddress
+
+import zio._
+import zio.console._
+import zio.metrics.connectors.statsd.statsdLayer
+
+import sample.InstrumentedSample
 
 val instrumentedSample = new InstrumentedSample() {}
 ```

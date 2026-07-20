@@ -154,6 +154,8 @@ RegisterOffset.getObjects(RegisterOffset(bytes = 4, ints = 2, objects = 3)) // o
 `Registers` is a mutable container that holds values. It's created with an initial capacity:
 
 ```scala
+import zio.blocks.schema.binding._
+import zio.blocks.schema.binding.RegisterOffset._
 
 // Create registers with space for 3 bytes, 1 ints, and 2 objects
 val registers = Registers(RegisterOffset(bytes = 3, ints = 1, objects = 2))
@@ -216,6 +218,8 @@ case class Person(
 We can encode it with registers, as follows:
 
 ```scala
+import zio.blocks.schema.binding._
+import zio.blocks.schema.binding.RegisterOffset._
 
 // Person("John", "john@example.com", 42, 180.0, 67.0)
 val registers = Registers(RegisterOffset(objects = 2, ints = 1, doubles = 2))
@@ -249,7 +253,8 @@ registers.setDouble(
 Conversely, to decode the `Person` data type from registers, you would read the values back from their respective positions:
 
 ```scala
-
+import zio.blocks.schema.binding._
+import zio.blocks.schema.binding.RegisterOffset._
 // Decode Person from registers
 val name = registers.getObject(
   RegisterOffset.Zero, // Object index: 0

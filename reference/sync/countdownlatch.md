@@ -41,6 +41,7 @@ The **`countDown`** operation decrements the count of the latch, releasing all w
 We can simply create an on/off latch using `Promise`. In the following example, we don't want to start the `consume` process before the first `50` number appears in the queue. As it requires a simple on/of latch we can implement that using the `Promise` data type:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -67,6 +68,8 @@ object MainApp extends ZIOAppDefault {
 Alternatively, we can have an on/off latch using `CountDownLatch` with an initial count of _one_:
 
 ```scala
+import zio._
+import zio.concurrent._
 
 object MainApp extends ZIOAppDefault {
 
@@ -97,6 +100,8 @@ We can solve more advanced problems by increasing the initial count of `Countdow
 Assume we had several producers concurrently in the previous example and the consumer was required to wait until at least five 50 numbers were added to the queue before they were allowed to consume. We can do this as follows:
 
 ```scala
+import zio._
+import zio.concurrent._
 
 object MainApp extends ZIOAppDefault {
 

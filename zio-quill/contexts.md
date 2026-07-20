@@ -20,7 +20,7 @@ Contexts can be imported and passed around normally in constructors and function
 ```
 class MyContext extends SqlMirrorContext(MirrorSqlDialect, Literal)
 case class MySchema(c: MyContext) {
-
+  import c._
   val people = quote {
     querySchema[Person]("people")
   }
@@ -40,6 +40,7 @@ class MyContext extends SqlMirrorContext(MirrorSqlDialect, Literal)
 trait MySchema {
 
   val c: MyContext
+  import c._
 
   val people = quote {
     querySchema[Person]("people")
@@ -47,6 +48,7 @@ trait MySchema {
 }
 
 case class MyDao(c: MyContext) extends MySchema {
+  import c._
 
   def allPeople =
     c.run(people)
@@ -79,6 +81,7 @@ val ctx =
   new SqlMirrorContext[MirrorSqlDialect, Literal](MirrorSqlDialect, Literal)
     with ModularContext[MirrorSqlDialect, Literal]
 
+import ctx._
 println( run(peopleOlderThan(22, query[Person])).string )
 ```
 
@@ -89,6 +92,7 @@ val ctx =
   new PostgresJdbcContext[Literal](Literal, ds)
     with ModularContext[PostgresDialect, Literal]
 
+import ctx._
 val results = run(peopleOlderThan(22, query[Person]))
 ```
 
@@ -118,6 +122,7 @@ libraryDependencies ++= Seq(
 Unlike the other modules, the Spark context is a companion object. Also, it does not depend on a spark session. To use it, add the following import:
 
 ```scala
+import org.apache.spark.sql.SparkSession
 
 // Create your Spark Context
 val session =
@@ -128,9 +133,10 @@ val session =
 
 // The Spark SQL Context must be provided by the user through an implicit value:
 implicit val sqlContext = session.sqlContext
+import sqlContext.implicits._      // Also needed...
 
 // Import the Quill Spark Context
-
+import io.getquill.QuillSparkContext._
 ```
 
 > Note Unlike the other modules, the Spark context is a companion object. Also, it does not depend on a spark session.
@@ -175,6 +181,7 @@ val peopleAndAddressesDS: Dataset[(Person, Address)] = run {
 Here is an example of a Dataset being converted into Quill, filtered, and then written back out.
 
 ```scala
+import org.apache.spark.sql.Dataset
 
 def filter(myDataset: Dataset[Person], name: String): Dataset[Int] =
   run {
@@ -209,6 +216,7 @@ TODO Get the specific error
 The queries printed from `run(myQuery)` during compile time escape question marks via a backslash them in order to
 be able to substitute liftings properly. They are then returned back to their original form before running.
 ```scala
+import org.apache.spark.sql.Dataset
 
 def filter(myDataset: Dataset[Person]): Dataset[Int] =
   run {
@@ -479,7 +487,7 @@ constructor-methods `fromPrefix`, `fromConfig`, `fromJdbcConfig` are available o
 which can be easily used to provide a DataSource dependency.
 You can use them like this:
 ```scala
-
+import ZioJdbc._
 val zioDs = DataSourceLayer.fromPrefix("testPostgresDB")
 MyZioContext.run(query[Person]).provideCustomLayer(zioDS)
 ```
@@ -491,7 +499,9 @@ Here is an example of how this can be done.
 ```scala
 def conn: Connection = _ // If you are starting with a connection object
 
+import io.getquill.context.ZioJdbc._
 // Import encoders/decoders of the underlying context. Do not import quote/run/prepare methods to avoid conflicts.
+import MyZioContext.underlying.{ quote => _, run => _, prepare => _,  _ }
 
 MyZioContext.underlying.run(people).provide(Has(conn))
 ```
@@ -504,7 +514,9 @@ When working with a normal context, `onDataSource` is not available or necessary
 ```scala
 val ds: DataSource = _
 
+import io.getquill.context.ZioJdbc._
 // Import encoders/decoders of the underlying context. Do not import quote/run/prepare methods to avoid conflicts.
+import MyZioContext.underlying.{ quote => _, run => _, prepare => _,  _ }
 
 MyZioContext.underlying.run(people).onDataSource.provide(Has(ds))
 ```
@@ -522,7 +534,7 @@ DAO patterns that will reuse a DataSource many times:
 
 ```scala
 case class MyQueryService(ds: DataSource with Closeable) { // I.e. our DAO
-
+ import Ctx._
  implicit val env = Implicit(Has(ds)) // This will be looked up in each `.implicitDS` call
 
  val joes = Ctx.run(query[Person].filter(p => p.name == "Joe")).implicitDS
@@ -569,7 +581,7 @@ The Zio Quill Postgres supports JSON encoding/decoding via the zio-json library.
 and then define encoders/decoders via zio-json's `JsonEncoder`/`JsonDecoder` modules.
 
 ```scala
-
+import context._
 case class Person(name: String, age: Int)
 case class MyTable(name: String, value: JsonValue[Person])
 
@@ -591,7 +603,7 @@ val myApp: ZIO[Any, SQLException, List[MyTable]] =
 
 You can also encode/decode objects that have the type `zio.json.ast.Json` directly.
 ```scala
-
+import context._
 case class MyTable(name: String, value: JsonValue[Json])
 
 // i.e. {name:"Joe", age:123}
@@ -788,14 +800,16 @@ libraryDependencies += "io.getquill" %% "quill-doobie" % "4.6.1-SNAPSHOT"
 The examples below require the following imports.
 
 ```
-
+import io.getquill.{ idiom => _, _ }
+import io.getquill.DoobieContext
 ```
 
 We can now construct a `DoobieContext` for our back-end database and import its members, as we would with a traditional Quill context. The options are `H2`, `MySQL`, `Oracle`, `Postgres`, `SQLite`, and `SQLServer`.
 
 ```
 val dc = new DoobieContext.Postgres(Literal) // Literal naming scheme
-
+import dc.{ SqlInfixInterpolator => _, _ }   // Quill's `sql` interpolator conflicts with doobie so don't import it
+import dc.compat._                           // Import the qsql interpolator instead
 ```
 
 > Instead of using Quill's `sql"MyUDF(${something})"` interpolator, use `qsql"MyUDF(${something})"` since we have excluded it.
@@ -1056,7 +1070,7 @@ DAO patterns that will reuse a CassandraZioSession many times:
 
 ```scala
 case class MyQueryService(cs: CassandraZioSession) {
-
+  import Ctx._
   implicit val env = Implicit(Has(cs))
 
   def joes = Ctx.run { query[Person].filter(p => p.name == "Joe") }.implicitly
@@ -1090,6 +1104,10 @@ See [Pekko Cassandra](https://pekko.apache.org/docs/pekko-connectors/current/cas
 #### context
 
 ```scala
+import org.apache.pekko.actor.ActorSystem
+import org.apache.pekko.stream.pekko.cassandra.CassandraSessionSettings
+import org.apache.pekko.stream.connectors.cassandra.scaladsl.{CassandraSession, CassandraSessionRegistry}
+import io.getquill.CassandraAlpakkaContext
 
 val system: ActorSystem = ???
 val pekkoSessionSettings = CassandraSessionSettings("quill-test.pekko.cassandra")

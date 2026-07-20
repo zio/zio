@@ -7,6 +7,7 @@ A `Validation[E, A]` is a data type that is either a `Success` with a value of t
 You can think of a `Validation` as looking something like this:
 
 ```scala
+import zio.NonEmptyChunk
 
 sealed trait Validation[+E, +A]
 
@@ -61,6 +62,7 @@ We could imagine that the `name` and `age` were transmitted by a customer. They 
 We can fix this example using `Validation` like so:
 
 ```scala
+import zio.prelude.Validation
 
 case class Person(name: String, age: Int)
 
@@ -144,6 +146,7 @@ This is the same as the original example but lets us express our logic at a slig
 There are also operators for constructing `Validation` values from a variety of other data types in the Scala standard library such as `Either`, `Option`, and `Try`:
 
 ```scala
+import scala.util.Try
 
 object Validation {
   def fromEither[E, A](value: Either[E, A]): Validation[E, A] =
@@ -216,6 +219,7 @@ If you have a whole collection of values you want to validate you can use the `v
 The second way we might want to combine `Validation` values is by returning another `Validation` value based on the result of the first validation value. For example, we might first try to parse a string into an integer and then validate that the integer is within a reasonable range.
 
 ```scala
+import zio.prelude.Validation
 
 def validateInt(s: String): Validation[String, Int] =
   Validation(s.toInt).mapError(_.getMessage)
@@ -268,6 +272,7 @@ Using `fold`, we can get out the success value of the `Validation` by providing 
 There are a variety of helpful operators implemented in terms of `fold` for transforming `Validation` values into other data types we might be interested in. The most common of these are:
 
 ```scala
+import zio.{IO, NonEmptyChunk}
 
 trait Validation[+E, +A] {
   def toEither: Either[NonEmptyChunk[E], A]

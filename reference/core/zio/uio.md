@@ -22,6 +22,7 @@ So `UIO` is equal to a `ZIO` that doesn't need any requirement (because it accep
 Let's write a Fibonacci function. In the following example, the `fib` function is an unexceptional effect, since it has no requirements, we don't expect any failure, and it succeeds with a value of type `Int`:
 
 ```scala
+import zio.{UIO, ZIO}
 
 def fib(n: Int): UIO[Int] =
   if (n <= 1) {

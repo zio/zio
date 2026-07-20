@@ -26,6 +26,16 @@
  Let's say you have a inventory DB that's compatible with [Doobie](https://github.com/tpolecat/doobie), you can get all of your items with just a few lines of code:
 
  ```scala
+ import tamer._
+ import tamer.db._
+
+ import doobie.implicits.legacy.instant._
+ import doobie.syntax.string._
+ import zio._
+ import zio.duration._
+ import zio.json._
+
+ import java.time.Instant
 
  case class Row(id: String, name: String, description: Option[String], modifiedAt: Instant)
      extends tamer.db.Timestamped(modifiedAt)

@@ -23,6 +23,8 @@ The `Associative` abstraction allows us to combine values of a data type to buil
 A variety of data types can be combined in an associative way:
 
 ```scala
+import zio.{Chunk, NonEmptyChunk}
+import zio.prelude._
 
 val string: String =
   "Hello, " <> "world!"
@@ -78,6 +80,7 @@ Second, the `Associative` abstraction lets us generalize over different ways of 
 For example, we could define an operator for reducing any `NonEmptyChunk` to a summary value like this.
 
 ```scala
+import zio.NonEmptyChunk
 
 def reduce[A: Associative](as: NonEmptyChunk[A]): A =
   as.reduce(_ <> _)
@@ -130,6 +133,8 @@ Using this technique, we can define new types `Sum` and `Prod` that can be combi
 We can wrap any existing type in a new type using the `apply` or `wrap` operators on the new type object.
 
 ```scala
+import zio.prelude._
+import zio.prelude.newtypes._
 
 val sumInt: Sum[Int] =
   Sum(1)
@@ -251,6 +256,7 @@ If you are interested in combining values of collections it is also worth checki
 For example, using `ForEach`, `Associative`, and new types we could count the total number of words in a collection of lines like this:
 
 ```scala
+import zio.NonEmptyChunk
 
 def wordCount(lines: NonEmptyChunk[String]): Int =
   lines.reduceMap(line => Sum(line.split(" ").length))

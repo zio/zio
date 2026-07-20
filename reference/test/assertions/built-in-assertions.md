@@ -17,6 +17,8 @@ Assertion.hasAt[A](pos: Int)(assertion: Assertion[A]): Assertion[Seq[A]]
 I could start by writing:
 
 ```scala
+import zio.test._
+import zio.test.Assertion._
 
 val xs = Vector(0, 1, 2, 3)
 
@@ -30,6 +32,8 @@ The second parameter to `hasAt` is an `Assertion[A]` that applies to the third e
 I could select `equalTo`, as it accepts an `A` as a parameter, allowing me to supply `5`:
 
 ```scala
+import zio.test._
+import zio.test.Assertion._
 
 val xs = Vector(0, 1, 2, 3)
 
@@ -47,6 +51,8 @@ Assertion.approximatelyEquals[A: Numeric](reference: A, tolerance: A): Assertion
 Changing out `equalTo` with `approximatelyEquals` leaves us with:
 
 ```scala
+import zio.test._
+import zio.test.Assertion._
 
 val xs = Vector(0, 1, 2, 3)
 

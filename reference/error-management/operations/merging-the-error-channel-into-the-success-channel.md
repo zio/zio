@@ -5,6 +5,7 @@
 With `ZIO#merge` we can merge the error channel into the success channel:
 
 ```scala
+import zio._
 
 val merged : ZIO[Any, Nothing, String] =
   ZIO.fail("Oh uh!") // ZIO[Any, String, Nothing]

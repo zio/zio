@@ -5,6 +5,7 @@
 Any object that implements the `ZIOSpecDefault` trait is a runnable test. So to start writing tests we need to extend `ZIOSpecDefault`, which requires a `Spec`:
 
 ```scala
+import zio.test._
 
 object HelloWorldSpec extends ZIOSpecDefault {
   def spec = 
@@ -21,6 +22,13 @@ In order to have runnable tests, the `ZIOSpecDefault` trait must be extended by 
 `ZIOSpecDefault` is very similar in its logic of operations to `ZIOAppDefault`. Instead of providing one `ZIO` application at the end of the world, we provide a suite that can be a tree of other suites and tests. 
 
 ```scala
+import zio._
+import zio.test._
+import zio.test.Assertion._
+
+import java.io.IOException
+
+import HelloWorld._
 
 object HelloWorld {
   def sayHello: ZIO[Any, IOException, Unit] =

@@ -15,6 +15,8 @@ trait ZIO[-R, +E, +A] {
 Let's try an example:
 
 ```scala
+import zio._
+import java.io.IOException
 
 val primaryOrBackupData: ZIO[Any, IOException, Array[Byte]] =
   readFile("primary.data").orElse(readFile("backup.data"))
@@ -33,6 +35,7 @@ trait ZIO[-R, +E, +A] {
 This operator is useful when the fallback effect has a different result type than the original effect. So this will unify both in the `Either[A, B]` data type. Here is an example usage of this operator:
 
 ```scala
+import zio._
 
 trait LocalConfig
 trait RemoteConfig
@@ -59,6 +62,7 @@ trait ZIO[-R, +R, +E] {
 The `ZIO#orElseFail` will always replace the original failure with the new one, so `E1` does not have to be a supertype of `E`. It is useful when we have `Unit` as an error, and we want to unify that with something else:
 
 ```scala
+import zio._
 
 sealed trait AgeValidationException extends Exception
 case class NegativeAgeException(age: Int) extends AgeValidationException
@@ -98,6 +102,7 @@ trait ZIO[-R, +E, +A] {
 In the following example, the `parseInt(" ")` fails with `None`, so then the fallback effect results in a zero:
 
 ```scala
+import zio._
 
 def parseInt(input: String): ZIO[Any, Option[String], Int] =
   input.toIntOption match {
@@ -136,6 +141,7 @@ These methods use `orElse` to reduce the non-empty iterable of effects into a si
 In the following example, we are trying to get the config from the master node, and if it fails, we will try successively to retrieve the config from the next available node:
 
 ```scala
+import zio._
 
 trait Config
 

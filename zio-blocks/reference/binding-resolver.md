@@ -51,6 +51,8 @@ The `BindingResolver` is what bridges the final step: it supplies the `Binding` 
 A minimal end-to-end example:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
 
 case class Person(name: String, age: Int)
 
@@ -75,6 +77,7 @@ ZIO Blocks ships three ready-made resolvers. We almost always compose them with 
 `BindingResolver.empty` is an empty `Registry` with no bindings. It is the starting point for building a custom registry with `Registry#bind`:
 
 ```scala
+import zio.blocks.schema.binding._
 
 val empty: BindingResolver.Registry = BindingResolver.empty
 ```
@@ -95,6 +98,7 @@ The types covered by `defaults` include:
 | Maps        | `Map`                                                                                                                                                                                                       |
 
 ```scala
+import zio.blocks.schema.binding._
 
 val defaults: BindingResolver.Registry = BindingResolver.defaults
 
@@ -111,6 +115,8 @@ defaults.resolveMap[Map[String, Int]]        // Some(...)
 On Scala.js, `BindingResolver.reflection` is a no-op resolver that returns `None` for every query.
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
 
 case class Order(id: Long, item: String, quantity: Int)
 
@@ -137,6 +143,8 @@ val rebound: Schema[Order] = Schema[Order].toDynamicSchema.rebind[Order](resolve
 The unified `Registry#bind` method accepts any proper binding—`Record`, `Variant`, `Primitive`, `Wrapper`, or `Dynamic`—and dispatches to the correct internal storage slot automatically. We typically call `Binding.of[A]` to derive the right binding at compile time:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
 
 sealed trait Color
 case object Red  extends Color
@@ -174,6 +182,7 @@ Passing a `Binding.Seq` or `Binding.Map` to the unified `Registry#bind` method t
 Sequence bindings are keyed by their unapplied type constructor. We supply `[C[_]]` as the explicit type parameter so the compiler uses the constructor—not a specific applied type—as the lookup key:
 
 ```scala
+import zio.blocks.schema.binding._
 
 val registry: BindingResolver.Registry =
   BindingResolver.empty.bind[List](Binding.Seq.list[Nothing])
@@ -188,6 +197,7 @@ registry.resolveSeq[List[String]] // Some(...)
 Map bindings follow the same pattern with `[M[_, _]]` as the type parameter:
 
 ```scala
+import zio.blocks.schema.binding._
 
 val registry: BindingResolver.Registry =
   BindingResolver.empty.bind[Map](Binding.Map.map[Nothing, Nothing])
@@ -209,6 +219,8 @@ trait BindingResolver {
 This makes it straightforward to layer custom bindings over the built-in defaults:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
 
 case class UserId(value: Long)
 
@@ -241,6 +253,8 @@ trait BindingResolver {
 The `TypeId[A]` witness is satisfied implicitly; we only need to supply the type parameter:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
 
 case class Point(x: Double, y: Double)
 
@@ -263,6 +277,8 @@ trait BindingResolver {
 ```
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
 
 sealed trait Shape
 case class Circle(radius: Double)          extends Shape
@@ -287,6 +303,7 @@ trait BindingResolver {
 ```
 
 ```scala
+import zio.blocks.schema.binding._
 
 val binding: Option[Binding.Primitive[Int]] = BindingResolver.defaults.resolvePrimitive[Int]
 ```
@@ -302,6 +319,8 @@ trait BindingResolver {
 ```
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
 
 case class Email(value: String)
 
@@ -325,6 +344,7 @@ trait BindingResolver {
 ```
 
 ```scala
+import zio.blocks.schema.binding._
 
 val binding: Option[Binding.Dynamic] = BindingResolver.defaults.resolveDynamic
 ```
@@ -343,6 +363,8 @@ trait BindingResolver {
 Because the binding is stored by type constructor, a single registered `List` binding handles any element type:
 
 ```scala
+import zio.blocks.schema.binding._
+import zio.blocks.typeid.TypeId
 
 val defaults = BindingResolver.defaults
 
@@ -366,6 +388,7 @@ trait BindingResolver {
 ```
 
 ```scala
+import zio.blocks.schema.binding._
 
 val binding: Option[Binding.Map[Map, String, Int]] =
   BindingResolver.defaults.resolveMap[Map[String, Int]]
@@ -387,6 +410,7 @@ final class Registry {
 ```
 
 ```scala
+import zio.blocks.schema.binding._
 
 val registry = BindingResolver.defaults
 
@@ -401,6 +425,8 @@ registry.size                       // total number of registered bindings
 The primary consumer of `BindingResolver` is `DynamicSchema#rebind`. Given an unbound `DynamicSchema`, `DynamicSchema#rebind` walks the `Reflect` tree and queries the resolver for each node's binding, then returns a fully operational `Schema[A]`:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
 
 case class Product(sku: String, price: Double, tags: List[String])
 
@@ -420,6 +446,8 @@ val rebound: Schema[Product] = dynamic.rebind[Product](resolver)
 When using `BindingResolver.reflection` on the JVM, individual record types do not need to be registered explicitly—the resolver derives their bindings on demand from the class structure:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
 
 case class Address(street: String, city: String, zip: String)
 

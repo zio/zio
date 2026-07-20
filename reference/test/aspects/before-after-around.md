@@ -15,6 +15,8 @@
 - `TestAspect.around`
 
 ```scala
+import zio._
+import zio.test.{ test, _ }
 
 test("before and after") {
   for {

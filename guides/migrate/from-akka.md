@@ -136,6 +136,7 @@ Let's see an example of each use-case in a simple application using Akka.
 We can achieve parallelism in Akka by creating multiple instances of an actor and sending messages to them. Akka takes care of how to route messages to these actors. In the following example, we have a simple `JobRunner` actor which accepts `Job` messages and runs them one by one:
 
 ```scala
+import akka.actor._
 
 case class Job(n: Int)
 
@@ -151,6 +152,8 @@ class JobRunner extends Actor {
 If we have plenty of jobs to run, we can create a pool of `JobRunner` actors and send them jobs to make them run in parallel:
 
 ```scala
+import akka.actor._
+import akka.routing.RoundRobinPool
 
 object MainApp extends scala.App {
   val actorSystem = ActorSystem("parallel-app")
@@ -170,6 +173,7 @@ object MainApp extends scala.App {
 In ZIO we can achieve the same functionality easily by using `ZIO.foreachPar` operators:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -201,6 +205,7 @@ ZIO.withParallelism(4) {
 The main purpose of Akka actors is to write concurrent stateful applications. Using Akka actors, we can have stateful actors without worrying about concurrent access to the shared state. In the following example, we have a simple `Counter` actor which accepts `inc` and `dec` messages and increments or decrements its internal state:
 
 ```scala
+import akka.actor.Actor
 
 class Counter extends Actor {
   private var state = 0
@@ -219,6 +224,12 @@ class Counter extends Actor {
 Now we can create an instance of the `Counter` actor and send it `inc` and `dec` messages to increment and decrement its internal state:
 
 ```scala
+import akka.actor.{ActorSystem, Props}
+import akka.pattern.ask
+import akka.util.Timeout
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
+import scala.util.{Failure, Success}
 
 object MainApp extends App {
   val system = ActorSystem("counter-app")
@@ -249,6 +260,7 @@ Outside the actor, we haven't access to its internal states, so we can't modify 
 State management is very easy in ZIO in presence of the `Ref` data type. `Ref` models a mutable state which is safe for concurrent access:
 
 ```scala
+import zio._
 
 case class Counter(state: Ref[Int]) {
   def inc = state.update(_ + 1)
@@ -264,6 +276,7 @@ object Counter {
 That's it! Very simple! We now we can use the counter in a program:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -284,6 +297,10 @@ Sometimes we have to deal with a high volume of incoming requests. In spite of p
 Each actor in Akka has a mailbox that is used to store incoming messages. The mailbox is a FIFO queue. Actors only process one message at a time. If an actor receives more messages than it can process, the messages will be pending in the mailbox:
 
 ```scala
+import akka.actor.{Actor, ActorSystem, Props}
+
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
 
 object MainApp extends scala.App {
   val actorSystem = ActorSystem("parallel-app")
@@ -308,6 +325,8 @@ If we run the above example, we can see that all messages are sent to the actor 
 ZIO has a data type called `Queue` which is useful for buffering workloads:
 
 ```scala
+import zio._
+import zio.stream._
 
 trait Actor[-In] {
   def tell(i: In): UIO[Boolean]
@@ -328,6 +347,7 @@ object Actor {
 Now we can send a high load of messages to the actor and the actor will process them one by one:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run = ZIO.scoped {
@@ -354,6 +374,12 @@ Akka stream is developed on top of Akka actors with backpressure support. There 
 Here is a simple example of how to have a streaming app in Akka:
 
 ```scala
+import akka.actor.ActorSystem
+import akka.stream.scaladsl._
+import akka.util.ByteString
+
+import java.nio.file.Paths
+import scala.concurrent._
 
 object AkkaStreamApp extends App {
   implicit val system: ActorSystem = ActorSystem("stream")
@@ -385,6 +411,8 @@ Like the Akka terminology, ZIO streams have three main components:
 Let's see how to implement the same example in ZIO:
 
 ```scala
+import zio._
+import zio.stream._
 
 object ZIOStreamApp extends ZIOAppDefault {
   val source    = ZStream.fromIterable(1 to 100)
@@ -407,6 +435,11 @@ object ZIOStreamApp extends ZIOAppDefault {
 Akka HTTP is a library for building HTTP applications on top of Akka actors and streams. It supports both server-side and client-side HTTP applications:
 
 ```scala
+import akka.actor.typed.ActorSystem
+import akka.actor.typed.scaladsl.Behaviors
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.server.Directives._
 
 object AkkHttpServer extends App {
   implicit val system = ActorSystem(Behaviors.empty, "system")
@@ -418,7 +451,7 @@ object AkkHttpServer extends App {
         complete(
           HttpEntity(
             ContentTypes.`text/html(UTF-8)`,
-            "Say hello to akka-http"
+            "<h1>Say hello to akka-http</h1>"
           )
         )
       }
@@ -434,11 +467,14 @@ On the other hand, ZIO has a library called [ZIO HTTP][56] which is a pure funct
 Let's see how the above Akka HTTP service can be written in ZIO:
 
 ```scala
+import zio.http._
+import zio.http.template.Html
+import zio.ZIOAppDefault
 
 object ZIOHttpServer extends ZIOAppDefault {
   val routes =
     Routes(
-      Method.GET / "hello" -> handler(Response.html(Html.fromString("Say hello to zio-http")))
+      Method.GET / "hello" -> handler(Response.html(Html.fromString("<h1>Say hello to zio-http</h1>")))
     )
 
   def run = Server.serve(routes).provide(Server.defaultWithPort(8080))
@@ -454,6 +490,14 @@ In event sourcing, we store the events that happened in the past and use them to
 In the following example, we have a simple `PersistentCounter` actor which accepts `inc` and `dec` messages and increments or decrements in its internal state and also sores incoming events in persistent storage. When the actor is restarted, it will recover its state from the persistent storage:
 
 ```scala
+import akka.actor.{ActorSystem, Props}
+import akka.pattern.ask
+import akka.persistence._
+import akka.util.Timeout
+
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
+import scala.util.{Failure, Success}
 
 class PersistentCounter extends PersistentActor {
   private var state: Int = 0
@@ -531,6 +575,10 @@ case class Notification(message: String)
 Now it's time to define the domain model and the state of the counter:
 
 ```scala
+import cats.data.ValidatedNec
+import edomata.core.{Decision, DomainModel}
+import cats.implicits.*
+import edomata.syntax.all.*
 
 case class Counter(state: Int) {
   def inc = this.perform { Decision.accept(Event.Increased) }
@@ -553,7 +601,7 @@ We are ready to define the `CounterService`:
 
 ```scala
 object CounterService extends Counter.Service[Command, Notification] {
-
+  import App._
   def apply(): PureApp[Unit] = router {
     case Command.Inc =>
       for {
@@ -568,6 +616,22 @@ object CounterService extends Counter.Service[Command, Notification] {
 So far, we have defined an edomaton called `CounterService`. To run it, we need a backend:
 
 ```scala
+import scala.concurrent.duration.*
+import cats.effect.std.Console
+import cats.effect.{Async, Concurrent, Resource}
+import cats.data.EitherNec
+import edomata.core.{CommandMessage, DomainService}
+import edomata.skunk.{BackendCodec, CirceCodec, SkunkBackend}
+import edomata.backend.Backend
+import edomata.skunk.SkunkBackend.PartialBuilder
+import edomata.syntax.all.liftTo
+import fs2.io.net.Network
+import skunk.Session
+import io.circe.generic.auto.*
+import natchez.Trace
+import natchez.Trace.Implicits.noop
+import zio.*
+import zio.interop.catz.*
 
 object BackendService {
   given BackendCodec[Event] = CirceCodec.jsonb // or .json
@@ -602,6 +666,11 @@ object BackendService {
 To demonstrate how the backend works, we can write a simple web service that accepts `Inc` and `Dec` commands:
 
 ```scala
+import zio.*
+import zio.http.*
+import edomata.core.CommandMessage
+import BackendService.Service
+import java.time.Instant
 
 object ZIOCounterHttpApp {
 
@@ -626,6 +695,10 @@ object ZIOCounterHttpApp {
 Now we can wire everything and run the application:
 
 ```scala
+import zio.*
+import zio.interop.catz.*
+import zio.http.*
+import cats.effect.std.Console
 
 object MainApp extends ZIOAppDefault {
   given Console[Task] = Console.make[Task]
@@ -654,6 +727,10 @@ If multiple commands with the same command id are sent, the backend only process
 To see all the events or the current state associated with the `FooCounter` adomaton, we can use the `Backend#repository` to query the database:
 
 ```scala
+import zio.*
+import zio.interop.catz.*
+import zio.stream.interop.fs2z._
+import cats.effect.std.Console
 
 object ZIOStateAndHistory extends ZIOAppDefault {
   given Console[Task] = Console.make[Task]
@@ -689,6 +766,8 @@ Entity sharding is a technique for distributing a large number of entities acros
 Akka has a module called Akka Cluster Sharding that provides a way to distribute entities. Without further ado, in the following example, we are going to shard instances of the `Counter` entity type and then create a web service that can be used to increment or decrement each entity.
 
 ```scala
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ActorRef, Behavior}
 
 object Counter {
   sealed trait Message
@@ -722,6 +801,14 @@ object Counter {
 Now, it's time to create a simple web service that can be used to receive the `inc` and `dec` commands from clients:
 
 ```scala
+import akka.actor.typed.ActorSystem
+
+import scala.concurrent.duration.DurationInt
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Route
+import akka.cluster.sharding.typed.ShardingEnvelope
+import akka.util.Timeout
 
 object CounterHttpApp {
   implicit val timeout: Timeout = 1.seconds
@@ -752,6 +839,10 @@ object CounterHttpApp {
 To be able to shard instances of the `Counter` entity, let's define the guardian behavior:
 
 ```scala
+import akka.actor.typed.Behavior
+import akka.actor.typed.scaladsl.Behaviors
+import akka.cluster.sharding.typed.ShardingEnvelope
+import akka.cluster.sharding.typed.scaladsl._
 
 object Guardian {
   def apply(): Behavior[ShardingEnvelope[Counter.Message]] =
@@ -795,6 +886,10 @@ webservice {
 The final step is to wire everything together to create the application:
 
 ```scala
+import akka.actor.typed.ActorSystem
+import akka.cluster.sharding.typed.ShardingEnvelope
+import akka.http.scaladsl.Http
+import com.typesafe.config.ConfigFactory
 
 object AkkaClusterShardingExample extends App {
   val config = ConfigFactory.load("application.conf")
@@ -847,6 +942,8 @@ In the ZIO community, there is a library called [Shardcake][73] that provides a 
 First, we are going to define the `Counter` entity:
 
 ```scala
+import com.devsisters.shardcake._
+import zio._
 
 sealed trait CounterMessage
 object CounterMessage {
@@ -895,6 +992,9 @@ object Counter extends EntityType[CounterMessage]("counter") {
 To be able to receive messages from the clients, let's define a web service:
 
 ```scala
+import com.devsisters.shardcake.{Messenger, Sharding}
+import zio.http._
+import zio.Scope
 
 object WebService {
   def apply(counter: Messenger[CounterMessage]): Routes[Sharding, Nothing] =
@@ -917,6 +1017,14 @@ object WebService {
 In this example, we are going to use Redis as the storage backend for the sharding. So, let's define a live layer for the sharding:
 
 ```scala
+import com.devsisters.shardcake.StorageRedis.Redis
+import dev.profunktor.redis4cats.Redis
+import dev.profunktor.redis4cats.connection.RedisClient
+import dev.profunktor.redis4cats.data.RedisCodec
+import dev.profunktor.redis4cats.effect.Log
+import dev.profunktor.redis4cats.pubsub.PubSub
+import zio.interop.catz._
+import zio._
 
 object RedisLive {
   val layer: ZLayer[Any, Throwable, Redis] =
@@ -941,6 +1049,8 @@ object RedisLive {
 We also need a configuration layer for the sharding:
 
 ```scala
+import zio._
+import com.devsisters.shardcake.Config
 
 object ShardConfig {
   val layer: ZLayer[Any, SecurityException, Config] =
@@ -958,6 +1068,9 @@ object ShardConfig {
 Now we are ready to create our application:
 
 ```scala
+import com.devsisters.shardcake._
+import zio._
+import zio.http.Server
 
 object HttpApp extends ZIOAppDefault {
 
@@ -988,6 +1101,8 @@ object HttpApp extends ZIOAppDefault {
 To manage sharding, we should run a separate application which is called `ShardManager`:
 
 ```scala
+import zio._
+import com.devsisters.shardcake.interfaces._
 
 object ShardManagerApp extends ZIOAppDefault {
   def run: Task[Nothing] =

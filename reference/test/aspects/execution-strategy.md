@@ -9,6 +9,8 @@ ZIO Test has two different strategies to run members of a test suite: _sequentia
 The default strategy is parallel. We can explicitly enable it using `TestAspect.parallel`:
 
 ```scala
+import zio._
+import zio.test.{ test, _ }
 
 suite("Parallel")(
   test("A")(Live.live(ZIO.attempt("Running Test A").delay(1.second)).debug.map(_ => assertTrue(true))),
@@ -36,6 +38,8 @@ To change the degree of the parallelism, we can use the `parallelN` test aspect.
 To execute them sequentially, we can use the `sequential` test aspect:
 
 ```scala
+import zio._
+import zio.test.{ test, _ }
 
 suite("Sequential")(
   test("A")(Live.live(ZIO.attempt("Running Test A").delay(1.second)).debug.map(_ => assertTrue(true))),

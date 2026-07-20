@@ -12,6 +12,7 @@
 
 These commands are automatically generated also for all subcommands of a command.
 ```scala
+import zio.cli._
 
 val cliApp = CliApp.make(
     name = "SampleCliApp",
@@ -31,6 +32,8 @@ cliApp.run(List("subcommand", "-h"))
 
 ## Examples
 ```scala
+import zio.cli._
+import java.nio.file.Path
 
 // Construction of basic commands and HelpDoc
 val helpGit = "This is command git."

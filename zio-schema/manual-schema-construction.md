@@ -23,6 +23,7 @@ object Domain {
 Let's begin by creating a schema for the `Person` data type:
 
 ```scala
+import zio.schema._
 
 final case class Person(name: String, age: Int)
 
@@ -40,6 +41,8 @@ object Person {
 The next step is writing schema for `PaymentMethod`:
 
 ```scala
+import zio._
+import zio.schema._
 
 sealed trait PaymentMethod
 
@@ -125,6 +128,8 @@ object PaymentMethod {
 And finally, we need to define the schema for the `Customer` data type:
 
 ```scala
+import zio._
+import zio.schema._
 
 final case class Customer(person: Person, paymentMethod: PaymentMethod)
 
@@ -160,6 +165,9 @@ libraryDependencies += "dev.zio" %% "zio-schema-protobuf" % 1.7.5
 Here's an example that demonstrates a roundtrip test for protobuf codecs:
 
 ```scala
+import zio.schema._
+import zio.schema.codec._
+import zio.schema.codec.ProtobufCodec._
 
 // Create a customer instance
 val customer =

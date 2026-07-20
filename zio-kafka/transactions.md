@@ -168,6 +168,13 @@ be committed.
 Putting it all together we get:
 
 ```scala
+import org.apache.kafka.clients.producer.ProducerRecord
+import zio._
+import zio.kafka.consumer._
+import zio.kafka.producer._
+import zio.kafka.serde.Serde
+
+import java.util.UUID
 
 object Transactional extends ZIOAppDefault {
 

@@ -21,6 +21,10 @@ object Exit {
 We can call `ZIO#exit` on our effect to determine the Success or Failure of our fiber:
 
 ```scala
+import zio._
+import zio.Console._
+
+import java.io.IOException
 
 val result: ZIO[Any, IOException, Unit] = 
   for {
@@ -44,6 +48,7 @@ ZIO provides several pre-constructed `Exit` values for common cases:
 These values are useful when you need to return a pre-made exit without constructing it manually:
 
 ```scala
+import zio._
 
 // Using Exit.unit for effects that only care about success or failure
 val unitExit: Exit[String, Unit] = Exit.unit

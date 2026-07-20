@@ -43,6 +43,10 @@ First of all, you need to provide an instance of `io.opentelemetry.api.Opentelem
 In case you don't need an automatic instrumentation, you can use `OpenTelemetry.custom` layer. It receives a scoped ZIO effect indicating that the provided instance will be closed when the application is shut down. Here is an example:
 
 ```scala
+import zio._
+import zio.telemetry.opentelemetry.OpenTelemetry
+import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.api
 
 def custom(resourceName: String): TaskLayer[api.OpenTelemetry] =
   OpenTelemetry.custom(
@@ -99,6 +103,20 @@ Some of the methods above are available via [ZIO Aspect](https://zio.dev/referen
 //> using dep io.opentelemetry:opentelemetry-sdk-trace:1.40.0
 //> using dep io.opentelemetry:opentelemetry-exporter-logging-otlp:1.40.0
 //> using dep io.opentelemetry.semconv:opentelemetry-semconv:1.22.0-alpha
+
+import io.opentelemetry.exporter.logging.otlp.OtlpJsonLoggingSpanExporter
+import io.opentelemetry.api.trace.SpanKind
+import io.opentelemetry.sdk.trace.SdkTracerProvider
+import io.opentelemetry.sdk.trace.`export`.SimpleSpanProcessor
+import io.opentelemetry.sdk.resources.Resource
+import io.opentelemetry.semconv.ServiceAttributes
+import io.opentelemetry.api.common.Attributes
+import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.api
+import zio.*
+import zio.telemetry.opentelemetry.tracing.Tracing
+import zio.telemetry.opentelemetry.OpenTelemetry
+import zio.telemetry.opentelemetry.context.ContextStorage
 
 object TracingApp extends ZIOAppDefault {
 
@@ -178,6 +196,25 @@ By default the metric instruments does not take ZIO log annotations into account
 //> using dep io.opentelemetry:opentelemetry-sdk-trace:1.40.0
 //> using dep io.opentelemetry:opentelemetry-exporter-logging-otlp:1.40.0
 //> using dep io.opentelemetry.semconv:opentelemetry-semconv:1.22.0-alpha
+
+import io.opentelemetry.sdk.trace.SdkTracerProvider
+import io.opentelemetry.sdk.trace.`export`.SimpleSpanProcessor
+import io.opentelemetry.sdk.metrics.SdkMeterProvider
+import io.opentelemetry.sdk.metrics.`export`.PeriodicMetricReader
+import io.opentelemetry.sdk.resources.Resource
+import io.opentelemetry.api.common
+import io.opentelemetry.semconv.ServiceAttributes
+import io.opentelemetry.exporter.logging.otlp.OtlpJsonLoggingSpanExporter
+import io.opentelemetry.exporter.logging.otlp.OtlpJsonLoggingMetricExporter
+import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.api
+import zio.*
+import zio.telemetry.opentelemetry.tracing.Tracing
+import zio.telemetry.opentelemetry.metrics.Meter
+import zio.telemetry.opentelemetry.common.Attributes
+import zio.telemetry.opentelemetry.common.Attribute
+import zio.telemetry.opentelemetry.OpenTelemetry
+import zio.telemetry.opentelemetry.context.ContextStorage
 
 object MetricsApp extends ZIOAppDefault {
 
@@ -312,6 +349,22 @@ To send [Log signals](https://opentelemetry.io/docs/concepts/signals/logs/), you
 //> using dep io.opentelemetry:opentelemetry-exporter-logging-otlp:1.40.0
 //> using dep io.opentelemetry.semconv:opentelemetry-semconv:1.22.0-alpha
 
+import io.opentelemetry.exporter.logging.otlp.OtlpJsonLoggingSpanExporter
+import io.opentelemetry.exporter.logging.otlp.OtlpJsonLoggingLogRecordExporter
+import io.opentelemetry.api.common.Attributes
+import io.opentelemetry.sdk.trace.SdkTracerProvider
+import io.opentelemetry.sdk.trace.`export`.SimpleSpanProcessor
+import io.opentelemetry.sdk.logs.SdkLoggerProvider
+import io.opentelemetry.sdk.logs.`export`.SimpleLogRecordProcessor
+import io.opentelemetry.sdk.resources.Resource
+import io.opentelemetry.semconv.ServiceAttributes
+import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.api
+import zio.*
+import zio.telemetry.opentelemetry.tracing.Tracing
+import zio.telemetry.opentelemetry.OpenTelemetry
+import zio.telemetry.opentelemetry.context.ContextStorage
+
 object LoggingApp extends ZIOAppDefault {
 
   val instrumentationScopeName = "dev.zio.LoggingApp"
@@ -402,6 +455,12 @@ To pass contextual information in [Baggage](https://opentelemetry.io/docs/concep
 //> using dep dev.zio::zio:2.1.7
 //> using dep dev.zio::zio-opentelemetry:3.0.0-RC24
 
+import zio.*
+import zio.telemetry.opentelemetry.baggage.Baggage
+import zio.telemetry.opentelemetry.baggage.propagation.BaggagePropagator
+import zio.telemetry.opentelemetry.context.ContextStorage
+import zio.telemetry.opentelemetry.OpenTelemetry
+
 object BaggageApp extends ZIOAppDefault {
 
   override def run =
@@ -441,6 +500,26 @@ Please note that injection and extraction are not referentially transparent due 
 //> using dep io.opentelemetry:opentelemetry-sdk-trace:1.40.0
 //> using dep io.opentelemetry:opentelemetry-exporter-logging-otlp:1.40.0
 //> using dep io.opentelemetry.semconv:opentelemetry-semconv:1.22.0-alpha
+
+import io.opentelemetry.exporter.logging.otlp.OtlpJsonLoggingSpanExporter
+import io.opentelemetry.api.trace.SpanKind
+import io.opentelemetry.sdk.trace.SdkTracerProvider
+import io.opentelemetry.sdk.trace.`export`.SimpleSpanProcessor
+import io.opentelemetry.sdk.resources.Resource
+import io.opentelemetry.semconv.ServiceAttributes
+import io.opentelemetry.api.common.Attributes
+import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.api
+import zio.*
+import zio.telemetry.opentelemetry.baggage.Baggage
+import zio.telemetry.opentelemetry.baggage.propagation.BaggagePropagator
+import zio.telemetry.opentelemetry.tracing.Tracing
+import zio.telemetry.opentelemetry.tracing.propagation.TraceContextPropagator
+import zio.telemetry.opentelemetry.OpenTelemetry
+import zio.telemetry.opentelemetry.context.ContextStorage
+import zio.telemetry.opentelemetry.context.IncomingContextCarrier
+import zio.telemetry.opentelemetry.context.OutgoingContextCarrier
+import scala.collection.mutable
 
 object PropagatingApp extends ZIOAppDefault {
 

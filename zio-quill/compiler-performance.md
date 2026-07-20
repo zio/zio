@@ -38,6 +38,7 @@ val ctx = SqlMirrorContext(MirrorIdiom, Literal)
 
 // Prevent using default macro generated query meta instance.
 // Use `_` instead of `*` if `-Xsource:3` not enabled.
+import ctx.{ materializeQueryMeta => *, * }
 
  // Instance type must not be specified here, otherwise it will become dynamic query.
 implicit val orderQueryMeta = ctx.materializeQueryMeta[Order]

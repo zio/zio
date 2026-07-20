@@ -144,6 +144,8 @@ The `reduceMapLeft` and `reduceMapRight` operators allow us to transform the fir
 For example, here is how we could use `reduceMapLeft` to convert a `NonEmptyList` to a `NonEmptyChunk`.
 
 ```scala
+import zio.NonEmptyChunk
+import zio.prelude.NonEmptyList
 
 def toNonEmptyChunk[A](as: NonEmptyList[A]): NonEmptyChunk[A] =
   as.reduceMapLeft(a => NonEmptyChunk(a))(_ appended _)
@@ -165,6 +167,7 @@ One of the great features of the `NonEmptyList` data type is its excellent integ
 A `NonEmptyList` is implicitly convertible into the `::` case of a `List` so anywhere you need a `List` and provide a `NonEmptyList` it will just work.
 
 ```scala
+import zio.prelude.NonEmptyList
 
 def myExistingAPI(as: List[Int]): String =
   "Some fancy stuff"

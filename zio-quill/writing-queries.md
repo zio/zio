@@ -9,6 +9,7 @@ The QDSL allows the user to write plain Scala code, leveraging Scala's syntax an
 For this documentation, a special type of context that acts as a [mirror](contexts.md#mirror-context) is used:
 
 ```scala
+import io.getquill._
 
 val ctx = new SqlMirrorContext(MirrorSqlDialect, Literal)
 ```
@@ -16,7 +17,7 @@ val ctx = new SqlMirrorContext(MirrorSqlDialect, Literal)
 The context instance provides all the types, methods, and encoders/decoders needed for quotations:
 
 ```scala
-
+import ctx._
 ```
 
 A quotation can be a simple value:
@@ -1345,6 +1346,7 @@ you will typically transition inside and outside of Quill code.
 > this allows us to omit the extra `a IS NOT NULL AND b IS NOT NULL`.
 
 ```scala
+import ctx.extras._
 
 // === works the same way inside of a quotation
 val q = run( query[Node].filter(n => n.status === "RUNNING") )
@@ -1969,6 +1971,8 @@ Quill provides implicit conversions from case class companion objects to `query[
 ```scala
 val ctx = new SqlMirrorContext(MirrorSqlDialect, Literal) with ImplicitQuery
 
+import ctx._
+
 val q = quote {
   for {
     p <- Person if(p.id == 999)
@@ -1990,7 +1994,7 @@ Some operations are SQL-specific and not provided with the generic quotation mec
 
 ```scala
 val ctx = new SqlMirrorContext(MirrorSqlDialect, Literal)
-
+import ctx._
 ```
 
 ### like
@@ -2019,6 +2023,7 @@ ctx.run(q)
 
 Quill provides SQL Arrays support. In Scala we represent them as any collection that implements `Seq`:
 ```scala
+import java.util.Date
 
 final case class Book(id: Int, notes: List[String], pages: Vector[Int], history: Seq[Date])
 
@@ -2031,7 +2036,7 @@ Note that not all drivers/databases provides such feature hence only `PostgresJd
 
 ```scala
 val ctx = new CassandraMirrorContext(Literal)
-
+import ctx._
 ```
 
 ### Collections
@@ -2221,6 +2226,8 @@ Quill's default operation mode is compile-time, but there are queries that have 
 
 ```scala
 val ctx = new SqlMirrorContext(MirrorSqlDialect, Literal)
+
+import ctx._
 
 sealed trait QueryType
 case object Minor extends QueryType

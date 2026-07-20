@@ -19,6 +19,7 @@ case class Banana(curvature: Double)
 To do this, we create an *instance* of the `JsonDecoder` typeclass for `Banana` using the `zio-json` code generator. It is best practice to put it on the companion of `Banana`, like so
 
 ```scala
+import zio.json._
 
 object Banana {
   implicit val decoder: JsonDecoder[Banana] =
@@ -70,6 +71,7 @@ case class Apple (poison: Boolean)   extends Fruit
 we can generate the decoder for the entire `sealed` family:
 
 ```scala
+import zio.json._
 
 object Fruit {
   implicit val decoder: JsonDecoder[Fruit] =
@@ -169,6 +171,7 @@ and now the `JsonDecoder` for `FruitCount` just expects a raw `Int`.
 Another use case is if we want to encode a `case class` as an array of values, rather than an object with named fields. Such an encoding is very efficient because the messages are smaller and require less processing, but are very strict schemas that cannot be upgraded.
 
 ```scala:mdoc:reset
+import zio.json._
 
 case class Things(s: String, i: Int, b: Boolean)
 
@@ -187,6 +190,8 @@ We can use `.mapOrFail` to take the result of another `JsonDecoder` and try to c
 Say we are using the [`refined`](https://github.com/fthomas/refined) library to ensure that a `Person` data type only holds a non-empty string in its `name` field
 
 ```scala
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.collection.NonEmpty
 
 case class Person(name: String Refined NonEmpty)
 ```
@@ -207,6 +212,7 @@ object Person {
 However, we can derive one by requesting the `JsonDecoder[String]` and calling `.mapOrFail`, supplying the constructor for our special `String Refined NonEmpty` type
 
 ```scala
+import eu.timepit.refined
 
 implicit val decodeName: JsonDecoder[String Refined NonEmpty] =
   JsonDecoder[String].mapOrFail(refined.refineV[NonEmpty](_))
@@ -253,6 +259,7 @@ In this approach we enrich the case class with annotations to tell the derived d
 Obviously, this approach only works if we can/want to change the case class.
 
 ```scala
+import zio.json._
 
 final case class Quote(
   @jsonField("01. symbol") symbol: String,
@@ -271,6 +278,7 @@ Instead of hints, we can also put the actual field names in an intermediate case
 are not valid scala identifiers. We fix this by putting the names in backticks:
 
 ```scala
+import zio.json._
 
 final case class Quote(symbol: String, open: String, high: String)
 
@@ -297,6 +305,8 @@ Note that this implementation is a bit sloppy. It uses `toString` on a JSON node
 String, it can be of any JSON type! So this might happily process JSON that doesn't match your expectations.
 
 ```scala
+import zio.json._
+import zio.json.ast.Json
 
 final case class Quote(symbol: String, open: String, high: String)
 
@@ -327,6 +337,8 @@ Here we also first decode to `Json`, but now we use cursors to find the data we 
 are actually strings.
 
 ```scala
+import zio.json._
+import zio.json.ast.{Json, JsonCursor}
 
 final case class Quote(symbol: String, open: String, high: String)
 
@@ -355,6 +367,9 @@ both cases.
 Here's a custom decode for our Animal case class:
 
 ```scala
+import zio.Chunk
+import zio.json._
+import zio.json.ast._
 
 case class Animal(name: String, categories: List[String])
 
@@ -415,6 +430,8 @@ or when you expect a lot of variation in the JSON structure, which would result 
 To get the AST representation of a JSON string, use the `fromJson[Json]` method.
 
 ```scala
+import zio.json._
+import zio.json.ast._
 
 val jsonString: String            = """{"name": "John Doe"}"""
 // jsonString: String = "{\"name\": \"John Doe\"}"
@@ -427,6 +444,10 @@ val jsonAst: Either[String, Json] = jsonString.fromJson[Json]
 The `Json` type is a recursive data structure that can be navigated in a fairly straightforward way.
 
 ```scala
+import zio.Chunk
+import zio.json._
+import zio.json.ast.Json
+import zio.json.ast.Json._
 
 val jsonString: String = """{"name": "John Doe"}"""
 // jsonString: String = "{\"name\": \"John Doe\"}"
@@ -445,6 +466,8 @@ jsonAst match {
 To get the `name` field, you could do the following:
 
 ```scala
+import zio.json._
+import zio.json.ast.Json
 
 val json: Option[Json] = """{"name": "John Doe"}""".fromJson[Json].toOption
 // json: Option[Json] = Some(
@@ -464,6 +487,10 @@ val name: Option[String] = json.flatMap { json =>
 In practice, it is normally more convenient to use cursors to navigate the JSON AST.
 
 ```scala
+import zio.json._
+import zio.json.ast.Json
+import zio.json.ast.JsonCursor
+import zio.json.ast.Json.Str
 
 val json: Either[String, Json]    = """{"name": "John Doe"}""".fromJson[Json]
 // json: Either[String, Json] = Right(
@@ -484,6 +511,9 @@ val name: Either[String, String]  = json.flatMap(_.get(cursor).map(_.value))
 Cursors can be composed to navigate more complex JSON structures.
 
 ```scala
+import zio.json._
+import zio.json.ast.Json
+import zio.json.ast.JsonCursor
 
 val json1: Either[String, Json] = """{"posts": [{"id": 0, "title": "foo"}]}""".fromJson[Json]
 // json1: Either[String, Json] = Right(

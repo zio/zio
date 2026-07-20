@@ -9,6 +9,9 @@ With the increased usage of containers and runtimes like Kubernetes, more and mo
 For this purpose ZIO Test exposes `TestSystem` module. Additionally, to setting the _environment variables_. It also allows for setting _JVM system properties_ like in the code below:
 
 ```scala
+import zio._
+import zio.test._
+import zio.test.Assertion._
 
 for {
   _      <- TestSystem.putProperty("java.vm.name", "VM")

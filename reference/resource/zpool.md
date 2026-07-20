@@ -39,6 +39,7 @@ The two fundamental operators on a `ZPool` is `get` and `invalidate`:
 Let's assume we have a resource that is expensive to create and release. We want to access this resource frequently, but we don't want to create a new resource every time we need it. We can use `ZPool` to create a pool of resources and acquire them when only needed.
 
 ```scala
+import zio._
 
 object PoolExample extends ZIOAppDefault {
   def resource: ZIO[Scope, Nothing, UUID] = ZIO.acquireRelease(

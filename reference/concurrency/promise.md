@@ -34,6 +34,7 @@ You can complete a `Promise[E, A]` in different ways:
 
 Following example shows usage of all of them:
 ```scala
+import zio._
 
 val race: IO[String, Int] = for {
     p     <- Promise.make[String, Int]
@@ -91,6 +92,7 @@ If the Promise was not completed when we called `poll` then the IO will fail wit
 Here is a scenario where we use a `Promise` to hand over a value between two `Fiber`s:
 
 ```scala
+import java.io.IOException
 
 val program: ZIO[Any, IOException, Unit] = 
   for {

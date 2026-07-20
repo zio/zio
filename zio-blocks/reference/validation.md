@@ -41,6 +41,7 @@ Validation[A]
 Numeric validations apply to `Byte`, `Short`, `Int`, `Long`, `Float`, `Double`, `BigInt`, and `BigDecimal`.
 
 ```scala
+import zio.blocks.schema.Validation
 
 // Sign constraints
 Validation.Numeric.Positive     // value > 0
@@ -62,6 +63,7 @@ Validation.Numeric.Set(Set(1, 2, 3, 5, 8, 13))
 String validations apply to `String` primitive types.
 
 ```scala
+import zio.blocks.schema.Validation
 
 // Content constraints
 Validation.String.NonEmpty   // string.nonEmpty (length > 0)
@@ -84,6 +86,7 @@ Validation.String.Pattern("^\\d{5}$")          // exactly 5 digits
 Validations are attached to `PrimitiveType` instances. Each primitive type carries its validation constraint:
 
 ```scala
+import zio.blocks.schema.{PrimitiveType, Validation}
 
 // Int with no validation
 val intType = PrimitiveType.Int(Validation.None)
@@ -111,6 +114,7 @@ When validation fails, ZIO Blocks returns a `SchemaError` that provides detailed
 `SchemaError` is an exception that contains one or more error details:
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 // SchemaError wraps a non-empty list of Single errors
 final case class SchemaError(errors: ::[SchemaError.Single]) extends Exception
@@ -130,6 +134,7 @@ SchemaError.Single
 Use the factory methods on `SchemaError` to create errors:
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 // For validation failures in transform
 val error = SchemaError.validationFailed("must be positive")
@@ -138,7 +143,7 @@ val error = SchemaError.validationFailed("must be positive")
 val msgError = SchemaError("Invalid input")
 
 // With path information
-
+import zio.blocks.schema.DynamicOptic
 val pathError = SchemaError.message("Value out of range", DynamicOptic.root.field("age"))
 
 // Conversion failure with details
@@ -150,6 +155,7 @@ val convError = SchemaError.conversionFailed(Nil, "Expected ISO date format")
 `SchemaError` includes path information showing where in the data structure the error occurred:
 
 ```scala
+import zio.blocks.schema.SchemaError
 
 val error: SchemaError = ???
 
@@ -177,6 +183,7 @@ The most common way to use validation in ZIO Blocks is through `transform`, whic
 ### Basic Wrapper with Validation
 
 ```scala
+import zio.blocks.schema.{Schema, SchemaError}
 
 case class PositiveInt private (value: Int)
 
@@ -193,6 +200,7 @@ object PositiveInt {
 ### Email Type with Regex Validation
 
 ```scala
+import zio.blocks.schema.{Schema, SchemaError}
 
 case class Email private (value: String)
 
@@ -213,6 +221,7 @@ object Email {
 ### NonEmptyString with Length Validation
 
 ```scala
+import zio.blocks.schema.{Schema, SchemaError}
 
 case class NonEmptyString private (value: String)
 
@@ -229,6 +238,7 @@ object NonEmptyString {
 ### Range-Bounded Integer
 
 ```scala
+import zio.blocks.schema.{Schema, SchemaError}
 
 case class Percentage private (value: Int)
 
@@ -247,6 +257,7 @@ object Percentage {
 Use the two-argument `transform` for cases where both encoding and decoding need validation:
 
 ```scala
+import zio.blocks.schema.{Schema, SchemaError}
 
 case class BoundedValue(value: Int)
 
@@ -269,6 +280,8 @@ object BoundedValue {
 When decoding from `DynamicValue` or JSON, validations in wrapper schemas are automatically enforced:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json._
 
 case class PositiveInt(value: Int)
 object PositiveInt {
@@ -296,6 +309,7 @@ val result = JsonDecoder[Order].decodeString(json)
 Use `DynamicSchema` to validate `DynamicValue` instances:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -324,6 +338,7 @@ val isValid: Boolean = dynamicSchema.conforms(value)
 `DynamicSchema.toSchema` creates a `Schema[DynamicValue]` that rejects non-conforming values:
 
 ```scala
+import zio.blocks.schema._
 
 val dynamicSchema: DynamicSchema = Schema[Person].toDynamicSchema
 val validatingSchema: Schema[DynamicValue] = dynamicSchema.toSchema
@@ -342,6 +357,8 @@ val result = validatingSchema.fromDynamicValue(invalidValue)
 When deriving JSON Schema from a ZIO Blocks schema, validations are reflected in the output:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json.JsonSchema
 
 // Numeric validations become JSON Schema constraints
 // Validation.Numeric.Range(Some(0), Some(100)) → "minimum": 0, "maximum": 100
@@ -359,6 +376,7 @@ When parsing JSON Schema, these constraints are converted back to `Validation` i
 The current `Validation` ADT does not support combining multiple validations on a single primitive (e.g., both `NonEmpty` and `Pattern`). For complex validation logic, use `transform`:
 
 ```scala
+import zio.blocks.schema.{Schema, SchemaError}
 
 case class Username private (value: String)
 

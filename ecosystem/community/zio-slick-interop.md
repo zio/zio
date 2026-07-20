@@ -23,6 +23,16 @@ libraryDependencies += "com.typesafe.slick" %% "slick-hikaricp" % "3.3.3"
 Here is a full working example of creating database-agnostic Slick repository:
 
 ```scala
+import com.typesafe.config.ConfigFactory
+import slick.interop.zio.DatabaseProvider
+import slick.interop.zio.syntax._
+import slick.jdbc.H2Profile.api._
+import slick.jdbc.JdbcProfile
+import zio.console.Console
+import zio.interop.console.cats.putStrLn
+import zio.{ExitCode, IO, URIO, ZEnvironment, ZIO, ZLayer}
+
+import scala.jdk.CollectionConverters._
 
 case class Item(id: Long, name: String)
 
@@ -53,6 +63,7 @@ object SlickItemRepository {
   val live: ZLayer[DatabaseProvider, Throwable, ItemRepository] =
     ZLayer.fromServiceM { db =>
       db.profile.flatMap { profile =>
+        import profile.api._
 
         val initialize = ZIO.fromDBIO(ItemsTable.table.schema.createIfNotExists)
 

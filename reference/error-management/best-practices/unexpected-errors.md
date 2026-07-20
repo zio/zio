@@ -9,6 +9,7 @@ The context of a domain determines whether an error is expected or unexpected. W
 For example, in the following example, we don't want to handle the `IOException` so we can call `ZIO#orDie` to make the effect's failure unchecked. This will translate effect's failure to the death of the fiber running it:
 
 ```scala
+import zio._
 
 Console.printLine("Hello, World") // ZIO[Any, IOException, Unit]
   .orDie                          // ZIO[Any, Nothing, Unit]
@@ -19,6 +20,7 @@ If we have an effect that fails for some `Throwable` we can pick certain recover
 In the following example, calling `ZIO#refineOrDie` on an effect that has an error type `Throwable` allows us to refine it to have an error type of `TemporaryUnavailable`:
 
 ```scala
+import zio._
 
 val response: ZIO[Any, Nothing, Response] =
   ZIO

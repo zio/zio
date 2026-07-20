@@ -19,6 +19,7 @@ In **ZIO CLI**, Arguments are represented by instances of class `Args[_]`. `Args
 
 An `Args` instance of a basic type carries a name attribute. This can be specified when being created, but it can also be skipped. In this last case, the name will be that of the type. An example with Boolean type:
 ```scala
+import zio.cli._
 
 val name = "name"
 
@@ -195,6 +196,7 @@ Args.text.atMost(5) // Creates an arguments accepting a list of String of length
 ### Transforming Args
 Method `map` allows to transform the type parameter of `Args[A]`. It takes a function `f: A => B` as parameter that is applied when processing a user's input in a CLI app and returns `Args[B]`. This makes it easier to implement the business logic of a CLI app. For example, we will construct an `Args` that asks for a list of 12 decimals (one for each month) and a year. Then, it will create a new `Args` that store the year and the mean value in a custom type.
 ```scala
+import zio.cli._
 
 val data: Args[BigDecimal] = Args.decimal
 val args: Args[(List[BigDecimal], BigInt)] = data.between(12, 12) ++ Args.integer

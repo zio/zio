@@ -15,10 +15,18 @@ libraryDependencies ++= Seq(
 ## Usage
 
 ```scala
+import akka.actor.ActorSystem
+import akka.http.scaladsl.marshalling.Marshal
+import akka.http.scaladsl.model.HttpEntity
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import de.heikoseeberger.akkahttpziojson.ZioJsonSupport
+import zio.{ Task, ZIO }
+import zio.json._
 
 final case class Greeting(greeting: String)
 
 object Greeting {
+  import ZioJsonSupport._
 
   implicit val decoder: JsonDecoder[Greeting] =
     DeriveJsonDecoder.gen[Greeting]

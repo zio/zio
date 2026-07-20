@@ -149,6 +149,7 @@ While manual lens construction gives you fine-grained control, ZIO Blocks provid
 The `optic` macro inside the `CompanionOptics` trait creates a lens using intuitive selector syntax that mirrors standard Scala field access:
 
 ```scala
+import zio.blocks.schema.optic
 
 case class Person(name: String, age: Int)
 
@@ -220,6 +221,7 @@ It takes a `Reflect.Variant.Bound[S]` representing the schema of the sum type `S
 Assume you have a `Notification` sealed trait representing different notification types:
 
 ```scala
+import zio.blocks.schema._
 
 sealed trait Notification
 
@@ -235,6 +237,7 @@ object Notification {
 First, we need to define schemas for each case class and then write a prism for each case (here we define a prism for the `Email` case):
 
 ```scala
+import zio.blocks.schema._
 
 sealed trait Notification
 
@@ -281,6 +284,7 @@ object Notification {
 The `optic` macro inside the `CompanionOptics` trait creates a prism using intuitive selector syntax with the `when[CaseType]` method:
 
 ```scala
+import zio.blocks.schema._
 
 sealed trait Notification
 
@@ -569,6 +573,7 @@ Beside the above composition methods, `Optional` provides specialized constructo
 The most common way to manually construct an `Optional` is by composing a `Lens` with a `Prism`. Assume you have a `PaymentMethod` sum type which has multiple cases, and we have written a prism for one of its cases, e.g., `CreditCard`:
 
 ```scala
+import zio.blocks.schema._
 
 sealed trait PaymentMethod
 object PaymentMethod extends CompanionOptics[PaymentMethod] {
@@ -607,6 +612,7 @@ val creditCard: Optional[Customer, PaymentMethod.CreditCard] =
 For accessing elements at specific indices in sequences:
 
 ```scala
+import zio.blocks.schema._
 
 case class Order(id: String, items: List[String])
 object Order extends CompanionOptics[Order] {
@@ -634,6 +640,7 @@ The `optic` macro inside the `CompanionOptics` trait creates optionals automatic
 By combining the `.when[Case]` (prism) and `.field-name` (lens) syntax of optic macro, you can create optionals that focus on the inner values of ADTs:
 
 ```scala
+import zio.blocks.schema._
 
 case class ApiResponse(
   requestId: String,
@@ -657,6 +664,7 @@ object ApiResponse extends CompanionOptics[ApiResponse] {
 Here is another example focusing on sum types:
 
 ```scala
+import zio.blocks.schema._
 
 sealed trait Response
 object Response extends CompanionOptics[Response] {
@@ -681,6 +689,7 @@ object Response extends CompanionOptics[Response] {
 We can access elements at specific indices in sequences using `.at(index)` syntax in `optic` macro:
 
 ```scala
+import zio.blocks.schema._
 
 case class OrderItem(sku: String, quantity: Int)
 object OrderItem {
@@ -722,6 +731,7 @@ Order.firstItemSku.getOption(order)    // => Some("SKU-A")
 To access values at a specific key, we can use `.atKey(key)` syntax in `optic` macro:
 
 ```scala
+import zio.blocks.schema._
 
 case class Config(settings: Map[String, String])
 object Config extends CompanionOptics[Config] {
@@ -750,6 +760,7 @@ Config.setting("timeout").getOption(config) // => None (key not present)
 To access the inner value of wrapper types (newtypes, opaque types) you can use the `.wrapped[T]` syntax in `optic` macro:
 
 ```scala
+import zio.blocks.schema._
 
 // Assume Email is a wrapper around String with validation
 case class Email private (value: String)
@@ -817,6 +828,7 @@ object Traversal {
 For example, to create a traversal over all items in a shopping cart represented as a list and quantities as a vector, you can do the following:
 
 ```scala
+import zio.blocks.schema._
 
 case class ShoppingCart(items: List[String], quantities: Vector[Int])
 object ShoppingCart {
@@ -852,6 +864,7 @@ object Traversal {
 Let's say you have an inventory represented as a map of product names to stock counts. You can create traversals for both keys and values as follows:
 
 ```scala
+import zio.blocks.schema._
 
 case class Inventory(stock: Map[String, Int])
 object Inventory {
@@ -874,6 +887,7 @@ The `optic` macro inside the `CompanionOptics` trait creates traversals using in
 1. Use `.each` to traverse all elements in a sequence (List, Vector, Set, ArraySeq):
 
 ```scala
+import zio.blocks.schema._
 
 case class Order(id: String, items: List[String], prices: Vector[Double])
 object Order extends CompanionOptics[Order] {
@@ -890,6 +904,7 @@ object Order extends CompanionOptics[Order] {
 2. Use `.eachKey` to traverse all keys and `.eachValue` to traverse all values in a map:
 
 ```scala
+import zio.blocks.schema._
 
 case class UserScores(scores: Map[String, Int])
 object UserScores extends CompanionOptics[UserScores] {
@@ -906,6 +921,7 @@ object UserScores extends CompanionOptics[UserScores] {
 3. Use `.atIndices(indices)` to traverse elements at specific indices:
 
 ```scala
+import zio.blocks.schema._
 
 case class Matrix(rows: Vector[Vector[Int]])
 object Matrix extends CompanionOptics[Matrix] {
@@ -919,6 +935,7 @@ object Matrix extends CompanionOptics[Matrix] {
 4. Use `.atKeys(keys)` to traverse values at specific keys:
 
 ```scala
+import zio.blocks.schema._
 
 case class Environment(variables: Map[String, String])
 object Environment extends CompanionOptics[Environment] {
@@ -932,6 +949,7 @@ object Environment extends CompanionOptics[Environment] {
 Please note that the `optic` macro supports chaining traversals with field access for deep navigation:
 
 ```scala
+import zio.blocks.schema._
 
 case class LineItem(sku: String, price: Double, quantity: Int)
 object LineItem {
@@ -958,6 +976,7 @@ object Invoice extends CompanionOptics[Invoice] {
 Let's explore traversal operations with a practical example. Assume we have a `Team` case class with a list of members and a map of scores:
 
 ```scala
+import zio.blocks.schema._
 
 case class Team(name: String, members: List[String], scores: Map[String, Int])
 object Team extends CompanionOptics[Team] {
@@ -1055,6 +1074,7 @@ Team.allMembers.modifyOrFail(emptyTeam, _.toUpperCase)
 All optic types (`Lens`, `Prism`, `Optional`, `Traversal`) have a custom `toString` that produces output matching the `optic` macro syntax. This makes debugging easier by showing exactly what path the optic represents:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, address: Address)
 case class Address(street: String, city: String)
@@ -1134,6 +1154,7 @@ This method takes two lenses: the first from `S` to `T`, and the second from `T`
 For example, if we have a `Person` case class that contains an `Address` and we want to create a lens to access the `street` field of the `Address` within `Person`, we can do so as follows:
 
 ```scala
+import zio.blocks.schema._
 
 case class Address(street: String, city: String)
 object Address extends CompanionOptics[Address] { 
@@ -1153,7 +1174,7 @@ object Address extends CompanionOptics[Address] {
 }
 case class Person(name: String, age: Int, address: Address)
 object Person {
-
+  import zio.blocks.schema._
   implicit val schema: Schema[Person] = Schema.derived[Person]
 
   val address: Lens[Person, Address] =
@@ -1181,6 +1202,7 @@ object Person {
 The `optic` macro (or its alias `$`) provides a more concise way to derive composed lenses. By extending `CompanionOptics[T]` and using selector syntax, you can derive the same lenses with significantly less boilerplate:
 
 ```scala
+import zio.blocks.schema._
 
 case class Address(street: String, city: String)
 object Address extends CompanionOptics[Address] 
@@ -1214,6 +1236,7 @@ Consider a scenario where you have a record containing a field whose type is a s
 For instance, suppose we have an `Employee` case class that contains a `ContactInfo` field, where `ContactInfo` is a sealed trait with different cases:
 
 ```scala
+import zio.blocks.schema._
 
 sealed trait ContactInfo
 
@@ -1310,6 +1333,7 @@ Employee.emailAddress.getOption(employee2)
 The `optic` macro supports case selection using the `.when[T]` syntax, which makes composing lenses with prisms much more concise:
 
 ```scala
+import zio.blocks.schema._
 
 sealed trait ContactInfo
 
@@ -1408,6 +1432,7 @@ This composition pattern is powerful for navigating through complex nested struc
 With the `optic` macro, you can express the entire path in a single selector expression:
 
 ```scala
+import zio.blocks.schema._
 
 case class Company(name: String, ceo: Employee)
 object Company extends CompanionOptics[Company] {
@@ -1548,6 +1573,7 @@ This example demonstrates the power of optics composition: you can build complex
 The `optic` macro supports collection traversal using the `.each` syntax. This allows you to express traversals over lists, vectors, and other sequences in a concise path expression:
 
 ```scala
+import zio.blocks.schema._
 
 case class Department(name: String, employees: List[Employee])
 object Department extends CompanionOptics[Department] {
@@ -1584,6 +1610,7 @@ The result is a `Traversal[Department, String]` that focuses on all email addres
 For maps, the macro provides `.eachKey` and `.eachValue` for traversing keys and values, respectively:
 
 ```scala
+import zio.blocks.schema._
 
 case class Inventory(items: Map[String, Int])
 object Inventory extends CompanionOptics[Inventory] {

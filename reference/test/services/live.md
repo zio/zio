@@ -13,6 +13,10 @@ The easiest way to access the _live_ environment is to use the `live` method wit
 For example, within the test environment, when we use the `Clock.currentTime` function, it will not execute the live version of the `Clock` service, rather, it will run the test version of the `Clock`, which is instantiated with zero-state by default. Thus, the `Clock.currentTime` will return a `0L` value:
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.Assertion._
+import java.util.concurrent.TimeUnit
 
 test("running clock methods in a test environment") {
   assertZIO(Clock.currentTime(TimeUnit.MILLISECONDS))(equalTo(0L)) 
@@ -22,6 +26,11 @@ test("running clock methods in a test environment") {
 To run the `Clock.currentTime` within the live environment, we should use the `Live.live` method:
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.Assertion._
+
+import java.util.concurrent.TimeUnit
 
 test("live can access real environment") {
   for {
@@ -37,6 +46,9 @@ The `withLive` method can be used to apply a transformation to an effect with th
 For example, assume we have a long-running task that is required to run within the test environment, and we want to timeout it before the assertion. To do this, we should run the timeout operation within the live environment:
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.Assertion._
 
 val longRunningSUT =
   ZIO.attemptBlockingInterrupt {

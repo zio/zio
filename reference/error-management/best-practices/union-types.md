@@ -7,6 +7,7 @@ In Scala 3, we have an exciting new feature called union types. By using the uni
 Let's see an example of `Storage` service which have `upload`, `download` and `delete` API:
 
 ```scala
+import zio._
 
 type Name = String
 
@@ -17,6 +18,8 @@ enum StorageError extends Exception {
   case StorageLimitExceeded(limit: Int)   extends StorageError
   case BandwidthLimitExceeded(limit: Int) extends StorageError
 }
+
+import StorageError.*
 
 trait Storage {
   def upload(
@@ -37,6 +40,7 @@ Union types allow us to get rid of the requirement to extend some sort of common
 In the following example, the `FooError` and `BarError` are two distinct error. They have no super common type like `FooBarError` and also they are not extending `Exception` or `Throwable` classes:
 
 ```scala
+import zio.*
 
 // Two unrelated errors without having a common supertype
 trait FooError

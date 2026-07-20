@@ -105,6 +105,7 @@ def length[T](list: List[T]): Int = {
 The same pattern can be used when we have side effects. Assume we have a function that tries to read names from the input, until the user enters the "q" command indicating the end of the input. We can write the function like this:
 
 ```scala
+import scala.io.StdIn._
 
 def getNames: List[String] = {
   def getName() = readLine("Please enter a name or 'q' to exit: ")
@@ -121,6 +122,7 @@ def getNames: List[String] = {
 Using the previous pattern, we can eliminate the need to use variables:
 
 ```scala
+import scala.io.StdIn._
 
 def getNames: Seq[String] = {
   def loop(names: List[String]): List[String] = {
@@ -134,6 +136,7 @@ def getNames: Seq[String] = {
 But, there is also a problem with the previous solution. The `getName` is not referentially transparent. In order to make it free of side effects, we can use `ZIO` to describe any effectual operation:
 
 ```scala
+import zio._
 
 def inputNames: ZIO[Any, String, List[String]] = {
   def loop(names: List[String]): ZIO[Any, String, List[String]] = {

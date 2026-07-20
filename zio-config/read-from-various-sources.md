@@ -5,7 +5,8 @@
 zio-config supports various sources.
 
 ```scala
-
+import zio._, Config._, ConfigProvider._
+import zio.config._, magnolia._
 ```
 
 ```scala
@@ -27,7 +28,8 @@ There are many examples in examples module in zio-config.
 Here is an quick example
 
 ```scala
-
+import zio.config.typesafe._
+import zio.config.magnolia._
 ```
 
 ```scala
@@ -90,6 +92,7 @@ ConfigProvider.fromHoconString(jsonString)
 Similar to Hocon source, we have `ConfigProvider.fromYamlString`
 
 ```scala
+import zio.config.yaml._
 
 ConfigProvider.fromYamlString
 
@@ -101,6 +104,8 @@ zio-config can read XML strings. Note that it's experimental with a dead simple 
 Currently it cannot XML comments, and has not been tested with complex data types, which will be fixed in the near future.
 
 ```scala
+import zio.config.xml.experimental._
+import zio.Config
 
 final case class Configuration(aws: Aws, database: Database)
 
@@ -153,6 +158,7 @@ We recommend using `<nil>` over `""` whenever you are trying  to represent a rea
 Example:
 
 ```scala
+import zio.config._, magnolia._
 
 final case class Department(name: String, block: Int)
 
@@ -181,6 +187,8 @@ and zio-config supports these formats making use of the above idea.
 #### Another simple example of an indexed format
 
 ```scala
+
+import zio.config._, magnolia._
 
 final case class Employee(age: Int, name: String)
 

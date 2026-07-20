@@ -11,6 +11,7 @@ libraryDependencies += "dev.zio" %% "zio-logging-slf4j-bridge" % "2.5.3"
 and use one of the `Slf4jBridge` layers when setting up logging:
 
 ```scala
+import zio.logging.slf4j.Slf4jBridge
 
 program.provideCustom(Slf4jBridge.init())
 ```
@@ -27,6 +28,8 @@ logging parts may contain message and log parameters construction, which may be 
 SLF4J logger name is stored in log annotation with key `logger_name` (`zio.logging.loggerNameAnnotationKey`), following log format
 
 ```scala
+import zio.logging.slf4j.Slf4jBridge
+import zio.logging.LoggerNameExtractor
 
 val loggerName = LoggerNameExtractor.loggerNameAnnotationOrTrace
 val loggerNameFormat = loggerName.toLogFormat()
@@ -36,6 +39,8 @@ may be used to get logger name from log annotation or ZIO Trace.
 SLF4J bridge with custom logger can be setup:
 
 ```scala
+import zio.logging.slf4j.Slf4jBridge
+import zio.logging.consoleJsonLogger
 
 val logger = Runtime.removeDefaultLoggers >>> consoleJsonLogger() >+> Slf4jBridge.init()
 ```
@@ -51,6 +56,11 @@ ZIO logging. Enabling both causes circular logging and makes no sense.
 
 ```scala
 package zio.logging.example
+
+import zio.logging.{ ConsoleLoggerConfig, LogAnnotation, LogFilter, LogFormat, LoggerNameExtractor, consoleJsonLogger }
+import zio.{ ExitCode, LogLevel, Runtime, Scope, ZIO, ZIOAppArgs, ZIOAppDefault, ZLayer }
+
+import java.util.UUID
 
 object Slf4jBridgeExampleApp extends ZIOAppDefault {
 
@@ -109,6 +119,7 @@ in previous versions, logger name was stored in log annotation with key `slf4j_l
 for backward compatibility, if there is need to use legacy annotation key, it can be done with following initialisation
 
 ```scala
+import zio.logging.slf4j.Slf4jBridge
 
 program.provideCustom(Slf4jBridge.initialize(Slf4jBridge.loggerNameAnnotationKey))
 ```
@@ -118,6 +129,8 @@ NOTE: this feature may be removed in future versions
 Following log format
 
 ```scala
+import zio.logging.slf4j.Slf4jBridge
+import zio.logging.LoggerNameExtractor
 
 val loggerName = LoggerNameExtractor.annotationOrTrace(Slf4jBridge.loggerNameAnnotationKey)
 val loggerNameFormat = loggerName.toLogFormat()

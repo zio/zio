@@ -7,6 +7,9 @@ The random process of the `TestRandom` is said to be deterministic since, with t
 By default, the initial seed of the `TestRandom` is fixed. So repeating a generator more and more results in the same sequence:
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.TestAspect._
 
 test("pseudo-random number generator with fixed initial seed") {
   check(Gen.int(0, 100)) { n =>
@@ -40,6 +43,9 @@ Ran 1 test in 522 ms: 1 succeeded, 0 ignored, 0 failed
 The `nondeterministic` test aspect, will change the seed of the pseudo-random generator before each test repetition:
 
 ```scala
+import zio._
+import zio.test.{ test, _ }
+import zio.test.TestAspect._
 
 test("pseudo-random number generator with random initial seed on each repetition") {
   check(Gen.int(0, 100)) { n =>

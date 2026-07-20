@@ -73,6 +73,12 @@ ZIO JVM metrics have built-in applications that collect the JVM metrics. They ca
 ```scala title="examples/jvm/src/main/scala/zio/examples/metrics/JvmMetricAppExample.scala" 
 package zio.examples.metrics
 
+import zio._
+import zio.http._
+import zio.metrics.connectors.prometheus.PrometheusPublisher
+import zio.metrics.connectors.{MetricsConfig, prometheus}
+import zio.metrics.jvm.DefaultJvmMetrics
+
 object JvmMetricAppExample extends ZIOAppDefault {
   private val httpApp =
     Routes(

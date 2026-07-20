@@ -19,6 +19,7 @@ object DynamicValue {
 Let's create a simple instance of `Person("John Doe", 42)` and convert it to `DynamicValue`:
 
 ```scala
+import zio.schema._
 
 case class Person(name: String, age: Int)
 
@@ -67,6 +68,7 @@ The `toDynamic` operation erases the type information of the value and places it
 Please note that, if we have two types `A` and `B` that are isomorphic, we can convert a dynamic value of type `A` to a typed value of type `B` and vice versa:
 
 ```scala
+import zio.schema._
 
 case class Person(name: String, age: Int)
 

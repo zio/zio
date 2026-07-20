@@ -11,6 +11,8 @@ Contramap is a simple combinator to change the domain of an existing function. W
 This is useful when we have a fixed output, and our existing function cannot consume those outputs. So we can use _contramap_ to create a new function that can consume that fixed output. Assume we have a `ZSink.sum` that sums incoming numeric values, but we have a `ZStream` of `String` values. We can convert the `ZSink.sum` to a sink that can consume `String` values;
 
 ```scala
+import zio._
+import zio.stream._
 
 val numericSum: ZSink[Any, Nothing, Int, Nothing, Int]    = 
   ZSink.sum[Int]
@@ -27,6 +29,8 @@ val sum: ZIO[Any, Nothing, Int] =
 A `dimap` is an extended `contramap` that additionally transforms sink's output:
 
 ```scala
+import zio._
+import zio.stream._
 
 // Convert its input to integers, do the computation and then convert them back to a string
 val sumSink: ZSink[Any, Nothing, String, Nothing, String] =
@@ -42,6 +46,8 @@ val sum: ZIO[Any, Nothing, String] =
 Sinks have `ZSink#filterInput` for filtering incoming elements:
 
 ```scala
+import zio._
+import zio.stream._
 
 ZStream(1, -2, 0, 1, 3, -3, 4, 2, 0, 1, -3, 1, 1, 6)
   .transduce(

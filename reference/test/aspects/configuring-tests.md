@@ -9,6 +9,8 @@ To run cases, there are some [default configuration settings](../services/test-c
 The `repeats(n: Int)` test aspect runs each test with the number of times to repeat tests to ensure they are stable set to the specified value:
 
 ```scala
+import zio._
+import zio.test.{ test, _ }
 
 test("repeating a test") {
   ZIO.attempt("Repeating a test to ensure its stability")
@@ -28,6 +30,8 @@ The `samples(n: Int)` test aspect runs each test with the number of sufficient s
 Let's change the number of default samples in the following example:
 
 ```scala
+import zio._
+import zio.test.{ test, _ }
 
 test("customized number of samples") {
   for {

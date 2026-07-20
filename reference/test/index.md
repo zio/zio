@@ -1,49 +1,172 @@
-# Introduction to ZIO Test
+# Introduction to Test Aspects
 
-> **ZIO Test** is a zero dependency testing library that makes it easy to test effectual programs. In **ZIO Test**, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones.
+> A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another, possibly enlarging the environment or error type. We use them to change existing tests or even entire suites or specs that we have already created.
 
-**ZIO Test** is a zero dependency testing library that makes it easy to test effectual programs. In **ZIO Test**, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones. 
+A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another, possibly enlarging the environment or error type. We use them to change existing tests or even entire suites or specs that we have already created.
 
-## Motivation
-
-We can easily assert ordinary values and data types to test them:
+We can think of a test aspect as a Spec transformer. It takes one spec, transforms it, and produces another spec (`Spec => Spec`). Test aspects are applied to a test or suite using the `@@` operator:
 
 ```scala
+import zio.test.{test, _}
 
-assert(1 + 2 == 2 + 1)
-assert("Hi" == "H" + "i")
+test("a single test") {
+  ???
+} @@ testAspect
 
-case class Point(x: Long, y: Long)
-assert(Point(5L, 10L) == Point.apply(5L, 10L))
+suite("suite of multiple tests") {
+  ???
+} @@ testAspect
 ```
 
-What about functional effects? Can we assert two effects using ordinary scala assertion to test whether they have the same functionality? As we know, a functional effect, like `ZIO`, describes a series of computations. Unfortunately, we can't assert functional effects without executing them. If we assert two `ZIO` effects, e.g. `assert(expectedEffect == actualEffect)`, the result says nothing about whether these two effects behave similarly and produce the same result or not. Instead, we should `unsafeRun` each one and assert their results.
+Test aspects encapsulate cross-cutting concerns and increase the modularity of our tests. So we can focus on the primary concerns of our tests and at the end of the day, we can apply required aspects to our tests.
 
-Let's say we have a random generator effect, and we want to ensure that the output is bigger than zero, so we should `unsafeRun` the effect and assert the result:
+The great thing about test aspects is that they are very composable. So we can chain them one after another. We can even have test aspects that modify other test aspects.
+
+Let's say we have the following test:
 
 ```scala
+import zio.test._
 
-val random = Unsafe.unsafe { implicit unsafe =>
-  Runtime.default.unsafe.run(
-    Random.nextIntBounded(10)
-  ).getOrThrowFiberFailure()
+test("test") {
+  assertTrue(true)
 }
-
-assert(random >= 0)
 ```
 
-Testing effectful programs is difficult since we should use many `unsafeRun` methods. Also, we might need to make sure that the test is non-flaky. In these cases, running `unsafeRun` multiple times is not straightforward. We need a testing framework that treats effects as _first-class values_. So this is the primary motivation for creating the ZIO Test library.
+We can pass this test to whatever test aspect we want. For example, to run this test only on the JVM and repeat it five times, we can write the test as below:
 
-## How ZIO Test was designed
+```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.TestAspect._
 
-We designed ZIO Test around the idea of _making tests first-class objects_. This means that tests (and other concepts, like assertions) become ordinary values that can be passed around, transformed, and composed.
+repeat(Schedule.recurs(5))(
+  jvmOnly(
+    test("test") {
+      assertTrue(true)
+    }
+  )
+)
+```
 
-This approach allows for greater flexibility compared to some other testing frameworks, where tests and additional logic around tests had to be put into callbacks so that framework could make use of them.
+To compose the aspects, we have a very nice `@@` syntax, which helps us to write tests concisely. So the previous example can be written as follows:
 
-As a result, this approach is also better suited to other `ZIO` concepts like `Scope`, which can only be used within a scoped block of code. This also created a mismatch between `BeforeAll`, `AfterAll` callback-like methods when there were resources that should be opened and closed during test suite execution.
+```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.TestAspect._
 
-Another thing worth pointing out is that tests being values are also effects. Implications of this design are far-reaching:
+test("test") {
+  assertTrue(true)
+} @@ jvmOnly @@ repeat(Schedule.recurs(5))
+```
 
-1. First, the well-known problem of testing asynchronous value is gone. Whereas in other frameworks we have to somehow "run" our effects and at best wrap them in `scala.util.Future` because blocking would eliminate running on ScalaJS, ZIO Test expects us to create `ZIO` objects. There is no need for indirect transformations from one wrapping object to another.
+When composing test aspects, **the order of test aspects is important**. So if we change the order, their behavior may change. For example, the following test will repeat the test 2 times:
 
-2. Second, because our tests are ordinary `ZIO` values, we don't need to turn to a testing framework for things like retries, timeouts, and resource management. We can solve all those problems with the full richness of functions that `ZIO` exposes.
+```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.TestAspect._
+
+suite("suite")(
+  test("A") {
+    ZIO.debug("executing test")
+      .map(_ => assertTrue(true))
+  },
+) @@ nonFlaky @@ repeats(2)
+```
+
+The output:
+
+```
+executing test
+executing test
+executing test
++ suite - repeated: 2
+  + A - repeated: 2
+Ran 1 test in 343 ms: 1 succeeded, 0 ignored, 0 failed
+```
+
+But the following test aspect repeats the test 100 times:
+
+```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.TestAspect._
+
+suite("suite")(
+  test("A") {
+    ZIO.debug("executing test")
+      .map(_ => assertTrue(true))
+  },
+) @@ repeats(2) @@ nonFlaky
+```
+
+The output:
+
+```
+executing test
+executing test
+executing test
+executing test
+executing test
+...
+executing test
++ suite - repeated: 100
+  + A - repeated: 100
+Ran 1 test in 478 ms: 1 succeeded, 0 ignored, 0 failed
+```
+
+## Examples
+
+So let's say we have a challenge that we need to run a test, and we want to make sure there is no flaky on the JVM, and then we want to make sure it doesn't take more than 60 seconds:
+
+```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.TestAspect._
+
+test("a test with two aspects composed together") {
+  ???
+} @@ jvm(nonFlaky) @@ timeout(60.seconds)
+```
+
+This is another example of a test suite showing the use of aspects to modify test behavior:
+
+```scala
+import zio.test._
+import zio.{test => _, _}
+import zio.test.TestAspect._
+
+object MySpec extends ZIOSpecDefault {
+  def spec = suite("A Suite")(
+    test("A passing test") {
+      assertTrue(true)
+    },
+    test("A passing test run for JVM only") {
+      assertTrue(true)
+    } @@ jvmOnly, // @@ jvmOnly only runs tests on the JVM
+    test("A passing test run for JS only") {
+      assertTrue(true)
+    } @@ jsOnly, // @@ jsOnly only runs tests on Scala.js
+    test("A passing test with a timeout") {
+      assertTrue(true)
+    } @@ timeout(10.nanos), // @@ timeout will fail a test that doesn't pass within the specified time
+    test("A failing test... that passes") {
+      assertTrue(true)
+    } @@ failing, //@@ failing turns a failing test into a passing test
+    test("A ignored test") {
+      assertTrue(false)
+    } @@ ignore, //@@ ignore marks test as ignored
+    test("A test using a live service instead of the test service") {
+      for {
+        _ <- TestClock.timeZone
+      } yield assertCompletes
+    } @@ withLiveClock, //@@ withLiveClock uses the live Clock service from the ZIO runtime in the test
+    test("A flaky test that only works on the JVM and sometimes fails; let's compose some aspects!") {
+      assertTrue(false)
+    } @@ jvmOnly           // only run on the JVM
+      @@ eventually        // @@ eventually retries a test indefinitely until it succeeds
+      @@ timeout(20.nanos) // it's a good idea to compose `eventually` with `timeout`, or the test may never end
+  ) @@ timeout(60.seconds) // apply a timeout to the whole suite
+}
+```

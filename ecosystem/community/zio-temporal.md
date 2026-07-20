@@ -38,6 +38,12 @@ Now we can run the sample application, which is based on Temporal Java SDK docs 
 //> using lib "dev.zio::zio-logging:2.1.14"
 //> using lib "dev.zio::zio-logging-slf4j2-bridge:2.1.14"
 
+import zio.*
+import zio.temporal.*
+import zio.temporal.worker.*
+import zio.temporal.workflow.*
+import zio.logging.*
+
 // This is our workflow interface
 @workflowInterface
 trait EchoWorkflow:

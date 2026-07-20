@@ -64,6 +64,8 @@ Thus, histograms are the best choice in these situations:
 Create a histogram with 12 buckets: `0..100` in steps of `10` and `Double.MaxValue`. It can be applied to effects yielding a `Double`:
 
 ```scala
+import zio._
+import zio.metrics._
 
 val histogram =
   Metric.histogram("histogram", MetricKeyType.Histogram.Boundaries.linear(0, 10, 11))
@@ -72,6 +74,8 @@ val histogram =
 Now we can apply the histogram to effects producing `Double`:
 
 ```scala
+import zio._
+import zio.metrics._
 
 Random.nextDoubleBetween(0.0d, 120.0d) @@ histogram
 ```
@@ -81,6 +85,10 @@ Random.nextDoubleBetween(0.0d, 120.0d) @@ histogram
 Here is an example of adding timer metric to track workflow durations:
 
 ```scala
+import zio._
+import zio.metrics._
+
+import java.time.temporal.ChronoUnit
 
 object Example extends ZIOAppDefault {
 

@@ -21,6 +21,7 @@ Another example of using the `These` data type is in implementing a variant of t
 When we zip two collections, if the two collections have different sizes the default `zipWith` operator will just drop the "extra" elements from the larger collection.
 
 ```scala
+import zio.Chunk
 
 val left: Chunk[Int] =
   Chunk(1, 2, 3)

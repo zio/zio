@@ -25,6 +25,16 @@ which allows us to use the extension method `executeToF` to run the queries and 
 ```scala
 package zio.dynamodb.examples.dynamodblocal.interop
 
+import zio.dynamodb.DynamoDBQuery.{ get, put }
+import zio.dynamodb.examples.dynamodblocal.interop.CeInteropExample.Person
+import zio.dynamodb.interop.future.DynamoDBExecutorF
+import zio.dynamodb.interop.future.syntax._
+import zio.dynamodb.{ AttributeDefinition, BillingMode, DynamoDBQuery, KeySchema }
+
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+
 object FutureInteropExample extends App {
   implicit val ddbExec: DynamoDBExecutorF = DynamoDBExecutorF.make(
     buildNettyClient = identity,

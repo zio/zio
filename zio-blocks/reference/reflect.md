@@ -84,6 +84,10 @@ case class Record[F[_, _], A](
 The following example shows a `Person` case class represented as a `Reflect.Record`:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding.RegisterOffset._
+import zio.blocks.schema.binding._
+import zio.blocks.typeid.TypeId
 
 case class Person(
   name: String,
@@ -324,6 +328,8 @@ So we can say a wrapper of type `Wrapper[F[_, _], A, B]` wraps a type `B` (descr
 Assume we have a positive integer type `PosInt` that wraps an `Int` but enforces a validation rule that the value must be non-negative. We can define its schema using `Reflect.Wrapper` as follows:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
 
 case class PosInt private (value: Int) extends AnyVal
 
@@ -348,6 +354,7 @@ object PosInt {
 To create schemas for wrapper types, use `transform`:
 
 ```scala
+import zio.blocks.schema.Schema
 
 case class PosInt private (value: Int) extends AnyVal
 
@@ -380,6 +387,10 @@ case class Tree(value: Int, children: List[Tree])
 We can define its schema using `Reflect.Deferred` as follows:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding.RegisterOffset.RegisterOffset
+import zio.blocks.schema.binding._
+import zio.blocks.typeid.TypeId
 
 // Recursive data type
 case class Tree(value: Int, children: List[Tree])
@@ -423,6 +434,7 @@ object Tree {
 `Reflect` types have a custom `toString` that produces a human-readable SDL (Schema Definition Language) format. This makes debugging schemas much easier compared to the default case class output.
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int, address: Address)
 case class Address(street: String, city: String)
@@ -496,6 +508,7 @@ The auto-derivation mechanism inspects the structure of your data types at compi
 To leverage auto-derivation, simply define an implicit `Schema` for your type using `Schema.derived`:
 
 ```scala
+import zio.blocks.schema.Schema
 
 case class Person(name: String, age: Int)
 

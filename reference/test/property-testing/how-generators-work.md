@@ -25,6 +25,9 @@ For instance, we don't use a [pseudo-random generator](#random-generators-are-de
 :::
 
 ```scala
+import zio._
+import zio.test._
+import zio.stream._
 
 case class Gen[R, A](sample: ZStream[R, Nothing, A]) {
   def map[B](f: A => B): Gen[R, B] = Gen(sample.map(f))
@@ -83,6 +86,8 @@ The important fact about random generators is that they produce deterministic va
 So let's add some debugging print lines inside a test and see what values are produced:
 
 ```scala
+import zio.test._
+import zio.test.TestAspect._
 
 object ExampleSpec extends ZIOSpecDefault {
   def spec =
@@ -116,6 +121,8 @@ For more information, there is a separate page about this on [TestRandom](../ser
 This behavior helps us to have reproducible tests. However, if we need non-deterministic test values, we can use the `TestAspect.nondeterministic` to change the default behavior:
 
 ```scala
+import zio.test._
+import zio.test.TestAspect._
 
 object ExampleSpec extends ZIOSpecDefault {
   def spec =
@@ -140,6 +147,7 @@ When we run `check`, it creates an infinite stream by repeatedly sampling from t
 When we run the `check` function with multiple generators, the samples will be the Cartesian product of their streams. Let's try some examples:
 
 ```scala
+import zio.test._
 
 test("two deterministic generators") {
   check(Gen.const(1), Gen.fromIterable(List("a", "b", "c"))) { (a, b) =>
@@ -164,6 +172,7 @@ The output will be:
 So the example above is something like this:
 
 ```scala
+import zio.stream._
 
 {
   for {
@@ -176,6 +185,7 @@ So the example above is something like this:
 Now let's try to use one non-deterministic generator and one deterministic generator:
 
 ```scala
+import zio.test._
 
 test("one non-deterministic generator and one deterministic generator") {
   check(Gen.int(1, 3), Gen.fromIterable(List("a", "b", "c"))) { (a, b) =>
@@ -200,6 +210,8 @@ Here is one example output:
 This is the same as the previous example; it is like we have the following stream:
 
 ```scala
+import zio._
+import zio.stream._
 
 {
   for {
@@ -214,6 +226,8 @@ This is the same as the previous example; it is like we have the following strea
 To run a generator, we can call the `runCollect` operation:
 
 ```scala
+import zio._
+import zio.test._
 
 val ints: ZIO[Any, Nothing, List[Int]] = Gen.int.runCollect.debug
 // Output: List(-2090696713)

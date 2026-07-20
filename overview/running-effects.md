@@ -13,6 +13,8 @@ If you construct a single effect for your whole program, the most natural way to
 This class provides Scala with a JVM-compatible main function, so it can be called from IDEs and launched from the command-line. All you have to do is implement the `run` method by returning the effect to run.
 
 ```scala
+import zio._
+import zio.Console._
 
 object MyApp extends ZIOAppDefault {
 

@@ -31,6 +31,7 @@ object Schema {
 For example, assume we have a wrapper class `Age` that wraps an `Int` value, and it has some validation logic, e.g. the age must be between 0 and 120. We can define a `Schema[Age]` by using the `Schema.transform` method:
 
 ```scala
+import zio.schema._
 
 case class Age(i: Int)
 

@@ -24,6 +24,7 @@ ZIO[-R, +E, +A] {
 In the following example, we are going to implement `parseInt` by importing `String#toInt` code from the standard scala library using `ZIO#attempt` and then refining the error channel from `Throwable` to the `NumberFormatException` error type:
 
 ```scala
+import zio._
 
 def parseInt(input: String): ZIO[Any, NumberFormatException, Int] =
   ZIO.attempt(input.toInt)                 // ZIO[Any, Throwable, Int]
@@ -45,6 +46,7 @@ trait ZIO[-R, +E, +A] {
 In the following example, we excluded the `Baz` exception from recoverable errors, so it will be converted to a defect. In another word, we narrowed `DomainError` down to just `Foo` and `Bar` errors:
 
 ```scala
+import zio._
 
 sealed abstract class DomainError(msg: String)
   extends Exception(msg)
@@ -81,6 +83,7 @@ trait ZIO[-R, +E, +A] {
 In the following example, we excluded the `BazError` from recoverable errors, so it will be converted to a defect. In another word, we narrowed the whole space of `String` errors down to just "FooError" and "BarError":
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def effect(i: String): ZIO[Any, String, Nothing] = {
@@ -113,6 +116,7 @@ trait ZIO[-R, +E, +A] {
 In the following example, we are going to implement `parseInt` by importing `String#toInt` code from the standard scala library using `ZIO#succeed` and then unrefining the error channel from `Nothing` to the `NumberFormatException` error type:
 
 ```scala
+import zio._
 
 def parseInt(input: String): ZIO[Any, NumberFormatException, Int] =
   ZIO.succeed(input.toInt)              // ZIO[Any, Nothing, Int]
@@ -130,6 +134,7 @@ trait ZIO[-R, +E, +A] {
 ```
 
 ```scala
+import zio._
 
 case class Foo(msg: String) extends Throwable(msg)
 case class Bar(msg: String) extends Throwable(msg)
@@ -176,6 +181,7 @@ trait ZIO[-R, +E, +A] {
 ```
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   case class Foo(msg: String) extends Exception(msg)

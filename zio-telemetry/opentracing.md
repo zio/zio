@@ -20,9 +20,14 @@ To use ZIO Telemetry, you will need an `OpenTracing` service in your
 environment. You also need to provide a `tracer` (for this example we use `JaegerTracer.live` from `opentracing-example` module) implementation:
 
 ```scala
+import zio.telemetry.opentracing.OpenTracing
+import zio.telemetry.opentracing.example.JaegerTracer
+import zio._
+import io.opentracing.tag.Tags
 
 val app =
   ZIO.serviceWithZIO[OpenTracing] { tracing =>
+    import tracing.aspects._
 
     (for {
       _       <- tracing.tag(Tags.SPAN_KIND.getKey, Tags.SPAN_KIND_CLIENT)
@@ -40,7 +45,8 @@ managing baggage.
 
 ```scala
 ZIO.serviceWithZIO[OpenTracing] { tracing =>
-
+  import tracing.aspects._
+  
   // start a new root span and set some baggage item
   val zio1 = tracing.setBaggage("foo", "bar") @@ root("root span")
 
@@ -65,7 +71,8 @@ are not referentially transparent.
 
 ```scala
 ZIO.serviceWithZIO[OpenTracing] { tracing =>
-
+  import tracing.aspects._
+  
   val buffer = new TextMapAdapter(mutable.Map.empty.asJava)
   for {
     _ <- tracing.inject(Format.Builtin.TEXT_MAP, buffer)

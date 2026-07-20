@@ -39,6 +39,7 @@ The variance and data flow can be visualised as:
 Without `Into`, developers write boilerplate conversion code that silently mismatches fields, misses validation, or accumulates errors inconsistently. `Into.derived` generates all of this automatically at compile time.
 
 ```scala
+import zio.blocks.schema.Into
 
 case class PersonV1(name: String, age: Int)
 case class PersonV2(name: String, age: Long, email: Option[String])
@@ -95,6 +96,7 @@ object Into {
 We summon the pre-existing `Into[Int, Long]` widening instance and call `Into#into` on it:
 
 ```scala
+import zio.blocks.schema.Into
 
 val intToLong: Into[Int, Long] = Into[Int, Long]
 ```
@@ -119,6 +121,7 @@ object Into {
 We derive the conversion between two case classes and observe the `count` field being widened from `Int` to `Long`:
 
 ```scala
+import zio.blocks.schema.Into
 
 case class Source(name: String, count: Int)
 case class Target(name: String, count: Long)
@@ -148,6 +151,7 @@ object Into {
 Any `Into[A, A]` resolves to this built-in — there is nothing to configure:
 
 ```scala
+import zio.blocks.schema.Into
 
 val same: Into[String, String] = Into[String, String]
 ```
@@ -164,6 +168,7 @@ same.into("hello")
 We can implement `Into` manually for any types that need custom conversion logic:
 
 ```scala
+import zio.blocks.schema.Into
 
 case class Celsius(value: Double)
 case class Fahrenheit(value: Double)
@@ -368,6 +373,7 @@ trait Into[-A, +B] {
 We derive an `Into[Raw, Narrow]` to show both the success path and the overflow path:
 
 ```scala
+import zio.blocks.schema.Into
 
 case class Raw(value: Long)
 case class Narrow(value: Int)
@@ -418,6 +424,7 @@ conv.into(Raw(Long.MaxValue))
 Fields are matched by name first; when names differ but types are unique across both types, unique-type matching kicks in:
 
 ```scala
+import zio.blocks.schema.Into
 
 case class Source(firstName: String, count: Int)
 case class Target(label: String, total: Long)
@@ -435,6 +442,7 @@ Into.derived[Source, Target].into(Source("events", 5))
 Tuples and case classes are interchangeable when their arities and element types match:
 
 ```scala
+import zio.blocks.schema.Into
 
 case class Point(x: Int, y: Int)
 ```
@@ -451,6 +459,7 @@ Into.derived[Point, (Int, Int)].into(Point(3, 4))
 Target fields missing from the source default to `None` for `Option` types and to their declared default value otherwise:
 
 ```scala
+import zio.blocks.schema.Into
 
 case class Source(name: String)
 case class Target(name: String, nickname: Option[String], score: Int = 0)
@@ -468,6 +477,7 @@ Into.derived[Source, Target].into(Source("Alice"))
 For nested case classes, the macro automatically picks up implicit `Into` instances for the nested types. Defining the inner conversion as an implicit is enough — the outer derivation uses it automatically:
 
 ```scala
+import zio.blocks.schema.Into
 
 case class AddressV1(street: String, zip: Int)
 case class AddressV2(street: String, zip: Long)
@@ -500,6 +510,7 @@ Cases are matched by name; for case classes, field types must be convertible. Ta
 For case class variants, fields are coerced just like in product derivation:
 
 ```scala
+import zio.blocks.schema.Into
 
 sealed trait ShapeV1
 object ShapeV1 {
@@ -526,6 +537,7 @@ conv.into(ShapeV1.Square(3))
 For `case object` variants (no fields), the macro matches by name alone. New cases may be added to the target without affecting derivation:
 
 ```scala
+import zio.blocks.schema.Into
 
 sealed trait StatusV1
 object StatusV1 {
@@ -576,6 +588,8 @@ object Age extends Subtype[Int] {
 The Scala 3 form is used in the mdoc examples below:
 
 ```scala
+import zio.blocks.schema.Into
+import zio.prelude._
 
 object Age extends Subtype[Int] {
   override def assertion: zio.prelude.Assertion[Int] =
@@ -625,6 +639,7 @@ validate.into(PersonRaw("Bob", 200))
 In Scala 3, `Into.derived` detects opaque types with companion `apply` or `unsafe` methods:
 
 ```scala
+import zio.blocks.schema._
 
 opaque type Email = String
 object Email {
@@ -675,6 +690,7 @@ On JVM, we use `scala.language.reflectiveCalls` and create the structural instan
 
 ```scala
 // JVM ONLY — structural types require reflection
+import scala.language.reflectiveCalls
 
 def makePerson(n: String, a: Int): { def name: String; def age: Int } = new {
   def name: String = n
@@ -700,6 +716,7 @@ All `Into` conversions return `Either[SchemaError, B]`. `SchemaError` carries:
 - Accumulated errors from multiple failing fields
 
 ```scala
+import zio.blocks.schema.Into
 
 case class Source(a: Long, b: Long, c: Long)
 case class Target(a: Int,  b: Int,  c: Int)
@@ -725,6 +742,7 @@ result match {
 When multiple fields fail, all errors are collected and reported together. The field `c` above succeeds (42 fits in `Int`), so only errors for `a` and `b` appear.
 
 ```scala
+import zio.blocks.schema.Into
 
 case class UserRaw(id: Long, email: String, age: Long)
 
@@ -767,6 +785,7 @@ res match {
 The simplest way to convert to DynamicValue and view as JSON:
 
 ```scala
+import zio.blocks.schema.*
 
 case class Person(name: String, age: Int)
 
@@ -796,6 +815,7 @@ The `toJsonString` method on `DynamicValue` provides a human-readable JSON repre
 Given a `DynamicValue` with a matching structure, convert it back to a strongly-typed value:
 
 ```scala
+import zio.blocks.schema.{Into, DynamicValue}
 
 case class Person(name: String, age: Int)
 
@@ -817,6 +837,7 @@ result
 Conversion fails gracefully if the structure doesn't match:
 
 ```scala
+import zio.blocks.schema.{Into, DynamicValue, PrimitiveValue}
 
 case class Person(name: String, age: Int)
 
@@ -844,6 +865,7 @@ result
 Conversions work seamlessly through collections. Here's a complete round-trip:
 
 ```scala
+import zio.blocks.schema.{Into, DynamicValue}
 
 case class Item(id: Int, name: String)
 
@@ -871,6 +893,7 @@ backToList
 Similarly for maps:
 
 ```scala
+import zio.blocks.schema.{Into, DynamicValue}
 
 val mapToDynamic = Into.derived[Map[String, Int], DynamicValue]
 val mapFromDynamic = Into.derived[DynamicValue, Map[String, Int]]
@@ -899,6 +922,7 @@ Following a few conventions avoids common pitfalls when working with `Into` and 
 **Prefer `As` when round-trip correctness is required.** For data sync or bidirectional serialization, use `As`. For one-way migrations or API responses, use `Into`:
 
 ```scala
+import zio.blocks.schema.{Into, As}
 
 case class LocalModel(id: Long, name: String)
 case class RemoteModel(id: Long, name: String)
@@ -913,6 +937,7 @@ val migrate: Into[OldFormat, NewFormat]  = Into.derived  // one-way
 **Use `Option` for truly optional fields, not default values.** Default values prevent `As.derived` when the field is absent from the other type; `Option` always works:
 
 ```scala
+import zio.blocks.schema.{Into, As}
 
 // Good — Option works with both Into and As
 case class V2Good(name: String, email: Option[String])
@@ -924,6 +949,7 @@ case class V2Risky(name: String, email: String = "")
 **Provide explicit implicits for complex nested types.** When nested types need custom validation logic, define the inner `Into` as an implicit before deriving the outer one:
 
 ```scala
+import zio.blocks.schema.Into
 
 case class AddressV1(street: String, zip: Int)
 case class AddressV2(street: String, zip: Long, country: String = "US")
@@ -943,6 +969,7 @@ val personMigrate: Into[PersonV1, PersonV2] =
 The real power of `Into` emerges in multi-version schema evolution scenarios where types gain new fields, change numeric precision, and introduce new coproduct cases simultaneously. The following example migrates a two-level object graph from V1 to V2:
 
 ```scala
+import zio.blocks.schema.Into
 
 object V1 {
   case class Address(street: String, city: String)

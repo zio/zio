@@ -16,6 +16,7 @@ There are two categories of methods on the ZIO data type:
 If you have an effect that succeeds with some value, you can use `ZIO#map` to obtain a new effect, which will transform the value using the function you provide.
 
 ```scala
+import zio._
 
 val succeeded: ZIO[Any, Nothing, Int] = ZIO.succeed(21).map(_ * 2)
 ```

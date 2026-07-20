@@ -16,8 +16,14 @@ This example implements some git commands. The workflow is the one used before:
 - Transform command using `map` to change the type parameter
 - Construct CLI app using `CliApp.make`
 ```scala
+import zio.Console.printLine
+import zio.cli.HelpDoc.Span.text
+import zio.cli._
+
+import java.nio.file.{Path => JPath}
 
 object GitExample extends ZIOCliDefault {
+  import java.nio.file.Path
 
   sealed trait Subcommand extends Product with Serializable
   object Subcommand {

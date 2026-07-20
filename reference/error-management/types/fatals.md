@@ -7,6 +7,7 @@ In ZIO on the JVM platform, the `VirtualMachineError` and all its subtypes are t
 Here is an example of manually creating a fatal error. Although we are ignoring all expected and unexpected errors, the fatal error interrupts the whole application:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run =

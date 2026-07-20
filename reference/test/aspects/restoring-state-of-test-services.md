@@ -18,6 +18,9 @@ Let's try an example. Assume we have written the following test aspect, which re
 When we run a test with this testing aspect, on each try, we have a polluted test environment:
 
 ```scala
+import zio._
+import zio.test.{ test, _ }
+import java.util.concurrent.TimeUnit
 
 suite("clock suite")(
   test("adjusting clock") {
@@ -46,6 +49,9 @@ current time: 2
 It failed because of the first run of the test changed the state of the `TestClock` service, so on the next run, the initial state of the test is not zero. In such a situation, when we are repeating a test, after each run we can restore the state of the test to its initial state, using `TestAspect.restore*` test aspects:
 
 ```scala
+import zio._
+import zio.test.{ test, _ }
+import java.util.concurrent.TimeUnit
 
 suite("clock suite")(
   test("adjusting clock") {

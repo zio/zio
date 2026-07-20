@@ -38,6 +38,8 @@ To enable this feature, we have included `sbt-revolver` in the project. For more
 Before going to apply the metrics in our application, let's try a simple example:
 
 ```scala
+import zio._
+import zio.metrics.Metric
 
 object MainApp extends ZIOAppDefault {
   private val count = Metric.counterInt("fib_call_total").fromConst(1)
@@ -69,6 +71,9 @@ This is a pedagogical example of how to use metrics. In real life, we will proba
 ZIO HTTP has built-in support for metrics. We can attach metrics middleware to our HTTP application using the `@@` syntax:
 
 ```scala
+import zio._
+import zio.http._
+import zio.schema.codec.JsonCodec.schemaBasedBinaryCodec
 
 object UserRoutes {
 
@@ -112,6 +117,9 @@ This module provides various connectors for metrics backend, e.g. Prometheus.
 The following snippet shows how to provide an HTTP endpoint that exposes the metrics as a REST API for Prometheus:
 
 ```scala
+import zio.http._
+import zio._
+import zio.metrics.connectors.prometheus.PrometheusPublisher
 
 object PrometheusPublisherRoutes {
   def apply(): Routes[PrometheusPublisher, Nothing] = {
@@ -128,6 +136,9 @@ object PrometheusPublisherRoutes {
 Next, we need to add the `PrometheusPublisherRoutes` HTTP App to our application:
 
 ```scala
+import zio._
+import zio.http._
+import zio.metrics.connectors.{MetricsConfig, prometheus}
 
 object MainApp extends ZIOAppDefault {
   private val metricsConfig = ZLayer.succeed(MetricsConfig(1.seconds))

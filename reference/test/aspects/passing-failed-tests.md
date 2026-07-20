@@ -5,6 +5,8 @@
 The `failing` aspect makes a test that failed for any reason pass.
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 test("passing a failing test") {
   assertTrue(false)
@@ -14,6 +16,8 @@ test("passing a failing test") {
 If the test passes this aspect will make it fail:
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 test("failing a passing test") {
   assertTrue(true)
@@ -23,6 +27,8 @@ test("failing a passing test") {
 It is also possible to pass a failing test on a specified failure:
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 test("a test that will only pass on a specified failure") {
   ZIO.fail("Boom!").map(_ => assertTrue(true))

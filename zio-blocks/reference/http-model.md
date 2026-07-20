@@ -79,6 +79,7 @@ Supported Scala versions: 2.13.x and 3.x
 Creating a request with query parameters:
 
 ```scala
+import zio.http._
 
 val url = URL.parse("https://api.example.com/users?active=true").toOption.get
 val request = Request.get(url)
@@ -89,6 +90,7 @@ val withHeader = request.addHeader("authorization", "Bearer token123")
 Creating a JSON response:
 
 ```scala
+import zio.http._
 
 val jsonBody = Body.fromString("""{"message":"ok"}""", Charset.UTF8)
 val response = Response(
@@ -109,6 +111,7 @@ sealed abstract class Method(val name: String, val ordinal: Int)
 ### Predefined Methods
 
 ```scala
+import zio.http.Method
 
 val get     = Method.GET
 val post    = Method.POST
@@ -124,6 +127,7 @@ val connect = Method.CONNECT
 ### Parsing
 
 ```scala
+import zio.http.Method
 
 Method.fromString("GET")    // Some(Method.GET)
 Method.fromString("POST")   // Some(Method.POST)
@@ -133,6 +137,7 @@ Method.fromString("CUSTOM") // None (unknown method)
 ### Rendering
 
 ```scala
+import zio.http.Method
 
 Method.render(Method.GET)  // "GET"
 Method.GET.name            // "GET"
@@ -152,6 +157,7 @@ opaque type Status = Int  // Scala 3
 Status codes are organized by category:
 
 ```scala
+import zio.http.Status
 
 // 1xx Informational
 Status.Continue           // 100
@@ -183,6 +189,7 @@ Status.ServiceUnavailable  // 503
 ### Creating Status Codes
 
 ```scala
+import zio.http.Status
 
 val custom = Status(418)          // I'm a teapot
 val ok     = Status.fromInt(200)  // Status.Ok
@@ -191,6 +198,7 @@ val ok     = Status.fromInt(200)  // Status.Ok
 ### Status Code Operations
 
 ```scala
+import zio.http.Status
 
 val status = Status.Ok
 
@@ -215,6 +223,7 @@ sealed abstract class Version(val major: Int, val minor: Int)
 ### Predefined Versions
 
 ```scala
+import zio.http.Version
 
 val v10 = Version.`HTTP/1.0`
 val v11 = Version.`HTTP/1.1`
@@ -225,6 +234,7 @@ val v30 = Version.`HTTP/3.0`
 ### Parsing and Rendering
 
 ```scala
+import zio.http.Version
 
 Version.fromString("HTTP/1.1") // Some(Version.`HTTP/1.1`)
 Version.fromString("HTTP/2")   // Some(Version.`HTTP/2.0`)
@@ -250,6 +260,7 @@ sealed trait Scheme {
 ### Predefined Schemes
 
 ```scala
+import zio.http.Scheme
 
 val http  = Scheme.HTTP   // http://, port 80
 val https = Scheme.HTTPS  // https://, port 443
@@ -260,6 +271,7 @@ val wss   = Scheme.WSS    // wss://, port 443
 ### Scheme Properties
 
 ```scala
+import zio.http.Scheme
 
 Scheme.HTTPS.isSecure      // true
 Scheme.WS.isWebSocket      // true
@@ -269,6 +281,7 @@ Scheme.HTTP.defaultPort    // Some(80)
 ### Custom Schemes
 
 ```scala
+import zio.http.Scheme
 
 val custom = Scheme.Custom("git+ssh")
 custom.text         // "git+ssh"
@@ -278,6 +291,7 @@ custom.defaultPort  // None
 ### Parsing
 
 ```scala
+import zio.http.Scheme
 
 Scheme.fromString("https")    // Scheme.HTTPS
 Scheme.fromString("wss")      // Scheme.WSS
@@ -295,6 +309,7 @@ sealed abstract class Charset(val name: String)
 ### Predefined Charsets
 
 ```scala
+import zio.http.Charset
 
 val utf8      = Charset.UTF8       // "UTF-8"
 val ascii     = Charset.ASCII      // "US-ASCII"
@@ -307,6 +322,7 @@ val utf16le   = Charset.UTF16LE    // "UTF-16LE"
 ### Parsing
 
 ```scala
+import zio.http.Charset
 
 Charset.fromString("UTF-8")      // Some(Charset.UTF8)
 Charset.fromString("utf8")       // Some(Charset.UTF8) (case-insensitive)
@@ -319,6 +335,7 @@ Charset.fromString("LATIN1")     // Some(Charset.ISO_8859_1) (alias)
 `Boundary` represents multipart form-data boundaries:
 
 ```scala
+import zio.http.Boundary
 
 val boundary = Boundary("----WebKitFormBoundary7MA4YWxkTrZu0gW")
 boundary.value    // "----WebKitFormBoundary7MA4YWxkTrZu0gW"
@@ -328,6 +345,7 @@ boundary.toString // "----WebKitFormBoundary7MA4YWxkTrZu0gW"
 ### Generating Boundaries
 
 ```scala
+import zio.http.Boundary
 
 val generated = Boundary.generate  // random 24-character alphanumeric string
 ```
@@ -337,6 +355,8 @@ val generated = Boundary.generate  // random 24-character alphanumeric string
 `PercentEncoder` provides RFC 3986 percent-encoding for URL components. Each URL component has different encoding rules:
 
 ```scala
+import zio.http.PercentEncoder
+import zio.http.PercentEncoder.ComponentType
 
 val segment = PercentEncoder.encode("hello world", ComponentType.PathSegment)
 // "hello%20world"
@@ -365,6 +385,8 @@ Each type has specific rules for which characters must be percent-encoded.
 `ContentType` combines a media type with optional charset and boundary parameters:
 
 ```scala
+import zio.http.{ContentType, Charset, Boundary}
+import zio.blocks.mediatype.MediaTypes
 
 val json = ContentType(MediaTypes.application.`json`)
 
@@ -382,6 +404,7 @@ val multipart = ContentType(
 ### Parsing
 
 ```scala
+import zio.http.ContentType
 
 ContentType.parse("application/json")
 // Right(ContentType(MediaType("application", "json")))
@@ -399,6 +422,8 @@ ContentType.parse("")
 ### Rendering
 
 ```scala
+import zio.http.{ContentType, Charset}
+import zio.blocks.mediatype.MediaTypes
 
 val ct = ContentType(
   MediaTypes.text.`plain`,
@@ -411,6 +436,7 @@ ct.render  // "text/plain; charset=UTF-8"
 ### Predefined Content Types
 
 ```scala
+import zio.http.ContentType
 
 val json   = ContentType.`application/json`
 val plain  = ContentType.`text/plain`
@@ -435,6 +461,7 @@ Paths use a **single encoding contract**: decode on input, store decoded, encode
 ### Creating Paths
 
 ```scala
+import zio.http.Path
 
 val empty = Path.empty                    // ""
 val root  = Path.root                     // "/"
@@ -447,6 +474,7 @@ val api   = Path("api/v1/users/")         // segments: ["api", "v1", "users"], t
 `Path.fromEncoded` decodes percent-encoded segments:
 
 ```scala
+import zio.http.Path
 
 val path = Path.fromEncoded("/hello%20world/foo%2Fbar")
 // Path(Chunk("hello world", "foo/bar"), hasLeadingSlash = true, trailingSlash = false)
@@ -458,6 +486,7 @@ path.segments(1)  // "foo/bar" (decoded)
 ### Building Paths
 
 ```scala
+import zio.http.Path
 
 val base = Path("/api")
 val extended = base / "users" / "123"  // "/api/users/123"
@@ -468,6 +497,8 @@ val combined = Path("/api") ++ Path("v1/users")  // "/api/v1/users"
 ### Encoding Paths
 
 ```scala
+import zio.http.Path
+import zio.blocks.chunk.Chunk
 
 val path = Path(Chunk("hello world", "foo/bar"), hasLeadingSlash = true, trailingSlash = false)
 
@@ -478,6 +509,7 @@ path.render  // "/hello world/foo/bar" (decoded for display)
 ### Path Properties
 
 ```scala
+import zio.http.Path
 
 val path = Path("/api/v1/users/")
 
@@ -491,6 +523,7 @@ path.trailingSlash     // true
 ### Path Navigation
 
 ```scala
+import zio.http.Path
 
 val path = Path("/api/v1/users")
 
@@ -533,6 +566,7 @@ Like `Path`, query parameters store decoded values internally and encode only on
 ### Creating QueryParams
 
 ```scala
+import zio.http.QueryParams
 
 val empty = QueryParams.empty
 
@@ -546,6 +580,7 @@ val params = QueryParams(
 ### Parsing Encoded Query Strings
 
 ```scala
+import zio.http.QueryParams
 
 val params = QueryParams.fromEncoded("name=Alice%20Smith&age=30&active=true")
 
@@ -557,6 +592,7 @@ params.getFirst("active")  // Some("true")
 ### Accessing Values
 
 ```scala
+import zio.http.QueryParams
 
 val params = QueryParams(
   "color" -> "red",
@@ -574,6 +610,7 @@ params.has("color")       // true
 ### Modifying QueryParams
 
 ```scala
+import zio.http.QueryParams
 
 val params = QueryParams("a" -> "1", "b" -> "2")
 
@@ -585,6 +622,7 @@ val removed = params.remove("b")         // removes all "b" entries
 ### Encoding
 
 ```scala
+import zio.http.QueryParams
 
 val params = QueryParams(
   "name" -> "Alice Smith",
@@ -597,6 +635,7 @@ params.encode  // "name=Alice%20Smith&filter%5Bstatus%5D=active"
 ### Converting to List
 
 ```scala
+import zio.http.QueryParams
 
 val params = QueryParams("a" -> "1", "a" -> "2", "b" -> "3")
 params.toList  // List(("a", "1"), ("a", "2"), ("b", "3"))
@@ -620,6 +659,7 @@ final case class URL(
 ### Parsing URLs
 
 ```scala
+import zio.http.URL
 
 val absolute = URL.parse("https://api.example.com:8080/users?active=true#results")
 // Right(URL(
@@ -652,6 +692,7 @@ The parser handles:
 ### Building URLs
 
 ```scala
+import zio.http.{URL, Path, Scheme}
 
 val base = URL.root  // http://localhost/
 
@@ -664,6 +705,7 @@ val withQuery = extended ?? ("active", "true") ?? ("page", "1")
 ### URL from Path
 
 ```scala
+import zio.http.{URL, Path}
 
 val path = Path("/api/users")
 val url = URL.fromPath(path)  // relative URL with just path
@@ -672,6 +714,7 @@ val url = URL.fromPath(path)  // relative URL with just path
 ### Encoding URLs
 
 ```scala
+import zio.http.URL
 
 val url = URL.parse("https://example.com/hello world?name=Alice Smith").toOption.get
 
@@ -682,6 +725,7 @@ url.toString  // same as encode
 ### URL Properties
 
 ```scala
+import zio.http.URL
 
 val absolute = URL.parse("https://example.com/").toOption.get
 val relative = URL.parse("/api/users").toOption.get
@@ -693,6 +737,7 @@ relative.isRelative  // true (no scheme)
 ### URL Transformation
 
 ```scala
+import zio.http.{URL, Path, Scheme, QueryParams}
 
 val url = URL.parse("https://api.example.com:8080/users?page=1").toOption.get
 
@@ -736,6 +781,8 @@ Each header type has a companion object implementing `Header.Typed[H]` for parsi
 ### Predefined Header Types
 
 ```scala
+import zio.http.{Header => _, *}
+import zio.http.headers
 
 val contentType   = headers.ContentType
 val accept        = headers.Accept
@@ -752,6 +799,9 @@ val cookie        = headers.CookieHeader
 ### Creating Typed Headers
 
 ```scala
+import zio.http.{Header => _, ContentType, Charset, *}
+import zio.http.headers
+import zio.blocks.mediatype.MediaTypes
 
 val ct = headers.ContentType(
   ContentType(MediaTypes.application.`json`, charset = Some(Charset.UTF8))
@@ -765,6 +815,8 @@ val host = headers.Host("api.example.com", Some(8080))
 ### Parsing Headers
 
 ```scala
+import zio.http.{Header => _, *}
+import zio.http.headers
 
 headers.ContentType.parse("application/json; charset=utf-8")
 // Right(headers.ContentType(...))
@@ -782,6 +834,7 @@ headers.ContentLength.parse("-1")
 ### Custom Headers
 
 ```scala
+import zio.http.Header
 
 val custom = Header.Custom("x-request-id", "abc-123")
 custom.headerName     // "x-request-id"
@@ -806,6 +859,7 @@ When you call `get[H]`, the header is parsed once and cached. Subsequent calls r
 ### Creating Headers
 
 ```scala
+import zio.http.Headers
 
 val empty = Headers.empty
 
@@ -819,6 +873,8 @@ val headers = Headers(
 ### Getting Typed Headers
 
 ```scala
+import zio.http.{Headers, *}
+import zio.http.{headers => h}
 
 val headers = Headers(
   "content-type" -> "application/json",
@@ -838,6 +894,7 @@ val auth = headers.get(h.Authorization)
 ### Getting Raw Values
 
 ```scala
+import zio.http.Headers
 
 val headers = Headers("x-custom" -> "value")
 
@@ -850,6 +907,8 @@ headers.rawGet("missing")   // None
 Some headers can appear multiple times (like `Set-Cookie`):
 
 ```scala
+import zio.http.{Headers, *}
+import zio.http.{headers => h}
 
 val headers = Headers(
   "set-cookie" -> "session=abc",
@@ -863,6 +922,7 @@ val cookies = headers.getAll(h.SetCookieHeader)
 ### Modifying Headers
 
 ```scala
+import zio.http.Headers
 
 val headers = Headers("a" -> "1", "b" -> "2")
 
@@ -875,6 +935,7 @@ val has = headers.has("a")               // true
 ### Converting to List
 
 ```scala
+import zio.http.Headers
 
 val headers = Headers("a" -> "1", "b" -> "2")
 headers.toList  // List(("a", "1"), ("b", "2"))
@@ -883,6 +944,7 @@ headers.toList  // List(("a", "1"), ("b", "2"))
 ### Combining Headers
 
 ```scala
+import zio.http.Headers
 
 val auth = Headers("authorization" -> "Bearer token")
 val cors = Headers("access-control-allow-origin" -> "*")
@@ -909,6 +971,7 @@ final class Body private (
 `Body.empty` provides an empty body with default `application/octet-stream` content type:
 
 ```scala
+import zio.http.Body
 
 val empty = Body.empty
 // Body(data = Chunk.empty, contentType = application/octet-stream)
@@ -917,6 +980,7 @@ val empty = Body.empty
 `Body.fromString` creates a body with `text/plain` content type:
 
 ```scala
+import zio.http.{Body, Charset}
 
 val fromString = Body.fromString("Hello, World!", Charset.UTF8)
 // Content-Type: text/plain; charset=UTF-8
@@ -925,6 +989,7 @@ val fromString = Body.fromString("Hello, World!", Charset.UTF8)
 `Body.fromArray` creates a body with default `application/octet-stream` content type:
 
 ```scala
+import zio.http.Body
 
 val fromBytes = Body.fromArray(Array[Byte](1, 2, 3))
 // Content-Type: application/octet-stream
@@ -933,6 +998,9 @@ val fromBytes = Body.fromArray(Array[Byte](1, 2, 3))
 `Body.fromChunk` creates a body from a `Chunk[Byte]` with optional content type:
 
 ```scala
+import zio.http.{Body, ContentType}
+import zio.blocks.chunk.Chunk
+import zio.blocks.mediatype.MediaTypes
 
 val chunk = Chunk[Byte](1, 2, 3, 4, 5)
 val body = Body.fromChunk(chunk)
@@ -947,6 +1015,7 @@ val jsonBody = Body.fromChunk(chunk, ContentType(MediaTypes.application.`json`))
 `Body` provides direct access to data and content type:
 
 ```scala
+import zio.http.{Body, Charset}
 
 val body = Body.fromString("Hello!", Charset.UTF8)
 
@@ -981,6 +1050,7 @@ final case class ResponseCookie(
 ### SameSite
 
 ```scala
+import zio.http.SameSite
 
 val strict = SameSite.Strict
 val lax    = SameSite.Lax
@@ -990,6 +1060,7 @@ val none   = SameSite.None_  // underscore avoids conflict with scala.None
 ### Parsing Request Cookies
 
 ```scala
+import zio.http.Cookie
 
 val cookies = Cookie.parseRequest("session=abc123; preference=dark")
 // Chunk(RequestCookie("session", "abc123"), RequestCookie("preference", "dark"))
@@ -998,6 +1069,7 @@ val cookies = Cookie.parseRequest("session=abc123; preference=dark")
 ### Parsing Response Cookies
 
 ```scala
+import zio.http.Cookie
 
 val cookie = Cookie.parseResponse("session=abc; Domain=example.com; Path=/; Secure; HttpOnly; SameSite=Strict")
 // Right(ResponseCookie(
@@ -1014,6 +1086,8 @@ val cookie = Cookie.parseResponse("session=abc; Domain=example.com; Path=/; Secu
 ### Rendering Cookies
 
 ```scala
+import zio.http.{Cookie, RequestCookie, ResponseCookie, SameSite, Path}
+import zio.blocks.chunk.Chunk
 
 val requestCookies = Chunk(
   RequestCookie("session", "abc"),
@@ -1047,6 +1121,7 @@ final case class Form(entries: Chunk[(String, String)])
 ### Creating Forms
 
 ```scala
+import zio.http.Form
 
 val empty = Form.empty
 
@@ -1060,6 +1135,7 @@ val form = Form(
 ### Accessing Form Data
 
 ```scala
+import zio.http.Form
 
 val form = Form(
   "tag" -> "scala",
@@ -1076,6 +1152,7 @@ form.get("missing")  // None
 ### Modifying Forms
 
 ```scala
+import zio.http.Form
 
 val form = Form("a" -> "1")
 val added = form.add("b", "2")  // Form(("a", "1"), ("b", "2"))
@@ -1084,6 +1161,7 @@ val added = form.add("b", "2")  // Form(("a", "1"), ("b", "2"))
 ### Encoding and Parsing
 
 ```scala
+import zio.http.Form
 
 val form = Form(
   "name" -> "Alice Smith",
@@ -1102,6 +1180,9 @@ val parsed = Form.fromString(encoded)
 `FormField` is a sealed trait for multipart form fields, supporting simple key-value pairs, text parts with optional metadata, and binary parts:
 
 ```scala
+import zio.http._
+import zio.blocks.chunk.Chunk
+import zio.blocks.mediatype.MediaTypes
 
 // Simple key-value field
 val simple = FormField.Simple("username", "alice")
@@ -1145,6 +1226,7 @@ final case class Request(
 ### Creating Requests
 
 ```scala
+import zio.http._
 
 val url = URL.parse("https://api.example.com/users").toOption.get
 val getRequest = Request.get(url)
@@ -1156,6 +1238,7 @@ val postRequest = Request.post(url, jsonBody)
 ### Request Factory Methods
 
 ```scala
+import zio.http._
 
 val url = URL.parse("https://api.example.com/resource/1").toOption.get
 val body = Body.fromString("""{"name":"updated"}""")
@@ -1174,6 +1257,7 @@ Request.options(url)          // OPTIONS with empty body
 All modification methods return a new `Request`—the original is unchanged:
 
 ```scala
+import zio.http._
 
 val request = Request.get(URL.parse("https://api.example.com/users").toOption.get)
 
@@ -1196,6 +1280,7 @@ request.updateUrl(_ / "123")   // appends path segment
 Full control:
 
 ```scala
+import zio.http._
 
 val url = URL.parse("https://api.example.com/users").toOption.get
 val body = Body.fromString("""{"name":"Alice"}""", Charset.UTF8)
@@ -1215,6 +1300,8 @@ val request = Request(
 ### Accessing Request Data
 
 ```scala
+import zio.http._
+import zio.http.{headers => h}
 
 val request = Request.get(URL.parse("/api/users?page=1").toOption.get)
 
@@ -1240,6 +1327,7 @@ final case class Response(
 ### Creating Responses
 
 ```scala
+import zio.http._
 
 val ok = Response.ok  // 200 OK, empty body
 
@@ -1249,6 +1337,7 @@ val notFound = Response.notFound  // 404 Not Found, empty body
 ### Response Factory Methods
 
 ```scala
+import zio.http._
 
 // Status-only responses
 Response.ok                    // 200
@@ -1273,6 +1362,7 @@ Note that `Response.json` creates bodies with `application/json` content-type on
 ### Modifying Responses
 
 ```scala
+import zio.http._
 
 val response = Response.ok
 
@@ -1295,6 +1385,7 @@ response.addCookie(ResponseCookie("session", "abc123"))
 Full control:
 
 ```scala
+import zio.http._
 
 val jsonBody = Body.fromString("""{"message":"created"}""", Charset.UTF8)
 
@@ -1312,6 +1403,8 @@ val response = Response(
 ### Accessing Response Data
 
 ```scala
+import zio.http._
+import zio.http.{headers => h}
 
 val response = Response.ok
 
@@ -1327,6 +1420,7 @@ response.header(h.Location)          // Option[h.Location]
 ### Building a Complete HTTP Exchange
 
 ```scala
+import zio.http._
 
 // Build request
 val url = URL.parse("https://api.example.com/users").toOption.get
@@ -1361,6 +1455,7 @@ val response = Response(
 ### URL Building with Fluent API
 
 ```scala
+import zio.http._
 
 val url = URL.parse("https://api.example.com").toOption.get
 
@@ -1373,6 +1468,8 @@ extended.encode
 ### Typed Header Access
 
 ```scala
+import zio.http._
+import zio.http.{headers => h}
 
 val headers = Headers(
   "content-type" -> "application/json; charset=utf-8",
@@ -1394,6 +1491,8 @@ headers.rawGet("authorization")  // Some("Bearer token")
 ### Cookie Management
 
 ```scala
+import zio.http._
+import zio.blocks.chunk.Chunk
 
 // Parse cookies from request header
 val cookieHeader = "session=abc; theme=dark"
@@ -1422,6 +1521,7 @@ val response = Response(
 ### Form Submission
 
 ```scala
+import zio.http._
 
 val form = Form(
   "username" -> "alice",
@@ -1494,7 +1594,8 @@ libraryDependencies += "dev.zio" %%% "zio-blocks-http-model-schema" % "<version>
 Import the schema module to enable extension methods:
 
 ```scala
-
+import zio.http.schema._
+import zio.blocks.schema.Schema
 ```
 
 ### Query Parameter Extraction
@@ -1502,6 +1603,9 @@ Import the schema module to enable extension methods:
 `QueryParams` gains schema-based extraction methods via implicit conversions:
 
 ```scala
+import zio.http.{QueryParams, URL}
+import zio.http.schema._
+import zio.blocks.schema.Schema
 
 val url = URL.parse("/api/users?page=2&tag=scala&tag=fp").toOption.get
 val params = url.queryParams
@@ -1524,6 +1628,9 @@ params.queryOrElse[Int]("limit", 10)
 `Headers` gains schema-based extraction methods:
 
 ```scala
+import zio.http.{Headers, Request, URL}
+import zio.http.schema._
+import zio.blocks.schema.Schema
 
 val request = Request.get(URL.parse("/").toOption.get)
   .addHeader("x-page", "5")
@@ -1550,6 +1657,9 @@ headers.headerOrElse[Int]("x-limit", 100)
 `Request` and `Response` gain schema-based extraction methods that delegate to their query parameters and headers:
 
 ```scala
+import zio.http.{Request, Response, URL}
+import zio.http.schema._
+import zio.blocks.schema.Schema
 
 // Request query parameter extraction
 val request = Request.get(URL.parse("/search?q=zio&limit=20").toOption.get)
@@ -1572,6 +1682,9 @@ responseOps.header[String]("x-correlation-id")
 Schema-based extraction returns `Either[QueryParamError, A]` or `Either[HeaderError, A]` for explicit error handling:
 
 ```scala
+import zio.http.{QueryParams, URL}
+import zio.http.schema._
+import zio.blocks.schema.Schema
 
 val params = QueryParams("name" -> "Alice", "age" -> "invalid")
 

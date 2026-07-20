@@ -17,6 +17,7 @@ v2 using [key-value pairs](https://www.slf4j.org/manual.html#fluent), working wi
 Logger layer:
 
 ```scala
+import zio.logging.backend.SLF4J
 
 val logger = Runtime.removeDefaultLoggers >>> SLF4J.slf4j
 ```
@@ -52,6 +53,12 @@ You can find the source code [here](https://github.com/zio/zio-logging/tree/mast
 
 ```scala
 package zio.logging.example
+
+import zio.logging.LogAnnotation
+import zio.logging.backend.SLF4J
+import zio.{ ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, _ }
+
+import java.util.UUID
 
 object Slf4jSimpleApp extends ZIOAppDefault {
 

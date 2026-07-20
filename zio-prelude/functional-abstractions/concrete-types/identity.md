@@ -36,6 +36,8 @@ If we import `zio.prelude._` we can use the same `<>` operator as we did to comb
 Since the `identity` value is a single value and not an operator we access it slightly different. Typically we will use the `apply` method on the `Identity` companion object.
 
 ```scala
+import zio.prelude._
+import zio.prelude.newtypes._
 
 val zero: Int =
   Identity[Sum[Int]].identity
@@ -59,6 +61,8 @@ If the collection has exactly one element we can just return it. And if it has m
 But what do we do if the collection has no values? We can't do anything so we return an `Option` that is a `Some` with the minimum if there is at least one element and `None` otherwise.
 
 ```scala
+import zio.prelude._
+import zio.prelude.newtypes._
 
 def min[A: Ord](as: List[A]): Option[A] =
   Max.wrapAll(as) match {

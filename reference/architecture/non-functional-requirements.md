@@ -68,6 +68,7 @@ Latency is the time it takes for a request to be processed and a response to be 
 ZIO fibers are lightweight threads (green threads). They are very cheap to create and destroy. So we can potentially have thousands of fibers running in parallel on a single machine, which helps us to achieve high throughput:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def doWork(n: Int): ZIO[Any, Nothing, Unit] =  ??? 
@@ -82,6 +83,8 @@ object MainApp extends ZIOAppDefault {
 Other than low-level concurrency tools like `Fiber`, `Promise`, `Ref`, etc., ZIO Streams is a high-level abstraction for processing high-throughput data streams:
 
 ```scala
+import zio._
+import zio.stream._
 
 object MainApp extends ZIOAppDefault {
   def doWork(n: Int): ZIO[Any, Nothing, Unit] =  ??? 
@@ -115,6 +118,7 @@ To learn more about error management in ZIO, please refer to the [error manageme
 For resiliency, we can use ZIO's retry operator along with the retry policy to make our application resilient to failures. `Schedule` is a powerful composable data type that helps us to compose multiple policies together and make a complex retry policy:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   sealed trait DownloadError    extends Throwable
@@ -184,6 +188,8 @@ So in the above example, all running workflows will be simultaneously canceled o
 3. Another ZIO feature that helps us to have efficient workflows is its resource management. ZIO provides a great model for resource management with the help of the `Scope` data type. `Scope` is a contextual data type that whenever appears in the environment of an effect, denotes this effect will open one or more resources. Using `ZIO.scoped` we can ensure that all resources enclosed in this operator will be automatically released once the effect is completed or interrupted:
 
 ```scala
+import zio._
+import scala.io.BufferedSource
 
 def source(name: String): ZIO[Scope, Throwable, BufferedSource] =
   ZIO.acquireRelease(ZIO.attemptBlocking(scala.io.Source.fromFile(name)))(s => ZIO.succeedBlocking(s.close()))

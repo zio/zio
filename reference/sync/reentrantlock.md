@@ -90,6 +90,8 @@ A reentrant lock has two states: _locked_ or _unlocked_. When the reentrant lock
 In the following example, the main fiber acquires the lock, and then we try to acquire the lock from its child fiber. We will see that the child fiber will be blocked when it attempts to acquire the lock until the parent fiber releases it:
 
 ```scala
+import zio._
+import zio.concurrent._
 
 object MainApp extends ZIOAppDefault {
 
@@ -135,6 +137,8 @@ Parent fiber (`zio-fiber-2`) acquires the lock and then releases it after 10 sec
 In the previous example, we used the simplest use-case of a locking mechanism that doesn't involve reentrancy. To illustrate how reentrancy works, let's look at another example:
 
 ```scala
+import zio._
+import zio.concurrent._
 
 object MainApp extends ZIOAppDefault {
 
@@ -181,6 +185,8 @@ When two or more fibers wait forever for a lock held by another fiber, they have
 In this example, we are just trying to show a simple possible deadlock example:
 
 ```scala
+import zio._
+import zio.concurrent._
 
 object MainApp extends ZIOAppDefault {
   def workflow1(l1: ReentrantLock, l2: ReentrantLock) =

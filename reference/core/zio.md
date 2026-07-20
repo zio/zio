@@ -24,6 +24,8 @@ The `ZIO[R, E, A]` data type has three type parameters:
 In the following example, the `readLine` function does not require any services, it may fail with value of type `IOException`, or may succeed with a value of type `String`:
 
 ```scala
+import zio._
+import java.io.IOException
 
 val readLine: ZIO[Any, IOException, String] =
   Console.readLine
@@ -44,6 +46,7 @@ In this section we explore some of the common ways to create ZIO effects from va
 Using the `ZIO.succeed` method, we can create an effect that succeeds with the specified value:
 
 ```scala
+import zio._
 
 val s1 = ZIO.succeed(42)
 ```
@@ -53,6 +56,7 @@ val s1 = ZIO.succeed(42)
 Using the `ZIO.fail` method, we can create an effect that models failure:
 
 ```scala
+import zio._
 
 val f1 = ZIO.fail("Uh oh!")
 ```
@@ -62,6 +66,7 @@ For the `ZIO` data type, there is no restriction on the error type. We may use s
 Many applications will model failures with classes that extend `Throwable` or `Exception`:
 
 ```scala
+import zio._
 
 val f2 = ZIO.fail(new Exception("Uh oh!"))
 ```
@@ -75,6 +80,7 @@ ZIO contains several constructors which help us to convert various data types in
 1. **`ZIO.fromOption`**— An `Option` can be converted into a ZIO effect using `ZIO.fromOption`:
 
 ```scala
+import zio._
 
 val zoption: IO[Option[Nothing], Int] = ZIO.fromOption(Some(2))
 ```
@@ -82,6 +88,7 @@ val zoption: IO[Option[Nothing], Int] = ZIO.fromOption(Some(2))
 The error type of the resulting effect is `Option[Nothing]`, which provides no information on why the value is not there. We can change the `Option[Nothing]` into a more specific error type using `ZIO#mapError`:
 
 ```scala
+import zio._
 
 val zoption2: IO[String, Int] = zoption.mapError(_ => "It wasn't there!")
 ```
@@ -89,6 +96,7 @@ val zoption2: IO[String, Int] = zoption.mapError(_ => "It wasn't there!")
 We can also readily compose it with other operators while preserving the optional nature of the result (similar to an `OptionT`):
 
 ```scala
+import zio._
 
 val maybeId: IO[Option[Nothing], String] = ZIO.fromOption(Some("abc123"))
 def getUser(userId: String): IO[Throwable, Option[User]] = ???
@@ -104,6 +112,7 @@ val result: IO[Throwable, Option[(User, Team)]] = (for {
 2. **`ZIO.some`**/**`ZIO.none`**— These constructors can be used to directly create ZIO of optional values:
 
 ```scala
+import zio._
 
 val someInt: ZIO[Any, Nothing, Option[Int]]     = ZIO.some(3)
 val noneInt: ZIO[Any, Nothing, Option[Nothing]] = ZIO.none
@@ -116,6 +125,7 @@ val noneInt: ZIO[Any, Nothing, Option[Nothing]] = ZIO.none
 - `ZIO.getOrFailWith` fails with custom error type.
 
 ```scala
+import zio._
 
 def parseInt(input: String): Option[Int] = input.toIntOption
 
@@ -139,6 +149,7 @@ val r3: ZIO[Any, NumberFormatException, Int] =
 - `ZIO.noneOrFailWith` fails with custom error type.
 
 ```scala
+import zio._
 
 val optionalValue: Option[String] = ???
 
@@ -164,6 +175,7 @@ val r2: ZIO[Any, NumberFormatException, Unit] =
 An `Either` can be converted into a ZIO effect using `ZIO.fromEither`:
 
 ```scala
+import zio._
 
 val zeither = ZIO.fromEither(Right("Success!"))
 ```
@@ -179,6 +191,8 @@ The error type of the resulting effect will be whatever type the `Left` case has
 A `Try` value can be converted into a ZIO effect using `ZIO.fromTry`:
 
 ```scala
+import zio._
+import scala.util.Try
 
 val ztry = ZIO.fromTry(Try(42 / 0))
 ```
@@ -197,6 +211,8 @@ The error type of the resulting effect will always be `Throwable`, because `Try`
 A `Future` can be converted into a ZIO effect using `ZIO.fromFuture`:
 
 ```scala
+import zio._
+import scala.concurrent.Future
 
 lazy val future = Future.successful("Hello!")
 
@@ -219,6 +235,8 @@ The error type of the resulting effect will always be `Throwable`, because `Futu
 A `Promise` can be converted into a ZIO effect using `ZIO.fromPromiseScala`:
 
 ```scala
+import zio._
+import scala.util._
 
 val func: String => String = s => s.toUpperCase
 for {
@@ -244,6 +262,7 @@ for {
 A `Fiber` can be converted into a ZIO effect using `ZIO.fromFiber`:
 
 ```scala
+import zio._
 
 val io: IO[Nothing, String] = ZIO.fromFiber(Fiber.succeed("Hello from Fiber!"))
 ```
@@ -264,6 +283,8 @@ These functions can be used to wrap procedural code, allowing us to seamlessly u
 A synchronous side-effect can be converted into a ZIO effect using `ZIO.attempt`:
 
 ```scala
+import zio._
+import scala.io.StdIn
 
 val getLine: Task[String] =
   ZIO.attempt(StdIn.readLine())
@@ -274,6 +295,7 @@ The error type of the resulting effect will always be `Throwable`, because side-
 If a given side-effect is known to not throw any exceptions, then the side-effect can be converted into a ZIO effect using `ZIO.succeed`:
 
 ```scala
+import zio._
 
 def printLine(line: String): UIO[Unit] =
   ZIO.succeed(println(line))
@@ -287,6 +309,8 @@ We should be careful when using `ZIO.succeed`—when in doubt about whether or n
 If this is too broad, the `refineOrDie` method of `ZIO` may be used to retain only certain types of exceptions, and to die on any other types of exceptions:
 
 ```scala
+import zio._
+import java.io.IOException
 
 val printLine2: IO[IOException, String] =
   ZIO.attempt(scala.io.StdIn.readLine()).refineToOrDie[IOException]
@@ -319,6 +343,7 @@ val program = ZIO.foreachPar((1 to 100).toArray)(t => ZIO.blocking(blockingTask(
 A blocking side-effect can be converted directly into a ZIO effect using the `attemptBlocking` method:
 
 ```scala
+import zio._
 
 def blockingTask(n: Int) = ZIO.attemptBlocking {
   do {
@@ -335,6 +360,8 @@ Blocking side-effects can be interrupted by invoking `Thread.interrupt` using th
 Some blocking side-effects can only be interrupted by invoking a cancellation effect. We can convert these side-effects using the `attemptBlockingCancelable` method:
 
 ```scala
+import zio._
+import java.net.ServerSocket
 
 def accept(l: ServerSocket) =
   ZIO.attemptBlockingCancelable(l.accept())(ZIO.succeed(l.close()))
@@ -343,6 +370,8 @@ def accept(l: ServerSocket) =
 If a side-effect has already been converted into a ZIO effect, then instead of `attemptBlocking`, the `blocking` method can be used to ensure the effect will be executed on the blocking thread pool:
 
 ```scala
+import zio._
+import scala.io.{ Codec, Source }
 
 def download(url: String) =
   ZIO.attempt {
@@ -365,6 +394,7 @@ def safeDownload(url: String) =
 An asynchronous side-effect with a callback-based API can be converted into a ZIO effect using `ZIO.async`:
 
 ```scala
+import zio._
 
 object legacy {
   def login(
@@ -393,6 +423,8 @@ Asynchronous ZIO effects are much easier to use than callback-based APIs, and th
 A `RIO[R, A]` effect can be suspended using `suspend` function:
 
 ```scala
+import zio._
+import java.io.IOException
 
 val suspendedEffect: RIO[Any, ZIO[Any, IOException, Unit]] =
   ZIO.suspend(ZIO.attempt(Console.printLine("Suspended Hello World!")))
@@ -405,6 +437,7 @@ val suspendedEffect: RIO[Any, ZIO[Any, IOException, Unit]] =
 We can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a function `A => B`. This lets us transform values produced by actions into other values.
 
 ```scala
+import zio._
 
 val mappedValue: UIO[Int] = ZIO.succeed(21).map(_ * 2)
 ```
@@ -421,6 +454,9 @@ trait ZIO[-R, +E, +A] {
 ```
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
   def isPrime(n: Int): Boolean =
@@ -450,6 +486,7 @@ object MainApp extends ZIOAppDefault {
 We can execute two actions in sequence with the `flatMap` method. The second action may depend on the value produced by the first action.
 
 ```scala
+import zio._
 
 val chainedActionsValue: UIO[List[Int]] = ZIO.succeed(List(1, 2, 3)).flatMap { list =>
   ZIO.succeed(list.map(_ + 1))
@@ -463,6 +500,7 @@ In _any_ chain of effects, the first failure will short-circuit the whole chain,
 Because the `ZIO` data type supports both `flatMap` and `map`, we can use Scala's _for comprehensions_ to build sequential effects:
 
 ```scala
+import zio._
 
 val program =
   for {
@@ -479,6 +517,7 @@ _For comprehensions_ provide a more procedural syntax for composing chains of ef
 We can combine two effects into a single effect with the `zip` method. The resulting effect succeeds with a tuple that contains the success values of both effects:
 
 ```scala
+import zio._
 
 val zipped: UIO[(String, Int)] =
   ZIO.succeed("4").zip(ZIO.succeed(2))
@@ -493,6 +532,7 @@ In any `zip` operation, if either the left or right-hand sides fail, then the co
 Sometimes, when the success value of an effect is not useful (for example, it is `Unit`), it can be more convenient to use the `zipLeft` or `zipRight` functions, which first perform a `zip`, and then map over the tuple to discard one side or the other:
 
 ```scala
+import zio._
 
 val zipRight1 =
   Console.printLine("What is your name?").zipRight(Console.readLine)
@@ -501,6 +541,7 @@ val zipRight1 =
 The `zipRight` and `zipLeft` functions have symbolic aliases, known as `*>` and `<*`, respectively. Some developers find these operators easier to read:
 
 ```scala
+import zio._
 
 val zipRight2 =
   Console.printLine("What is your name?") *>
@@ -533,6 +574,7 @@ If the fail-fast behavior is not desired, potentially failing effects can be fir
 ZIO lets us race multiple effects in parallel, returning the first successful result:
 
 ```scala
+import zio._
 
 for {
   winner <- ZIO.succeed("Hello").race(ZIO.succeed("Goodbye"))
@@ -546,6 +588,7 @@ If we want the first success or failure, rather than the first success, then we 
 ZIO lets us timeout any effect using the `ZIO#timeout` method, which returns a new effect that succeeds with an `Option`. A value of `None` indicates the timeout elapsed before the effect completed.
 
 ```scala
+import zio._
 
 ZIO.succeed("Hello").timeout(10.seconds)
 ```
@@ -732,6 +775,7 @@ The problem with the `try` / `finally` construct is that it only applies to sync
 Like `try` / `finally`, the `ensuring` operation guarantees that if an effect begins executing and then terminates (for whatever reason), then the finalizer will begin executing:
 
 ```scala
+import zio._
 
 val finalizer =
   ZIO.succeed(println("Finalizing!"))
@@ -749,7 +793,9 @@ Unlike `try` / `finally`, `ensuring` works across all types of effects, includin
 Here is another example of ensuring that our clean-up action is called before our effect is done:
 
 ```scala
+import zio._
 
+import zio.Task
 var i: Int = 0
 val action: Task[String] =
   ZIO.succeed(i += 1) *>
@@ -806,6 +852,7 @@ Acquire release is a built-in primitive that let us safely acquire and release r
 Acquire release consist of an _acquire_ action, a _utilize_ action (which uses the acquired resource), and a _release_ action.
 
 ```scala
+import zio._
 
 val groupedFileData: IO[IOException, Unit] = ZIO.acquireReleaseWith(openFile("data.json"))(closeFile(_)) { file =>
   for {
@@ -820,6 +867,9 @@ Acquire releases have compositional semantics, so if an acquire release is neste
 Let's look at a full working example on using acquire release:
 
 ```scala
+import zio._
+import java.io.{ File, FileInputStream }
+import java.nio.charset.StandardCharsets
 
 object Main extends ZIOAppDefault {
 
@@ -854,6 +904,7 @@ Memoization caches the result of an effect or function computation, preventing r
 To memoize an effect and cache its result—useful when the same expensive computation may be executed multiple times—call `memoize` on it:
 
 ```scala
+import zio._
 
 val expensiveComputation: ZIO[Any, Nothing, Int] = ZIO.succeed(42)
 
@@ -864,6 +915,7 @@ val memoized: ZIO[Any, Nothing, ZIO[Any, Nothing, Int]] =
 The memoized effect produces a cached effect that runs the original computation only once. Subsequent calls return the cached result:
 
 ```scala
+import zio._
 
 def computeValue: ZIO[Any, Nothing, Int] = {
   ZIO.succeed {
@@ -892,6 +944,7 @@ When a fiber computing a memoized value is interrupted, the result is discarded 
 To create a memoized version of a function that returns a `ZIO` effect, use the `ZIO.memoize` constructor, which caches results based on input arguments:
 
 ```scala
+import zio._
 
 val expensiveLookup: String => ZIO[Any, Nothing, Int] = key => ZIO.succeed(key.length)
 
@@ -914,6 +967,7 @@ Note: `IO[E, A]` used in this section is a type alias for `ZIO[Any, E, A]`, repr
 Call `cached` with a time-to-live duration to create a cached version of an effect. The `cached` method returns an effect that produces an `IO` (which is a type alias for `ZIO[Any, E, A]`). When you execute the returned `IO`, it will run the original effect once and cache the result for the specified duration:
 
 ```scala
+import zio._
 
 val expensiveData: ZIO[Any, Nothing, String] = ZIO.succeed("data")
 
@@ -930,6 +984,7 @@ The return type is `ZIO[Any, Nothing, IO[Nothing, String]]`, which means `cached
 When the time-to-live duration expires, the cache is invalidated and the effect runs again on the next call:
 
 ```scala
+import zio._
 
 def fetchUserData: ZIO[Any, Nothing, String] = ZIO.succeed("user-data")
 
@@ -948,6 +1003,7 @@ for {
 Call `cachedInvalidate` to obtain both the cached effect and a separate effect for manually invalidating the cache before its TTL expires (useful when you need to cache-bust based on external events), returning a tuple of the cached effect and an invalidation function:
 
 ```scala
+import zio._
 
 def freshData: ZIO[Any, Nothing, String] = ZIO.succeed("data")
 
@@ -966,6 +1022,7 @@ for {
 Multiple fibers can safely await the same cached result. The first fiber triggers computation while others wait for the result. This ensures the underlying effect runs only once even with concurrent access:
 
 ```scala
+import zio._
 
 def expensiveComputation: ZIO[Any, Nothing, Int] = ZIO.succeed {
   println("Computing...")
@@ -1004,6 +1061,7 @@ To increase the modularity of our applications, we can separate cross-cutting co
 The `ZIO` effect has a data type called `ZIOAspect`, which allows modifying a `ZIO` effect and converting it into a specialized `ZIO` effect. We can add a new aspect to a `ZIO` effect with `@@` syntax like this:
 
 ```scala
+import zio._
 
 val myApp: ZIO[Any, Throwable, String] =
   ZIO.attempt("Hello!") @@ ZIOAspect.debug
@@ -1016,6 +1074,7 @@ As we see, the `debug` aspect doesn't change the return type of our effect, but 
 To compose multiple aspects, we can use `@@` operator:
 
 ```scala
+import zio._
 
 def download(url: String): ZIO[Any, Throwable, Chunk[Byte]] = ZIO.succeed(???)
 

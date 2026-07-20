@@ -39,6 +39,10 @@ libraryDependencies += "com.github.ghostdogpr" %% "caliban-federation" % "2.8.1"
 First, to define Caliban API, we should define data models using case classes and ADTs. Then the Caliban can derive the whole GraphQL schema from these data models:
 
 ```scala
+import caliban._
+import caliban.quick._
+import caliban.schema.{Schema, ArgBuilder}
+import caliban.schema.Annotations.GQLDescription
 
 sealed trait Role
 
@@ -64,6 +68,8 @@ case class Queries(
 )
 
 object CalibanExample extends zio.ZIOAppDefault {
+  import ArgBuilder.auto._
+  import Schema.auto._
 
   val employees = List(
     Employee("Alex", Role.DevOps),

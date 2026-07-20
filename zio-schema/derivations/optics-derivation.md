@@ -17,6 +17,7 @@ libraryDependencies += "dev.zio" %% "zio-optics" % "<version>"
 Now let's define a simple data type called `User` and create two optics for its `name` and `age` fields:
 
 ```scala
+import zio.optics._
 
 case class User(name: String, age: Int)
 
@@ -36,6 +37,7 @@ val ageAndNameLens = nameLens.zip(ageLens)
 Now we can use these optics to get, set, and update values in the `Person` data structure:
 
 ```scala
+import zio._
 
 object Main extends ZIOAppDefault {
   def run =
@@ -121,6 +123,10 @@ Now we are ready to try any of the following examples:
 Now we can derive the schema for our `User` data type in its companion object, and then derive optics using `Schema#makeAccessors` method:
 
 ```scala
+import zio._
+import zio.schema.DeriveSchema
+import zio.schema.Schema.CaseClass2
+import zio.schema.optics.ZioOpticsBuilder
 
 case class User(name: String, age: Int)
 
@@ -167,6 +173,8 @@ Name and age of the user updated: Right(User(Jane,32))
 #### Prism
 
 ```scala
+import zio._
+import zio.schema.Schema._
 
 sealed trait Shape {
   def area: Double
@@ -213,6 +221,10 @@ Updated shape: Rectangle(2.0,3.0)
 #### Traversal
 
 ```scala
+import zio._
+import zio.optics._
+import zio.schema.Schema._
+import zio.schema._
 
 object IntList {
   implicit val listschema: Schema.Sequence[List[Int], Int, String] =

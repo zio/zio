@@ -42,6 +42,10 @@ This is another common source of errors whenever we implement our own definition
 For example, here is how we could test that ZIO Prelude's notions of hashing and equality for strings are consistent.
 
 ```scala
+import zio.prelude.Hash
+import zio.prelude.laws.HashLaws
+import zio.test._
+import zio.test.laws._
 
 object HashSpec extends ZIOSpecDefault {
 
@@ -88,6 +92,7 @@ This turns out to be quite useful because we can convert almost any date type we
 For example, here is how we can use `contramap` to easily define a `Hash` instance for a custom data type to keep track of different topics and the number of votes for each of them.
 
 ```scala
+import zio.prelude.Hash
 
 case class Topic(value: String)
 

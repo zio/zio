@@ -52,6 +52,7 @@ Source JSON                    Target JSON
 The "hello world" for `JsonPatch` is diff-then-apply. We compute a patch from `source` to `target`, then verify that applying it to `source` reproduces `target`:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
 
 val source = Json.Object("name" -> Json.String("Alice"), "age" -> Json.Number(25))
 val target = Json.Object("name" -> Json.String("Alice"), "age" -> Json.Number(26))
@@ -83,6 +84,7 @@ object JsonPatch {
 `JsonPatch.diff` is also available as the `Json#diff` extension method:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
 
 // Via companion object
 val p1 = JsonPatch.diff(Json.Number(10), Json.Number(15))
@@ -111,6 +113,9 @@ object JsonPatch {
 For example, we can replace the root entirely, increment a number, or add a field to a root object:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.json.JsonPatch._
+import zio.blocks.chunk.Chunk
 
 // Replace the entire value
 val replaceAll = JsonPatch.root(Op.Set(Json.Null))
@@ -135,6 +140,9 @@ object JsonPatch {
 Paths are built fluently on `DynamicOptic.root` using `.field(name)` to navigate object fields and `.at(index)` to navigate array elements. For instance, to increment `age` inside a `user` object:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.json.JsonPatch._
+import zio.blocks.schema.DynamicOptic
 
 val agePath  = DynamicOptic.root.field("user").field("age")
 val agePatch = JsonPatch(agePath, Op.PrimitiveDelta(PrimitiveOp.NumberDelta(BigDecimal(1))))
@@ -170,7 +178,7 @@ object JsonPatch {
 `JsonPatch.empty` is useful as a neutral starting point when building patches conditionally:
 
 ```scala
-
+import zio.blocks.schema.json.{Json, JsonPatch}
 ```
 
 Both `JsonPatch#isEmpty` and applying `JsonPatch.empty` confirm the identity property:
@@ -201,6 +209,9 @@ object JsonPatch {
 The round-trip through `DynamicPatch` preserves numeric deltas:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.patch.DynamicPatch
+import zio.blocks.schema.SchemaError
 
 val original: JsonPatch                  = JsonPatch.diff(Json.Number(1), Json.Number(2))
 val dynPatch: DynamicPatch               = original.toDynamicPatch
@@ -235,6 +246,10 @@ case class JsonPatch(ops: Chunk[JsonPatch.JsonPatchOp]) {
 `apply` is also available via the `Json#patch` extension method. Both forms produce the same result:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.json.JsonPatch._
+import zio.blocks.schema.patch.PatchMode
+import zio.blocks.chunk.Chunk
 
 val applyJson  = Json.Object("score" -> Json.Number(10))
 val applyPatch = JsonPatch.root(Op.ObjectEdit(Chunk(
@@ -272,7 +287,7 @@ case class JsonPatch(ops: Chunk[JsonPatch.JsonPatchOp]) {
 A patch computed between two identical values also produces an empty patch:
 
 ```scala
-
+import zio.blocks.schema.json.{Json, JsonPatch}
 ```
 
 ```scala
@@ -295,6 +310,9 @@ case class JsonPatch(ops: Chunk[JsonPatch.JsonPatchOp]) {
 Concatenating two patches applies `this` first, then `that`. This allows building a single patch that updates multiple fields independently:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.json.JsonPatch._
+import zio.blocks.schema.DynamicOptic
 
 val renamePatch = JsonPatch(
   DynamicOptic.root.field("name"),
@@ -330,6 +348,8 @@ case class JsonPatch(ops: Chunk[JsonPatch.JsonPatchOp]) {
 To convert in the opposite direction, use `JsonPatch.fromDynamicPatch` — see [Creating Patches](#creating-patches) above:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.patch.DynamicPatch
 
 val patch: JsonPatch  = JsonPatch.diff(Json.Number(1), Json.Number(5))
 val dyn: DynamicPatch = patch.toDynamicPatch
@@ -348,6 +368,10 @@ val dyn: DynamicPatch = patch.toDynamicPatch
 `ObjectOp.Add` fails in `Strict` mode when the key already exists. In `Lenient` mode the conflicting add is silently skipped; in `Clobber` mode it overwrites the existing value:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.json.JsonPatch._
+import zio.blocks.schema.patch.PatchMode
+import zio.blocks.chunk.Chunk
 
 val modeJson  = Json.Object("a" -> Json.Number(1))
 val modePatch = JsonPatch.root(Op.ObjectEdit(Chunk(ObjectOp.Add("a", Json.Number(99)))))
@@ -420,6 +444,9 @@ final case class Set(value: Json) extends Op
 `Op.Set` can replace across types — for example, replacing a number with a string, or resetting a nested field to `null`:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.json.JsonPatch._
+import zio.blocks.schema.DynamicOptic
 
 val setString  = JsonPatch.root(Op.Set(Json.String("replaced")))
 val setNull    = JsonPatch(DynamicOptic.root.field("status"), Op.Set(Json.Null))
@@ -456,6 +483,8 @@ final case class NumberDelta(delta: BigDecimal) extends PrimitiveOp
 Positive deltas increment; negative deltas decrement:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.json.JsonPatch._
 
 val inc = JsonPatch.root(Op.PrimitiveDelta(PrimitiveOp.NumberDelta(BigDecimal(5))))
 val dec = JsonPatch.root(Op.PrimitiveDelta(PrimitiveOp.NumberDelta(BigDecimal(-3))))
@@ -488,6 +517,9 @@ The `StringOp` cases:
 We can insert a prefix before the first character using `StringOp.Insert`:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.json.JsonPatch._
+import zio.blocks.chunk.Chunk
 
 val insertPatch = JsonPatch.root(
   Op.PrimitiveDelta(PrimitiveOp.StringEdit(Chunk(StringOp.Insert(0, "Hello, "))))
@@ -523,6 +555,9 @@ The `ArrayOp` cases:
 Multiple `ArrayOp`s in a single `ArrayEdit` can be combined — here we transform `[1, 2, 3]` into `[0, 1, 2, 4]` in one pass:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.json.JsonPatch._
+import zio.blocks.chunk.Chunk
 
 val arrayPatch = JsonPatch.root(Op.ArrayEdit(Chunk(
   ArrayOp.Insert(0, Chunk(Json.Number(0))),
@@ -562,6 +597,9 @@ The `ObjectOp` cases:
 A single `ObjectEdit` can add, remove, and modify fields in one operation:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.json.JsonPatch._
+import zio.blocks.chunk.Chunk
 
 val originalObj = Json.Object(
   "name"  -> Json.String("Alice"),
@@ -641,6 +679,7 @@ Use `JsonPatch` when working within ZIO Blocks. For interoperability with RFC 69
 Because `JsonPatch` is a pure value with a `Schema`, we can serialize every change and replay or audit it later:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
 
 // Every mutation is a patch — store it instead of overwriting
 val v0 = Json.Object("count" -> Json.Number(0))
@@ -662,6 +701,9 @@ assert(replay == v2)
 We can build a single patch that updates multiple nested fields by combining focused per-field patches with `++`:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.json.JsonPatch._
+import zio.blocks.schema.DynamicOptic
 
 def setField(field: String, value: Json): JsonPatch =
   JsonPatch(DynamicOptic.root.field(field), Op.Set(value))
@@ -695,6 +737,8 @@ fieldPatch.apply(doc)
 `Json` exposes two extension methods as entry points into `JsonPatch`:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.patch.PatchMode
 
 val source = Json.Object("x" -> Json.Number(1))
 val target = Json.Object("x" -> Json.Number(2))
@@ -711,6 +755,9 @@ See [Json](./json.md) for the complete `Json` API.
 `JsonPatch` and `DynamicPatch` are bidirectionally convertible. This is useful when patches originate from the typed `Patch[S]` system and need to be applied to raw JSON:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
+import zio.blocks.schema.patch.DynamicPatch
+import zio.blocks.schema.SchemaError
 
 val jsonPatch: JsonPatch                  = JsonPatch.diff(Json.Number(1), Json.Number(3))
 
@@ -728,6 +775,8 @@ See [Patching](./patch.md) for the typed `Patch[S]` API.
 `JsonPatch` ships with `Schema` instances for all nested operation types, enabling round-trip serialization via any ZIO Blocks codec:
 
 ```scala
+import zio.blocks.schema.json.JsonPatch
+import zio.blocks.schema.Schema
 
 val schema: Schema[JsonPatch] = implicitly[Schema[JsonPatch]]
 ```

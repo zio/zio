@@ -45,6 +45,10 @@ libraryDependencies ++= Seq(
 Let's try a simple example of using _LogStage_:
 
 ```scala
+import izumi.fundamentals.platform.uuid.UUIDGen
+import logstage.LogZIO.log
+import logstage.{IzLogger, LogIO2, LogZIO}
+import zio.{Has, URIO, _}
 
 object LogStageExample extends zio.App {
   val myApp = for {

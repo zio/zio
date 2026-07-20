@@ -45,6 +45,8 @@ libraryDependencies += "tf.tofu" %% "tofu-logging-layout" % "version"
 To use Tofu with ZIO logging facade just add `TofuZLogger` to your app runtime:
 
 ```scala
+import tofu.logging.zlogs._
+import zio._
 
 object Main extends ZIOAppDefault {
   val program: UIO[Unit] = ZIO.log("Hello, ZIO logging!")
@@ -158,6 +160,10 @@ In additional, there are several annotations to configure generation of `Loggabl
 - `@unembed`: when applied to the field means "log subfields along with fields of owner"
 
 ```scala
+import tofu.logging.derivation._
+import tofu.logging.derivation.loggable.generate
+import tofu.logging.zlogs._
+import zio._
 
 case class User(
   id: Int,

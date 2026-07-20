@@ -28,6 +28,12 @@ case class MyConfig(x: X)
 ```scala
 // Setting up imports
 
+import zio._
+import zio.config._, 
+import zio.config.typesafe._
+import zio.config.magnolia._
+
+  import X._
 ```
 
 ```scala
@@ -94,12 +100,14 @@ The fieldNames and class-names remain the same as that of case-classes and seale
 If you want custom names for your fields, use `name` annotation.
 
 ```
+import zio.config.derivation.name
 
 @name("detailsWrapped")
 case class  DetailsWrapped(detail: Detail) extends X
 ```
 
 ```scala
+import zio.config._
 
 deriveConfig[MyConfig].mapKey(toKebabCase)
 ```
@@ -115,6 +123,7 @@ This is a bit involving, and more documentations will be provided soon.
 With `describe` annotation you can still document your config while automatically generating the config
 
 ```scala
+import zio.config.magnolia.describe
 
 @describe("This config is about aws")
 case class Aws(region: String, dburl: DbUrl)
@@ -151,6 +160,7 @@ As an example, given below is a case class where automatic derivation won't work
 Assume that, `AwsRegion` is a type that comes from AWS SDK.
 
 ```
+import java.time.ZonedDateTime
 
 case class Execution(time: AwsRegion, id: Int)
 ```
@@ -167,6 +177,7 @@ This is because zio-config-magnolia failed to derive an instance of Descriptor f
 In order to provide implicit instances, following choices are there
 
 ```
+import zio.config.magnolia._
 
 implicit val awsRegionConfig: DeriveConfig[Aws.Region] =
   DeriveConfig[String].map(string => AwsRegion.from(string))
@@ -179,6 +190,7 @@ Custom descriptors are also needed in case you use value classes to describe you
 together with automatic derivation and those implicit custom descriptors will be taken automatically into account
 
 ```scala
+import zio.config.magnolia._
 
 final case class AwsRegion(value: String) extends AnyVal {
   override def toString: String = value
@@ -309,6 +321,8 @@ Scala 3 has introduced `derives` keyword to derive typeclasses without the need 
 This syntax can be enabled for `zio.Config` by importing `zio.config.magnolia.*` and then using the `derives` keyword on the type that needs to be derived:
 
 ```scala 3
+import zio.config.magnolia.*
+import zio.{Config, ZIO}
 
 sealed trait A
 case class B(x: String) extends A
@@ -346,6 +360,7 @@ Just put `@nameWithLabel()` in sealed trait name. By default the `label` name is
 any custom name `@nameWithLabel("foo")`
 
 ```scala
+import zio.config._, typesafe._, magnolia._
 
 @nameWithLabel("type")
 sealed trait X

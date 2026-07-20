@@ -15,6 +15,8 @@ The `assert` and its effectful counterpart `assertZIO` are the old way of assert
 In order to test ordinary values, we should use `assert`, like the example below:
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 test("sum") {
   assert(1 + 1)(Assertion.equalTo(2))
@@ -26,6 +28,8 @@ test("sum") {
 If we are testing an effect, we should use the `assertZIO` function:
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 test("updating ref") {
   val value = for {
@@ -42,6 +46,8 @@ test("updating ref") {
 Having this all in mind, probably the most common and also most readable way of structuring tests is to pass a for-comprehension to `test` function and yield a call to `assert` function.
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 test("updating ref") {
   for {
@@ -88,6 +94,8 @@ It takes an expression of type `A` and an `Assertion[A]` and returns the `TestRe
 To check if the code compiles, we can use the `typeCheck` macro. It is useful when we want to test if the code compiles without running it. Here is an example of how to use it:
 
 ```scala
+import zio.test._
+import zio.test.Assertion._
 
 test("lazy list") {
   assertZIO(typeCheck(
@@ -108,6 +116,7 @@ The `LazyCheck` introduced in Scala 2.13, so we excluded this test from Scala 2.
 Assume we have a function that concatenates two strings. One simple property of this function would be "the sum of the length of all inputs should be equal to the length of the output". Let's see an example of how we can make an assertion about this property:
 
 ```scala
+import zio.test._
 
 test("The sum of the lengths of both inputs must equal the length of the output") {
   check(Gen.string, Gen.string) { (a, b) =>
@@ -123,6 +132,8 @@ The syntax of assertion in the above code, is `assert(expression)(assertion)`. T
 There is also an easy way to test an object's data for certain assertions with `hasField` which accepts besides a name, a mapping function from object to its tested property, and `Assertion` object which will validate this property. Here our test checks if a person has at least 18 years and is not from the USA.
 
 ```scala
+import zio.test._
+import zio.test.Assertion.{isRight, isSome,equalTo, isGreaterThanEqualTo, not, hasField}
 
 final case class Address(country:String, city:String)
 final case class User(name:String, age:Int, address: Address)
@@ -149,6 +160,9 @@ What is nice about those tests is that test reporters will tell you exactly whic
 The following example shows how to test if a ZIO effect fails with a particular error type. To test if a ZIO effect fails with a particular error type, we can use the `ZIO#exit` to determine the exit type of that effect.
 
 ```scala
+import zio._
+import zio.test.{ test, _ }
+import zio.test.Assertion._
 
 case class MyError(msg: String) extends Exception
 
@@ -178,6 +192,7 @@ case class E2(msg: String) extends MyError
 To assert if an error type is a subtype of a particular error type, we need to combine the `fails` and `isSubtype` assertions together:
 
 ```scala
+import zio.test.Assertion._
 
 Assertion.fails(isSubtype[MyError](anything))
 ```
@@ -185,6 +200,9 @@ Assertion.fails(isSubtype[MyError](anything))
 Now let's look at an example:
 
 ```scala
+import zio._
+import zio.test.{ test, _ }
+import zio.test.Assertion._
 
 val effect = ZIO.fail(E1("my error msg"))
 

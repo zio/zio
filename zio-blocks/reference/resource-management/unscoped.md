@@ -20,6 +20,7 @@ When the `$` operator is used to access a scoped value, if the result type has a
 The exact problem: A `scoped` block automatically closes all resources when it exits. If you accidentally returned a resource (like a database connection or file handle) from the block, it would be closed—but you might try to use it later, causing a **use-after-close** crash. Here's an example (this would fail without `Unscoped`):
 
 ```scala
+import zio.blocks.scope.{Scope, Resource}
 
 final class Database {
   def query(sql: String) = s"result: $sql"
@@ -38,8 +39,10 @@ The solution: `Unscoped` makes this a **compile error** instead of a runtime bug
 You can still extract computed results by using the `$` operator to unwrap scoped values *within* the scope:
 
 ```scala
+import zio.blocks.scope.{Scope, Resource}
 
 Scope.global.scoped { scope =>
+  import scope._
 
   val intValue = allocate(Resource(42))
   // Extract the Int value (not the Resource), computed inside the scope
@@ -58,6 +61,8 @@ Scope.global.scoped { scope =>
 Extract computed results that don't hold resources:
 
 ```scala
+import zio.blocks.scope.{Scope, Resource, Unscoped}
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 case class ProcessingResult(count: Int, elapsed: FiniteDuration)
 
@@ -66,6 +71,7 @@ object ProcessingResult {
 }
 
 def processData(): ProcessingResult = Scope.global.scoped { scope =>
+  import scope._
 
   val startTime = java.time.Instant.now()
   val input = allocate(Resource(Seq(1, 2, 3, 4, 5)))

@@ -59,6 +59,7 @@ trait Schema[A] {
 This is the standard entry point. All structural information — field names, case names, type IDs, `Validation` constraints, `Modifier` annotations, docs, default values, and examples — is preserved:
 
 ```scala
+import zio.blocks.schema._
 
 case class Address(street: String, city: String)
 case class Person(name: String, age: Int, address: Address)
@@ -135,6 +136,7 @@ object DynamicSchema {
 Example showing the full store/retrieve round-trip:
 
 ```scala
+import zio.blocks.schema._
 
 case class Product(id: Long, name: String, price: Double)
 object Product { implicit val schema: Schema[Product] = Schema.derived[Product] }
@@ -164,6 +166,7 @@ object DynamicSchema {
 The following example converts a simple case class schema and stores the blob:
 
 ```scala
+import zio.blocks.schema._
 
 case class Tag(name: String)
 object Tag { implicit val schema: Schema[Tag] = Schema.derived[Tag] }
@@ -196,6 +199,8 @@ final case class DynamicSchema(reflect: Reflect.Unbound[_]) {
 The following example shows all three outcomes — a valid value, a missing field, and a type mismatch:
 
 ```scala
+import zio.blocks.chunk.Chunk
+import zio.blocks.schema._
 
 case class Point(x: Int, y: Int)
 object Point { implicit val schema: Schema[Point] = Schema.derived[Point] }
@@ -263,6 +268,8 @@ final case class DynamicSchema(reflect: Reflect.Unbound[_]) {
 We pass a well-formed record to confirm the return value:
 
 ```scala
+import zio.blocks.chunk.Chunk
+import zio.blocks.schema._
 
 case class Tag(name: String)
 object Tag { implicit val schema: Schema[Tag] = Schema.derived[Tag] }
@@ -289,6 +296,8 @@ final case class DynamicSchema(reflect: Reflect.Unbound[_]) {
 The resolver must provide a binding for every concrete type referenced in the schema tree: record types, variant types, and wrapper types must be covered explicitly; primitives, sequences, and maps are covered by `BindingResolver.defaults`:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.binding._
 
 case class OrderId(value: String)
 case class LineItem(sku: String, quantity: Int)
@@ -344,6 +353,7 @@ final case class DynamicSchema(reflect: Reflect.Unbound[_]) {
 The following example navigates to a field nested two levels deep:
 
 ```scala
+import zio.blocks.schema._
 
 case class Address(street: String, city: String)
 case class Person(name: String, age: Int, address: Address)
@@ -374,6 +384,7 @@ See [DynamicOptic](./dynamic-optic.md) for the full path DSL.
 Returns the `TypeId` of the root type:
 
 ```scala
+import zio.blocks.schema._
 
 case class Event(id: Long, kind: String)
 object Event { implicit val schema: Schema[Event] = Schema.derived[Event] }
@@ -402,6 +413,7 @@ final case class DynamicSchema(reflect: Reflect.Unbound[_]) {
 We attach a description and read it back to confirm it was applied:
 
 ```scala
+import zio.blocks.schema._
 
 case class Event(id: Long, kind: String)
 object Event { implicit val schema: Schema[Event] = Schema.derived[Event] }
@@ -442,6 +454,7 @@ final case class DynamicSchema(reflect: Reflect.Unbound[_]) {
 We attach a default value and then retrieve it:
 
 ```scala
+import zio.blocks.schema._
 
 case class Config(retries: Int)
 object Config { implicit val schema: Schema[Config] = Schema.derived[Config] }
@@ -491,6 +504,7 @@ final case class DynamicSchema(reflect: Reflect.Unbound[_]) {
 The following example shows a schema-validation gateway: we receive a `DynamicSchema` from a registry, convert it to a `Schema[DynamicValue]`, and use the result to validate an incoming payload, rejecting it on structural mismatch:
 
 ```scala
+import zio.blocks.schema._
 
 case class OrderEvent(orderId: String, amount: Double)
 object OrderEvent { implicit val schema: Schema[OrderEvent] = Schema.derived[OrderEvent] }

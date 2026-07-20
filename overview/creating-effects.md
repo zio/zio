@@ -79,6 +79,7 @@ The error type of the resulting effect will be that of the `Left` case, while th
 A `Try` value can be converted into a ZIO effect using `ZIO.fromTry`:
 
 ```scala
+import scala.util.Try
 
 val ztry = ZIO.fromTry(Try(42 / 0))
 ```
@@ -90,6 +91,7 @@ The error type of the resulting effect will always be `Throwable` because `Try` 
 A Scala `Future` can be converted into a ZIO effect using `ZIO.fromFuture`:
 
 ```scala
+import scala.concurrent.Future
 
 lazy val future = Future.successful("Hello!")
 
@@ -116,6 +118,7 @@ The conversion functions that ZIO has allow you to seamlessly use all features o
 Synchronous code can be converted into a ZIO effect using `ZIO.attempt`:
 
 ```scala
+import scala.io.StdIn
 
 val readLine: ZIO[Any, Throwable, String] =
   ZIO.attempt(StdIn.readLine())
@@ -135,6 +138,7 @@ Sometimes, you may know that code throws a specific exception type, and you may 
 For this purpose, you can use the `ZIO#refineToOrDie` method:
 
 ```scala
+import java.io.IOException
 
 val readLine2: ZIO[Any, IOException, String] =
   ZIO.attempt(StdIn.readLine()).refineToOrDie[IOException]
@@ -169,6 +173,7 @@ Some synchronous code may engage in so-called _blocking IO_, which puts a thread
 ZIO has a blocking thread pool built into the runtime, and lets you execute effects there with `ZIO.blocking`:
 
 ```scala
+import scala.io.{ Codec, Source }
 
 def download(url: String) =
   ZIO.attempt {
@@ -193,6 +198,8 @@ If you have some synchronous code that will respond to Java's `Thread.interrupt`
 Some synchronous code can only be cancelled by invoking some other code, which is responsible for canceling the running computation. To convert such code into a ZIO effect, you can use the `ZIO.attemptBlockingCancelable` method:
 
 ```scala
+import java.net.ServerSocket
+import zio.UIO
 
 def accept(l: ServerSocket) =
   ZIO.attemptBlockingCancelable(l.accept())(ZIO.succeed(l.close()))

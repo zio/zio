@@ -91,6 +91,7 @@ For example, the `Repr` of `None` would be `Repr.Object(List("scala"), "None")`.
 The final cases of `Repr` let us build more complex data types such as sum types, product types, and collections from simpler ones.
 
 ```scala
+import scala.collection.immutable.ListMap
 
 object Repr {
   case class VConstructor(
@@ -131,6 +132,7 @@ To define a `Debug` instance for your own data type you can use the `make` opera
 For example, here is how we could define a `Debug` instance for a `Person` data type:
 
 ```scala
+import zio.prelude._
 
 case class Person(name: String, age: Int)
 
@@ -154,6 +156,7 @@ We can use the same strategy to define `Debug` instances for polymorphic data ty
 For example, here is how we could define a `Debug` instance for a simplified version of the `Validation` data type from ZIO Prelude.
 
 ```scala
+import zio.NonEmptyChunk
 
 sealed trait Validation[+E, +A]
 

@@ -34,6 +34,7 @@ The `Ord` abstraction builds on the `Equal` abstraction because being able to de
 The `Ord` abstraction is similar to the `Ordering` type class in the Scala standard library and in fact we can convert any `scala.math.Ordering` to an `Ord` using the `fromScala` operator and any `Ord` to a `scala.math.Ordering` using the `toScala` operator.
 
 ```scala
+import zio.prelude.Ord
 
 val toScala: scala.math.Ordering[Int] =
   Ord[Int].toScala
@@ -64,6 +65,7 @@ case class ConsumerAccount(id: String) extends CustomerAccount
 We might define a total ordering for all accounts like this:
 
 ```scala
+import zio.prelude._
 
 implicit val CustomerAccountOrd: Ord[CustomerAccount] =
   Ord.make {
@@ -108,6 +110,7 @@ This just works because a consumer account is a customer account and we know how
 Let's see what happens when we try to do the same thing with the `Ordering` type class defined in the Scala standard library.
 
 ```scala
+import scala.math.Ordering.Implicits._
 
 sealed trait CustomerAccount
 
@@ -166,6 +169,7 @@ The `Ord` abstraction helps us avoid problems like this and integrates seamlessl
 ZIO Prelude is also very good at automatically deriving `Ord` instances for more complex data types like tuples. For example if we have a pair of `Double` values representing `x` and `y` coordinates an ordering is already automatically defined for it.
 
 ```scala
+import zio.prelude._
 
 Ord[(Double, Double)]
 // res5: Ord[(Double, Double)] = zio.prelude.Ord$$anon$5@949fc49

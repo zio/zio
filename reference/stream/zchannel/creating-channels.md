@@ -11,6 +11,7 @@ Without further ado, let's learn them one by one:
 Creates a channel that succeeds with a given done value, e.g. `ZChannel.succeed(42)`:
 
 ```scala
+import zio.stream._
 
 val channel: ZChannel[Any, Any, Any, Any, Nothing, Nothing, Int] = 
   ZChannel.succeed(42)
@@ -29,6 +30,8 @@ The output of the `runCollect` operation is a tuple of two elements: the first i
 Creates a channel that fails with a given error, e.g. `ZChannel.fail(new Exception("error"))`:
 
 ```scala
+import java.io.IOException
+import zio.stream._
 
 val channel: ZChannel[Any, Any, Any, Any, Exception, Nothing, Nothing] = 
   ZChannel.fail(new Exception("error"))
@@ -39,6 +42,8 @@ val channel: ZChannel[Any, Any, Any, Any, Exception, Nothing, Nothing] =
 Create a channel that writes given elements to the output port:
 
 ```scala
+import zio._
+import zio.stream._
 
 ZChannel.write(1).runCollect.debug
 // Output: (Chunk(1),()) 
@@ -57,6 +62,7 @@ Create a channel that reads elements from the input port and returns that as a d
 Let's start with the simplest read operation, `ZChannel.read`:
 
 ```scala
+import zio.stream._
 
 val read: ZChannel[Any, Any, Int, Any, None.type, Nothing, Int] = 
   ZChannel.read[Int]
@@ -65,6 +71,7 @@ val read: ZChannel[Any, Any, Int, Any, None.type, Nothing, Int] =
 To test this channel, we can create a writer channel and then pipe that to the reader channel:
 
 ```scala
+import zio.stream._
 
 val read = ZChannel.read[Int] 
 
@@ -77,6 +84,7 @@ In the above example, the writer channel writes the value 1 to the output port, 
 If we compose multiple read operations, we can read more values from the input port:
 
 ```scala
+import zio.stream._
 
 val read = ZChannel.read[Int] 
 

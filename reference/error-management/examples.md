@@ -5,6 +5,8 @@
 Let's write an application that takes numerator and denominator from the user and then print the result back to the user:
 
 ```scala
+import zio._
+import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -49,6 +51,8 @@ Defects are any _unexpected errors_ that we are not going to handle. They will p
 Defects have many roots, most of them are from a programming error. Errors will happen when we haven't written the application with best practices. For example, one of these practices is that we should validate the inputs before providing them to the `divide` function. So if the user entered the zero as the denominator, we can retry and ask the user to return another number:
 
 ```scala
+import zio._
+import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -84,6 +88,7 @@ timestamp=2022-02-18T06:36:25.984665171Z level=ERROR thread=#zio-fiber-0 message
 The cause of this defect is also a programming error, which means we haven't validated input when parsing it. So let's try to validate the input, and make sure that it is a number. We know that if the entered input does not contain a parsable `Int` the `String#toInt` throws the `NumberFormatException` exception. As we want this exception to be typed, we import the `String#toInt` function using the `ZIO.attempt` constructor. Using this constructor the function signature would be as follows:
 
 ```scala
+import zio._
 
 def parseInput(input: String): ZIO[Any, Throwable, Int] =
   ZIO.attempt(input.toInt)
@@ -94,6 +99,7 @@ Since the `NumberFormatException` is an expected error, and we want to handle it
 To be more specific, we would like to narrow down the error channel to the `NumberFormatException`, so we can use the `refineToOrDie` operator:
 
 ```scala
+import zio._
 
 def parseInput(input: String): ZIO[Any, NumberFormatException, Int] =
   ZIO.attempt(input.toInt)                 // ZIO[Any, Throwable, Int]
@@ -103,6 +109,7 @@ def parseInput(input: String): ZIO[Any, NumberFormatException, Int] =
 The same result can be achieved by succeeding the `String#toInt` and then widening the error channel using the `ZIO#unrefineTo` operator:
 
 ```scala
+import zio._
 
 def parseInput(input: String): ZIO[Any, NumberFormatException, Int] =
   ZIO.succeed(input.toInt)                 // ZIO[Any, Nothing, Int]
@@ -112,6 +119,8 @@ def parseInput(input: String): ZIO[Any, NumberFormatException, Int] =
 Now, let's refactor the example with recent changes:
 
 ```scala
+import zio._
+import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
   def run =

@@ -30,7 +30,8 @@ The gauge metric type is the best choice for things that their values can go dow
 Create a gauge that can be set to absolute values, it can be applied to effects yielding a `Double`:
 
 ```scala
-
+import zio._
+import zio.metrics._
 val absoluteGauge = Metric.gauge("setGauge")
 ```
 

@@ -26,6 +26,9 @@ We want to test this function using the following test data inside the `resource
 Let's load it and create a bunch of tests using this test data:
 
 ```scala
+import zio._
+import zio.test._
+import zio.test.test
 
 def loadTestData: Task[List[((Int, Int), Int)]] =
   ZIO.attemptBlocking(
@@ -53,6 +56,8 @@ def makeTests: ZIO[Any, Throwable, List[Spec[Any, Nothing]]] =
 Now we are ready to run all generated tests:
 
 ```scala
+import zio._
+import zio.test._
 
 object AdditionSpec extends ZIOSpecDefault {
   override def spec = suite("add")(makeTests)

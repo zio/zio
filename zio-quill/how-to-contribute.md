@@ -239,6 +239,7 @@ For example:
 object MySqlTest {
 
   val ctx = new SqlMirrorContext(PostgresDialect, Literal)
+  import ctx._
 
   case class Person(name: String, age:Int)
 

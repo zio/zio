@@ -119,6 +119,9 @@ In this example, the type of the `key` is `Int` and the type of the `value` is `
 Now we can create a `Producer`:
 
 ```scala
+import zio._
+import zio.kafka._
+import zio.kafka.producer._
 
 val producer: ZIO[Scope, Throwable, Producer] =
   Producer.make(
@@ -189,6 +192,10 @@ For more options see [consumer tuning](consumer-tuning.md).
 Now it's time to combine all the above steps to create a ZIO workflow that will produce and consume data from the Kafka cluster:
 
 ```scala
+import zio._
+import zio.kafka.consumer._
+import zio.kafka.producer.{Producer, ProducerSettings}
+import zio.kafka.serde._
 
 /** A simple app that produces and consumes messages from a kafka cluster
  * without using ZIO Streams.
@@ -279,6 +286,9 @@ See [this page](consuming-producing-and-committing-offsets.md) for tips that can
 When we use the streaming API we need to construct a Consumer:
 
 ```scala
+import zio._
+import zio.kafka._
+import zio.kafka.consumer._
 
 val consumer: ZIO[Scope, Throwable, Consumer] =
   Consumer.make(
@@ -315,6 +325,11 @@ To indicate that a record has been consumed successfully, and make sure that no 
 Here is an example:
 
 ```scala
+import zio._
+import zio.stream._
+import zio.kafka._
+import zio.kafka.consumer._
+import zio.kafka.serde._
 
 val KAFKA_TOPIC = "my-topic"
 val consumer: Consumer = ???
@@ -331,6 +346,11 @@ val c: ZIO[Any, Throwable, Unit] =
 While this works, it is not very performant. The problem with this approach is that we are committing offsets for each record separately. This causes a lot of overhead and slows down the consumption of records. To avoid this, we can aggregate offsets into batches and commit them all at once. This can be done by using the `ZStream#aggregateAsyncWithin` along with the `Consumer.collectOffsets` sink:
 
 ```scala
+import zio._
+import zio.stream._
+import zio.kafka._
+import zio.kafka.consumer._
+import zio.kafka.serde._
 
 val KAFKA_TOPIC = "my-topic"
 val consumer: Consumer = ???
@@ -361,6 +381,12 @@ For more details see [consuming Kafka topics using ZIO Streams](consuming-kafka-
 It's time to create a full working example of zio-kafka with zio-streams:
 
 ```scala
+import org.apache.kafka.clients.producer.ProducerRecord
+import zio._
+import zio.kafka.consumer._
+import zio.kafka.producer.{Producer, ProducerSettings}
+import zio.kafka.serde._
+import zio.stream.ZStream
 
 object StreamingKafkaApp extends ZIOAppDefault {
   private val BOOSTRAP_SERVERS = List("localhost:9092")
@@ -433,6 +459,7 @@ In zio-kafka all the built-in serializers/deserializers are instances of the `Se
 In this example, we use `inmap` to transform the build-in `Serde.long` to a `Serde[Any, Instant]`. The `inmap` method gets 2 pure functions, the first converts from `Long` to `Instant`, the second from `Instant` to `Long`:
 
 ```scala
+import java.time.Instant
 
 val instantSerde: Serde[Any, Instant] =
   Serde.long.inmap[Instant](Instant.ofEpochMilli)(_.toEpochMilli)
@@ -443,6 +470,8 @@ In the following example, we will use `inmapZIO` to transform the built-in `Serd
 Let's say we have the `Event` case class with the following fields:
 
 ```scala
+import java.time.OffsetDateTime
+import java.util.UUID
 
 case class Event(
   uuid: UUID,
@@ -454,6 +483,7 @@ case class Event(
 First, we need to define a JSON decoder and encoder for it:
 
 ```scala
+import zio.json._
 
 object Event {
   implicit val encoder: JsonEncoder[Event] =
@@ -467,6 +497,8 @@ object Event {
 Then we need to create a `Serde` for the `Event` type. To convert `Event` to JSON and back, we will use the zio-json library. To define a `Serde` for the `Event` type, we will use the `Serde.string.inmapZIO` combinator:
 
 ```scala
+import zio._
+import zio.kafka.serde._
 
 object EventKafkaSerde {
   val event: Serde[Any, Event] =
@@ -487,6 +519,16 @@ See [zio-kafka serialization and deserialization](serialization-and-deserializat
 Here is a full working example of producing and consuming JSON data with zio-kafka, zio-streams and zio-json:
 
 ```scala
+import org.apache.kafka.clients.producer.ProducerRecord
+import zio._
+import zio.json._
+import zio.kafka.consumer._
+import zio.kafka.producer.{Producer, ProducerSettings}
+import zio.kafka.serde._
+import zio.stream.ZStream
+
+import java.time.OffsetDateTime
+import java.util.UUID
 
 /** This is the data we will be sending to Kafka in JSON format. */
 case class Event(uuid: UUID, timestamp: OffsetDateTime, message: String)

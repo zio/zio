@@ -42,6 +42,7 @@ To enable this feature, we have included `sbt-revolver` in the project. For more
 To create a new logger for the ZIO application, we need to create a new `ZLogger` object. The `ZLogger` is a trait that defines the interface for a ZIO logger. The default logger has implemented this trait through the `ZLogger.default` object.
 
 ```scala
+import zio._
 
 val logger: ZLogger[String, Unit] =
   new ZLogger[String, Unit] {
@@ -62,6 +63,7 @@ val logger: ZLogger[String, Unit] =
 So then, we can remove all the default loggers and replace them with our custom logger:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -115,6 +117,9 @@ libraryDependencies += "dev.zio" %% "zio-logging-slf4j" % "2.0.0"
 Now we can use the `SLF4J.sl4j` layer to enable SLF4J logging:
 
 ```scala
+import zio._
+import zio.logging.LogFormat
+import zio.logging.backend.SLF4J
 
 object MainApp extends ZIOAppDefault {
   override val bootstrap = SLF4J.slf4j(LogFormat.colored)

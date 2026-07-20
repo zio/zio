@@ -21,6 +21,13 @@ libraryDependencies += "nl.vroste" %% "zio-kinesis" % "0.20.0"
 This is an example of consuming a stream from Amazon Kinesis:
 
 ```scala
+import nl.vroste.zio.kinesis.client.serde.Serde
+import nl.vroste.zio.kinesis.client.zionative.Consumer
+import zio.clock.Clock
+import zio.console.{Console, putStrLn}
+import zio.duration._
+import zio.logging.Logging
+import zio.{ExitCode, URIO, _}
 
 object ZIOKinesisConsumerExample extends zio.App {
   val loggingLayer: ZLayer[Any, Nothing, Logging] =

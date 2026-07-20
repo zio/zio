@@ -17,6 +17,7 @@ We have a [separate section](dependency-propagation.md) that describes different
 Assume we have written the following services (`Cake`, `Chocolate`, `Flour`, and `Spoon`):
 
 ```scala
+import zio._
 
 trait Cake
 
@@ -63,6 +64,9 @@ The `Cake` service has the following dependency graph:
 Now we can write an application that uses the `Cake` service as below:
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 val myApp: ZIO[Cake, IOException, Unit] = for {
   cake <- ZIO.service[Cake]
@@ -108,6 +112,7 @@ Here are the errors that will be printed:
 It says that we missed providing `Chocolate` and `Flour` layers. Now let's add these two missing layers:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -152,6 +157,7 @@ Required by Chocolate.live
 Finally, our application compiles without any errors:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -169,6 +175,7 @@ Note that the order of dependencies doesn't matter. We can provide them in any o
 Now, let's compare the automatic layer construction with the manual one:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -187,6 +194,7 @@ object MainApp extends ZIOAppDefault {
 For example, we can create a `Cake` layer as below:
 
 ```scala
+import zio._
 
 val cakeLayer: ZLayer[Any, Nothing, Cake] =
   ZLayer.make[Cake](
@@ -200,6 +208,7 @@ val cakeLayer: ZLayer[Any, Nothing, Cake] =
 We can also create a layer for intersections of services:
 
 ```scala
+import zio._
 
 val chocolateAndFlourLayer: ZLayer[Any, Nothing, Chocolate & Flour] =
   ZLayer.make[Chocolate & Flour](
@@ -212,6 +221,7 @@ val chocolateAndFlourLayer: ZLayer[Any, Nothing, Chocolate & Flour] =
 2. **ZLayer.makeSome[R0, R]** — Automatically constructs a layer for the provided type `R`, leaving a remainder `R0`:
 
 ```scala
+import zio._
 
 val cakeLayer: ZLayer[Spoon, Nothing, Cake] =
   ZLayer.makeSome[Spoon, Cake](
@@ -228,6 +238,7 @@ To debug ZLayer construction, we have two built-in layers, i.e., `ZLayer.Debug.t
 Let's include the `ZLayer.Debug.tree` layer into the layer construction:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run =

@@ -38,6 +38,7 @@ Here are the two main ways to use `Cached`:
 Create a cache and manually trigger a refresh:
 
 ```scala
+import zio._
 
 object ManualRefreshExample extends ZIOAppDefault {
   def run = ZIO.scoped {
@@ -58,6 +59,8 @@ object ManualRefreshExample extends ZIOAppDefault {
 **Automatic Refresh** — A schedule controls refresh timing:
 
 ```scala
+import zio._
+import zio.test.TestClock
 
 object AutoRefreshExample extends ZIOAppDefault {
   def run = ZIO.scoped {
@@ -106,6 +109,7 @@ The `Cached.manual` constructor creates a cache that stores the result of the `a
 To create a manual cache that you can refresh on demand:
 
 ```scala
+import zio._
 
 object ManualCacheExample extends ZIOAppDefault {
   def run = ZIO.scoped {
@@ -157,6 +161,8 @@ The `Cached.auto` constructor creates a cache that refreshes automatically accor
 To create an automatic cache that refreshes on a fixed schedule:
 
 ```scala
+import zio._
+import zio.test.TestClock
 
 object AutoCacheExample extends ZIOAppDefault {
   def run = ZIO.scoped {
@@ -181,6 +187,7 @@ object AutoCacheExample extends ZIOAppDefault {
 If you need automatic refresh with error recovery, apply retry policies to the `acquire` effect:
 
 ```scala
+import zio._
 
 object AutoCacheWithRetryExample extends ZIOAppDefault {
   def run = ZIO.scoped {
@@ -224,6 +231,7 @@ The `Cached#get` method returns the most recently cached value. If the cache has
 To retrieve the currently cached value after it has been populated:
 
 ```scala
+import zio._
 
 object GetExample extends ZIOAppDefault {
   def run = ZIO.scoped {
@@ -264,6 +272,7 @@ The `Cached#refresh` method explicitly triggers a cache refresh by re-running th
 To manually refresh a cache and retrieve the updated value:
 
 ```scala
+import zio._
 
 object RefreshExample extends ZIOAppDefault {
   def run = ZIO.scoped {
@@ -289,6 +298,8 @@ A key feature of `Cached` is that failed refreshes don't invalidate previously s
 To observe how a cache maintains the previous value when a refresh fails:
 
 ```scala
+import zio._
+import zio.test.TestClock
 
 object GracefulDegradationExample extends ZIOAppDefault {
   def run = ZIO.scoped {
@@ -315,6 +326,7 @@ In this example, even though the refresh fails (because the ref contains a `Left
 `Cached` uses ZIO's resource system to manage its lifetime. Both `Cached.manual` and `Cached.auto` return a scoped effect:
 
 ```scala
+import zio._
 
 object ScopedCacheExample extends ZIOAppDefault {
   def run = ZIO.scoped {
@@ -337,6 +349,7 @@ The `Schedule` type provides powerful timing policies for `auto` caches. Here ar
 To set up a cache that refreshes at a fixed interval:
 
 ```scala
+import zio._
 
 val acquire = ZIO.succeed(42)
 val cache = Cached.auto(acquire, Schedule.spaced(5.seconds))
@@ -345,6 +358,7 @@ val cache = Cached.auto(acquire, Schedule.spaced(5.seconds))
 To refresh the cache after a fixed delay between successive refreshes:
 
 ```scala
+import zio._
 
 val acquire = ZIO.succeed(42)
 val cache = Cached.auto(acquire, Schedule.fixed(5.seconds))
@@ -353,6 +367,7 @@ val cache = Cached.auto(acquire, Schedule.fixed(5.seconds))
 To limit automatic refreshes to a maximum number of times:
 
 ```scala
+import zio._
 
 val acquire = ZIO.succeed(42)
 val cache = Cached.auto(acquire, Schedule.recurs(10))
@@ -361,6 +376,7 @@ val cache = Cached.auto(acquire, Schedule.recurs(10))
 **Exponential Backoff (for retrying):**
 Apply retry to the acquire effect:
 ```scala
+import zio._
 
 val acquire: ZIO[Any, String, Int] = ZIO.succeed(42)
 val acquireWithRetry = acquire.retry(Schedule.exponential(100.millis))
@@ -376,6 +392,7 @@ Here are some practical examples of using `Cached` for common scenarios:
 For resources that require explicit cleanup:
 
 ```scala
+import zio._
 
 object ResourceCacheExample extends ZIOAppDefault {
   case class Connection(id: String)
@@ -401,6 +418,7 @@ object ResourceCacheExample extends ZIOAppDefault {
 Combine `Cached` with error handling for resilient systems:
 
 ```scala
+import zio._
 
 object CacheWithFallbackExample extends ZIOAppDefault {
   def run = ZIO.scoped {
@@ -420,6 +438,7 @@ object CacheWithFallbackExample extends ZIOAppDefault {
 When refreshes are triggered by external events:
 
 ```scala
+import zio._
 
 object EventDrivenCacheExample extends ZIOAppDefault {
   def run = ZIO.scoped {

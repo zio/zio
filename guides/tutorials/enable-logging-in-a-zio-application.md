@@ -40,6 +40,7 @@ To enable this feature, we have included `sbt-revolver` in the project. For more
 ZIO has a default logger that prints any log messages that are equal, or above the `Level.Info` level:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run = ZIO.log("Application started")
@@ -55,6 +56,7 @@ timestamp=2022-06-01T09:43:08.848398Z level=INFO thread=#zio-fiber-6 message="Ap
 If we want to include the `Cause` in the log message, we can use the `ZIO.logCause` which takes the message and also the cause:
 
 ```scala modc:compile-only
+import zio._
 
 object MainApp extends ZIOAppDefault {
 
@@ -94,6 +96,7 @@ To distinguish importance of log messages from each other, ZIO supports the foll
 As we said earlier, the default logger prints log messages equal or above the `Info` level. So, if we run the following code, only the `Info`, `Warning`, and `Error` and the `Fatal` log messages will be printed:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -122,6 +125,7 @@ timestamp=2022-06-01T10:16:26.642260Z level=INFO thread=#zio-fiber-6 message="In
 As we mentioned, the default log level for ZIO.log and ZIO.logCause is `Info`. We can use these two methods to log various part of our workflow, and then finally we can wrap the whole workflow with our desired log level:
 
 ```scala
+import zio._
 
 ZIO.logLevel(LogLevel.Debug) {
   for {
@@ -140,6 +144,9 @@ In this section, we are going to log all the HTTP requests coming to the `UserAp
 We demonstrate this for the "POST /users" endpoint. This process is the same for all the other endpoints:
 
 ```scala
+import zio._
+import zio.json._
+import zio.http._
 
 Routes(
   // POST /users -d '{"name": "John", "age": 35}'
@@ -173,6 +180,7 @@ Routes(
 ZIO supports logging spans. A span is a logical unit of work that is composed of a start and end time. The start time is when the span is created and the end time is when the span is completed. The span is useful for measuring the time it takes to execute a piece of code. To create a new span, we can use the `ZIO.logSpan` function as follows:
 
 ```scala
+import zio._
 
 ZIO.logSpan("span name") {
   // do some work
@@ -185,6 +193,7 @@ ZIO.logSpan("span name") {
 For example, assume we have a function that takes the `username` and returns the profile picture of the user. We can wrap the whole function in a new span called "get-profile-picture" and log inside the span:
 
 ```scala
+import zio._
 
 case class User(id: String, name: String, profileImage: String)
 
@@ -215,6 +224,7 @@ Any logs inside the span region will be logged with the span name and the durati
 We can also create multiple spans and log inside them:
 
 ```scala
+import zio._
 
 ZIO.logSpan("span1") {
   for {
@@ -232,6 +242,8 @@ ZIO.logSpan("span1") {
 To measure the time taken to process the request at different points of the code, we can wrap any workflow with `ZIO.logSpan`. In the `UserApp` example, we wrote a workflow that handles the registration of a new user. We can wrap the workflow in a span and log inside the span:
 
 ```scala
+import zio._
+import zio.http._
 
 Routes(
   // POST /users -d '{"name": "John", "age": 35}'
@@ -245,6 +257,7 @@ Routes(
 As we need the same for all other endpoints, we introduced a new ZIO Aspect called `LogAspect.logSpan` which can be applied to any ZIO workflow. Let's see how it is implemented and how it works:
 
 ```scala
+import zio._
 
 object LogAspect {
   def logSpan(
@@ -306,6 +319,7 @@ Other than these key-value pairs, we can also annotate the log message with othe
 For example, when we are handling an HTTP request, we can annotate the log message with the user's id:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   // We use random delay to simulate interleaving of operations in real world
@@ -345,6 +359,8 @@ To add a Correlation ID to the logs, we should first extract the `X-Correlation-
 As this is a common pattern along with all other endpoints, we created a new ZIO Aspect called `LogAspect.logAnnotateCorrelationId` which can be applied to any ZIO workflow:
 
 ```scala
+import zio._
+import zio.http.Request
 
 object LogAspect {
   def logAnnotateCorrelationId(

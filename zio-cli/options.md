@@ -23,6 +23,7 @@ The following methods construct an `Options` with a `name` that requires an inpu
 ### Boolean Options
 Produces an `Options[Boolean]`. It accepts as input `true` or `false`, while other pieces of text are not valid.
 ```scala
+import zio.cli._
 
 val name = "name"
 
@@ -184,6 +185,8 @@ If we have more than one option and we need only one, we can create a new `Optio
 
 `|` is just an alias for `orElse`. In the Git CLI, it is possible to choose between different options. This can be realized using `orElse`.
 ```scala
+import zio.cli._
+import java.nio.file.Path
 
 val all = Options.boolean("all")
 val interactive = Options.boolean("all")
@@ -206,6 +209,7 @@ This is another way to implement the `[--all | --interactive | --patch]` option 
 
 It allows to transform the type parameter of `Options[A]`. It takes a function `f: A => B` as parameter that is applied when processing the input of a user in a CLI app. This makes easier to implement the business logic of a CLI app. This allows to implement `[--all | --interactive | --patch]` option of command `git commit` using `orElse`. This is not possible without method `map`, because the result of using `orElse` is an option that returns true if some of the options are employed.
 ```scala
+import zio.cli._
 
 sealed trait Mode
 case class All() extends Mode
@@ -299,6 +303,7 @@ val quietWithHelp = quiet ?? "Suppress feedback messages."
 ### Example
 As an example, we are going to construct an instance of `Options[Git]` that describes the options of the command `git commit`. We are going to implement only an option `--msg` that includes a commit message and alternatives between `-a`, `--interactive` and `--patch`. First, we create the basic options. Observe how we add an alias to `all`and `msg`.
 ```scala
+import zio.cli._
 
 val all = Options.boolean("all").alias("a")
 val interactive = Options.boolean("interactive")

@@ -24,6 +24,7 @@ To write application logic, we need to access services from the ZIO environment.
 For example, assume we have the following services:
 
 ```scala
+import zio._
 
 final class A {
   def foo: UIO[String] = ZIO.succeed("Hello!")
@@ -137,6 +138,7 @@ Here the `ZLayer` data types act as a dependency/environment eliminator. By prov
 That's it! Now we can run our application:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run = result
@@ -146,6 +148,7 @@ object MainApp extends ZIOAppDefault {
 Usually, when we use automatic layer construction, we skip the second step and instead provide all dependencies directly to the `ZIO.provide` operation. It takes care of building the dependency graph and providing the dependency graph to our ZIO application:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run = myApp.provide(A.layer, B.layer)
@@ -163,6 +166,7 @@ In ZIO, when we write services, we use class constructors to pass dependencies t
 For example, assume we have written the following `A` and `B` services:
 
 ```scala
+import zio._
 
 final class A {
   def foo: ZIO[Any, Nothing, String] = ZIO.succeed("Hello!")
@@ -226,6 +230,7 @@ val myApp: ZIO[A with B with C, Nothing, Unit] =
 In order to run the application, we should provide the `A`, `B` and `C` services:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run = myApp.provide(A.layer, B.layer, C.layer)
@@ -243,6 +248,7 @@ Let's try an example. Assume we want to implement service `C` which is implement
 The first step is to define interfaces for each service. This gives us the contract for how our services work together and lets us figure out our architecture and divide and conquer:
 
 ```scala
+import zio._
 
 trait A {
   def foo: ZIO[Any, Nothing, Int]
@@ -280,6 +286,7 @@ final case class CLive(a: A, b: B) extends C {
 Now, we need to create layers for each of our implementations. This lets ZIO automatically wire them together. It also lets us take care of any setup or tear down. We use `ZIO.service` to grab things from the environment:
 
 ```scala modc:silent
+import zio._
 
 object ALive {
   val layer: ZLayer[Any, Nothing, ALive] = ZLayer.succeed(ALive())
@@ -303,6 +310,7 @@ object CLive {
 Finally, it is time to write our application logic in terms of our services.  We use `ZIO.service` once more in our main application to actually access the service that contains our main application logic and call it:
 
 ```scala
+import zio._
 
 val myApp: ZIO[A with C, Nothing, Unit] =
   for {
@@ -316,6 +324,7 @@ val myApp: ZIO[A with C, Nothing, Unit] =
 Now, in order to run our application, we wire all of our services together with `ZIO#provide` and inject them to our application:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run = myApp.provide(
@@ -329,6 +338,7 @@ object MainApp extends ZIOAppDefault {
 For any purpose, if we decided to use another implementation for the `A` service, we can replace it easily without changing our application logic:
 
 ```scala
+import zio._
 
 final case class ACustom() extends A {
   def foo = ZIO.succeed(84)

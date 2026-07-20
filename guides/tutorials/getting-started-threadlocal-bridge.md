@@ -57,6 +57,7 @@ A `ThreadLocal` in Java stores a separate value for each thread. When you call `
 Here's how `ThreadLocal` isolates values per thread — when you set a value in one thread, other threads still see their own independent values:
 
 ```scala
+import scala.io.StdIn
 
 object ThreadLocalDemo {
   // Simulate a simple ThreadLocal string storage
@@ -126,6 +127,7 @@ Time 4: The I/O completes, Fiber A resumes
 Here's how the problem manifests when a fiber is rescheduled on a different thread and loses its intended context:
 
 ```scala
+import zio._
 
 object ProblemDemo {
   // Simulate a Java library that reads from ThreadLocal
@@ -178,6 +180,7 @@ The link function is invoked automatically by `ThreadLocalBridge` whenever:
 Here's the essential pattern for synchronizing a `FiberRef` with a `ThreadLocal`:
 
 ```scala
+import zio._
 
 object MinimalExample {
   // 1. Create a ThreadLocal
@@ -255,6 +258,7 @@ Now let's build a complete working example from scratch. We'll create a simple r
 This is a complete, self-contained example:
 
 ```scala
+import zio._
 
 object SimpleRequestTracker {
   // Step 1: Create a ThreadLocal to store the request ID
@@ -304,15 +308,16 @@ object SimpleRequestTracker {
 Now let's run it and see the output:
 
 ```scala
+import zio._
 
 SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 // res3: ZIO[Any, Nothing, Unit] = FlatMap(
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$19767/0x00007f8d66e7a350@7294bed7
+//     eval = zio.Scope$$$Lambda$19796/0x00007f534ef76950@47d94a00
 //   ),
-//   successK = zio.ZIO$$$Lambda$19768/0x00007f8d66e7a608@5c7d4f42
+//   successK = zio.ZIO$$$Lambda$19797/0x00007f534ef76c08@781f777e
 // )
 ```
 
@@ -333,6 +338,7 @@ This demonstrates the core feature: **automatic synchronization**. You change th
 If your link function throws an exception, the exception propagates and cancels the entire effect. This is usually not what you want. Always handle exceptions gracefully:
 
 ```scala
+import zio._
 
 object ExceptionHandlingExample {
   val threadLocal = new ThreadLocal[String] {
@@ -386,6 +392,8 @@ SLF4J provides the **MDC (Mapped Diagnostic Context)** — a map stored in `Thre
 Here's how to integrate `ThreadLocalBridge` with SLF4J's MDC (Mapped Diagnostic Context) to automatically synchronize request IDs across concurrent fibers:
 
 ```scala
+import zio._
+import org.slf4j.MDC
 
 object SLF4JExample {
   
@@ -430,6 +438,7 @@ object SLF4JExample {
 Here's how to use the SLF4J example in your application:
 
 ```scala
+import zio._
 
 SLF4JExample.handleConcurrentRequests().provide(ThreadLocalBridge.live)
 ```
@@ -479,6 +488,8 @@ A forked fiber runs on a different thread and sees the `ThreadLocal`'s initial v
 
 ```scala title="zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept1Example.scala" showLineNumbers
 package threadlocalbridge
+
+import zio._
 
 /** Title: Understanding ThreadLocal in Async Code
   * Description: This example demonstrates the problem with using Java ThreadLocal
@@ -537,6 +548,8 @@ sbt "threadlocal-bridge/runMain threadlocalbridge.Concept1Example"
 
 ```scala title="zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept2Example.scala" showLineNumbers
 package threadlocalbridge
+
+import zio._
 
 /** Title: Creating and Using ThreadLocalBridge
   * Description: This example shows how to use ThreadLocalBridge to safely manage
@@ -624,6 +637,8 @@ Covers two scenarios: a nested fiber chain where each level scopes its own value
 
 ```scala title="zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/Concept3Example.scala" showLineNumbers
 package threadlocalbridge
+
+import zio._
 
 /** Title: ThreadLocalBridge with Inheritance and Cleanup
   * Description: This example demonstrates how ThreadLocalBridge handles value
@@ -745,6 +760,8 @@ Three concurrent requests each carrying a `RequestContext` (request ID, user, co
 
 ```scala title="zio-examples/threadlocal-bridge/src/main/scala/threadlocalbridge/CompleteExample.scala" showLineNumbers
 package threadlocalbridge
+
+import zio._
 
 /** Title: Complete ThreadLocalBridge Example - Request Context Propagation
   * Description: A realistic end-to-end example showing how to use ThreadLocalBridge

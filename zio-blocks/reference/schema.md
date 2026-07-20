@@ -61,6 +61,7 @@ ZIO Blocks provides both automatic schema derivation and also ways to manually c
 To leverage auto-derivation, simply define an implicit `Schema` for your type using `Schema.derived`:
 
 ```scala
+import zio.blocks.schema.Schema
 
 case class Person(name: String, age: Int)
 
@@ -74,6 +75,7 @@ It will automatically derive the schema for `Person` based on its structure. Aft
 For sealed traits (ADTs), it will derive the schema for all subtypes as well:
 
 ```scala
+import zio.blocks.schema.Schema
 
 sealed trait Shape
 object Shape {
@@ -95,6 +97,7 @@ ZIO Blocks ships with a comprehensive set of pre-defined schemas for standard Sc
 The foundational building blocks for all data types. These schemas leverage the [register-based architecture](registers.md) for zero-allocation performance:
 
 ```scala
+import zio.blocks.schema.Schema
 
 Schema[Unit]      // The unit type (singleton value)
 Schema[Boolean]   // Boolean values (true/false)
@@ -113,6 +116,7 @@ Schema[String]    // Immutable character sequence
 For financial calculations and scenarios requiring exact decimal representation:
 
 ```scala
+import zio.blocks.schema.Schema
 
 Schema[BigInt]      // Arbitrary precision integer
 Schema[BigDecimal]  // Arbitrary precision decimal
@@ -123,6 +127,7 @@ Schema[BigDecimal]  // Arbitrary precision decimal
 Complete coverage of the modern Java Time API for robust date/time handling:
 
 ```scala
+import zio.blocks.schema.Schema
 
 // Date components
 Schema[java.time.LocalDate]      // Date without time (2024-01-15)
@@ -154,6 +159,7 @@ Schema[java.time.MonthDay]   // Month and day combination
 There are also schemas for frequently used Java utility types, UUID and Currency:
 
 ```scala
+import zio.blocks.schema.Schema
 
 Schema[java.util.UUID]      // 128-bit universally unique identifier
 Schema[java.util.Currency]  // ISO 4217 currency code
@@ -164,6 +170,7 @@ Schema[java.util.Currency]  // ISO 4217 currency code
 ZIO Blocks provides specialized `Option` schemas optimized for primitive types. These avoid boxing overhead by storing primitive values directly in registers:
 
 ```scala
+import zio.blocks.schema.Schema
 
 // Specialized primitive options (no boxing overhead)
 Schema[Option[Boolean]]  // Also: Byte, Short, Int, Long, Float, Double, Char, Unit
@@ -172,6 +179,7 @@ Schema[Option[Boolean]]  // Also: Byte, Short, Int, Long, Float, Double, Char, U
 Other than primitive types, ZIO Blocks uses a generic representation for `Option[A]` which works for all reference types:
 
 ```scala
+import zio.blocks.schema.Schema
 
 // Reference type options (requires A <: AnyRef)
 Schema[Option[A]]  // Generic option for reference types
@@ -182,6 +190,7 @@ Schema[Option[A]]  // Generic option for reference types
 ZIO Blocks also provides polymorphic schemas for standard Scala collections. You can summon schemas for collections of any element type `A` (and key/value types `K`/`V` for maps):
 
 ```scala
+import zio.blocks.schema.Schema
 
 // Built-in Scala collections
 Schema[List[A]]        // Immutable singly-linked list
@@ -203,6 +212,7 @@ To learn how to create custom collection schemas, check out the [`Sequence`](./r
 ZIO Blocks includes a built-in schema for `DynamicValue`, a semi-structured data representation that serves as a superset of JSON:
 
 ```scala
+import zio.blocks.schema._
 
 val schema = Schema[DynamicValue]  // Semi-structured data (superset of JSON)
 ```
@@ -214,6 +224,7 @@ Having the schema for `DynamicValue` allows seamless encoding/decoding between `
 `DynamicValue` has a custom `toString` that produces EJSON (Extended JSON) format - a superset of JSON that handles non-string keys, tagged variants, and typed primitives:
 
 ```scala
+import zio.blocks.schema._
 
 // Records have unquoted keys
 val record = DynamicValue.Record(Vector(
@@ -262,6 +273,7 @@ println(instant)
 `Schema` has a custom `toString` that wraps the underlying `Reflect` output in a `Schema { ... }` block, providing a complete structural view of your data types:
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -308,6 +320,10 @@ ZIO Blocks has built-in support for several popular formats, currently `AvroForm
 The following example demonstrates encoding and decoding a `Person` case class to/from JSON using the built-in `JsonFormat`:
 
 ```scala
+import java.nio.ByteBuffer
+
+import zio.blocks.schema._
+import zio.blocks.schema.json.JsonFormat
 
 case class Person(name: String, age: Int)
 
@@ -345,6 +361,8 @@ To derive type class instances for a type `A` based on its schema, you can use t
 In the following example, we derive a JSON codec for the `Person` case class using the `JsonFormat` deriver:
 
 ```scala
+import zio.blocks.schema.Schema
+import zio.blocks.schema.json.{JsonFormat, JsonCodec}
 
 case class Person(name: String, age: Int)
 
@@ -374,6 +392,8 @@ ZIO Blocks allows attaching metadata to schemas and their fields, such as docume
 Here is an example of how to set and retrieve documentation values:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.docs.Doc
 
 case class Person(name: String, age: Int)
 
@@ -399,6 +419,7 @@ The important thing to note here is that we can use optics to target specific fi
 Similarly, you can set and get example values:
 
 ```scala
+import zio.blocks.schema._
 
 // Add example values
 val withExamples: Schema[Person] = 
@@ -436,6 +457,7 @@ val ageDefault: Option[Int] =
 To access a specific part of a schema, we can use the `Schema#get` method, which takes an optic and returns the reflection of the targeted field. 
 
 ```scala
+import zio.blocks.schema._
 
 case class Person(name: String, address: Address)
 
@@ -510,6 +532,7 @@ case class Schema[A](reflect: Reflect.Bound[A]) {
 These methods enable us to use `@@` syntax for applying aspects to either the entire schema or a specific path within the schema using optics:
 
 ```scala
+import zio.blocks.schema._
 
 // Apply aspect to entire schema
 val documented: Schema[Person] = Schema[Person] @@ SchemaAspect.doc("A person")
@@ -573,6 +596,7 @@ The `transform` method allows you to define transformations that can fail by thr
 Here are examples of both:
 
 ```scala
+import zio.blocks.schema.{Schema, SchemaError}
 
 // For types with validation (may fail)
 case class Email(value: String)
@@ -604,6 +628,9 @@ object UserId {
 ZIO Blocks provides `Allows[A, S]` — a phantom-typed capability token that proves, at compile time, that type `A` satisfies the structural grammar `S`. This lets library authors express and enforce structural preconditions on their generic APIs without writing macros themselves.
 
 ```scala
+import zio.blocks.schema.Schema
+import zio.blocks.schema.comptime.Allows
+import Allows._
 
 // Require a flat record of scalars (e.g. for CSV or RDBMS)
 def writeCsv[A: Schema](rows: Seq[A])(using

@@ -11,6 +11,8 @@ since version 2.7.1 zio-kafka supports a new mode in which we prevent duplicates
 as follows:
 
 ```scala
+import zio.*
+import zio.kafka.consumer.ConsumerSettings
 
 val consumerSettings: ConsumerSettings =
   ConsumerSettings(List("localhost:9092"))
@@ -42,6 +44,7 @@ invoking method `Consumer.registerExternalCommits(offsetBatch: OffsetBatch)` (av
 Here is what this could look like:
 
 ```scala
+import zio.kafka.consumer._
 
 consumer.plainStream(Subscription.topics("topic2000"), Serde.string, Serde.string)
   .mapZIO { record =>

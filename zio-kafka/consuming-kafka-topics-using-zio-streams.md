@@ -5,6 +5,9 @@
 You can stream data from Kafka using the `plainStream` method:
 
 ```scala
+import zio._
+import zio.Console.printLine
+import zio.kafka.consumer._
 
 consumer
   .plainStream(Subscription.topics("topic150"), Serde.string, Serde.string) // (1)
@@ -57,6 +60,9 @@ To process partitions (assigned to the consumer) in parallel, you may use the `p
 a nested stream of partitions:
 
 ```scala
+import zio._
+import zio.Console.printLine
+import zio.kafka.consumer._
 
 consumer
   .partitionedStream(Subscription.topics("topic150"), Serde.string, Serde.string)
@@ -108,6 +114,9 @@ The `StreamControl` can be used with `Consumer.runWithGracefulShutdown`, which c
 fiber interruption. This is useful for a controlled shutdown when your application is terminated:
 
 ```scala
+import zio.Console.printLine
+import zio.kafka.consumer._
+import zio._
 
 ZIO.scoped {
   for {
@@ -133,6 +142,8 @@ ZIO.scoped {
 For more control over when to end the stream, use the `StreamControl` construct like this:
 
 ```scala
+import zio.Console.printLine
+import zio.kafka.consumer._
 
 ZIO.scoped {
     for {

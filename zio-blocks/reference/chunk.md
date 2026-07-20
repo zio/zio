@@ -46,6 +46,7 @@ Supported Scala versions: 2.13.x and 3.x
 ### From Varargs
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val numbers = Chunk(1, 2, 3, 4, 5)
 val strings = Chunk("hello", "world")
@@ -55,6 +56,7 @@ val empty   = Chunk.empty[Int]
 ### From a Single Element
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val single = Chunk.single(42)
 val unit   = Chunk.unit // Chunk(())
@@ -65,6 +67,7 @@ val unit   = Chunk.unit // Chunk(())
 When you have an existing array, use `fromArray`. Note that the array should not be mutated after wrapping:
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val arr   = Array(1, 2, 3)
 val chunk = Chunk.fromArray(arr)
@@ -73,6 +76,7 @@ val chunk = Chunk.fromArray(arr)
 ### From Iterables and Iterators
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val fromList   = Chunk.fromIterable(List(1, 2, 3))
 val fromVector = Chunk.fromIterable(Vector("a", "b"))
@@ -82,6 +86,8 @@ val fromIter   = Chunk.fromIterator(Iterator.range(0, 10))
 ### From Java Collections
 
 ```scala
+import zio.blocks.chunk.Chunk
+import java.util
 
 val javaList = new util.ArrayList[String]()
 javaList.add("one")
@@ -95,6 +101,8 @@ val chunk = Chunk.fromJavaIterable(javaList)
 Chunk provides direct integration with Java NIO buffers:
 
 ```scala
+import zio.blocks.chunk.Chunk
+import java.nio.ByteBuffer
 
 val buffer = ByteBuffer.wrap(Array[Byte](1, 2, 3, 4))
 val bytes  = Chunk.fromByteBuffer(buffer)
@@ -112,6 +120,7 @@ Available buffer constructors:
 ### Generator Functions
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val filled   = Chunk.fill(5)("x")         // Chunk("x", "x", "x", "x", "x")
 val iterated = Chunk.iterate(1, 5)(_ * 2) // Chunk(1, 2, 4, 8, 16)
@@ -123,6 +132,7 @@ val unfolded = Chunk.unfold(0)(n => if (n < 5) Some((n, n + 1)) else None)
 ### Element Access
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val chunk = Chunk(10, 20, 30, 40, 50)
 
@@ -139,6 +149,7 @@ val maybeLast = chunk.lastOption // Some(50)
 For primitive chunks, specialized accessors avoid boxing:
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val ints = Chunk(1, 2, 3)
 val i: Int = ints.int(0)     // unboxed access
@@ -153,6 +164,7 @@ val d: Double = doubles.double(0)  // unboxed access
 ### Transformations
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val chunk = Chunk(1, 2, 3, 4, 5)
 
@@ -167,6 +179,7 @@ val collected = chunk.collect { case n if n % 2 == 0 => n * 10 } // Chunk(20, 40
 Concatenation is efficient—Chunk uses balanced tree structures to avoid copying:
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val a = Chunk(1, 2, 3)
 val b = Chunk(4, 5, 6)
@@ -181,6 +194,7 @@ val prepended = 0 +: a          // Chunk(0, 1, 2, 3)
 Slicing operations create views and don't copy data:
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val chunk = Chunk(1, 2, 3, 4, 5, 6, 7, 8)
 
@@ -195,6 +209,7 @@ val (left, right) = chunk.splitAt(4)  // (Chunk(1,2,3,4), Chunk(5,6,7,8))
 ### Conditional Operations
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val chunk = Chunk(1, 2, 3, 4, 5, 6)
 
@@ -207,6 +222,7 @@ val dropUntilBig   = chunk.dropUntil(_ > 3)    // Chunk(5, 6)
 ### Folding and Reduction
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val chunk = Chunk(1, 2, 3, 4, 5)
 
@@ -220,6 +236,7 @@ val runningSum = chunk.foldWhile(0)(_ < 10)(_ + _) // 10 (1+2+3+4)
 ### Searching and Predicates
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val chunk = Chunk(1, 2, 3, 4, 5)
 
@@ -232,6 +249,7 @@ val index    = chunk.indexWhere(_ > 3)   // 3
 ### Zipping
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val as = Chunk("a", "b", "c")
 val bs = Chunk(1, 2, 3)
@@ -247,6 +265,7 @@ val zipAll      = as.zipAll(Chunk(1, 2))  // handles different lengths
 Updates are immutable and use efficient buffering:
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val chunk   = Chunk(1, 2, 3, 4, 5)
 val updated = chunk.updated(2, 100) // Chunk(1, 2, 100, 4, 5)
@@ -255,6 +274,7 @@ val updated = chunk.updated(2, 100) // Chunk(1, 2, 100, 4, 5)
 ### Deduplication and Sorting
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val withDupes = Chunk(1, 1, 2, 2, 2, 3, 3)
 val deduped   = withDupes.dedupe  // Chunk(1, 2, 3) - removes adjacent duplicates
@@ -266,6 +286,7 @@ val sorted   = unsorted.sorted    // Chunk(1, 1, 3, 4, 5)
 ### Splitting
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val chunk = Chunk(1, 2, 3, 4, 5, 6)
 
@@ -276,6 +297,8 @@ val (before, after) = chunk.splitWhere(_ > 3) // splits at first element > 3
 ### String Conversion
 
 ```scala
+import zio.blocks.chunk.Chunk
+import java.nio.charset.StandardCharsets
 
 val bytes = Chunk[Byte](72, 101, 108, 108, 111)
 val str   = bytes.asString  // "Hello"
@@ -292,6 +315,7 @@ val base64      = bytes.asBase64String // base64-encoded string
 For complex operation chains, you can force materialization to an array-backed chunk:
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val complex = Chunk(1, 2, 3) ++ Chunk(4, 5) ++ Chunk(6, 7)
 val materialized = complex.materialize // backed by a single array
@@ -302,6 +326,7 @@ val materialized = complex.materialize // backed by a single array
 `NonEmptyChunk[A]` is a chunk guaranteed to contain at least one element. This enables safe use of operations like `head` and `reduce`:
 
 ```scala
+import zio.blocks.chunk.{Chunk, NonEmptyChunk}
 
 val nec = NonEmptyChunk(1, 2, 3)
 
@@ -315,6 +340,7 @@ val flatMapped: NonEmptyChunk[Int] = nec.flatMap(n => NonEmptyChunk(n, n + 1))
 ### Creating NonEmptyChunk
 
 ```scala
+import zio.blocks.chunk.{Chunk, NonEmptyChunk}
 
 val fromValues = NonEmptyChunk(1, 2, 3)
 val single     = NonEmptyChunk.single(42)
@@ -328,6 +354,7 @@ val empty: Option[NonEmptyChunk[Int]] = NonEmptyChunk.fromChunk(Chunk.empty) // 
 ### Converting Between Chunk and NonEmptyChunk
 
 ```scala
+import zio.blocks.chunk.{Chunk, NonEmptyChunk}
 
 val nec = NonEmptyChunk(1, 2, 3)
 val chunk: Chunk[Int] = nec.toChunk
@@ -355,6 +382,7 @@ Operations that might produce empty results return `Chunk`:
 `ChunkBuilder` is a mutable builder for creating chunks efficiently. It's specialized for primitives to avoid boxing:
 
 ```scala
+import zio.blocks.chunk.{Chunk, ChunkBuilder}
 
 val builder = ChunkBuilder.make[Int]()
 builder.addOne(1)
@@ -368,6 +396,7 @@ val result: Chunk[Int] = builder.result() // Chunk(1, 2, 3, 4, 5)
 For primitives, use specialized builders for best performance:
 
 ```scala
+import zio.blocks.chunk.{Chunk, ChunkBuilder}
 
 val intBuilder = new ChunkBuilder.Int
 intBuilder.addOne(1)
@@ -389,6 +418,7 @@ Chunk provides efficient bit-level operations for working with binary data:
 ### Converting to Bits
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val bytes = Chunk[Byte](0x0F, 0xF0.toByte)
 val bits  = bytes.asBitsByte  // Chunk of 16 booleans
@@ -403,6 +433,7 @@ val longBits = longs.asBitsLong(Chunk.BitChunk.Endianness.BigEndian)
 ### Bitwise Operations
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val a = Chunk(true, false, true, false)
 val b = Chunk(true, true, false, false)
@@ -416,6 +447,7 @@ val negated   = a.negate // Chunk(false, true, false, true)
 ### Packing Booleans
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val bits = Chunk(true, false, true, false, true, true, true, true)
 val packedBytes: Chunk[Byte] = bits.toPackedByte  // Efficient byte representation
@@ -427,6 +459,7 @@ val packedLongs: Chunk[Long] = bits.toPackedLong(Chunk.BitChunk.Endianness.BigEn
 ### Binary String
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val bits = Chunk(true, false, true, true)
 val binary: String = bits.toBinaryString // "1011"
@@ -437,6 +470,7 @@ val binary: String = bits.toBinaryString // "1011"
 `ChunkMap[K, V]` is an order-preserving immutable map backed by parallel chunks. It maintains insertion order during iteration:
 
 ```scala
+import zio.blocks.chunk.{Chunk, ChunkMap}
 
 val map = ChunkMap("a" -> 1, "b" -> 2, "c" -> 3)
 
@@ -448,6 +482,7 @@ val removed = map.removed("b")
 ### Creating ChunkMap
 
 ```scala
+import zio.blocks.chunk.{Chunk, ChunkMap}
 
 val empty = ChunkMap.empty[String, Int]
 val fromPairs = ChunkMap("x" -> 1, "y" -> 2)
@@ -460,6 +495,7 @@ val fromChunks = ChunkMap.fromChunks(Chunk("a", "b"), Chunk(1, 2))
 ChunkMap provides O(1) positional access:
 
 ```scala
+import zio.blocks.chunk.{Chunk, ChunkMap}
 
 val map = ChunkMap("z" -> 1, "a" -> 2, "m" -> 3)
 
@@ -476,6 +512,7 @@ val values: Chunk[Int] = map.valuesChunk
 For frequent lookups, create an indexed version with O(1) key access:
 
 ```scala
+import zio.blocks.chunk.ChunkMap
 
 val map = ChunkMap("a" -> 1, "b" -> 2, "c" -> 3)
 val indexed = map.indexed  // O(1) lookups, extra memory for index
@@ -488,6 +525,7 @@ val value = indexed.get("b")  // O(1) instead of O(n)
 Chunk implements `IndexedSeq` and integrates seamlessly with Scala collections:
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val chunk = Chunk(1, 2, 3, 4, 5)
 
@@ -501,6 +539,7 @@ val fromSeq: Chunk[Int] = Chunk.from(Vector(1, 2, 3))
 Standard collection operations work as expected:
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 val chunk = Chunk(1, 2, 3)
 val result = chunk

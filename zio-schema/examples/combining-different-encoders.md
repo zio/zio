@@ -6,6 +6,10 @@ Let's take a look at a round-trip converting an object to JSON and back, then co
 
 ```scala
 object CombiningExample extends zio.App {
+  import zio.schema.codec.JsonCodec
+  import zio.schema.codec.ProtobufCodec
+  import ManualConstruction._
+  import zio.stream.ZStream
 
   override def run(args: List[String]): UIO[ExitCode] = for {
     _ <- ZIO.unit

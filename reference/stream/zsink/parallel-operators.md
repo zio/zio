@@ -7,6 +7,8 @@
 Like `ZStream`, two `ZSink` can be zipped together. Both of them will be run in parallel, and their results will be combined in a tuple:
 
 ```scala
+import zio._
+import zio.stream._
 
 val kafkaSink: ZSink[Any, Throwable, Record, Record, Unit] =
   ZSink.foreach[Any, Throwable, Record](record => ZIO.attempt(???))

@@ -30,6 +30,8 @@ testFrameworks += new TestFramework("munit.Framework")
 Here is a simple MUnit spec that is integrated with the `ZIO` effect:
 
 ```scala
+import munit._
+import zio._
 
 class SimpleZIOSpec extends ZSuite {
   testZ("1 + 1 = 2") {

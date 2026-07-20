@@ -46,7 +46,7 @@ libraryDependencies += "dev.zio" %% "zio-blocks-schema" % "0.0.33"
 ```
 
 ```scala
-
+import zio.blocks.schema._
 ```
 
 ## Domain Setup
@@ -465,6 +465,7 @@ Always use parameterized queries for user-supplied values. The inline `toSql` fu
 When domain types have nested structures, optic paths contain multiple `Field` nodes. For SQL, these often map to JOIN-based queries with table-qualified column names.
 
 ```scala
+import zio.blocks.schema._
 
 case class Address(city: String, country: String)
 object Address {
@@ -520,6 +521,7 @@ To generate full JOIN queries, you would extend the interpreter to inspect the o
 Here is a complete, self-contained example that defines a domain, builds queries, and generates both inline SQL and parameterized queries:
 
 ```scala
+import zio.blocks.schema._
 
 // --- Domain ---
 

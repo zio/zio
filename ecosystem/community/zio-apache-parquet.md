@@ -28,6 +28,15 @@ A simple demo showcasing how to write a small chunk of data and read it applying
 //> using scala "3.5.0"
 //> using dep me.mnedokushev::zio-apache-parquet-core:0.1.0
 
+import zio.*
+import zio.schema.*
+import me.mnedokushev.zio.apache.parquet.core.codec.*
+import me.mnedokushev.zio.apache.parquet.core.hadoop.{ ParquetReader, ParquetWriter, Path }
+import me.mnedokushev.zio.apache.parquet.core.filter.syntax.*
+import me.mnedokushev.zio.apache.parquet.core.filter.*
+
+import java.nio.file.Files
+
 object Filtering extends ZIOAppDefault:
 
   case class MyRecord(a: Int, b: String, c: Option[Long])

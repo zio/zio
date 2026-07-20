@@ -7,6 +7,8 @@
 To run a test on a specific operating system, we can use one of the `unix`, `mac` or `windows` test aspects or a combination of them. Additionally, we can use the `os` test aspect directly:
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 suite("os")(
   test("unix test") {
@@ -29,6 +31,8 @@ Sometimes we have platform-specific tests. Instead of creating separate sources 
 To run a test on a specific platform, we can use one of the `jvm`, `js`, or `native` test aspects or a combination of them. If we want to run our test only on one of these platforms, we can use one of the `jvmOnly`, `jsOnly`, or `nativeOnly` test aspects. To exclude one of these platforms, we can use the `exceptJs`, `exceptJVM`, or `exceptNative` test aspects:
 
 ```scala
+import zio._
+import zio.test.{test, _}
 
 test("Java virtual machine name can be accessed") {
   for {

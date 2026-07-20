@@ -52,7 +52,7 @@ def fiberToFuture[A](fiber: Fiber[Throwable, A]): UIO[Future[A]] =
 You can call `.unsafe.runToFuture` on an instance of `Runtime` to execute a ZIO effect asynchronously and return a `Future` that will be completed when the execution of the effect is complete.
 
 ```scala
-
+import zio.{Runtime, Task, Unsafe}
 ...
 val zio: Task[String] = ...
 val runtime = Runtime.default

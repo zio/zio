@@ -23,6 +23,8 @@ object CyclicBarrier {
 If we create a barrier and don't call `await` on that, the barrier is not going to be released and the number of `waiting` fibers remains zero:
 
 ```scala
+import zio._
+import zio.concurrent.CyclicBarrier
 
 for {
   barrier  <- CyclicBarrier.make(100, ZIO.debug("This is a release action!"))
@@ -36,6 +38,8 @@ for {
 In the following example, we started three tasks, each one has a different working time, but they won't return until the other parties finished their jobs:
 
 ```scala
+import zio._
+import zio.concurrent.CyclicBarrier
 
 object MainApp extends ZIOAppDefault {
   def task(name: String) =
@@ -63,6 +67,8 @@ object MainApp extends ZIOAppDefault {
 ّIf we change the previous example and add more than three tasks, the first three arriving tasks will be blocked and wait for synchronization. After the barrier is broken, the next three tasks will be blocked on the next barrier. **This process will be executed again and again for further tasks. This is why we say that the barrier is cyclic**:
 
 ```scala
+import zio._
+import zio.concurrent.CyclicBarrier
 
 object MainApp extends ZIOAppDefault {
 
@@ -132,8 +138,6 @@ Let's introduce each one:
 
 The following diagram visualizes how fibers interact with a CyclicBarrier as they progress through synchronization points. It demonstrates the flow of fibers awaiting the barrier, the barrier being released when all parties arrive, and how the barrier resets for subsequent cycles.
 
-<CyclicBarrierDiagram />
-
 ## Operations
 
 Let's take a look at the operations defined on a `CyclicBarrier`, then we'll drill down to the important ones:
@@ -157,6 +161,8 @@ When we reset a barrier, the barrier will be reset to its _initial state_ throug
 Here is an example shows the mechanism of `reset` method:
 
 ```scala
+import zio._
+import zio.concurrent.CyclicBarrier
 
 object MainApp extends ZIOAppDefault {
   def task(name: String, b: CyclicBarrier) =
@@ -216,6 +222,9 @@ A barrier can be broken in one of the following cases:
 An example:
 
 ```scala
+import zio._
+import zio.concurrent.CyclicBarrier
+import zio.test.TestClock
 
 for {
   barrier   <- CyclicBarrier.make(100)

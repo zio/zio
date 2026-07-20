@@ -15,6 +15,7 @@ For example, if the implementation of service `X` depends on service `Y` and `Z`
 So the following service definition is wrong because the `BlobStorage` and `MetadataRepo` services are dependencies of the  `DocRepo` service's implementation, not the `DocRepo` interface itself:
 
 ```scala
+import zio._
 
 trait DocRepo {
   def save(document: Doc): ZIO[BlobStorage & MetadataRepo, Throwable, String]
@@ -83,6 +84,8 @@ case class DocRepoImpl() extends DocRepo {
 Therefore, in the last example, if we inline all accessor methods whenever we are using services, we are using the ZIO environment:
 
 ```scala
+import zio._
+import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
   val app =
@@ -136,6 +139,10 @@ Here are two examples:
 1. In a web application, a service may be defined only to operate in the context of an HTTP request. In such a case, the request itself could be stored in the environment: `ZIO[HttpRequest, ...]`. This is acceptable because this use of the environment is part of the semantics of the trait itself, rather than leaking an implementation detail of some particular class that implements the service trait:
 
 ```scala
+import zio._
+import zio.stream._
+import java.net.URI
+import java.nio.charset.StandardCharsets
 
 type HttpApp = ZIO[HttpRequest, Throwable, HttpResponse]
 type HttpRoute = Map[String, HttpApp]

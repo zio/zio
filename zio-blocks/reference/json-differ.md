@@ -55,6 +55,7 @@ Transmitting or storing entire JSON documents wastes bandwidth, disk space, and 
 When the types differ (e.g., number to string, object to array), `JsonDiffer` emits `Op.Set` to replace the value entirely. This is the only compact choice when the types diverge:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonDiffer}
 
 val numberToString = JsonDiffer.diff(Json.Number(42), Json.String("hello"))
 val objectToArray  = JsonDiffer.diff(
@@ -66,6 +67,7 @@ val objectToArray  = JsonDiffer.diff(
 Both patches consist of a single `Set` operation:
 
 ```scala
+import zio.blocks.schema.json.JsonPatch
 
 numberToString.apply(Json.Number(42))
 objectToArray.apply(Json.Object("x" -> Json.Number(1)))
@@ -76,6 +78,7 @@ objectToArray.apply(Json.Object("x" -> Json.Number(1)))
 For numeric changes, `JsonDiffer` emits `NumberDelta` — representing the difference between old and new values as a delta rather than replacing the entire number:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonDiffer}
 
 val increment = JsonDiffer.diff(Json.Number(100), Json.Number(105))
 val decrement = JsonDiffer.diff(Json.Number(50), Json.Number(48))
@@ -84,6 +87,7 @@ val decrement = JsonDiffer.diff(Json.Number(50), Json.Number(48))
 The patches store deltas, not full new values:
 
 ```scala
+import zio.blocks.schema.json.JsonPatch
 
 increment.apply(Json.Number(100))
 decrement.apply(Json.Number(50))
@@ -99,6 +103,7 @@ For strings, `JsonDiffer` chooses between two strategies:
 The algorithm computes common characters, then emits `Insert` and `Delete` operations (with `Append` and `Modify` existing as supported patch ops but not currently produced by `JsonDiffer`). It only emits the edits if their byte size is smaller than the new string's length:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonDiffer}
 
 // Prefix insertion — common suffix preserved
 val addPrefix = JsonDiffer.diff(Json.String("world"), Json.String("hello world"))
@@ -119,6 +124,7 @@ replacement.apply(Json.String("abc"))
 For arrays, `JsonDiffer` uses **LCS-aligned insert, delete, and append operations** to transform the old array into the new one. It aligns common elements and generates the minimum sequence of mutations:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonDiffer}
 
 // Append elements at the end
 val append = JsonDiffer.diff(
@@ -149,6 +155,7 @@ For objects, `JsonDiffer` compares field-by-field:
 - Fields in both are recursively diffed — if the values differ, a `Modify` with a sub-patch is emitted.
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonDiffer}
 
 val original = Json.Object(
   "name" -> Json.String("Alice"),
@@ -176,6 +183,7 @@ patch.apply(original)
 `JsonDiffer` handles deeply nested objects and arrays recursively. Each field or element is diffed independently, producing compact patches at every level:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonDiffer}
 
 val original = Json.Object(
   "user" -> Json.Object(
@@ -213,6 +221,7 @@ object JsonDiffer {
 The roundtrip property always holds — applying the patch to the source always yields the target:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonDiffer}
 
 val source = Json.Object("x" -> Json.Number(10), "y" -> Json.Number(20))
 val target = Json.Object("x" -> Json.Number(10), "y" -> Json.Number(21))
@@ -227,6 +236,7 @@ patch.apply(source) == Right(target)
 `JsonDiffer.diff` is also available as `JsonPatch.diff` and as the `Json#diff` extension method:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonPatch}
 
 // Via JsonPatch companion
 val p1 = JsonPatch.diff(Json.Number(1), Json.Number(2))
@@ -244,6 +254,8 @@ The relationship is simple: `JsonPatch.diff` delegates to `JsonDiffer.diff` and 
 Once you have a `JsonPatch` from `JsonDiffer`, use the full `JsonPatch` API to apply it with different modes, compose multiple patches, or convert to/from `DynamicPatch`:
 
 ```scala
+import zio.blocks.schema.json.{Json, JsonDiffer, JsonPatch}
+import zio.blocks.schema.patch.PatchMode
 
 val source = Json.Object("count" -> Json.Number(0))
 val target = Json.Object("count" -> Json.Number(1))

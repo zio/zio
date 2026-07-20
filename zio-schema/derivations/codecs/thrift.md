@@ -29,6 +29,9 @@ object ThriftCodec {
 Let's try an example:
 
 ```scala
+import zio._
+import zio.schema.codec._
+import zio.schema.{DeriveSchema, Schema}
 
 case class Person(name: String, age: Int)
 

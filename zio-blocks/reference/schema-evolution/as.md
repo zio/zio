@@ -66,6 +66,7 @@ object As {
 We build an `As[Int, Long]` by supplying both directions explicitly:
 
 ```scala
+import zio.blocks.schema.{As, Into, SchemaError}
 
 val intoAB: Into[Int, Long] = a => Right(a.toLong)
 val intoBA: Into[Long, Int] = b =>
@@ -109,6 +110,7 @@ object As {
 The macro works with case classes, sealed traits, Scala 3 enums, tuples, ZIO Prelude newtypes, Scala 3 opaque types, and structural types (JVM only). We derive an `As` for two case classes with matching fields:
 
 ```scala
+import zio.blocks.schema.As
 
 case class PersonA(name: String, age: Int)
 case class PersonB(name: String, age: Long)
@@ -144,6 +146,7 @@ object As {
 This is useful when you want to retrieve a type-class instance by type rather than by variable name:
 
 ```scala
+import zio.blocks.schema.As
 
 case class Foo(x: Int)
 case class Bar(x: Int)
@@ -183,6 +186,7 @@ trait As[A, B] {
 We define two simple wrapper types and derive an `As` between them to show both directions:
 
 ```scala
+import zio.blocks.schema.As
 
 case class IntBox(value: Int)
 case class LongBox(value: Long)
@@ -250,6 +254,7 @@ Because `As[A, B]` extends `Into[A, B]`, any `As` instance can be passed whereve
 We write a generic migration helper that requires only an `Into`, then pass an `As` directly:
 
 ```scala
+import zio.blocks.schema.{Into, As, SchemaError}
 
 case class P2D(x: Int, y: Int)
 case class Coord(x: Int, y: Int)
@@ -280,6 +285,7 @@ trait AsLowPriorityImplicits {
 With an `As[String, Int]` in scope, `As.reverseInto` synthesises `Into[Int, String]` automatically:
 
 ```scala
+import zio.blocks.schema.{As, Into, SchemaError}
 
 implicit val stringIntAs: As[String, Int] = new As[String, Int] {
   def into(s: String): Either[SchemaError, Int] =
@@ -292,6 +298,7 @@ implicit val stringIntAs: As[String, Int] = new As[String, Int] {
 We import `As.reverseInto` and use it to obtain the reverse `Into[Int, String]`:
 
 ```scala
+import As.reverseInto
 
 val intToStr: Into[Int, String] = reverseInto[String, Int]
 // intToStr: Into[Int, String] = zio.blocks.schema.AsLowPriorityImplicits$$Lambda$17549/0x00007faac29bf110@e1a6316
@@ -312,6 +319,7 @@ For two case classes `A` and `B`, the macro checks:
 We derive `As` for two structurally compatible case classes:
 
 ```scala
+import zio.blocks.schema.As
 
 case class UserV1(name: String, age: Int)
 case class UserV2(name: String, age: Long)
@@ -322,6 +330,7 @@ val userAs: As[UserV1, UserV2] = As.derived[UserV1, UserV2]
 Tuples are matched positionally, so field name checks are skipped:
 
 ```scala
+import zio.blocks.schema.As
 
 val tupleAs: As[(Int, String), (Long, String)] = As.derived[(Int, String), (Long, String)]
 ```
@@ -331,6 +340,7 @@ val tupleAs: As[(Int, String), (Long, String)] = As.derived[(Int, String), (Long
 `As.derived` handles sealed traits and Scala 3 enums the same way `Into.derived` does — each subtype is matched by name and derived recursively:
 
 ```scala
+import zio.blocks.schema._
 
 sealed trait ShapeV1
 object ShapeV1 {
@@ -352,6 +362,7 @@ val shapeAs: As[ShapeV1, ShapeV2] = As.derived[ShapeV1, ShapeV2]
 All numeric primitive types (`Byte`, `Short`, `Int`, `Long`, `Float`, `Double`) are bidirectionally coercible. Widening always succeeds; narrowing validates at runtime and returns a `Left` on overflow:
 
 ```scala
+import zio.blocks.schema.As
 
 case class IntModel(value: Int)
 case class LongModel(value: Long)
@@ -395,6 +406,7 @@ numericAs.from(LongModel(Long.MaxValue))
 **Default values on asymmetric fields are rejected.** A field with a default that has no counterpart in the other type cannot be round-tripped: when converting back, the field is missing and there is no way to distinguish a real default from a missing value:
 
 ```scala
+import zio.blocks.schema._
 
 case class WithDefault(name: String, age: Int = 25)
 case class NoDefault(name: String)
@@ -406,6 +418,7 @@ case class NoDefault(name: String)
 Default values are allowed when the field exists in **both** types, because the value is never discarded during the round-trip:
 
 ```scala
+import zio.blocks.schema.As
 
 case class PersonA(name: String, age: Int = 25)
 case class PersonB(name: String, age: Int)
@@ -416,6 +429,7 @@ As.derived[PersonA, PersonB]  // compiles — age is present in both types
 **`Option` fields on one side are allowed.** An `Option` field absent from the other type round-trips cleanly: `Some(v)` becomes `None` after a round-trip, which is the only safe behaviour for a missing field:
 
 ```scala
+import zio.blocks.schema.As
 
 case class TypeA(name: String, nickname: Option[String])
 case class TypeB(name: String)
@@ -426,6 +440,7 @@ As.derived[TypeA, TypeB]  // compiles
 **Numeric coercions must be invertible in both directions.** Widening `Int → Long` is automatically paired with narrowing `Long → Int`. The narrowing validates at runtime, so the round-trip is safe even though it can fail:
 
 ```scala
+import zio.blocks.schema.As
 
 case class IntVersion(value: Int)
 case class LongVersion(value: Long)
@@ -436,6 +451,7 @@ As.derived[IntVersion, LongVersion]  // compiles — widening + narrowing form a
 **Fields present in one type but absent from the other must be `Option`.** A non-optional field that exists only on one side cannot be populated in the reverse direction:
 
 ```scala
+import zio.blocks.schema.As
 
 case class Short_(name: String)
 case class Long_(name: String, extra: String)
@@ -457,6 +473,7 @@ Like `Into`, `As` supports bidirectional conversions with `DynamicValue`, allowi
 You can derive `As[A, DynamicValue]` for any type with a `Schema[A]` and achieve full polyglot round-trips:
 
 ```scala
+import zio.blocks.schema.*
 
 case class Config(host: String, port: Int)
 
@@ -477,6 +494,7 @@ Config.asDynamic.into(Config("localhost", 8080)).map(_.toJsonString)
 Now in the reverse direction, deserialize JSON back to Config:
 
 ```scala
+import zio.blocks.schema.*
 
 case class Config(host: String, port: Int)
 
@@ -518,6 +536,7 @@ Consider a service that:
 Without `As`, step 3 might serialize data differently than step 1 read it, causing silent corruption or misalignment. With `As`, the macro guarantees that `config → DynamicValue → config'` preserves the structure.
 
 ```scala
+import zio.blocks.schema.*
 
 case class DatabaseConfig(host: String, port: Int, timeout: Long)
 

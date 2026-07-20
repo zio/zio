@@ -43,6 +43,7 @@ Here is an example with a `Consumer`, but it works the same with `Producer` and 
 The service now uses the consumer directly: with `consumer` instead of `Consumer`.
 
 ```scala
+import zio.kafka.consumer.Consumer
 
 trait Service {
     def someMethod: ZIO[Any, Throwable, String]

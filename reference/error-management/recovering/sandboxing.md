@@ -13,6 +13,7 @@ trait ZIO[-R, +E, +A] {
 We can use the `ZIO#sandbox` operator to uncover the full causes of an _exceptional effect_. So we can see all the errors that occurred as a type of `Cause[E]` at the error channel of the `ZIO` data type. So then we can use normal error-handling operators such as `ZIO#catchSome` and `ZIO#catchAll` operators:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val effect: ZIO[Any, String, String] =
@@ -44,6 +45,7 @@ object MainApp extends ZIOAppDefault {
 Using the `sandbox` operation we are exposing the full cause of an effect. So then we have access to the underlying cause in more detail. After handling exposed causes using `ZIO#catch*` operators, we can undo the `sandbox` operation using the `unsandbox` operation. It will submerge the full cause (`Cause[E]`) again:
 
 ```scala
+import zio._
 
 val effect: ZIO[Any, String, String] =
   ZIO.succeed("primary result") *> ZIO.fail("Oh uh!")
@@ -65,6 +67,7 @@ trait ZIO[-R, +E, +A] {
 Let's try the previous example using this operator:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   val effect: ZIO[Any, String, String] =

@@ -36,7 +36,7 @@ The default `FiberRef.make` answers that question by making the **parent's value
 Let's see this in action with `Differ.update[A]`, which is ZIO's built-in "last-write-wins" differ:
 
 ```scala
-
+import zio._
 ```
 
 Now let's observe what happens when two fibers concurrently update a `FiberRef` backed by `Differ.update[Int]`:
@@ -194,9 +194,6 @@ The patch types are sealed ADTs whose `combine` operations sequence their operat
 
 `Differ.set[A]` records every element addition and removal as a `SetPatch`. Two fibers that each `Add` a different element produce patches that combine into a patch that adds both elements:
 
-<Tabs groupId="scala-version" defaultValue="scala2">
-<TabItem value="scala2" label="Scala 2">
-
 ```scala
 Unsafe.unsafe { implicit u =>
   Runtime.default.unsafe.run(
@@ -216,9 +213,6 @@ Unsafe.unsafe { implicit u =>
 // Set result: Set(left, right)
 ```
 
-</TabItem>
-<TabItem value="scala3" label="Scala 3">
-
 ```scala
 Unsafe.unsafely {
   Runtime.default.unsafe.run(
@@ -236,9 +230,6 @@ Unsafe.unsafely {
   ).getOrThrowFiberFailure()
 }
 ```
-
-</TabItem>
-</Tabs>
 
 Both `"left"` and `"right"` appear in the final set — neither fiber's addition was lost.
 
@@ -293,9 +284,6 @@ val pairDiffer: Differ[(Set[String], Int), (Differ.SetPatch[String], Int => Int)
 
 Let's run two concurrent fibers against this composed `Differ` and inspect the merged result:
 
-<Tabs groupId="scala-version" defaultValue="scala2">
-<TabItem value="scala2" label="Scala 2">
-
 ```scala
 Unsafe.unsafe { implicit u =>
   Runtime.default.unsafe.run(
@@ -315,9 +303,6 @@ Unsafe.unsafe { implicit u =>
 // Pair result: (Set(item),42)
 ```
 
-</TabItem>
-<TabItem value="scala3" label="Scala 3">
-
 ```scala
 Unsafe.unsafely {
   Runtime.default.unsafe.run(
@@ -335,9 +320,6 @@ Unsafe.unsafely {
   ).getOrThrowFiberFailure()
 }
 ```
-
-</TabItem>
-</Tabs>
 
 The set received `"item"` and the int became `42` — each field was updated by its own `Differ` independently.
 
@@ -513,9 +495,6 @@ case class ServiceB(port: Int)
 
 Now let's run two concurrent fibers that each update the environment and confirm both services survive the join:
 
-<Tabs groupId="scala-version" defaultValue="scala2">
-<TabItem value="scala2" label="Scala 2">
-
 ```scala
 // ZEnvironment[+R] is covariant; get[A >: R] retrieves A when A is a supertype of R.
 // Starting from ServiceA with ServiceB lets us get either after join.
@@ -540,9 +519,6 @@ Unsafe.unsafe { implicit u =>
 // ServiceB: 8080
 ```
 
-</TabItem>
-<TabItem value="scala3" label="Scala 3">
-
 ```scala
 // ZEnvironment[+R] is covariant; get[A >: R] retrieves A when A is a supertype of R.
 // Starting from ServiceA with ServiceB lets us get either after join.
@@ -565,9 +541,6 @@ Unsafe.unsafely {
 }
 ```
 
-</TabItem>
-</Tabs>
-
 Both services are present after the join. ZIO achieves this by using `Differ.environment` internally, which tracks key-level additions and removals as a `Patch` ADT. When the two fibers join, ZIO calls `combine` on their patches — the same `combine` you implement when writing your own `Differ`.
 
 This is the unifying insight: `withEnvironment`, `ZLayer`, `ZIO.withRuntimeFlags`, and logger installation are all compositional across concurrent fibers *because* every one of them is backed by a `Differ` that knows how to merge patches.
@@ -579,6 +552,7 @@ This is the unifying insight: `withEnvironment`, `ZLayer`, `ZIO.withRuntimeFlags
 The complete example below shows the single idea the whole tutorial builds toward: four `FiberRef`s — each backed by a different `Differ` — all updated by concurrent fibers and all correctly merged after join. No update is lost.
 
 ```scala
+import zio._
 
 object CompleteExample extends ZIOAppDefault {
 
@@ -664,6 +638,8 @@ Runs two fibers concurrently against a `Differ.update[Int]` FiberRef (non-determ
 ```scala title="zio-examples/differ-compositional-updates/src/main/scala/differcompositionalupdates/LastWriteWinsVsCompositionalMergingExample.scala" showLineNumbers
 package differcompositionalupdates
 
+import zio._
+
 /** Title: Last-Write-Wins vs. Compositional Merging
   * Description: Demonstrates that Differ.update (last-write-wins) loses one fiber's update
   * when two fibers concurrently modify a FiberRef, then contrasts it with a custom addDiffer
@@ -741,6 +717,8 @@ Demonstrates `Differ.set`, `Differ.map`, and `Differ.chunk` each wired into `Fib
 
 ```scala title="zio-examples/differ-compositional-updates/src/main/scala/differcompositionalupdates/BuiltInDiffersExample.scala" showLineNumbers
 package differcompositionalupdates
+
+import zio._
 
 /** Title: Built-in Differs — set, map, chunk, and update
   * Description: Shows how to wire Differ.set, Differ.map, and Differ.chunk into
@@ -826,6 +804,8 @@ Covers `zip` (`<*>`), `orElseEither` (`<+>`), and `transform` with runnable prog
 
 ```scala title="zio-examples/differ-compositional-updates/src/main/scala/differcompositionalupdates/ComposingDiffersExample.scala" showLineNumbers
 package differcompositionalupdates
+
+import zio._
 
 /** Title: Composing Differs — zip, orElseEither, and transform
   * Description: Demonstrates how to compose Differs with <*> (zip) for product types,
@@ -923,6 +903,8 @@ Verifies all five laws for `addDiffer` using pure expressions and prints `[PASS]
 ```scala title="zio-examples/differ-compositional-updates/src/main/scala/differcompositionalupdates/DifferLawsVerificationExample.scala" showLineNumbers
 package differcompositionalupdates
 
+import zio._
+
 /** Title: The Four Differ Laws — Verified by Hand
   * Description: Manually verifies all four correctness laws for a custom addDiffer:
   * associativity, identity, self-diff-is-empty, and round-trip. Violations would
@@ -1009,6 +991,8 @@ Mirrors ZIO's own `FiberRefSpec.makeEnvironment` test: two fibers add different 
 ```scala title="zio-examples/differ-compositional-updates/src/main/scala/differcompositionalupdates/ZIOInternalDiffersExample.scala" showLineNumbers
 package differcompositionalupdates
 
+import zio._
+
 /** Title: How ZIO Uses Differ Internally — Environment, Loggers, RuntimeFlags
   * Description: Shows that ZIO's own FiberRefs (currentEnvironment, currentLoggers,
   * currentRuntimeFlags) are all backed by Differ, making withEnvironment and ZLayer
@@ -1080,6 +1064,8 @@ Runs all five demonstrations in sequence: `addDiffer`, `Differ.set`, `Differ.map
 
 ```scala title="zio-examples/differ-compositional-updates/src/main/scala/differcompositionalupdates/CompleteExample.scala" showLineNumbers
 package differcompositionalupdates
+
+import zio._
 
 /** Title: The Differ Data Type — Compositional FiberRef Updates End-to-End
   * Description: A comprehensive example showing how Differ[Value, Patch] enables

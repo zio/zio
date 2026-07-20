@@ -9,6 +9,8 @@ A `TQueue[A]` is a mutable queue that can participate in transactions in STM.
 Creating an empty bounded `TQueue` with specified capacity:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tQueueBounded: STM[Nothing, TQueue[Int]] = TQueue.bounded[Int](5)
 ```
@@ -16,6 +18,8 @@ val tQueueBounded: STM[Nothing, TQueue[Int]] = TQueue.bounded[Int](5)
 Creating an empty unbounded `TQueue`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tQueueUnbounded: STM[Nothing, TQueue[Int]] = TQueue.unbounded[Int]
 ```
@@ -25,6 +29,8 @@ val tQueueUnbounded: STM[Nothing, TQueue[Int]] = TQueue.unbounded[Int]
 In order to put an element to a `TQueue`:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tQueueOffer: UIO[TQueue[Int]] = (for {
   tQueue <- TQueue.bounded[Int](3)
@@ -38,6 +44,8 @@ It will wait for an empty slot in the queue otherwise.
 Alternatively, you can provide a list of elements:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tQueueOfferAll: UIO[TQueue[Int]] = (for {
   tQueue <- TQueue.bounded[Int](3)
@@ -50,6 +58,8 @@ val tQueueOfferAll: UIO[TQueue[Int]] = (for {
 The first element of the queue can be obtained as follows:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tQueueTake: UIO[Int] = (for {
   tQueue <- TQueue.bounded[Int](3)
@@ -63,6 +73,8 @@ In case the queue is empty it will block execution waiting for the element you'r
 This behavior can be avoided by using `poll` method that will return an element if exists or `None` otherwise:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tQueuePoll: UIO[Option[Int]] = (for {
   tQueue <- TQueue.bounded[Int](3)
@@ -73,6 +85,8 @@ val tQueuePoll: UIO[Option[Int]] = (for {
 Retrieving first `n` elements of the queue:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tQueueTakeUpTo: UIO[Chunk[Int]] = (for {
   tQueue <- TQueue.bounded[Int](4)
@@ -84,6 +98,8 @@ val tQueueTakeUpTo: UIO[Chunk[Int]] = (for {
 All elements of the queue can be obtained as follows:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tQueueTakeAll: UIO[Chunk[Int]] = (for {
   tQueue <- TQueue.bounded[Int](4)
@@ -97,6 +113,8 @@ val tQueueTakeAll: UIO[Chunk[Int]] = (for {
 The number of elements in the queue can be obtained as follows:
 
 ```scala
+import zio._
+import zio.stm._
 
 val tQueueSize: UIO[Int] = (for {
   tQueue <- TQueue.bounded[Int](3)

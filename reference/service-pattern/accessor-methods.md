@@ -16,6 +16,7 @@ methods. Therefore, accessor methods are now deprecated.
 Imagine a service defined as:
 
 ```scala
+import zio._
 
 trait BlobStorage {
   def get(id: String): ZIO[Any, Throwable, Array[Byte]]
@@ -27,6 +28,7 @@ trait BlobStorage {
 The accessor methods are then defined as:
 
 ```scala
+import zio._
 
 object BlobStorage {
   // Accessor method for BlobStorage.get
@@ -67,6 +69,8 @@ these problems.
 We can use the `@accessible` macro to generate _service member accessors_:
 
 ```scala
+import zio._
+import zio.macros.accessible
 
 @accessible
 trait ServiceA {
@@ -83,6 +87,8 @@ object ServiceA {
 For normal values, a `ZIO` with `Nothing` on error channel is generated:
 
 ```scala
+import zio._
+import zio.macros.accessible
 
 @accessible
 trait ServiceB {
@@ -100,6 +106,9 @@ The `@throwing` annotation will mark impure methods. Using this annotation will 
 error channel:
 
 ```scala
+import zio._
+import zio.macros.accessible
+import zio.macros.throwing
 
 @accessible
 trait ServiceC {
@@ -117,6 +126,8 @@ object ServiceC {
 Below is a fully working example:
 
 ```scala
+import zio._
+import zio.macros.accessible
 
 @accessible
 trait KeyValueStore {
@@ -163,6 +174,8 @@ If the service is polymorphic for some proper types, we can use the `@accessible
 Assume we have a `KeyValueStore` like below, as we will see using `@accessible` will generate us the accessor methods:
 
 ```scala
+import zio._
+import zio.macros.accessible
 
 @accessible
 trait KeyValueStore[K, V] {
@@ -206,6 +219,8 @@ If a service has a higher-kinded type parameter like `F[_]` we should use the `a
 such a service:
 
 ```scala
+import zio._
+import zio.macros.accessibleM
 
 @accessibleM[Task]
 trait KeyValueStore[K, V, F[_]] {
@@ -251,6 +266,8 @@ If the service has a higher-kinded type parameter like `F[_, _]` we should use t
 example:
 
 ```scala
+import zio._
+import zio.macros.accessibleMM
 
 @accessibleMM[IO]
 trait KeyValueStore[K, V, E, F[_, _]] {

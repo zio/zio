@@ -9,6 +9,11 @@ __Note that this documentation is for 1.x series. For newer versions, please ref
 We must fetch the configuration from the environment to a case class (product) in scala. Let it be `MyConfig`
 
 ```scala
+import zio.IO
+
+import zio.config._
+import zio.ConfigProvider
+import zio.Config, Config._
 
 ```
 
@@ -41,6 +46,8 @@ Note:  `zio-config-shapeless` is an alternative to `zio-config-magnolia` to supp
 It will be deprecated once we find users have moved on from scala 2.11.
 
 ```scala
+import zio.config._
+import zio.config.magnolia._
 
 val myConfigAutomatic = deriveConfig[MyConfig]
 ```
@@ -146,6 +153,7 @@ Many users make use of the label `type` in HOCON files to annotate the type of t
 Now on, zio-config has inbuilt support for reading such a file/string using `descriptorForPureConfig`.
 
 ```scala
+import zio.config._, typesafe._, magnolia._
 
 @nameWithLabel("type")
 sealed trait X
@@ -169,6 +177,8 @@ ConfigProvider.fromHoconString(str).load(deriveConfig[AppConfig])
 ## The `to` method for easy manual configurations
 
 ```scala
+import zio.config._
+import zio.Config
 
 final case class AppConfig(port: Int, url: String)
 
@@ -181,6 +191,7 @@ val config = Config.int("PORT").zip(Config.string("URL")).to[AppConfig]
 ### CollectAll
 
 ```scala
+import zio.config._
 
   final case class Variables(variable1: Int, variable2: Option[Int])
 
@@ -196,6 +207,7 @@ val config = Config.int("PORT").zip(Config.string("URL")).to[AppConfig]
 ### orElseEither && Constant
 
 ```scala
+import zio.config._ 
 
 sealed trait Greeting
 

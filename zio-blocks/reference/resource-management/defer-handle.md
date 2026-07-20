@@ -17,6 +17,7 @@ When `Scope#defer(cleanup)` is called, the cleanup action is registered and a `D
 `DeferHandle` is not instantiated directly. Instead, it is created by calling `Scope#defer` with a cleanup action:
 
 ```scala
+import zio.blocks.scope.{Scope, DeferHandle}
 
 trait Scope {
   def defer(cleanup: => Unit): DeferHandle
@@ -26,8 +27,10 @@ trait Scope {
 The following example demonstrates creating a `DeferHandle`:
 
 ```scala
+import zio.blocks.scope.Scope
 
 Scope.global.scoped { scope =>
+  import scope._
 
   val handle = defer {
     println("This cleanup will run when scope closes, unless cancelled")
@@ -56,8 +59,11 @@ This method is:
 If the scope has already closed (and the finalizer has already run or been discarded), calling `DeferHandle#cancel` is a no-op. In the following example, we register a cleanup action, then cancel it before the scope closes:
 
 ```scala
+import zio.blocks.scope.Scope
+import java.io.ByteArrayOutputStream
 
 Scope.global.scoped { scope =>
+  import scope._
 
   val buffer = allocate(ByteArrayOutputStream())
   val closeHandle = defer {
@@ -82,8 +88,11 @@ Scope.global.scoped { scope =>
 When a resource is explicitly released before the scope ends, cancel the automatic finalizer to avoid duplicate cleanup:
 
 ```scala
+import zio.blocks.scope.Scope
+import java.io.ByteArrayOutputStream
 
 val result = Scope.global.scoped { scope =>
+  import scope._
 
   val buffer = allocate(ByteArrayOutputStream())
 
@@ -111,8 +120,10 @@ val result = Scope.global.scoped { scope =>
 Cancel finalizers based on runtime conditions:
 
 ```scala
+import zio.blocks.scope.Scope
 
 def acquireResource(shouldCleanup: Boolean) = Scope.global.scoped { scope =>
+  import scope._
 
   val resource = "important resource"
   val handle = scope.defer {
@@ -136,8 +147,11 @@ acquireResource(shouldCleanup = true)
 When transferring a resource to external management, cancel its finalizer so the external system can control cleanup:
 
 ```scala
+import zio.blocks.scope.Scope
+import java.io.ByteArrayInputStream
 
 val result = Scope.global.scoped { scope =>
+  import scope._
 
   val stream = allocate(ByteArrayInputStream("data".getBytes))
   val handle = defer {
@@ -158,8 +172,10 @@ val result = Scope.global.scoped { scope =>
 When `defer()` is called on an already-closed scope, a no-op handle is returned:
 
 ```scala
+import zio.blocks.scope.Scope
 
 Scope.global.scoped { scope =>
+  import scope._
 
   val handle = scope.defer {
     println("This will run when scope closes")
@@ -177,8 +193,12 @@ Scope.global.scoped { scope =>
 `DeferHandle` is thread-safe. Multiple threads can call `cancel()` on the same handle without external synchronization:
 
 ```scala
+import zio.blocks.scope.Scope
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 
 val result = Scope.global.scoped { scope =>
+  import scope._
 
   val handle = defer {
     println("Finalizer")

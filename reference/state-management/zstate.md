@@ -7,6 +7,9 @@
 Let's try a simple example of using `ZState`:
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 object ZStateExample extends zio.ZIOAppDefault {
   val myApp: ZIO[ZState[Int], IOException, Unit] = for {
@@ -26,6 +29,9 @@ The idiomatic way to work with `ZState` is as part of the environment using oper
 Because we typically use `ZState` as part of the environment, it is recommended to define our own state type `S` such as `MyState` rather than using a type such as `Int` to avoid the risk of ambiguity:
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 final case class MyState(counter: Int)
 
@@ -47,6 +53,9 @@ object ZStateExample extends zio.ZIOAppDefault {
 The `ZIO` data type also has some helper methods to work with `ZState` as the environment of `ZIO` effect such as `ZIO.updateState`, `ZIO.getState`, and `ZIO.getStateWith`:
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 final case class MyState(counter: Int)
 
@@ -64,6 +73,7 @@ An important note about `ZState` is that it is on top of the `FiberRef` data typ
 For example, when a fiber is going to join to its parent fiber, its state will be merged with its parent state:
 
 ```scala
+import zio._
 
 case class MyState(counter: Int)
 

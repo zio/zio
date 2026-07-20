@@ -26,6 +26,28 @@ normally return a `ZStream` now return an FS2 `Stream`.
 ```scala
 package zio.dynamodb.examples.dynamodblocal.interop
 
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
+import software.amazon.awssdk.regions.Region
+import zio.dynamodb.DynamoDBQuery.{ createTable, deleteTable, get, put }
+
+import cats.effect.std.Console
+import cats.effect.IO
+import cats.effect.IOApp
+import cats.syntax.all._
+
+import java.net.URI
+
+import zio.dynamodb.interop.ce.syntax._
+import zio.dynamodb.ProjectionExpression
+import zio.schema.DeriveSchema
+import zio.schema.Schema
+import zio.dynamodb.KeySchema
+import zio.dynamodb.BillingMode
+import zio.dynamodb.AttributeDefinition
+import zio.dynamodb.DynamoDBQuery
+import cats.effect.kernel.Async
+
 /**
  * example cats effect interop application
  *

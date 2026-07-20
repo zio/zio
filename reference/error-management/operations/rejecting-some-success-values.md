@@ -17,6 +17,7 @@ trait ZIO[-R, +E, +A] {
 If the `PartialFunction` matches, it will reject that success value and convert that to a failure, otherwise it will continue with the original success value:
 
 ```scala
+import zio._
 
 val myApp: ZIO[Any, String, Int] =
   Random

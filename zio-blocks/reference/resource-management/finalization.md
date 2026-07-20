@@ -5,6 +5,7 @@
 `Finalization` is the result of running all finalizers in a scope, collecting any errors that occurred during cleanup:
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 abstract class Finalization(val errors: Chunk[Throwable]) {
   def isEmpty: Boolean
@@ -27,6 +28,7 @@ The following four methods allow you to inspect and handle errors from finalizat
 Returns `true` if no finalizer errors were collected:
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 abstract class Finalization(val errors: Chunk[Throwable]) {
   def isEmpty: Boolean
@@ -36,11 +38,13 @@ abstract class Finalization(val errors: Chunk[Throwable]) {
 Here's an example of checking if finalization succeeded:
 
 ```scala
+import zio.blocks.scope.Scope
 
 Scope.global.scoped { scope =>
+  import scope._
 
   $(open()) { openScope =>
-
+    import openScope.scope._
     defer {
       println("Cleanup")
     }
@@ -55,6 +59,7 @@ Scope.global.scoped { scope =>
 Returns `true` if at least one finalizer error was collected:
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 abstract class Finalization(val errors: Chunk[Throwable]) {
   def nonEmpty: Boolean
@@ -64,11 +69,13 @@ abstract class Finalization(val errors: Chunk[Throwable]) {
 Here's an example of checking for errors:
 
 ```scala
+import zio.blocks.scope.Scope
 
 Scope.global.scoped { scope =>
+  import scope._
 
   $(open()) { openScope =>
-
+    import openScope.scope._
     defer {
       throw new Exception("Cleanup failed")
     }
@@ -85,6 +92,7 @@ Scope.global.scoped { scope =>
 Throws the first collected error with all remaining errors added as suppressed exceptions. Does nothing if there are no errors:
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 abstract class Finalization(val errors: Chunk[Throwable]) {
   def orThrow(): Unit
@@ -94,9 +102,10 @@ abstract class Finalization(val errors: Chunk[Throwable]) {
 The first error corresponds to the head of the chunk (the first finalizer that failed in LIFO execution order). Remaining errors are attached as suppressed exceptions using `addSuppressed()`. Here's an example:
 
 ```scala
+import zio.blocks.scope.Scope
 
 Scope.global.scoped { scope =>
-
+  import scope._
   $(open()) { openScope =>
     defer { throw Exception("Error 2") }
     defer { throw Exception("Error 1") }
@@ -118,6 +127,7 @@ Scope.global.scoped { scope =>
 Adds all collected finalizer errors as suppressed exceptions to `initial` and returns it. If there are no errors, `initial` is returned unchanged:
 
 ```scala
+import zio.blocks.chunk.Chunk
 
 abstract class Finalization(val errors: Chunk[Throwable]) {
   def suppress(initial: Throwable): Throwable
@@ -127,8 +137,10 @@ abstract class Finalization(val errors: Chunk[Throwable]) {
 This is useful when you want to preserve the original error context while attaching cleanup errors. Here's an example:
 
 ```scala
+import zio.blocks.scope.Scope
 
 Scope.global.scoped { scope =>
+  import scope._
 
   val initialError = Exception("Original error")
 
@@ -148,8 +160,10 @@ Scope.global.scoped { scope =>
 Errors in the finalization are ordered by when finalizers ran (in LIFO sequence):
 
 ```scala
+import zio.blocks.scope.Scope
 
 Scope.global.scoped { scope =>
+  import scope._
 
   $(open()) { openScope =>
     // Registered first, runs last (LIFO)
@@ -179,8 +193,10 @@ Here are common scenarios where finalization handling is useful:
 Check if errors occurred and handle them appropriately:
 
 ```scala
+import zio.blocks.scope.Scope
 
 Scope.global.scoped { scope =>
+  import scope._
 
   $(open()) { openScope =>
     defer {
@@ -202,9 +218,11 @@ Scope.global.scoped { scope =>
 Attach cleanup errors to an existing error:
 
 ```scala
+import zio.blocks.scope.Scope
 
 def doWork(): Unit = {
   Scope.global.scoped { scope =>
+    import scope._
 
     try {
       throw Exception("Work failed")
@@ -235,8 +253,10 @@ try {
 Inspect and log all errors without stopping execution:
 
 ```scala
+import zio.blocks.scope.Scope
 
 Scope.global.scoped { scope =>
+  import scope._
 
   $(open()) { openScope =>
     defer { throw Exception("Error 1") }

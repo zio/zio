@@ -29,6 +29,7 @@ Key properties: covariant (`+R`), immutable, cached for repeated lookups, suppor
 Context serves as a type-safe registry for heterogeneous dependencies. Here's a quick example:
 
 ```scala
+import zio.blocks.context._
 
 case class Config(debug: Boolean)
 case class Logger(name: String)
@@ -88,6 +89,7 @@ val db = deps(classOf[Database]) // Runtime error if missing
 
 ```scala
 // Requires ZIO context
+import zio._
 
 val makeEnv = for {
   config <- ZIO.service[Config]
@@ -98,6 +100,7 @@ val makeEnv = for {
 **Context** — combines compile-time type safety with synchronous, pure code:
 
 ```scala
+import zio.blocks.context._
 
 case class Config(debug: Boolean)
 case class Logger(name: String)
@@ -124,6 +127,7 @@ Context provides several ways to create instances. Choose the approach that best
 Use `Context.empty` to create an empty context with no entries:
 
 ```scala
+import zio.blocks.context._
 
 val emptyCtx: Context[Any] = Context.empty
 // emptyCtx: Context[Any] = Context()
@@ -267,6 +271,7 @@ The following methods let you retrieve values from a context by type:
 Retrieves a value by type. The type bound `A >: R` ensures that a value of type `A` (or a subtype of `A`) is present at compile time:
 
 ```scala
+import zio.blocks.context._
 
 case class Config(debug: Boolean)
 case class Logger(name: String)
@@ -281,6 +286,7 @@ val config = ctx.get[Config]
 Or by supertype (subtype matching):
 
 ```scala
+import zio.blocks.context._
 
 trait Animal { def sound: String }
 case class Dog(name: String) extends Animal {
@@ -326,6 +332,7 @@ All modification methods return a new `Context`—the original remains immutable
 Adds a value to the context, expanding the phantom type by `& A`:
 
 ```scala
+import zio.blocks.context._
 
 case class Config(debug: Boolean)
 case class Logger(name: String)
@@ -337,6 +344,7 @@ val ctx2 = ctx1.add(Logger("new"))
 If a value of the same type already exists, it is replaced:
 
 ```scala
+import zio.blocks.context._
 
 case class Config(debug: Boolean)
 case class Logger(name: String)
@@ -352,6 +360,7 @@ val replaced = ctx3.get[Config]
 Transforms an existing value if it is present. If the type is not found, the context is returned unchanged:
 
 ```scala
+import zio.blocks.context._
 
 case class Metrics(count: Int)
 
@@ -365,6 +374,7 @@ val newCount = updated.get[Metrics].count
 Combines two contexts into a new context containing all entries. When both contexts contain the same type, the value from the right side (second argument) wins:
 
 ```scala
+import zio.blocks.context._
 
 case class Config(debug: Boolean)
 case class Logger(name: String)
@@ -380,6 +390,7 @@ val merged = left ++ right
 Narrows a context to contain only specified types. All other entries are discarded:
 
 ```scala
+import zio.blocks.context._
 
 case class Config(debug: Boolean)
 case class Logger(name: String)
@@ -413,6 +424,7 @@ val str = ctx.toString
 `Context` is covariant in its type parameter, meaning `Context[Dog] <: Context[Animal]` when `Dog <: Animal`. This allows passing a more-specific context to code expecting a more-general one:
 
 ```scala
+import zio.blocks.context._
 
 trait Animal { def sound: String }
 case class Dog(name: String) extends Animal {
@@ -477,6 +489,8 @@ Here is a comparison of Context with related alternatives:
 
 ```scala
 // Pseudocode illustrating how Context integrates with Wire and Scope
+import zio.blocks.scope._
+import zio.blocks.context._
 
 case class Config(debug: Boolean)
 case class Logger(name: String)
@@ -527,6 +541,9 @@ cd zio-blocks
  */
 
 package context
+
+import zio.blocks.context._
+import util.ShowExpr.show
 
 // Context.empty creates an empty, type-safe dependency container.
 // Use Context.apply(...) to construct contexts with 1–10 values.
@@ -601,6 +618,9 @@ sbt "schema-examples/runMain context.ContextConstructionExample"
  */
 
 package context
+
+import zio.blocks.context._
+import util.ShowExpr.show
 
 // Context#get[A] retrieves a value by type with compile-time proof of existence.
 // Context#getOption[A] retrieves a value if present, returning None if missing.
@@ -683,6 +703,9 @@ sbt "schema-examples/runMain context.ContextRetrievalExample"
  */
 
 package context
+
+import zio.blocks.context._
+import util.ShowExpr.show
 
 // Context is immutable; modification methods return new contexts.
 // Context#add expands the context with a new value (or replaces if type exists).

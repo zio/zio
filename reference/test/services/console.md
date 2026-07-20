@@ -5,6 +5,9 @@
 `TestConsole` allows testing of applications that interact with the console by modeling working with standard input and output as writing and reading to and from internal buffers:
 
 ```scala
+import zio._
+import zio.test.{test, _}
+import zio.test.Assertion._
 
 val consoleSuite = suite("ConsoleTest")(
   test("One can test output of console") {

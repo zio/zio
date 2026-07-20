@@ -56,6 +56,8 @@ Start by deriving an XML codec from your Schema definition:
 To create an XML codec, use `Schema[A].derive(XmlFormat)`:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 case class Person(name: String, age: Int)
 
@@ -72,6 +74,8 @@ val codec = Schema[Person].derive(XmlFormat)
 Encode your values to XML using the codec:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -160,6 +164,8 @@ val prettyXml = codec.encodeToString(person, WriterConfig.pretty)
 Decode XML strings or bytes back to your typed values:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -212,6 +218,8 @@ Xml
 Construct XML nodes directly using the case class constructors:
 
 ```scala
+import zio.blocks.schema.xml._
+import zio.blocks.chunk.Chunk
 
 // Create elements
 val simple = Xml.Element("person")
@@ -238,6 +246,7 @@ val pi = Xml.ProcessingInstruction("xml-stylesheet", "href=\"style.css\"")
 `XmlName` represents an element or attribute name with optional namespace. Create instances with different namespace configurations:
 
 ```scala
+import zio.blocks.schema.xml.XmlName
 
 // Local name only
 val simple = XmlName("person")
@@ -259,6 +268,7 @@ prefixed.prefix.contains("atom") // true
 Construct XML documents programmatically with a fluent API:
 
 ```scala
+import zio.blocks.schema.xml._
 
 // Build an element with attributes and children
 val doc = XmlBuilder.element("person")
@@ -289,6 +299,7 @@ The schema-xml module provides configuration options for both parsing and writin
 Use `WriterConfig` to control XML output formatting:
 
 ```scala
+import zio.blocks.schema.xml.WriterConfig
 
 // Compact output (default)
 val compact = WriterConfig.default
@@ -324,6 +335,7 @@ val custom = WriterConfig(
 Controls XML parsing behavior and security limits:
 
 ```scala
+import zio.blocks.schema.xml.ReaderConfig
 
 // Default configuration
 val default = ReaderConfig.default
@@ -349,6 +361,8 @@ val custom = ReaderConfig(
 Encode case class fields as XML attributes using the `@xmlAttribute` annotation:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 case class Person(
   @xmlAttribute() id: String,
@@ -382,6 +396,8 @@ The `@xmlAttribute` annotation accepts an optional custom name:
 Support for XML namespaces with the `@xmlNamespace` annotation:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 @xmlNamespace(uri = "http://www.w3.org/2005/Atom", prefix = "atom")
 case class Feed(
@@ -434,6 +450,7 @@ val xml = codec.encodeToString(feed)
 Navigate to child elements, filter by type, and extract content:
 
 ```scala
+import zio.blocks.schema.xml._
 
 val xml = XmlReader.read("""
 <library>
@@ -500,6 +517,7 @@ val allTitles = xml.select.descendant("title")
 Filter selections by node type or custom predicates:
 
 ```scala
+import zio.blocks.schema.xml._
 
 val selection: XmlSelection = ???
 
@@ -517,6 +535,7 @@ val filtered = selection.filter(xml => xml.is(XmlType.Element))
 Execute a selection to extract values or convert to other formats:
 
 ```scala
+import zio.blocks.schema.xml._
 
 val selection: XmlSelection = ???
 
@@ -542,6 +561,7 @@ val allText: String = selection.textContent
 Combine and transform selections using monadic operations:
 
 ```scala
+import zio.blocks.schema.xml._
 
 val selection1: XmlSelection = ???
 val selection2: XmlSelection = ???
@@ -568,6 +588,8 @@ val withFallback = selection1.orElse(selection2)
 Create patches for add, remove, replace, and attribute operations:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 val path = p".library.books.book"
 
@@ -599,6 +621,7 @@ val removeAttrPatch = XmlPatch.removeAttribute(path, "id")
 Position options control where new content is inserted relative to the target:
 
 ```scala
+import zio.blocks.schema.xml.XmlPatch.Position
 
 Position.Before         // Insert before the target element
 Position.After          // Insert after the target element
@@ -611,6 +634,8 @@ Position.AppendChild    // Insert as last child of target
 Apply a patch to an XML document to produce a modified result:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 val xml: Xml = ???
 val patch = XmlPatch.setAttribute(p".person", "active", "true")
@@ -624,6 +649,8 @@ val result: Either[SchemaError, Xml] = patch(xml)
 Combine multiple patches to apply transformations in sequence:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 val patch1 = XmlPatch.setAttribute(p".person", "id", "123")
 val patch2 = XmlPatch.add(
@@ -641,6 +668,9 @@ val combined = patch1 ++ patch2
 When a `Schema` is in scope, use convenient extension methods:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
+import zio.blocks.schema.xml.syntax._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -672,6 +702,7 @@ val fromBytes: Either[SchemaError, Person] = bytes.fromXml[Person]
 Format XML documents using compact or pretty-printed output. You can convert XML to string with different formatting options:
 
 ```scala
+import zio.blocks.schema.xml._
 
 val xml = Xml.Element("person", Xml.Element("name", Xml.Text("Alice")))
 ```
@@ -703,6 +734,7 @@ val custom: String = xml.print(WriterConfig(indentStep = 4))
 Test and extract values from XML nodes using type guards and unwrapping:
 
 ```scala
+import zio.blocks.schema.xml._
 
 val xml: Xml = Xml.Element("person")
 
@@ -752,6 +784,8 @@ All standard ZIO Blocks Schema types are supported:
 `XmlCodec[A]` is the low-level codec interface that bridges Schema definitions with XML serialization. While usually derived automatically, you can work with it directly:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -783,6 +817,8 @@ val decoded: Person = codec.decodeValue(xml)
 All decoding operations return `Either[SchemaError, A]` or `Either[SchemaError, A]`. The `SchemaError` type provides detailed error information:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 case class Person(name: String, age: Int)
 object Person {
@@ -806,6 +842,7 @@ result match {
 `SchemaError` provides detailed error information for debugging:
 
 ```scala
+import zio.blocks.schema.xml._
 
 val error = SchemaError("Parse failed")
 
@@ -819,6 +856,8 @@ val errorMsg: String = error.getMessage
 Error handling best practices:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 case class Config(database: String, port: Int)
 object Config {
@@ -851,6 +890,8 @@ These examples demonstrate common use cases and patterns with the XML module:
 Define a schema with attributes and namespaces, then encode and decode:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 @xmlNamespace(uri = "http://www.w3.org/2005/Atom", prefix = "atom")
 case class Entry(
@@ -911,6 +952,8 @@ val decoded = codec.decode(xmlStr)
 Find elements, extract data, and apply patches to modify XML:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 val xmlString = """
 <library>
@@ -964,6 +1007,8 @@ Learn by examining practical examples of XML codecs in action:
 Parse RSS feeds by defining a schema and decoding XML:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 @xmlNamespace(uri = "http://www.rss.org/", prefix = "rss")
 case class Item(
@@ -1011,6 +1056,8 @@ val result: Either[SchemaError, Channel] = codec.decode(feedXml)
 Work with Atom feeds using attributes, multiple entries, and custom configurations:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 @xmlNamespace(uri = "http://www.w3.org/2005/Atom", prefix = "atom")
 case class Entry(
@@ -1059,6 +1106,8 @@ val xmlOutput = codec.encodeToString(feed, WriterConfig.pretty)
 Generate sitemap XML with URLs and optional metadata fields:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.xml._
 
 case class Url(
   loc: String,

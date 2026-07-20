@@ -29,6 +29,9 @@ We can see this because to produce a tuple `(A, B)` we need to run both the left
 For example, in the context of `ZIO` the `zip` operator returns a new `ZIO` workflow that describes running the workflow on the left, then running the workflow on the right, and then returning a tuple of their results.
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 val helloZIO: ZIO[Console, IOException, Unit] =
   Console.printLine("Hello") <*> Console.printLine("ZIO")
@@ -130,6 +133,7 @@ We would like to be able to combine predicates so that if we have predicates abo
 We can do that with `AssociativeBoth` like this:
 
 ```scala
+import zio.prelude._
 
 object Predicate {
   implicit val PredicateAssociativeBoth: AssociativeBoth[Predicate] =

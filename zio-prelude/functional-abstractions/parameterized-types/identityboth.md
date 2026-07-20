@@ -32,6 +32,9 @@ As with the other abstractions for parameterized types we have looked at `ZIO` p
 The `any` value for `ZIO` is `unit`, the workflow that does not do anything, always succeeds, and produces no useful information. We can do nothing before or after another `ZIO` workflow as many times as we want and we will always get a workflow that does the same thing.
 
 ```scala
+import zio._
+
+import java.io.IOException
 
 val helloUnit: ZIO[Console, IOException, Unit] =
   Console.printLine("Hello") <*> ZIO.unit
@@ -99,6 +102,7 @@ trait Predicate[-A] {
 We could define an `IdentityBoth` instance for it like this:
 
 ```scala
+import zio.prelude._
 
 object Predicate {
   implicit val PredicateIdentityBoth: IdentityBoth[Predicate] =

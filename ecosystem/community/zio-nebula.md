@@ -32,6 +32,8 @@ There are the version correspondence between zio-nebula and nebula-java:
 Usually, we use a session client, which can be conveniently used in ZIO applications like this:
 
 ```scala
+import zio._
+import zio.nebula._
 
 final class NebulaSessionClientExample(sessionClient: NebulaSessionClient) {
 

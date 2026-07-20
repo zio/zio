@@ -17,6 +17,7 @@ Each instance requires understanding both the type's structure and the type clas
 Assume we have a simple `JsonTC` type class for JSON serialization and deserialization:
 
 ```scala
+import zio.blocks.schema.json._
 
 sealed abstract class JsonError(msg: String) extends Exception(msg)
 
@@ -133,6 +134,8 @@ case class Schema[A](reflect: Reflect.Bound[A]) {
 It takes a `Deriver[TC]` as a parameter and returns a type class instance of type `TC[A]`. For example, in the following code snippet, we derive a `JsonCodec[Person]` instance for the `Person` case class using the `JsonCodecDeriver`:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.schema.json.JsonCodecDeriver
 
 case class Person(name: String, age: Int)
 
@@ -158,6 +161,7 @@ There is a `Derivable` type class that enables seamless overloading between `Der
 For example, by calling `Person.schema.derive(JsonFormat)`, we can derive a `JsonCodec[Person]` instance:
 
 ```scala
+import zio.blocks.schema.json._
 
 val jsonCodec = Person.schema.derive(JsonFormat)
 ```
@@ -175,6 +179,13 @@ trait Show[A] {
 The implementation of the `Deriver[Show]` would look like the following code. Don't worry about understanding every detail right now; we'll break down the derivation process step by step afterward.
 
 ```scala
+import zio.blocks.chunk.Chunk
+import zio.blocks.schema.*
+import zio.blocks.schema.DynamicValue.Null
+import zio.blocks.schema.binding.*
+import zio.blocks.schema.derive.Deriver
+import zio.blocks.typeid.TypeId
+import zio.blocks.docs.Doc
 
 object DeriveShow extends Deriver[Show] {
 
@@ -835,6 +846,7 @@ println(s"Email: ${Email.show.show(email)}")
 Let's say we want to derive a `Gen` type class instance for any type `A`:
 
 ```scala
+import scala.util.Random
 
 trait Gen[A] {
   def generate(random: Random): A
@@ -848,6 +860,11 @@ To implement the `Show` type class, we need to know what components type `A` is 
 Here is a simple pedagogical implementation of a `GenDeriver` that can derive `Gen` instances for various types:
 
 ```scala
+import zio.blocks.chunk.Chunk
+import zio.blocks.schema.*
+import zio.blocks.schema.binding.*
+import zio.blocks.schema.derive.Deriver
+import zio.blocks.typeid.TypeId
 
 object DeriveGen extends Deriver[Gen] {
 
@@ -1598,6 +1615,8 @@ final case class DerivationBuilder[TC[_], A](...) {
 The first overload takes an `Optic[A, B]` that precisely targets a specific location within the schema tree. This is useful when you want to override the instance for a particular field or case without affecting other occurrences of the same type:
 
 ```scala
+import zio.blocks.schema._
+import zio.blocks.typeid.TypeId
 
 case class Person(name: String, age: Int)
 
@@ -1786,6 +1805,7 @@ Note that `Modifier.config` extends both `Modifier.Term` and `Modifier.Reflect`,
 When you pass an optic and a `Modifier.Term` to the `modifier` method, the modifier is attached to the **term** (field or case) identified by the last segment of the optic path. When you pass a `Modifier.Reflect`, it is attached to the **schema node** targeted by the optic:
 
 ```scala
+import zio.blocks.schema.json._
 
 case class User(
   id: Long,

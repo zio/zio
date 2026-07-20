@@ -57,6 +57,7 @@ def zipWith[F[+_], A, B, C](
 To see why we don't need an identity element for the combining operator when the collection contains at least one value let's compare the implementation of the `ForEach` instance for `List` with the implementation of the `NonEmptyForEach` instance for the `NonEmptyList` data type from ZIO Prelude.
 
 ```scala
+import zio.prelude.NonEmptyList
 
 implicit val ListForEach: ForEach[List] =
   new ForEach[List] {
@@ -84,6 +85,7 @@ The fact that the collection can never be empty allows us to relax constraints o
 For example, we can define an operator called `reduceMapLeft` that is a more powerful version of `foldLeft` that does not require an initial value.
 
 ```scala
+import zio.prelude._
 
 def reduceMapLeft[F[+_]: ForEach, A, S](as: F[A])(map: A => S)(reduce: (S, S) => S): S =
   as.foldLeft[Option[S]](None) {
@@ -108,6 +110,7 @@ Since we know the collection contains at least one element we do not need an `id
 With this we can easily do something like calculate the sum, product, min, and max of a collection in a single pass.
 
 ```scala
+import zio.prelude.newtypes._
 
 def stats[F[+_]: ForEach, A](as: F[A])(
   implicit sum: Associative[Sum[A]],

@@ -17,6 +17,7 @@ Thanks to the `Ref` data type, we can easily use the `Ref` data type to manage t
 In the previous section, we learned that we can have state management, even for effectful operations. Here is the last example we tried:
 
 ```scala
+import zio._
 
 def inputNames: ZIO[Any, String, List[String]] = {
   def loop(names: List[String]): ZIO[Any, String, List[String]] = {
@@ -35,6 +36,7 @@ def inputNames: ZIO[Any, String, List[String]] = {
 This code can be rewritten using the `Ref` type, which is simpler than the previous one:
 
 ```scala
+import zio._
 
 def getNames: ZIO[Any, String, List[String]] =
   Ref.make(List.empty[String])
@@ -58,6 +60,7 @@ First, we created a mutable reference to the initial state value, which is an em
 Now that we have learned how to use the `Ref` data type, we can use it to manage the state concurrently. For example, assume while we are reading from the console, we have another fiber that is trying to update the state from a different source:
 
 ```scala
+import zio._
 
 def getNames: ZIO[Any, String, List[String]] =
   for {
@@ -84,6 +87,7 @@ def getNames: ZIO[Any, String, List[String]] =
 Let's write a counter using the `Ref` data type:
 
 ```scala
+import zio._
 
 case class Counter(value: Ref[Int]) {
   def inc: UIO[Unit] = value.update(_ + 1)
@@ -99,6 +103,7 @@ object Counter {
 Here is the usage example of the `Counter`:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run =
@@ -117,6 +122,7 @@ object MainApp extends ZIOAppDefault {
 We can use this counter in a concurrent environment, e.g. in a RESTful API to count the number of requests. But for just an example, let's concurrently update the counter:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run =

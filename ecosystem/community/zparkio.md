@@ -24,6 +24,13 @@ libraryDependencies += "com.leobenkel" %% "zparkio" % "[SPARK_VERSION]_[VERSION]
 Using _ZparkIO_ we can write jobs like the following example:
 
 ```scala
+import com.leobenkel.zparkio.Services.SparkModule
+import com.leobenkel.zparkio.Services.SparkModule.SparkModule
+import com.leobenkel.zparkio.ZparkioApplicationTimeoutException
+import org.apache.spark.sql.DataFrame
+import zio.clock.Clock
+import zio.duration.durationInt
+import zio.{Schedule, Task, ZIO}
 
 def readParquetFile[A](parquetPath: String): ZIO[Clock with SparkModule, Throwable, DataFrame] =
   for {

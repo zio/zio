@@ -25,6 +25,12 @@ libraryDependencies += "io.7mind.izumi" %% "distage-core" % "1.0.8"
 In this example we create a `RandomApp` comprising two `Random` and `Logger` services. By using `ModuleDef` we _bind_ services to their implementations:
 
 ```scala
+import distage.{Activation, Injector, ModuleDef, Roots}
+import izumi.distage.model.Locator
+import izumi.distage.model.definition.Lifecycle
+import zio.{ExitCode, Task, UIO, URIO, ZIO}
+
+import java.time.LocalDateTime
 
 trait Random {
   def nextInteger: UIO[Int]

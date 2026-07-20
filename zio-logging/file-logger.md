@@ -5,6 +5,8 @@
 logger layer with configuration from config provider:
 
 ```scala
+import zio.logging.fileLogger
+import zio.{ ConfigProvider, Runtime }
 
 val configProvider: ConfigProvider = ???
 
@@ -14,6 +16,8 @@ val logger = Runtime.removeDefaultLoggers >>> Runtime.setConfigProvider(configPr
 logger layer with given configuration:
 
 ```scala
+import zio.logging.{ fileLogger, FileLoggerConfig }
+import zio.Runtime
 
 val config: FileLoggerConfig = ???
 
@@ -72,6 +76,10 @@ You can find the source code [here](https://github.com/zio/zio-logging/tree/mast
 
 ```scala
 package zio.logging.example
+
+import zio.config.typesafe.TypesafeConfigProvider
+import zio.logging.fileLogger
+import zio.{ Config, ConfigProvider, ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, ZLayer }
 
 object FileApp extends ZIOAppDefault {
 

@@ -13,6 +13,7 @@ sealed trait Schema[A] {
 Here is an example, where it helps us to sort the list of `Person`:
 
 ```scala
+import zio.schema._
 
 case class Person(name: String, age: Int)
 

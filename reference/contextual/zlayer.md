@@ -67,6 +67,7 @@ Using `ZLayer.succeed` we can create a layer containing _simple value_ or a _ser
 1. To create a layer from a _simple value_:
 
 ```scala
+import zio._
 
 case class AppConfig(host: String, port: Int)
 
@@ -78,6 +79,7 @@ In the example above, we created a `configLayer` that provides us an instance of
 2. To create a layer from an _existing service_:
 
 ```scala
+import zio._
 
 trait EmailService {
   def send(email: String, content: String): UIO[Unit]
@@ -98,6 +100,7 @@ object EmailService {
 This is the for-comprehension way of creating a ZIO service using `ZLayer.apply`:
 
 ```scala
+import zio._
 
 trait A
 trait B
@@ -122,6 +125,7 @@ A `ZLayer[R, E, A]` can be thought of as a function from `R` to `A`. So we can c
 In the following example, the `CLive` implementation requires two `A` and `B` services, and we can easily convert that case class to a `ZLayer`:
 
 ```scala
+import zio._
 
 trait A
 trait B
@@ -137,6 +141,7 @@ object CLive {
 Below is a complete working example:
 
 ```scala
+import zio._
 
 case class DatabaseConfig()
 
@@ -192,6 +197,7 @@ Simple layers can be derived using `ZLayer.derive`. See [Automatic ZLayer Deriva
 Every `ZLayer` can be converted to a scoped `ZIO` by using `ZLayer.build`:
 
 ```scala
+import zio._
 
 trait Database {
   def close: UIO[Unit]
@@ -219,6 +225,7 @@ val scopedDatabase: ZIO[Scope, Throwable, ZEnvironment[Database]] =
 If a layer fails, we can provide an alternative layer by using `ZLayer#orElse` so it will fall back to the second layer:
 
 ```scala
+import zio._
 
 trait Database
 
@@ -252,6 +259,7 @@ object MainApp extends ZIOAppDefault {
 We can retry constructing a layer in case of failure:
 
 ```scala
+import zio._
 
 val databaseLayer: ZLayer[Any, Throwable, DatabaseConnection]   = ???
 
@@ -263,6 +271,7 @@ val retriedLayer : ZLayer[Clock, Throwable, DatabaseConnection] = databaseLayer.
 We can project out a part of `ZLayer` by providing a projection function to the `ZLayer#project` method:
 
 ```scala
+import zio._
 
 case class Connection(host: String, port: Int) 
 case class Login(user: String, password: String)
@@ -281,6 +290,7 @@ val connection: ZLayer[DBConfig, Nothing, Connection] =
 We can perform a specified effect based on the success or failure result of the layer using `ZLayer#tap`/`ZLayer#tapError`. This would not change the layer's signature:
 
 ```scala
+import zio._
 
 case class AppConfig(host: String, port: Int)
 

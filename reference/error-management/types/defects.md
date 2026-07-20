@@ -13,6 +13,7 @@ object ZIO {
 Here is an example of such effect, which will die because of encountering _divide by zero_ defect:
 
 ```scala
+import zio._
 
 val dyingEffect: ZIO[Any, Nothing, Nothing] =
   ZIO.die(new ArithmeticException("divide by zero"))
@@ -23,6 +24,7 @@ The result is the creation of a ZIO effect whose error channel and success chann
 Let's see what happens if we run this effect:
 
 ```scala
+import zio._
 
 object MainApp extends ZIOAppDefault {
   def run = ZIO.die(new ArithmeticException("divide by zero"))
@@ -50,6 +52,7 @@ We have two choices to implement this function using the ZIO effect:
 1. We can divide the first number by the second, and if the second number was zero, we can fail the effect using `ZIO.fail` with the `ArithmeticException` failure value:
 
 ```scala
+import zio._
 
 def divide(a: Int, b: Int): ZIO[Any, ArithmeticException, Int] =
   if (b == 0)
@@ -61,6 +64,7 @@ def divide(a: Int, b: Int): ZIO[Any, ArithmeticException, Int] =
 2. We can divide the first number by the second. In the case of zero for the second number, we use `ZIO.die` to kill the effect by sending a signal of `ArithmeticException` as a defect:
 
 ```scala
+import zio._
 
 def divide(a: Int, b: Int): ZIO[Any, Nothing, Int] =
   if (b == 0)
@@ -86,6 +90,7 @@ In the second approach, we can see that the `divide` function indicates that it 
 Note that to create an effect that will die, we shouldn't throw an exception inside the `ZIO.die` constructor, although it works. Instead, the idiomatic way of creating a dying effect is to provide a `Throwable` value into the `ZIO.die` constructor:
 
 ```scala
+import zio._
 
 val defect1 = ZIO.die(new ArithmeticException("divide by zero"))       // recommended
 val defect2 = ZIO.die(throw new ArithmeticException("divide by zero")) // not recommended
@@ -94,6 +99,7 @@ val defect2 = ZIO.die(throw new ArithmeticException("divide by zero")) // not re
 Also, if we import a code that may throw an exception, all the exceptions will be translated to the ZIO defect:
 
 ```scala
+import zio._
 
 val defect3 = ZIO.succeed(throw new Exception("boom!"))
 ```
@@ -103,6 +109,7 @@ Therefore, in the second approach of the `divide` function, we do not require to
 When we import any code into the `ZIO` effect, any exception is thrown inside that code will be translated to _ZIO defects_ by default. So the following program is the same as the previous example:
 
 ```scala
+import zio._
 
 def divide(a: Int, b: Int): ZIO[Any, Nothing, Int] =
   ZIO.succeed(a / b)
@@ -111,6 +118,7 @@ def divide(a: Int, b: Int): ZIO[Any, Nothing, Int] =
 Another important note is that if we `map`/`flatMap` a ZIO effect and then accidentally throw an exception inside the map operation, that exception will be translated to a ZIO defect:
 
 ```scala
+import zio._
 
 val defect4 = ZIO.succeed(???).map(_ => throw new Exception("Boom!"))
 val defect5 = ZIO.attempt(???).map(_ => throw new Exception("Boom!"))
