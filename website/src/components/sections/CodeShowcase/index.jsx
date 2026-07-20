@@ -79,7 +79,7 @@ export default function CodeShowcase() {
       <div className={styles.innerContainer}>
         {/* Left Column */}
         <div className={styles.leftColumn}>
-          <h2>This Is ZIO</h2>
+          <h2>The ZIO Way</h2>
           <p className={styles.takeaway}>{active.takeaway}</p>
           <ul className={styles.points}>
             {active.points.map((point, i) => (
