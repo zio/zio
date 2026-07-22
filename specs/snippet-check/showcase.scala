@@ -1,4 +1,4 @@
-//> using scala 3.5.2
+//> using scala 3.8.4
 //> using dep dev.zio::zio:2.1.26
 //> using dep dev.zio::zio-streams:2.1.26
 
