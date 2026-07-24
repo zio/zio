@@ -19,7 +19,7 @@ package zio
 import zio.Cause.Both
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.io.PrintWriter
+import java.io.{PrintStream, PrintWriter}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.runtime.AbstractFunction2
@@ -895,9 +895,24 @@ object Cause extends Serializable {
   final case class Unified(fiberId: FiberId, className: String, message: String, trace: Chunk[StackTraceElement]) {
     def toThrowable: Throwable =
       new Throwable(null, null, false, false) {
+        // TODO - does this need an `implicit unsafe`?
+        // TODO - final private vs private final - see both used
+        private[zio] final def prettyPrintWith(append: String => Unit): Unit = {
+          append(toString)
+          trace.foreach(trace => append(s"\tat $trace"))
+        }
+
+        // TODO - should we override `toString`, so it carries the name of the exception, rather than `zio.Cause$Unified$$anon$3`?
+        // TODO - `FiberFailure` includes the full stack trace in the `toString`. do we want to follow that pattern, or the more typical "toString is class + message"?
+        override final def toString: String = s"$className: $message"
+
         override final def getMessage(): String = message
 
         override final def getStackTrace(): Array[StackTraceElement] = trace.toArray
+
+        override final def printStackTrace(s: PrintStream): Unit = prettyPrintWith(s.println)
+
+        override final def printStackTrace(s: PrintWriter): Unit = prettyPrintWith(s.println)
       }
   }
 
