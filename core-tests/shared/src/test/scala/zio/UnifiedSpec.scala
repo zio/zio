@@ -1,7 +1,8 @@
 package zio
 
 import zio.test.Assertion.equalTo
-import zio.test.assert
+import zio.test.TestAspect.jvmOnly
+import zio.test.{TestVersion, assert}
 
 object UnifiedSpec extends ZIOBaseSpec {
 
@@ -17,12 +18,19 @@ object UnifiedSpec extends ZIOBaseSpec {
         val boom = generateRuntimeBoom
         // TODO - is it ok to use `exceptionHasTrace` from another test suite, which under the hood calls `printStackTrace`?
         assert(boom)(zio.StackTracesSpec.exceptionHasTrace {
-          """java.lang.RuntimeException: boom
-            |	at zio.UnifiedSpec$.generateRuntimeBoom
-            |	at zio.UnifiedSpec$.$anonfun$spec
-            |""".stripMargin
+          if (TestVersion.isScala2)
+            """java.lang.RuntimeException: boom
+              |	at zio.UnifiedSpec$.generateRuntimeBoom
+              |	at zio.UnifiedSpec$.$anonfun$spec
+              |""".stripMargin
+          else
+            """java.lang.RuntimeException: boom
+              |	at zio.UnifiedSpec$.generateRuntimeBoom
+              |	at zio.UnifiedSpec$.spec$$anonfun
+              |	at zio.test.TestConstructor$.apply$$anonfun$1$$anonfun
+              |""".stripMargin
         })
-      }
+      } @@ jvmOnly
     )
   )
 
