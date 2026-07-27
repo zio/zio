@@ -1,6 +1,13 @@
 ---
-id: clock 
+id: "clock"
 title: "Clock"
+description: "Provides time-related operations for retrieving current time in various units, accessing date-time information, and non-blocking sleep functionality."
+keywords:
+  - "Clock Service"
+  - "Current Time Operations"
+  - "Non-blocking Sleep"
+  - "Date-time Information"
+  - "Scheduling Operations"
 ---
 
 Clock service contains some functionality related to time and scheduling. 

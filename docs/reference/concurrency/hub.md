@@ -5,7 +5,7 @@ title:  "Hub"
 
 A `Hub` is an asynchronous message hub. Publishers can publish messages to the hub and subscribers can subscribe to receive messagesfrom the hub.
 
-Unlike a `Queue`, where each value offered to the queue can be taken by _one_ taker, each value published to a hub can be received by _all_ subscribers. Whereas a `Queue` represents the optimal solution to the problem of how to _distribute_ values, a `Hub` represents the optimal solution to the problem of how to _broadcast_ them.
+Unlike a `Queue`, where each value offered to the [Queue](queue.md) can be taken by _one_ taker, each value published to a hub can be received by _all_ subscribers. Whereas a `Queue` represents the optimal solution to the problem of how to _distribute_ values, a `Hub` represents the optimal solution to the problem of how to _broadcast_ them.
 
 The fundamental operators on a `Hub` are `publish` and `subscribe`:
 

@@ -1,7 +1,14 @@
 ---
-id: timing-out
+id: "timing-out"
 title: "Timing out"
 sidebar_label: "5. Timing out"
+description: "ZIO timeout combinators for managing effect execution time limits with safe interruption handling and customizable error recovery strategies."
+keywords:
+  - "Timeout"
+  - "Interruption"
+  - "Effects"
+  - "Error handling"
+  - "Operators"
 ---
 
 ## `ZIO#timeout`

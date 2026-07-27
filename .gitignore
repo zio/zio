@@ -38,3 +38,7 @@ website/yarn-error.log
 website/ecosystem-sidebar.js
 .bsp/
 .vscode
+docs/.crossref-state/state.json
+/.flowrite/
+.superpowers/
+.scala-build/

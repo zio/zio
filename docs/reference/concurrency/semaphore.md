@@ -1,6 +1,14 @@
 ---
 id: semaphore
-title: "Semaphore"
+title: Semaphore
+description: "A synchronization primitive that safely manages permit-based fiber coordination with automatic release guarantees."
+keywords:
+  - "Permit Management"
+  - "Fiber Synchronization"
+  - "Counting Semaphore"
+  - "Concurrent Access Control"
+  - "Binary Semaphore"
+  - "Resource Blocking"
 ---
 
 A `Semaphore` datatype which allows synchronization between fibers with the `withPermit` operation, which safely acquires and releases a permit.
@@ -51,3 +59,7 @@ val semTaskN = (sem: Semaphore) => for {
 ```
 
 The guarantee of `withPermit` (and its corresponding counting version `withPermits`) is that each acquisition will be followed by the equivalent number of releases, regardless of whether the task succeeds, fails, or is interrupted.
+
+## See Also
+
+- [Fiber](../fiber/fiber.md) — lightweight concurrency mechanism that Semaphore synchronizes between

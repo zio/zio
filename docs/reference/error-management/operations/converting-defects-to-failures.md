@@ -1,6 +1,15 @@
 ---
 id: converting-defects-to-failures
 title: "Converting Defects to Failures"
+description: "Convert ZIO defects back to typed failures using absorb and resurrect operators to recover from unexpected errors in your error handling flow."
+keywords:
+  - "absorb Operator"
+  - "resurrect Operator"
+  - "Defect to Failure Conversion"
+  - "Error Recovery"
+  - "Cause Handling"
+  - "Die Causes"
+  - "Interruption Handling"
 ---
 
 Both `ZIO#resurrect` and `ZIO#absorb` are symmetrical opposite of the `ZIO#orDie` operator. The `ZIO#orDie` takes failures from the error channel and converts them into defects, whereas the `ZIO#absorb` and `ZIO#resurrect` take defects and convert them into failures:

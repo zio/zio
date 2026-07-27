@@ -27,9 +27,11 @@ jobs:
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v6.0.2
+      uses: actions/checkout@v7.0.1
+      with:
+        ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
     - name: Setup Java
-      uses: actions/setup-java@v5.2.0
+      uses: actions/setup-java@v5.6.0
       with:
         distribution: temurin
         java-version: 17
@@ -53,11 +55,12 @@ jobs:
         scala: ['2.12.x', '2.13.x', '3.x']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.1
         with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
           fetch-depth: 0
       - name: Setup Java
-        uses: actions/setup-java@v5.2.0
+        uses: actions/setup-java@v5.6.0
         with:
           distribution: temurin
           java-version: 11
@@ -85,11 +88,12 @@ jobs:
     if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     steps:
       - name: Checkout Current Branch
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.1
         with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
           fetch-depth: 0
       - name: Setup Java
-        uses: actions/setup-java@v5.2.0
+        uses: actions/setup-java@v5.6.0
         with:
           distribution: temurin
           java-version: 17
@@ -99,9 +103,9 @@ jobs:
         uses: sbt/setup-sbt@v1
 
       - name: Install NodeJS
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: 20
+          node-version: 24.14.1
 
       - name: Compile Docs
         run: |
@@ -122,6 +126,18 @@ jobs:
           path: ./website/build
           overwrite: true
 
+      - name: Save PR Metadata
+        if: github.event_name == 'pull_request'
+        run: echo "${{ github.event.pull_request.number }}" > pr-number.txt
+
+      - name: Upload PR Metadata
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: pr-metadata
+          path: pr-number.txt
+          overwrite: true
+
       - name: Print All Generated Files
         run: find ./website/build -print
 
@@ -137,9 +153,11 @@ jobs:
         platform: ['JVM']
     steps:
     - name: Checkout current branch
-      uses: actions/checkout@v6.0.2
+      uses: actions/checkout@v7.0.1
+      with:
+        ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
     - name: Setup Java
-      uses: actions/setup-java@v5.2.0
+      uses: actions/setup-java@v5.6.0
       with:
         distribution: temurin
         java-version: ${{ matrix.java }}
@@ -198,9 +216,11 @@ jobs:
         java: ['11', '17', '25']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
       - name: Setup Java
-        uses: actions/setup-java@v5.2.0
+        uses: actions/setup-java@v5.6.0
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
@@ -230,12 +250,14 @@ jobs:
         platform: ['JS', 'Native1', 'Native2']
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
       - name: Install Boehm GC
         if: ${{ startsWith(matrix.platform, 'Native') }}
         run: sudo apt-get update && sudo apt-get install -y libgc-dev
       - name: Setup Java
-        uses: actions/setup-java@v5.2.0
+        uses: actions/setup-java@v5.6.0
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
@@ -267,11 +289,11 @@ jobs:
     if: github.event_name != 'pull_request'
     steps:
       - name: Checkout current branch
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: actions/setup-java@v5.2.0
+        uses: actions/setup-java@v5.6.0
         with:
           distribution: temurin
           java-version: 11
@@ -293,7 +315,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
       - uses: actions/download-artifact@v8
@@ -312,7 +334,7 @@ jobs:
     if: ${{ ((github.event_name == 'repository_dispatch') && (github.event.action == 'update-docs')) }}
     steps:
       - name: Git Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.head_ref }}
       - name: Commit Changes
@@ -328,13 +350,13 @@ jobs:
           git commit -m "$commit_message" || echo "No changes to commit"
       - name: Generate a token
         id: generate-tokens
-        uses: actions/create-github-app-token@v2.2.1
+        uses: actions/create-github-app-token@v3.2.0
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_SECRET }}
           owner: ${{ github.repository_owner }}
       - name: Create Pull Request to Update Docs
-        uses: peter-evans/create-pull-request@v8.1.0
+        uses: peter-evans/create-pull-request@v8.1.1
         with:
           token: ${{ steps.generate-token.outputs.token }}
           body: |-

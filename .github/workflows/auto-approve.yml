@@ -1,18 +1,40 @@
-name: Auto-approve Renovate's PRs
+name: Auto-approve bot dependency PRs
 
-on: pull_request_target
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write
 
 jobs:
-  auto-approve-renovate-prs:
+  auto-approve-bot-prs:
     runs-on: ubuntu-latest
-    if: github.actor == 'renovate[bot]'
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.user.login == 'renovate[bot]' ||
+      github.event.pull_request.user.login == 'zio-scala-steward[bot]'
     steps:
-      - name: Git Checkout
-        uses: actions/checkout@v6.0.2
-        with:
-          fetch-depth: 1000
-          fetch-tags: true
       - name: Approve PR
+        if: github.event_name == 'pull_request_target'
         run: gh pr review --approve ${{ github.event.number }}
         env:
           GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          GH_REPO: ${{ github.repository }}
+
+      - name: Backfill auto-approve for existing bot PRs
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          for actor in "zio-scala-steward[bot]" "renovate[bot]"; do
+            gh pr list \
+              --author "$actor" \
+              --state open \
+              --json number \
+              --jq '.[].number' | \
+            xargs -I{} gh pr review --approve {}
+          done
+        env:
+          GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          GH_REPO: ${{ github.repository }}

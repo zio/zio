@@ -1,12 +1,12 @@
 package zio.stream
 
 import zio._
-import zio.stm.TQueue
 import zio.concurrent.CountdownLatch
+import zio.stm.TQueue
 import zio.stream.ZStream.HaltStrategy
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock}
+import zio.test.TestAspect.{identity => _, _}
 import zio.test._
 
 import java.io.{ByteArrayInputStream, IOException}
@@ -1665,7 +1665,21 @@ object ZStreamSpec extends ZIOBaseSpec {
                           }
                         }
             } yield assert(result)(equalTo(List(1, 2)))
-          }
+          },
+          test("does not leak memory with long-running flatMap (#10742)") {
+            // Simulates a Kafka consumer pattern: a long stream of records, each flatMapped
+            // into a sub-stream. Without the fix, closeLastSubstream accumulates a chain of
+            // child executor close effects via `prevLastClose *> f`, retaining all child
+            // executors. Each child executor retains its `emitted` field (the last value
+            // the sub-stream produced). With 15k * 1MB this far exceeds a 1GB heap.
+            val n = 15000
+            ZStream
+              .repeatZIO(ZIO.succeed(new Array[Byte](1024 * 1024)))
+              .take(n.toLong)
+              .flatMap(data => ZStream.succeed(data))
+              .runDrain
+              .as(assertCompletes)
+          } @@ TestAspect.jvmOnly
         ),
         suite("flatMapPar")(
           test("guarantee ordering")(check(tinyListOf(Gen.int)) { (m: List[Int]) =>

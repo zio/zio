@@ -1,6 +1,14 @@
 ---
 id: index
 title: "Introduction to ZIO Test Assertions"
+description: "ZIO Test Assertions framework for composing assertions using logical operations and nested assertions to test values and effects."
+keywords:
+  - "Test Assertions"
+  - "Assertion Composition"
+  - "Logical Operations"
+  - "Nested Assertions"
+  - "Built-in Assertions"
+  - "ZIO Effects"
 ---
 
 Assertions are used to make sure that the assumptions on computations are exactly what we expect them to be. They are _executable checks_ for a property that must be true in our code. Also, they can be seen as a _specification of a program_ and facilitate understanding of programs.

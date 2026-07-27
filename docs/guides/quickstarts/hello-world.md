@@ -1,7 +1,15 @@
 ---
-id: hello-world
+id: "hello-world"
 title: "ZIO Quickstart: Hello World"
 sidebar_label: "Hello World"
+description: "Simple introductory guide to creating your first ZIO application using ZIOAppDefault and Console operations for effect composition."
+keywords:
+  - "Hello World Quickstart"
+  - "ZIOAppDefault"
+  - "Console Operations"
+  - "Effect Composition"
+  - "Getting Started with ZIO"
+  - "For-Comprehension"
 ---
 
 This is the simplest quickstart for a ZIO application. You can download and run it very quickly. This will give you an idea of how to write similar apps.

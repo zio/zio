@@ -1,6 +1,12 @@
 ---
 id: concurrentmap
-title: "ConcurrentMap"
+title: ConcurrentMap
+description: "Thread-safe concurrent data structure for atomic key-value pair operations"
+keywords:
+  - "Concurrent Map"
+  - "Thread-safe Collections"
+  - "Key-value Operations"
+  - "Atomic Updates"
 ---
 
 A `ConcurrentMap` is a wrapper over `java.util.concurrent.ConcurrentHashMap`.

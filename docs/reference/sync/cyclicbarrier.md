@@ -1,7 +1,16 @@
 ---
 id: cyclicbarrier
-title: "CyclicBarrier"
+title: CyclicBarrier
+description: "Enables multiple fibers to synchronize at a common barrier point that resets cyclically for repeated synchronization cycles."
+keywords:
+  - CyclicBarrier
+  - "Fiber Synchronization"
+  - "Synchronization Barriers"
+  - "Barrier Breakage"
+  - "Cyclic Reset"
 ---
+
+import CyclicBarrierDiagram from './CyclicBarrierDiagram.jsx';
 
 A synchronization aid that allows a set of fibers to all wait for each other to reach a common barrier point.
 
@@ -134,6 +143,12 @@ Let's introduce each one:
   - The default value of `_broken` is `false`.
   - When one of the `_waiting` fibers is interrupted, the barrier will be broken and the value of `_broken` will be changed to `true`.
   - We can access this value using `isBroken` method on a `CyclicBarrier`.
+
+## Diagram
+
+The following diagram visualizes how fibers interact with a CyclicBarrier as they progress through synchronization points. It demonstrates the flow of fibers awaiting the barrier, the barrier being released when all parties arrive, and how the barrier resets for subsequent cycles.
+
+<CyclicBarrierDiagram />
 
 ## Operations
 

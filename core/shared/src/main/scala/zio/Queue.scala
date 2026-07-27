@@ -19,7 +19,7 @@ package zio
 import zio.internal.MutableConcurrentQueue
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
 
 /**
@@ -174,15 +174,16 @@ object Queue extends QueuePlatformSpecific {
         }
       }
 
-    private def tryOffer(a: A): Boolean = {
-      @tailrec def offeredToTaker(): Boolean = {
-        val taker = takers.poll()
-        if (taker eq null) false
-        else if (unsafeCompletePromise(taker, a)) true
-        else offeredToTaker()
-      }
+    @tailrec
+    private[this] def offerToTaker(a: A): Boolean = {
+      val taker = takers.poll()
+      if (taker eq null) false
+      else if (unsafeCompletePromise(taker, a)) true
+      else offerToTaker(a)
+    }
 
-      val noRemaining = if (queue.isEmpty()) offeredToTaker() else false
+    private def tryOffer(a: A): Boolean = {
+      val noRemaining = if (queue.isEmpty()) offerToTaker(a) else false
 
       if (noRemaining) true
       else if (queue.offer(a)) {
@@ -195,11 +196,7 @@ object Queue extends QueuePlatformSpecific {
       ZIO.suspendSucceed {
         if (shutdownFlag.get) ZIO.interrupt
         else {
-          val pTakers                = if (queue.isEmpty()) unsafePollN(takers, as.size) else Chunk.empty
-          val (forTakers, remaining) = as.splitAt(pTakers.size)
-          (pTakers zip forTakers).foreach { case (taker, item) =>
-            unsafeCompletePromise(taker, item)
-          }
+          val remaining = if (queue.isEmpty()) as.dropWhile(offerToTaker) else as
 
           if (remaining.isEmpty) Exit.emptyChunk
           else {
@@ -566,22 +563,5 @@ object Queue extends QueuePlatformSpecific {
    */
   private def unsafePollN[A](q: MutableConcurrentQueue[A], max: Int): Chunk[A] =
     q.pollUpTo(max)
-
-  /**
-   * Poll n items from the queue
-   */
-  private def unsafePollN[A <: AnyRef](q: ConcurrentDeque[A], max: Int): Chunk[A] = {
-    val cb = ChunkBuilder.make[A]()
-    var i  = 0
-    while (i < max) {
-      val a = q.poll()
-      if (a eq null) i = max
-      else {
-        cb.addOne(a)
-        i += 1
-      }
-    }
-    cb.result()
-  }
 
 }

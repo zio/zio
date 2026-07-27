@@ -389,7 +389,13 @@ object SmartAssertMacros {
 
         val tpe = lhs.tpe.widen
 
-        if (tpe.typeSymbol.isPackageDef)
+        val isStaticJavaQualifier =
+          lhs.symbol != Symbol.noSymbol && {
+            val flagsShow = lhs.symbol.flags.show
+            flagsShow.contains("Flags.JavaDefined") && flagsShow.contains("Flags.Module")
+          }
+
+        if (tpe.typeSymbol.isPackageDef || isStaticJavaQualifier)
           '{ TestArrow.succeed($expr).span(${ getSpan(method) }) }
         else
           tpe.asType match {
