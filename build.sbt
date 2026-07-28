@@ -552,7 +552,7 @@ lazy val commonJunitTestSettings = Seq(
     "org.apache.maven"          % "maven-embedder"                 % "3.9.16" % Test,
     "org.apache.maven"          % "maven-compat"                   % "3.9.16" % Test,
     "com.google.inject"         % "guice"                          % "6.0.0"  % Test,
-    "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "1.0.1"  % Test,
+    "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "1.1.0"  % Test,
     "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.27" % Test,
     "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.27" % Test,
     "org.codehaus.plexus"       % "plexus-component-annotations"   % "2.2.0"  % Test,
