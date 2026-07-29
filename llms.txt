@@ -11,7 +11,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Creating Effects](https://zio.dev/overview/creating-effects.md): Comprehensive guide to creating ZIO effects from values, Scala data types, and converting synchronous or asynchronous code.
 - [Handling Errors](https://zio.dev/overview/handling-errors.md): Error handling tools for catching, recovering, and retrying ZIO effects with safe fallback strategies and robust error management.
 - [Handling Resources](https://zio.dev/overview/handling-resources.md): Learn how to manage resources safely in ZIO with Scope, acquire-release patterns, and ensure no resource leaks even under failure or interruption.
-- [Getting Started with ZIO](https://zio.dev/1.0.18/getting-started.md): Get started with ZIO, a powerful functional effect system for Scala that enables asynchronous, concurrent, and parallel programming.
+- [Getting Started with ZIO](https://zio.dev/zio-aws/getting-started.md): Get started with ZIO, a powerful functional effect system for Scala that enables asynchronous, concurrent, and parallel programming.
 - [Performance](https://zio.dev/overview/performance.md): Optimize your ZIO applications for maximum throughput and minimal latency with batching, caching, and streaming techniques.
 - [Platforms](https://zio.dev/overview/platforms.md): Configure ZIO for different platforms including JVM, JavaScript, and Native with platform-specific services and runtimes.
 - [Running Effects](https://zio.dev/overview/running-effects.md): Guide to executing ZIO effects using ZIOAppDefault, Runtime, and custom environments with error logging integration.
@@ -97,7 +97,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Failures](https://zio.dev/reference/error-management/types/failures.md): Model expected typed errors in ZIO using ZIO.fail, including custom domain error types for better error handling and type safety.
 - [Fatal Errors](https://zio.dev/reference/error-management/types/fatals.md): In ZIO on the JVM platform, the `VirtualMachineError` and all its subtypes are the only errors considered fatal by the ZIO runtime. So if during th...
 - [Three Types of Errors](https://zio.dev/reference/error-management/index.md): Understand ZIO's three error types: failures (expected), defects (unexpected), and fatals (catastrophic), and how to handle each appropriately.
-- [Fiber](https://zio.dev/reference/fiber.md.md): Lightweight concurrency primitives for non-blocking, structured execution of ZIO effects with automatic supervision and interruption.
+- [Fiber](https://zio.dev/reference/fiber/fiber.md.md): Lightweight concurrency primitives for non-blocking, structured execution of ZIO effects with automatic supervision and interruption.
 - [FiberId](https://zio.dev/reference/fiber/fiberid.md): `FiberId` is the identity of a [Fiber](fiber.md), described by a globally unique sequence number and the time when it began life:
 - [Fiber.Status](https://zio.dev/reference/fiber/fiberstatus.md): `Fiber.Status` describes the current status of a [Fiber](fiber.md).
 - [Introduction to ZIO Fibers](https://zio.dev/reference/index-8.md): Virtual threads enabling lightweight concurrent execution on the JVM with typed error and success values.
@@ -146,7 +146,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [ThreadLocalBridge](https://zio.dev/reference/state-management/threadlocal-bridge.md): `ThreadLocalBridge` is a **service for synchronizing ZIO fiber-local state with Java `ThreadLocal` storage**. It enables seamless interoperability ...
 - [ZState](https://zio.dev/reference/state-management/zstate.md): `ZState[S]` models a value of type `S` that can be read from and written to during the execution of an effect. This is a higher-level construct bui...
 - [Introduction to Software Transactional Memory](https://zio.dev/reference/index-14.md): STM enables composable atomic transactions on memory with atomicity, consistency, and isolation guarantees for concurrent programs.
-- [STM](https://zio.dev/reference/stm.md.md): STM[E, A] is a transactional effect supporting atomic operations with automatic rollback, error handling, and retry-based composition.
+- [STM](https://zio.dev/reference/stm/stm.md.md): STM[E, A] is a transactional effect supporting atomic operations with automatic rollback, error handling, and retry-based composition.
 - [TArray](https://zio.dev/reference/stm/tarray.md): `TArray` is an array of mutable references that can participate in transactions in STM.
 - [THub](https://zio.dev/reference/stm/thub.md): A `THub` is a transactional message hub. Publishers can publish messages to the hub and subscribers can subscribe to take messages from the hub.
 - [TMap](https://zio.dev/reference/stm/tmap.md): A `TMap[A]` is a mutable map that can participate in transactions in STM.
@@ -302,7 +302,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [ZIO Adopters](https://zio.dev/adopters.md): Following is a partial list of companies happily using ZIO in production to craft concurrent applications.
 - [Compile Time Errors for Handling Combinators](https://zio.dev/can_fail.md): Error handling combinators in ZIO that require CanFail implicit evidence for compile-time safety
 - [Code of Conduct](https://zio.dev/code-of-conduct.md): Outlines the ZIO project's Code of Conduct, community standards, moderation governance structure, and the role of the Steering Committee and BDFL.
-- [Coding Guidelines](https://zio.dev/coding-guidelines.md): These are coding guidelines strictly for ZIO contributors for ZIO projects and 
+- [Coding Guidelines](https://zio.dev/coding-guidelines.md): These are coding guidelines strictly for ZIO contributors working on ZIO projects and not general conventions to be applied by the Scala community ...
 - [Contributing to The ZIO Documentation](https://zio.dev/contributing-to-documentation.md): A comprehensive guide for contributing to the ZIO documentation, covering editing methods via GitHub and local development, the Markdown-based tool...
 - [Contributing to the ZIO Ecosystem Projects](https://zio.dev/contributing-to-zio-ecosystem.md): The ZIO ecosystem is provided by a worldwide community, just like the project itself. So if you are reading this page, you can help us to improve t...
 - [Contributor Guidelines](https://zio.dev/contributor-guidelines.md): Thank you for your interest in contributing to ZIO, which is a small, zero-dependency library for doing type-safe, composable concurrent and asynch...
@@ -313,7 +313,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Changelog](https://zio.dev/zio-aws/changelog.md): Note: this is a manually maintained list of important changes. Because of having auto-release from CI, this
 - [Configuration](https://zio.dev/zio-aws/configuration.md): Each _service module_ depends on the `AwsConfig` layer. This layer is responsible for setting up the 
 - [Examples](https://zio.dev/zio-aws/examples.md): The following example uses the ElasticBeanstalk and EC2 APIs to print some info.
-- [Summary](https://zio.dev/zio-aws/getting-started.md): Low-level AWS wrapper for [ZIO](https://zio.dev) for _all_ AWS services using the AWS Java SDK v2.
+- [Summary](https://zio.dev/zio-aws/getting-started-2.md): Low-level AWS wrapper for [ZIO](https://zio.dev) for _all_ AWS services using the AWS Java SDK v2.
 - [HTTP](https://zio.dev/zio-aws/http.md): By default the AWS Java SDK uses _netty_ under the hood to make the HTTP client calls. `zio-aws` defines the http client
 - [Overview](https://zio.dev/index-8.md): [ZIO AWS](https://zio.dev/zio-aws) is AWS wrapper for [ZIO](https://zio.dev) for _all_ AWS services using the AWS Java SDK v2.
 - [Migration guide](https://zio.dev/zio-aws/migration-guide.md): There are some major changes compared to the ZIO 1 version (v3.x.x.x and v4.x.x.x). This section contains detailed information about what changed a...
@@ -372,8 +372,8 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Validation](https://zio.dev/zio-blocks/reference/validation.md): `Validation` is a sealed trait in ZIO Blocks that represents declarative constraints on primitive values. Validations are attached to `PrimitiveTyp...
 - [XML](https://zio.dev/zio-blocks/reference/xml.md): `Xml` is a **sealed trait representing XML nodes**. It provides a type-safe, immutable representation of all valid XML document structures includin...
 - [Ring Buffer](https://zio.dev/zio-blocks/ringbuffer.md): `zio.blocks.ringbuffer` is a family of **high-performance, bounded ring buffers** for the JVM (and Scala.js). Each variant is optimized for a speci...
-- [Docs Critique Subagent Implementation Plan](https://zio.dev/zio-blocks/superpowers/plans/03-19-docs-critique-subagent.md): > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implemen...
-- [Design: Subagent-Based Documentation Review](https://zio.dev/zio-blocks/superpowers/specs/03-19-docs-critique-subagent-design.md): **Date:** 2026-03-19
+- [Docs Critique Subagent Implementation Plan](https://zio.dev/zio-blocks/superpowers/plans/2026-03-19-docs-critique-subagent.md): > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implemen...
+- [Design: Subagent-Based Documentation Review](https://zio.dev/zio-blocks/superpowers/specs/2026-03-19-docs-critique-subagent-design.md): **Date:** 2026-03-19
 - [Documentation Coverage Report](https://zio.dev/zio-blocks/undocumented-report.md): Comprehensive analysis of documentation gaps in ZIO Blocks, combining automated scanning with manual source-code review.
 - [Getting Started with ZIO Bson](https://zio.dev/index-10.md): [ZIO Bson](https://github.com/zio/zio-bson) is BSON library with tight ZIO integration.
 - [Type Mappings](https://zio.dev/zio-bson/types.md): ZIO Bson provides `BsonEncoder` and `BsonDecoder` typeclass instances for a wide range of Scala and Java types.

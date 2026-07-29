@@ -1,42 +1,91 @@
-# Summary
+# Getting Started with ZIO
 
-> Low-level AWS wrapper for [ZIO](https://zio.dev) for _all_ AWS services using the AWS Java SDK v2.
+> Get started with ZIO, a powerful functional effect system for Scala that enables asynchronous, concurrent, and parallel programming.
 
-# Getting started
+## Installation
 
-Low-level AWS wrapper for [ZIO](https://zio.dev) for _all_ AWS services using the AWS Java SDK v2.
+Include ZIO in your project by adding the following to your `build.sbt` file:
 
-The library's goal is to have access to all AWS functionality for cases when only a simple, direct access is needed from a ZIO application, and to be used as a building block for higher level wrappers around specific services.
+```
+libraryDependencies += "dev.zio" %% "zio" % "2.1.26"
+```
 
-Check the [list of available artifacts](artifacts.md) to get started. 
+If you want to use ZIO streams, you should also include the following dependency:
 
-The [wrapper page](wrappers.md) shows in details how the library wraps the underlying _Java SDK_. On the [configuration page](configuration.md) you
-can learn more about how set the common properties of the AWS clients in addition to setting up one of the [HTTP implementations](http.md).
+```
+libraryDependencies += "dev.zio" %% "zio-streams" % "2.1.26"
+```
 
-### Features
-- Common [configuration](configuration.md) layer
-- ZIO layer per AWS service
-- [Wrapper](wrappers.md) for all operations on all services
-- [Http service implementations](http.md) for functional Scala http libraries, injected through ZIO's module system
-- ZStream wrapper around paginated and streaming operations
-- Service-specific extra configuration
-- More idiomatic Scala request and response types wrapping the Java classes
-- [Aspects](aspects.md) to take care of additional concerns like logging, metrics, circuit breaking, etc.
+## Main
 
-### Design
-The library consists of a core module and one generated library for _each_ AWS service, based on the official JSON
-schema from the AWS Java SDK's repository. By only providing a wrapper on top of the Java SDK the code
-generator does not have to know all the implementation details and features of the schema. 
+Your application can extend `ZIOAppDefault`, which provides a complete runtime system and allows you to write your whole program using ZIO:
 
-### Higher level AWS libraries
-The following libraries are built on top of `zio-aws` providing higher level interfaces for specific AWS services:
+```scala
+import zio._
+import zio.Console._
 
-- [ZIO DynamoDB](https://github.com/zio/zio-dynamodb)
-- [ZIO Kinesis](https://github.com/svroonland/zio-kinesis)
-- [ZIO SQS](https://github.com/zio/zio-sqs)
+object MyApp extends ZIOAppDefault {
 
-### Additional resources
+  def run = myAppLogic
 
-- There is a [blog post](https://vigoo.github.io/posts/2020-09-23-zioaws-code-generation.html) explaining how the code generator is implemented.
-- [This post](https://vigoo.github.io/posts/2020-11-01-zioaws-zioquery.html) shows an example of using `zio-aws` together with [ZIO Query](https://zio.github.io/zio-query/) 
-- [Talk about generating libraries](https://www.youtube.com/watch?v=HCPTmytex3U) from Functional Scala 2021
+  val myAppLogic =
+    for {
+      _    <- printLine("Hello! What is your name?")
+      name <- readLine
+      _    <- printLine(s"Hello, ${name}, welcome to ZIO!")
+    } yield ()
+}
+```
+The `run` method should return a ZIO value which has all its errors handled,  
+which, in ZIO parlance, is an unexceptional ZIO value.  
+
+One way to do this is to invoke `fold` over a ZIO value, to get an unexceptional ZIO value.
+That requires two handler functions: `eh: E => B` (the error handler) and `ah: A => B` (the success handler).
+
+If `myAppLogic` fails, `eh` will be used to get from `e: E` to `b: B`;
+if it succeeds, `ah` will be used to get from `a: A` to `b: B`. 
+
+`myAppLogic`, as folded above, produces an unexceptional ZIO value, with `B` being `Int`.  
+If `myAppLogic` fails, there will be a 1; if it succeeds, there will be a 0.
+
+---
+
+If you are integrating ZIO into an existing application, using dependency injection, or do not control your main function, then you can create a runtime system in order to execute your ZIO programs:
+
+```scala
+import zio._
+
+object IntegrationExample {
+  val runtime = Runtime.default
+
+  Unsafe.unsafe { implicit unsafe =>
+    runtime.unsafe.run(ZIO.attempt(println("Hello World!"))).getOrThrowFiberFailure()
+  }
+}
+```
+
+Ideally, your application should have a _single_ runtime, because each runtime has its own resources (including thread pool and unhandled error reporter).
+
+## Console
+
+ZIO provides a module for interacting with the console. You can import the functions in this module with the following code snippet:
+
+If you need to print text to the console, you can use `print` and `printLine`:
+
+```scala
+import zio._
+
+// Print without trailing line break
+Console.print("Hello World")
+
+// Print string and include trailing line break
+Console.printLine("Hello World")
+```
+
+If you need to read input from the console, you can use `readLine`:
+
+```scala
+import zio._
+
+val echo = Console.readLine.flatMap(line => Console.printLine(line))
+```

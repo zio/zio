@@ -2,7 +2,7 @@
 
 > A comprehensive guide for contributing to the ZIO documentation, covering editing methods via GitHub and local development, the Markdown-based toolchain, and AI-friendly documentation variants.
 
-The ZIO documentation is provided by a worldwide community, just like the project itself. So if you are reading this page, you can help us to improve the documentation.
+The ZIO documentation is provided by a worldwide community, just like the project itself. So if you are reading this page, you can help us improve the documentation.
 
 Please read the [Contributor Guideline](contributor-guidelines.md) before contributing to documentation.
 
@@ -16,61 +16,52 @@ Please read the [Contributor Guideline](contributor-guidelines.md) before contri
 
 We encourage contributors to use GitHub's editor for making minor changes to existing documents.
 
-1. On each page, there is a button called _Edit this page_, by clicking this button, we will be redirected to the GitHub editor.
+1. On each page, there is a button called _Edit this page_. By clicking this button, we will be redirected to the GitHub editor.
 
-![Edit this page](/img/assets/edit-this-page.png)
+   ![Edit this page](/img/assets/edit-this-page.png)
+2. After editing the page, we can check whether our changes have been formatted correctly by using the _Preview_ tab.
 
-2. After editing the page we can check whether our changes have been formatted correctly or not by using the _Preview_ tab.
+   ![GitHub Editor](/img/assets/github-editor.png)
+3. We can scroll to the bottom of the page, write a title and description of the work, and then propose the changes by clicking on _Propose changes_.
 
-![GitHub Editor](/img/assets/github-editor.png)
+   ![Propose changes](/img/assets/propose-changes.png)
+4. Our browser will be redirected to a new page titled _Comparing changes_ after clicking the _Propose changes_ button. We can compare our proposed changes and then create a pull request by clicking the _Create pull request_ button.
 
-3. We can scroll to the bottom of the page and write a title and description of the work, and then propose the changes by clicking on _Propose changes_.
+   ![Open a pull request](/img/assets/comparing-changes.png)
+5. On the new page, we can edit the title and description of our pull request and finally click _Create pull request_.
 
-![Propose changes](/img/assets/propose-changes.png)
-
-4. Our browser will be redirected to a new page titled _Comparing changes_ after clicking the _Propose changes_ button. We can compare our changes proposal and then create a pull request by clicking the _Create pull request_ button.
-
-![Open a pull request](/img/assets/comparing-changes.png)
-
-5. On the new page, we can edit the title and description of our pull request on the new page and finally click _Create pull request_.
-
-![Open a pull request](/img/assets/open-a-pull-request.png)
-
+   ![Open a pull request](/img/assets/open-a-pull-request.png)
 6. A pull request has been created. Eventually, our work will be reviewed by the rest of the team.
 
 ## Editing Documentation Locally
 
-ZIO contributors are encouraged to use this approach for introducing new documentation pages, or when we have lots of improvements on code snippets since we can compile check all changes locally before committing and sending a pull request to the project:
+ZIO contributors are encouraged to use this approach for introducing new documentation pages, or when we have many improvements to code snippets, since we can compile-check all changes locally before committing and sending a pull request to the project:
 
 1. First, we need to fork and clone the ZIO project on our machine. Follow the [Get The Project](contributor-guidelines#get-the-project) instructions to fork the repository and clone your fork.
+2. The documentation source files can be found in the `docs` directory, and they are all in Markdown format. Now we can begin improving the existing documentation or adding new documentation.
+3. To generate the documentation site from type-checked Markdown files, we can use the following command:
 
-2. The documentation source code can be found in the `docs` directory and they are all in Markdown format. Now we can begin improving the existing documentation or adding new documentation.
+   ```bash
+   sbt docs/mdoc
+   ```
 
-3. To generate documentation site from type-checked markdowns we can use the following command:
+   If one of our code snippets fails to compile, this command will not succeed and will indicate which line of the documentation caused the error.
 
-```bash
-sbt docs/mdoc
-```
+   It is recommended to run this command in the sbt shell with the `--watch` option. This will start a file watcher and live-reload on changes. It is useful when we want to see the intermediate results while we are writing documentation:
 
-If one of our snippet codes fails to compile, this command doesn't succeed and will guide us on which line of the documentation caused this error.
+   ```bash
+   sbt
+   sbt:docs> docs/mdoc --watch
+   ```
+4. Finally, we can serve the microsite locally with the following command:
 
-It is recommended to run this command with sbt shell with the `--watch` option. This will start a file watcher and livereload on changes. It's useful when we want to see the intermediate results while we are writing documentation:
+   ```bash
+   cd website
+   npm install
+   npm run start --watch
+   ```
 
-```bash
-sbt
-sbt:docs> docs/mdoc --watch
-```
-
-4. Finally, by the following command we can serve the microsite locally:
-
-```bash
-cd website
-npm install
-npm run start --watch
-```
-
-It will be served on [localhost](http://127.0.0.1:3000/) address.
-
+   It will be served at the [localhost](http://127.0.0.1:3000/) address.
 5. When we are finished with the documentation, we can commit those changes and [create a pull request](contributor-guidelines.md#create-a-pull-request).
 
 ## AI-friendly Markdown Variants
@@ -87,14 +78,14 @@ The mirror step exists because `docusaurus-plugin-llms` writes each `.md` at the
 - `reference/schedule/index.md` is rendered at `/reference/schedule/`, so the natural Markdown URL is `/reference/schedule.md`, not `/reference/schedule/index.md`.
 - `reference/core/zio/zio.md` is rendered at `/reference/core/zio/` (Docusaurus's folder-named-doc convention), so the natural Markdown URL is `/reference/core/zio.md`.
 
-The script scans the build output and, for every `<dir>/index.md` or `<dir>/<dir>.md` it finds, creates a sibling `<dir>.md` so appending `.md` to any rendered URL resolves. It never overwrites an existing file, so its output composes cleanly with the llms plugin and with any future upstream fix. Running after `docusaurus build` (rather than as another Docusaurus plugin) avoids racing against the llms plugin — Docusaurus runs plugins' `postBuild` hooks concurrently, so a mirror plugin could walk the build directory before the llms plugin had finished writing its `.md` files. This keeps the solution in one place rather than requiring explicit `slug:` frontmatter on every index and folder-named-doc file across the site and the ~30 ecosystem subprojects synced in from npm.
+The script scans the build output and, for every `<dir>/index.md` or `<dir>/<dir>.md` it finds, creates a sibling `<dir>.md` so that appending `.md` to any rendered URL resolves. It never overwrites an existing file, so its output composes cleanly with the llms plugin and with any future upstream fix. Running after `docusaurus build` (rather than as another Docusaurus plugin) avoids racing against the llms plugin — Docusaurus runs plugins' `postBuild` hooks concurrently, so a mirror plugin could walk the build directory before the llms plugin had finished writing its `.md` files. This keeps the solution in one place rather than requiring explicit `slug:` frontmatter on every index and folder-named-doc file across the site and the ~30 ecosystem subprojects synced in from npm.
 
 ## Giving Feedback
 
-Sometimes we see some problem in the documentation, or we have some idea to make better documentation, but we haven't time or knowledge to do that personally. We can discuss those ideas with the community. There are two ways to do this:
+Sometimes we see a problem in the documentation, or we have an idea to improve it, but we don't have the time or knowledge to do it ourselves. We can discuss those ideas with the community. There are two ways to do this:
 
 1. Using Discord (https://discord.gg/2ccFBr4) is a great way to share our thoughts with others, discuss them, and brainstorm big ideas.
-2. Opening a new issue (https://github.com/zio/zio/issues/new) is appropriate when we have actionable ideas, such as reorganizing a specific page of a documentation, or a problem with the current documentation.
+2. Opening a new issue (https://github.com/zio/zio/issues/new) is appropriate when we have actionable ideas, such as reorganizing a specific documentation page or reporting a problem with the current documentation.
 
 ## See Also
 
