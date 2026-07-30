@@ -853,8 +853,8 @@ sealed trait ZIO[-R, +E, +A]
    * non-empty or fails with the error `None` if the list is empty.
    */
   final def head[B](implicit ev: A IsSubtypeOfOutput Seq[B], trace: Trace): ZIO[R, Option[E], B] =
-    self.foldZIO(
-      e => Exit.fail(Some(e)),
+    self.foldCauseZIO(
+      c => Exit.failCause(c.map(Some(_))),
       a => ev(a).headOption.fold[ZIO[R, Option[E], B]](Exit.failNone)(ZIO.successFn)
     )
 
@@ -937,8 +937,8 @@ sealed trait ZIO[-R, +E, +A]
    * possibility that the value is a `Right` to the error channel.
    */
   final def left[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C], trace: Trace): ZIO[R, Either[E, C], B] =
-    self.foldZIO(
-      e => Exit.fail(Left(e)),
+    self.foldCauseZIO(
+      c => Exit.failCause(c.map(Left(_))),
       a => ev(a).fold(ZIO.successFn, c => ZIO.fail(Right(c)))
     )
 
@@ -987,14 +987,14 @@ sealed trait ZIO[-R, +E, +A]
    * `f` function, translating any thrown exceptions into typed failed effects.
    */
   final def mapAttempt[B](f: A => B)(implicit ev: E IsSubtypeOfError Throwable, trace: Trace): RIO[R, B] =
-    foldZIO(e => Exit.fail(ev(e)), a => ZIO.attempt(f(a)))
+    foldCauseZIO(c => Exit.failCause(c.map(ev)), a => ZIO.attempt(f(a)))
 
   /**
    * Returns an effect whose failure and success channels have been mapped by
    * the specified pair of functions, `f` and `g`.
    */
   final def mapBoth[E2, B](f: E => E2, g: A => B)(implicit ev: CanFail[E], trace: Trace): ZIO[R, E2, B] =
-    foldZIO(e => Exit.fail(f(e)), a => Exit.succeed(g(a)))
+    foldCauseZIO(c => Exit.failCause(c.map(f)), a => Exit.succeed(g(a)))
 
   /**
    * Returns an effect with its error channel mapped using the specified
@@ -1039,8 +1039,8 @@ sealed trait ZIO[-R, +E, +A]
    * Requires the option produced by this value to be `None`.
    */
   final def none[B](implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R, Option[E], Unit] =
-    self.foldZIO(
-      e => Exit.fail(Some(e)),
+    self.foldCauseZIO(
+      c => Exit.failCause(c.map(Some(_))),
       a => ev(a).fold[ZIO[R, Option[E], Unit]](Exit.unit)(_ => Exit.failNone)
     )
 
@@ -1811,8 +1811,8 @@ sealed trait ZIO[-R, +E, +A]
    * possibility that the value is a `Left` to the error channel.
    */
   final def right[B, C](implicit ev: A IsSubtypeOfOutput Either[B, C], trace: Trace): ZIO[R, Either[B, E], C] =
-    self.foldZIO(
-      e => Exit.fail(Right(e)),
+    self.foldCauseZIO(
+      c => Exit.failCause(c.map(Right(_))),
       a => ev(a).fold(b => ZIO.fail(Left(b)), ZIO.successFn)
     )
 
@@ -1901,8 +1901,8 @@ sealed trait ZIO[-R, +E, +A]
    * Converts an option on values into an option on errors.
    */
   final def some[B](implicit ev: A IsSubtypeOfOutput Option[B], trace: Trace): ZIO[R, Option[E], B] =
-    self.foldZIO(
-      e => Exit.fail(Some(e)),
+    self.foldCauseZIO(
+      c => Exit.failCause(c.map(Some(_))),
       a => ev(a).fold[ZIO[R, Option[E], B]](ZIO.fail(Option.empty[E]))(ZIO.successFn)
     )
 
@@ -2267,8 +2267,16 @@ sealed trait ZIO[-R, +E, +A]
     ev: E IsSubtypeOfError Either[E1, B],
     trace: Trace
   ): ZIO[R, E1, Either[A, B]] =
-    self.foldZIO(
-      e => ev(e).fold(e1 => ZIO.fail(e1), b => Exit.succeed(Right(b))),
+    self.foldCauseZIO(
+      c =>
+        c.failureOrCause.fold(
+          e =>
+            ev(e).fold(
+              e1 => ZIO.failCause(c.as(e1)),
+              b => Exit.succeed(Right(b))
+            ),
+          Exit.failCause
+        ),
       a => Exit.succeed(Left(a))
     )
 
@@ -2334,8 +2342,16 @@ sealed trait ZIO[-R, +E, +A]
     ev: E IsSubtypeOfError Either[B, E1],
     trace: Trace
   ): ZIO[R, E1, Either[B, A]] =
-    self.foldZIO(
-      e => ev(e).fold(b => Exit.succeed(Left(b)), e1 => Exit.fail(e1)),
+    self.foldCauseZIO(
+      c =>
+        c.failureOrCause.fold(
+          e =>
+            ev(e).fold(
+              b => Exit.succeed(Left(b)),
+              e1 => ZIO.failCause(c.as(e1))
+            ),
+          Exit.failCause
+        ),
       a => Exit.succeed(Right(a))
     )
 
@@ -2343,8 +2359,12 @@ sealed trait ZIO[-R, +E, +A]
    * Converts an option on errors into an option on values.
    */
   final def unsome[E1](implicit ev: E IsSubtypeOfError Option[E1], trace: Trace): ZIO[R, E1, Option[A]] =
-    self.foldZIO(
-      e => ev(e).fold[ZIO[R, E1, Option[A]]](Exit.none)(ZIO.failFn),
+    self.foldCauseZIO(
+      c =>
+        c.failureOrCause.fold(
+          e => ev(e).fold[ZIO[R, E1, Option[A]]](Exit.none)(e1 => ZIO.failCause(c.as(e1))),
+          Exit.failCause
+        ),
       a => Exit.succeed(Some(a))
     )
 
