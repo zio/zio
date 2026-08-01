@@ -740,7 +740,14 @@ sealed trait ZIO[-R, +E, +A]
     ev: CanFail[E],
     trace: Trace
   ): ZIO[R1, E2, B] =
-    foldCauseZIO(c => c.failureOrCause.fold(failure, Exit.failCause), success)
+    foldCauseZIO(
+      c =>
+        c.failureOrCause.fold(
+          e => failure(e).mapErrorCause(_.inherit(c)),
+          Exit.failCause
+        ),
+      success
+    )
 
   /**
    * Returns a new effect that will pass the success value of this effect to the
