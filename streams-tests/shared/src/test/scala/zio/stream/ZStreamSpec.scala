@@ -1838,7 +1838,40 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               exit <- stream.runDrain.exit
             } yield assertTrue(exit.isInterrupted)
-          }
+          },
+          test("does not deadlock when a partial take interrupts async inner streams") {
+            // Regression for the same defect #10272 fixed in mapOutZIOPar, which was never applied
+            // to mergeAllWith (the flatMapPar path): outgoing.shutdown is bound only to the scope
+            // via addFinalizer, but the coordinator cannot let the scope close while producers are
+            // blocked offering into the full bounded `outgoing` queue. An early take(n) stops the
+            // consumer, the queue fills and never drains, and teardown deadlocks.
+            //
+            // Reproduces specifically when the interrupted producers are parked in an interruptible
+            // async region that has a registered canceler (ZIO.asyncInterrupt with a Left canceler,
+            // as ZIO.fromFuture uses). Plain ZIO.async and scheduler-based async (e.g. ZIO.sleep)
+            // drain fine. fromFuture is the common real-world source, so it is used here.
+            implicit val ec: ExecutionContext = ExecutionContext.global
+
+            def asyncForever: ZStream[Any, Throwable, Int] =
+              ZStream.repeatZIOChunk {
+                ZIO.fromFuture(_ => scala.concurrent.Future(Chunk(1, 2, 3, 4)))
+              }
+
+            def once: ZIO[Any, Throwable, Long] =
+              ZStream
+                .fromIterable(0 until 10)
+                .map(_ => asyncForever)
+                .flatMapPar(256)(identity)
+                .take(6)
+                .runCount
+
+            for {
+              // forkDaemon so the timeout can fail the test cleanly if `once` deadlocks, rather than
+              // the test fiber awaiting a stuck child while it unwinds.
+              fiber <- ZIO.foreach(1 to 30)(_ => once).forkDaemon
+              exit  <- fiber.await.timeout(20.seconds)
+            } yield assertTrue(exit.exists(_.isSuccess))
+          } @@ withLiveClock @@ exceptJS(nonFlaky)
         ),
         suite("flatMapParSwitch")(
           test("guarantee ordering no parallelism") {
