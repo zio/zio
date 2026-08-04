@@ -228,7 +228,7 @@ val result = Scope.global.scoped { scope =>
 
 ## See Also
 
-- [`Scope#defer`](./scope.md#registering-finalizers) — the method that returns a `DeferHandle`
+- [`Scope#defer`](./scope.md#finalizer) — the method that returns a `DeferHandle`
 - [`Finalizer`](./finalizer.md) — the trait defining `Finalizer#defer`
 - [`Finalization`](./finalization.md) — the result of running all finalizers
 

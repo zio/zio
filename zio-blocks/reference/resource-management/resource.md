@@ -35,13 +35,13 @@ Without Resources, managing complex initialization and cleanup is tedious and er
 Add the ZIO Blocks Scope module to your `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-blocks-scope" % "0.0.33"
+libraryDependencies += "dev.zio" %% "zio-blocks-scope" % "0.0.51"
 ```
 
 For cross-platform (Scala.js):
 
 ```scala
-libraryDependencies += "dev.zio" %%% "zio-blocks-scope" % "0.0.33"
+libraryDependencies += "dev.zio" %%% "zio-blocks-scope" % "0.0.51"
 ```
 
 Supported Scala versions: 2.13.x and 3.x.
@@ -606,6 +606,35 @@ implicit class ResourceOps[A](private val r: Resource[A]) {
   def allocate: $[A]
 }
 ```
+
+### `Resource#use` — Acquire, Use, and Finalize
+
+For top-level application code, `use` provides a lighter API than spelling out
+`Scope.global.scoped` and `allocate` directly:
+
+```scala
+trait Resource[+A] {
+  def use[B](f: A => B)(implicit ev: Unscoped[B]): B
+}
+```
+
+Example:
+
+```scala
+import zio.blocks.scope._
+
+class HttpServer extends AutoCloseable {
+  def start(): Unit = println("server started")
+  def close(): Unit = println("server stopped")
+}
+
+val serverResource = Resource.fromAutoCloseable(new HttpServer)
+
+serverResource.use(_.start())
+```
+
+`use` still creates a global scope under the hood, acquires the resource,
+runs the callback, and guarantees finalization when the callback returns.
 
 To allocate a resource and use its value inside a scope:
 

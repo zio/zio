@@ -37,13 +37,13 @@ libraryDependencies += "dev.zio" %% "zio-schema-avro"       % "1.x.x"
 **After (ZIO Blocks Schema):**
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-blocks-schema"            % "0.0.33"
+libraryDependencies += "dev.zio" %% "zio-blocks-schema"            % "0.0.51"
 // Optional codec modules:
-libraryDependencies += "dev.zio" %% "zio-blocks-schema-avro"       % "0.0.33"
-libraryDependencies += "dev.zio" %% "zio-blocks-schema-thrift"     % "0.0.33"
-libraryDependencies += "dev.zio" %% "zio-blocks-schema-bson"       % "0.0.33"
-libraryDependencies += "dev.zio" %% "zio-blocks-schema-messagepack" % "0.0.33"
-libraryDependencies += "dev.zio" %% "zio-blocks-schema-toon"       % "0.0.33"
+libraryDependencies += "dev.zio" %% "zio-blocks-schema-avro"       % "0.0.51"
+libraryDependencies += "dev.zio" %% "zio-blocks-schema-thrift"     % "0.0.51"
+libraryDependencies += "dev.zio" %% "zio-blocks-schema-bson"       % "0.0.51"
+libraryDependencies += "dev.zio" %% "zio-blocks-schema-messagepack" % "0.0.51"
+libraryDependencies += "dev.zio" %% "zio-blocks-schema-toon"       % "0.0.51"
 ```
 
 Key points:
@@ -487,7 +487,7 @@ sealed trait Event
 @caseName("user_created")
 case class UserCreated(userId: String) extends Event
 
-// ZIO Blocks Schema — use Modifier.rename on the case, Modifier.config for discriminator
+// ZIO Blocks Schema — use Modifier.rename on the case, Modifier.discriminator on the sealed trait
 import zio.blocks.schema._
 
 sealed trait Event
@@ -495,11 +495,14 @@ sealed trait Event
 case class UserCreated(userId: String) extends Event
 ```
 
-For discriminator key configuration on the enclosing sealed trait, use `Modifier.config` on the reflect node after derivation:
+For discriminator key configuration on the enclosing sealed trait, use `Modifier.discriminator` on the sealed trait:
 
 ```scala
+@Modifier.discriminator("type")
+sealed trait Event
+
 implicit val schema: Schema[Event] =
-  Schema.derived[Event].modifier(Modifier.config("json.discriminator", "type"))
+  Schema.derived[Event]
 ```
 
 ### Programmatic Annotation
@@ -734,11 +737,15 @@ dynSchema.conforms(value)         // true
 dynSchema.check(value)            // None (no error)
 ```
 
-:::warning
-ZIO Schema's `Migration` system for schema-to-schema migration (i.e., automatically migrating values from one version of a type to another) is **not yet available** in ZIO Blocks Schema. The `schema.migrate[B](newSchema)` and `schema.coerce[B](newSchema)` methods do not exist. If your application relies on schema migration, you have two options:
+:::info
+ZIO Blocks Schema now includes an explicit migration API for evolving values between schema versions. The entry point is [`Migration.newBuilder[A, B]`](../reference/schema/migration), which builds a typed `Migration[A, B]` backed by a serializable `DynamicMigration`.
 
-1. Implement migration logic manually using `DynamicValue` transformations and `DynamicSchema` for validation.
-2. Wait for schema migration support to be added to ZIO Blocks Schema (it is on the roadmap).
+This is a different model from ZIO Schema's `schema.migrate[B](newSchema)` / `schema.coerce[B](newSchema)` APIs:
+
+1. Build a migration explicitly with operations like `addField`, `dropField`, `renameField`, `changeFieldType`, and `migrateField`.
+2. Apply the resulting `Migration[A, B]` to typed values, or inspect/transport the underlying `DynamicMigration`.
+
+Use this when you want structural schema evolution as first-class data rather than implicit derivation.
 :::
 
 ### Schema Serialization
@@ -1126,7 +1133,7 @@ The following ZIO Schema features do not yet have equivalents in ZIO Blocks Sche
 | Feature | Status |
 |---|---|
 | `Schema.fail` / fail schemas | Not available |
-| `Schema.migrate[B]` / `Schema.coerce[B]` | Not available — schema migration is planned |
+| `Schema.migrate[B]` / `Schema.coerce[B]` | Replaced by explicit [`Migration.newBuilder[A, B]`](../reference/schema/migration) |
 | `MetaSchema` / schema serialization | Partial — `DynamicSchema` covers structural inspection; full schema round-trip is not available |
 | `Fallback[A, B]` schema | Not available |
 | `NonEmptyChunk` / `NonEmptyMap` schemas | Not available — use wrapper types |
@@ -1184,11 +1191,11 @@ sbt "schema-examples/compile"
 
 ## Going Further
 
-- [Schema Reference](../reference/schema.md) — full `Schema[A]` API
-- [Reflect Reference](../reference/reflect.md) — the `Reflect[F, A]` node types
-- [Binding Reference](../reference/binding.md) — constructors, deconstructors, and the register system
-- [Optics Reference](../reference/optics.md) — `Lens`, `Prism`, `Optional`, `Traversal`
-- [Type Class Derivation Guide](../reference/type-class-derivation.md) — implementing `Deriver[TC]`
-- [Codec Reference](../reference/codec.md) — the `Format` and `Codec` infrastructure
-- [DynamicValue Reference](../reference/dynamic-value.md) — the `DynamicValue` API
-- [Validation Reference](../reference/validation.md) — built-in validation constraints
+- [Schema Reference](../reference/schema/schema.md) — full `Schema[A]` API
+- [Reflect Reference](../reference/schema/reflect.md) — the `Reflect[F, A]` node types
+- [Binding Reference](../reference/schema/binding.md) — constructors, deconstructors, and the register system
+- [Optics Reference](../reference/schema/optics.md) — `Lens`, `Prism`, `Optional`, `Traversal`
+- [Type Class Derivation Guide](../reference/schema/type-class-derivation.md) — implementing `Deriver[TC]`
+- [Codec Reference](../reference/schema/codec.md) — the `Format` and `Codec` infrastructure
+- [DynamicValue Reference](../reference/schema/dynamic-value.md) — the `DynamicValue` API
+- [Validation Reference](../reference/schema/validation.md) — built-in validation constraints

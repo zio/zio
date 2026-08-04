@@ -91,13 +91,13 @@ Scope.global.scoped { scope =>
 Add the following dependency to your `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-blocks-scope" % "0.0.33"
+libraryDependencies += "dev.zio" %% "zio-blocks-scope" % "0.0.51"
 ```
 
 For cross-platform (Scala.js):
 
 ```scala
-libraryDependencies += "dev.zio" %%% "zio-blocks-scope" % "0.0.33"
+libraryDependencies += "dev.zio" %%% "zio-blocks-scope" % "0.0.51"
 ```
 
 Supported Scala versions: 2.13.x and 3.x.
@@ -495,11 +495,7 @@ val appResource: Resource[App] = Resource.from[App](
   Wire(AppConfig("jdbc:postgres://localhost/db"))
 )
 
-Scope.global.scoped { scope =>
-  import scope._
-  val app = allocate(appResource)
-  $(app)(_.run())
-}
+appResource.use(_.run())
 ```
 
 When `Resource.from` composes wires, it respects the sharing strategy:

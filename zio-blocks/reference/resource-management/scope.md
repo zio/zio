@@ -54,7 +54,7 @@ If you've used `try/finally`, `Using`, or ZIO's `Scope`, this is the same proble
 Add the following dependency to your `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-blocks-scope" % "0.0.33"
+libraryDependencies += "dev.zio" %% "zio-blocks-scope" % "0.0.51"
 ```
 
 Supported Scala versions: **2.13.x** and **3.x**.
@@ -810,24 +810,40 @@ final class App(service: UserService) {
 
 // Wire describes the dependency graph: App -> UserService -> Database -> Config
 // Resource.from uses the Wire to automatically construct the entire graph
-Scope.global.scoped { scope =>
-  import scope._
-  val config = Config("jdbc:postgres://localhost/db")
-  val app = allocate(Resource.from[App](
-    Wire(config)
-  ))
-  $(app)(_.run())
-  // All resources (Database, App) clean up automatically in reverse order
-}
+val config = Config("jdbc:postgres://localhost/db")
+val appResource = Resource.from[App](
+  Wire(config)
+)
+
+appResource.use(_.run())
+// All resources (Database, App) clean up automatically in reverse order
 ```
 
 For more details on `Wire` sharing strategies, resource composition, and advanced DI patterns, see the [Wire reference](./wire.md) and [Resource reference](./resource.md).
 
 ## Best Practices
 
-### Entry point pattern — use `Scope.global.scoped` at the top level
+### Entry point pattern — use `Resource#use` for app startup, `Scope.global.scoped` for manual scope control
 
-Wrap your entire application's resource acquisition in a single lexical scope:
+For application entrypoints, prefer the lighter `Resource#use` API when you
+have a root resource:
+
+```scala
+import zio.blocks.scope._
+
+class App {
+  def run(): Unit = println("running")
+}
+
+val appResource: Resource[App] = Resource(new App)
+
+appResource.use(_.run())
+```
+
+Reach for `Scope.global.scoped` directly when you need manual control over
+multiple allocations, child scopes, lowering, or explicit `$` access.
+
+That lower-level form still looks like this:
 
 ```scala
 import zio.blocks.scope._

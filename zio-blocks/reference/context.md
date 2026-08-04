@@ -115,7 +115,7 @@ val config = ctx.get[Config]  // Compile-time proof it exists
 Add the ZIO Blocks Context module to your `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-blocks-context" % "0.0.33"
+libraryDependencies += "dev.zio" %% "zio-blocks-context" % "0.0.51"
 ```
 
 ## Construction
@@ -543,7 +543,7 @@ cd zio-blocks
 package context
 
 import zio.blocks.context._
-import util.ShowExpr.show
+import zio.sbt.ExprEval.show
 
 // Context.empty creates an empty, type-safe dependency container.
 // Use Context.apply(...) to construct contexts with 1–10 values.
@@ -620,7 +620,7 @@ sbt "schema-examples/runMain context.ContextConstructionExample"
 package context
 
 import zio.blocks.context._
-import util.ShowExpr.show
+import zio.sbt.ExprEval.show
 
 // Context#get[A] retrieves a value by type with compile-time proof of existence.
 // Context#getOption[A] retrieves a value if present, returning None if missing.
@@ -705,7 +705,7 @@ sbt "schema-examples/runMain context.ContextRetrievalExample"
 package context
 
 import zio.blocks.context._
-import util.ShowExpr.show
+import zio.sbt.ExprEval.show
 
 // Context is immutable; modification methods return new contexts.
 // Context#add expands the context with a new value (or replaces if type exists).

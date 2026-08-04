@@ -74,13 +74,13 @@ textAny.matches(html) // true
 Add the following to your `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-blocks-mediatype" % "0.0.33"
+libraryDependencies += "dev.zio" %% "zio-blocks-mediatype" % "0.0.51"
 ```
 
 For cross-platform projects (Scala.js):
 
 ```scala
-libraryDependencies += "dev.zio" %%% "zio-blocks-mediatype" % "0.0.33"
+libraryDependencies += "dev.zio" %%% "zio-blocks-mediatype" % "0.0.51"
 ```
 
 Supported Scala versions: 2.13.x and 3.x.
