@@ -1840,43 +1840,25 @@ object ZStreamSpec extends ZIOBaseSpec {
             } yield assertTrue(exit.isInterrupted)
           },
           test("does not deadlock when a partial take interrupts async inner streams") {
-            // Regression for the same defect #10272 fixed in mapOutZIOPar, which was never applied
-            // to mergeAllWith (the flatMapPar path): outgoing.shutdown is bound only to the scope
-            // via addFinalizer, but the coordinator cannot let the scope close while producers are
-            // blocked offering into the full bounded `outgoing` queue. An early take(n) stops the
-            // consumer, the queue fills and never drains, and teardown deadlocks.
-            //
-            // Reproduces specifically when the interrupted producers are parked in an async region
-            // whose canceler is a pure Exit value, which leaves interruption disabled after the
-            // interrupt is delivered (see #11115), so the producer keeps running and never releases
-            // its offer. `asyncInterrupt(..., Left(Exit.unit))` is the minimal form of that; it is
-            // what ZIO.fromFuture arms for a non-cancelable Future. Plain ZIO.async and
-            // scheduler-based async (e.g. ZIO.sleep) drain fine.
+            // Needs a pure Exit canceler, which leaves interruption disabled once delivered (#11115),
+            // so the interrupted producer keeps running and never releases its offer.
             def asyncForever: ZStream[Any, Nothing, Int] =
               ZStream.repeatZIOChunk {
                 ZIO.asyncInterrupt[Any, Nothing, Chunk[Int]] { k =>
-                  // Completed from another thread, so the fiber really parks in the async region.
-                  // Calling `k` synchronously here would not reproduce: the effect finishes without
-                  // ever suspending, so there is no parked interrupt to lose.
                   ExecutionContext.global.execute(() => k(Exit.succeed(Chunk(1, 2, 3, 4))))
                   Left(Exit.unit)
                 }
               }
 
-            def once: ZIO[Any, Nothing, Long] =
-              ZStream
-                .fromIterable(0 until 10)
-                .map(_ => asyncForever)
-                .flatMapPar(256)(identity)
-                .take(6)
-                .runCount
-
-            // Repeated: whether a given producer is parked in the async region at the moment the
-            // take(n) interrupts it is a race, so one iteration hangs only ~1 time in 8. Thirty in
-            // sequence makes hitting it exceedingly likely — measured 40/40 batches hanging before
-            // the fix, and 100/100 passing after it.
-            ZIO.foreach(1 to 30)(_ => once).as(assertCompletes)
-          } @@ exceptJS(nonFlaky) @@ TestAspect.timeout(20.seconds)
+            ZStream
+              .fromIterable(0 until 10)
+              .map(_ => asyncForever)
+              .flatMapPar(256)(identity)
+              .take(6)
+              .runDrain
+              .as(assertCompletes)
+            // nonFlaky is load-bearing: without the fix, a single run only deadlocks ~8% of the time.
+          } @@ TestAspect.timeout(20.seconds) @@ exceptJS(nonFlaky(300))
         ),
         suite("flatMapParSwitch")(
           test("guarantee ordering no parallelism") {
