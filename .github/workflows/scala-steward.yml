@@ -23,7 +23,7 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
       - name: Scala Steward
-        uses: scala-steward-org/scala-steward-action@v2
+        uses: scala-steward-org/scala-steward-action@v2.92.0
         with:
           github-app-id: ${{ secrets.SCALA_STEWARD_GITHUB_APP_ID }}
           github-app-installation-id: ${{ secrets.SCALA_STEWARD_GITHUB_APP_INSTALLATION_ID }}
