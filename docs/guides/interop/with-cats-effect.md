@@ -155,9 +155,10 @@ The reason a `cats.effect.Timer[zio.Task]` instance is not provided by the defau
 
 If we're using `RIO` for a custom environment then our environment must use the `Clock` service, e.g. `R <: Clock` to get a timer.
 
-### Converting Resource to ZManaged
+### Converting Resource to Scoped
 
-We have an extension method defined on `Resource` called `Resource#toManaged` which converts `Resource` to `ZManaged`.
+In ZIO 2, resource safety is expressed with `Scope` (via `ZIO.acquireRelease` / `ZIO.scoped`) rather than `ZManaged`. `zio-interop-cats` provides `Resource#toScopedZIO` to convert a Cats Effect `Resource` into a scoped `ZIO`.
+
 For example, assume we have the following `File` API:
 
 ```scala
@@ -178,31 +179,115 @@ object File {
 }
 ```
 
-And, also assume we have `fileResource` defined as follows:
+And a `Resource` defined as follows:
 
 ```scala
 def fileResource[F[_]: cats.effect.Sync](name: String): cats.effect.Resource[F, File[F]] =
   cats.effect.Resource.make(File.open[F](name))(_.close)
 ```
 
-Let's convert that to `ZManaged`:
+Convert that `Resource` into a scoped `ZIO` with `toScopedZIO` (available when the resource effect type is a `ZIO` / `Task`):
 
 ```scala
-val resource: zio.ZManaged[Any, Throwable, File[zio.Task]] =
-  fileResource[zio.Task]("log.txt").toManaged
+import zio.{Scope, ZIO}
+import zio.interop.catz._
+
+val scoped: ZIO[Scope, Throwable, File[zio.Task]] =
+  fileResource[zio.Task]("log.txt").toScopedZIO
 ```
 
-Here is a complete working example:
+Here is a complete working example. Finalizers run when the surrounding `Scope` closes (for example via `ZIO.scoped`):
 
 ```scala
 import zio.interop.catz._
+import zio.{Scope, ZIO}
 
 object CatsEffectResourceInterop extends CatsApp {
   def fileResource[F[_]: cats.effect.Sync](name: String): cats.effect.Resource[F, File[F]] =
     cats.effect.Resource.make(File.open[F](name))(_.close)
 
+  def myApp: ZIO[Scope, Throwable, Unit] = for {
+    file <- fileResource[zio.Task]("log.txt").toScopedZIO
+    c    <- file.read
+    _    <- zio.Console.printLine(s"file content: $c")
+  } yield ()
+
+  override def run(args: List[String]): zio.URIO[Any, zio.ExitCode] =
+    ZIO.scoped(myApp).exitCode
+}
+```
+
+### Converting Scoped to Resource
+
+`Resource.scoped` (and `Resource.scopedZIO`) builds a Cats Effect `Resource` from a scoped `ZIO`. Import `zio.interop.catz._` so the extension methods on `Resource.type` are in scope.
+
+```scala
+import cats.effect.{IO, Resource}
+import zio.interop.catz._
+import zio.{Scope, ZIO}
+import java.io.InputStream
+
+object ScopedToResource extends cats.effect.IOApp {
+  implicit val zioRuntime: zio.Runtime[Any] = zio.Runtime.default
+
+  val resource: Resource[IO, InputStream] = {
+    val scopedZIO: ZIO[Scope, Throwable, InputStream] =
+      ZIO.fromAutoCloseable(
+        ZIO.attempt(
+          java.nio.file.Files.newInputStream(
+            java.nio.file.Paths.get("crawl.log")
+          )
+        )
+      )
+
+    Resource.scoped[IO, Any](scopedZIO)
+  }
+
+  val effect: IO[Unit] =
+    resource
+      .use { is =>
+        IO.delay(is.readAllBytes())
+      }
+      .flatMap(bytes =>
+        IO.delay(
+          println(s"file length: ${bytes.length}")
+        )
+      )
+
+  override def run(args: List[String]): IO[cats.effect.ExitCode] =
+    effect.as(cats.effect.ExitCode.Success)
+}
+```
+
+### Legacy: ZManaged interop (optional)
+
+`ZManaged` is no longer the primary resource type in ZIO 2; prefer `Scope` as shown above. Interop helpers for `ZManaged` remain available for migration and for code that still depends on the optional [`zio-managed`](https://github.com/zio/zio/tree/series/2.x/managed) module (`import zio.managed._`).
+
+#### Converting Resource to ZManaged
+
+`Resource#toManaged` converts a `Resource[F, A]` (for example Cats `IO`) into a `ZManaged`, requiring a `Dispatcher[F]`. For a `Resource` already on `ZIO` / `Task`, use `toManagedZIO` instead. Using the same `File` / `fileResource` helpers as in the Scope section above:
+
+```scala
+import zio.managed._
+import zio.interop.catz._
+
+// Resource[Task, A] → ZManaged
+val managedFromTask: ZManaged[Any, Throwable, File[zio.Task]] =
+  fileResource[zio.Task]("log.txt").toManagedZIO
+```
+
+Complete example with `ZManaged#use`:
+
+```scala
+import zio.interop.catz._
+import zio.managed._
+
+object CatsEffectResourceToZManaged extends CatsApp {
+  def fileResource[F[_]: cats.effect.Sync](name: String): cats.effect.Resource[F, File[F]] =
+    cats.effect.Resource.make(File.open[F](name))(_.close)
+
   def myApp: zio.ZIO[Any, Throwable, Unit] = for {
-    c <- fileResource[zio.Task]("log.txt").toManaged.use(_.read)
+    c <- fileResource[zio.Task]("log.txt").toManagedZIO.use(_.read)
     _ <- zio.Console.printLine(s"file content: $c")
   } yield ()
 
@@ -211,147 +296,52 @@ object CatsEffectResourceInterop extends CatsApp {
 }
 ```
 
-### Converting ZManaged to Resource
+#### Converting ZManaged to Resource
 
-We have an extension method on `ZManaged` called `ZManaged#toResource` which converts a ZIO managed resource to Cats Effect resource:
-
-```scala 
-final class ZManagedSyntax[R, E, A](private val managed: ZManaged[R, E, A]) {
-  def toResource[F[_]](implicit
-      F: Async[F],
-      ev: Effect[ZIO[R, E, *]]
-  ): Resource[F, A] = ???
-}
-```
-
-Let's try an example:
+`ZManaged#toResource` converts a managed resource into a Cats Effect `Resource` (requires an implicit `Runtime[R]`):
 
 ```scala
+import cats.effect.{Async, Resource}
+import zio.Runtime
+import zio.managed.ZManaged
+
+// Signature from zio-interop-cats (simplified)
+// def toResource[F[_]: Async](implicit R: Runtime[R], ev: E <:< Throwable): Resource[F, A]
+```
+
+Example:
+
+```scala
+import cats.effect.IO
 import zio.interop.catz._
+import zio.managed._
 
 object ZManagedToResource extends cats.effect.IOApp {
   implicit val zioRuntime: zio.Runtime[Any] = zio.Runtime.default
 
-  val resource: cats.effect.Resource[cats.effect.IO, java.io.InputStream] =
-    zio.ZManaged
+  val resource: cats.effect.Resource[IO, java.io.InputStream] =
+    ZManaged
       .fromAutoCloseable(
-        zio.ZIO.effect(
+        zio.ZIO.attempt(
           java.nio.file.Files.newInputStream(
             java.nio.file.Paths.get("file.txt")
           )
         )
       )
-      .toResource[cats.effect.IO]
+      .toResource[IO]
 
-  val effect: cats.effect.IO[Unit] =
+  val effect: IO[Unit] =
     resource
       .use { is =>
-        cats.effect.IO.delay(is.readAllBytes())
+        IO.delay(is.readAllBytes())
       }
       .flatMap(bytes =>
-        cats.effect.IO.delay(
+        IO.delay(
           println(s"file length: ${bytes.length}")
         )
       )
 
-  override def run(args: List[String]): cats.effect.IO[cats.effect.ExitCode] =
-    effect.as(cats.effect.ExitCode.Success)
-}
-```
-### Converting Resource to Scoped
-
-We have an extension method defined on `Resource` called `Resource#toScoped` which converts `Resource` to `ZIO` with `Scope`.
-
-For example, assume we have the following `File` API:
-
-```scala
-case class File[F[_]: cats.effect.Sync]() {
-  import cats.syntax.apply._
-  def read: F[String] =
-    cats.effect.Sync[F].delay(println("Reading file.")) *>
-      cats.effect.Sync[F].pure("Hello, World!")
-  def close: F[Unit]  =
-    cats.effect.Sync[F].delay(println("Closing file."))
-}
-
-object File {
-  import cats.syntax.apply._
-  def open[F[_]: cats.effect.Sync](name: String): F[File[F]] =
-    cats.effect.Sync[F].delay(println(s"opening $name file")) *>
-      cats.effect.Sync[F].delay(File())
-}
-```
-
-And, also assume we have `fileResource` defined as follows:
-
-```scala
-def fileResource[F[_]: cats.effect.Sync](name: String): cats.effect.Resource[F, File[F]] =
-  cats.effect.Resource.make(File.open[F](name))(_.close)
-```
-
-Let's convert that to scoped `ZIO`:
-
-```scala
-val scoped: ZIO[Scope, Throwable, File[zio.Task]] =
-  fileResource[zio.Task]("log.txt").toScoped
-```
-
-Here is a complete working example:
-
-```scala
-import zio.interop.catz._
-
-object CatsEffectResourceInterop extends CatsApp {
-  def fileResource[F[_]: cats.effect.Sync](name: String): cats.effect.Resource[F, File[F]] =
-    cats.effect.Resource.make(File.open[F](name))(_.close)
-
-  def myApp: zio.ZIO[Scope, Throwable, Unit] = for {
-    c <- fileResource[zio.Task]("log.txt").toScoped
-    _ <- zio.Console.printLine(s"file content: $c")
-  } yield ()
-
-  override def run(args: List[String]): zio.URIO[Scope, zio.ExitCode] =
-    myApp.exitCode
-}
-```
-
-### Converting Scoped to Resource
-
-We have an extension method defined on `Resource` called `Resource#scoped` which creates a `Resource` from `ZIO` with `Scope`.
-
-Let's try an example:
-
-```scala
-import zio.interop.catz._
-
-object ZManagedToResource extends cats.effect.IOApp {
-  implicit val zioRuntime: zio.Runtime[Any] = zio.Runtime.default
-
-  val resource: cats.effect.Resource[cats.effect.IO, java.io.InputStream] = {
-    val scopedZIO: ZIO[Any with Scope, Throwable, InputStream]= ZIO
-      .fromAutoCloseable(
-        zio.ZIO.attempt(
-          java.nio.file.Files.newInputStream(
-            java.nio.file.Paths.get("crawl.log")
-          )
-        )
-      )
-    
-    Resource.scoped[IO, Any](scopedZIO)
-  }
-
-  val effect: cats.effect.IO[Unit] =
-    resource
-      .use { is =>
-        cats.effect.IO.delay(is.readAllBytes())
-      }
-      .flatMap(bytes =>
-        cats.effect.IO.delay(
-          println(s"file length: ${bytes.length}")
-        )
-      )
-
-  override def run(args: List[String]): cats.effect.IO[cats.effect.ExitCode] =
+  override def run(args: List[String]): IO[cats.effect.ExitCode] =
     effect.as(cats.effect.ExitCode.Success)
 }
 ```
@@ -615,11 +605,13 @@ Let's try doing that in each of which:
 
 ZIO provides a specific blocking thread pool for blocking operations. The `doobie-hikari` module helps us create a transactor with two separated executors, one for blocking operations, and the other one for non-blocking operations. So we shouldn't run blocking JDBC operations or perform awaiting connections to the database on the main thread pool.
 
-So let's fix this issue in the previous example. In the following snippet we are going to create a `ZMHikari` of Hikari transactor. In this example we are using `0.13.4` version of doobie which supports CE2:
+The CE2 snippet below still uses `ZManaged` (optional `zio-managed` module) because many CE2 Doobie setups predate ZIO 2 `Scope`. For new ZIO 2 code, prefer Cats Effect 3 and the [Scope-based CE3 transactor](#customized-transactor-ce3).
+
+So let's fix this issue in the previous example. In the following snippet we are going to create a managed Hikari transactor. In this example we are using `0.13.4` version of doobie which supports CE2:
 
 ```scala
-import zio.ZManaged
-import zio.{ Runtime, Task, ZIO, ZManaged }
+import zio.managed._
+import zio.{ Runtime, Task, ZIO }
 import doobie.hikari.HikariTransactor
 import cats.effect.Blocker
 import zio.interop.catz._
@@ -652,47 +644,41 @@ val zioApp: ZIO[Any, Throwable, List[User]] =
 
 In Cats Effect 3.x, the `cats.effect.Blocker` has been removed. So the transactor constructor doesn't require us a blocking executor; it happens under the hood using the `Sync[F].blocking` operation.
 
-To create a `Transactor` in CE3, we need to create an instance of `Dispatcher` for `zio.Task`. The following example is based on Doobie's `1.0.0-M5` version which supports CE3:
+Prefer acquiring the Hikari pool into a ZIO 2 `Scope` with `toScopedZIO` (same interop helpers as in [Converting Resource to Scoped](#converting-resource-to-scoped)). The following example is based on Doobie's CE3-compatible line:
 
 ```scala
 import doobie.hikari.HikariTransactor
 import zio.interop.catz._
-import zio.{Task, ZIO, ZManaged}
+import zio.{Scope, Task, ZIO}
 
-implicit val zioRuntime: zio.Runtime[Any] =
-  zio.Runtime.default
-
-implicit val dispatcher: cats.effect.std.Dispatcher[zio.Task] =
-  zioRuntime
-    .unsafeRun(
-      cats.effect.std
-        .Dispatcher[zio.Task]
-        .allocated
-    )
-    ._1
-
-def transactor: ZManaged[Any, Throwable, HikariTransactor[Task]] =
+def transactor: ZIO[Scope, Throwable, HikariTransactor[Task]] =
   for {
-    rt <- ZIO.runtime[Any].toManaged
-    xa <-
-      HikariTransactor
-        .newHikariTransactor[Task](
-          "org.h2.Driver",                             // driver classname
-          "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1",        // connect URL
-          "sa",                                        // username
-          "",                                          // password
-          rt.runtimeConfig.executor.asExecutionContext // await connection here
-        )
-        .toManaged
+    ex <- ZIO.executor
+    xa <- HikariTransactor
+            .newHikariTransactor[Task](
+              "org.h2.Driver",                      // driver classname
+              "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", // connect URL
+              "sa",                                 // username
+              "",                                   // password
+              ex.asExecutionContext                 // await connection here
+            )
+            .toScopedZIO
   } yield xa
 ```
 
-Now we can `transact` our `doobieApp` with this `transactor` and convert that to the `ZIO` effect:
+Now we can `transact` our `doobieApp` with this `transactor` inside `ZIO.scoped`:
 
 ```scala
 val zioApp: ZIO[Any, Throwable, List[User]] =
-  transactor.use(xa => doobieApp.transact(xa).compile.toList)
+  ZIO.scoped {
+    for {
+      xa    <- transactor
+      users <- doobieApp.transact(xa).compile.toList
+    } yield users
+  }
 ```
+
+If you still use `ZManaged` (optional `zio-managed` module), `Resource#toManaged` / `toManagedZIO` remain available; see [Legacy: ZManaged interop](#legacy-zmanaged-interop-optional).
 
 ### Http4s
 
