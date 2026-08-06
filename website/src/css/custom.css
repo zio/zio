@@ -423,6 +423,130 @@ a {
   }
 } /* end @layer components (ByteBrain chat overrides) */
 
+/* ── Algolia DocSearch: brand-consistent theming ─────────────────────────
+   DocSearch exposes its whole palette as CSS custom properties (see
+   @docsearch/css/dist/_variables.css), so retheming is just remapping those
+   vars to the site's red/amber brand + neutral surfaces instead of Algolia's
+   default blue. Surfaces mirror the ByteBrain popup above: white/#181818
+   panels, emphasis-200 borders, same modal shadow language.
+
+   The DocSearch CSS bundle is lazy-loaded into <head> only when the modal
+   first opens, i.e. *after* this stylesheet — so for the tied-specificity
+   `:root` selector, source order would let its defaults win over ours.
+   !important sidesteps that load-order race entirely. */
+:root {
+  --docsearch-primary-color: #dc2626 !important;
+  --docsearch-highlight-color: #dc2626 !important;
+  --docsearch-focus-color: #dc2626 !important;
+  --docsearch-logo-color: #dc2626 !important;
+  --docsearch-soft-primary-color: rgba(220, 38, 38, 0.1) !important;
+
+  --docsearch-text-color: #1a1a1a !important;
+  --docsearch-secondary-text-color: #6b7280 !important;
+  --docsearch-muted-color: #9ca3af !important;
+  --docsearch-icon-color: #6b7280 !important;
+  --docsearch-subtle-color: var(--ifm-color-emphasis-200) !important;
+
+  --docsearch-background-color: var(--ifm-background-color) !important;
+  --docsearch-searchbox-background: #ffffff !important;
+  --docsearch-searchbox-focus-background: #ffffff !important;
+  --docsearch-hit-background: #ffffff !important;
+  --docsearch-hit-color: #1a1a1a !important;
+  --docsearch-hit-highlight-color: rgba(220, 38, 38, 0.12) !important;
+
+  --docsearch-key-background: #f4f4f4 !important;
+  --docsearch-key-color: #6b7280 !important;
+
+  --docsearch-modal-background: #ffffff !important;
+  --docsearch-modal-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.22),
+    inset 0 0 0 1px var(--ifm-color-emphasis-200) !important;
+  --docsearch-footer-background: #ffffff !important;
+  --docsearch-container-background: rgba(15, 15, 15, 0.6) !important;
+
+  --docsearch-search-button-background: var(
+    --ifm-navbar-background-color
+  ) !important;
+  --docsearch-search-button-text-color: #6b7280 !important;
+}
+
+[data-theme='dark'] {
+  /* Same lighter red used for dark-mode text/links elsewhere (eyebrow,
+     gradient-text, footer hover) so the search UI reads as one system. */
+  --docsearch-primary-color: #f87171 !important;
+  --docsearch-highlight-color: #f87171 !important;
+  --docsearch-focus-color: #f87171 !important;
+  --docsearch-logo-color: #f87171 !important;
+  --docsearch-soft-primary-color: rgba(220, 38, 38, 0.16) !important;
+
+  --docsearch-text-color: #ececec !important;
+  --docsearch-secondary-text-color: #b0b0b0 !important;
+  --docsearch-muted-color: #8a8a8a !important;
+  --docsearch-icon-color: #b0b0b0 !important;
+  --docsearch-subtle-color: var(--ifm-color-emphasis-300) !important;
+
+  --docsearch-background-color: var(--ifm-background-color) !important;
+  --docsearch-searchbox-background: #181818 !important;
+  --docsearch-searchbox-focus-background: #181818 !important;
+  --docsearch-hit-background: #181818 !important;
+  --docsearch-hit-color: #ececec !important;
+  --docsearch-hit-highlight-color: rgba(220, 38, 38, 0.22) !important;
+
+  --docsearch-key-background: #242526 !important;
+  --docsearch-key-color: #ececec !important;
+
+  --docsearch-modal-background: #181818 !important;
+  --docsearch-modal-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.4),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+  --docsearch-footer-background: #181818 !important;
+  --docsearch-container-background: rgba(0, 0, 0, 0.7) !important;
+
+  --docsearch-search-button-background: var(
+    --ifm-navbar-background-color
+  ) !important;
+  --docsearch-search-button-text-color: #ececec !important;
+}
+
+/* Navbar search button: same pill radius + hover lift as other nav/CTA
+   controls instead of DocSearch's default small 8px corner. !important
+   for the same lazy-load-order reason as the variables above. */
+.DocSearch-Button {
+  border-radius: 999px !important;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease !important;
+}
+
+.DocSearch-Button:hover {
+  border-color: rgba(220, 38, 38, 0.35) !important;
+  background-color: var(--ifm-navbar-background-color) !important;
+  box-shadow: none !important;
+}
+
+/* Modal: match the card-modern / ByteBrain popup language — 14px radius and
+   a brand gradient stripe across the top edge. */
+.DocSearch-Modal {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px !important;
+}
+
+.DocSearch-Modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-brand);
+  z-index: 1;
+}
+
+.DocSearch-Form {
+  border-radius: 14px 14px 0 0 !important;
+}
+
 /* ── Footer link hover ────────────────────────────────────────────────── */
 .footer__link-item:hover {
   color: #e14747;
