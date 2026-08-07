@@ -1,203 +1,99 @@
-# Introduction to ZIO SQS
+# Introduction to ZIO Schema
 
-> This library is a [ZIO](https://github.com/zio/zio)-powered client for AWS SQS. It is built on top of the [AWS SDK for Java 2.0](https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/basics.html) via the automatically generated wrappers from [zio-aws](https://github.com/vigoo/zio-aws).
+> [ZIO Schema](https://github.com/zio/zio-schema) is a [ZIO](https://zio.dev)-based library for modeling the schema of data structures as first-class values.
 
-This library is a [ZIO](https://github.com/zio/zio)-powered client for AWS SQS. It is built on top of the [AWS SDK for Java 2.0](https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/basics.html) via the automatically generated wrappers from [zio-aws](https://github.com/vigoo/zio-aws).
+[ZIO Schema](https://github.com/zio/zio-schema) is a [ZIO](https://zio.dev)-based library for modeling the schema of data structures as first-class values.
 
-## Add the dependency
+[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-schema/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-schema_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-schema_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-schema_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-schema_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-schema-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-schema-docs_2.13) [![ZIO Schema](https://img.shields.io/github/stars/zio/zio-schema?style=social)](https://github.com/zio/zio-schema)
 
-To use `zio-sqs`, add the following line in your `build.sbt` file:
+## Introduction
 
-```
-libraryDependencies += "dev.zio" %% "zio-sqs" % "0.5.0"
-```
+ZIO Schema helps us to solve some of the most common problems in distributed computing, such as serialization, deserialization, and data migration.
 
-## How to use
+It turns a compiled-time construct (the type of a data structure) into a runtime construct (a value that can be read, manipulated, and composed at runtime). A schema is a structure of a data type. ZIO Schema reifies the concept of structure for data types. It makes a high-level description of any data type and makes them first-class values.
 
-In order to use the connector, you need to provide your program with a configured SQS client as an `Sqs` ZLayer. You can use `io.github.vigoo.zioaws.sqs.live` to use default AWS SDK settings or use `.customized` (refer to the [AWS SDK Documentation](https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/creating-clients.html) if you need help customizing it). See also the [ZIO documentation](https://zio.dev/docs/howto/howto_use_layers) on how to use layers.
+Creating a schema for a data type helps us to write codecs for that data type. So this library can be a host of functionalities useful for writing codecs and protocols like JSON, Protobuf, CSV, and so forth.
 
-### Publish messages
+## What Problems Does ZIO Schema Solve?
 
-Use `Producer.make` to instantiate an instance of `Producer` trait that can be used to publish objects of type `T` to the queue.
+With schema descriptions that can be automatically derived for case classes and sealed traits, _ZIO Schema_ will be going to provide powerful features for free:
 
-```scala
-def make[R, T](
-    queueUrl: String,
-    serializer: Serializer[T],
-    settings: ProducerSettings = ProducerSettings()
-  ): ZManaged[R with Sqs with Clock, Throwable, Producer[T]]
-```
+1. Metaprogramming without macros, reflection, or complicated implicit derivations.
+    1. Creating serialization and deserialization codecs for any supported protocol (JSON, Protobuf, etc.)
+    2. Deriving standard type classes (`Eq`, `Show`, `Ordering`, etc.) from the structure of the data
+    3. Default values for data types
+2. Automate ETL (Extract, Transform, Load) pipelines
+    1. Diffing: diffing between two values of the same type
+    2. Patching: applying a diff to a value to update it
+    3. Migration: migrating values from one type to another
+3. Computations as data: Not only we can turn types into values, but we can also turn computations into values. This opens up a whole new world of possibilities concerning distributed computing.
 
-where:
+When our data structures need to be serialized, deserialized, persisted, or transported across the wire, then _ZIO Schema_ lets us focus on data modeling and automatically tackle all the low-level, messy details for us.
 
-- `queueUrl: String` - an SQS queue URL
-- `serializer: Serializer[T]` - an instance of `zio.sqs.serialization.Serializer` that can be used to convert an object of type `T` to a string.
+_ZIO Schema_ is used by a growing number of ZIO libraries, including [ZIO Flow](https://zio.dev/zio-flow), [ZIO Redis](https://zio-redis), [ZIO SQL](https://zio.dev/zio-sql) and [ZIO DynamoDB](https://zio.dev/zio-dynamodb).
 
-  ```scala
-    trait Serializer[T] {
-      def apply(t: T): String
-    }
-  ```
-  If a published message is already a string, `Serializer.serializeString` can be used.
-- `settings: ProducerSettings` - a set of settings (`ProducerSettings`) used to configure the producer.
-    - `batchSize: Int` - The size of the batch to use, [1-10] (default: 10).
-    - `duration: Duration` - Time to wait for the batch to be full (have the specified batchSize) (default: 500 milliseconds).
-    - `parallelism: Int` - The number of concurrent requests to make to SQS (default: 16).
-    - `retryDelay: Duration` - Time to wait before retrying event republishing if it failed with a recoverable error (default: 250 milliseconds).
-      The errors returned from SQS could either recoverable or not. An example of recoverable error -- when the server returned the code: `ServiceUnavailable`
-    - `retryMaxCount: Int` - The number of retries to make for a posted event (default: 10).
+## Installation
 
-#### Producer
-
-`Producer` contains two set of methods:
-- methods that fail the resulting *Task* or *Stream* if SQS server returns an error for a published event.
-    - `def produce(e: ProducerEvent[T]): Task[ProducerEvent[T]]` - Publishes a single event and fails the task.
-      Fails the `Task` if the server returns an error.
-    - `def produceBatch(es: Iterable[ProducerEvent[T]]): Task[List[ProducerEvent[T]]]` - Publishes a batch of events.
-      Fails the `Task` if the server returns an error for any of the provided events.
-    - `def sendStream: Stream[Throwable, ProducerEvent[T]] => ZStream[Any, Throwable, ProducerEvent[T]]` - Stream that takes the events and produces a stream with published events.
-      Fails if the server returns an error for any of the published events.
-    - `def sendSink: ZSink[Any, Throwable, Nothing, Iterable[ProducerEvent[T]], Unit]` - Sink that can be used to publish events.
-      Fails if the server returns an error for any of the published events.
-
-- methods that do not fail the operation but return `ErrorOrEvent[T]` (defied as `Either[ProducerError[T], ProducerEvent[T]]`).
-    - `def sendStreamE: Stream[Throwable, ProducerEvent[T]] => ZStream[Any, Throwable, ErrorOrEvent[T]]` - Stream that takes the events and produces a stream with the results.
-      Doesn't fail if the server returns an error for any of the published events.
-    - `def produceBatchE(es: Iterable[ProducerEvent[T]]): Task[List[ErrorOrEvent[T]]]` - Publishes a batch of events. Completes when all input events were processed (published to the server or failed with an error).
-      Doesn't fail the `Task` if the server returns an error for any of the provided events.
-
-Producer tries to accumulate messages in batches and send them to the server.
-If messages should be sent one by one and batching is not expected, set `ProducerSettings.batchSize` to `1`.
-
-#### ProducerEvent
-
-`ProducerEvent[T]` is an event that is published to SQS and contains the following parameters that could be configured:
-- `data: T` - Object to publish to SQS. A serializer for this type should be provided when a `Producer` is instantiated.
-- `attributes: Map[String, MessageAttributeValue]` - A map of [attributes](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-message-attributes.html) to set.
-- `groupId: Option[String]` - Assigns a specific [message group](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/using-messagegroupid-property.html) to the message.
-- `deduplicationId: Option[String]` - Token used for [deduplication](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/using-messagededuplicationid-property.html) of sent messages.
-
-If a plain string should be published without any additional attributes a `ProducerEvent` can be created directly:
+In order to use this library, we need to add the following lines in our `build.sbt` file:
 
 ```scala
-val str: String = "message to publish"
-val event: ProducerEvent = ProducerEvent(str)
+libraryDependencies += "dev.zio" %% "zio-schema"          % "1.7.5"
+libraryDependencies += "dev.zio" %% "zio-schema-avro"     % "1.7.5"
+libraryDependencies += "dev.zio" %% "zio-schema-bson"     % "1.7.5"
+libraryDependencies += "dev.zio" %% "zio-schema-json"     % "1.7.5"
+libraryDependencies += "dev.zio" %% "zio-schema-msg-pack" % "1.7.5"
+libraryDependencies += "dev.zio" %% "zio-schema-protobuf" % "1.7.5"
+libraryDependencies += "dev.zio" %% "zio-schema-thrift"   % "1.7.5"
+libraryDependencies += "dev.zio" %% "zio-schema-zio-test" % "1.7.5"
+
+// Required for the automatic generic derivation of schemas
+libraryDependencies += "dev.zio" %% "zio-schema-derivation" % "1.7.5"
+libraryDependencies += "org.scala-lang" % "scala-reflect"  % scalaVersion.value % "provided"
 ```
 
-#### ProducerError
+## Example
 
-`ProducerError[T]` represents an [error details]((https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_BatchResultErrorEntry.html)) that were returned from the server.
-- `senderFault: Boolean` - Specifies whether the error happened due to the caller of the batch API action.
-- `code: String` - An error code representing why the action failed on this entry.
-- `message: Option[String]` - A message explaining why the action failed on this entry.
-- `event: ProducerEvent[T]` - An event that triggered this error on the server.
-
-#### Publish Example
+In this simple example first, we create a schema for `Person` and then run the _diff_ operation on two instances of the `Person` data type, and finally, we encode a Person instance using _Protobuf_ protocol:
 
 ```scala
-import io.github.vigoo.zioaws
-import io.github.vigoo.zioaws.sqs.Sqs
-import zio.clock.Clock
-import zio.sqs._
-import zio.sqs.producer._
-import zio.sqs.serialization._
-import zio.stream._
-import zio.{ ExitCode, RIO, URIO, ZLayer }
-
-object PublishExample extends zio.App {
-
-  val client: ZLayer[Any, Throwable, Sqs] = zioaws.netty.default >>>
-    zioaws.core.config.default >>>
-    zioaws.sqs.live
-
-  val events                                                = List("message1", "message2").map(ProducerEvent(_))
-  val queueName                                             = "TestQueue"
-  val program: RIO[Clock with Sqs, Either[Throwable, Unit]] = for {
-    queueUrl    <- Utils.getQueueUrl(queueName)
-    producer     = Producer.make(queueUrl, Serializer.serializeString)
-    errOrResult <- producer.use(p => p.sendStream(ZStream(events: _*)).runDrain.either)
-  } yield errOrResult
-
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    program.provideCustomLayer(client).exitCode
-}
-```
-
-### Consume messages
-
-Use `SqsStream.apply` to get a stream of messages from a queue. It returns a ZIO `Stream` that you can consume with all the operators available.
-
-```scala
-def apply(
-  queueUrl: String,
-  settings: SqsStreamSettings = SqsStreamSettings()
-): ZStream[Sqs, Throwable, Message]
-```
-
-`SqsStreamSettings` allows your to configure a number of things:
-
-- `autoDelete`: if `true`, messages will be automatically deleted from the queue when they're consumed by the stream, if `false` you have to delete them explicitly by calling `SqsStream.deleteMessage` (default `true`)
-- `stopWhenQueueEmpty`: if `true` the stream will close when there the queue is empty, if `false` the stream will go on forever (default `false`)
-- `attributeNames`: see the [related page on AWS docs](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html)
-- `maxNumberOfMessages`: number of messages to query at once from SQS (default `1`)
-- `messageAttributeNames`: see the [related page on AWS docs](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html)
-- `visibilityTimeout`: see the [related page on AWS docs](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html) (default `Some(30)`. If set to `None`, the queue's value will be used.)
-- `waitTimeSeconds`: see the [related page on AWS docs](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-long-polling.html) (default `Some(20)`. If set to `None`, the queue's value will be used.)
-
-**Example:**
-
-```scala
-import zio.sqs.{SqsStream, SqsStreamSettings}
-
-SqsStream(
-  queueUrl,
-  SqsStreamSettings(stopWhenQueueEmpty = true, waitTimeSeconds = Some(3))
-).foreach(msg => UIO(println(msg.body)))
-```
-
-### Full example
-
-```scala
-import io.github.vigoo.zioaws
-import io.github.vigoo.zioaws.core.config.CommonAwsConfig
-import io.github.vigoo.zioaws.sqs.Sqs
-import software.amazon.awssdk.auth.credentials.{ AwsBasicCredentials, StaticCredentialsProvider }
-import software.amazon.awssdk.regions.Region
-import zio.clock.Clock
-import zio.sqs.producer.{ Producer, ProducerEvent }
-import zio.sqs.serialization.Serializer
-import zio.sqs.{ SqsStream, SqsStreamSettings, Utils }
 import zio._
+import zio.stream._
+import zio.schema.codec.{BinaryCodec, ProtobufCodec}
+import zio.schema.{DeriveSchema, Schema}
 
-object TestApp extends zio.App {
-  val queueName = "TestQueue"
+import java.io.IOException
 
-  val client: ZLayer[Any, Throwable, Sqs] = zioaws.netty.default ++
-    ZLayer.succeed(
-      CommonAwsConfig(
-        region = Some(Region.of("ap-northeast-2")),
-        credentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create("key", "key")),
-        endpointOverride = None,
-        commonClientConfig = None
+final case class Person(name: String, age: Int)
+
+object Person {
+  implicit val schema: Schema[Person]    = DeriveSchema.gen
+  val protobufCodec: BinaryCodec[Person] = ProtobufCodec.protobufCodec
+}
+
+object Main extends ZIOAppDefault {
+  def run: ZIO[Any, IOException, Unit] =
+    ZStream
+      .succeed(Person("John", 43))
+      .via(Person.protobufCodec.streamEncoder)
+      .runCollect
+      .flatMap(x =>
+        Console.printLine(s"Encoded data with protobuf codec: ${toHex(x)}")
       )
-    ) >>>
-    zioaws.core.config.configured() >>>
-    zioaws.sqs.live
 
-  val program: RIO[Sqs with Clock, Unit] = for {
-    _        <- Utils.createQueue(queueName)
-    queueUrl <- Utils.getQueueUrl(queueName)
-    producer  = Producer.make(queueUrl, Serializer.serializeString)
-    _        <- producer.use { p =>
-                  p.produce(ProducerEvent("hello"))
-                }
-    _        <- SqsStream(
-                  queueUrl,
-                  SqsStreamSettings(stopWhenQueueEmpty = true, waitTimeSeconds = Some(3))
-                ).foreach(msg => UIO(println(msg.body)))
-  } yield ()
-
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    program.provideCustomLayer(client).exitCode
+  def toHex(chunk: Chunk[Byte]): String =
+    chunk.map("%02X".format(_)).mkString
 }
 ```
+
+Here is the output of running the above program:
+
+```scala
+Encoded data with protobuf codec: 0A044A6F686E102B
+```
+
+## Resources
+
+- [Zymposium - ZIO Schema](https://www.youtube.com/watch?v=GfNiDaL5aIM) by John A. De Goes, Adam Fraser, and Kit Langton (May 2021)
+- [ZIO SCHEMA: A Toolkit For Functional Distributed Computing](https://www.youtube.com/watch?v=lJziseYKvHo&t=481s) by Dan Harris (Functional Scala 2021)
+- [Creating Declarative Query Plans With ZIO Schema](https://www.youtube.com/watch?v=ClePN4P9_pg) by Dan Harris (ZIO World 2022)
+- [Describing Data...with free applicative functors (and more)](https://www.youtube.com/watch?v=oRLkb6mqvVM) by Kris Nuttycombe (Scala World) on the idea behind the [xenomorph](https://github.com/nuttycom/xenomorph) library

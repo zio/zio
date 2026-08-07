@@ -1,59 +1,119 @@
-# Introduction to ZIO RocksDB
+# Introduction to ZIO Redis
 
-> A ZIO-based interface to RocksDB.
+> [![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-redis/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-redis_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-redis_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-redis_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-redis_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-redis-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-redis-docs_2.13) [![ZIO Redis](https://img.shields.io/github/stars/zio/zio-redis?style=social)](https://github.com/zio/zio-redis)
 
-A ZIO-based interface to RocksDB.
+[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-redis/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-redis_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-redis_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-redis_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-redis_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-redis-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-redis-docs_2.13) [![ZIO Redis](https://img.shields.io/github/stars/zio/zio-redis?style=social)](https://github.com/zio/zio-redis)
+
+## Introduction
+
+[ZIO Redis](https://github.com/zio/zio-redis) is a ZIO-native Redis client.
+It aims to provide a **type-safe** and **performant** API for accessing Redis
+instances.
 
 ## Installation
 
-Add the following dependencies to your `build.sbt` file:
+To use ZIO Redis, add the following line to your `build.sbt`:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-redis" % "1.1.10"
+```
+
+## Example
+
+To execute our ZIO Redis effect, we should provide the `RedisExecutor` layer to that effect. To create this layer we
+should also provide the following layers:
+
+- **RedisConfig** — Using default one, will connect to the `localhost:6379` Redis instance.
+- **BinaryCodec** — In this example, we are going to use the built-in `ProtobufCodec` codec from zio-schema project.
+
+To run this example we should put following dependencies in our `build.sbt` file:
+
 ```scala
 libraryDependencies ++= Seq(
-  "dev.zio" %% "zio-rocksdb" % "0.4.2"
+  "dev.zio" %% "zio-redis" % "1.1.10",
+  "dev.zio" %% "zio-schema-protobuf" % "1.6.1"
 )
 ```
 
-## Using RocksDB
-
-Use the provided `RocksDB` wrapper:
-
 ```scala
-import java.nio.charset.StandardCharsets
+import zio._
+import zio.redis._
+import zio.schema._
+import zio.schema.codec._
 
-import zio.rocksdb
-import zio.rocksdb.{ RocksDB }
+object ZIORedisExample extends ZIOAppDefault {
+  
+  object ProtobufCodecSupplier extends CodecSupplier {
+    def get[A: Schema]: BinaryCodec[A] = ProtobufCodec.protobufCodec
+  }
+  
+  val myApp: ZIO[Redis, RedisError, Unit] = 
+    for {
+      redis <- ZIO.service[Redis]
+      _     <- redis.set("myKey", 8L, Some(1.minutes))
+      v     <- redis.get("myKey").returning[Long]
+      _     <- Console.printLine(s"Value of myKey: $v").orDie
+      _     <- redis.hSet("myHash", ("k1", 6), ("k2", 2))
+      _     <- redis.rPush("myList", 1, 2, 3, 4)
+      _     <- redis.sAdd("mySet", "a", "b", "a", "c")
+    } yield ()
 
-val UTF_8 = StandardCharsets.UTF_8
-val key   = "key".getBytes(UTF_8)
-val value = "value".getBytes(UTF_8)
-
-val database  = RocksDB.live("/data/state")
-val readWrite = RocksDB.put(key, value) *> RocksDB.get(key)
-val result    = readWrite.provideCustomLayer(database)
-```
-
-## Using TransactionDB
-
-`zio-rocksdb` provides transactional capabilities using RocksDB [Transaction API].
-
-```scala
-import java.nio.charset.StandardCharsets
-
-import zio.rocksdb
-import zio.rocksdb.{ TransactionDB, Transaction }
-
-val key0   = "key0".getBytes(UTF_8)
-val key1   = "key1".getBytes(UTF_8)
-val value0 = "value0".getBytes(UTF_8)
-val value1 = "value1".getBytes(UTF_8)
-
-val database      = TransactionDB.live("/data/state")
-val write0        = Transaction.put(key0, value0)
-val write1        = Transaction.put(key1, value1)
-val writeTogether = TransactionDB.atomically {
-  write0 <&> write1
+  override def run = 
+    myApp.provide(Redis.local, ZLayer.succeed[CodecSupplier](ProtobufCodecSupplier))
 }
-val result        = readWrite.provideCustomLayer(database)
 ```
 
-[Transaction API]: https://github.com/facebook/rocksdb/wiki/Transactions#transactiondb
+## Testing
+
+To test you can use the embedded redis instance by adding to your build:
+
+```scala
+libraryDependencies := "dev.zio" %% "zio-redis-embedded" % "1.1.10"
+```
+
+Then you can supply `EmbeddedRedis.layer.orDie` as your `RedisConfig` and you're good to go!
+
+```scala
+import zio._
+import zio.redis._
+import zio.redis.embedded.EmbeddedRedis
+import zio.schema.{DeriveSchema, Schema}
+import zio.schema.codec.{BinaryCodec, ProtobufCodec}
+import zio.test._
+import zio.test.Assertion._
+import java.util.UUID
+
+object EmbeddedRedisSpec extends ZIOSpecDefault {
+  object ProtobufCodecSupplier extends CodecSupplier {
+    def get[A: Schema]: BinaryCodec[A] = ProtobufCodec.protobufCodec
+  }
+  
+  final case class Item private (id: UUID, name: String, quantity: Int)
+  object Item {
+    implicit val itemSchema: Schema[Item] = DeriveSchema.gen[Item]
+  }
+  
+  def spec = suite("EmbeddedRedis should")(
+    test("set and get values") {
+      for {
+        redis <- ZIO.service[Redis]
+        item   = Item(UUID.randomUUID, "foo", 2)
+        _     <- redis.set(s"item.${item.id.toString}", item)
+        found <- redis.get(s"item.${item.id.toString}").returning[Item]
+      } yield assert(found)(isSome(equalTo(item)))
+    }
+  ).provideShared(
+    EmbeddedRedis.layer,
+    ZLayer.succeed[CodecSupplier](ProtobufCodecSupplier),
+    Redis.singleNode
+  ) @@ TestAspect.silentLogging
+}
+```
+
+## Resources
+
+- [ZIO Redis](https://www.youtube.com/watch?v=yqFt3b3RBkI) by Dejan Mijic — Redis is one of the most commonly used
+  in-memory data structure stores. In this talk, Dejan will introduce ZIO Redis, a purely functional, strongly typed
+  client library backed by ZIO, with excellent performance and extensive support for nearly all of Redis' features. He
+  will explain the library design using the bottom-up approach - from communication protocol to public APIs. Finally, he
+  will wrap the talk by demonstrating the client's usage and discussing its performance characteristics.

@@ -1,105 +1,62 @@
-# ZIO 2.x Interoperation with Cats 2.x
+# Introduction to ZIO Telemetry
 
-> ```sbt
-libraryDependencies += "dev.zio" %% "zio-interop-cats" % "22.0.0.0"
-```
+> [ZIO telemetry](https://github.com/zio/zio-telemetry) is purely-functional and type-safe. It provides clients for
+[OpenTracing](https://opentracing.io/), [OpenCensus](https://opencensus.io/) and [OpenTelemetry](https://opentelemetry.io/).
+
+[ZIO telemetry](https://github.com/zio/zio-telemetry) is purely-functional and type-safe. It provides clients for
+[OpenTracing](https://opentracing.io/), [OpenCensus](https://opencensus.io/) and [OpenTelemetry](https://opentelemetry.io/).
+
+[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-telemetry/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-opentracing_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-opentracing_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-opentracing_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-opentracing_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-telemetry-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-telemetry-docs_2.13) [![ZIO Telemetry](https://img.shields.io/github/stars/zio/zio-telemetry?style=social)](https://github.com/zio/zio-telemetry)
+
+ZIO Telemetry consists of the following projects:
+
+- [OpenTracing](opentracing.md)
+- [OpenCensus](opencensus.md)
+- [OpenTelemetry](opentelemetry.md)
+
+## Introduction
+
+In monolithic architecture, everything is in one place, and we know when a request starts and then how it goes through 
+the components and when it finishes. We can obviously see what is happening with our request and where is it going. 
+But, in distributed systems like microservice architecture, we cannot find out the story of a request through various 
+services easily. This is where distributed tracing comes into play.
+
+ZIO Telemetry is a purely functional client which helps up propagate context between services in a distributed environment.
 
 ## Installation
 
-```sbt
-libraryDependencies += "dev.zio" %% "zio-interop-cats" % "22.0.0.0"
-```
-
-## `ZIO` Cats Effect instances
-
-**ZIO** integrates with Typelevel libraries by providing an instance of `ConcurrentEffect` for `IO` as required, for instance, by `fs2`, `doobie` and `http4s`. Actually, I lied a little bit, it is not possible to implement `ConcurrentEffect` for any error type since `ConcurrentEffect` extends `MonadError` of `Throwable`.
-
-For convenience we have defined an alias as follow:
+In order to use this library, we need to add the following line in our `build.sbt` file if we want to use [OpenTelemetry](https://opentelemetry.io/) client:
 
 ```scala
-  type Task[A] = IO[Throwable, A]
+libraryDependencies += "dev.zio" %% "zio-opentelemetry" % "<version>"
 ```
 
-Therefore, we provide an instance of `ConcurrentEffect[Task]`.
-
-## ConcurrentEffect
-
-In order to get a `ConcurrentEffect[Task]` or `ConcurrentEffect[RIO[R, *]]` we need an implicit `Runtime[R]` in scope. The easiest way to get it is using `ZIO.runtime`:
+If you're using [ZIO Logging](https://github.com/zio/zio-logging) you can combine OpenTelemetry with ZIO Logging using:
 
 ```scala
-import cats.effect._
-import zio._
-import zio.interop.catz._
-
-def getCE = {
-  ZIO.runtime.map { implicit r: Runtime[Any] =>
-    val F: ConcurrentEffect[Task] = implicitly
-  }
-}
+libraryDependencies += "dev.zio" %% "zio-opentelemetry-zio-logging" % "<version>"
 ```
 
-`Task.concurrentEffectWith` method can automate this pattern:
+For using [OpenTracing](https://opentracing.io/) client we should add the following line in our `build.sbt` file:
 
 ```scala
-import cats.effect._
-import zio._
-import zio.interop.catz._
-
-def fork = {
-  Task.concurrentEffectWith { implicit CE =>
-    CE.start(Task(println("Started task")))
-  }
-}
+libraryDependencies += "dev.zio" %% "zio-opentracing" % "<version>"
 ```
 
-### Timer
-
-In order to get a `cats.effect.Timer[Task]` instance we need an extra import:
+And for using [OpenCensus](https://opencensus.io/) client we should add the following line in our `build.sbt` file:
 
 ```scala
-import zio.interop.catz.implicits._
+libraryDependencies += "dev.zio" %% "zio-opencensus" % "<version>"
 ```
 
-The reason it is not provided by the default "interop" import is that it makes testing programs that require timing capabilities hard therefore an extra import wherever needed makes reasoning about it much easier.
-It is not a good idea to use this import as it causes limitations in testing since it uses the `live` implementation of `zio.Clock.Service`. If you want to retain testability, do the following instead:
+## Examples
 
-```scala
-import cats.effect._
-import zio._
-import zio.interop.catz._
+You can find examples with full source code and instructions of how to run by following the links:
+- [OpenTelemetry Example](opentelemetry-example.md)
+- [OpenTelemetry Instrumentation Example](opentelemetry-instrumentation-example.md)
+- [OpenTelemetry ZIO Logging Example](opentelemetry-zio-logging.md)
+- [OpenTracing Example](opentracing-example.md)
 
-ZIO.runtime[Clock].flatMap { implicit rts =>
-  val clock: Timer[Task] = rts.environment.get.toTimer
-  val ce: ConcurrentEffect[Task] = implicitly
-  
-  ce.race(clock.sleep(1.second), clock.sleep(1.second))
-}
-```
+## Articles
 
-### cats-core
-
-If you only need instances for `cats-core` typeclasses, not `cats-effect` import `zio.interop.catz.core._`:
-
-````scala
-import zio.interop.catz.core._
-````
-
-Note that this library only has an `Optional` dependency on cats-effect – if you or your libraries don't depend on it, this library will not add it to the classpath.
-
-### Example
-
-The following example shows how to use ZIO with Doobie (a library for JDBC access) and FS2 (a streaming library), which both rely on Cats Effect instances:
-
-```scala
-import doobie.imports._
-import fs2.Stream
-import zio.Task
-import zio.interop.catz._
-
-val xa: Transactor[Task] = Transactor.fromDriverManager[Task](...)
-
-def loadUsers: Stream[Task, User] =
-  sql"""SELECT * FROM users""".query[User].stream.transact(xa)
-
-val allUsers: List[User] = unsafeRun(loadUsers.compile.toList)
-```
+- [Trace your microservices with ZIO](https://kadek-marek.medium.com/trace-your-microservices-with-zio-telemetry-5f88d69cb26b) by Marek Kadek (September 2021)

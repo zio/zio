@@ -1,226 +1,259 @@
-# Getting Started with ZIO Kafka
+# Getting Started with ZIO Json
 
-> [ZIO Kafka](https://github.com/zio/zio-kafka) is a Kafka client for ZIO. It provides a purely functional, streams-based interface to the Kafka
-client and integrates effortlessly with ZIO and zio-streams. Often zio-kafka programs have a _higher_ throughput than
-programs that use the Java Kafka client directly (see section [Performance](#performance) below).
+> [ZIO Json](https://github.com/zio/zio-json) is a fast and secure JSON library with tight ZIO integration.
 
-[ZIO Kafka](https://github.com/zio/zio-kafka) is a Kafka client for ZIO. It provides a purely functional, streams-based interface to the Kafka
-client and integrates effortlessly with ZIO and zio-streams. Often zio-kafka programs have a _higher_ throughput than
-programs that use the Java Kafka client directly (see section [Performance](#performance) below).
+[ZIO Json](https://github.com/zio/zio-json) is a fast and secure JSON library with tight ZIO integration.
 
-[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-kafka/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-kafka_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-kafka_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-kafka_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-kafka_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-kafka-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-kafka-docs_2.13) [![ZIO Kafka](https://img.shields.io/github/stars/zio/zio-kafka?style=social)](https://github.com/zio/zio-kafka) [![Scala Steward badge](https://img.shields.io/badge/Scala_Steward-helping-blue.svg?style=flat&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAQCAMAAAARSr4IAAAAVFBMVEUAAACHjojlOy5NWlrKzcYRKjGFjIbp293YycuLa3pYY2LSqql4f3pCUFTgSjNodYRmcXUsPD/NTTbjRS+2jomhgnzNc223cGvZS0HaSD0XLjbaSjElhIr+AAAAAXRSTlMAQObYZgAAAHlJREFUCNdNyosOwyAIhWHAQS1Vt7a77/3fcxxdmv0xwmckutAR1nkm4ggbyEcg/wWmlGLDAA3oL50xi6fk5ffZ3E2E3QfZDCcCN2YtbEWZt+Drc6u6rlqv7Uk0LdKqqr5rk2UCRXOk0vmQKGfc94nOJyQjouF9H/wCc9gECEYfONoAAAAASUVORK5CYII=)](https://scala-steward.org)
+@PROJECT_BADGES@
 
 ## Introduction
 
-Apache Kafka is a distributed event streaming platform that acts as a distributed publish-subscribe messaging system. It enables us to build distributed streaming data pipelines and event-driven applications.
+The goal of this project is to create the best all-round JSON library for Scala:
 
-Kafka has a mature Java client for producing and consuming events, but it has a low-level API. Zio-kafka is a ZIO native client for Apache Kafka. It has a high-level streaming API on top of the Java client. So we can produce and consume events using the declarative concurrency model of zio-streams. In addition, zio-kafka supports an even higher level API where you only write the processing part and the rest is handled by zio-kafka.
+- **Performance** to handle more requests per second than the incumbents, i.e. reduced operational costs.
+- **Security** to mitigate against adversarial JSON payloads that threaten the capacity of the server.
+- **Fast Compilation** no shapeless, no type astronautics.
+- **Future-Proof**, prepared for Scala 3 and next-generation Java.
+- **Simple** small codebase, concise documentation that covers everything.
+- **Helpful errors** are readable by humans and machines.
+- **ZIO Integration** so nothing more is required.
 
-## Features
-
-- Exposes the Java Kafka consumer, producer and admin clients with a ZIO based interface.
-- Consuming:
-  - 2 APIs: streaming and ZIO workflow based
-  - supports custom deserialization
-  - process each partition in parallel for highest throughput
-  - allows batched processing for highest throughput
-  - configurable per partition pre-fetching (with back-pressure)
-  - the only async Kafka consumer [without duplicates](https://zio.dev/zio-kafka/preventing-duplicates) after a rebalance (as far as we know)
-  - very configurable
-  - automatic or manual starting offset
-  - supports external commits
-  - retries after authentication/authorization errors
-  - detects [silent authorization failures](detecting-authorization-failures.md) when a READ ACL is revoked at runtime
-  - exposes metrics
-  - diagnostics API
-- Producing:
-  - 2 APIs: streaming and ZIO workflow based
-  - supports custom serialization
-  - allows for batches for highest throughput
-  - optionally await broker acknowledgements
-  - optional retries after authentication/authorization errors
-  - exposes metrics
-- Admin API:
-  - exposes all the admin client methods with a ZIO based interface
-  - safer than the wrapped java client by waiting for the operation to be done
-- Proper errors when broker expects SSL (no [OOM crashes](https://issues.apache.org/jira/browse/KAFKA-4090))
-- Test kit with embedded kafka broker
-- Well documented
-- Community support via [Discord](https://discord.com/channels/629491597070827530/629497941719121960)
-- Commercial support via [Ziverge](https://www.ziverge.com)
-
-## Getting started
-
-See the [zio-kafka tutorial](tutorial.md) for a grand tour of the different ways you can use zio-kafka.
+## Installation
 
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.7.0"
-libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.7.0" % Test
+libraryDependencies += "dev.zio" %% "zio-json" % "@VERSION@"
 ```
 
-Snapshots are available on Sonatype's snapshot repository https://oss.sonatype.org/content/repositories/snapshots.
-[Browse here](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-kafka_3/) to find available versions.
-
-If you use `zio-kafka` 3.x, scala 3, `zio-kafka-testkit` and `embedded-kafka`, you also need to add the following to
-your `build.sbt` file:
+For cross-platform projects with Scala.js and Scala Native need to replace `%%` operator by `%%%`, 
+and optionally when using `java.time.ZoneId` and `java.time.ZonedDateTime` types need to add 
+the dependency on the latest version of Timezone DB:
 
 ```scala
-excludeDependencies += "org.scala-lang.modules" % "scala-collection-compat_2.13"
+libraryDependencies += "io.github.cquiroz" %%% "scala-java-time-tzdb" % "latest.integration"
 ```
 
 ## Example
 
-Let's write a simple Kafka producer and consumer using zio-kafka with zio-streams. Before everything, we need a running instance of Kafka. We can do that by saving the following docker-compose script in the `docker-compose.yml` file and run `docker compose up`:
+Let's try a simple example of encoding and decoding JSON using ZIO JSON.
 
-```docker-compose
-services:
-  broker:
-    image: apache/kafka:3.9.0
-    container_name: broker
-    ports:
-      - "9092:9092"
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_BROKER_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker:29093
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-```
+All the following code snippets assume that the following imports have been declared
 
-Now, we can run our ZIO Kafka Streaming application:
+  
 
 ```scala
-import zio._
-import zio.kafka.consumer._
-import zio.kafka.producer.{ Producer, ProducerSettings }
-import zio.kafka.serde._
-import zio.stream.ZStream
+import zio.json._
+```
 
-object ReadmeExample extends ZIOAppDefault {
+  
+  
 
-  private val producerRun: ZIO[Any, Throwable, Unit] =
-    ZIO.scoped {
-      for {
-        producer <-
-          Producer.make(
-            ProducerSettings(List("localhost:9092"))
-          )
-        _ <- ZStream
-          .fromSchedule(Schedule.fixed(2.seconds))
-          .mapZIO(_ => Random.nextIntBetween(0, Int.MaxValue))
-          .mapZIO { random =>
-            producer.produce[Any, Long, String](
-              topic = "random-topic",
-              key = (random % 4).toLong,
-              value = random.toString,
-              keySerializer = Serde.long,
-              valueSerializer = Serde.string
-            )
-          }
-          .runDrain
-      } yield ()
-    }
+```scala
+import zio.json.*
+```
 
-  private val consumerRun: ZIO[Any, Throwable, Unit] =
-    ZIO.scoped {
-      for {
-        consumer <-
-          Consumer.make(
-            ConsumerSettings(List("localhost:9092"))
-              .withGroupId("group")
-          )
-        _ <- consumer
-          .plainStream(Subscription.topics("random"), Serde.long, Serde.string)
-          .tap(r => Console.printLine(r.value))
-          .map(_.offset)
-          .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
-          .mapZIO(_.commit)
-          .runDrain
-      } yield ()
-    }
+  
 
-  override def run: ZIO[Any, Throwable, Unit] =
-    ZIO.raceFirst(producerRun, List(consumerRun))
+Say we want to be able to read some JSON like
+
+```json
+{"curvature":0.5}
+```
+
+into a Scala `case class`
+
+```scala
+final case class Banana(curvature: Double)
+```
+
+  
+
+To do this, we create an *instance* of the `JsonDecoder` typeclass for `Banana` using the `zio-json` code generator. It is best practice to put it on the companion of `Banana`, like so
+
+```scala
+object Banana {
+  implicit val decoder: JsonDecoder[Banana] = DeriveJsonDecoder.gen[Banana]
 }
 ```
 
-Read the [ZIO Kafka tutorial](tutorial.md) for a more gentle introduction.
+  
+  
 
-## Documentation
+To do this, we derive an *instance* of the `JsonDecoder` typeclass for `Banana`.
 
-If you are reading this page from https://zio.dev/zio-kafka/, the documentation is in the sub-pages and can be found by
-scrolling the left panel of this page.
+```scala
+final case class Banana(curvature: Double) derives JsonDecoder
+```
 
-If you are reading this from GitHub, the documentation can be found in
-[the docs folder](https://github.com/zio/zio-kafka/tree/master/docs).
+Note: If your case class is defining default parameters, -Yretain-trees needs to be added to scalacOptions.
 
-## Resources
+  
 
-### Articles
+Now we can parse JSON into our object
 
-- [ZIO Kafka faster than Java Kafka](https://day-to-day-stuff.blogspot.com/2024/12/zio-kafka-faster-than-java-kafka.html) by Erik van Oosten (December 2024)
-- [Introduction to zio-kafka](https://www.baeldung.com/scala/zio-kafka-intro) by Stefanos Georgakis, Baeldung (January 2023)
-- [How to implement streaming microservices with ZIO 2 and Kafka](https://scalac.io/blog/streaming-microservices-with-zio-and-kafka/) by Jorge Vasquez, Scalac (June 2023)
-- [Zio Kafka](https://medium.com/@knoldus/zio-kafka-d865fc20174a) by Knoldus Inc (January 2022)
-- [Writing a Simple Producer and Consumer Using ZIO Workflows](https://pramodshehan.medium.com/writing-a-simple-producer-and-consumer-using-zio-workflows-a57def08210c) by Pramod Shehan (December 2022)
-- [ZIO Kafka with transactions - a debugging story](https://www.ziverge.com/post/zio-kafka-with-transactions---a-debugging-story/) by Daniel Vigovszky, Ziverge (June 2022)
-- [Introduction to Zio-Kafka](https://blog.knoldus.com/introduction-to-zio-kafka/) by Akash Kumar (March 2022)
-- [Introduction to Zio-Kafka](https://blog.nashtechglobal.com/introduction-to-zio-kafka/) by Khalid Ahmed, Nash Tech (March 2022)
-- [ZIO Kafka: A Practical Streaming Tutorial](https://rockthejvm.com/articles/zio-kafka/) by Riccardo Cardin, Rock the JVM (August 2021)
-- [Using ZIO Kafka with offset storage in Postgres for transactional processing](https://functional.works-hub.com/learn/using-zio-kafka-with-offset-storage-in-postgres-for-transactional-processing-be4a2) by Marek Kadek (March 2021)
-- [Streaming microservices with ZIO and Kafka](https://scalac.io/streaming-microservices-with-zio-and-kafka/) by Aleksandar Skrbic (February 2021)
-- [An Introduction to ZIO Kafka](https://www.ziverge.com/post/an-introduction-to-zio-kafka/) by Ziverge (April 2020)
+```
+scala> """{"curvature":0.5}""".fromJson[Banana]
+val res: Either[String, Banana] = Right(Banana(0.5))
+```
 
-### Video
+Likewise, to produce JSON from our data we derive a `JsonEncoder`
 
-- [Free ZIO Kafka course](https://www.learnscala.dev/) Free video training courses by Alvin Alexander, sponsored by Ziverge (2025) to learn Scala 3, Functional Programming, and ZIO 2. The zio-kafka module can be followed separately.
-- [Optimizing Data Transfer Kafka to BQ: let's use Scala to make it custom](https://www.youtube.com/watch?v=McnC2UU-RIE) by Dario Amorosi, Adevinta (November 2024)
-- [Making ZIO-Kafka Safer and Faster in 2023](https://www.youtube.com/watch?v=MJoRwEyyVxM) by Erik van Oosten (November 2023)
-- [ZIO Kafka with Scala: A Tutorial](https://www.youtube.com/watch?v=ExFjjczwwHs) by Rock the JVM (August 2021)
-- [ZIO WORLD - ZIO Kafka](https://www.youtube.com/watch?v=GECv1ONieLw) by Aleksandar Skrbic (March 2020) — Aleksandar Skrbic presented ZIO Kafka, a critical library for the modern Scala developer, which hides some of the complexities of Kafka.
+  
 
-### Example projects
+```scala
+object Banana {
+  ...
+  implicit val encoder: JsonEncoder[Banana] = DeriveJsonEncoder.gen[Banana]
+}
+```
 
-- [Kafka BigQuery Express](https://github.com/adevinta/kafka-bigquery-express/) by Adevinta (November 2024) A production system to copy data from Kafka to BigQuery, safely and cost-effectively. (See also the video "Optimizing Data Transfer...".)
-- [zio-kafka-showcase](https://github.com/ScalaConsultants/zio-kafka-showcase) by Jorge Vásquez, Example project that demonstrates how to build Kafka based microservices with Scala and ZIO
-- [zio-kafka-demo1](https://github.com/pramodShehan5/zio-kafka-demo1) (December 2022), example consumer and producer using zio-kafka 2.0.5
-- [zio-kafka-example-app](https://github.com/zivergetech/zio-kafka-example-app) by Ziverge (December 2020), example application using zio-kafka 0.8.0
+  
+  
 
-## Adopters
+```scala
+final case class Banana(curvature: Double) derives JsonEncoder
+```
 
-Here is a partial list of companies using zio-kafka in production.
+  
 
-Want to see your company here? [Submit a PR](https://github.com/zio/zio-kafka/edit/master/docs/index.md)!
+```
+scala> Banana(0.5).toJson
+val res: String = {"curvature":0.5}
 
-* [Conduktor](https://www.conduktor.io)
-* [KelkooGroup](https://www.kelkoogroup.com)
-* [Rocker](https://rocker.com)
+scala> Banana(0.5).toJsonPretty
+val res: String =
+{
+  "curvature" : 0.5
+}
+```
 
-## Performance
+And bad JSON will produce an error in `jq` syntax with an additional piece of contextual information (in parentheses)
 
-Often, _zio-kafka programs consume with a higher throughput_ than programs that use the java-kafka client directly.
-Read on for the details.
+```
+scala> """{"curvature": womp}""".fromJson[Banana]
+val res: Either[String, Banana] = Left(.curvature(expected a Double))
+```
 
-By default, zio-kafka programs process partitions in parallel. The default java-kafka client does not provide parallel
-processing. Of course, there is some overhead in buffering records and distributing them to the fibers that need them.
-On 2024-11-23, we estimated that zio-kafka consumes faster than the java-kafka client when processing takes more than
-~1.2ms per 1000 records. The precise time depends on many factors. Please
-see [this article](https://day-to-day-stuff.blogspot.com/2024/12/zio-kafka-faster-than-java-kafka.html) for more
-details.
+Say we extend our data model to include more data types
 
-If you do not care for the convenient ZStream based API that zio-kafka brings, and latency is of absolute importance,
-using the java based Kafka client directly is still the better choice.
+  
 
-## Developers
+```scala
+sealed trait Fruit
+final case class Banana(curvature: Double) extends Fruit
+final case class Apple (poison: Boolean)   extends Fruit
+```
 
-* [Benchmarks and Flame graphs](https://github.com/zio/zio-kafka/blob/master/zio-kafka-bench/README.md)
+  
+  
+
+```scala
+enum Fruit {
+  case Banana(curvature: Double)
+  case Apple (poison: Boolean)
+}
+```
+
+  
+
+we can generate the encoder and decoder for the entire `sealed` family
+
+  
+
+```scala
+object Fruit {
+  implicit val decoder: JsonDecoder[Fruit] = DeriveJsonDecoder.gen[Fruit]
+  implicit val encoder: JsonEncoder[Fruit] = DeriveJsonEncoder.gen[Fruit]
+}
+```
+
+  
+  
+
+```scala
+enum Fruit derives JsonCodec {
+  case Banana(curvature: Double)
+  case Apple (poison: Boolean)
+}
+```
+
+  
+
+allowing us to load the fruit based on a single field type tag in the JSON
+
+```
+scala> """{"Banana":{"curvature":0.5}}""".fromJson[Fruit]
+val res: Either[String, Fruit] = Right(Banana(0.5))
+
+scala> """{"Apple":{"poison":false}}""".fromJson[Fruit]
+val res: Either[String, Fruit] = Right(Apple(false))
+```
+
+Almost all of the standard library data types are supported as fields on the case class, and it is easy to add support if one is missing.
+
+  
+
+```scala mdoc:compile-only
+import zio.json._
+
+sealed trait Fruit                   extends Product with Serializable
+case class Banana(curvature: Double) extends Fruit
+case class Apple(poison: Boolean)    extends Fruit
+
+object Fruit {
+  implicit val decoder: JsonDecoder[Fruit] =
+    DeriveJsonDecoder.gen[Fruit]
+
+  implicit val encoder: JsonEncoder[Fruit] =
+    DeriveJsonEncoder.gen[Fruit]
+}
+
+val json1         = """{ "Banana":{ "curvature":0.5 }}"""
+val json2         = """{ "Apple": { "poison": false }}"""
+val malformedJson = """{ "Banana":{ "curvature": true }}"""
+
+json1.fromJson[Fruit]
+json2.fromJson[Fruit]
+malformedJson.fromJson[Fruit]
+
+List(Apple(false), Banana(0.4)).toJsonPretty
+```
+
+  
+  
+
+```scala
+import zio.json.*
+
+enum Fruit derives JsonCodec {
+  case Banana(curvature: Double)
+  case Apple(poison: Boolean)
+}
+
+export Fruit.*
+
+val json1         = """{ "Banana":{ "curvature":0.5 }}"""
+val json2         = """{ "Apple": { "poison": false }}"""
+val malformedJson = """{ "Banana":{ "curvature": true }}"""
+
+json1.fromJson[Fruit]
+json2.fromJson[Fruit]
+malformedJson.fromJson[Fruit]
+
+List(Apple(false), Banana(0.4)).toJsonPretty
+```
+
+  
+
+# How
+
+Extreme **performance** is achieved by decoding JSON directly from the input source into business objects (inspired by [plokhotnyuk](https://github.com/plokhotnyuk/jsoniter-scala)). Although not a requirement, the latest advances in [Java Loom](https://wiki.openjdk.java.net/display/loom/Main) can be used to support arbitrarily large payloads with near-zero overhead.
+
+Best in class **security** is achieved with an aggressive *early exit* strategy that avoids costly stack traces, even when parsing malformed numbers. Malicious (and badly formed) payloads are rejected before finishing reading.
+
+**Fast compilation** and **future-proofing** is possible thanks to [Magnolia](https://propensive.com/opensource/magnolia/) which allows us to generate boilerplate in a way that will survive the exodus to Scala 3. `zio-json` is internally implemented using a [`java.io.Reader`](https://docs.oracle.com/en/java/javase/14/docs/api/java.base/java/io/Reader.html) / [`java.io.Writer`](https://docs.oracle.com/en/java/javase/14/docs/api/java.base/java/io/Writer.html)-like interface, which is making a comeback to center stage in Loom.
+
+**Simplicity** is achieved by using well-known software patterns and avoiding bloat. The only requirement to use this library is to know about Scala's encoding of typeclasses, described in [Functional Programming for Mortals](https://leanpub.com/fpmortals/read#leanpub-auto-functionality).
+
+**Helpful errors** are produced in the form of a [`jq`](https://stedolan.github.io/jq/) query, with a note about what went wrong, pointing to the exact part of the payload that failed to parse.

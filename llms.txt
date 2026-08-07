@@ -489,7 +489,8 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Integrations](https://zio.dev/zio-config/integrations.md): `zio-config` is also integrated with `enumeratum`, `cats`, `scalaz`, `aws-sdk`, `zio-aws`, `refined` etc.
 - [Read from various Sources](https://zio.dev/zio-config/read-from-various-sources.md): zio-config supports various sources.
 - [ZIO Config Resources](https://zio.dev/zio-config/resources.md): - [Easy Config For Your App](https://www.youtube.com/watch?v=4SrSKluyyKo) by Afsal Thaj (December 2020) — Managing application configuration can be...
-- [Introduction to ZIO Direct Style](https://zio.dev/index-14.md): ZIO Direct Style is a library that allows using directly-style i.e. imperative programming with ZIO effects which is based on the Monadless paradigm.
+- [Introduction to ZIO Constraintless](https://zio.dev/index-14.md): ZIO Constraintless allows you to build programs as mere descriptions with maximum polymorphism, maximum modularity, zero abstraction leakage, and z...
+- [Introduction to ZIO Direct Style](https://zio.dev/index-15.md): ZIO Direct Style is a library that allows using directly-style i.e. imperative programming with ZIO effects which is based on the Monadless paradigm.
 - [ZIO-Direct IntelliJ Support](https://zio.dev/zio-direct/intellij-support.md): > It is highly recommended that you use Metals instead of IntelliJ for ZIO-Direct development since Metals correctly infers types for `defer` block...
 - [Other Supported Monads](https://zio.dev/zio-direct/other-supported-monads.md): As of RC5, zio-direct now supports ZStream and ZPure as well as `scala.concurrent.Future` and `scala.List`. The latter two are largely fully functi...
 - [Scala Constructs Supported by ZIO-Direct](https://zio.dev/zio-direct/supported-constructs.md): ZIO-direct supports using the following constructs inside of a `defer` block. Approximate translations of the what the Scala code looks like are av...
@@ -504,7 +505,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Getting Started](https://zio.dev/zio-dynamodb/guides/getting-started.md): ```scala
 - [Testing ZIO DynamoDB Applications](https://zio.dev/zio-dynamodb/guides/testing.md): The recommendation is to use full-stack integration tests of your ZIO DynamoDB repository code against a "local" DynamoDB 
 - [DynamoDB Transactions](https://zio.dev/zio-dynamodb/guides/transactions.md): [Transactions](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html) are as simple as calling the `.transaction` ...
-- [Introduction to ZIO DynamoDB](https://zio.dev/index-15.md): Simple, type-safe, and efficient access to DynamoDB
+- [Introduction to ZIO DynamoDB](https://zio.dev/index-16.md): Simple, type-safe, and efficient access to DynamoDB
 - [Auto batching and parallelisation](https://zio.dev/zio-dynamodb/reference/auto-batching-and-parallelisation.md): When `DynamoDBQuery`'s are composed manually via the `zip` combinator function they become eligible for auto-batching and parallelisation in the `e...
 - [DynamoDBQuery](https://zio.dev/zio-dynamodb/reference/dynamodb-query.md): When we use the Low or High Level API constructors to create a query we end up with the type `DynamoDBQuery` which is a sealed trait.
 - [Error Handling](https://zio.dev/zio-dynamodb/reference/error-handling.md): DynamoDBError is a sealed trait that represents all the possible errors that can occur when interacting with DynamoDB
@@ -528,11 +529,11 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [ProjectionExpression](https://zio.dev/zio-dynamodb/reference/projection-expression.md): The `ProjectionExpression` API is common to both the Type Safe High Level API (with the exception the primary keys API) 
 - [ZIO DynamoDB JSON Module](https://zio.dev/zio-dynamodb/reference/zio-dynamodb-json.md): **`zio-dynamodb-json`** is a new experimental optional module designed for debugging and troubleshooting purposes.
 - [Environment](https://zio.dev/zio-ftp/environment.md): FtpClient & Blocking
-- [ZIO FTP](https://zio.dev/index-16.md): [ZIO FTP](https://zio.dev) is a thin wrapper over (s)Ftp client for [ZIO](https://zio.dev).
+- [ZIO FTP](https://zio.dev/index-17.md): [ZIO FTP](https://zio.dev) is a thin wrapper over (s)Ftp client for [ZIO](https://zio.dev).
 - [Configuration](https://zio.dev/zio-json/configuration.md): By default, the field names of a case class are used as the JSON fields, but it is easy to override this with an annotation `@jsonField`.
 - [Decoding](https://zio.dev/zio-json/decoding.md): Say we want to be able to read some JSON like
 - [Encoding](https://zio.dev/zio-json/encoding.md): Assume we want to encode this case class
-- [Getting Started with ZIO Json](https://zio.dev/index-17.md): [ZIO Json](https://github.com/zio/zio-json) is a fast and secure JSON library with tight ZIO integration.
+- [Getting Started with ZIO Json](https://zio.dev/index-18.md): [ZIO Json](https://github.com/zio/zio-json) is a fast and secure JSON library with tight ZIO integration.
 - [Akka Http Interop](https://zio.dev/zio-json/interop/akka-http.md): An interop module is provided for [Akka Http 10.2.4](https://doc.akka.io/docs/akka-http/10.2.4/index.html)
 - [HTTP4s Interop](https://zio.dev/zio-json/interop/http4s.md): An interop module is provided for [HTTP4s v0.21](https://http4s.org/v0.21)
 - [Interop modules](https://zio.dev/zio-json/index.md): Integrations are provided several popular libraries, which are published as separate artifacts:
@@ -547,7 +548,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Consuming, Producing and Committing Offsets](https://zio.dev/zio-kafka/consuming-producing-and-committing-offsets.md): Consuming from Kafka and then producing a transformed message back to Kafka, is a regular pattern in systems that use
 - [Creating a zio-kafka Consumer](https://zio.dev/zio-kafka/creating-a-consumer.md): Create a consumer with `Consumer.make`, passing some `ConsumerSettings`:
 - [Detecting Authorization Failures](https://zio.dev/zio-kafka/detecting-authorization-failures.md): When a Kafka consumer's `READ` access control list (ACL) is revoked at runtime, the Apache Kafka broker stops sending
-- [Getting Started with ZIO Kafka](https://zio.dev/index-18.md): [ZIO Kafka](https://github.com/zio/zio-kafka) is a Kafka client for ZIO. It provides a purely functional, streams-based interface to the Kafka
+- [Getting Started with ZIO Kafka](https://zio.dev/index-19.md): [ZIO Kafka](https://github.com/zio/zio-kafka) is a Kafka client for ZIO. It provides a purely functional, streams-based interface to the Kafka
 - [Zio-Kafka Metrics](https://zio.dev/zio-kafka/metrics.md): Zio-kafka exposes all the metrics of the wrapped Java based consumer and producer, plus some more metrics about the
 - [Migrating to zio-kafka 3](https://zio.dev/zio-kafka/migrating-to-zio-kafka-3.md): Zio-kafka 3.0.0 brings a number of backwards incompatible changes:
 - [Partition Assignment And Offset Retrieval](https://zio.dev/zio-kafka/partition-assignment-and-offset-retrieval.md): `zio-kafka` offers several ways to control which Kafka topics and partitions are assigned to your application.
@@ -557,11 +558,11 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Transactions](https://zio.dev/zio-kafka/transactions.md): > This document describes Kafka transactions for zio-kafka version 3.0.0 and later.
 - [Tutorial: How to Produce/Consume Data To/From Kafka Topics?](https://zio.dev/zio-kafka/tutorial.md): Kafka is a distributed, fault-tolerant, message-oriented event-store platform. It is used as a message broker for distributed applications. Zio-kaf...
 - [Writing Tests with the `zio-kafka-testkit` library](https://zio.dev/zio-kafka/writing-tests.md): Zio-kafka provides a `zio-kafka-testkit` library to help you test your code using zio-kafka.
-- [Introduction to ZIO Lambda](https://zio.dev/index-19.md): A ZIO-based AWS Custom Runtime compatible with GraalVM Native Image.
+- [Introduction to ZIO Lambda](https://zio.dev/index-20.md): A ZIO-based AWS Custom Runtime compatible with GraalVM Native Image.
 - [Console Logger](https://zio.dev/zio-logging/console-logger.md): logger layer with configuration from config provider:
 - [File Logger](https://zio.dev/zio-logging/file-logger.md): logger layer with configuration from config provider:
 - [Formatting Log Records](https://zio.dev/zio-logging/formatting-log-records.md): A `LogFormat` represents a DSL to describe the format of text log messages.
-- [Introduction to ZIO Logging](https://zio.dev/index-20.md): [ZIO Logging](https://github.com/zio/zio-logging) is simple logging for ZIO apps, with correlation, context, and pluggable backends out of the box ...
+- [Introduction to ZIO Logging](https://zio.dev/index-21.md): [ZIO Logging](https://github.com/zio/zio-logging) is simple logging for ZIO apps, with correlation, context, and pluggable backends out of the box ...
 - [Java Platform/System Logger](https://zio.dev/zio-logging/jpl.md): [`Java Platform/System Logger`](https://openjdk.org/jeps/264) is logging API which was introduced in Java 9.
 - [java.util.logging bridge](https://zio.dev/zio-logging/jul-bridge.md): It is possible to use `zio-logging` for included `java.util.logging` Loggers (do not confuse with `java.platform.logging`),
 - [Log Filter](https://zio.dev/zio-logging/log-filter.md): A `LogFilter` represents function/conditions for log filtering.
@@ -573,9 +574,9 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [SLF4J v2 bridge](https://zio.dev/zio-logging/slf4j2-bridge.md): It is possible to use `zio-logging` for SLF4J loggers, usually third-party non-ZIO libraries. To do so, import  the `zio-logging-slf4j2-bridge` mod...
 - [SLF4J v2](https://zio.dev/zio-logging/slf4j2.md): The Simple Logging Facade for Java ([`SLF4J v2`](https://www.slf4j.org/) - using JDK9+ module system [JPMS](http://openjdk.java.net/projects/jigsaw...
 - [Testing](https://zio.dev/zio-logging/testing.md): ZIO 2 test library has test logger implementation for testing:
-- [Introduction to ZIO Meta](https://zio.dev/index-21.md): Meta-programming helpers
+- [Introduction to ZIO Meta](https://zio.dev/index-22.md): Meta-programming helpers
 - [Getting Started](https://zio.dev/zio-metrics-connectors/getting-started.md): ZIO Metrics lets you observe everything that goes on in your ZIO application.
-- [Introduction to ZIO Metrics Connectors](https://zio.dev/index-22.md): ZIO Metrics Connectors provides integration between ZIO metrics and industry-leading monitoring and observability systems such as
+- [Introduction to ZIO Metrics Connectors](https://zio.dev/index-23.md): ZIO Metrics Connectors provides integration between ZIO metrics and industry-leading monitoring and observability systems such as
 - [Datadog Client](https://zio.dev/zio-metrics-connectors/metrics/datadog-client.md): In a normal DataDog setup we will find a DataDog agent with an open UDP port where applications send their
 - [Metrics](https://zio.dev/zio-metrics-connectors/index.md): ZIO Metrics allows you to apply special aspects to the workflows of any ZIO based application. This is called
 - [Instrumentation Examples](https://zio.dev/zio-metrics-connectors/metrics/instrumentation-examples.md): The trait below is used in the
@@ -583,7 +584,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Micrometer Connector](https://zio.dev/zio-metrics-connectors/metrics/micrometer-connector.md): ZIO Metrics has an integration with [Micrometer](https://micrometer.io/), a powerful metrics instrumentation library.
 - [Prometheus Client](https://zio.dev/zio-metrics-connectors/metrics/prometheus-client.md): In a normal prometheus setup we will find prometheus agents which query configured endpoints at regular intervals. The
 - [StatsD Client](https://zio.dev/zio-metrics-connectors/metrics/statsd-client.md): ```scala
-- [Introduction to ZIO Parser](https://zio.dev/index-23.md): Library for constructing parsers and pretty printers based on invertible syntax descriptions
+- [Introduction to ZIO Parser](https://zio.dev/index-24.md): Library for constructing parsers and pretty printers based on invertible syntax descriptions
 - [ZIO Prelude Abstraction Diagrams](https://zio.dev/zio-prelude/functional-abstractions/abstraction-diagrams.md): ```mermaid
 - [Associative](https://zio.dev/zio-prelude/functional-abstractions/concrete-types/associative.md): `Associative[A]` describes a way of combining two values of type `A` that is associative.
 - [Commutative](https://zio.dev/zio-prelude/functional-abstractions/concrete-types/commutative.md): `Commutative[A]` describes a data type that has a `combine` operator that is commutative and associative.
@@ -616,21 +617,21 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Validation](https://zio.dev/zio-prelude/functional-data-types/validation.md): A `Validation[E, A]` is a data type that is either a `Success` with a value of type `A` or a `Failure` with one or more errors of type `E`.
 - [ZSet](https://zio.dev/zio-prelude/functional-data-types/zset.md): `ZSet` is a version of a set that generalizes the measure of "how many times" each element appears in the set.
 - [ZValidation](https://zio.dev/zio-prelude/functional-data-types/zvalidation.md): Like many other data types in ZIO, the `Validation` data type we learned about before is actually a type alias for a more general data type called ...
-- [Introduction to ZIO Prelude](https://zio.dev/index-24.md): [ZIO Prelude](https://github.com/zio/zio-prelude) is a lightweight, distinctly Scala take on **functional abstractions**, with tight ZIO integration.
+- [Introduction to ZIO Prelude](https://zio.dev/index-25.md): [ZIO Prelude](https://github.com/zio/zio-prelude) is a lightweight, distinctly Scala take on **functional abstractions**, with tight ZIO integration.
 - [New Types](https://zio.dev/zio-prelude/index-3.md): ZIO Prelude provides functionality for creating zero overhead new types to allow you to increase the type safety of your application without compro...
 - [ZIO Prelude Resources](https://zio.dev/zio-prelude/resources.md): - [Refactoring Functional Type Classes](https://www.slideshare.net/jdegoes/refactoring-functional-type-classes) - slides by John De Goes and Adam F...
 - [ZPure](https://zio.dev/zio-prelude/index-4.md): A `ZPure[W, S1, S2, R, E, A]` is a description of a computation that requires an environment `R` and an initial state `S1` and either fails with an...
 - [Basics](https://zio.dev/zio-process/basics.md): To build a description of a command:
 - [Getting Started](https://zio.dev/zio-process/getting-started.md): ZIO Process - a purely functional command and process library based on ZIO.
-- [Introduction to ZIO Process](https://zio.dev/index-25.md): [ZIO Process](https://zio.dev/zio-process) is a simple ZIO library for interacting with external processes and command-line programs.
+- [Introduction to ZIO Process](https://zio.dev/index-26.md): [ZIO Process](https://zio.dev/zio-process) is a simple ZIO library for interacting with external processes and command-line programs.
 - [Interactive Processes](https://zio.dev/zio-process/interactive-processes.md): Sometimes you want to interact with a process in a back-and-forth manner by sending requests to the process and receiving responses back. For examp...
 - [Other](https://zio.dev/zio-process/other.md): If you'd like to run a process and handle its input/output in the current process, you can inherit its I/O. For example, running the Scala REPL:
 - [Piping](https://zio.dev/zio-process/piping.md): You can pipe the output of one process as the input to another. For example, if you want to return a list of all running
-- [Introduction to ZIO Profiling](https://zio.dev/index-26.md): ZIO Profiling is a collection of different profilers for better understanding the runtime behavior of ZIO programs.
+- [Introduction to ZIO Profiling](https://zio.dev/index-27.md): ZIO Profiling is a collection of different profilers for better understanding the runtime behavior of ZIO programs.
 - [Resources](https://zio.dev/zio-profiling/resources.md): - [Causal Profiling for functional effects](https://youtu.be/rdETYUc8XyI) by Maxim Schuwalow (2021)
 - [Creating Data Sources](https://zio.dev/zio-query/creating-data-sources.md): To construct a `ZQuery` that executes a request, you first need to create a `DataSource`. A `DataSource[R, A]` requires an environment `R` and is c...
 - [Creating Queries](https://zio.dev/zio-query/creating-queries.md): There are several ways to create a `ZQuery`. We've seen `ZQuery.fromRequest`, but you can also:
-- [Introduction to ZIO Query](https://zio.dev/index-27.md): [ZIO Query](https://github.com/zio/zio-query) is a library for writing optimized queries to data sources in a high-level compositional style. It ca...
+- [Introduction to ZIO Query](https://zio.dev/index-28.md): [ZIO Query](https://github.com/zio/zio-query) is a library for writing optimized queries to data sources in a high-level compositional style. It ca...
 - [Running Queries](https://zio.dev/zio-query/running-queries.md): There are several ways to run a `ZQuery`:
 - [How to Contribute?](https://zio.dev/zio-quill/how-to-contribute.md): Instructions on how to contribute to Quill project.
 - [Additional Resources](https://zio.dev/zio-quill/additional-resources.md): In order to quickly start with Quill, we have setup some template projects:
@@ -640,16 +641,16 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Contexts](https://zio.dev/zio-quill/contexts.md): Contexts represent the database and provide an execution interface for queries.
 - [Extending Quill](https://zio.dev/zio-quill/extending-quill.md): Infix is a very flexible mechanism to use non-supported features without having to use plain queries in the target language. It allows the insertio...
 - [Getting Started with Quill](https://zio.dev/zio-quill/getting-started.md): > ### [Scastie](https://scastie.scala-lang.org/) is a great tool to try out Quill without having to prepare a local environment. It works with [mir...
-- [Introduction to ZIO Quill](https://zio.dev/index-28.md): Quill provides a Quoted Domain Specific Language ([QDSL](https://homepages.inf.ed.ac.uk/wadler/papers/qdsl/qdsl.pdf)) to express queries in Scala a...
+- [Introduction to ZIO Quill](https://zio.dev/index-29.md): Quill provides a Quoted Domain Specific Language ([QDSL](https://homepages.inf.ed.ac.uk/wadler/papers/qdsl/qdsl.pdf)) to express queries in Scala a...
 - [Logging](https://zio.dev/zio-quill/logging.md): To write compile-time queries to a log, use the `-Dquill.log.file=queries.sql` and specify
 - [Quill vs. Cassandra](https://zio.dev/zio-quill/quill-vs-cassandra.md): This document compares Quill to the [Datastax Java](https://github.com/datastax/java-driver) driver and the [Phantom](https://web.archive.org/web/2...
 - [Quill vs. Slick](https://zio.dev/zio-quill/quill-vs-slick.md): This document compares Quill to the [Typesafe Slick](https://scala-slick.org) library. This is an incomplete comparison, additions and corrections ...
 - [Writing Queries](https://zio.dev/zio-quill/writing-queries.md): The QDSL allows the user to write plain Scala code, leveraging Scala's syntax and type system. Quotations are created using the `quote` method and ...
-- [Introduction to ZIO Redis](https://zio.dev/index-29.md): [![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](ht...
-- [Introduction to ZIO RocksDB](https://zio.dev/index-30.md): A ZIO-based interface to RocksDB.
-- [Introduction to ZIO S3](https://zio.dev/index-31.md): Thin wrapper over S3 async client for ZIO
+- [Introduction to ZIO Redis](https://zio.dev/index-30.md): [![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](ht...
+- [Introduction to ZIO RocksDB](https://zio.dev/index-31.md): A ZIO-based interface to RocksDB.
+- [Introduction to ZIO S3](https://zio.dev/index-32.md): Thin wrapper over S3 async client for ZIO
 - [Developer Notes](https://zio.dev/zio-sbt/developer-notes.md): - Add a command to make a version history page in documentation
-- [ZIO SBT](https://zio.dev/index-32.md): _ZIO SBT_ contains multiple sbt plugins that are useful for ZIO projects. It provides high-level SBT utilities that simplify the development of ZIO...
+- [ZIO SBT](https://zio.dev/index-33.md): _ZIO SBT_ contains multiple sbt plugins that are useful for ZIO projects. It provides high-level SBT utilities that simplify the development of ZIO...
 - [Automatic Schema Derivation](https://zio.dev/zio-schema/automatic-schema-derivation.md): Automatic schema derivation is the process of generating schema definitions for data types automatically, without the need to manually write them. ...
 - [Basic Building Blocks](https://zio.dev/zio-schema/basic-building-blocks.md): To get started, first we need to understand that a ZIO Schema is basically built-up from these three
 - [Apache Avro Codecs](https://zio.dev/zio-schema/derivations/codecs/avro.md): Apache Avro is a popular data serialization format used in distributed systems, particularly in the Apache Hadoop ecosystem. In this article, we wi...
@@ -664,7 +665,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Derivation of ZIO Test Generators](https://zio.dev/zio-schema/derivations/zio-test-gen-derivation.md): ZIO Test supports property-based testing via the `Gen` type. `Gen[R, A]` is a random generator of values of type `A`. Such a generator can be used ...
 - [Combining Different Encoders](https://zio.dev/zio-schema/examples/combining-different-encoders.md): Let's take a look at a round-trip converting an object to JSON and back, then converting it to a protobuf and back. This is a simple example, but i...
 - [Mapping DTO to Domain Object](https://zio.dev/zio-schema/examples/mapping-dto-to-domain-object.md): When we write layered applications, where different layers are decoupled from each other, we need to transfer data between layers. For example, ass...
-- [Introduction to ZIO Schema](https://zio.dev/index-33.md): [ZIO Schema](https://github.com/zio/zio-schema) is a [ZIO](https://zio.dev)-based library for modeling the schema of data structures as first-class...
+- [Introduction to ZIO Schema](https://zio.dev/index-34.md): [ZIO Schema](https://github.com/zio/zio-schema) is a [ZIO](https://zio.dev)-based library for modeling the schema of data structures as first-class...
 - [Integration with ZIO Streams](https://zio.dev/zio-schema/integration-with-zio-streams.md): In addition to the regular `encode` and `decode` functions, each codec also has a streaming version of these functions called `streamEncoder` and `...
 - [Manual Schema Construction](https://zio.dev/zio-schema/manual-schema-construction.md): Assume we have a domain containing following models:
 - [The Motivation Behind ZIO Schema](https://zio.dev/zio-schema/motivation.md): ZIO Schema is a library used in many ZIO projects such as _ZIO Flow_, _ZIO Redis_, _ZIO Web_, _ZIO SQL_ and _ZIO DynamoDB_. It is all about reifica...
@@ -678,9 +679,9 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Validation](https://zio.dev/zio-schema/operations/validation.md): When we create a schema for a type, we can also specify validation rules for the type. Validations are a way to ensure that the data conforms to ce...
 - [Standard Type Reference](https://zio.dev/zio-schema/standard-type-reference.md): ZIO Schema provides a number of built-in primitive types, that we can use to represent our data. These can be seen in the following table:
 - [ZIO Schema Use cases](https://zio.dev/zio-schema/use-cases.md): ZIO Schema allows us to create representations of our data types as values.
-- [Introduction to ZIO SQS](https://zio.dev/index-34.md): This library is a [ZIO](https://github.com/zio/zio)-powered client for AWS SQS. It is built on top of the [AWS SDK for Java 2.0](https://docs.aws.a...
-- [Compression and archives with zio-streams](https://zio.dev/index-35.md): [ZIO Streams Compress](https://github.com/zio/zio-streams-compress) integrates several compression algorithms and
-- [Introduction to ZIO Telemetry](https://zio.dev/index-36.md): [ZIO telemetry](https://github.com/zio/zio-telemetry) is purely-functional and type-safe. It provides clients for
+- [Introduction to ZIO SQS](https://zio.dev/index-35.md): This library is a [ZIO](https://github.com/zio/zio)-powered client for AWS SQS. It is built on top of the [AWS SDK for Java 2.0](https://docs.aws.a...
+- [Compression and archives with zio-streams](https://zio.dev/index-36.md): [ZIO Streams Compress](https://github.com/zio/zio-streams-compress) integrates several compression algorithms and
+- [Introduction to ZIO Telemetry](https://zio.dev/index-37.md): [ZIO telemetry](https://github.com/zio/zio-telemetry) is purely-functional and type-safe. It provides clients for
 - [OpenCensus](https://zio.dev/zio-telemetry/opencensus.md): OpenCensus is a stats collection and distributed tracing framework. Well known implementations are [Jaeger](https://www.jaegertracing.io)
 - [OpenTelemetry Example](https://zio.dev/zio-telemetry/opentelemetry-example.md): You can find the source code [here](https://github.com/zio/zio-telemetry/tree/series/2.x/opentelemetry-example).
 - [OpenTelemetry Automatic Instrumentation Example](https://zio.dev/zio-telemetry/opentelemetry-instrumentation-example.md): You can find the source code [here](https://github.com/zio/zio-telemetry/tree/series/2.x/opentelemetry-instrumentation-example).
@@ -688,4 +689,4 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [OpenTelemetry](https://zio.dev/zio-telemetry/opentelemetry.md): OpenTelemetry is a collection of tools, APIs, and SDKs. You can use it to instrument, generate, collect, and export telemetry data for analysis in ...
 - [OpenTracing Example](https://zio.dev/zio-telemetry/opentracing-example.md): You can find the source code [here](https://github.com/zio/zio-telemetry/tree/series/2.x/opentracing-example).
 - [OpenTracing](https://zio.dev/zio-telemetry/opentracing.md): OpenTracing is a standard and API for distributed tracing, i.e. collecting timings,
-- [ZIO 2.x Interoperation with Cats 2.x](https://zio.dev/index-37.md): ```sbt
+- [ZIO 2.x Interoperation with Cats 2.x](https://zio.dev/index-38.md): ```sbt

@@ -1,123 +1,197 @@
-# Introduction to ZIO Query
+# Introduction to ZIO Profiling
 
-> [ZIO Query](https://github.com/zio/zio-query) is a library for writing optimized queries to data sources in a high-level compositional style. It can add efficient pipelining, batching, and caching to any data source. ZIO Query helps us dramatically reduce load on data sources and improve performance.
+> ZIO Profiling is a collection of different profilers for better understanding the runtime behavior of ZIO programs.
 
-[ZIO Query](https://github.com/zio/zio-query) is a library for writing optimized queries to data sources in a high-level compositional style. It can add efficient pipelining, batching, and caching to any data source. ZIO Query helps us dramatically reduce load on data sources and improve performance.
+ZIO Profiling is a collection of different profilers for better understanding the runtime behavior of ZIO programs.
 
-[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-query/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-query_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-query_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-query_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-query_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-query-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-query-docs_2.13) [![ZIO Query](https://img.shields.io/github/stars/zio/zio-query?style=social)](https://github.com/zio/zio-query)
+[![Concept](https://img.shields.io/badge/Project%20Stage-Concept-orange.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-profiling/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-profiling_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-profiling_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-profiling_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-profiling_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-profiling-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-profiling-docs_2.13) [![ZIO Profiling](https://img.shields.io/github/stars/zio/zio-profiling?style=social)](https://github.com/zio/zio-profiling)
 
 ## Introduction
 
-Some key features of ZIO Query:
+Normal cpu profilers cannot really be used to profile code using an effect system. Profilers operating on a thread level will only see that threads are spending time in the evaluation loop of the effect system, producing profiles that are not useful for application developers.
 
-- **Batching** — ZIO Query detects parts of composite queries that can be executed in parallel without changing the semantics of the query.
-- **Pipelining** — ZIO Query detects parts of composite queries that can be combined together for fewer individual requests to the data source.
-- **Caching** — ZIO Query can transparently cache read queries to minimize the cost of fetching the same item repeatedly in the scope of a query.
+Instead, profiling a program written using an effect system requires a profiler that is aware of the effect system and can report where the effects were constructed / which user code the effect system is spending time on. ZIO profiling aims to be that library for the ZIO effect system.
 
-Compared with Fetch, ZIO Query supports response types that depend on request types, does not require higher-kinded types and implicits, supports ZIO environment and statically typed errors, and has no dependencies except for ZIO.
-
-A `ZQuery[R, E, A]` is a purely functional description of an effectual query that may contain requests from one or more data sources, requires an environment `R`, and may fail with an `E` or succeed with an `A`.
-
-Requests that can be performed in parallel, as expressed by `zipWithPar` and combinators derived from it, will automatically be batched. Requests that must be performed sequentially, as expressed by `zipWith` and combinators derived from it, will automatically be pipelined. This allows for aggressive data source specific optimizations. Requests can also be deduplicated and cached.
-
-This allows for writing queries in a high level, compositional style, with confidence that they will automatically be optimized. For example, consider the following query from a user service.
-
-Assume we have the following database access layer APIs:
-
-```scala
-def getAllUserIds: ZIO[Any, Nothing, List[Int]] = {
-  // Get all user IDs e.g. SELECT id FROM users
-  ZIO.succeed(???)
-}
-
-def getUserNameById(id: Int): ZIO[Any, Nothing, String] = {
-  // Get user by ID e.g. SELECT name FROM users WHERE id = $id
-  ZIO.succeed(???)
-}
-```
-
-We can get their corresponding usernames from the database by the following code snippet:
-
-```scala
-val userNames = for {
-  ids   <- getAllUserIds
-  names <- ZIO.foreachPar(ids)(getUserNameById)
-} yield names
-```
-
-It works, but this is not performant. It is going to query the underlying database _N + 1_ times, one for `getAllUserIds` and one for each call to `getUserNameById`.
-
-In contrast, `ZQuery` will automatically optimize this to two queries, one for `userIds` and one for `userNames`:
-
-```scala
-lazy val getAllUserIds: ZQuery[Any, Nothing, List[Int]]    = ???
-def getUserNameById(id: Int): ZQuery[Any, Nothing, String] = ???
-
-lazy val userQuery: ZQuery[Any, Nothing, List[String]] = for {
-  userIds   <- getAllUserIds
-  userNames <- ZQuery.foreachPar(userIds)(getUserNameById)
-} yield userNames
-```
+The library focuses exclusively on cpu profiling. For heap profiling please consider using other tools such as async-profiler or VisualVM.
 
 ## Installation
 
-In order to use this library, we need to add the following line in our `build.sbt` file:
+ZIO Profiling requires you to add both the main library and optionally the compiler plugin to your build.sbt:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-query" % "0.7.7"
+libraryDependencies += "dev.zio" %% "zio-profiling" % "0.3.2"
+libraryDependencies += compilerPlugin("dev.zio" %% "zio-profiling-tagging-plugin" % "0.3.2")
 ```
 
-## Example
+## Profiling an application and displaying a flamegraph
 
-Here is an example of using ZIO Query, which optimizes multiple database queries by batching all of them in one query:
+For this example we are going to use the sampling profiler to measure the cpu time used by parts of a zio program.
+All needed definitions can be imported using:
+```scala
+import zio.profiling.sampling._
+```
+
+The program we want to instrument simulates performing a short and then a long computation concurrently:
+```scala
+val fast = ZIO.succeed(Thread.sleep(400))
+
+val slow = ZIO.succeed(Thread.sleep(600))
+
+val program = fast <&> slow
+```
+
+In order to profile the program, we wrap it with the `profile` method of the sampling profiler. Once the effect has completed
+this will yield the profiling result. We can either manipulate the result in Scala or render it in a number of standard
+formats. In this case we are going to write it out in a format supported by https://github.com/brendangregg/FlameGraph, so we
+can visualize it as a flamegraph.
+```scala
+SamplingProfiler
+  .profile(program)
+  .flatMap(_.stackCollapseToFile("profile.folded"))
+```
+
+The resulting file can be converted to a svg using the flamegraph.pl script ([example](img/example_sampling_profile.svg)):
+```bash
+flamegraph.pl ./examples/profile.folded > profile.svg
+```
+
+## Causal Profiling
+
+ZIO Profiling includes experimental support for causal profiling inspired by [coz](https://github.com/plasma-umass/coz).
+
+Usage is similar to the sampling profiler, but instead of displaying the time spent running the program it will give recommendations
+which parts of the program to focus on during performance tuning for biggest effect. It achieves this by iteratively artificially speeding
+up parts of the program (by slowing down all parts running concurrently) and measuring the effect on overall runtime.
+
+Check out the paper linked in the coz repository for more details about the idea.
+
+We can bring the causal profiler into scope with the following import:
+```scala
+import zio.profiling.causal._
+```
+
+This time we are using a slightly more complicated example:
+```scala
+val fast = ZIO.succeed(Thread.sleep(40))
+
+val slow1 = ZIO.succeed(Thread.sleep(20))
+
+val slow2 = ZIO.succeed(Thread.sleep(60))
+
+val slow = slow1 <&> slow2
+
+val program = (fast <&> slow) *>
+  CausalProfiler.progressPoint("iteration done")
+
+CausalProfiler(iterations = 100)
+  .profile(program.forever)
+  .flatMap(_.renderToFile("profile.coz"))
+```
+
+We also need to weave the `progressPoint` effect into our program. It will be used by the causal profiler to measure progress
+of the overall program.
+
+Finally, we can run the program using the causal profiler (notice the use of `program.forever` -- the profiler will automatically interrupt the program, until then it has to keep running)
+and save the result to a file.
 
 ```scala
-import zio._
-import zio.query._
+CausalProfiler(iterations = 100)
+  .profile(prog.forever)
+  .flatMap(_.renderToFile("profile.coz"))
+```
 
-object ZQueryExample extends ZIOAppDefault {
-  case class GetUserName(id: Int) extends Request[Throwable, String]
+The file can be viewed using the [Coz Visualizer](https://plasma-umass.org/coz/) ([example](img/example_causal_profile.png)).
+As you can see, the profiler correctly tells you that you can get up to a 33% speedup by optimizing the `slow2` effect,
+but it's impossible to get a speedup any other way.
 
-  lazy val UserDataSource: DataSource.Batched[Any, GetUserName] =
-    new DataSource.Batched[Any, GetUserName] {
-      val identifier: String = "UserDataSource"
+## Compiler Plugin
 
-      def run(requests: Chunk[GetUserName])(implicit trace: Trace): ZIO[Any, Nothing, CompletedRequestMap] =
-        requests.toList match {
-          case request :: Nil =>
-            val result: Task[String] = {
-              // get user by ID e.g. SELECT name FROM users WHERE id = $id
-              ZIO.succeed(???)
-            }
+In order to produce actionable output, a profiler not only needs to know which line of code is currently running, but also how that location was reached.
 
-            result.exit.map(CompletedRequestMap.single(request, _))
+Most profilers rely on the function call hierarchy to determine this information, but the call stack is not really useful for programs using functional effect systems. The reason for this is that the normal function calls are only used to build up the program as a datastructure -- not execute it.
 
-          case batch: Seq[GetUserName] =>
-            val result: Task[List[(Int, String)]] = {
-              // get multiple users at once e.g. SELECT id, name FROM users WHERE id IN ($ids)
-              ZIO.succeed(???)
-            }
+---
 
-            result.foldCause(
-              CompletedRequestMap.failCause(requests, _),
-              CompletedRequestMap.fromIterableWith(_)(kv => GetUserName(kv._1), kv => Exit.succeed(kv._2))
-            )
-        }
-    }
+It's possible to restore the proper callstack while the effects are actually getting executed (this is the approach taken by the zio.Trace machinery), but that is not the approach taken by ZIO Profiling.
 
-  def getUserNameById(id: Int): ZQuery[Any, Throwable, String] =
-    ZQuery.fromRequest(GetUserName(id))(UserDataSource)
+Instead, zio-profiling tracks the current 'callstack' of your program using FiberRefs. For this approach to work every effect should be manually annotated using `zio.profiling.CostCenter.withChildCostCenter`, which will result in a hierarchy of effect tags at runtime.
 
-  val query: ZQuery[Any, Throwable, List[String]] =
-    for {
-      ids <- ZQuery.succeed(1 to 10)
-      names <- ZQuery.foreachPar(ids)(id => getUserNameById(id)).map(_.toList)
-    } yield (names)
+As this requires modification of large parts of user programs and is bad UX, zio-profiling ships with a compiler plugin (zio-profiling-tagging-plugin) that automates this. Every `def` or `val` that returns a zio effect will be rewritten to be properly tagged. Consider this example for the rewrite that happens:
 
-  def run = query.run.tap(usernames => Console.printLine(s"Usernames: $usernames"))
+```scala
+val testEffect = ZIO.unit
+
+// gets rewritten to
+
+val testEffect = CostCenter.withChildCostCenter("foo.Foo.testEffect(Foo.scala:12)")(ZIO.unit)
+```
+
+To enable the compiler plugin, add the following to the sbt module __containing the code you want to profile__.
+
+```scala
+compilerPlugin("dev.zio" %% "zio-profiling-tagging-plugin" % "0.3.2")
+
+```
+
+## Jmh Support
+
+ZIO Profiling offers an integration with the Java Microbenchmark Harness (JMH). In order to profile a jmh benchmark, first ensure that the sources are properly tagged using the tagging plugin. Next, add a dependency to the jmh module to your benchmarking module:
+```scala
+libraryDependencies += "dev.zio" %% "zio-profiling-jmh" % "0.3.2"
+```
+
+In your actual benchmarks, ensure that you are running ZIO effects using the methods in `zio.profiling.jmh.BenchmarkUtils`. A possible benchmark might look like this
+```scala
+package zio.redis.benchmarks.lists
+
+import org.openjdk.jmh.annotations._
+import zio.profiling.jmh.BenchmarkUtils
+import zio.redis._
+import zio.redis.benchmarks._
+import zio.{Scope => _, _}
+
+import java.util.concurrent.TimeUnit
+
+@State(Scope.Thread)
+@BenchmarkMode(Array(Mode.Throughput))
+@OutputTimeUnit(TimeUnit.SECONDS)
+@Measurement(iterations = 15)
+@Warmup(iterations = 15)
+@Fork(2)
+class BlMoveBenchmarks extends BenchmarkRuntime {
+
+  @Param(Array("500"))
+  var count: Int = _
+
+  private var items: List[String] = _
+
+  private val key = "test-list"
+
+  private def execute(query: ZIO[Redis, RedisError, Unit]): Unit =
+    BenchmarkUtils.unsafeRun(query.provideLayer(BenchmarkRuntime.Layer))
+
+  @Setup(Level.Trial)
+  def setup(): Unit = {
+    items = (0 to count).toList.map(_.toString)
+    execute(ZIO.serviceWithZIO[Redis](_.rPush(key, items.head, items.tail: _*).unit))
+  }
+
+  @TearDown(Level.Trial)
+  def tearDown(): Unit =
+    execute(ZIO.serviceWithZIO[Redis](_.del(key).unit))
+
+  @Benchmark
+  def zio(): Unit = execute(
+    ZIO.foreachDiscard(items)(_ =>
+      ZIO.serviceWithZIO[Redis](_.blMove(key, key, Side.Left, Side.Right, 1.second).returning[String])
+    )
+  )
 }
 ```
 
-## Resources
+Once the benchmark is set up properly, you can specify the profiler from the jmh command line. Using sbt-jmh, it might look like this:
+```
+Jmh/run -i 3 -wi 3 -f1 -t1 -prof zio.profiling.jmh.JmhZioProfiler zio.redis.benchmarks.lists.BlMoveBenchmarks.zio
+```
 
-- [Wicked Fast API Calls with ZIO Query](https://www.youtube.com/watch?v=rUUxDXJMzJo) by Adam Fraser (July 2020) (https://www.youtube.com/watch?v=rUUxDXJMzJo)
+The profiler output will be written to a file in the directory the JVM has been invoked from.
