@@ -240,7 +240,7 @@ object ScopedToResource extends cats.effect.IOApp {
         )
       )
 
-    Resource.scoped[IO, Any](scopedZIO)
+    Resource.scoped[IO, Any, InputStream](scopedZIO)
   }
 
   val effect: IO[Unit] =
@@ -653,7 +653,7 @@ import zio.{Scope, Task, ZIO}
 
 def transactor: ZIO[Scope, Throwable, HikariTransactor[Task]] =
   for {
-    ex <- ZIO.executor
+    ex <- ZIO.blockingExecutor
     xa <- HikariTransactor
             .newHikariTransactor[Task](
               "org.h2.Driver",                      // driver classname
