@@ -61,7 +61,7 @@
     "clsx": "2.1.1",
     "docusaurus-plugin-copy-page-button": "^0.8.0",
     "docusaurus-plugin-llms": "0.5.1",
-    "highlight.js": "11.11.1",
+    "highlight.js": "11.11.2",
     "node-fetch": "^3.3.2",
     "postcss": "8.5.26",
     "prism-react-renderer": "2.4.1",
