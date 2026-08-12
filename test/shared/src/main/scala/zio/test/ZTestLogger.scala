@@ -2,7 +2,7 @@ package zio.test
 
 import zio._
 
-import scala.annotation.tailrec
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * A `ZTestLogger` is an implementation of a `ZLogger` that writes all log
@@ -52,6 +52,9 @@ object ZTestLogger {
         .getOrElse(ZIO.dieMessage("Defect: ZTestLogger is missing"))
     }
 
+  private[test] def locally[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+    FiberRef.currentLoggers.locallyWith(_ + unsafe.make()(Unsafe))(zio)
+
   /**
    * A log entry captures all of the contents of a log message as a data
    * structure.
@@ -74,32 +77,35 @@ object ZTestLogger {
    * Constructs a `ZTestLogger`.
    */
   private def make: UIO[ZLogger[String, Unit]] =
-    ZIO.succeed {
+    ZIO.succeed(unsafe.make()(Unsafe))
 
-      val _logOutput = new java.util.concurrent.atomic.AtomicReference[Chunk[LogEntry]](Chunk.empty)
+  private[test] object unsafe {
+    def make()(implicit unsafe: Unsafe): ZLogger[String, Unit] =
+      new TestLogger
 
-      new ZTestLogger[String, Unit] {
-        @tailrec
-        def apply(
-          trace: Trace,
-          fiberId: FiberId,
-          logLevel: LogLevel,
-          message: () => String,
-          cause: Cause[Any],
-          context: FiberRefs,
-          spans: List[LogSpan],
-          annotations: Map[String, String]
-        ): Unit = {
-          val newEntry = LogEntry(trace, fiberId, logLevel, message, cause, context, spans, annotations)
+    private final class TestLogger
+        extends AtomicReference[Chunk[LogEntry]](Chunk.empty)
+        with ZTestLogger[String, Unit] {
+      def apply(
+        trace: Trace,
+        fiberId: FiberId,
+        logLevel: LogLevel,
+        message: () => String,
+        cause: Cause[Any],
+        context: FiberRefs,
+        spans: List[LogSpan],
+        annotations: Map[String, String]
+      ): Unit = {
+        val newEntry = LogEntry(trace, fiberId, logLevel, message, cause, context, spans, annotations)
 
-          val oldState = _logOutput.get
-
-          if (!_logOutput.compareAndSet(oldState, oldState :+ newEntry))
-            apply(trace, fiberId, logLevel, message, cause, context, spans, annotations)
-          else ()
+        var updated = false
+        while (!updated) {
+          val oldState = get
+          updated = compareAndSet(oldState, oldState :+ newEntry)
         }
-        val logOutput: UIO[Chunk[LogEntry]] =
-          ZIO.succeed(_logOutput.get)
       }
+      val logOutput: UIO[Chunk[LogEntry]] =
+        ZIO.succeed(get)
     }
+  }
 }
