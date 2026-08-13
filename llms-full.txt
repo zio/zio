@@ -651,7 +651,7 @@ val finalized: IO[String, Unit] =
 // finalized: IO[String, Unit] = DynamicNoBox(
 //   trace = "repl.MdocSession.MdocApp.finalized(handling-resources.md:19)",
 //   update = 1L,
-//   f = zio.ZIO$$$Lambda$19417/0x00007f2cdef2af98@699c15b9
+//   f = zio.ZIO$$$Lambda$19296/0x00007f58eef9cf50@6acc8676
 // )
 ```
 
@@ -2378,12 +2378,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20242/0x00007f2cdf0e4270@52204643
+//   eval = zio.Ref$$$Lambda$20121/0x00007f58ed541508@56441acf
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20242/0x00007f2cdf0e4270@6fcb7bfa
+//   eval = zio.Ref$$$Lambda$20121/0x00007f58ed541508@77e88601
 // )
 
 sealed trait State
@@ -2394,7 +2394,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20242/0x00007f2cdf0e4270@307e002d
+//   eval = zio.Ref$$$Lambda$20121/0x00007f58ed541508@232e5f1f
 // )
 ```
 
@@ -2411,7 +2411,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20242/0x00007f2cdf0e4270@49185ae
+//   eval = zio.Ref$$$Lambda$20121/0x00007f58ed541508@8fc7ef8
 // )
 ```
 
@@ -2423,7 +2423,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20242/0x00007f2cdf0e4270@7c7b3cbd
+//   eval = zio.Ref$$$Lambda$20121/0x00007f58ed541508@1cfd7212
 // )
 ```
 
@@ -14289,25 +14289,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@5e158a82
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@20f4121e
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@1936d9ac
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@46f94660
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@3d6a4175
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@50c8f244
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-08-07T14:00:32.737967112Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-08-13T08:39:34.490995744Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@241baea8
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@3bf254b7
 ```
 
 ## Construction / Creating Instances
@@ -15421,7 +15421,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20374/0x00007f2cddeee650@78e3f37c
+//   eval = zio.Supervisor$$$Lambda$20253/0x00007f58ee02b7c0@326787e
 // )
 ```
 
@@ -16250,7 +16250,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19412/0x00007f2cdef29a50@3960a375
+//     f = zio.ZIO$$$Lambda$19291/0x00007f58eef93848@79231e91
 //   ),
 //   successK = <function1>
 // )
@@ -20250,7 +20250,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@339a49b
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@1a51eea6
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -20278,9 +20278,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$19848/0x00007f2cdeff54f0@55c48cb9
+//     eval = zio.Scope$$$Lambda$19727/0x00007f58ef05c3d0@42a21461
 //   ),
-//   successK = zio.ZIO$$$Lambda$19849/0x00007f2cdeff57a8@2d453f9b
+//   successK = zio.ZIO$$$Lambda$19728/0x00007f58ef05c688@6fcfe668
 // )
 ```
 
@@ -20329,7 +20329,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@32fc29b7
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@64277f55
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -20359,9 +20359,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$19848/0x00007f2cdeff54f0@55c48cb9
+//     eval = zio.Scope$$$Lambda$19727/0x00007f58ef05c3d0@42a21461
 //   ),
-//   successK = zio.ZIO$$$Lambda$19849/0x00007f2cdeff57a8@4a064b2f
+//   successK = zio.ZIO$$$Lambda$19728/0x00007f58ef05c688@249eb8ca
 // )
 ```
 
@@ -20392,7 +20392,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@1cace1d
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@2c0197a9
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -20407,9 +20407,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$19848/0x00007f2cdeff54f0@55c48cb9
+//     eval = zio.Scope$$$Lambda$19727/0x00007f58ef05c3d0@42a21461
 //   ),
-//   successK = zio.ZIO$$$Lambda$19849/0x00007f2cdeff57a8@44dbf95f
+//   successK = zio.ZIO$$$Lambda$19728/0x00007f58ef05c688@22945755
 // )
 ```
 
@@ -20453,7 +20453,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@4f3c0a1f
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@3adcb01a
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -20470,9 +20470,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$19848/0x00007f2cdeff54f0@55c48cb9
+//     eval = zio.Scope$$$Lambda$19727/0x00007f58ef05c3d0@42a21461
 //   ),
-//   successK = zio.ZIO$$$Lambda$19849/0x00007f2cdeff57a8@6bf279
+//   successK = zio.ZIO$$$Lambda$19728/0x00007f58ef05c688@2558b940
 // )
 ```
 
@@ -20504,7 +20504,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@418818da
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@7cb174b7
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -20521,9 +20521,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$19848/0x00007f2cdeff54f0@55c48cb9
+//     eval = zio.Scope$$$Lambda$19727/0x00007f58ef05c3d0@42a21461
 //   ),
-//   successK = zio.ZIO$$$Lambda$19849/0x00007f2cdeff57a8@297e6c1
+//   successK = zio.ZIO$$$Lambda$19728/0x00007f58ef05c688@5245881c
 // )
 ```
 
@@ -20555,7 +20555,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@6c4828d9
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@9130eaa
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -20586,9 +20586,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$19848/0x00007f2cdeff54f0@55c48cb9
+//     eval = zio.Scope$$$Lambda$19727/0x00007f58ef05c3d0@42a21461
 //   ),
-//   successK = zio.ZIO$$$Lambda$19849/0x00007f2cdeff57a8@64f9ca8d
+//   successK = zio.ZIO$$$Lambda$19728/0x00007f58ef05c688@6bb89d4d
 // )
 ```
 
@@ -20621,7 +20621,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@6c957a00
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@6fe55aec
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -20637,9 +20637,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$19848/0x00007f2cdeff54f0@55c48cb9
+//     eval = zio.Scope$$$Lambda$19727/0x00007f58ef05c3d0@42a21461
 //   ),
-//   successK = zio.ZIO$$$Lambda$19849/0x00007f2cdeff57a8@18df4457
+//   successK = zio.ZIO$$$Lambda$19728/0x00007f58ef05c688@2b29e034
 // )
 ```
 
@@ -20670,7 +20670,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@584556a4
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@1bed4a90
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -20697,9 +20697,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$19848/0x00007f2cdeff54f0@55c48cb9
+//     eval = zio.Scope$$$Lambda$19727/0x00007f58ef05c3d0@42a21461
 //   ),
-//   successK = zio.ZIO$$$Lambda$19849/0x00007f2cdeff57a8@7d794228
+//   successK = zio.ZIO$$$Lambda$19728/0x00007f58ef05c688@2d6f9647
 // )
 ```
 
@@ -20719,7 +20719,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@7dbc8881
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@1e0bc885
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -20742,9 +20742,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$19848/0x00007f2cdeff54f0@55c48cb9
+//     eval = zio.Scope$$$Lambda$19727/0x00007f58ef05c3d0@42a21461
 //   ),
-//   successK = zio.ZIO$$$Lambda$19849/0x00007f2cdeff57a8@34b3f691
+//   successK = zio.ZIO$$$Lambda$19728/0x00007f58ef05c688@670b6fce
 // )
 ```
 
@@ -20760,7 +20760,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@7eaab24c
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@4af191e7
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -20782,9 +20782,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$19848/0x00007f2cdeff54f0@55c48cb9
+//     eval = zio.Scope$$$Lambda$19727/0x00007f58ef05c3d0@42a21461
 //   ),
-//   successK = zio.ZIO$$$Lambda$19849/0x00007f2cdeff57a8@7060cba3
+//   successK = zio.ZIO$$$Lambda$19728/0x00007f58ef05c688@44e1837
 // )
 ```
 
@@ -20800,7 +20800,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@3b38c897
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@788bf2ae
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -20820,9 +20820,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$19848/0x00007f2cdeff54f0@55c48cb9
+//     eval = zio.Scope$$$Lambda$19727/0x00007f58ef05c3d0@42a21461
 //   ),
-//   successK = zio.ZIO$$$Lambda$19849/0x00007f2cdeff57a8@1cb7869f
+//   successK = zio.ZIO$$$Lambda$19728/0x00007f58ef05c688@6983eb92
 // )
 ```
 
@@ -20840,7 +20840,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@62dc1eb7
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@5060f02d
 
 val example = {
   val scoped = ZIO.scoped {
@@ -20862,9 +20862,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$19848/0x00007f2cdeff54f0@55c48cb9
+//       eval = zio.Scope$$$Lambda$19727/0x00007f58ef05c3d0@42a21461
 //     ),
-//     successK = zio.ZIO$$$Lambda$19849/0x00007f2cdeff57a8@4ee526cd
+//     successK = zio.ZIO$$$Lambda$19728/0x00007f58ef05c688@24929048
 //   ),
 //   successK = <function1>
 // )
@@ -24874,14 +24874,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@eee337
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@61375fd2
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@4e57246e
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@4c48ac48
 ```
 
 ## From ZIO
@@ -31585,9 +31585,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$19858/0x00007f2cdeffd918@5d5db0b0
+//             onState = zio.ZIO$$$Lambda$19737/0x00007f58ef064870@14121aea
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$19867/0x00007f2cdf003310@185f257f
+//           successK = zio.test.package$ZTest$$$Lambda$19746/0x00007f58ef06a230@5110860c
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -34563,7 +34563,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+138-33edecd1-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+151-c5bb006b-SNAPSHOT"
 ```
 
 ## Example
@@ -41226,9 +41226,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$19848/0x00007f2cdeff54f0@55c48cb9
+//     eval = zio.Scope$$$Lambda$19727/0x00007f58ef05c3d0@42a21461
 //   ),
-//   successK = zio.ZIO$$$Lambda$19849/0x00007f2cdeff57a8@202cfc9
+//   successK = zio.ZIO$$$Lambda$19728/0x00007f58ef05c688@26ca4ae5
 // )
 ```
 
@@ -136941,7 +136941,7 @@ PS: Note that the videos use older version of zio-config. However, if you are ne
 
 ZIO Constraintless allows you to build programs as mere descriptions with maximum polymorphism, maximum modularity, zero abstraction leakage, and zero casting.
 
-[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-constraintless/workflows/Website/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-constraintless_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-constraintless_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-constraintless_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-constraintless_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-constraintless-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-constraintless-docs_2.13) [![ZIO Constraintless](https://img.shields.io/github/stars/zio/zio-constraintless?style=social)](https://github.com/zio/zio-constraintless)
+[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-constraintless/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-constraintless_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-constraintless_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-constraintless_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-constraintless_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-constraintless-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-constraintless-docs_2.13) [![ZIO Constraintless](https://img.shields.io/github/stars/zio/zio-constraintless?style=social)](https://github.com/zio/zio-constraintless)
 
 ## Introduction
 
@@ -136956,12 +136956,93 @@ _"The key principle that underpins our idea is that implementation- specific con
 ## Installation
 
 ```sbt
-libraryDependencies += "dev.zio" %% "constraintless" % "0.3.5"
+libraryDependencies += "dev.zio" %% "constraintless" % "0.3.9"
 ```
 
-## Example 
+## Example
 
-Example: https://github.com/zio/zio-constraintless/blob/master/examples/src/main/scala/zio/constraintless/examples/Expr.scala
+Imagine you're building a small expression DSL that supports multiple types (`Int`, `Boolean`, etc.).
+You want two interpreters — one that **evaluates** and one that **pretty-prints** — and you want to apply *both* to the *same* expression.
+
+### ❌ Without zio-constraintless
+
+Say you define a simple expression GADT. The types inside it are existential — when you pattern match
+on a node like `Value(a)`, the compiler has forgotten what `A` was. You're holding a value with
+no type information. If you want to *do* anything useful with `a` — print it, compare it, convert it —
+your only option without a carried constraint is `asInstanceOf`, and at that point safety depends entirely
+on the GADT and interpreter developer never making a mistake. So you're forced to capture a typeclass
+instance (e.g. `Show[A]`) inside each node at the point of construction:
+
+```scala
+// A is existential in the GADT — when you pattern match on Value,
+// the compiler forgets what A was. So you MUST carry a Show[A]
+// inside the node, otherwise you can't do anything with `a`.
+enum Expr[A]:
+  case Value(a: A, show: Show[A])
+  case Cond(b: Expr[Boolean], t: Expr[A], f: Expr[A])
+
+def pretty[A](e: Expr[A]): String = e match
+  case Expr.Value(a, show) => show.show(a) // Without `show` here, we're stuck — A is unknown
+  case Expr.Cond(b, t, f)  => s"if ${pretty(b)} then ${pretty(t)} else ${pretty(f)}"
+```
+
+This works — but now `Expr` is married to `Show`. What if you also want an evaluator that
+needs `ToInt[A]` (convert any value to `Int`)? You're stuck:
+
+```scala
+// ⚠️ You'd have to either:
+//   1. Shove EVERY possible constraint into every node — leaks all implementation details
+//   2. Duplicate the entire GADT per interpreter
+//   3. Give up and use asInstanceOf everywhere
+```
+
+### ✅ With zio-constraintless
+
+Instead of baking a specific typeclass into the GADT, you only track **which types are allowed**
+via a type-level list. Each interpreter supplies its own constraints at the point of *use*, not definition.
+
+```scala
+import zio.constraintless.*
+import TypeList.*
+
+// The expression knows nothing about Show or ToInt —
+// it only knows which types are allowed via the type-level list `As`
+enum Expr[As <: TypeList, A]:
+  case Value(a: A)(using val ev: A IsElementOf As)
+  case Cond(b: Expr[As, Boolean], t: Expr[As, A], f: Expr[As, A])(using
+    val c1: A IsElementOf As, val c2: Boolean IsElementOf As
+  )
+
+// ✅ Pretty-printer — supplies Show instances at the *use site*
+def pretty[As <: TypeList, A](e: Expr[As, A])(using show: Instances[Show, As]): String =
+  e match
+    case v: Expr.Value[As, A] =>
+      show.withInstance((s: Show[A]) => s.show(v.a))(v.ev)
+    case c: Expr.Cond[As, A] =>
+      s"if ${pretty(c.b)} then ${pretty(c.t)} else ${pretty(c.f)}"
+
+// ✅ Evaluator — supplies ToInt instances at the *use site*
+def compileSM[As <: TypeList, A](e: Expr[As, A])(using ib: Instances[ToInt, As]): String =
+  e match
+    case v: Expr.Value[As, A] =>
+      ib.withInstance((i: ToInt[A]) => i.toInt(v.a).toString)(v.ev)
+    case c: Expr.Cond[As, A] =>
+      s"if (${compileSM(c.b)}) then ${compileSM(c.t)} else ${compileSM(c.f)}"
+
+// 🎉 Both interpreters work on the SAME expression!
+type T = Int :: Boolean :: TypeList.End
+
+val expr: Expr[T, Int] =
+  Expr.Cond(Expr.Value(true), Expr.Value(1), Expr.Value(0))
+
+pretty(expr)     // "if true then 1 else 0"
+compileSM(expr)  // "if (1) then 1 else 0"
+```
+
+**The key idea:** the expression is defined *once*, fully polymorphic over its interpreters.
+Each interpreter brings its own typeclass instances via `Instances[MyTypeClass, As]` — no duplication, no casting, no leaking implementation details into the definition.
+
+For a full worked example, see [Expr.scala](https://github.com/zio/zio-constraintless/blob/master/examples/shared/src/main/scala/zio/constraintless/examples/Expr.scala).
 
 ## Context
 
@@ -142546,8 +142627,8 @@ See the [zio-kafka tutorial](tutorial.md) for a grand tour of the different ways
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.7.0"
-libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.7.0" % Test
+libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.7.1"
+libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.7.1" % Test
 ```
 
 Snapshots are available on Sonatype's snapshot repository https://oss.sonatype.org/content/repositories/snapshots.
@@ -162462,16 +162543,16 @@ def execute[T](f: S3AsyncClient => CompletableFuture[T])
 
 _ZIO SBT_ contains multiple sbt plugins that are useful for ZIO projects. It provides high-level SBT utilities that simplify the development of ZIO applications.
 
-[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-sbt/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-sbt-website_2.12.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-sbt-website_2.12/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-sbt-website_2.12.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-sbt-website_2.12/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-sbt-docs_2.12/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-sbt-docs_2.12) [![ZIO SBT](https://img.shields.io/github/stars/zio/zio-sbt?style=social)](https://github.com/zio/zio-sbt)
+[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-sbt/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-sbt-website_2.12_1.0.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-sbt-website_2.12_1.0) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-sbt-website_2.12_1.0%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-sbt-website_2.12_1.0/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-sbt-website_2.12_1.0/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-sbt-website_2.12_1.0) [![ZIO SBT](https://img.shields.io/github/stars/zio/zio-sbt?style=social)](https://github.com/zio/zio-sbt)
 
 ## Installation
 
 Add the following lines to your `project/plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.6.3")
-addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.6.3")
-addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.6.3")
+addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.7.0")
+addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.7.0")
+addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.7.0")
 ```
 
 Then you can enable them by using the following code in your `build.sbt` file:
@@ -162558,7 +162639,7 @@ ZIO SBT CI plugin generates a default GitHub workflow that includes common CI ta
 To use ZIO SBT CI plugin, add the following lines to your `plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.6.3")
+addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.7.0")
 
 resolvers ++= Resolver.sonatypeOssRepos("public")
 ```
@@ -162575,12 +162656,20 @@ Now you can generate a Github workflow by running the following command:
 sbt ciGenerateGithubWorkflow
 ```
 
-This will generate a GitHub workflow file inside the `.github/workflows` directory, named `ci.yml`. The workflow file contains following default Jobs:
+This will generate a GitHub workflow file inside the `.github/workflows` directory, named `ci.yml`. The workflow file contains the following default jobs:
 
-- Build
-- Lint
-- Test
-- Update Readme
+| Job | What it does |
+| --- | --- |
+| `build` | Compiles everything, publishes locally, and builds the website |
+| `lint` | Checks the generated workflow is up to date, then runs `sbt lint` |
+| `test` | Runs the test suite across the target Java versions |
+| `update-readme` | Regenerates `README.md` from `docs/index.md` and opens a PR |
+| `ci` | Aggregate gate: succeeds only if the jobs above did. Point branch protection at this one |
+| `release` | Runs `sbt ci-release` on a published release, and on pushes to enabled branches for SNAPSHOTs |
+| `release-docs` | Publishes the docs to npm |
+| `notify-docs-release` | Tells `zio/zio` to rebuild the docs site |
+
+Note that the plugin declares `trigger = allRequirements`, so having it on the classpath is enough — `enablePlugins(ZioSbtCiPlugin)` is not strictly required. Its settings are defined at `ThisBuild` level, so set them as `ThisBuild / ciSomething := ...`, or inside `inThisBuild(...)`.
 
 > **Note:**
 > 
@@ -162616,6 +162705,210 @@ The default value mirrors the bots used by the `zio/zio` repository: `Seq(Depend
 >
 > For `gh pr merge --auto` to actually merge a PR (rather than just queue it), the target repository needs "Allow auto-merge" enabled under **Settings → General**, and branch protection with required status checks configured on the target branch.
 
+### Keeping the Workflow in Sync
+
+The generated files are meant to be committed and never edited by hand. To stop them drifting from the build, run the check in CI — the default `lint` job already does:
+
+```bash
+sbt ciCheckGithubWorkflow
+```
+
+It regenerates the workflows and fails if the result differs from what is committed, naming the files that are stale. If a generated file is edited directly, the next run of this check fails, which is what keeps `build.sbt` the single source of truth.
+
+### Settings Reference
+
+All settings are `ThisBuild`-scoped.
+
+**Workflow-level**
+
+| Setting | Type | Default | Description |
+| --- | --- | --- | --- |
+| `ciWorkflowTitle` | `String` | `"CI"` | Workflow name, lowercased to form the filename (`ci.yml`). Named this way to avoid colliding with zio-sbt-website's `ciWorkflowName`, which sets the README badge |
+| `ciEnabledBranches` | `Seq[String]` | `Seq.empty` | Branches the workflow runs on. Empty means every branch |
+| `ciWorkflowEnv` | `Map[String, String]` | derived from `ciJvmOptions`/`ciNodeOptions` | Workflow-level environment. Assigning **replaces** the derived map, which is how a build opts out of `JDK_JAVA_OPTIONS` |
+| `ciJvmOptions` | `Seq[String]` | `Seq.empty` | Appended to `JDK_JAVA_OPTIONS` |
+| `ciNodeOptions` | `Seq[String]` | `Seq.empty` | Sets `NODE_OPTIONS` when non-empty |
+| `ciConcurrency` | `Option[Concurrency]` | one run per branch, cancelling in progress | Concurrency group, or `None` to omit the block |
+| `ciSwapSizeGB` | `Int` | `0` | Adds a swap-space step to every job when greater than zero |
+| `ciBackgroundJobs` | `Seq[String]` | `Seq.empty` | Commands prefixed to each `run`, for daemons a job needs |
+
+**Test matrix**
+
+| Setting | Type | Default | Description |
+| --- | --- | --- | --- |
+| `ciTargetJavaVersions` | `Seq[String]` | `Seq("17", "21", "25")` | Java versions in the test matrix |
+| `ciDefaultJavaVersion` | `String` | `"17"` | Java version for the non-matrix jobs |
+| `ciTargetScalaVersions` | `Map[String, Seq[String]]` | `Map.empty` | Module to Scala versions. Empty runs a plain `sbt +test` |
+| `ciTargetMinJavaVersions` | `Map[String, String]` | `Map.empty` | Module to minimum Java version, gating modules per matrix entry |
+| `ciGroupSimilarTests` | `Boolean` | `false` | Groups by Java and Scala version instead of one entry per module |
+| `ciMatrixMaxParallel` | `Option[Int]` | `None` | `strategy.max-parallel` |
+
+**Jobs and steps**
+
+| Setting | Type | Default | Description |
+| --- | --- | --- | --- |
+| `ciBuildJobs` | `Seq[Job]` | one `build` job | Replaces or extends the build jobs |
+| `ciLintJobs` | `Seq[Job]` | one `lint` job | |
+| `ciTestJobs` | `Seq[Job]` | one `test` job | |
+| `ciUpdateReadmeJobs` | `Seq[Job]` | one `update-readme` job | Set to `Seq.empty` if the README is maintained by hand |
+| `ciReleaseJobs` | `Seq[Job]` | one `release` job | |
+| `ciPostReleaseJobs` | `Seq[Job]` | `release-docs`, `notify-docs-release` | |
+| `ciPullRequestApprovalJobs` | `Seq[String]` | the ids of `ciLintJobs`, `ciTestJobs` and `ciBuildJobs` | Job ids the aggregate `ci` job waits on. Follows the jobs those three settings produce, so renaming or adding one is picked up without touching this |
+| `ciReleaseApprovalJobs` | `Seq[String]` | `Seq("ci")` | Job ids the release waits on |
+| `ciCheckArtifactsCompilationSteps` | `Seq[Step]` | `sbt +Test/compile` | |
+| `ciCheckArtifactsBuildSteps` | `Seq[Step]` | `sbt +publishLocal` | |
+| `ciCheckWebsiteBuildProcess` | `Seq[Step]` | `sbt docs/buildWebsite` | Set to `Seq.empty` in a build with no `docs` project |
+| `ciCheckGithubWorkflowSteps` | `Seq[Step]` | `sbt ciCheckGithubWorkflow` | |
+
+**Release and docs**
+
+| Setting | Type | Default | Description |
+| --- | --- | --- | --- |
+| `ciPublishSnapshots` | `Boolean` | `true` | Also publish SNAPSHOTs on pushes to enabled branches |
+| `ciUpdateReadmeCondition` | `Option[Condition]` | `None` | When to run the README job. Defaults to published releases |
+| `ciDocsVersioningScheme` | `DocsVersioning` | `SemanticVersioning` | `SemanticVersioning` or `HashVersioning` |
+| `ciDependencyUpdateBots` | `Seq[DependencyBot]` | Dependabot, Renovate, `ScalaSteward("zio-scala-steward")` | Bots whose PRs are auto-approved and auto-merged |
+
+**Tasks**
+
+| Task | Description |
+| --- | --- |
+| `ciGenerateGithubWorkflow` | Writes `ci.yml`, `auto-approve.yml` and `auto-merge.yml` |
+| `ciCheckGithubWorkflow` | Regenerates and fails if the committed files are stale |
+| `ciGenerateAutoApproveWorkflow` | Writes `auto-approve.yml` only |
+| `ciGenerateAutoMergeWorkflow` | Writes `auto-merge.yml` only |
+
+### Customizing Jobs
+
+Jobs are values, so they can be transformed or replaced. The types live in `zio.sbt.githubactions` and the reusable steps in `zio.sbt.ZioSbtCiPlugin`; neither is exported through `autoImport`, so import them explicitly.
+
+To adjust the generated jobs, map over them:
+
+```scala
+import zio.sbt.githubactions.Job
+
+def onUbuntu22(job: Job): Job = job.copy(runsOn = "ubuntu-22.04")
+
+inThisBuild(
+  List(
+    ciTestJobs  := ciTestJobs.value.map(onUbuntu22),
+    ciBuildJobs := ciBuildJobs.value.map(onUbuntu22)
+  )
+)
+```
+
+To write one from scratch, build it from the exported steps:
+
+```scala
+import zio.sbt.ZioSbtCiPlugin._
+import zio.sbt.githubactions.{Job, Step, Strategy}
+
+ciTestJobs := Seq(
+  Job(
+    id = "integration-test",
+    name = "Integration Test",
+    jobTimeout = Some(30),
+    strategy = Some(Strategy(matrix = Map("java" -> List("17", "21")), failFast = false)),
+    steps = Seq(
+      Checkout.value,
+      SetupJava("17"),
+      SetupSBT,
+      CacheDependencies,
+      Step.SingleStep(name = "Test", run = Some("sbt it:test"))
+    )
+  )
+)
+```
+
+The aggregate `ci` job waits on the ids of whatever `ciLintJobs`, `ciTestJobs` and `ciBuildJobs`
+produce, so replacing `test` with `integration-test` above is enough on its own. Set
+`ciPullRequestApprovalJobs` only to wait on a different set than those three:
+
+```scala
+ciPullRequestApprovalJobs := Seq("lint", "integration-test")
+```
+
+`Checkout`, `SetupLibuv`, `SetupJava(version)`, `SetupSBT`, `CacheDependencies`, `SetupNodeJs` and `SetSwapSpace` are all available; the ones defined as settings need `.value`.
+
+### Job Timeouts
+
+A job with no timeout inherits GitHub's default of six hours, which is a long time to wait for a hung build:
+
+```scala
+Job(id = "test", name = "Test", jobTimeout = Some(25), steps = ...)
+
+// or on an existing job
+ciTestJobs := ciTestJobs.value.map(_.withTimeout(25))
+```
+
+> **Note:**
+>
+> `Job` also has an older `timeoutMinutes: Int` field. It predates `jobTimeout` and was accepted but never rendered, so it is deprecated. It is still honoured when set to anything other than its historical default of `30`, so builds that set it keep working.
+
+### Concurrency
+
+By default one run per branch is kept and in-progress runs are cancelled. `cancelInProgress` accepts an expression as well as a boolean, which is what lets a workflow cancel superseded pull request runs while letting releases finish:
+
+```scala
+import zio.sbt.githubactions.{CancelInProgress, Concurrency, Condition}
+
+ciConcurrency := Some(
+  Concurrency(
+    group = "ci-pr-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}",
+    cancelInProgress = CancelInProgress.When(Condition.Expression("github.event_name == 'pull_request'"))
+  )
+)
+```
+
+Individual jobs can override it. A release should generally not be cancelled halfway through:
+
+```scala
+Job(
+  id = "release",
+  name = "Release",
+  concurrency = Some(
+    Concurrency(group = "release-${{ github.ref }}", cancelInProgress = CancelInProgress.Never)
+  ),
+  steps = ...
+)
+```
+
+### Service Containers
+
+Jobs that need a database can attach a service. `options` carries the raw `docker create` arguments, which is where the health check goes — without one the job races the container and steps can start before it accepts connections:
+
+```scala
+import zio.Chunk
+import zio.sbt.githubactions.{ImageRef, Service, ServicePort}
+
+Job(
+  id = "test",
+  name = "Test",
+  services = Seq(
+    Service(
+      name = "postgres",
+      image = ImageRef("postgres:16"),
+      env = Map("POSTGRES_USER" -> "postgres", "POSTGRES_PASSWORD" -> "postgres"),
+      ports = Chunk(ServicePort(5432, 5432)),
+      options = Some("--health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5")
+    )
+  ),
+  steps = ...
+)
+```
+
+`ServicePort(inner, outer)` renders as `inner:outer`, which GitHub reads as `<host>:<container>` — so `inner` is the port a step connects to on `localhost`.
+
+### The Workflow Environment
+
+By default the workflow exports `JDK_JAVA_OPTIONS`, built from `ciJvmOptions`. That is not always wanted: it makes `java -version` print a note containing commas, which corrupts the cache keys computed by `setup-sbt` and `coursier/cache-action`. Assigning `ciWorkflowEnv` replaces the derived map, so JVM flags can go through `SBT_OPTS` instead:
+
+```scala
+ciWorkflowEnv := Map(
+  "SBT_OPTS" -> "-XX:+PrintCommandLineFlags -Djava.locale.providers=CLDR,JRE"
+)
+```
+
 ## ZIO SBT Source
 
 ZIO SBT Source is a Scala 2.13 + Scala 3 cross-compiled library that provides utilities for self-documenting example code. It includes the `ExprEval` macro, which captures the source text of expressions at compile time and prints them alongside their evaluated results at runtime.
@@ -162625,7 +162918,7 @@ ZIO SBT Source is a Scala 2.13 + Scala 3 cross-compiled library that provides ut
 Add the following line to your `libraryDependencies` in `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.6.3"
+libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.7.0"
 ```
 
 ### Features
@@ -162731,7 +163024,7 @@ Both forms emit `showLineNumbers` in the code fence header, enabling line number
 
 ### Default Testing Strategy
 
-The default testing strategy for ZIO SBT CI plugin is to run `sbt +test` on Corretto Java 11, 17 and 21. So this will generate the following job:
+The default testing strategy for ZIO SBT CI plugin is to run `sbt +test` on Corretto Java 17, 21 and 25. So this will generate the following job:
 
 ```yaml
 test:
@@ -162741,12 +163034,12 @@ test:
   strategy:
     fail-fast: false
     matrix:
-      java: ['11', '17', '21']
+      java: ['17', '21', '25']
   steps:
   - name: Install libuv
     run: sudo apt-get update && sudo apt-get install -y libuv1-dev
   - name: Setup Scala
-    uses: actions/setup-java@v3.13.0
+    uses: actions/setup-java@v5
     with:
       distribution: corretto
       java-version: ${{ matrix.java }}
@@ -162805,7 +163098,7 @@ test:
   strategy:
     fail-fast: false
     matrix:
-      java: ['11', '17', '21']
+      java: ['17', '21', '25']
       scala-project:
       - ++2.12.20 submoduleA
       - ++2.12.20 submoduleB
@@ -162815,7 +163108,7 @@ test:
   - name: Install libuv
     run: sudo apt-get update && sudo apt-get install -y libuv1-dev
   - name: Setup Scala
-    uses: actions/setup-java@v3.10.0
+    uses: actions/setup-java@v5
     with:
       distribution: corretto
       java-version: ${{ matrix.java }}
@@ -165815,16 +166108,16 @@ archive formats with [ZIO Streams](https://zio.dev).
 In order to use this library, we need to add one of the following line in our `build.sbt` file:
 
 ```sbt
-libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli" % "2.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli4j" % "2.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-bzip2" % "2.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-gzip" % "2.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-lz4" % "2.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-snappy" % "2.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-tar" % "2.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zip" % "2.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zip4j" % "2.1.3"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zstd" % "2.1.3"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli" % "2.1.4"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli4j" % "2.1.4"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-bzip2" % "2.1.4"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-gzip" % "2.1.4"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-lz4" % "2.1.4"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-snappy" % "2.1.4"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-tar" % "2.1.4"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zip" % "2.1.4"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zip4j" % "2.1.4"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zstd" % "2.1.4"
 ```
 
 _As of 2.2.0, zio-streams-compress requires zio 2.1.25 or later._
@@ -165843,9 +166136,9 @@ Currently only jvm is supported. PRs for scala-js and scala-native are welcome.
 ```scala
 // Example.sc
 // Run with: scala-cli Example.sc
-//> using dep dev.zio:zio-streams-compress-gzip:2.1.3
-//> using dep dev.zio:zio-streams-compress-tar:2.1.3
-//> using dep dev.zio:zio-streams-compress-zip4j:2.1.3
+//> using dep dev.zio:zio-streams-compress-gzip:2.1.4
+//> using dep dev.zio:zio-streams-compress-tar:2.1.4
+//> using dep dev.zio:zio-streams-compress-zip4j:2.1.4
 
 import zio._
 import zio.compress.{ArchiveEntry, GzipCompressor, GzipDecompressor, TarUnarchiver, Zip4JArchiver}

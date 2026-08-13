@@ -29,7 +29,7 @@ val finalized: IO[String, Unit] =
 // finalized: IO[String, Unit] = DynamicNoBox(
 //   trace = "repl.MdocSession.MdocApp.finalized(handling-resources.md:19)",
 //   update = 1L,
-//   f = zio.ZIO$$$Lambda$19417/0x00007f2cdef2af98@699c15b9
+//   f = zio.ZIO$$$Lambda$19296/0x00007f58eef9cf50@6acc8676
 // )
 ```
 
