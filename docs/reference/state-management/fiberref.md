@@ -982,3 +982,4 @@ object Main extends ZIOAppDefault {
 ## See Also
 
 - **[ThreadLocalBridge](./threadlocal-bridge.md)** — Synchronize `FiberRef` with Java `ThreadLocal` variables for interoperability with legacy Java libraries.
+- **[The Differ Data Type](../../guides/compositional-fiberref-updates-with-differ.md)** — A step-by-step tutorial on how `Differ[Value, Patch]` enables compositional, patch-based `FiberRef` updates that faithfully merge concurrent fiber changes.

@@ -111,6 +111,19 @@ object TMapSpec extends ZIOBaseSpec {
 
         assertZIO(tx.commit)(isNone)
       },
+      test("takeFirst preserves remaining colliding entries") {
+        for {
+          tmap <- TMap
+                    .make(CollidingKey("a") -> 1, CollidingKey("b") -> 2, CollidingKey("c") -> 3)
+                    .commit
+          taken     <- tmap.takeFirst { case (_, value) if value == 2 => value }.commit
+          remaining <- tmap.toList.commit
+          size      <- tmap.size.commit
+        } yield assertTrue(taken == 2, size == 2) &&
+          assert(remaining.map { case (key, value) => key.name -> value })(
+            hasSameElements(List("a" -> 1, "c" -> 3))
+          )
+      },
       test("add many keys with negative hash codes") {
         val expected = (1 to 1000).map(i => HashContainer(-i) -> i).toList
 
@@ -475,5 +488,9 @@ object TMapSpec extends ZIOBaseSpec {
       }
 
     override def toString: String = s"HashContainer($i)"
+  }
+
+  private final case class CollidingKey(name: String) {
+    override def hashCode(): Int = 0
   }
 }

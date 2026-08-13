@@ -3,15 +3,14 @@ id: getting-started
 title: "Getting Started with ZIO"
 sidebar_label: "Getting Started"
 slug: "getting-started"
+description: "Get started with ZIO, a powerful functional effect system for Scala that enables asynchronous, concurrent, and parallel programming."
+keywords:
+  - "ZIO Getting Started"
+  - "Scala Functional Programming"
+  - "Effect System"
+  - "Asynchronous Programming"
+  - "Concurrent Programming"
 ---
-
-## Teach Your Coding Agent Latest ZIO Knowledge
-
-The `zio-knowledge` skill teaches your coding agent to fetch live documentation from zio.dev before answering any ZIO question — so you always get accurate, up-to-date answers, not guesses from stale training data:
-
-```bash
-npx skills add zio/zio-skills --skill zio-knowledge
-```
 
 ## Installation
 

@@ -260,7 +260,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core-tests"))
-  .dependsOn(core, tests, testRunner)
+  .dependsOn(core, tests, testRunner, concurrent)
   .settings(stdSettings("core-tests"))
   .settings(crossProjectSettings)
   .settings(publish / skip := true)
@@ -552,7 +552,7 @@ lazy val commonJunitTestSettings = Seq(
     "org.apache.maven"          % "maven-embedder"                 % "3.9.16" % Test,
     "org.apache.maven"          % "maven-compat"                   % "3.9.16" % Test,
     "com.google.inject"         % "guice"                          % "6.0.0"  % Test,
-    "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "1.0.0"  % Test,
+    "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "1.1.0"  % Test,
     "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.27" % Test,
     "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.27" % Test,
     "org.codehaus.plexus"       % "plexus-component-annotations"   % "2.2.0"  % Test,
@@ -820,6 +820,7 @@ lazy val docs = project.module
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     resolvers += Resolver.sonatypeCentralSnapshots,
     mdocVariables ++= Map(
+      "VERSION"                        -> version.value.split('+').head,
       "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion,
       "ZIO_CONFIG_VERSION"             -> ZioConfigVersion,
       "ZIO_JSON_VERSION"               -> ZioJsonVersion

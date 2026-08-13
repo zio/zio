@@ -368,7 +368,12 @@ module.exports = {
       type: "category",
       label: "Observability",
       items: [
-        "reference/observability/logging",
+        {
+          type: "category",
+          label: "Logging",
+          link: { type: "doc", id: "reference/observability/logging/index" },
+          items: ["reference/observability/logging/zlogger"],
+        },
         {
           type: "category",
           label: "Metrics",
@@ -490,6 +495,7 @@ module.exports = {
       type: "category",
       label: "Tutorial Guides",
       items: [
+        "guides/tutorials/retry-and-repeat-policies-with-schedule",
         "guides/tutorials/configurable-zio-application",
         "guides/tutorials/encode-and-decode-json-data",
         "guides/tutorials/enable-logging-in-a-zio-application",
@@ -503,6 +509,8 @@ module.exports = {
         "guides/tutorials/build-a-graphql-webservice",
         "guides/tutorials/gracefully-shutdown-zio-application",
         "guides/tutorials/getting-started-threadlocal-bridge",
+        "guides/tutorials/reloadable-services",
+        "guides/compositional-fiberref-updates-with-differ",
       ]
     },
     {

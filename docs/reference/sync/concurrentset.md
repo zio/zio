@@ -1,6 +1,12 @@
 ---
 id: concurrentset
-title: "ConcurrentSet"
+title: ConcurrentSet
+description: "Thread-safe set wrapper using ConcurrentHashMap for concurrent ZIO operations."
+keywords:
+  - ConcurrentSet
+  - "Thread-safe Set"
+  - "Concurrent Collections"
+  - "Set Operations"
 ---
 
 A `ConcurrentSet` is a Set wrapper over `java.util.concurrent.ConcurrentHashMap`.
