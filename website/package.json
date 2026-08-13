@@ -50,18 +50,18 @@
     "@zio.dev/zio-redis": "1.1.10",
     "@zio.dev/zio-rocksdb": "0.4.2",
     "@zio.dev/zio-s3": "2022.11.21-367e7009c0f5",
-    "@zio.dev/zio-sbt": "0.6.3",
+    "@zio.dev/zio-sbt": "0.7.0",
     "@zio.dev/zio-schema": "1.7.5",
     "@zio.dev/zio-sqs": "2022.11.23-5a814304824c",
     "@zio.dev/zio-streams-compress": "2.1.4",
-    "@zio.dev/zio-telemetry": "3.1.18",
+    "@zio.dev/zio-telemetry": "3.1.19",
     "@zio.dev/zio2-interop-cats2": "2023.1.23-571dabdd91f9",
     "babel": "^6.23.0",
     "blended-include-code-plugin": "0.1.2",
     "clsx": "2.1.1",
     "docusaurus-plugin-copy-page-button": "^0.8.0",
     "docusaurus-plugin-llms": "0.5.1",
-    "highlight.js": "11.11.1",
+    "highlight.js": "11.12.0",
     "node-fetch": "^3.3.2",
     "postcss": "8.5.26",
     "prism-react-renderer": "2.4.1",
@@ -79,7 +79,7 @@
     "webpackbar": "^7.0.0"
   },
   "resolutions": {
-    "cytoscape": "3.34.0",
+    "cytoscape": "3.34.1",
     "webpackbar": "^7.0.0"
   },
   "browserslist": {
