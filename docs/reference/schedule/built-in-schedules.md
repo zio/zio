@@ -1,6 +1,15 @@
 ---
 id: built-in-schedules
 title: "Built-in Schedules"
+description: "Discover ZIO's built-in schedule types for controlling effect repetition: fixed intervals, exponential backoff, and fibonacci-based delays."
+keywords:
+  - "Built-in Schedules"
+  - "Fixed Interval Scheduling"
+  - "Exponential Backoff"
+  - "Fibonacci Schedule"
+  - "Effect Repetition"
+  - "Schedule Patterns"
+  - "Delay Strategies"
 ---
 
 ```scala mdoc:invisible

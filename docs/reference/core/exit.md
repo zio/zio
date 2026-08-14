@@ -1,9 +1,17 @@
 ---
 id: exit
-title: "Exit"
+title: Exit
+description: "Exit type represents ZIO fiber outcomes as either Success with a value or Failure with a typed error Cause."
+keywords:
+  - "Exit Type"
+  - "Fiber Outcomes"
+  - "Success Values"
+  - "Failure Causes"
+  - "Typed Error Handling"
+  - "Effect Results"
 ---
 
-An `Exit[E, A]` value describes how fibers end life. It has two possible values:
+An `Exit[E, A]` value describes [how fibers end life](../fiber/fiber.md). It has two possible values:
 - `Exit.Success` contain a success value of type `A`. 
 - `Exit.Failure` contains a failure [Cause](cause.md) of type `E`.
 
@@ -37,4 +45,23 @@ val result: ZIO[Any, IOException, Unit] =
         printLine(s"exited with failure state: $cause")
     }
   } yield ()
+```
+
+## Pre-constructed Exit Values
+
+ZIO provides several pre-constructed `Exit` values for common cases:
+
+- `Exit.unit` — A success exit with a `Unit` value
+- `Exit.none` — A success exit with a `None` value (type: `Exit[Nothing, Option[Nothing]]`)
+
+These values are useful when you need to return a pre-made exit without constructing it manually:
+
+```scala mdoc:silent
+import zio._
+
+// Using Exit.unit for effects that only care about success or failure
+val unitExit: Exit[String, Unit] = Exit.unit
+
+// Using Exit.none for optional values
+val noneExit: Exit[String, Option[Nothing]] = Exit.none
 ```

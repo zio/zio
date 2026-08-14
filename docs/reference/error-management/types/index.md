@@ -1,6 +1,14 @@
 ---
 id: index
 title: "Three Types of Errors"
+description: "Understand ZIO's three error types: failures (expected), defects (unexpected), and fatals (catastrophic), and how to handle each appropriately."
+keywords:
+  - "Three Error Types"
+  - "Expected Failures"
+  - "Unexpected Defects"
+  - "Fatal Errors"
+  - "Error Handling"
+  - "Error Propagation"
 ---
 
 We should consider three types of errors when writing ZIO applications:

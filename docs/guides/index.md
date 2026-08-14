@@ -13,6 +13,10 @@ The following guides have been written to help you get started with ZIO with min
 3. [ZIO Quickstart: Building a GraphQL Web Service](quickstarts/graphql-webservice.md)
 4. [ZIO Quickstart: Building a gRPC Server and Client](https://scalapb.github.io/zio-grpc/docs/quickstart/)
 
+## Guides
+
+1. [The Differ Data Type](compositional-fiberref-updates-with-differ.md) — Learn how `Differ[Value, Patch]` powers compositional, patch-based `FiberRef` updates that faithfully merge concurrent fiber changes.
+
 ## Tutorial Guides
 
 1. [How to Make a ZIO Application Configurable?](tutorials/make-a-zio-application-configurable.md)
@@ -24,20 +28,16 @@ The following guides have been written to help you get started with ZIO with min
 7. [How to Build a RESTful Web Service](tutorials/build-a-restful-webservice.md)
 8. [How to Deploy a ZIO Application Using Docker?](tutorials/deploy-a-zio-application-using-docker.md)
 9. [How to Monitor a ZIO Application Using ZIO's Built-in Metric System?](tutorials/monitor-a-zio-application-using-zios-built-in-metric-system.md)
-10. [How to Produce/Consume Data To/From Kafka Topics?](tutorials/produce-consume-data-to-from-kafka-topics.md)
+10. [How to Produce/Consume Data To/From Kafka Topics?](/zio-kafka/tutorial)
 11. [How to Debug a ZIO Application?](tutorials/debug-a-zio-application.md)
+12. [How to Hot-Swap Services with Reloadable?](tutorials/reloadable-services.md)
 
 ## Integration Guides
 
 1. [How to Interop with Cats Effect?](interop/with-cats-effect.md)
 2. [How to Interop with Future?](interop/with-future.md)
-3. [How to Interop with Guava?](interop/with-guava.md)
-4. [How to Interop with Java?](interop/with-java.md)
-5. [How to Interop with JavaScript?](interop/with-javascript.md)
-6. [How to Interop with Monix?](interop/with-monix.md)
-7. [How to Interop with Reactive Streams?](interop/with-reactive-streams.md)
-8. [How to Interop with Scalaz 7.x?](interop/with-scalaz-7x.md)
-9. [How to Interop with Twitter?](interop/with-twitter.md)
+3. [How to Interop with Java?](interop/with-java.md)
+4. [How to Interop with JavaScript?](interop/with-javascript.md)
 
 ## Migration Guides
 

@@ -202,6 +202,8 @@ lazy val root3 = project
     ) *
   )
 
+lazy val zioExamples = RootProject(file("zio-examples"))
+
 lazy val root = project
   .in(file("."))
   .settings(
@@ -214,7 +216,7 @@ lazy val root = project
     ),
     welcomeMessage
   )
-  .aggregate(root213)
+  .aggregate(root213, zioExamples)
   .enablePlugins(ScalaJSPlugin)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -258,7 +260,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core-tests"))
-  .dependsOn(core, tests, testRunner)
+  .dependsOn(core, tests, testRunner, concurrent)
   .settings(stdSettings("core-tests"))
   .settings(crossProjectSettings)
   .settings(publish / skip := true)
@@ -526,7 +528,7 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
   .nativeSettings(
     nativeSettings,
-    libraryDependencies ++= Seq("org.scala-native" %%% "test-interface" % nativeVersion)
+    libraryDependencies ++= Seq("org.scala-native" %%% "test-interface-sbt-defs" % nativeVersion)
   )
 
 lazy val testJunitRunner = project.module
@@ -547,14 +549,14 @@ lazy val commonJunitTestSettings = Seq(
   libraryDependencies ++= Seq(
     "junit"                     % "junit"                          % "4.13.2" % Test,
     "org.scala-lang.modules"   %% "scala-xml"                      % "2.4.0"  % Test,
-    "org.apache.maven"          % "maven-embedder"                 % "3.9.14" % Test,
-    "org.apache.maven"          % "maven-compat"                   % "3.9.14" % Test,
+    "org.apache.maven"          % "maven-embedder"                 % "3.9.16" % Test,
+    "org.apache.maven"          % "maven-compat"                   % "3.9.16" % Test,
     "com.google.inject"         % "guice"                          % "6.0.0"  % Test,
-    "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "1.0.0"  % Test,
+    "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "1.1.0"  % Test,
     "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.27" % Test,
     "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.27" % Test,
     "org.codehaus.plexus"       % "plexus-component-annotations"   % "2.2.0"  % Test,
-    "org.slf4j"                 % "slf4j-simple"                   % "2.0.17" % Test
+    "org.slf4j"                 % "slf4j-simple"                   % "2.0.18" % Test
   )
 )
 
@@ -660,14 +662,14 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"     % "24.2.0",
         "com.typesafe.akka"         %% "akka-stream"   % "2.8.8",
         "io.github.timwspence"      %% "cats-stm"      % "0.13.4",
-        "io.projectreactor"          % "reactor-core"  % "3.8.4",
+        "io.projectreactor"          % "reactor-core"  % "3.8.6",
         "io.reactivex.rxjava2"       % "rxjava"        % "2.2.21",
         "org.jctools"                % "jctools-core"  % "4.0.6",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
-        "qa.hedgehog"               %% "hedgehog-core" % "0.13.0",
+        "qa.hedgehog"               %% "hedgehog-core" % "0.13.1",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
-        "org.springframework"        % "spring-core"   % "7.0.6"
+        "org.springframework"        % "spring-core"   % "7.0.8"
       )
     },
     excludeDependencies ++= {
@@ -818,11 +820,13 @@ lazy val docs = project.module
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     resolvers += Resolver.sonatypeCentralSnapshots,
     mdocVariables ++= Map(
+      "VERSION"                        -> version.value.split('+').head,
       "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion,
       "ZIO_CONFIG_VERSION"             -> ZioConfigVersion,
       "ZIO_JSON_VERSION"               -> ZioJsonVersion
     ),
     libraryDependencies ++= Seq(
+      "dev.zio" %% "zio-sbt-source" % "0.6.0",
       `zio-http`,
       `distage-core`,
       `logstage-core`,

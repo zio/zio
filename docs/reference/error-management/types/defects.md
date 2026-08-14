@@ -1,6 +1,14 @@
 ---
 id: defects
-title: "Defects"
+title: Defects
+description: "Learn about ZIO defects—unexpected untyped errors created with ZIO.die—and how they differ from typed errors in error handling."
+keywords:
+  - "ZIO Defects"
+  - "Typed Error Handling"
+  - "ZIO.die constructor"
+  - "Untyped Errors"
+  - "Exception Translation"
+  - "Error Channels"
 ---
 
 By providing a `Throwable` value to the `ZIO.die` constructor, we can describe a dying effect:
@@ -124,3 +132,8 @@ import zio._
 val defect4 = ZIO.succeed(???).map(_ => throw new Exception("Boom!"))
 val defect5 = ZIO.attempt(???).map(_ => throw new Exception("Boom!"))
 ```
+
+## See Also
+
+- [Three Types of Errors](index.md) — Understand ZIO's three error types: failures (expected), defects (unexpected), and fatals (catastrophic), and how to handle each appropriately.
+- [Expected and Unexpected Errors](../expected-and-unexpected-errors.md) — Distinguish between expected recoverable errors and unexpected defects, and learn how ZIO's type system reflects expected errors while sandboxing unforeseen failures.

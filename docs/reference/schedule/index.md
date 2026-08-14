@@ -1,6 +1,12 @@
 ---
-id: index 
+id: "index"
 title: "Introduction to Scheduling ZIO Effects"
+description: "Immutable values describing recurring effectful schedules for repeating actions or retrying on failures with configurable delays."
+keywords:
+  - "Schedule"
+  - "Retrying"
+  - "Repetition"
+  - "Error handling"
 ---
 
 ```scala mdoc:invisible
@@ -15,6 +21,11 @@ Schedules are defined as a possibly infinite set of intervals spread out over ti
 
 When schedules are used to repeat or retry effects, the starting boundary of each interval produced by a schedule is used as the moment when the effect will be executed again. 
 
-Schedules allow us to define and compose flexible recurrence schedules, which can be used to **repeat** actions, or **retry** actions in the event of errors. We will discuss them on the following pages.
+Schedules allow us to define and compose flexible recurrence schedules, which can be used to **repeat** actions, or **retry** actions in the [event of errors](../error-management/index.md). We will discuss them on the following pages.
 
 A variety of [combinators](combinators.md) exist for transforming and combining schedules, and the companion object for `Schedule` contains [all common types of schedules](built-in-schedules.md), both for performing retrying and repetition.
+
+## See Also
+
+- [ZStream Scheduling](../stream/zstream/scheduling.md) — ZStream scheduling combinators for controlling emission timing and spacing of stream outputs using configurable schedule policies.
+- [TestAspect: Repetition and Retrying](../test/aspects/repeat-and-retry.md) — Test aspects for repeating or retrying tests according to specified schedules.

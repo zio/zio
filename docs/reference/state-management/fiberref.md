@@ -1,7 +1,14 @@
 ---
 id: fiberref
 title: "FiberRef: Introduction to Fiber-local Storage"
-sidebar_label: "FiberRef"
+sidebar_label: FiberRef
+description: "Fiber-local storage enabling isolated state management and context propagation across concurrent fibers in ZIO."
+keywords:
+  - "Fiber-local Storage"
+  - "Isolated State Management"
+  - "Context Propagation"
+  - "Structured Logging"
+  - "Copy-on-Fork Semantics"
 ---
 
 `FiberRef` is a data structure for managing and accessing thread-local values within a ZIO fiber. Thread-local storage (TLS) is a mechanism that provides each fiber its own separate storage space. A `FiberRef[A]` is a specialized type of mutable reference (`Ref[A]`) that allows us to store and retrieve values of type `A` that are local to a specific fiber.  
@@ -971,3 +978,8 @@ object Main extends ZIOAppDefault {
     
 }
 ```
+
+## See Also
+
+- **[ThreadLocalBridge](./threadlocal-bridge.md)** — Synchronize `FiberRef` with Java `ThreadLocal` variables for interoperability with legacy Java libraries.
+- **[The Differ Data Type](../../guides/compositional-fiberref-updates-with-differ.md)** — A step-by-step tutorial on how `Differ[Value, Patch]` enables compositional, patch-based `FiberRef` updates that faithfully merge concurrent fiber changes.

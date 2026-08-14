@@ -2,9 +2,10 @@
 
 const path = require('path');
 
-const lightCodeTheme = require('prism-react-renderer/themes/github');
-const darkCodeTheme = require('prism-react-renderer/themes/vsDark');
-const { getEditUrl } = require('./editUrl')
+const { themes: prismThemes } = require('prism-react-renderer');
+const lightCodeTheme = prismThemes.github;
+const darkCodeTheme = prismThemes.vsDark;
+const { getEditUrl } = require('./editUrl');
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -23,9 +24,9 @@ const config = {
       id: 'announcementBar',
       content:
         '📚 <b>ZIONOMICON</b>, updated for ZIO 2.1, is out now! Grab <a href="https://zionomicon.com" target="_blank">your free copy</a> and level up your ZIO skills 🚀',
-      backgroundColor: 'rgb(190, 105, 255)',
-      textColor: 'rgba(220, 173, 240, 1)',
-      isCloseable: false,
+      backgroundColor: '#ececec',
+      textColor: '#1a1a1a',
+      isCloseable: true,
     },
     image: 'https://zio.dev/img/zio.png',
     algolia: {
@@ -265,7 +266,7 @@ const config = {
       return {
         name: 'docusaurus-tailwindcss',
         configurePostCss(postcssOptions) {
-          postcssOptions.plugins.push(require("@tailwindcss/postcss"));
+          postcssOptions.plugins.push(require('@tailwindcss/postcss'));
           return postcssOptions;
         },
       };
@@ -282,9 +283,51 @@ const config = {
           },
           {
             from: '/zio-http',
-            to: 'https://ziohttp.com'
+            to: 'https://ziohttp.com',
+          },
+          {
+            from: '/tutorials/producing-consuming-data-from-kafka-topics',
+            to: '/zio-kafka/tutorial',
           },
         ],
+      },
+    ],
+    [
+      'docusaurus-plugin-llms',
+      /** @type {import('docusaurus-plugin-llms').PluginOptions} */
+      ({
+        generateLLMsTxt: true,
+        generateLLMsFullTxt: true,
+        generateMarkdownFiles: true,
+        docsDir: 'docs',
+        ignoreFiles: [],
+        title: 'ZIO',
+        description:
+          'Type-safe, composable asynchronous and concurrent programming for Scala.',
+        includeBlog: false,
+        pathTransformation: {
+          ignorePaths: ['docs'],
+          addPaths: [],
+        },
+        includeOrder: [
+          'overview/**',
+          'reference/**',
+          'guides/**',
+          'ecosystem/**',
+          'resources/**',
+          'events/**',
+          'faq.md',
+        ],
+        excludeImports: true,
+        removeDuplicateHeadings: true,
+        includeUnmatchedLast: true,
+        preserveDirectoryStructure: false,
+      }),
+    ],
+    [
+      'docusaurus-plugin-copy-page-button',
+      {
+        enabledActions: ['copy', 'view', 'chatgpt', 'claude', 'gemini'],
       },
     ],
   ],

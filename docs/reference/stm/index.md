@@ -1,6 +1,15 @@
 ---
 id: index
 title: "Introduction to Software Transactional Memory"
+description: "STM enables composable atomic transactions on memory with atomicity, consistency, and isolation guarantees for concurrent programs."
+keywords:
+  - "Software Transactional Memory"
+  - "Atomic Transactions"
+  - "Composable Transactions"
+  - "Lock-Free Algorithms"
+  - "Concurrency Control"
+  - "Transaction Rollback"
+  - "Optimistic Concurrency"
 ---
 
 ## Overview

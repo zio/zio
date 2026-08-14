@@ -1,8 +1,16 @@
 ---
-id: faq
-slug: faq
+id: "faq"
+slug: "faq"
 title: "Frequently Answered Questions (FAQ)"
 sidebar_label: "FAQ"
+description: "Guidance on encoding contextual values like UserId and CorrelationId in ZIO applications, covering design patterns and the Z prefix convention."
+keywords:
+  - "Contextual Value Encoding"
+  - "ZIO Environment Pattern"
+  - "FiberRef Pattern"
+  - "Parameter Design Strategies"
+  - "Type Signature Design"
+  - "Z Prefix Convention"
 ---
 
 In this page we are going to answer general questions related to the ZIO project.
@@ -54,7 +62,7 @@ So while there are some cases where there might be different alternatives we wan
 
 ### Solution 3 and 4: Environment and FiberRefs
 
-The final two alternatives are modeling these contextual values as part of the ZIO Environment or as `FiberRef` values.
+The final two alternatives are modeling these contextual values as part of the ZIO Environment or as [`FiberRef`](reference/state-management/fiberref.md) values.
 
 If we model both of these requirements as part of the environment our method signature would look like this:
 
@@ -94,3 +102,7 @@ No, it doesn't denote that the data type is effectual. Instead, the `Z` prefix i
 2. **Term Disambiguation** — There are some cases where the `Z` prefix is used to disambiguate a term that might otherwise be too common and create risk of name conflicts (e.g. `ZPool`).
 
 This convention is true across all ZIO ecosystem. For example, in ZIO Prelude, the `ZValidation` is a more general version of `Validation` that is polymorphic in the log type. `ZSet` is a more polymorphic version of a _Set_ that is polymorphic in the measure type. `ZPure` is more polymorphic than its type aliases in several ways as represented by its different type parameters and also serves to disambiguate it as _Pure_ which is too general.
+
+## See Also
+
+- [state management](reference/state-management/index.md) — Overview of state management approaches in ZIO, covering recursion, global shared state with Ref, and fiber-local state with FiberRef and ZState.

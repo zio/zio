@@ -41,7 +41,7 @@ jobs:
 
       - name: Deploy Preview to Netlify
         id: netlify-deploy
-        uses: nwtgck/actions-netlify@v3.0
+        uses: nwtgck/actions-netlify@v4.0
         with:
           publish-dir: ./website-artifact
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -55,7 +55,7 @@ jobs:
         timeout-minutes: 5
 
       - name: Post Preview URL Comment
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           number: ${{ steps.pr.outputs.number }}
           header: netlify-preview

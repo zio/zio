@@ -1,7 +1,12 @@
 ---
 id: can_fail
-title:  "Compile Time Errors for Handling Combinators"
+title: "Compile Time Errors for Handling Combinators"
 slug: can_fail
+description: "Error handling combinators in ZIO that require CanFail implicit evidence for compile-time safety"
+keywords:
+  - "Error Handling Combinators"
+  - "CanFail Evidence"
+  - "Compile Time Safety"
 ---
 
 ZIO provides a variety of combinators to handle errors such as `orElse`, `catchAll`, `catchSome`, `option`, `either`, and `retry`. However, these combinators only make sense for effects that can fail (i.e. where the error type is not `Nothing`). To help you identify code that doesn't make sense, error handling combinators require implicit evidence `CanFail[E]`, which is automatically available for all types except `Nothing`. The table below includes a list of combinators that only make sense for effects that can fail along with value preserving rewrites.
@@ -62,3 +67,9 @@ Code | Rewrite
 - `either`, `option`, `orElseEither`, and `retryOrElseEither` wrap their results in `Some` or `Right` so after rewriting, code calling these methods can be simplified to accept an `A` rather than an `Option[A]` or `Either[E, A]`. 
 
 - `partitionZIO`, `partitionZIOPar`, `validateZIO` and `validateFirstZIO` have error accumulating semantics on either error channel or success channel. After rewrite the error type can be simplified to `E` rather than `List[E]` or the success type `List[B]` instead of `(List[E], List[B])`.
+
+## See Also
+
+- [Error Management](reference/error-management/index.md) — Comprehensive guide to error management strategies and typed error handling in ZIO
+- [UIO](reference/core/zio/uio.md) — Unexceptional effect type where the error type is Nothing
+- [Handling Errors](overview/handling-errors.md) — Overview of error handling patterns and strategies in ZIO
