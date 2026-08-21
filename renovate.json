@@ -27,9 +27,10 @@
         "documentation"
       ],
       "matchPackageNames": [
-        "^@zio\\.dev\\/.*"
+        "@zio.dev/**"
       ],
       "ignoreUnstable": false,
+      "respectLatest": false,
       "enabled": true
     },
     {
