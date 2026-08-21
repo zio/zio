@@ -1,6 +1,8 @@
 # Introduction to izumi-reflect
 
-> > @quote: Looks a bit similar to TypeTag
+> [![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/izumi-reflect/workflows/CI/badge.svg) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/izumi-reflect_2.12.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/izumi-reflect_2.12/) [![izumi-reflect](https://img.shields.io/github/stars/zio/izumi-reflect?style=social)](https://github.com/zio/izumi-reflect)
+
+[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/izumi-reflect/workflows/CI/badge.svg) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/izumi-reflect_2.12.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/izumi-reflect_2.12/) [![izumi-reflect](https://img.shields.io/github/stars/zio/izumi-reflect?style=social)](https://github.com/zio/izumi-reflect)
 
 # izumi-reflect
 
@@ -38,7 +40,7 @@ Known limitations are:
 3. Path-Dependent Types are based on variable names and may cause unexpected results when variables with different names have the same type or vice-versa (vs. Scala compiler)
 4. This-Types such as `X.this.type` are ignored and identical to `X`
 5. `izumi-reflect` is less powerful than `scala-reflect`: it does not preserve fields and methods when it's not necessary for equality and subtype checks, it does not preserve code trees, internal compiler data structures, etc.
-6. There are some optimizations in place which reduce correctness, namely: subtype check for `scala.Matchable` will always return true, no distinction is made between `scala.Any` and `scala.AnyRef`.
+6. There are some optimizations in place which reduce correctness, namely: subtype check for `scala.Matchable` will always return true, no distinction is made between `scala.Any` and `scala.AnyRef`,  no distinction is made between `scala.Nothing` and `scala.Null`. In other words, the library does not recognize that `Null` is not a subtype of `AnyVal`s.
 7. Lower bounds are not preserved in abstract higher-kinded type members which may produce false comparisons.
 8. Type and value members are not preserved in concrete types which may produce false comparisons with refined/structural types. (https://github.com/zio/izumi-reflect/issues/481)
 
