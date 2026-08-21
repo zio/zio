@@ -33,7 +33,7 @@
     "@zio.dev/zio-config": "4.0.6",
     "@zio.dev/zio-constraintless": "0.3.9",
     "@zio.dev/zio-direct": "1.0.0-RC7",
-    "@zio.dev/zio-dynamodb": "1.0.0-RC24",
+    "@zio.dev/zio-dynamodb": "1.0.0-RC9",
     "@zio.dev/zio-ftp": "0.5.2",
     "@zio.dev/zio-json": "0.8.0",
     "@zio.dev/zio-kafka": "3.7.1",
