@@ -1,0 +1,19 @@
+name: Check for Linked Issue
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  check-link:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Linked Issue
+        uses: nearform-actions/github-action-check-linked-issues@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # This action automatically checks for keywords like:
+          # close, closes, closed, fix, fixes, fixed, resolve, resolves, resolved
+          comment: |
+            Hi @${{ github.actor }}, thanks for the PR! 🚀
+            
+            Please make sure to link an open issue to this PR by including "Fixes #123" or "Resolves #456" in the description. This helps us track work and automates closing the issue when this PR is merged.

@@ -1,0 +1,30 @@
+name: Close stale and failed pull requests 
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight UTC
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/stale@v9
+        with:
+          # Pull request config
+          only-pr-labels: 'ci-failed'
+          stale-pr-message: 'This PR has been automatically marked as stale because it has had no recent activity. It will be closed if no further activity occurs.'
+          close-pr-message: 'This PR was closed because it has been inactive and CI was failing.'
+          days-before-pr-stale: 3
+          days-before-pr-close: 2
+
+          # Labels
+          stale-pr-label: 'stale'
+
+          # Additional settings
+          exempt-all-milestones: true  # Don't mark PRs with milestones as stale
+          operations-per-run: 100  # Limit operations per run to avoid hitting API limits
+          remove-stale-when-updated: true  # Remove stale label when updated
