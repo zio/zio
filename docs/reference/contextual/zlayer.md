@@ -127,6 +127,113 @@ object CLive {
 }
 ```
 
+### Avoiding Accidental Scope Leaks
+
+`ZLayer.apply`/`ZLayer.fromZIO` accept any `ZIO[R, E, A]`, including an effect whose `R` contains `Scope`. This means a resourceful effect can end up in them by mistake, and instead of the resource being released when the layer finishes constructing, the `Scope` requirement leaks into the layer's own `RIn`.
+
+#### Passing a Resourceful Effect to `ZLayer.fromZIO`
+
+For example, suppose we build a `Connection` using `ZIO.acquireRelease`, which produces a `ZIO[Scope, E, A]`, and pass it directly to `ZLayer.fromZIO`:
+
+```scala mdoc:compile-only
+import zio._
+
+trait Connection {
+  def close: UIO[Unit]
+}
+
+object Connection {
+  def open: ZIO[Any, Throwable, Connection] = ???
+}
+
+val acquireConnection: ZIO[Scope, Throwable, Connection] =
+  ZIO.acquireRelease(Connection.open)(_.close)
+
+val leaky: ZLayer[Scope, Throwable, Connection] =
+  ZLayer.fromZIO(acquireConnection)
+```
+
+This compiles, and `leaky` ends up with type `ZLayer[Scope, Throwable, Connection]`: the `Scope` was never closed by the layer itself, it was pushed into `RIn` instead. Providing this layer now requires supplying a `Scope` from somewhere, and the connection stays open for as long as that `Scope` stays open, not just for as long as the layer's own construction takes:
+
+```scala mdoc:compile-only
+import zio._
+
+trait Connection {
+  def close: UIO[Unit]
+}
+
+object Connection {
+  def open: ZIO[Any, Throwable, Connection] = ???
+}
+
+val acquireConnection: ZIO[Scope, Throwable, Connection] =
+  ZIO.acquireRelease(Connection.open)(_.close)
+
+val leaky: ZLayer[Scope, Throwable, Connection] =
+  ZLayer.fromZIO(acquireConnection)
+
+val program: ZIO[Connection, Throwable, Unit] = ZIO.unit
+
+val runnable: ZIO[Any, Throwable, Unit] =
+  program.provide(leaky, Scope.default)
+```
+
+Here `Scope.default` lives for the entire remaining execution of `runnable`, so the connection is held open for the whole program instead of being closed right after `program` is done with it. The fix is to build the layer with `ZLayer.scoped` instead of `ZLayer.fromZIO`, which consumes the `Scope` internally and ties the release to the layer's own lifetime:
+
+```scala mdoc:compile-only
+import zio._
+
+trait Connection {
+  def close: UIO[Unit]
+}
+
+object Connection {
+  def open: ZIO[Any, Throwable, Connection] = ???
+}
+
+val connectionLayer: ZLayer[Any, Throwable, Connection] =
+  ZLayer.scoped {
+    ZIO.acquireRelease(Connection.open)(_.close)
+  }
+
+val program: ZIO[Connection, Throwable, Unit] = ZIO.unit
+
+val runnable: ZIO[Any, Throwable, Unit] =
+  program.provide(connectionLayer)
+```
+
+`connectionLayer` no longer requires a `Scope` in `RIn`, and `runnable` closes the connection as soon as `program` finishes with it.
+
+:::note[Current Behavior]
+`ZLayer.fromZIO` and `ZLayer.apply` do not currently require evidence that `R` excludes `Scope`, so the compiler does not flag the pattern above. Prefer `ZLayer.scoped` whenever the effect you give to a layer constructor requires a `Scope`.
+:::
+
+#### Extending a Layer's Scope on Purpose
+
+Sometimes a layer's resource is meant to outlive the scope in which it was built, for example when it should be shared for the entire remaining lifetime of an application rather than closed as soon as it is constructed. `ZLayer#extendScope` exists for this: it takes a layer built with `ZLayer.scoped` and returns a new layer that ties the resource's release to an outer `Scope` supplied by the caller, instead of releasing it when construction completes:
+
+```scala mdoc:compile-only
+import zio._
+
+trait Connection {
+  def close: UIO[Unit]
+}
+
+object Connection {
+  def open: ZIO[Any, Throwable, Connection] = ???
+}
+
+val connectionLayer: ZLayer[Any, Throwable, Connection] =
+  ZLayer.scoped {
+    ZIO.acquireRelease(Connection.open)(_.close)
+  }
+
+val extendedLayer: ZLayer[Scope, Throwable, Connection] =
+  connectionLayer.extendScope
+```
+
+`extendedLayer` has the same `Scope` requirement in `RIn` as the leaky layer earlier in this section, but here it is intentional: calling `ZLayer#extendScope` documents in the code itself that the resource's lifetime is meant to extend beyond this layer's own construction, rather than being an accidental side effect of using `ZLayer.fromZIO` on a resourceful effect.
+
 ### From Functions
 
 A `ZLayer[R, E, A]` can be thought of as a function from `R` to `A`. So we can convert functions to the `ZLayer` using the `ZLayer.fromFunction` constructor.
