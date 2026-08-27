@@ -1,4 +1,8 @@
 addSbtPlugin("ch.epfl.scala"                     % "sbt-scalafix"                  % "0.14.7")
+resolvers += Resolver.sonatypeCentralSnapshots
+dependencyOverrides += "ch.epfl.scala" % "scalafix-interfaces" % "0.14.7+68-7fc48c47-SNAPSHOT"
+
+
 addSbtPlugin("com.eed3si9n"                      % "sbt-assembly"                  % "2.4.1")
 addSbtPlugin("com.eed3si9n"                      % "sbt-buildinfo"                 % "0.13.1")
 addSbtPlugin("com.github.sbt"                    % "sbt-unidoc"                    % "0.6.1")
