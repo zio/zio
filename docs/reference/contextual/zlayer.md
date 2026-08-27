@@ -127,9 +127,9 @@ object CLive {
 }
 ```
 
-### Avoiding Accidental Scope Leaks
+### Avoiding Resources That Outlive Their Intended Scope
 
-`ZLayer.apply`/`ZLayer.fromZIO` accept any `ZIO[R, E, A]`, including an effect whose `R` contains `Scope`. This means a resourceful effect can end up in them by mistake, and instead of the resource being released when the layer finishes constructing, the `Scope` requirement leaks into the layer's own `RIn`.
+`ZLayer.apply`/`ZLayer.fromZIO` accept any `ZIO[R, E, A]`, including an effect whose `R` contains `Scope`. This means a resourceful effect can end up in them by mistake, and instead of the resource being released when the layer finishes constructing, its `Scope` requirement surfaces in the layer's own `RIn`, letting the resource outlive the layer's construction.
 
 #### Passing a Resourceful Effect to `ZLayer.fromZIO`
 
@@ -149,11 +149,11 @@ object Connection {
 val acquireConnection: ZIO[Scope, Throwable, Connection] =
   ZIO.acquireRelease(Connection.open)(_.close)
 
-val leaky: ZLayer[Scope, Throwable, Connection] =
+val outlivingLayer: ZLayer[Scope, Throwable, Connection] =
   ZLayer.fromZIO(acquireConnection)
 ```
 
-This compiles, and `leaky` ends up with type `ZLayer[Scope, Throwable, Connection]`: the `Scope` was never closed by the layer itself, it was pushed into `RIn` instead. Providing this layer now requires supplying a `Scope` from somewhere, and the connection stays open for as long as that `Scope` stays open, not just for as long as the layer's own construction takes:
+This compiles, and `outlivingLayer` ends up with type `ZLayer[Scope, Throwable, Connection]`: the `Scope` was never closed by the layer itself, so the connection can outlive the layer's own construction. Providing this layer now requires supplying a `Scope` from somewhere, and the connection stays open for as long as that `Scope` stays open, not just for as long as the layer's own construction takes:
 
 ```scala mdoc:compile-only
 import zio._
@@ -169,16 +169,16 @@ object Connection {
 val acquireConnection: ZIO[Scope, Throwable, Connection] =
   ZIO.acquireRelease(Connection.open)(_.close)
 
-val leaky: ZLayer[Scope, Throwable, Connection] =
+val outlivingLayer: ZLayer[Scope, Throwable, Connection] =
   ZLayer.fromZIO(acquireConnection)
 
 val program: ZIO[Connection, Throwable, Unit] = ZIO.unit
 
 val runnable: ZIO[Any, Throwable, Unit] =
-  program.provide(leaky, Scope.default)
+  program.provide(outlivingLayer, Scope.default)
 ```
 
-Here `Scope.default` lives for the entire remaining execution of `runnable`, so the connection is held open for the whole program instead of being closed right after `program` is done with it. The fix is to build the layer with `ZLayer.scoped` instead of `ZLayer.fromZIO`, which consumes the `Scope` internally and ties the release to the layer's own lifetime:
+Here `Scope.default` lives for the entire remaining execution of `runnable`, so the connection outlives `program` and stays open for the whole remaining execution instead of closing right after `program` is done with it. The fix is to build the layer with `ZLayer.scoped` instead of `ZLayer.fromZIO`, which consumes the `Scope` internally and ties the release to the layer's own lifetime:
 
 ```scala mdoc:compile-only
 import zio._
@@ -202,10 +202,10 @@ val runnable: ZIO[Any, Throwable, Unit] =
   program.provide(connectionLayer)
 ```
 
-`connectionLayer` no longer requires a `Scope` in `RIn`, and `runnable` closes the connection as soon as `program` finishes with it.
+`connectionLayer` no longer requires a `Scope` in `RIn`, and `runnable` closes the connection as soon as `program` finishes with it, so nothing outlives its intended scope.
 
 :::note[Current Behavior]
-`ZLayer.fromZIO` and `ZLayer.apply` do not currently require evidence that `R` excludes `Scope`, so the compiler does not flag the pattern above. Prefer `ZLayer.scoped` whenever the effect you give to a layer constructor requires a `Scope`.
+`ZLayer.fromZIO` and `ZLayer.apply` do not currently require evidence that `R` excludes `Scope`, so the compiler does not flag an effect whose resource can outlive the layer's construction. Prefer `ZLayer.scoped` whenever the effect you give to a layer constructor requires a `Scope`.
 :::
 
 #### Extending a Layer's Scope on Purpose
@@ -232,7 +232,7 @@ val extendedLayer: ZLayer[Scope, Throwable, Connection] =
   connectionLayer.extendScope
 ```
 
-`extendedLayer` has the same `Scope` requirement in `RIn` as the leaky layer earlier in this section, but here it is intentional: calling `ZLayer#extendScope` documents in the code itself that the resource's lifetime is meant to extend beyond this layer's own construction, rather than being an accidental side effect of using `ZLayer.fromZIO` on a resourceful effect.
+`extendedLayer` has the same `Scope` requirement in `RIn` as `outlivingLayer` earlier in this section, but here it is intentional: calling `ZLayer#extendScope` documents in the code itself that the resource's lifetime is meant to extend beyond this layer's own construction, rather than being an accidental side effect of using `ZLayer.fromZIO` on a resourceful effect.
 
 `Spec#provideLayerShared` in ZIO Test builds on exactly this pattern to share one expensive layer across every test in a suite: it acquires the layer once using `ZLayer#extendScope`, ties the layer's release to the scope of the whole suite, and reuses the already-built environment for each test underneath instead of rebuilding the layer per test. The same technique applies outside of testing whenever several independent operations should share one resource. In the following example, two queries reuse the same `Database` connection, and the connection closes only once, after both queries finish, because `ZIO.scoped` supplies the outer `Scope` that `ZLayer#extendScope` extends into:
 
