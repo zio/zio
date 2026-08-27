@@ -234,6 +234,31 @@ val extendedLayer: ZLayer[Scope, Throwable, Connection] =
 
 `extendedLayer` has the same `Scope` requirement in `RIn` as the leaky layer earlier in this section, but here it is intentional: calling `ZLayer#extendScope` documents in the code itself that the resource's lifetime is meant to extend beyond this layer's own construction, rather than being an accidental side effect of using `ZLayer.fromZIO` on a resourceful effect.
 
+`Spec#provideLayerShared` in ZIO Test builds on exactly this pattern to share one expensive layer across every test in a suite: it acquires the layer once using `ZLayer#extendScope`, ties the layer's release to the scope of the whole suite, and reuses the already-built environment for each test underneath instead of rebuilding the layer per test. The same technique applies outside of testing whenever several independent operations should share one resource. In the following example, two queries reuse the same `Database` connection, and the connection closes only once, after both queries finish, because `ZIO.scoped` supplies the outer `Scope` that `ZLayer#extendScope` extends into:
+
+```scala mdoc:compile-only
+import zio._
+
+trait Database {
+  def query(sql: String): Task[Int]
+}
+
+object Database {
+  def connect: ZIO[Scope, Throwable, Database] = ???
+}
+
+val sharedDatabase: ZLayer[Any, Throwable, Database] =
+  ZLayer.scoped(Database.connect)
+
+val program: ZIO[Any, Throwable, (Int, Int)] =
+  ZIO.scoped {
+    sharedDatabase.extendScope.build.flatMap { env =>
+      val db = env.get[Database]
+      db.query("SELECT 1").zip(db.query("SELECT 2"))
+    }
+  }
+```
+
 ### From Functions
 
 A `ZLayer[R, E, A]` can be thought of as a function from `R` to `A`. So we can convert functions to the `ZLayer` using the `ZLayer.fromFunction` constructor.
