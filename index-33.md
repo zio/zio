@@ -11,9 +11,9 @@ _ZIO SBT_ contains multiple sbt plugins that are useful for ZIO projects. It pro
 Add the following lines to your `project/plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.7.0")
-addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.7.0")
-addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.7.0")
+addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.7.2")
+addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.7.2")
+addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.7.2")
 ```
 
 Then you can enable them by using the following code in your `build.sbt` file:
@@ -87,6 +87,20 @@ ZIO SBT Website is an SBT plugin that has the following tasks:
 - `sbt publishToNpm`— publishes documentation inside the `docs` directory to the npm registry.
 - `sbt generateReadme`— generate README.md file from `docs/index.md` and sbt setting keys.
 
+`website/docs` is generated output, not source. `mdocOut` points there, so `compileDocs` — and
+anything that sequences it, including `generateReadme` — writes compiled documentation into it.
+Add it to `.gitignore`:
+
+```gitignore
+/website/docs
+/website/build
+/website/node_modules
+/website/.docusaurus
+```
+
+Committing `website/docs` leaves a `website` directory that holds generated output but no
+Docusaurus scaffold, and `buildWebsite` then has no `package.json` to install from.
+
 ## ZIO SBT CI Plugin
 
 ZIO SBT CI is an sbt plugin which generates a GitHub workflow for a project, making it easier to set up continuous integration (CI) pipelines for Scala projects. With this plugin, developers can streamline their development workflow by automating the testing and deployment process, reducing manual effort and errors. The plugin is designed to work seamlessly with sbt, the popular build tool for Scala projects, and integrates smoothly with GitHub Actions, the CI/CD platform provided by GitHub.
@@ -100,7 +114,7 @@ ZIO SBT CI plugin generates a default GitHub workflow that includes common CI ta
 To use ZIO SBT CI plugin, add the following lines to your `plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.7.0")
+addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.7.2")
 
 resolvers ++= Resolver.sonatypeOssRepos("public")
 ```
@@ -379,7 +393,7 @@ ZIO SBT Source is a Scala 2.13 + Scala 3 cross-compiled library that provides ut
 Add the following line to your `libraryDependencies` in `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.7.0"
+libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.7.2"
 ```
 
 ### Features
@@ -512,7 +526,7 @@ test:
     with:
       fetch-depth: '0'
   - name: Test
-    run: sbt +test
+    run: sbt --no-colors +test
 ```
 
 The `sbt +test` command will run the `test` task for all submodules in the project against all Scala versions defined in the `crossScalaVersions` setting.
@@ -581,5 +595,5 @@ test:
     with:
       fetch-depth: '0'
   - name: Test
-    run: sbt ${{ matrix.scala-project }}/test
+    run: sbt --no-colors ${{ matrix.scala-project }}/test
 ```

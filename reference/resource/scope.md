@@ -93,7 +93,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19330/0x00007f5432ec26e0@35807742
+//     f = zio.ZIO$$$Lambda$19402/0x00007fe4aee7d050@3a89a964
 //   ),
 //   successK = <function1>
 // )
