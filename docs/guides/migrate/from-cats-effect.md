@@ -848,7 +848,7 @@ The complete example below combines the core replacement patterns from this guid
 
 ## Running the Examples
 
-Clone the repository and change into the examples module:
+Clone the repository and change into the examples module. Every step below ships as two full, independently runnable programs — the cats-effect original under `migratecatseffect.catseffect.*` and its ZIO migration under `migratecatseffect.*` — so you can run both, compare output, and diff the source side by side instead of taking the guide's word for it:
 
 ```bash
 git clone https://github.com/zio/zio.git
@@ -857,6 +857,17 @@ cd zio/zio-examples
 
 <details>
 <summary>Step 1 — Entry Point</summary>
+
+**Before (cats-effect):**
+
+```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/catseffect/Step1EntryPoint.scala:show-line-numbers
+```
+
+```bash
+sbt "migrate-cats-effect/runMain migratecatseffect.catseffect.Step1EntryPoint"
+```
+
+**After (ZIO):**
 
 ```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/Step1EntryPoint.scala:show-line-numbers
 ```
@@ -872,6 +883,17 @@ sbt "migrate-cats-effect/runMain migratecatseffect.Step1EntryPoint"
 <details>
 <summary>Step 2 — Effect Constructors</summary>
 
+**Before (cats-effect):**
+
+```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/catseffect/Step2EffectTypes.scala:show-line-numbers
+```
+
+```bash
+sbt "migrate-cats-effect/runMain migratecatseffect.catseffect.Step2EffectTypes"
+```
+
+**After (ZIO):**
+
 ```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/Step2EffectTypes.scala:show-line-numbers
 ```
 
@@ -885,6 +907,17 @@ sbt "migrate-cats-effect/runMain migratecatseffect.Step2EffectTypes"
 
 <details>
 <summary>Step 3 — Error Channel</summary>
+
+**Before (cats-effect):**
+
+```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/catseffect/Step3ErrorHandling.scala:show-line-numbers
+```
+
+```bash
+sbt "migrate-cats-effect/runMain migratecatseffect.catseffect.Step3ErrorHandling"
+```
+
+**After (ZIO):**
 
 ```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/Step3ErrorHandling.scala:show-line-numbers
 ```
@@ -900,6 +933,17 @@ sbt "migrate-cats-effect/runMain migratecatseffect.Step3ErrorHandling"
 <details>
 <summary>Step 4 — Resource Lifecycles</summary>
 
+**Before (cats-effect)** — note the nested `.use` calls:
+
+```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/catseffect/Step4Resources.scala:show-line-numbers
+```
+
+```bash
+sbt "migrate-cats-effect/runMain migratecatseffect.catseffect.Step4Resources"
+```
+
+**After (ZIO):**
+
 ```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/Step4Resources.scala:show-line-numbers
 ```
 
@@ -913,6 +957,17 @@ sbt "migrate-cats-effect/runMain migratecatseffect.Step4Resources"
 
 <details>
 <summary>Step 5 — Fiber Concurrency</summary>
+
+**Before (cats-effect):**
+
+```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/catseffect/Step5Concurrency.scala:show-line-numbers
+```
+
+```bash
+sbt "migrate-cats-effect/runMain migratecatseffect.catseffect.Step5Concurrency"
+```
+
+**After (ZIO):**
 
 ```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/Step5Concurrency.scala:show-line-numbers
 ```
@@ -928,6 +983,17 @@ sbt "migrate-cats-effect/runMain migratecatseffect.Step5Concurrency"
 <details>
 <summary>Step 6 — Shared State</summary>
 
+**Before (cats-effect)** — includes `IOLocal`:
+
+```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/catseffect/Step6SharedState.scala:show-line-numbers
+```
+
+```bash
+sbt "migrate-cats-effect/runMain migratecatseffect.catseffect.Step6SharedState"
+```
+
+**After (ZIO):**
+
 ```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/Step6SharedState.scala:show-line-numbers
 ```
 
@@ -941,6 +1007,17 @@ sbt "migrate-cats-effect/runMain migratecatseffect.Step6SharedState"
 
 <details>
 <summary>Step 7 — Concurrent Data Structures</summary>
+
+**Before (cats-effect)** — note `CountDownLatch#release`, not `countDown`:
+
+```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/catseffect/Step7ConcurrentDataStructures.scala:show-line-numbers
+```
+
+```bash
+sbt "migrate-cats-effect/runMain migratecatseffect.catseffect.Step7ConcurrentDataStructures"
+```
+
+**After (ZIO):**
 
 ```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/Step7ConcurrentDataStructures.scala:show-line-numbers
 ```
@@ -956,6 +1033,17 @@ sbt "migrate-cats-effect/runMain migratecatseffect.Step7ConcurrentDataStructures
 <details>
 <summary>Step 8 — Time and Retries</summary>
 
+**Before (cats-effect)** — sleep/timeout only; `cats-retry` is a separate library not included here:
+
+```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/catseffect/Step8TimeAndRetry.scala:show-line-numbers
+```
+
+```bash
+sbt "migrate-cats-effect/runMain migratecatseffect.catseffect.Step8TimeAndRetry"
+```
+
+**After (ZIO):**
+
 ```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/Step8TimeAndRetry.scala:show-line-numbers
 ```
 
@@ -969,6 +1057,17 @@ sbt "migrate-cats-effect/runMain migratecatseffect.Step8TimeAndRetry"
 
 <details>
 <summary>Complete Example</summary>
+
+**Before (cats-effect)** — the motivating program from [The Problem](#the-problem):
+
+```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/catseffect/CompleteExample.scala:show-line-numbers
+```
+
+```bash
+sbt "migrate-cats-effect/runMain migratecatseffect.catseffect.CompleteExample"
+```
+
+**After (ZIO):**
 
 ```scala mdoc:embed:zio-examples/migrate-cats-effect/src/main/scala/migratecatseffect/CompleteExample.scala:show-line-numbers
 ```
