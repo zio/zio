@@ -32,12 +32,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20232/0x00007fe4af031da0@40fb9629
+//   eval = zio.Ref$$$Lambda$20245/0x00007f0a6b0737e8@45cd6dd3
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20232/0x00007fe4af031da0@5319a1f5
+//   eval = zio.Ref$$$Lambda$20245/0x00007f0a6b0737e8@6c5c382e
 // )
 
 sealed trait State
@@ -48,7 +48,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20232/0x00007fe4af031da0@528b2e13
+//   eval = zio.Ref$$$Lambda$20245/0x00007f0a6b0737e8@69fd8eb7
 // )
 ```
 
@@ -65,7 +65,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20232/0x00007fe4af031da0@36cff899
+//   eval = zio.Ref$$$Lambda$20245/0x00007f0a6b0737e8@5711b4ec
 // )
 ```
 
@@ -77,7 +77,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20232/0x00007fe4af031da0@291d2af7
+//   eval = zio.Ref$$$Lambda$20245/0x00007f0a6b0737e8@4b99ffa
 // )
 ```
 
@@ -355,3 +355,4 @@ If you need the continuation to be part of the atomic operation—ensuring no ot
 ## See Also
 
 - [Global Shared State](../state-management/global-shared-state.md) — Manage global shared state in ZIO applications using Ref, enabling safe concurrent state sharing between fibers.
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — step-by-step guide showing how `Ref.of[IO](v)` maps to `Ref.make(v)` and how the rest of the `Ref` API carries over unchanged.

@@ -93,7 +93,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19402/0x00007fe4aee7d050@3a89a964
+//     f = zio.ZIO$$$Lambda$19402/0x00007f0a6aecd7d8@361ce1af
 //   ),
 //   successK = <function1>
 // )
@@ -353,3 +353,4 @@ This way the creator of a `Scope` can be sure that someone else will not "pull t
 
 - [ZStream](../stream/zstream/index.md) — for converting scoped resources into streaming data
 - [Handling Resources](../../overview/handling-resources.md) — foundational overview of resource management patterns
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — shows how `Resource.make(acq)(rel)` maps to `ZIO.acquireRelease` inside `ZIO.scoped`, and how stacking resources in one `for`-comprehension replaces nested `.use` calls.

@@ -961,3 +961,4 @@ object Main extends ZIOAppDefault {
 
 - **[ThreadLocalBridge](./threadlocal-bridge.md)** — Synchronize `FiberRef` with Java `ThreadLocal` variables for interoperability with legacy Java libraries.
 - **[The Differ Data Type](../../guides/compositional-fiberref-updates-with-differ.md)** — A step-by-step tutorial on how `Differ[Value, Patch]` enables compositional, patch-based `FiberRef` updates that faithfully merge concurrent fiber changes.
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — shows how cats-effect's `IOLocal` maps to `FiberRef`, including the fork/join value-propagation semantics both share.

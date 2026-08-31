@@ -239,3 +239,7 @@ for {
   res2      <- f2.await
 } yield assert(!isBroken1 && isBroken2)
 ```
+
+## See Also
+
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — shows how `cats.effect.std.CyclicBarrier` maps to `zio.concurrent.CyclicBarrier`, part of the `zio-concurrent` module.

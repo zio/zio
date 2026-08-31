@@ -112,3 +112,4 @@ itself.
 
 - [Fiber](../fiber/fiber.md) — Lightweight concurrency primitives for non-blocking, structured execution of ZIO effects with automatic supervision and interruption.
 - [Semaphore](semaphore.md) — A synchronization primitive that safely manages permit-based fiber coordination with automatic release guarantees.
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — shows how `Deferred[IO, A]` maps to `Promise[E, A]` and how the typed error channel (`promise.fail(e)`) eliminates the `Ref[Option[Either[E, A]]]` workaround.
