@@ -29,3 +29,4 @@ A variety of [combinators](combinators.md) exist for transforming and combining 
 
 - [ZStream Scheduling](../stream/zstream/scheduling.md) — ZStream scheduling combinators for controlling emission timing and spacing of stream outputs using configurable schedule policies.
 - [TestAspect: Repetition and Retrying](../test/aspects/repeat-and-retry.md) — Test aspects for repeating or retrying tests according to specified schedules.
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — shows how `Schedule` replaces the separate `cats-retry` library, including policy composition with `&&`/`||`.
