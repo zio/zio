@@ -161,3 +161,5 @@ At that point, the JVM process exits immediately even though the 20-second final
 :::note
 Currently, `gracefulShutdownTimeout` is implemented for the **JVM** and **Scala Native** only
 :::
+
+**See also:** [How to Build and Run a ZIO Application on Scala Native](../../guides/scala-native.md) — a step-by-step guide to cross-compiling a `ZIOApp` as a Scala Native binary.
