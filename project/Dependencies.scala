@@ -8,7 +8,7 @@ object Dependencies {
   val MagnoliaScala2Version        = "1.1.14"
   val MagnoliaScala3Version        = "1.3.23"
   val RefinedVersion               = "0.11.4"
-  val ScalaCheckVersion            = "1.19.0"
+  val ScalaCheckVersion            = "1.20.0"
   val ScalaJavaTimeVersion         = "2.7.0"
   val ScalaCollectionCompatVersion = "2.14.0"
   val ScalaNativeCryptoVersion     = "0.3.0"
@@ -16,7 +16,7 @@ object Dependencies {
   val ScalaJsDomVersion            = "2.8.1"
 
   // Documentations and example dependencies
-  val CatsEffectVersion = "3.7.0"
+  val CatsEffectVersion = "3.7.1"
   val DoobieVersion     = "1.0.0-RC5"
   val Fs2Version        = "3.13.0"
   val Http4sVersion     = "0.23.29"

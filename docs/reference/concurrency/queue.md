@@ -165,3 +165,4 @@ val awaitShutdown: UIO[Unit] = for {
 - [ZIO Queue Talk by Wiem Zine El Abidine @ PSUG 2018](https://www.slideshare.net/wiemzin/psug-zio-queue)
 - [Elevator Control System using ZIO](https://medium.com/@wiemzin/elevator-control-system-using-zio-c718ae423c58)
 - [Scalaz 8 IO vs Akka (typed) actors vs Monix](https://blog.softwaremill.com/scalaz-8-io-vs-akka-typed-actors-vs-monix-part-1-5672657169e1)
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — shows how `cats.effect.std.Queue` maps directly to `zio.Queue`, and where the rest of `cats.effect.std` lands in ZIO.
