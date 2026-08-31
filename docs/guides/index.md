@@ -13,9 +13,10 @@ The following guides have been written to help you get started with ZIO with min
 3. [ZIO Quickstart: Building a GraphQL Web Service](quickstarts/graphql-webservice.md)
 4. [ZIO Quickstart: Building a gRPC Server and Client](https://scalapb.github.io/zio-grpc/docs/quickstart/)
 
-## Guides
+## How-To Guides
 
-1. [The Differ Data Type](compositional-fiberref-updates-with-differ.md) — Learn how `Differ[Value, Patch]` powers compositional, patch-based `FiberRef` updates that faithfully merge concurrent fiber changes.
+1. [Build a TodoMVC Application with ZIO on Scala.js](build-todomvc-with-zio-scalajs.md) — Create a browser-based TodoMVC app with ZIO state management, eliminating callback spaghetti and enforcing type safety with `Ref`.
+2. [The Differ Data Type](compositional-fiberref-updates-with-differ.md) — Learn how `Differ[Value, Patch]` powers compositional, patch-based `FiberRef` updates that faithfully merge concurrent fiber changes.
 
 ## Tutorial Guides
 

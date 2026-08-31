@@ -493,6 +493,13 @@ module.exports = {
     },
     {
       type: "category",
+      label: "How-To Guides",
+      items: [
+        "guides/build-todomvc-with-zio-scalajs",
+      ]
+    },
+    {
+      type: "category",
       label: "Tutorial Guides",
       items: [
         "guides/tutorials/retry-and-repeat-policies-with-schedule",
