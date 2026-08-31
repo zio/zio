@@ -517,6 +517,7 @@ module.exports = {
       type: "category",
       label: "Integration Guides",
       items: [
+        "guides/scala-native",
         "guides/interop/with-cats-effect",
         "guides/interop/with-future",
         "guides/interop/with-java",
