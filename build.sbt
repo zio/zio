@@ -781,7 +781,8 @@ lazy val docs_make_zio_app_configurable =
         `zio-config-magnolia`,
         "io.getquill"   %% "quill-zio"      % QuillVersion,
         "io.getquill"   %% "quill-jdbc-zio" % QuillVersion,
-        "com.h2database" % "h2"             % "2.3.232"
+        "com.h2database" % "h2"             % "2.3.232",
+        "dev.zio"       %% "zio-sbt-source" % "0.6.0"
       ),
       dependencyOverrides ++= Seq(
         `zio-json`
