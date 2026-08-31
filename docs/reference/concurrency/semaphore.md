@@ -63,3 +63,4 @@ The guarantee of `withPermit` (and its corresponding counting version `withPermi
 ## See Also
 
 - [Fiber](../fiber/fiber.md) — lightweight concurrency mechanism that Semaphore synchronizes between
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — shows how `cats.effect.std.Semaphore` maps to `zio.Semaphore`, and how a binary semaphore replaces `cats.effect.std.Mutex`.
