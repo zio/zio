@@ -515,7 +515,7 @@ Unlike `IOLocal`, ZIO's `FiberRef.make` is scoped — the `FiberRef` itself is a
 | cats-effect 3.x (`cats.effect.std`) | ZIO 2.x                          | Notes                                                                 |
 | ------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------- |
 | `Queue[F, A]`                         | `zio.Queue[A]`                      | Bounded/unbounded, `offer`/`take`, same core semantics                     |
-| `Semaphore[F]`                        | `zio.Semaphore`                     | `acquire`/`release`/`withPermit`                                           |
+| `Semaphore[F]`                        | `zio.Semaphore`                     | `withPermit`/`withPermits` acquire-and-release a permit around an effect; there's no standalone `acquire`/`release` pair to call manually |
 | `CountDownLatch[F]`                   | `zio.concurrent.CountdownLatch`     | Requires the `zio-concurrent` module; `countDown`/`await`                  |
 | `CyclicBarrier[F]`                    | `zio.concurrent.CyclicBarrier`      | Requires the `zio-concurrent` module; resettable, unlike `CountDownLatch`  |
 | `Random[F]`                           | `zio.Random`                        | Built-in service, no environment requirement                              |
@@ -551,7 +551,8 @@ The rest of `cats.effect.std` maps as follows. These are less commonly hit durin
 
 | cats-effect 3.x                | ZIO 2.x                              | Notes                                                                    |
 | --------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------ |
-| `Dequeue[F, A]`                   | `zio.Dequeue[A]`                         | The read-only half of `Queue` — same relationship in both libraries      |
+| `QueueSource[F, A]`               | `zio.Dequeue[A]`                         | The read-only half of `Queue` in both libraries — cats-effect's take-only interface |
+| `Dequeue[F, A]`                   | *(no direct equivalent)*                 | Cats-effect's `Dequeue` is a double-ended queue (`offerFront`/`offerBack`/`takeFront`/`takeBack`) that extends the full read-write `Queue` — not read-only, despite the name. `zio.Queue` isn't double-ended; model the same use case with two `zio.Queue`s or a `Ref[Chunk[A]]` |
 | `PQueue[F, A]`                    | `zio.stm.TPriorityQueue[A]`              | Runs inside `STM`; commit with `.commit` to get back a `UIO[A]`          |
 | `MapRef[F, K, V]` / `AtomicMap[F, K, V]` | `Ref[Map[K, V]]` or `zio.stm.TMap[K, V]` | `Ref[Map[K, V]]` for simple cases; `TMap` when you need per-key STM transactions |
 | `Backpressure[F]`                 | *(not needed)*                           | A bounded `zio.Queue` already blocks producers when full — no separate wrapper required |
@@ -596,7 +597,7 @@ See [Schedule](../../reference/schedule/index.md) for the full set of built-in s
 
 Cats-effect's `IORuntime` — its thread pools, blocking-detection tuning, and startup configuration — maps conceptually to ZIO's `Runtime` layer customization. Rather than duplicate that material here, see the [ZIO 1.x → 2.x Migration Guide's Runtime section](migration-guide.md#runtime-platform-and-executor), which documents `Runtime.setExecutor`, `Runtime.addLogger`, and the rest of the layer-based runtime customization API in full — the same API applies whether you're migrating from ZIO 1.x or from cats-effect.
 
-One behavioral difference worth calling out directly: like cats-effect's runtime, ZIO automatically detects a synchronous effect that blocks a thread for too long and shifts it to a dedicated blocking executor, so an accidental `ZIO.attempt(Thread.sleep(...))` doesn't starve the async thread pool the way it would in a hand-rolled runtime. Prefer `ZIO.attemptBlocking` explicitly where you know a call blocks, the same way you'd reach for cats-effect's blocking constructors.
+One thing that does *not* carry over automatically: cats-effect's `IOApp` runtime periodically checks for compute-pool starvation and logs a warning when a fiber blocks a worker thread too long — but it only warns, it does not reschedule the blocking work. ZIO has no equivalent starvation checker at all. In both runtimes, an accidental `ZIO.attempt(Thread.sleep(...))` (or `IO(Thread.sleep(...))`) occupies a worker thread for the full duration with no automatic compensation — use `ZIO.attemptBlocking` explicitly for JDBC calls, file I/O, or anything else that blocks a thread, the same discipline `IO.blocking` requires in cats-effect.
 
 ## Testing
 
