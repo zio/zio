@@ -16,7 +16,7 @@ keywords:
 
 ## Introduction
 
-This guide is a comprehensive reference for migrating a cats-effect 3.x application to ZIO 2.x. Rather than walking through a single example from start to finish, it is organized by topic — `IO`, `Resource`, `Fiber`, typeclasses, `cats.effect.std`, time and retries, testing, and more — so you can jump directly to whatever construct your codebase uses. Every mapping is backed by a two-column table (cats-effect 3.x → ZIO 2.x), and most sections include a short compiled code snippet showing the replacement in context.
+This guide is a comprehensive reference for migrating a cats-effect 3.x application to ZIO 2.x. Rather than walking through a single example from start to finish, it is organized by topic — `IO`, `Resource`, `Fiber`, typeclasses, `cats.effect.std`, time and retries, testing, and more — so you can jump directly to whatever construct your codebase uses. Every mapping is backed by a two-column table (cats-effect 3.x → ZIO 2.x), and most sections show the actual cats-effect code next to its ZIO replacement — both sides compiled against the real libraries, not just described in prose.
 
 What this guide covers:
 
@@ -150,6 +150,19 @@ case class TimeoutError(msg: String) extends AppError
 
 Replace `IOApp.Simple` with `ZIOAppDefault` and change the `def run: IO[Unit]` return type to `Task[Unit]`. The ZIO runtime, shutdown hooks, and default fiber scheduler are all provided by `ZIOAppDefault` — no additional configuration is required:
 
+**Before (cats-effect):**
+
+```scala mdoc:compile-only
+import cats.effect.{IO, IOApp}
+
+object WorkerPool extends IOApp.Simple {
+  def run: IO[Unit] =
+    IO(println("Application started under cats-effect runtime"))
+}
+```
+
+**After (ZIO):**
+
 ```scala mdoc:compile-only
 import zio._
 
@@ -205,7 +218,32 @@ Every cats-effect constructor maps to a ZIO counterpart:
 
 Use `ZIO.attemptBlocking(body)` for JDBC calls, file I/O, or any computation that blocks a thread — it shifts execution to ZIO's dedicated blocking thread pool rather than occupying a fiber worker.
 
-The following shows the core constructors in place, producing ZIO effect values as data:
+The following shows the core constructors in place, producing effect values as data — the cats-effect version first, then the same program translated to ZIO:
+
+**Before (cats-effect):**
+
+```scala mdoc:compile-only
+import cats.effect.IO
+
+import scala.concurrent.duration.{FiniteDuration, SECONDS}
+
+val fetched:    IO[String]  = IO("result from database")
+val constant:   IO[Int]     = IO.pure(42)
+val unit:       IO[Unit]    = IO.unit
+val never:      IO[Nothing] = IO.never
+val raiseErr:   IO[Nothing] = IO.raiseError(new RuntimeException("oops"))
+val fromEither: IO[Int]     = IO.fromEither(Right(1): Either[Throwable, Int])
+val fromTry:    IO[Int]     = IO.fromTry(scala.util.Try(1 / 1))
+val slept:      IO[Unit]    = IO.sleep(FiniteDuration(1, SECONDS))
+val now:        IO[Long]    = IO.monotonic.map(_.toNanos)
+
+val program: IO[String] = for {
+  a <- IO("hello")
+  b <- IO.pure(" world")
+} yield a + b
+```
+
+**After (ZIO):**
 
 ```scala mdoc:compile-only
 import zio._
@@ -248,7 +286,49 @@ val program: Task[String] = for {
 
 `mapError` is the primary tool for lifting an untyped `Task[A]` (error = `Throwable`) into a domain-specific `IO[AppError, A]`. It has no cats-effect equivalent because `IO[A]` cannot represent typed errors at all.
 
-The block below demonstrates each replacement, starting from a `ZIO.fail` call and progressing through recovery, type narrowing, and error materialization:
+The block below demonstrates each replacement, starting from `raiseError`/`ZIO.fail` and progressing through recovery, type narrowing, and error materialization — the cats-effect version first, then the same program translated to ZIO:
+
+**Before (cats-effect):**
+
+```scala mdoc:compile-only
+import cats.effect.IO
+
+sealed trait AppError extends Throwable { def msg: String }
+case class DbError(msg: String)      extends AppError
+case class TimeoutError(msg: String) extends AppError
+
+// Raise a typed domain error
+val failedQuery: IO[String] =
+  IO.raiseError(DbError("connection refused"))
+
+// handleErrorWith — recover from any Throwable
+val recovered: IO[String] =
+  failedQuery.handleErrorWith(e => IO(s"recovered: ${e.getMessage}"))
+
+// A call that may throw
+val rawQuery: IO[String] =
+  IO(throw new RuntimeException("timeout"))
+
+// adaptError — narrow Throwable to a domain error type
+val typed: IO[String] =
+  rawQuery.adaptError {
+    case e: RuntimeException => TimeoutError(e.getMessage)
+    case other               => DbError(other.getMessage)
+  }
+
+// redeem — pure handlers on both branches
+val summarized: IO[String] =
+  typed.redeem(e => s"failed: ${e.getMessage}", r => s"ok: $r")
+
+// onError — observe without swallowing; takes a PartialFunction
+val observed: IO[String] =
+  typed.onError { case e => IO(println(s"logging failure: ${e.getMessage}")) }
+
+// attempt — materialise failure as Either
+val inspected: IO[Either[Throwable, String]] = typed.attempt
+```
+
+**After (ZIO):**
 
 ```scala mdoc:compile-only
 import zio._
@@ -302,6 +382,31 @@ val inspected: UIO[Either[AppError, String]] = typed.either
 | `resource.evalTap(f)`                | `acquired.tap(f)`                                     | Same reasoning as `evalMap`                                  |
 
 Stack multiple resources in one `for`-comprehension inside one `ZIO.scoped` block — no nested `.use` calls needed:
+
+**Before (cats-effect)** — two resources mean two nested `.use` calls:
+
+```scala mdoc:compile-only
+import cats.effect.{IO, Resource}
+
+case class DbConnection(id: Int) {
+  def query(sql: String): IO[String] = IO(s"conn-$id: $sql result")
+  def close(): IO[Unit]              = IO(println(s"Closing connection $id"))
+}
+
+def makeDbConnection(id: Int): Resource[IO, DbConnection] =
+  Resource.make(
+    IO(println(s"Opening connection $id")).as(DbConnection(id))
+  )(conn => conn.close())
+
+val program: IO[String] =
+  makeDbConnection(1).use { conn1 =>
+    makeDbConnection(2).use { conn2 =>
+      conn1.query("SELECT 1")
+    }
+  }
+```
+
+**After (ZIO)** — one flat `for`-comprehension inside a single `ZIO.scoped`:
 
 ```scala mdoc:compile-only
 import zio._
@@ -390,7 +495,40 @@ ZIO uses `zio.fork` and `fiber.interrupt` where cats-effect uses `io.start` and 
 
 Note that `a.race(b)` in ZIO returns `A` directly when both sides produce the same type — not `Either[A, B]` as cats-effect's `IO.race` does. To distinguish which side won, map each side to a tagged type first: `a.map(Left(_)).race(b.map(Right(_)))`.
 
-The following demonstrates each concurrent pattern in a single for-comprehension:
+The following demonstrates each concurrent pattern in a single for-comprehension — the cats-effect version first, then the same program translated to ZIO:
+
+**Before (cats-effect):**
+
+```scala mdoc:compile-only
+import cats.effect.IO
+import cats.syntax.all._
+
+val step5: IO[Unit] = for {
+  // start replaces .fork
+  fiber1 <- IO(println("worker-1")).start
+  fiber2 <- IO(println("worker-2")).start
+
+  // cancel — only takes effect where the wrapped IO opted in via Poll
+  _ <- fiber1.cancel
+
+  // race: returns Either[A, B]
+  winner <- IO.race(IO.pure("fast"), IO.pure("slow"))
+
+  // join returns Outcome[IO, Throwable, A]
+  outcome2 <- fiber2.join
+
+  // parTraverse replaces foreachPar
+  squares <- List(1, 2, 3).parTraverse(n => IO.pure(n * n))
+
+  // parMapN — runs both effects in parallel, returns a tuple
+  pair <- (IO.pure(42), IO.pure("hello")).parMapN((a, b) => (a, b))
+
+  // uncancelable — poll(_) re-enables cancelation for the wrapped effect
+  _ <- IO.uncancelable(poll => poll(IO(println("critical section"))))
+} yield ()
+```
+
+**After (ZIO):**
 
 ```scala mdoc:compile-only
 import zio._
@@ -452,7 +590,33 @@ ZIO's `Promise[E, A]` adds a typed error channel that `Deferred[IO, A]` lacks:
 | `deferred.complete(a)`         | `promise.succeed(a)`             | Returns `UIO[Boolean]` — `false` if already set      |
 | *(no equivalent)*              | `promise.fail(e)`                | Completes with typed failure `E`                     |
 
-The block below shows both `Ref` and `Promise` in use, including the typed-failure path that has no cats-effect equivalent:
+The block below shows both `Ref`/`Deferred` and their ZIO replacements — including the typed-failure path on `Promise` that `Deferred` has no equivalent for:
+
+**Before (cats-effect):**
+
+```scala mdoc:compile-only
+import cats.effect.{IO, Ref, Deferred}
+
+val step6: IO[Unit] = for {
+  // Ref — same API ZIO uses, different constructor
+  counter <- Ref.of[IO, Int](0)
+  n1      <- counter.updateAndGet(_ + 1)
+  n2      <- counter.updateAndGet(_ + 1)
+
+  // Deferred — completed once with a success value only
+  done <- Deferred[IO, String]
+  _    <- done.complete("all done")
+  msg  <- done.get
+
+  // No typed failure channel — Deferred can only carry a success value,
+  // so a domain failure has to be smuggled through as data
+  errored <- Deferred[IO, Either[String, Int]]
+  _       <- errored.complete(Left("something went wrong"))
+  result  <- errored.get
+} yield ()
+```
+
+**After (ZIO):**
 
 ```scala mdoc:compile-only
 import zio._
@@ -488,6 +652,24 @@ Cats-effect's `IOLocal[A]` holds fiber-local mutable state: each fiber sees its 
 | `local.set(a)`                            | `fiberRef.set(a)`                           | —                                                              |
 | `local.update(f)`                         | `fiberRef.update(f)`                        | —                                                              |
 | `local.reset`                             | *(no direct equivalent)*                    | Restore the initial value with `fiberRef.set(initial)` explicitly |
+
+**Before (cats-effect):**
+
+```scala mdoc:compile-only
+import cats.effect.{IO, IOLocal}
+
+val step6b: IO[Unit] = for {
+  requestId <- IOLocal("unset")
+  _         <- requestId.set("req-42")
+  // A forked child fiber inherits the current value...
+  child     <- requestId.get.flatMap(v => IO(println(s"child sees $v"))).start
+  _         <- child.join
+  // ...but changes the child makes are not visible to the parent
+  _         <- requestId.get.flatMap(v => IO(println(s"parent still sees $v")))
+} yield ()
+```
+
+**After (ZIO):**
 
 ```scala mdoc:compile-only
 import zio._
@@ -525,6 +707,30 @@ Unlike `IOLocal`, ZIO's `FiberRef.make` is scoped — the `FiberRef` itself is a
 | `Supervisor[F]`                       | `zio.Supervisor`                    | Conceptually different: ZIO's `Supervisor` observes fiber lifecycle events rather than providing CE's structured-scope supervision; for "fork children, clean them all up together," use `ZIO#fork` inside a `Scope` instead |
 | `Dispatcher[F]`                       | *(not needed)*                      | Dispatcher exists to run `IO` from non-cats-effect callback code; ZIO's `Runtime`/`Unsafe` API covers the same FFI use case directly, without a separate resource to acquire |
 | `Hotswap[F]`                          | *(no direct equivalent)*            | Model dynamic resource-swapping with nested `Scope`s: close the old scope and open a new one when swapping                |
+
+**Before (cats-effect):**
+
+```scala mdoc:compile-only
+import cats.effect.IO
+import cats.effect.std.{AtomicCell, Queue, Semaphore}
+
+val step7: IO[Unit] = for {
+  // Queue replaces cats.effect.std.Queue
+  queue <- Queue.bounded[IO, Int](10)
+  _     <- queue.offer(1)
+  n     <- queue.take
+
+  // Semaphore — permit is a Resource, used via .use
+  sem <- Semaphore[IO](1)
+  _   <- sem.permit.use(_ => IO(println(s"exclusive access, got $n")))
+
+  // AtomicCell — replaced by Ref.Synchronized; effectful updates never interleave
+  cell <- AtomicCell[IO].of(0)
+  _    <- cell.update(v => v + 1)
+} yield ()
+```
+
+**After (ZIO):**
 
 ```scala mdoc:compile-only
 import zio._
@@ -572,6 +778,25 @@ cats-effect's `Temporal[F]` typeclass bundles sleeping, timeouts, and clock acce
 | cats-retry `RetryPolicies.exponentialBackoff` | `Schedule.exponential(base)`     | —                                                                   |
 | cats-retry `RetryPolicies.limitRetries(n)` | `Schedule.recurs(n)`                | —                                                                   |
 | cats-retry policy combination (`policy1.join(policy2)`) | `schedule1 && schedule2`  | `Schedule` composes with ordinary combinators (`&&`, `||`, `andThen`) instead of a separate policy-combination API |
+
+**Before (cats-effect)** — `sleep`/`timeout` compile against cats-effect directly; the retry side isn't shown compiled here since `cats-retry` is a separate library from cats-effect itself, not part of the core dependency this guide compiles against:
+
+```scala mdoc:compile-only
+import cats.effect.IO
+
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, SECONDS}
+
+val step8: IO[Unit] = for {
+  // sleep
+  _ <- IO.sleep(FiniteDuration(100, MILLISECONDS))
+
+  // timeout — raises a TimeoutException on timeout; ZIO's variant below returns an Option instead
+  timed <- IO("slow computation").timeout(FiniteDuration(1, SECONDS))
+  _     <- IO(println(s"timeout result: $timed"))
+} yield ()
+```
+
+**After (ZIO):**
 
 ```scala mdoc:compile-only
 import zio._
