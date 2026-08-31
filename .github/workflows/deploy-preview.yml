@@ -39,6 +39,13 @@ jobs:
         id: pr
         run: echo "number=$(cat pr-metadata/pr-number.txt)" >> "$GITHUB_OUTPUT"
 
+      - name: Compute Deployment Metadata
+        id: meta
+        run: |
+          echo "time=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> "$GITHUB_OUTPUT"
+          sha="${{ github.event.workflow_run.head_sha }}"
+          echo "short_sha=${sha:0:7}" >> "$GITHUB_OUTPUT"
+
       - name: Deploy Preview to Netlify
         id: netlify-deploy
         uses: nwtgck/actions-netlify@v4.0
@@ -61,3 +68,6 @@ jobs:
           header: netlify-preview
           message: |
             🚀 Preview deployed to Netlify: ${{ steps.netlify-deploy.outputs.deploy-url }}
+
+            🕒 Deployed at: ${{ steps.meta.outputs.time }}
+            📌 Commit: [`${{ steps.meta.outputs.short_sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.event.workflow_run.head_sha }})
