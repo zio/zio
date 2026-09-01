@@ -445,7 +445,16 @@ object Schedule {
 }
 ```
 
-`collectAll[A]` collects every input into a growing `Chunk[A]`, continuing indefinitely. `collectWhile(f)` stops once `f(input)` is false. `collectUntil(f)` stops once `f(input)` is true. These companion constructors collect *inputs* — for collecting the *outputs* of an existing schedule, see `Schedule#collectAll` in [Collecting Outputs](#collecting-outputs). Usage:
+These companion constructors collect *inputs* — for collecting the *outputs* of an existing schedule,
+see `Schedule#collectAll` in [Collecting Outputs](#collecting-outputs).
+
+Like [`Schedule.identity`](#primitives-and-building-blocks) that they're built on, none of them add a delay of their own — pair them with `&&`/`<*` and a timing schedule (`spaced`, `recurs`, `upTo`, …) the same way [Duration-Bounded](#duration-bounded) pairs `upTo` with `spaced`, or they'll accumulate as fast as the input arrives:
+
+- **`collectAll[A]`** — collects every input forever; nothing ever stops it on its own. Use it to build a full history for later inspection — for example, recording every error a retry loop sees so you can report all of them in a post-mortem, not just the last one.
+- **`collectWhile(f)`** — collects inputs and stops as soon as one fails `f`. Use it to gather a batch while it stays valid — for example, buffering queued orders as long as each one passes a validation check, then handing off the batch the moment an invalid order shows up.
+- **`collectWhileZIO(f)`** — the same, but `f` is an effect. Use it when the check itself needs to reach out somewhere — for example, buffering incoming requests while an async rate-limiter keeps approving them.
+- **`collectUntil(f)`** — collects inputs and stops as soon as one satisfies `f`. Use it to gather everything *up to* a stopping point — for example, collecting retry errors until one is a specific fatal error code, so you can escalate as soon as it appears.
+- **`collectUntilZIO(f)`** — the same, but `f` is an effect. Use it when the stopping condition depends on external state — for example, buffering sensor readings until a remote config check reports the current alert threshold has been reached.
 
 ```scala mdoc:compile-only
 import zio._
@@ -457,6 +466,10 @@ val collectEverything: Schedule[Any, Int, Chunk[Int]] =
 // Collect while values stay below 10
 val collectSmall: Schedule[Any, Int, Chunk[Int]] =
   Schedule.collectWhile[Int](_ < 10)
+
+// Collect retry errors until a specific fatal code shows up, then stop
+val collectUntilFatal: Schedule[Any, Int, Chunk[Int]] =
+  Schedule.collectUntil[Int](_ == 500)
 ```
 
 ### Primitives and Building Blocks
