@@ -260,7 +260,20 @@ object Schedule {
 }
 ```
 
-`secondOfMinute(s)` triggers at second `s` (0–59) of each minute. `minuteOfHour(m)` triggers at minute `m` (0–59) of each hour. `hourOfDay(h)` triggers at hour `h` (0–23) of each day. `dayOfWeek(d)` triggers on ISO-8601 day `d` (1 = Monday, 7 = Sunday) of each week at midnight. `dayOfMonth(d)` triggers on day `d` (1–31) of each month at midnight, skipping months that do not have that day. All outputs are increasing counts starting at 0.
+Each one picks a fixed position inside a repeating unit of time, and fires every time the clock reaches
+that position:
+
+- **`secondOfMinute(s)`** — fires at second `s` (0–59) of every minute. `secondOfMinute(30)` fires at
+  `12:00:30`, `12:01:30`, `12:02:30`, and so on.
+- **`minuteOfHour(m)`** — fires at minute `m` (0–59) of every hour. `minuteOfHour(0)` fires once at the
+  top of every hour.
+- **`hourOfDay(h)`** — fires at hour `h` (0–23) of every day. `hourOfDay(9)` fires once at 09:00 each day.
+- **`dayOfWeek(d)`** — fires at midnight on ISO-8601 weekday `d` (1 = Monday, …, 7 = Sunday). `dayOfWeek(2)` fires at midnight every Tuesday.
+- **`dayOfMonth(d)`** — fires at midnight on day `d` (1–31) of every month, skipping any month that
+  doesn't have that day (e.g. day `31` is simply skipped in February).
+
+Each one outputs how many times it has fired so far, as a `Long` starting at `0` — the same shape as
+`Schedule.forever`, just triggered on a calendar position instead of a fixed cadence.
 
 ```scala mdoc:compile-only
 import zio._
