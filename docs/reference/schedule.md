@@ -105,10 +105,10 @@ These factories build schedules that stop after a fixed number of repetitions:
 
 ```scala
 object Schedule {
-  def recurs(n: Long)(implicit trace: Trace): Schedule.WithState[Long, Any, Any, Long]
-  def recurs(n: Int)(implicit trace: Trace):  Schedule.WithState[Long, Any, Any, Long]
-  def once(implicit trace: Trace):            Schedule.WithState[Long, Any, Any, Unit]
-  def stop(implicit trace: Trace):            Schedule.WithState[Long, Any, Any, Unit]
+  def recurs(n: Long): Schedule.WithState[Long, Any, Any, Long]
+  def recurs(n: Int):  Schedule.WithState[Long, Any, Any, Long]
+  def once:            Schedule.WithState[Long, Any, Any, Unit]
+  def stop:            Schedule.WithState[Long, Any, Any, Unit]
 }
 ```
 
@@ -128,7 +128,7 @@ These factories build always-recurring schedules whose primary purpose is to con
 
 ```scala
 object Schedule {
-  def spaced(duration: Duration)(implicit trace: Trace):
+  def spaced(duration: Duration):
     Schedule.WithState[Long, Any, Any, Long]
 
   def fixed(interval: Duration):
@@ -137,13 +137,13 @@ object Schedule {
   def windowed(interval: Duration):
     Schedule.WithState[(Option[Long], Long), Any, Any, Long]
 
-  def linear(base: Duration)(implicit trace: Trace):
+  def linear(base: Duration):
     Schedule.WithState[Long, Any, Any, Duration]
 
-  def exponential(base: Duration, factor: Double = 2.0)(implicit trace: Trace):
+  def exponential(base: Duration, factor: Double = 2.0):
     Schedule.WithState[Long, Any, Any, Duration]
 
-  def fibonacci(one: Duration)(implicit trace: Trace):
+  def fibonacci(one: Duration):
     Schedule.WithState[(Duration, Duration), Any, Any, Duration]
 }
 ```
@@ -178,7 +178,7 @@ object Schedule {
   def fromDurations(duration: Duration, durations: Duration*):
     Schedule.WithState[(::[Duration], Boolean), Any, Any, Duration]
 
-  def upTo(duration: Duration)(implicit trace: Trace):
+  def upTo(duration: Duration):
     Schedule.WithState[Option[OffsetDateTime], Any, Any, Duration]
 }
 ```
@@ -204,19 +204,19 @@ The calendar schedules trigger at specific positions within a time unit, similar
 
 ```scala
 object Schedule {
-  def secondOfMinute(second0: Int)(implicit trace: Trace):
+  def secondOfMinute(second0: Int):
     Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long]
 
-  def minuteOfHour(minute: Int)(implicit trace: Trace):
+  def minuteOfHour(minute: Int):
     Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long]
 
-  def hourOfDay(hour: Int)(implicit trace: Trace):
+  def hourOfDay(hour: Int):
     Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long]
 
-  def dayOfWeek(day: Int)(implicit trace: Trace):
+  def dayOfWeek(day: Int):
     Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long]
 
-  def dayOfMonth(day: Int)(implicit trace: Trace):
+  def dayOfMonth(day: Int):
     Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long]
 }
 ```
@@ -249,13 +249,13 @@ The `While` family (note: `recurWhileZIO` has no implicit `Trace` parameter):
 
 ```scala
 object Schedule {
-  def recurWhile[A](f: A => Boolean)(implicit trace: Trace):
+  def recurWhile[A](f: A => Boolean):
     Schedule.WithState[Unit, Any, A, A]
 
   def recurWhileZIO[Env, A](f: A => URIO[Env, Boolean]):
     Schedule.WithState[Unit, Env, A, A]
 
-  def recurWhileEquals[A](a: => A)(implicit trace: Trace):
+  def recurWhileEquals[A](a: => A):
     Schedule.WithState[Unit, Any, A, A]
 }
 ```
@@ -264,13 +264,13 @@ The `Until` family:
 
 ```scala
 object Schedule {
-  def recurUntil[A](f: A => Boolean)(implicit trace: Trace):
+  def recurUntil[A](f: A => Boolean):
     Schedule.WithState[Unit, Any, A, A]
 
-  def recurUntilZIO[Env, A](f: A => URIO[Env, Boolean])(implicit trace: Trace):
+  def recurUntilZIO[Env, A](f: A => URIO[Env, Boolean]):
     Schedule.WithState[Unit, Env, A, A]
 
-  def recurUntilEquals[A](a: => A)(implicit trace: Trace):
+  def recurUntilEquals[A](a: => A):
     Schedule.WithState[Unit, Any, A, A]
 }
 ```
@@ -297,7 +297,7 @@ val whileBusy: Schedule[Any, String, String] =
 
 ```scala
 object Schedule {
-  def recurUntil[A, B](pf: PartialFunction[A, B])(implicit trace: Trace):
+  def recurUntil[A, B](pf: PartialFunction[A, B]):
     Schedule.WithState[Unit, Any, A, Option[B]]
 }
 ```
@@ -322,19 +322,19 @@ These companion-object schedules always recur and accumulate the stream of *inpu
 
 ```scala
 object Schedule {
-  def collectAll[A](implicit trace: Trace):
+  def collectAll[A]:
     Schedule.WithState[(Unit, Chunk[A]), Any, A, Chunk[A]]
 
-  def collectWhile[A](f: A => Boolean)(implicit trace: Trace):
+  def collectWhile[A](f: A => Boolean):
     Schedule.WithState[(Unit, Chunk[A]), Any, A, Chunk[A]]
 
-  def collectWhileZIO[Env, A](f: A => URIO[Env, Boolean])(implicit trace: Trace):
+  def collectWhileZIO[Env, A](f: A => URIO[Env, Boolean]):
     Schedule.WithState[(Unit, Chunk[A]), Env, A, Chunk[A]]
 
-  def collectUntil[A](f: A => Boolean)(implicit trace: Trace):
+  def collectUntil[A](f: A => Boolean):
     Schedule.WithState[(Unit, Chunk[A]), Any, A, Chunk[A]]
 
-  def collectUntilZIO[Env, A](f: A => URIO[Env, Boolean])(implicit trace: Trace):
+  def collectUntilZIO[Env, A](f: A => URIO[Env, Boolean]):
     Schedule.WithState[(Unit, Chunk[A]), Env, A, Chunk[A]]
 }
 ```
@@ -362,16 +362,16 @@ object Schedule {
   def identity[A]:
     Schedule.WithState[Unit, Any, A, A]
 
-  def succeed[A](a: => A)(implicit trace: Trace):
+  def succeed[A](a: => A):
     Schedule.WithState[Long, Any, Any, A]
 
-  def fromFunction[A, B](f: A => B)(implicit trace: Trace):
+  def fromFunction[A, B](f: A => B):
     Schedule.WithState[Unit, Any, A, B]
 
   def unfold[A](a: => A)(f: A => A):
     Schedule.WithState[A, Any, Any, A]
 
-  def delayed[Env, In](schedule: Schedule[Env, In, Duration])(implicit trace: Trace):
+  def delayed[Env, In](schedule: Schedule[Env, In, Duration]):
     Schedule.WithState[schedule.State, Env, In, Duration]
 }
 ```
@@ -515,7 +515,7 @@ val merged: Schedule[Any, Any, String] =
 trait Schedule[-Env, -In, +Out] { self =>
   final def andThen[Env1 <: Env, In1 <: In, Out2 >: Out](
     that: Schedule[Env1, In1, Out2]
-  )(implicit trace: Trace): Schedule.WithState[(self.State, that.State, Boolean), Env1, In1, Out2]
+  ): Schedule.WithState[(self.State, that.State, Boolean), Env1, In1, Out2]
 
   final def andThenEither[Env1 <: Env, In1 <: In, Out2](
     that: Schedule[Env1, In1, Out2]
@@ -583,7 +583,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 
   final def |||[Env1 <: Env, Out1 >: Out, In2](
     that: Schedule[Env1, In2, Out1]
-  )(implicit trace: Trace): Schedule.WithState[(self.State, that.State), Env1, Either[In, In2], Out1]
+  ): Schedule.WithState[(self.State, that.State), Env1, Either[In, In2], Out1]
 
   final def first[X]: Schedule.WithState[(self.State, Unit), Env, (In, X), (Out, X)]
   final def second[X]: Schedule.WithState[(Unit, self.State), Env, (X, In), (X, Out)]
@@ -617,7 +617,7 @@ These methods change the type or value of a schedule's inputs or outputs without
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def map[Out2](f: Out => Out2)(implicit trace: Trace):
+  final def map[Out2](f: Out => Out2):
     Schedule.WithState[self.State, Env, In, Out2]
 
   final def mapZIO[Env1 <: Env, Out2](f: Out => URIO[Env1, Out2]):
@@ -645,10 +645,10 @@ val logged: Schedule[Any, Any, Long] =
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def as[Out2](out2: => Out2)(implicit trace: Trace):
+  final def as[Out2](out2: => Out2):
     Schedule.WithState[self.State, Env, In, Out2]
 
-  final def unit(implicit trace: Trace):
+  final def unit:
     Schedule.WithState[self.State, Env, In, Unit]
 }
 ```
@@ -671,13 +671,13 @@ val noOutput: Schedule[Any, Any, Unit] = Schedule.recurs(5).unit
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def contramap[Env1 <: Env, In2](f: In2 => In)(implicit trace: Trace):
+  final def contramap[Env1 <: Env, In2](f: In2 => In):
     Schedule.WithState[self.State, Env, In2, Out]
 
   final def contramapZIO[Env1 <: Env, In2](f: In2 => URIO[Env1, In]):
     Schedule.WithState[self.State, Env1, In2, Out]
 
-  final def dimap[In2, Out2](f: In2 => In, g: Out => Out2)(implicit trace: Trace):
+  final def dimap[In2, Out2](f: In2 => In, g: Out => Out2):
     Schedule.WithState[self.State, Env, In2, Out2]
 
   final def dimapZIO[Env1 <: Env, In2, Out2](
@@ -712,7 +712,7 @@ val dimapped: Schedule[Any, String, String] =
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def passthrough[In1 <: In](implicit trace: Trace):
+  final def passthrough[In1 <: In]:
     Schedule.WithState[self.State, Env, In1, In1]
 }
 ```
@@ -737,24 +737,24 @@ These operators stop the schedule early based on conditions applied to the input
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def check[In1 <: In](test: (In1, Out) => Boolean)(implicit trace: Trace):
+  final def check[In1 <: In](test: (In1, Out) => Boolean):
     Schedule.WithState[self.State, Env, In1, Out]
 
   final def checkZIO[Env1 <: Env, In1 <: In](test: (In1, Out) => URIO[Env1, Boolean]):
     Schedule.WithState[self.State, Env1, In1, Out]
 
-  final def whileInput[In1 <: In](f: In1 => Boolean)(implicit trace: Trace):
+  final def whileInput[In1 <: In](f: In1 => Boolean):
     Schedule.WithState[self.State, Env, In1, Out]
 
   final def whileInputZIO[Env1 <: Env, In1 <: In](f: In1 => URIO[Env1, Boolean]):
     Schedule.WithState[self.State, Env1, In1, Out]
 
-  final def untilInput[In1 <: In](f: In1 => Boolean)(implicit trace: Trace):
+  final def untilInput[In1 <: In](f: In1 => Boolean):
     Schedule.WithState[self.State, Env, In1, Out]
 
   final def untilInputZIO[Env1 <: Env, In1 <: In](
     f: In1 => URIO[Env1, Boolean]
-  )(implicit trace: Trace): Schedule.WithState[self.State, Env1, In1, Out]
+  ): Schedule.WithState[self.State, Env1, In1, Out]
 }
 ```
 
@@ -781,16 +781,16 @@ val untilFifty: Schedule[Any, Int, Long] =
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def whileOutput(f: Out => Boolean)(implicit trace: Trace):
+  final def whileOutput(f: Out => Boolean):
     Schedule.WithState[self.State, Env, In, Out]
 
   final def whileOutputZIO[Env1 <: Env](f: Out => URIO[Env1, Boolean]):
     Schedule.WithState[self.State, Env1, In, Out]
 
-  final def untilOutput(f: Out => Boolean)(implicit trace: Trace):
+  final def untilOutput(f: Out => Boolean):
     Schedule.WithState[self.State, Env, In, Out]
 
-  final def untilOutputZIO[Env1 <: Env](f: Out => URIO[Env1, Boolean])(implicit trace: Trace):
+  final def untilOutputZIO[Env1 <: Env](f: Out => URIO[Env1, Boolean]):
     Schedule.WithState[self.State, Env1, In, Out]
 }
 ```
@@ -819,10 +819,10 @@ These methods control how long the schedule sleeps between steps.
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def addDelay(f: Out => Duration)(implicit trace: Trace):
+  final def addDelay(f: Out => Duration):
     Schedule.WithState[self.State, Env, In, Out]
 
-  final def addDelayZIO[Env1 <: Env](f: Out => URIO[Env1, Duration])(implicit trace: Trace):
+  final def addDelayZIO[Env1 <: Env](f: Out => URIO[Env1, Duration]):
     Schedule.WithState[self.State, Env1, In, Out]
 }
 ```
@@ -847,7 +847,7 @@ val linearExtra: Schedule[Any, Any, Long] =
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def delayed(f: Duration => Duration)(implicit trace: Trace):
+  final def delayed(f: Duration => Duration):
     Schedule.WithState[self.State, Env, In, Out]
 
   final def delayedZIO[Env1 <: Env](f: Duration => URIO[Env1, Duration]):
@@ -903,10 +903,10 @@ val scaledByCount: Schedule[Any, Any, Long] =
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def jittered(implicit trace: Trace):
+  final def jittered:
     Schedule.WithState[self.State, Env, In, Out]
 
-  final def jittered(min: Double, max: Double)(implicit trace: Trace):
+  final def jittered(min: Double, max: Double):
     Schedule.WithState[self.State, Env, In, Out]
 }
 ```
@@ -959,7 +959,7 @@ The instance method `upTo` wraps an existing schedule and stops it once total el
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def upTo(duration: Duration)(implicit trace: Trace):
+  final def upTo(duration: Duration):
     Schedule.WithState[(self.State, Option[OffsetDateTime]), Env, In, Out]
 }
 ```
@@ -980,7 +980,7 @@ val timedBackoff: Schedule[Any, Any, Duration] =
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def resetAfter(duration: Duration)(implicit trace: Trace):
+  final def resetAfter(duration: Duration):
     Schedule.WithState[(self.State, Option[OffsetDateTime]), Env, In, Out]
 
   final def resetWhen(f: Out => Boolean):
@@ -1016,22 +1016,22 @@ The instance `collectAll`, `collectWhile`, `collectWhileZIO`, `collectUntil`, an
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def collectAll[Out1 >: Out](implicit trace: Trace):
+  final def collectAll[Out1 >: Out]:
     Schedule.WithState[(self.State, Chunk[Out1]), Env, In, Chunk[Out1]]
 
-  final def collectWhile[Out1 >: Out](f: Out => Boolean)(implicit trace: Trace):
+  final def collectWhile[Out1 >: Out](f: Out => Boolean):
     Schedule.WithState[(self.State, Chunk[Out1]), Env, In, Chunk[Out1]]
 
   final def collectWhileZIO[Env1 <: Env, Out1 >: Out](
     f: Out => URIO[Env1, Boolean]
-  )(implicit trace: Trace): Schedule.WithState[(self.State, Chunk[Out1]), Env1, In, Chunk[Out1]]
+  ): Schedule.WithState[(self.State, Chunk[Out1]), Env1, In, Chunk[Out1]]
 
-  final def collectUntil[Out1 >: Out](f: Out => Boolean)(implicit trace: Trace):
+  final def collectUntil[Out1 >: Out](f: Out => Boolean):
     Schedule.WithState[(self.State, Chunk[Out1]), Env, In, Chunk[Out1]]
 
   final def collectUntilZIO[Env1 <: Env, Out1 >: Out](
     f: Out => URIO[Env1, Boolean]
-  )(implicit trace: Trace): Schedule.WithState[(self.State, Chunk[Out1]), Env1, In, Chunk[Out1]]
+  ): Schedule.WithState[(self.State, Chunk[Out1]), Env1, In, Chunk[Out1]]
 }
 ```
 
@@ -1059,7 +1059,7 @@ val smallDelays: Schedule[Any, Any, Chunk[Duration]] =
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def fold[Z](z: Z)(f: (Z, Out) => Z)(implicit trace: Trace):
+  final def fold[Z](z: Z)(f: (Z, Out) => Z):
     Schedule.WithState[(self.State, Z), Env, In, Z]
 
   final def foldZIO[Env1 <: Env, Z](z: Z)(f: (Z, Out) => URIO[Env1, Z]):
@@ -1087,7 +1087,7 @@ val history: Schedule[Any, Any, String] =
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def repetitions(implicit trace: Trace):
+  final def repetitions:
     Schedule.WithState[(self.State, Long), Env, In, Long]
 }
 ```
@@ -1108,7 +1108,7 @@ val stepCount: Schedule[Any, Any, Long] =
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def run(now: OffsetDateTime, input: Iterable[In])(implicit trace: Trace):
+  final def run(now: OffsetDateTime, input: Iterable[In]):
     URIO[Env, Chunk[Out]]
 }
 ```
@@ -1157,7 +1157,7 @@ val cyclic: Schedule[Any, Any, Long] = Schedule.recurs(5).forever
 trait Schedule[-Env, -In, +Out] { self =>
   final def reconsider[Out2](
     f: (State, Out, Decision) => Either[Out2, (Out2, Interval)]
-  )(implicit trace: Trace): Schedule.WithState[self.State, Env, In, Out2]
+  ): Schedule.WithState[self.State, Env, In, Out2]
 
   final def reconsiderZIO[Env1 <: Env, In1 <: In, Out2](
     f: (State, Out, Decision) => URIO[Env1, Either[Out2, (Out2, Interval)]]
@@ -1318,7 +1318,7 @@ val standalone: Schedule[Any, Any, Long] =
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
-  final def driver(implicit trace: Trace): UIO[Schedule.Driver[self.State, Env, In, Out]]
+  final def driver: UIO[Schedule.Driver[self.State, Env, In, Out]]
 }
 ```
 
@@ -1529,25 +1529,25 @@ trait ZIO[-R, +E, +A] { self =>
     trace: Trace
   ): ZIO[R1, E, B]
 
-  final def repeatN(n: => Int)(implicit trace: Trace): ZIO[R, E, A]
+  final def repeatN(n: => Int): ZIO[R, E, A]
 
   final def repeatOrElse[R1 <: R, E2, B](
     schedule: => Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, B]
-  )(implicit trace: Trace): ZIO[R1, E2, B]
+  ): ZIO[R1, E2, B]
 
   final def repeatOrElseEither[R1 <: R, B, E2, C](
     schedule0: => Schedule[R1, A, B],
     orElse: (E, Option[B]) => ZIO[R1, E2, C]
-  )(implicit trace: Trace): ZIO[R1, E2, Either[C, B]]
+  ): ZIO[R1, E2, Either[C, B]]
 
-  final def repeatUntil(p: A => Boolean)(implicit trace: Trace): ZIO[R, E, A]
-  final def repeatUntilEquals[A1 >: A](a: => A1)(implicit trace: Trace): ZIO[R, E, A1]
-  final def repeatUntilZIO[R1 <: R](f: A => URIO[R1, Boolean])(implicit trace: Trace): ZIO[R1, E, A]
+  final def repeatUntil(p: A => Boolean): ZIO[R, E, A]
+  final def repeatUntilEquals[A1 >: A](a: => A1): ZIO[R, E, A1]
+  final def repeatUntilZIO[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A]
 
-  final def repeatWhile(p: A => Boolean)(implicit trace: Trace): ZIO[R, E, A]
-  final def repeatWhileEquals[A1 >: A](a: => A1)(implicit trace: Trace): ZIO[R, E, A1]
-  final def repeatWhileZIO[R1 <: R](f: A => URIO[R1, Boolean])(implicit trace: Trace): ZIO[R1, E, A]
+  final def repeatWhile(p: A => Boolean): ZIO[R, E, A]
+  final def repeatWhileEquals[A1 >: A](a: => A1): ZIO[R, E, A1]
+  final def repeatWhileZIO[R1 <: R](f: A => URIO[R1, Boolean]): ZIO[R1, E, A]
 }
 ```
 
@@ -1651,7 +1651,7 @@ trait ZIO[-R, +E, +A] { self =>
 
   final def scheduleFrom[R1 <: R, A1 >: A, B](a: => A1)(
     schedule0: => Schedule[R1, A1, B]
-  )(implicit trace: Trace): ZIO[R1, E, B]
+  ): ZIO[R1, E, B]
 
   final def scheduleFork[R1 <: R, B](schedule: => Schedule[R1, Any, B])(implicit
     trace: Trace
