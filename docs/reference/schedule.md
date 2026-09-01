@@ -148,7 +148,16 @@ object Schedule {
 }
 ```
 
-`spaced(d)` waits exactly `d` after each execution ends. `fixed(d)` targets a fixed interval measured from execution start — if a run takes longer than `d`, the next starts immediately with no pile-up. `windowed(d)` divides the timeline into windows of length `d` and waits until the next window boundary. `linear(base)` produces delays `base × 1`, `base × 2`, `base × 3`, …, outputting the current delay `Duration`. `exponential(base, factor)` produces `base × factor⁰`, `base × factor¹`, … (default `factor = 2.0`), outputting the current delay `Duration`. `fibonacci(one)` produces delays following the Fibonacci sequence: `one, one, 2×one, 3×one, 5×one, …`, outputting the current delay `Duration`.
+Each of these controls timing in a different way:
+
+- **`spaced(d)`** — the simplest one. After each run *finishes*, wait exactly `d`, then run again. If the effect itself is slow, the gap after it is still always `d`.
+- **`fixed(d)`** — instead of timing from when the run *finishes*, this times from when it *started*, aiming for one run every `d`. If a run happens to take longer than `d`, the next one fires immediately afterward (it never fires twice at once to "catch up").
+- **`windowed(d)`** — imagine the clock divided into fixed-length slices of `d` (e.g. every 10 seconds, on the 0s, 10s, 20s, …). This runs once per slice, always at the slice boundary, no matter when inside the previous slice it actually started.
+- **`linear(base)`** — each delay grows by one more `base` than the last: `base`, `2×base`, `3×base`, and so on. Useful when you want retries to slow down gradually.
+- **`exponential(base, factor)`** — each delay is multiplied by `factor` (default `2.0`), so it grows fast: `base`, `base×2`, `base×4`, `base×8`, … This is the classic "exponential backoff" used when retrying a failing remote call, so you back off quickly instead of hammering it.
+- **`fibonacci(one)`** — delays follow the Fibonacci sequence (each one is the sum of the two before it): `one, one, 2×one, 3×one, 5×one, …`. A middle ground between `linear`'s steady growth and `exponential`'s fast growth.
+
+The last three (`linear`, `exponential`, `fibonacci`) each output the delay itself as their `Duration` result, so you can inspect or log how long the next wait will be.
 
 The following block shows these schedules as candidates for retry policies with progressively longer backoffs:
 
