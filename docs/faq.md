@@ -18,7 +18,7 @@ In this page we are going to answer general questions related to the ZIO project
 ## Where should we encode contextual values like `UserId`, `CorrelationId` in my ZIO application?
 
 1. Should we put `CorrelationId` and `UserId` as well into a `FiberLocal`?
-2. Should our effects be something like `val someEffect: ZIO[CorrerlationId & UserId, ErrorType, A]`?
+2. Should our effects be something like `val someEffect: ZIO[CorrelationId & UserId, ErrorType, A]`?
 3. Should we keep writing our effects with explicit params as `def someEffect(c: CorrelationId, u: UserId, params...): ZIO[Any, ErrorType, A]`?
 4. Should we put these context parameters as implicits, like `def someEffect(params..)(implicit c: CorrelationId, u: UserId): ZIO[Any, ErrorType, A]`?
 
