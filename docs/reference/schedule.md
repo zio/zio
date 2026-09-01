@@ -500,11 +500,28 @@ These are the raw building blocks nearly everything else in `Schedule`'s compani
 from and gives you an escape hatch when none of them fit:
 
 - **`identity[A]`** — the simplest schedule there is: recurs forever with no delay, passing each input
-  straight through as output, unchanged. You'll rarely reach for it by name, but it's the foundation
-  every `recurWhile*`, `recurUntil*`, and `collectAll*` factory is built on (see
-  [Predicate and Equality Variants](#predicate-and-equality-variants) and
-  [Collecting Inputs](#collecting-inputs)) — each of them is `identity` with a stopping condition or an
-  accumulator layered on top.
+  straight through as output, unchanged. It's the foundation every `recurWhile*`, `recurUntil*`, and
+  `collectAll*` factory is built on (see [Predicate and Equality Variants](#predicate-and-equality-variants)
+  and [Collecting Inputs](#collecting-inputs)) — each of them is `identity` with a stopping condition or
+  an accumulator layered on top. It's also directly useful on its own, any time you want `.repeat`'s
+  *result* to be the effect's last value rather than a repeat count. `Schedule.recurs(n)`'s `Out` is a
+  `Long` — the number of repeats — so `.repeat(Schedule.recurs(n))` discards whatever the effect actually
+  produced and gives you back that count instead. Pairing it with `identity` via `<*` keeps `recurs`'s
+  stopping condition but swaps its `Long` output for the input passed through unchanged:
+
+  ```scala mdoc:compile-only
+  import zio._
+
+  def readSensor: Task[Double] = Random.nextDouble // stand-in for a real sensor reading
+
+  // Out = Long: repeat 4 times, get back the repeat count (4), the readings are thrown away
+  val repeatCount: ZIO[Any, Throwable, Long] =
+    readSensor.repeat(Schedule.recurs(4))
+
+  // Out = Double: same stopping condition, but Out is the reading itself, not a count
+  val lastReading: ZIO[Any, Throwable, Double] =
+    readSensor.repeat(Schedule.identity[Double] <* Schedule.recurs(4))
+  ```
 - **`succeed(a)`** — ignores whatever input it receives and always outputs the fixed value `a`. Useful
   when a schedule's *timing* is all you care about, and you're going to discard or ignore its output
   anyway (for example, `&&`/`<*` with another schedule just for its delay behavior).
