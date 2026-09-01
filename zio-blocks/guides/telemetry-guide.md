@@ -2,8 +2,6 @@
 
 > `zio-blocks-telemetry` is an effect-free, zero-allocation observability library that gives you structured logging, distributed tracing, and metrics without pulling in the OpenTelemetry SDK or any effect system. This guide explains why it works the way it does, shows what happens inside each operation, and walks through patterns for production systems.
 
-`zio-blocks-telemetry` is an effect-free, zero-allocation observability library that gives you structured logging, distributed tracing, and metrics without pulling in the OpenTelemetry SDK or any effect system. This guide explains why it works the way it does, shows what happens inside each operation, and walks through patterns for production systems.
-
 If you're looking for API signatures and quick copy-paste snippets, the [Telemetry Reference](../reference/telemetry.md) has those. This guide focuses on the "how" and "why": architecture, design trade-offs, and the kind of understanding that helps when things go wrong at 3 AM.
 
 ## Installation

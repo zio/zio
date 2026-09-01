@@ -2,8 +2,6 @@
 
 > The Simple Logging Facade for Java ([`SLF4J v1`](https://www.slf4j.org/) - working with JDK8) serves as a simple facade or abstraction for various logging frameworks (e.g. java.util.logging, logback, log4j).
 
-The Simple Logging Facade for Java ([`SLF4J v1`](https://www.slf4j.org/) - working with JDK8) serves as a simple facade or abstraction for various logging frameworks (e.g. java.util.logging, logback, log4j).
-
 In order to use this logging backend, we need to add the following line in our build.sbt file:
 
 ```scala

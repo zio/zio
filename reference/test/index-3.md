@@ -4,8 +4,6 @@
 
 ## What is Property-Based Testing?
 
-In property-based testing, instead of testing individual values and making assertions on the results, we rely on testing the properties of the system which is under the test.
-
 To be more acquainted with property-based testing, let's look at how we can test a simple addition function. So assume we have a function `add` that adds two numbers:
 
 ```scala

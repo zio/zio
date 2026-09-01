@@ -1,16 +1,10 @@
 # java.util.logging bridge
 
 > It is possible to use `zio-logging` for included `java.util.logging` Loggers (do not confuse with `java.platform.logging`),
-usually third-party non-ZIO libraries (most notable: OpenTelemetry used by ZIO-telemetry). To do so, import the `zio-logging-jul-bridge` module
-```scala
-libraryDependencies += "dev.zio" %% "zio-logging-jul-bridge" % "2.5.3"
-```
-
-It is possible to use `zio-logging` for included `java.util.logging` Loggers (do not confuse with `java.platform.logging`),
-usually third-party non-ZIO libraries (most notable: OpenTelemetry used by ZIO-telemetry). To do so, import the `zio-logging-jul-bridge` module
-```scala
-libraryDependencies += "dev.zio" %% "zio-logging-jul-bridge" % "2.5.3"
-```
+> usually third-party non-ZIO libraries (most notable: OpenTelemetry used by ZIO-telemetry). To do so, import the `zio-logging-jul-bridge` module
+> ```scala
+> libraryDependencies += "dev.zio" %% "zio-logging-jul-bridge" % "2.5.3"
+> ```
 
 and use one of the `JULBridge` layers when setting up logging
 

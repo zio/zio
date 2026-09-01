@@ -1,10 +1,7 @@
 # Help Documentation
 
 > `HelpDoc` is a description of the documentation of a CLI App. They can be added to any `Command`, `Options` or `Args`.
-`HelpDoc` is composed of a list of `HelpDoc` items that can be headers, paragraphs, description lists, sequences and enumerations.
-
-`HelpDoc` is a description of the documentation of a CLI App. They can be added to any `Command`, `Options` or `Args`.
-`HelpDoc` is composed of a list of `HelpDoc` items that can be headers, paragraphs, description lists, sequences and enumerations.
+> `HelpDoc` is composed of a list of `HelpDoc` items that can be headers, paragraphs, description lists, sequences and enumerations.
 
 ## Building blocks
 The most basic forms of `HelpDoc` are headers and paragraphs. Method `HelpDoc.p` can create paragraphs from text, while methods `HelpDoc.h1`, `HelpDoc.h2` and `HelpDoc.h3` create headers of different levels.

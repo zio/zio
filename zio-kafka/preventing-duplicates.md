@@ -1,14 +1,9 @@
 # Preventing duplicates
 
 > In zio-kafka processing of records runs asynchronously with partition management. This brings substantial performance
-advantages but causes some records to be consumed and processed _twice_ when a rebalance occurs. To prevent this,
-since version 2.7.1 zio-kafka supports a new mode in which we prevent duplicates due to rebalances. You can enable it
-as follows:
-
-In zio-kafka processing of records runs asynchronously with partition management. This brings substantial performance
-advantages but causes some records to be consumed and processed _twice_ when a rebalance occurs. To prevent this,
-since version 2.7.1 zio-kafka supports a new mode in which we prevent duplicates due to rebalances. You can enable it
-as follows:
+> advantages but causes some records to be consumed and processed _twice_ when a rebalance occurs. To prevent this,
+> since version 2.7.1 zio-kafka supports a new mode in which we prevent duplicates due to rebalances. You can enable it
+> as follows:
 
 ```scala
 import zio.*

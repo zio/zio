@@ -4,8 +4,6 @@
 
 ## Introduction
 
-A `ZPipeline[-Env, +Err, -In, +Out]` is a stream transformer. Pipelines accept a stream as input and return the transformed stream as output.
-
 ZPipelines can be thought of as a recipe for calling a bunch of methods on a source stream to yield a new (transformed) stream. A nice mental model is the following type alias:
 
 ```scala

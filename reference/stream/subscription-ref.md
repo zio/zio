@@ -2,8 +2,6 @@
 
 > A `SubscriptionRef[A]` is a `Ref` that lets us subscribe to receive the current value along with all changes to that value.
 
-A `SubscriptionRef[A]` is a `Ref` that lets us subscribe to receive the current value along with all changes to that value.
-
 ```scala
 import zio._
 import zio.stream._

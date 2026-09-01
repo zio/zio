@@ -2,8 +2,6 @@
 
 > `TypeDefinition` is a sealed trait that represents any Scala type definition—case classes, sealed traits, enums, objects, newtypes, type aliases, abstract classes, and regular traits. It's the foundation for modeling Scala's type system in the IR.
 
-`TypeDefinition` is a sealed trait that represents any Scala type definition—case classes, sealed traits, enums, objects, newtypes, type aliases, abstract classes, and regular traits. It's the foundation for modeling Scala's type system in the IR.
-
 ## Use Cases
 
 - As the common interface for all compound types when building a `ScalaFile`

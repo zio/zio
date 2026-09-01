@@ -2,8 +2,6 @@
 
 > logger layer with configuration from config provider:
 
-logger layer with configuration from config provider:
-
 ```scala
 import zio.logging.consoleLogger
 import zio.{ ConfigProvider, Runtime }

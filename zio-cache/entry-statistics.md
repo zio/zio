@@ -2,8 +2,6 @@
 
 > ZIO Cache also tracks statistics associated with each entry, such as when the entry was last accessed. You can access the statistics for a specified entry using the `entryStats` operator on `Cache`.
 
-ZIO Cache also tracks statistics associated with each entry, such as when the entry was last accessed. You can access the statistics for a specified entry using the `entryStats` operator on `Cache`.
-
 ```scala
 import zio._
 

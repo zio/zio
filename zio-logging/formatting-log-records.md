@@ -2,8 +2,6 @@
 
 > A `LogFormat` represents a DSL to describe the format of text log messages.
 
-A `LogFormat` represents a DSL to describe the format of text log messages.
-
 [//]: # (TODO: make snippet type-checked using mdoc)
 
 ```scala

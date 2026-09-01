@@ -2,8 +2,6 @@
 
 > `RouteTree[A]` is a routing trie keyed by HTTP method and path. It maps `(Method, Path)` pairs to values of type `A`, performing prefix-tree lookup with segment-priority ordering. Server-side interpreters primarily use it to build efficient route dispatch tables from a collection of `RoutePattern` values. Its structure is:
 
-`RouteTree[A]` is a routing trie keyed by HTTP method and path. It maps `(Method, Path)` pairs to values of type `A`, performing prefix-tree lookup with segment-priority ordering. Server-side interpreters primarily use it to build efficient route dispatch tables from a collection of `RoutePattern` values. Its structure is:
-
 ```scala
 final case class RouteTree[A](
   roots: Map[Method, SegmentSubtree[A]]

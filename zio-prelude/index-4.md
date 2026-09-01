@@ -2,8 +2,6 @@
 
 > A `ZPure[W, S1, S2, R, E, A]` is a description of a computation that requires an environment `R` and an initial state `S1` and either fails with an error of type `E` or succeeds with an updated state of type `S2` and a value of type `A`, in either case also producing a log of type `W`.
 
-A `ZPure[W, S1, S2, R, E, A]` is a description of a computation that requires an environment `R` and an initial state `S1` and either fails with an error of type `E` or succeeds with an updated state of type `S2` and a value of type `A`, in either case also producing a log of type `W`.
-
 Conceptually, we can think of `ZPure` as just a function, though `ZPure` is not actually implemented this way for reasons of efficiency and stack safety.
 
 ```scala

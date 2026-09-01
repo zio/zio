@@ -1,12 +1,8 @@
 # Structural Types
 
 > <!--
-BLOCKING ISSUE: Scala 3.7.4 Compiler Crash
-============================================
-
-<!--
-BLOCKING ISSUE: Scala 3.7.4 Compiler Crash
-============================================
+> BLOCKING ISSUE: Scala 3.7.4 Compiler Crash
+> ============================================
 
 This file uses structural type syntax ({ def field: Type }) which triggers a compiler
 crash in Scala 3.7.4 during the erasure phase. Therefore, code blocks here are marked

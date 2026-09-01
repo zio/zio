@@ -2,8 +2,6 @@
 
 > [ZIO EclipseStore](https://github.com/riccardomerolla/zio-eclipsestore) is a ZIO-based library for type-safe, efficient, and boilerplate-free access to [EclipseStore](https://github.com/eclipse-store/store).
 
-[ZIO EclipseStore](https://github.com/riccardomerolla/zio-eclipsestore) is a ZIO-based library for type-safe, efficient, and boilerplate-free access to [EclipseStore](https://github.com/eclipse-store/store).
-
 ## Introduction
 
 ZIO EclipseStore provides a ZIO-powered interface to EclipseStore, offering a modern, functional approach to object graph persistence with type safety and composability.

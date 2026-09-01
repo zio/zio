@@ -2,8 +2,6 @@
 
 > Assume we have a domain containing following models:
 
-Assume we have a domain containing following models:
-
 ```scala
 object Domain {
   final case class Person(name: String, age: Int)

@@ -2,8 +2,6 @@
 
 > `IdentityBoth[F]` describes an associative way to combine two values `F[A]` and `F[B]` into a value `F[(A, B)]` that also has an identity element of type `F[Any]`.
 
-`IdentityBoth[F]` describes an associative way to combine two values `F[A]` and `F[B]` into a value `F[(A, B)]` that also has an identity element of type `F[Any]`.
-
 Its signature is:
 
 ```scala

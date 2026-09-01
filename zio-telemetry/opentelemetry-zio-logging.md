@@ -2,8 +2,6 @@
 
 > `zio-opentelemetry` logging facilities are implemented around OpenTelemetry Logging.
 
-`zio-opentelemetry` logging facilities are implemented around OpenTelemetry Logging.
-
 In order to use `zio-opentelemetry` feature with `zio-logging` you should use `zio-opentelemetry-zio-logging` module.
 
 `OpenTelemetry ZIO Logging` contains utilities for combining ZIO Opentelemetry with ZIO Logging

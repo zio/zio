@@ -2,8 +2,6 @@
 
 > A `TMap[A]` is a mutable map that can participate in transactions in STM.
 
-A `TMap[A]` is a mutable map that can participate in transactions in STM.
-
 ## Create a TMap
 
 Creating an empty `TMap`:

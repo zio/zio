@@ -4,8 +4,6 @@
 
 ## Piping
 
-The values from the output port of the first channel are passed to the input port of the second channel when we pipe a channel to another channel:
-
 ```scala
 import zio.stream._
 

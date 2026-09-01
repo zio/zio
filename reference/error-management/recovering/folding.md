@@ -2,8 +2,6 @@
 
 > Scala's `Option` and `Either` data types have `fold`, which let us handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow us to handle both failure and success.
 
-Scala's `Option` and `Either` data types have `fold`, which let us handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow us to handle both failure and success.
-
 ## `ZIO#fold`/`ZIO#foldZIO`
 
 The first fold method, `ZIO#fold`, lets us non-effectfully handle both failure and success, by supplying a non-effectful handler for each case. The second fold method, `ZIO#foldZIO`, lets us effectfully handle both failure and success, by supplying an effectful (but still pure) handler for each case:

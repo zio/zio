@@ -2,8 +2,6 @@
 
 > `Allows[A, S]` is a compile-time capability token that proves, at the call site, that type `A` satisfies the structural grammar `S`. A capability token is a compile-time phantom proof value — it carries no runtime data and exists solely to pass evidence through the type system that a structural constraint has been satisfied.
 
-`Allows[A, S]` is a compile-time capability token that proves, at the call site, that type `A` satisfies the structural grammar `S`. A capability token is a compile-time phantom proof value — it carries no runtime data and exists solely to pass evidence through the type system that a structural constraint has been satisfied.
-
 `Allows` does **not** require or use `Schema[A]`. It inspects the Scala type structure of `A` directly at compile time, using nothing but the Scala type system. Any `Schema[A]` that appears alongside `Allows` in examples is the library author's own separate constraint — it is not imposed by `Allows` itself.
 
 ```scala
@@ -53,6 +51,8 @@ val ev2: Allows[UserRowOpt, Record[Primitive | Optional[Primitive]]] = implicitl
 
   
 
+**Scala 2**
+
 ```scala
 import zio.blocks.schema.comptime.Allows
 import Allows._
@@ -65,6 +65,8 @@ val evidence = implicitly[Allows[Int, Primitive]]
 
   
   
+
+**Scala 3**
 
 ```scala
 import zio.blocks.schema.comptime.Allows
@@ -195,6 +197,8 @@ Union types express "or" in the grammar.
 
   
 
+**Scala 2**
+
 Uses the infix operator `` Primitive `|` Optional[Primitive] `` from `Allows`:
 
 ```scala
@@ -208,6 +212,8 @@ def writeCsv[A](rows: Seq[A])(implicit
 
   
   
+
+**Scala 3**
 
 Uses native union type syntax:
 

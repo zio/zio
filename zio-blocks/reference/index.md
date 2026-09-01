@@ -2,8 +2,6 @@
 
 > `zio-blocks-codegen` is a **generic, domain-agnostic Scala code generation library**. It provides an intermediate representation (IR) for building type-safe models of Scala code structures, and a pure emitter that generates well-formatted Scala source files from those models.
 
-`zio-blocks-codegen` is a **generic, domain-agnostic Scala code generation library**. It provides an intermediate representation (IR) for building type-safe models of Scala code structures, and a pure emitter that generates well-formatted Scala source files from those models.
-
 Core types: `ScalaFile`, `TypeDefinition`, `CaseClass`, `SealedTrait`, `Enum`, `Field`, `TypeRef`, `Method`, `Annotation`.
 
 Here's the structure of two core types:

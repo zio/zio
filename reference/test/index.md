@@ -2,8 +2,6 @@
 
 > A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another, possibly enlarging the environment or error type. We use them to change existing tests or even entire suites or specs that we have already created.
 
-A `TestAspect` is an aspect that can be weaved into specs. We can think of an aspect as a polymorphic function, capable of transforming one test into another, possibly enlarging the environment or error type. We use them to change existing tests or even entire suites or specs that we have already created.
-
 We can think of a test aspect as a Spec transformer. It takes one spec, transforms it, and produces another spec (`Spec => Spec`). Test aspects are applied to a test or suite using the `@@` operator:
 
 ```scala

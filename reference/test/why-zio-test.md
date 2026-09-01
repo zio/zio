@@ -2,8 +2,6 @@
 
 > In this section, we will discuss important features of the ZIO Test which help us to test our effectual code easily.
 
-In this section, we will discuss important features of the ZIO Test which help us to test our effectual code easily.
-
 ## Test Environment
 
 The library includes built-in _testable versions_ of all the standard ZIO services (`Clock`, `Console`, `System`, and `Random`). For example, the `TestClock` has some timing actions that enables us to control the passage of time. So instead of waiting for timeouts and passage of time, we can adjust the time in our test:

@@ -2,8 +2,6 @@
 
 > A `TSet[A]` is a mutable set that can participate in transactions in STM.
 
-A `TSet[A]` is a mutable set that can participate in transactions in STM.
-
 ## Create a TSet
 
 Creating an empty `TSet`:

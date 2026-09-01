@@ -2,8 +2,6 @@
 
 > The `zio.stream` provides numerous kinds of sinks to use.
 
-The `zio.stream` provides numerous kinds of sinks to use.
-
 ### Common Constructors
 
 **ZSink.head** — It creates a sink containing the first element, returns `None` for empty streams:

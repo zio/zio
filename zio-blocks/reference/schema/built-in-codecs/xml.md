@@ -2,8 +2,6 @@
 
 > `Xml` is a **sealed trait representing XML nodes**. It provides a type-safe, immutable representation of all valid XML document structures including elements, text nodes, CDATA sections, comments, and processing instructions.
 
-`Xml` is a **sealed trait representing XML nodes**. It provides a type-safe, immutable representation of all valid XML document structures including elements, text nodes, CDATA sections, comments, and processing instructions.
-
 ```scala
 sealed trait Xml {
   def xmlType: XmlType

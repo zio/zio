@@ -1,10 +1,7 @@
 # Error Handling
 
 > DynamoDBError is a sealed trait that represents all the possible errors that can occur when interacting with DynamoDB
-and is returned by the DynamoDBQuery `execute` method.
-
-DynamoDBError is a sealed trait that represents all the possible errors that can occur when interacting with DynamoDB
-and is returned by the DynamoDBQuery `execute` method.
+> and is returned by the DynamoDBQuery `execute` method.
 
 ```scala
 def execute: ZIO[DynamoDBExecutor, DynamoDBError, Out] = ???

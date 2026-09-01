@@ -2,8 +2,6 @@
 
 > The `Sized` service enables the _Sized Generators_ to access the _size_ from the ZIO Test environment:
 
-The `Sized` service enables the _Sized Generators_ to access the _size_ from the ZIO Test environment:
-
 ```scala
 trait Sized extends Serializable {
   def size: UIO[Int]

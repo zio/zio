@@ -2,8 +2,6 @@
 
 > `Modifier` is a sealed trait that provides a mechanism to attach metadata and configuration to schema elements. Modifiers serve as annotations for record fields, variant cases, and reflect values, enabling format-specific customization without polluting domain types.
 
-`Modifier` is a sealed trait that provides a mechanism to attach metadata and configuration to schema elements. Modifiers serve as annotations for record fields, variant cases, and reflect values, enabling format-specific customization without polluting domain types.
-
 Modifiers are designed to be **pure data** values that can be serialized, making them ideal for runtime introspection and cross-process schema exchange. When deriving schemas, modifiers are collected and attached to the corresponding fields or types, allowing codecs to read and interpret them accordingly. They are extended with `StaticAnnotation` to also support annotation syntax:
 
 ```scala

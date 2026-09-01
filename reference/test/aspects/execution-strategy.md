@@ -2,8 +2,6 @@
 
 > ZIO Test has two different strategies to run members of a test suite: _sequential_ and _parallel_. Accordingly, there are two test aspects for specifying the execution strategy:
 
-ZIO Test has two different strategies to run members of a test suite: _sequential_ and _parallel_. Accordingly, there are two test aspects for specifying the execution strategy:
-
 ## Parallel
 
 The default strategy is parallel. We can explicitly enable it using `TestAspect.parallel`:

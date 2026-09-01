@@ -2,10 +2,6 @@
 
 > ZIO Schema provides a number of built-in primitive types, that we can use to represent our data. These can be seen in the following table:
 
-# Standard Type Reference
-
-ZIO Schema provides a number of built-in primitive types, that we can use to represent our data. These can be seen in the following table:
-
 |Standard Type|JVM Support|ScalaJS Support|Scala Native Support|
 |--------------|:--------------:|:--------------:|:--------------:|
 |`Boolean`|✅|✅|✅|

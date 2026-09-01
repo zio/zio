@@ -1,10 +1,7 @@
 # Other Supported Monads
 
 > As of RC5, zio-direct now supports ZStream and ZPure as well as `scala.concurrent.Future` and `scala.List`. The latter two are largely fully functional but largely for demonstration purposes.
-> Note that all of these are currently only supported in Scala 3.
-
-As of RC5, zio-direct now supports ZStream and ZPure as well as `scala.concurrent.Future` and `scala.List`. The latter two are largely fully functional but largely for demonstration purposes.
-> Note that all of these are currently only supported in Scala 3.
+> > Note that all of these are currently only supported in Scala 3.
 
 ## ZStream
 

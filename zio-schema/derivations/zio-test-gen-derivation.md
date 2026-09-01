@@ -4,8 +4,6 @@
 
 ## Introduction
 
-ZIO Test supports property-based testing via the `Gen` type. `Gen[R, A]` is a random generator of values of type `A`. Such a generator can be used to produce test cases for a property, which can then be checked for validity. The `zio-schema-zio-test` module provides a way to derive a `Gen[R, A]` from a `Schema[A]`. In this section, we will see how this functionality works.
-
 ## Installation
 
 In order to derive a generator from a ZIO Schema, we need to add the following dependency to our `build.sbt` file:

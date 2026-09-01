@@ -1,12 +1,8 @@
 # Serialization and Deserialization
 
 > Zio-kafka deserializes incoming data, and deserializes outgoing data (both keys and values) from byte arrays to any
-other type and back. This works by providing a key and value `Deserializer` while constructing a `Consumer`,
-and a key and value `Serializer` while constructing the `Producer`.
-
-Zio-kafka deserializes incoming data, and deserializes outgoing data (both keys and values) from byte arrays to any
-other type and back. This works by providing a key and value `Deserializer` while constructing a `Consumer`,
-and a key and value `Serializer` while constructing the `Producer`.
+> other type and back. This works by providing a key and value `Deserializer` while constructing a `Consumer`,
+> and a key and value `Serializer` while constructing the `Producer`.
 
 A `Serde` combines a `Deserializer` and a `Serializer`. Common serdes are provided in the `Serdes` object, e.g.
 `Serdes.byteArray`, `Serdes.string` and `Serdes.long`. A serde can be converted to other serdes, or you can create a

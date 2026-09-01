@@ -2,8 +2,6 @@
 
 > [ZParkIO](https://github.com/leobenkel/ZparkIO) is a boilerplate framework to use _Spark_ and _ZIO_ together.
 
-[ZParkIO](https://github.com/leobenkel/ZparkIO) is a boilerplate framework to use _Spark_ and _ZIO_ together.
-
 ## Introduction
 
 _ZparkIO_ enables us to:

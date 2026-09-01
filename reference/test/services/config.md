@@ -2,8 +2,6 @@
 
 > The `TestConfig` service provides access to default configuration settings used by ZIO Test:
 
-The `TestConfig` service provides access to default configuration settings used by ZIO Test:
-
 1. Repeats — The number of times to repeat tests to ensure they are stable.
 2. Retries — The number of times to retry flaky tests.
 3. Samples — The number of sufficient samples to check for a random variable.

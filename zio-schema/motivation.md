@@ -2,8 +2,6 @@
 
 > ZIO Schema is a library used in many ZIO projects such as _ZIO Flow_, _ZIO Redis_, _ZIO Web_, _ZIO SQL_ and _ZIO DynamoDB_. It is all about reification of our types. Reification means transforming something abstract (e.g. side effects, accessing fields, structure)  into something "real" (values).
 
-ZIO Schema is a library used in many ZIO projects such as _ZIO Flow_, _ZIO Redis_, _ZIO Web_, _ZIO SQL_ and _ZIO DynamoDB_. It is all about reification of our types. Reification means transforming something abstract (e.g. side effects, accessing fields, structure)  into something "real" (values).
-
 ## Reification: Functional Effects
 
 In functional effects, we reify by turning side-effects into values. For example, we might have a simple statement like;

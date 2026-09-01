@@ -2,8 +2,6 @@
 
 > `zio-blocks-schema-avro` is a **schema-driven Avro codec module** for serializing and deserializing Scala types to and from Avro binary format. It provides comprehensive encoding and decoding with support for 27 primitive types, records, variants, sequences, maps, and recursive types. Core types: `AvroCodec`, `AvroCodecDeriver`, `AvroFormat`.
 
-`zio-blocks-schema-avro` is a **schema-driven Avro codec module** for serializing and deserializing Scala types to and from Avro binary format. It provides comprehensive encoding and decoding with support for 27 primitive types, records, variants, sequences, maps, and recursive types. Core types: `AvroCodec`, `AvroCodecDeriver`, `AvroFormat`.
-
 The module integrates with Apache Avro to provide native binary serialization with automatic schema generation and support for recursive data structures with cycle detection.
 
 ## Motivation

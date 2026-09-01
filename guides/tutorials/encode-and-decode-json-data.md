@@ -4,8 +4,6 @@
 
 ## Introduction
 
-In this article, we will cover how to encode and decode JSON data.
-
 ## Running Examples
 
 To access the code examples, you can clone the [ZIO Quickstarts](http://github.com/zio/zio-quickstarts) project:

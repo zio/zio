@@ -2,8 +2,6 @@
 
 > The Patching system in ZIO Blocks provides a type-safe, serializable way to describe and apply transformations to data structures. Unlike direct mutations or lens-based updates, patches are **first-class values** that can be serialized, transmitted over the network, stored for audit logs, and composed together.
 
-The Patching system in ZIO Blocks provides a type-safe, serializable way to describe and apply transformations to data structures. Unlike direct mutations or lens-based updates, patches are **first-class values** that can be serialized, transmitted over the network, stored for audit logs, and composed together.
-
 ## Overview
 
 A `Patch[S]` represents a sequence of operations that transform a value of type `S`. Because patches use serializable operations and reflective optics for navigation, they enable powerful use cases:

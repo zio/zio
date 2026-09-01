@@ -2,8 +2,6 @@
 
 > Quill now has a highly customizable code generator. Currently, it only supports JDBC but it will soon be extended to other contexts. With a minimal amount of configuration, the code generator takes schemas like this:
 
-Quill now has a highly customizable code generator. Currently, it only supports JDBC but it will soon be extended to other contexts. With a minimal amount of configuration, the code generator takes schemas like this:
-
 ```sql
 -- Using schema 'public'
 

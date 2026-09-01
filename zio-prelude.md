@@ -2,8 +2,6 @@
 
 > ZIO Prelude features a next generation approach to functional abstractions. This approach is based on the following ideas:
 
-ZIO Prelude features a next generation approach to functional abstractions. This approach is based on the following ideas:
-
 1. **Algebraic** - Abstractions should describe fundamental algebraic properties.
 2. **Compositional** - These abstractions should describe properties that are orthogonal to each other, allowing definition of higher level abstractions as the composition of more basic ones.
 3. **Lawful** - Abstractions should be defined in terms of laws.

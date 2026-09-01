@@ -2,8 +2,6 @@
 
 > Before taking into `ZIO#either` and `ZIO#absolve`, let's see their signature:
 
-Before taking into `ZIO#either` and `ZIO#absolve`, let's see their signature:
-
 ```scala
 trait ZIO[-R, +E, +A] {
   def either(implicit ev: CanFail[E]): URIO[R, Either[E, A]]

@@ -4,8 +4,6 @@
 
 ## Tapping
 
-Tapping is an operation of running an effect on each emission of the ZIO Stream. We can think of `ZStream#tap` as an operation that allows us to observe each element of the stream, do some effectful operation and discard the result of this observation. The `tap` operation does not change elements of the stream, it does not affect the return type of the stream.
-
 For example, we can print each element of a stream by using the `tap` operation:
 
 ```scala

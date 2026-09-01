@@ -2,10 +2,6 @@
 
 > > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-# Docs Critique Subagent Implementation Plan
-
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Add a maker-critic agent workflow that automatically reviews documentation for content quality, technical accuracy, completeness, and consistency.
 
 **Architecture:** A pure-coordinator skill (`docs-critique`) spawns a maker agent to run a doc creation skill, then spawns a fresh critic agent to review the output. The orchestrator passes critique back to the maker via `SendMessage`. The maker fixes its own work. Critic is freshly spawned each review round.

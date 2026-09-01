@@ -2,8 +2,6 @@
 
 > A `Format` is an abstraction that bundles together everything needed to serialize and deserialize data in a specific format (JSON, Avro, MessagePack, etc.). It unifies metadata related to serialization formats, such as MIME type and codec deriver, in a single place.
 
-A `Format` is an abstraction that bundles together everything needed to serialize and deserialize data in a specific format (JSON, Avro, MessagePack, etc.). It unifies metadata related to serialization formats, such as MIME type and codec deriver, in a single place.
-
 ## Overview
 
 The `Format` trait defines the structure for any serialization format. Each format specifies the types for decoding input, encoding output, the codec typeclass, MIME type, and the deriver used to generate codecs from schemas:

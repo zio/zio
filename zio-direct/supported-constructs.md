@@ -4,8 +4,6 @@
 
 # Supported Constructs
 
-ZIO-direct supports using the following constructs inside of a `defer` block. Approximate translations of the what the Scala code looks like are available below. In order to see the exact translations for any code in a defer block, use `defer.info`.
-
 ### blocks
 
 ```scala

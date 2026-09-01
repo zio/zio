@@ -2,8 +2,6 @@
 
 > ZIO is a _type-safe_ library for building asynchronous and concurrent applications. The Scala compiler can catch a lot of errors at compile time since it is type-safe. This ensures that our code is mostly correct, and it prevents lots of bugs from creeping into the runtime. So having a type-safe editor that highlights errors will improve our development experience. VSCode with the power of the _Metals_ extension provides us with a type-safe editor for writing Scala programs.
 
-ZIO is a _type-safe_ library for building asynchronous and concurrent applications. The Scala compiler can catch a lot of errors at compile time since it is type-safe. This ensures that our code is mostly correct, and it prevents lots of bugs from creeping into the runtime. So having a type-safe editor that highlights errors will improve our development experience. VSCode with the power of the _Metals_ extension provides us with a type-safe editor for writing Scala programs.
-
 In this tutorial, we will walk through how to run our first ZIO project with VSCode. We will start by creating a new project and then importing that into the VSCode workspace.
 
 ## Requirements

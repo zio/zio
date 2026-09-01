@@ -2,8 +2,6 @@
 
 > This is a very common pattern to use variables to keep track of the state. For example, to calculate the length of a list, we can store intermediate results inside the `count` variable:
 
-This is a very common pattern to use variables to keep track of the state. For example, to calculate the length of a list, we can store intermediate results inside the `count` variable:
-
 ```scala
 def length[T](list: List[T]): Int = {
   var count = 0

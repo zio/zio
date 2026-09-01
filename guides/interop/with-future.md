@@ -4,8 +4,6 @@
 
 ## Scala Future
 
-Basic interoperability with Scala's `Future` is now provided by ZIO, and does not require a separate module.
-
 ### From Future
 
 Scala's `Future` can be converted into a ZIO effect with `ZIO.fromFuture`:

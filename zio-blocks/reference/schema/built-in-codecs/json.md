@@ -2,8 +2,6 @@
 
 > `Json` is a type-safe, schema-free representation of JSON values that enables navigation, transformation, merging, and querying without losing fidelity.
 
-`Json` is a type-safe, schema-free representation of JSON values that enables navigation, transformation, merging, and querying without losing fidelity.
-
 ## Overview
 
 The `Json` type represents all valid JSON values with six cases:

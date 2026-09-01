@@ -2,8 +2,6 @@
 
 > `AssociativeBoth[F]` describes a way of combining two values `F[A]` and `F[B]` into a value `F[(A, B)]` that is associative.
 
-`AssociativeBoth[F]` describes a way of combining two values `F[A]` and `F[B]` into a value `F[(A, B)]` that is associative.
-
 Its signature is:
 
 ```scala

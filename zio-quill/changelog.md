@@ -1,10 +1,7 @@
 # Quill Changelog
 
 > Starting from the versions superior v4.6.1, the release notes and changelog will be provided in the GitHub Releases of the project.
-See https://github.com/zio/zio-quill/releases
-
-Starting from the versions superior v4.6.1, the release notes and changelog will be provided in the GitHub Releases of the project.
-See https://github.com/zio/zio-quill/releases
+> See https://github.com/zio/zio-quill/releases
 
 # 4.6.1
 

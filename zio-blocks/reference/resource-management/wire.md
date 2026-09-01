@@ -2,8 +2,6 @@
 
 > `Wire[-In, +Out]` is a **compile-time safe recipe for constructing a service and its dependencies**. Wires describe how to construct an `Out` value given access to its dependencies via a `Context[In]` and a `Scope` for finalization:
 
-`Wire[-In, +Out]` is a **compile-time safe recipe for constructing a service and its dependencies**. Wires describe how to construct an `Out` value given access to its dependencies via a `Context[In]` and a `Scope` for finalization:
-
 ```scala
 sealed trait Wire[-In, +Out] {
   def isShared: Boolean

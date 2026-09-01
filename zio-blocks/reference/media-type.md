@@ -2,8 +2,6 @@
 
 > `MediaType` is a **type-safe representation of IANA media types** (also known as MIME types). It captures structured metadata about content types including compressibility, binary/text classification, and associated file extensions.
 
-`MediaType` is a **type-safe representation of IANA media types** (also known as MIME types). It captures structured metadata about content types including compressibility, binary/text classification, and associated file extensions. 
-
 ZIO Blocks MediaType is designed to be a comprehensive and efficient implementation for handling media types in Scala applications, especially those involving HTTP content negotiation, file handling, and data serialization.
 
 `MediaType`:

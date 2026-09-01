@@ -2,8 +2,6 @@
 
 > [![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/izumi-reflect/workflows/CI/badge.svg) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/izumi-reflect_2.12.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/izumi-reflect_2.12/) [![izumi-reflect](https://img.shields.io/github/stars/zio/izumi-reflect?style=social)](https://github.com/zio/izumi-reflect)
 
-[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/izumi-reflect/workflows/CI/badge.svg) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/izumi-reflect_2.12.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/izumi-reflect_2.12/) [![izumi-reflect](https://img.shields.io/github/stars/zio/izumi-reflect?style=social)](https://github.com/zio/izumi-reflect)
-
 # izumi-reflect
 
 > @quote: Looks a bit similar to TypeTag

@@ -2,8 +2,6 @@
 
 > `DynamicValue` is a schema-less, dynamically-typed representation of any structured value in ZIO Blocks. It provides a universal data model that can represent any value without requiring compile-time type information, serving as an intermediate representation for serialization, schema evolution, data transformation, and cross-format conversion.
 
-`DynamicValue` is a schema-less, dynamically-typed representation of any structured value in ZIO Blocks. It provides a universal data model that can represent any value without requiring compile-time type information, serving as an intermediate representation for serialization, schema evolution, data transformation, and cross-format conversion.
-
 ## Overview
 
 The `DynamicValue` type represents all structured values with six cases:

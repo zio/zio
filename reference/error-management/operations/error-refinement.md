@@ -2,8 +2,6 @@
 
 > ZIO has some operators useful for converting defects into failures. So we can take part in non-recoverable errors and convert them into the typed error channel and vice versa.
 
-ZIO has some operators useful for converting defects into failures. So we can take part in non-recoverable errors and convert them into the typed error channel and vice versa.
-
 Note that both `ZIO#refine*` and `ZIO#unrefine*` do not alter the error behavior, but only change the error model. That is to say, if an effect fails or die, then after `ZIO#refine*` or `ZIO#unrefine*`, it will still fail or die; and if an effect succeeds, then after `ZIO#refine*` or `ZIO#unrefine*`, it will still succeed; only the manner in which it signals the error will be altered by these two methods:
 
 1. The `ZIO#refine*` pinches off a piece of _failure_ of type `E`, and converts it into a _defect_.

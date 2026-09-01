@@ -1,18 +1,11 @@
 # Before, After, and Around Test Aspects
 
 > 1. We can run an effect _before_, _after_, or _around_ every test:
-- `TestAspect.before`
-- `TestAspect.after`
-- `TestAspect.afterFailure`
-- `TestAspect.afterSuccess`
-- `TestAspect.around`
-
-1. We can run an effect _before_, _after_, or _around_ every test:
-- `TestAspect.before`
-- `TestAspect.after`
-- `TestAspect.afterFailure`
-- `TestAspect.afterSuccess`
-- `TestAspect.around`
+> - `TestAspect.before`
+> - `TestAspect.after`
+> - `TestAspect.afterFailure`
+> - `TestAspect.afterSuccess`
+> - `TestAspect.around`
 
 ```scala
 import zio._

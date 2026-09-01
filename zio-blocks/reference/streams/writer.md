@@ -2,8 +2,6 @@
 
 > `Writer[-Elem]` is a **push-based sink for elements** that accepts values one at a time until closed or filled. It is the push-based counterpart to `Reader[+Elem]` (which pulls). Elements are written on demand by the producer, making it ideal for streaming, buffering, and integration with I/O subsystems. The fundamental operations are `write(elem): Boolean` — pushes an element and returns success or closure — and `close()` — signals the end of writing and releases resources.
 
-`Writer[-Elem]` is a **push-based sink for elements** that accepts values one at a time until closed or filled. It is the push-based counterpart to `Reader[+Elem]` (which pulls). Elements are written on demand by the producer, making it ideal for streaming, buffering, and integration with I/O subsystems. The fundamental operations are `write(elem): Boolean` — pushes an element and returns success or closure — and `close()` — signals the end of writing and releases resources.
-
 `Writer[-Elem]` has these key properties:
 
 - **Lazy and Push-Based** — nothing happens until the producer calls `write()`

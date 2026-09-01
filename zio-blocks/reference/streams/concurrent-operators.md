@@ -2,8 +2,6 @@
 
 > ZIO Blocks Streams ships **three** concurrent operators that fan work across virtual threads while preserving the typed-error, synchronous, pull-based programming model. The calling thread still receives `Either[E, Z]` — no effect system is required.
 
-ZIO Blocks Streams ships **three** concurrent operators that fan work across virtual threads while preserving the typed-error, synchronous, pull-based programming model. The calling thread still receives `Either[E, Z]` — no effect system is required.
-
 | Operator | Purpose |
 |---|---|
 | `Stream#mapPar(n)(f)` | Apply `f` to each element on up to `n` worker threads. Output is **unordered** (arrival order, not input order). |

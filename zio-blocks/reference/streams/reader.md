@@ -2,8 +2,6 @@
 
 > `Reader[+Elem]` is the **pull-based source that powers ZIO Blocks streams**. When you call a terminal operation like `stream.run(sink)`, the stream compiles into a `Reader`, which yields values one at a time on demand until closed.
 
-`Reader[+Elem]` is the **pull-based source that powers ZIO Blocks streams**. When you call a terminal operation like `stream.run(sink)`, the stream compiles into a `Reader`, which yields values one at a time on demand until closed. 
-
 The fundamental operations are `read(sentinel)` — returns the next element or a sentinel when exhausted — and `close()` — signals stream end and releases resources. Most users never interact with `Reader` directly, but understanding it clarifies how streams work internally.
 
 The compilation and execution flow:

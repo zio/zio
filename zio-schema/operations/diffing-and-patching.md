@@ -2,8 +2,6 @@
 
 > ZIO Schema provides two methods called `diff` and `patch`:
 
-ZIO Schema provides two methods called `diff` and `patch`:
-
 ```scala
 sealed trait Schema[A] {
   def diff(thisValue: A, thatValue: A): Patch[A]

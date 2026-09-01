@@ -2,8 +2,6 @@
 
 > In Scala 3, we have an exciting new feature called union types. By using the union operator, we can encode multiple error types. Using this facility, we can have more precise information on typed errors.
 
-In Scala 3, we have an exciting new feature called union types. By using the union operator, we can encode multiple error types. Using this facility, we can have more precise information on typed errors.
-
 Let's see an example of `Storage` service which have `upload`, `download` and `delete` API:
 
 ```scala

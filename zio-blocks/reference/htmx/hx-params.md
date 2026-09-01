@@ -2,8 +2,6 @@
 
 > `HxParams` represents the `hx-params` attribute, controlling which form parameters are included in the HTMX request. Instead of sending all form fields, you can explicitly allow or forbid specific parameters through compile-safe domain types.
 
-`HxParams` represents the `hx-params` attribute, controlling which form parameters are included in the HTMX request. Instead of sending all form fields, you can explicitly allow or forbid specific parameters through compile-safe domain types.
-
 Use `HxParams.All` to include all parameters, `HxParams.None` to include none, or `HxParams.only()` and `HxParams.not()` to allow/forbid specific names. Here are the core patterns:
 
 ```scala

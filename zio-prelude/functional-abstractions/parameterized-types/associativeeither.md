@@ -2,8 +2,6 @@
 
 > `AssociativeEither` describes a way of combining two values `F[A]` and `F[B]` into a value `F[Either[A, B]]` that is associative.
 
-`AssociativeEither` describes a way of combining two values `F[A]` and `F[B]` into a value `F[Either[A, B]]` that is associative.
-
 Its signature is:
 
 ```scala

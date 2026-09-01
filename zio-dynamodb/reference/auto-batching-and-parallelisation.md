@@ -2,8 +2,6 @@
 
 > When `DynamoDBQuery`'s are composed manually via the `zip` combinator function they become eligible for auto-batching and parallelisation in the `execute` method.
 
-When `DynamoDBQuery`'s are composed manually via the `zip` combinator function they become eligible for auto-batching and parallelisation in the `execute` method. 
-
 When they are composed automatically using the `batch` function they are eligible for auto-batching but **no parallelisation** occurs.
 
 ```scala

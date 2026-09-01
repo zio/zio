@@ -2,8 +2,6 @@
 
 > `SpmcRingBuffer[A]` allows a single producer thread to efficiently feed multiple consumer threads. It uses an **index-based algorithm** where slot validity is determined by comparing producer and consumer indices, allowing multiple consumers to coordinate safely via CAS operations on a shared consumer index.
 
-`SpmcRingBuffer[A]` allows a single producer thread to efficiently feed multiple consumer threads. It uses an **index-based algorithm** where slot validity is determined by comparing producer and consumer indices, allowing multiple consumers to coordinate safely via CAS operations on a shared consumer index.
-
 ## Algorithm
 
 `SpmcRingBuffer` allows a single producer to feed multiple consumers. The algorithm is **index-based**: slot validity is determined by comparing `producerIndex` and `consumerIndex`, not by null-checking slots.

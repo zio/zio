@@ -2,8 +2,6 @@
 
 > You can find the source code [here](https://github.com/zio/zio-telemetry/tree/series/2.x/opentelemetry-example).
 
-You can find the source code [here](https://github.com/zio/zio-telemetry/tree/series/2.x/opentelemetry-example).
-
 For an explanation in more detail, check the [OpenTracing Example](opentracing-example.md).
 
 We're going to show an example of how to pass contextual information using [Baggage](https://opentelemetry.io/docs/concepts/signals/baggage/) and collect traces, metrics, and logs.

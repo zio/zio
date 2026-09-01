@@ -1,12 +1,9 @@
 # Integrations
 
 > `zio-config` is also integrated with `enumeratum`, `cats`, `scalaz`, `aws-sdk`, `zio-aws`, `refined` etc.
-Note that only a few of them is documented here. `refined` is already discussed under `automatic-validations`.
+> Note that only a few of them is documented here. `refined` is already discussed under `automatic-validations`.
 
 ## Integration with other libraries
-
-`zio-config` is also integrated with `enumeratum`, `cats`, `scalaz`, `aws-sdk`, `zio-aws`, `refined` etc.
-Note that only a few of them is documented here. `refined` is already discussed under `automatic-validations`.
 
 #### Enumeratum
 

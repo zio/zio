@@ -194,6 +194,8 @@ The patch types are sealed ADTs whose `combine` operations sequence their operat
 
 `Differ.set[A]` records every element addition and removal as a `SetPatch`. Two fibers that each `Add` a different element produce patches that combine into a patch that adds both elements:
 
+**Scala 2**
+
 ```scala
 Unsafe.unsafe { implicit u =>
   Runtime.default.unsafe.run(
@@ -212,6 +214,8 @@ Unsafe.unsafe { implicit u =>
 }
 // Set result: Set(left, right)
 ```
+
+**Scala 3**
 
 ```scala
 Unsafe.unsafely {
@@ -284,6 +288,8 @@ val pairDiffer: Differ[(Set[String], Int), (Differ.SetPatch[String], Int => Int)
 
 Let's run two concurrent fibers against this composed `Differ` and inspect the merged result:
 
+**Scala 2**
+
 ```scala
 Unsafe.unsafe { implicit u =>
   Runtime.default.unsafe.run(
@@ -302,6 +308,8 @@ Unsafe.unsafe { implicit u =>
 }
 // Pair result: (Set(item),42)
 ```
+
+**Scala 3**
 
 ```scala
 Unsafe.unsafely {
@@ -495,6 +503,8 @@ case class ServiceB(port: Int)
 
 Now let's run two concurrent fibers that each update the environment and confirm both services survive the join:
 
+**Scala 2**
+
 ```scala
 // ZEnvironment[+R] is covariant; get[A >: R] retrieves A when A is a supertype of R.
 // Starting from ServiceA with ServiceB lets us get either after join.
@@ -518,6 +528,8 @@ Unsafe.unsafe { implicit u =>
 // ServiceA: auth
 // ServiceB: 8080
 ```
+
+**Scala 3**
 
 ```scala
 // ZEnvironment[+R] is covariant; get[A >: R] retrieves A when A is a supertype of R.

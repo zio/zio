@@ -2,8 +2,6 @@
 
 > [Scala k8s](https://github.com/hnaderi/scala-k8s) is a Kubernetes client, data models and typesafe manifest generation for scala, scalajs, and scala native.
 
-[Scala k8s](https://github.com/hnaderi/scala-k8s) is a Kubernetes client, data models and typesafe manifest generation for scala, scalajs, and scala native.
-
 ## Introduction
 This library provides a full blown extensible client that you can use to interact directly with kubernetes API server, to create operators or accomplish other automation tasks, also you can use it to create or manipulate manifests in scala.
 

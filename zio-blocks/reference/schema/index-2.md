@@ -2,8 +2,6 @@
 
 > Schema evolution is the process of changing data structures over time while keeping existing data readable and systems interoperable. ZIO Blocks provides two type classes for this: `Into` for one-way conversions and `As` for bidirectional round-trip conversions.
 
-Schema evolution is the process of changing data structures over time while keeping existing data readable and systems interoperable. ZIO Blocks provides two type classes for this: `Into` for one-way conversions and `As` for bidirectional round-trip conversions.
-
 ```
          Into[A, B]                    As[A, B]
   ─────────────────────        ──────────────────────────

@@ -4,8 +4,6 @@
 
 ## Introduction
 
-BSON (Binary JSON) is a binary serialization format used to store and exchange data efficiently. In this article, we will explore how to derive BSON codecs from a ZIO Schema. The `zio-schema-bson` module, provides support for deriving codecs from ZIO Schema, and makes it easy to communicate data in BSON format.
-
 ## Installation
 
 To use BSON codecs, you need to add the following dependency to your Scala project:

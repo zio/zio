@@ -2,8 +2,6 @@
 
 > This page shows complete, runnable examples demonstrating realistic code generation workflows. Each example builds IR models from scratch and emits formatted Scala code.
 
-This page shows complete, runnable examples demonstrating realistic code generation workflows. Each example builds IR models from scratch and emits formatted Scala code.
-
 ## Example 1: Simple Domain Model
 
 Build a complete domain model with a case class and sealed trait:

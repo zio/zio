@@ -2,8 +2,6 @@
 
 > ZIO has built-in support for collecting JVM Metrics. These metrics are a direct port of the JVM metrics provided by the [Prometheus Java Hotspot library](https://github.com/prometheus/client_java/tree/master/simpleclient_hotspot) and compatible with that library.
 
-ZIO has built-in support for collecting JVM Metrics. These metrics are a direct port of the JVM metrics provided by the [Prometheus Java Hotspot library](https://github.com/prometheus/client_java/tree/master/simpleclient_hotspot) and compatible with that library.
-
 There are five categories of JVM metrics. Let's look at them one by one:
 
 - Buffer Pools

@@ -4,8 +4,6 @@
 
 ## Introduction
 
-Docker is a tool that allows us to package, ship, and run our applications in an isolated environment called a container. Using Docker, we can simplify the deployment process by isolating our applications in their own container and abstracting them from the host environment.
-
 In this tutorial, we are going to learn how to build a Docker image for our ZIO application and then how to deploy it. Instead of writing the `Dockerfile` from scratch, we will use the _[sbt-native-packager](https://github.com/sbt/sbt-native-packager)_ to build our Docker image.
 
 ## Running The Examples

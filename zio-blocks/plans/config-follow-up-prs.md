@@ -2,10 +2,6 @@
 
 > This document turns the config assessment roadmap into concrete follow-up PR/issue-sized work items.
 
-# Config Follow-up PR Plan
-
-This document turns the config assessment roadmap into concrete follow-up PR/issue-sized work items.
-
 ---
 
 ## PR 1 — Config Source Ecosystem and Secret File Ergonomics

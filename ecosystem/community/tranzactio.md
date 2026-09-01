@@ -2,8 +2,6 @@
 
 > [TranzactIO](https://github.com/gaelrenoux/tranzactio) is a ZIO wrapper for some Scala database access libraries, currently for [Doobie](https://github.com/tpolecat/doobie) and [Anorm](https://github.com/playframework/anorm).
 
-[TranzactIO](https://github.com/gaelrenoux/tranzactio) is a ZIO wrapper for some Scala database access libraries, currently for [Doobie](https://github.com/tpolecat/doobie) and [Anorm](https://github.com/playframework/anorm).
-
 ## Introduction
 
 Using functional effect database access libraries like _Doobie_ enforces us to use their specialized monads like `ConnectionIO` for _Doobie_. The goal of _TranzactIO_ is to provide seamless integration with these libraries to help us to stay in the `ZIO` world.

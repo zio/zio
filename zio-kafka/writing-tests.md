@@ -2,8 +2,6 @@
 
 > Zio-kafka provides a `zio-kafka-testkit` library to help you test your code using zio-kafka.
 
-Zio-kafka provides a `zio-kafka-testkit` library to help you test your code using zio-kafka.
-
 To add it in your project, add the following dependency in your `build.sbt`:
 
 ```scala

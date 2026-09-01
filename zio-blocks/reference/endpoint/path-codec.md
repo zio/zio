@@ -2,8 +2,6 @@
 
 > `PathCodec[A]` is a composable descriptor for URL path structures. It holds a tree of segment codecs connected by concatenation and fallback nodes, and provides bidirectional path conversion: `PathCodec#decode` extracts a typed value from a `Path`, returning `Either[String, A]` (the typed value or error), and `PathCodec#format` formats a typed value back to a `Path`, returning `Either[String, Path]` (the path or error). In addition to its runtime value type `A`, each codec also carries a phantom `PathVars` track that records the ordered list of declared path-variable markers contributed by its dynamic segments. Its definition begins:
 
-`PathCodec[A]` is a composable descriptor for URL path structures. It holds a tree of segment codecs connected by concatenation and fallback nodes, and provides bidirectional path conversion: `PathCodec#decode` extracts a typed value from a `Path`, returning `Either[String, A]` (the typed value or error), and `PathCodec#format` formats a typed value back to a `Path`, returning `Either[String, Path]` (the path or error). In addition to its runtime value type `A`, each codec also carries a phantom `PathVars` track that records the ordered list of declared path-variable markers contributed by its dynamic segments. Its definition begins:
-
 ```scala
 sealed trait PathCodec[A] {
   type PathVars

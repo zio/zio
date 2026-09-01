@@ -2,8 +2,6 @@
 
 > In this guide, we will build a type-safe query DSL for filtering, comparing, and computing over domain data using ZIO Blocks' reified optics and schema expressions. By the end, you will have a composable query language that works on any schema-equipped data type, supporting equality checks, comparisons, boolean logic, arithmetic, and string operations.
 
-In this guide, we will build a type-safe query DSL for filtering, comparing, and computing over domain data using ZIO Blocks' reified optics and schema expressions. By the end, you will have a composable query language that works on any schema-equipped data type, supporting equality checks, comparisons, boolean logic, arithmetic, and string operations.
-
 We'll take an incremental approach: starting with simple field-level equality checks, then adding comparison operators, boolean combinators, arithmetic expressions, and string operations until we have a complete, expressive query DSL.
 
 **What we'll cover:**

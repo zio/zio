@@ -2,8 +2,6 @@
 
 > ZIO Direct Style is a library that allows using directly-style i.e. imperative programming with ZIO effects which is based on the Monadless paradigm.
 
-ZIO Direct Style is a library that allows using directly-style i.e. imperative programming with ZIO effects which is based on the Monadless paradigm.
-
 [![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-direct/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-direct_3.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-direct_3/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-direct_3.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-direct_3/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-direct-docs_3/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-direct-docs_3) [![ZIO Direct Style](https://img.shields.io/github/stars/zio/zio-direct?style=social)](https://github.com/zio/zio-direct)
 
 ## Installation

@@ -2,8 +2,6 @@
 
 > Tests in ZIO are dynamic. Meaning that they are not required to be statically defined at compile time. They can be generated at runtime effectfully.
 
-Tests in ZIO are dynamic. Meaning that they are not required to be statically defined at compile time. They can be generated at runtime effectfully.
-
 Assume we have implemented the `add` operator which adds two numbers:
 
 ```scala

@@ -1,10 +1,10 @@
 # queryAll
 
 > ```scala
-  def queryAll[A: Schema](
-    tableName: String
-  ): DynamoDBQuery[A, Stream[Throwable, A]] = ???
-```
+>   def queryAll[A: Schema](
+>     tableName: String
+>   ): DynamoDBQuery[A, Stream[Throwable, A]] = ???
+> ```
 
 ```scala
   def queryAll[A: Schema](

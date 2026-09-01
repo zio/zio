@@ -2,8 +2,6 @@
 
 > ZIO Cache automatically tracks various statistics associated with the cache, such as the number of cache hits and misses and the current size of the cache, to allow you to assess the effectiveness of the cache. You can access these statistics by using the `cacheStats` operator on `Cache`.
 
-ZIO Cache automatically tracks various statistics associated with the cache, such as the number of cache hits and misses and the current size of the cache, to allow you to assess the effectiveness of the cache. You can access these statistics by using the `cacheStats` operator on `Cache`.
-
 ```scala
 import zio._
 

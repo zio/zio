@@ -4,8 +4,6 @@
 
 ## Measuring Execution Time
 
-We can annotate the execution time of each test using the `timed` test aspect:
-
 ```scala
 import zio._
 import zio.test.{ test, _ }

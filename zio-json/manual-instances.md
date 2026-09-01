@@ -2,8 +2,6 @@
 
 > Sometimes it is easier to reuse an existing `JsonDecoder` rather than generate a new one. This can be accomplished using convenience methods on the `JsonDecoder` typeclass to *derive* new decoders:
 
-Sometimes it is easier to reuse an existing `JsonDecoder` rather than generate a new one. This can be accomplished using convenience methods on the `JsonDecoder` typeclass to *derive* new decoders:
-
 ```scala
 trait JsonDecoder[A] {
   def map[B](f: A => B): JsonDecoder[B]

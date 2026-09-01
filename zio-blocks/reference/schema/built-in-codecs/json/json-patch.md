@@ -2,8 +2,6 @@
 
 > `JsonPatch` is an **untyped, composable patch** for [`Json`](./json.md) values. It represents a sequence of operations that transform one `Json` value into another — computed automatically via a diff algorithm or constructed manually. The two fundamental operations are `JsonPatch.diff` to compute a patch between two `Json` values, and `JsonPatch#apply` to apply it.
 
-`JsonPatch` is an **untyped, composable patch** for [`Json`](./json.md) values. It represents a sequence of operations that transform one `Json` value into another — computed automatically via a diff algorithm or constructed manually. The two fundamental operations are `JsonPatch.diff` to compute a patch between two `Json` values, and `JsonPatch#apply` to apply it.
-
 `JsonPatch`:
 - is a pure value — applying it never mutates the input
 - is composable via `++`, sequencing two patches one after another

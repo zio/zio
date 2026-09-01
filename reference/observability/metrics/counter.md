@@ -2,8 +2,6 @@
 
 > A `Counter` is a metric representing a single numerical value that may be incremented over time. A typical use of this metric would be to track the number of a certain type of request received.
 
-A `Counter` is a metric representing a single numerical value that may be incremented over time. A typical use of this metric would be to track the number of a certain type of request received.
-
 With a counter, the quantity of interest is the cumulative value over time, as opposed to a [gauge](gauge.md) where the quantity of interest is the value as of a specific point in time.
 
 ## API

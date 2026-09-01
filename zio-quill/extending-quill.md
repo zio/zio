@@ -4,8 +4,6 @@
 
 ## Infix
 
-Infix is a very flexible mechanism to use non-supported features without having to use plain queries in the target language. It allows the insertion of arbitrary strings within quotations.
-
 For instance, quill doesn't support the `FOR UPDATE` SQL feature. It can still be used through infix and implicit classes:
 
 ```scala

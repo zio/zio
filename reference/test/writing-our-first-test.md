@@ -2,8 +2,6 @@
 
 > Any object that implements the `ZIOSpecDefault` trait is a runnable test. So to start writing tests we need to extend `ZIOSpecDefault`, which requires a `Spec`:
 
-Any object that implements the `ZIOSpecDefault` trait is a runnable test. So to start writing tests we need to extend `ZIOSpecDefault`, which requires a `Spec`:
-
 ```scala
 import zio.test._
 

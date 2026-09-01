@@ -1,8 +1,8 @@
 # put
 
 > ```scala
-def put[A: Schema](tableName: String, a: A): DynamoDBQuery[A, Option[A]] = ???
-```
+> def put[A: Schema](tableName: String, a: A): DynamoDBQuery[A, Option[A]] = ???
+> ```
 
 ```scala
 def put[A: Schema](tableName: String, a: A): DynamoDBQuery[A, Option[A]] = ???

@@ -2,8 +2,6 @@
 
 > The `Reflect` data type is the foundational data structure underlying ZIO Blocks. While `Schema[A]` is the user-facing API that wraps a `Reflect`, the `Reflect` type itself contains the actual reflective metadata that describes the structure of Scala data types at runtime:
 
-The `Reflect` data type is the foundational data structure underlying ZIO Blocks. While `Schema[A]` is the user-facing API that wraps a `Reflect`, the `Reflect` type itself contains the actual reflective metadata that describes the structure of Scala data types at runtime:
-
 ```scala
 // Simplified definition of Schema and Reflect
 final case class Schema[A](reflect: Reflect.Bound[A])

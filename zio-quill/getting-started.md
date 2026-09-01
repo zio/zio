@@ -2,8 +2,6 @@
 
 > > ### [Scastie](https://scastie.scala-lang.org/) is a great tool to try out Quill without having to prepare a local environment. It works with [mirror contexts](contexts.md#mirror-context), see [this](https://scastie.scala-lang.org/QwOewNEiR3mFlKIM7v900A) snippet as an example.
 
-> ### [Scastie](https://scastie.scala-lang.org/) is a great tool to try out Quill without having to prepare a local environment. It works with [mirror contexts](contexts.md#mirror-context), see [this](https://scastie.scala-lang.org/QwOewNEiR3mFlKIM7v900A) snippet as an example.
-
 Quill has integrations with many libraries. If you are using a regular RDBMS e.g. PostgreSQL
 and want to use Quill to query it with an asynchronous, non-blocking, reactive application, the easiest way to get
 started is by using ZIO.

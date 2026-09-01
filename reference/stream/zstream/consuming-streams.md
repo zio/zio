@@ -1,9 +1,9 @@
 # Consuming Streams
 
 > ```scala
-import zio._
-import zio.Console._
-import zio.stream._
+> import zio._
+> import zio.Console._
+> import zio.stream._
 
 ```scala
 import zio._

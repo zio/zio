@@ -2,10 +2,6 @@
 
 > The following example uses the ElasticBeanstalk and EC2 APIs to print some info.
 
-# Examples
-
-The following example uses the ElasticBeanstalk and EC2 APIs to print some info. 
-
 ```scala
 object Main extends ZIOAppDefault {
   val program: ZIO[Ec2 & ElasticBeanstalk, AwsError, Unit] =

@@ -4,8 +4,6 @@
 
 ## Introduction
 
-Designing and architecting a software system is a complex task. We should consider both the functional and non-functional requirements of the system.
-
 The functional requirements are the features of the system which are directly related to the business domain and its problems. They are the core of the system and the main reason why we are designing and building the application.
 
 Non-functional requirements are characteristics of the system that are used to qualify it in terms of "what should the system be" rather than "what should the system do," e.g.:

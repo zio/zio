@@ -2,8 +2,6 @@
 
 > ZIO is a next-generation framework for building cloud-native applications on the JVM. With a beginner-friendly yet powerful functional core, ZIO lets developers quickly build best-practice applications that are highly scalable, testable, robust, resilient, resource-safe, efficient, and observable.
 
-ZIO is a next-generation framework for building cloud-native applications on the JVM. With a beginner-friendly yet powerful functional core, ZIO lets developers quickly build best-practice applications that are highly scalable, testable, robust, resilient, resource-safe, efficient, and observable.
-
 At the heart of ZIO is a powerful data type called `ZIO`, which is the fundamental building block for every ZIO application.
 
 ## ZIO 

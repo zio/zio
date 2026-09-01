@@ -2,8 +2,6 @@
 
 > When we create a schema for a type, we can also specify validation rules for the type. Validations are a way to ensure that the data conforms to certain rules.
 
-When we create a schema for a type, we can also specify validation rules for the type. Validations are a way to ensure that the data conforms to certain rules.
-
 Using `Schema#validate` we can validate a value against the validation rules of its schema:
 
 ```scala

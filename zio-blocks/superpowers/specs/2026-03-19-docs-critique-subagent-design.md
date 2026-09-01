@@ -1,14 +1,8 @@
 # Design: Subagent-Based Documentation Review
 
 > **Date:** 2026-03-19
-**Status:** Draft
-**Scope:** Add a maker-critic workflow to all documentation creation skills
-
-# Design: Subagent-Based Documentation Review
-
-**Date:** 2026-03-19
-**Status:** Draft
-**Scope:** Add a maker-critic workflow to all documentation creation skills
+> **Status:** Draft
+> **Scope:** Add a maker-critic workflow to all documentation creation skills
 
 ## Problem
 

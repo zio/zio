@@ -2,8 +2,6 @@
 
 > `ForEach[F]` describes a parameterized type `F[A]` that contains zero or more values of type `A`.
 
-`ForEach[F]` describes a parameterized type `F[A]` that contains zero or more values of type `A`.
-
 Its signature is:
 
 ```scala

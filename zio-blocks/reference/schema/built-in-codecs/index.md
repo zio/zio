@@ -2,8 +2,6 @@
 
 > The JSON codec module provides complete, type-safe support for working with JSON data in ZIO Blocks. It includes an ADT for representing JSON values, a fluent navigation API (`JsonSelection`), configurable encoding/decoding (`JsonCodec` with `WriterConfig`/`ReaderConfig`), composable patches for transformations, a diff algorithm for computing minimal changes, and full JSON Schema 2020-12 support for validation and code generation.
 
-The JSON codec module provides complete, type-safe support for working with JSON data in ZIO Blocks. It includes an ADT for representing JSON values, a fluent navigation API (`JsonSelection`), configurable encoding/decoding (`JsonCodec` with `WriterConfig`/`ReaderConfig`), composable patches for transformations, a diff algorithm for computing minimal changes, and full JSON Schema 2020-12 support for validation and code generation.
-
 **Core types:** `Json`, `JsonCodec`, `JsonSelection`, `JsonPatch`, `JsonDiffer`, `JsonSchema`, `JsonType`.
 
 ```scala

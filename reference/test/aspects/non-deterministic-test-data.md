@@ -2,8 +2,6 @@
 
 > The random process of the `TestRandom` is said to be deterministic since, with the initial seed, we can generate a sequence of predictable numbers. So with the same initial seed, it will generate the same sequence of numbers.
 
-The random process of the `TestRandom` is said to be deterministic since, with the initial seed, we can generate a sequence of predictable numbers. So with the same initial seed, it will generate the same sequence of numbers.
-
 By default, the initial seed of the `TestRandom` is fixed. So repeating a generator more and more results in the same sequence:
 
 ```scala

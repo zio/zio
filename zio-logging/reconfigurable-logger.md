@@ -2,8 +2,6 @@
 
 > `ReconfigurableLogger` is adding support for updating logger configuration in application runtime.
 
-`ReconfigurableLogger` is adding support for updating logger configuration in application runtime. 
-
 logger layer with configuration from `ConfigProvider` (example with [Console Logger)](console-logger.md)):
 
 ```scala

@@ -1,10 +1,10 @@
 # Scalaz 7.x Interop
 
 > ```scala
-libraryDependencies ++= Seq(
-  "dev.zio" % "zio-json-interop-scalaz" % "0.8.0"
-)
-```
+> libraryDependencies ++= Seq(
+>   "dev.zio" % "zio-json-interop-scalaz" % "0.8.0"
+> )
+> ```
 
 ## Installation
 

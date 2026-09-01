@@ -2,8 +2,6 @@
 
 > `Endpoint[PathInput, Input, Err, Output, Auth]` is the top-level descriptor for an HTTP endpoint. It holds a typed route, three independent codec channels (request input, error output, success output), an authentication type, and documentation metadata. `Endpoint` is pure data — it carries no server or client logic and imposes no effect type. Its full shape is:
 
-`Endpoint[PathInput, Input, Err, Output, Auth]` is the top-level descriptor for an HTTP endpoint. It holds a typed route, three independent codec channels (request input, error output, success output), an authentication type, and documentation metadata. `Endpoint` is pure data — it carries no server or client logic and imposes no effect type. Its full shape is:
-
 ```scala
 final case class Endpoint[PathInput, Input, Err, Output, Auth <: AuthType](
   route: RoutePattern[PathInput],

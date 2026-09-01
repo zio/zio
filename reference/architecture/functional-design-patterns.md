@@ -2,9 +2,7 @@
 
 > When designing an API, there are patterns that are commonly used. In this section, we are going to talk about some of these patterns:
 
-When designing an API, there are patterns that are commonly used. In this section, we are going to talk about some of these patterns:
-
-  1. Functional Data Modeling
+1. Functional Data Modeling
   2. Functional Domain Modeling
      1. Declarative Encoding
      2. Executable Encoding

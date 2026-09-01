@@ -2,8 +2,6 @@
 
 > Automatic schema derivation is the process of generating schema definitions for data types automatically, without the need to manually write them. It allows us to generate the schema for a data type based on its structure and annotations.
 
-Automatic schema derivation is the process of generating schema definitions for data types automatically, without the need to manually write them. It allows us to generate the schema for a data type based on its structure and annotations.
-
 Instead of manually specifying the schema for each data type, we can rely on automatic schema derivation to generate the schema for us. This approach can save time and reduce the potential for errors, especially when dealing with complex data models.
 
 By leveraging reflection and type introspection using macros, automatic schema derivation analyzes the structure of the data type and its fields, including their names, types, and annotations. It then generates the corresponding schema definition based on this analysis.

@@ -2,8 +2,6 @@
 
 > > This document describes Kafka transactions for zio-kafka version 3.0.0 and later.
 
-> This document describes Kafka transactions for zio-kafka version 3.0.0 and later.
-
 ## What are Kafka Transactions?
 
 [Kafka transactions](https://www.confluent.io/blog/transactions-apache-kafka/) are different from what you may know from

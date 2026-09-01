@@ -2,8 +2,6 @@
 
 > `JsonSchema` provides first-class support for [JSON Schema 2020-12](https://json-schema.org/specification-links.html#2020-12) in ZIO Blocks. It enables parsing, construction, validation, and serialization of JSON Schemas as native Scala values.
 
-`JsonSchema` provides first-class support for [JSON Schema 2020-12](https://json-schema.org/specification-links.html#2020-12) in ZIO Blocks. It enables parsing, construction, validation, and serialization of JSON Schemas as native Scala values.
-
 ## Overview
 
 The `JsonSchema` type is a sealed ADT representing all valid JSON Schema documents:

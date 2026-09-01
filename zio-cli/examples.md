@@ -1,24 +1,14 @@
 # Advanced example
 
 > This example implements some git commands. The workflow is the one used before:
-- Define options and arguments
-- Construct a command
-- Transform command using `map` to change the type parameter
-- Construct CLI app using `CliApp.make`
-```scala
-import zio.Console.printLine
-import zio.cli.HelpDoc.Span.text
-import zio.cli._
-
-This example implements some git commands. The workflow is the one used before:
-- Define options and arguments
-- Construct a command
-- Transform command using `map` to change the type parameter
-- Construct CLI app using `CliApp.make`
-```scala
-import zio.Console.printLine
-import zio.cli.HelpDoc.Span.text
-import zio.cli._
+> - Define options and arguments
+> - Construct a command
+> - Transform command using `map` to change the type parameter
+> - Construct CLI app using `CliApp.make`
+> ```scala
+> import zio.Console.printLine
+> import zio.cli.HelpDoc.Span.text
+> import zio.cli._
 
 import java.nio.file.{Path => JPath}
 

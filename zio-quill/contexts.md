@@ -2,8 +2,6 @@
 
 > Contexts represent the database and provide an execution interface for queries.
 
-Contexts represent the database and provide an execution interface for queries.
-
 ## Mirror context
 
 Quill provides a mirror context for testing purposes. Instead of running the query, the mirror context returns a structure with the information that would be used to run the query. There are three mirror context instances:

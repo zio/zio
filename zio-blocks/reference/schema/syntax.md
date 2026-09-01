@@ -2,8 +2,6 @@
 
 > ZIO Blocks provides convenient extension methods on any value that has a `Schema`. These methods give you fluent, type-safe access to JSON encoding/decoding, pretty-printing, and patching operations directly on your values.
 
-ZIO Blocks provides convenient extension methods on any value that has a `Schema`. These methods give you fluent, type-safe access to JSON encoding/decoding, pretty-printing, and patching operations directly on your values.
-
 ## Import
 
 To use the extension syntax, import the schema package:

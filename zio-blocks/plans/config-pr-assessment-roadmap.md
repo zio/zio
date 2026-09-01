@@ -2,11 +2,7 @@
 
 > This document captures the assessment of the current config PR (`feat(config): add config, config-yaml, config-json, config-hocon modules`) and the roadmap discussion for making the config system best-in-class.
 
-# Config PR Assessment and Roadmap
-
 ## Context
-
-This document captures the assessment of the current config PR (`feat(config): add config, config-yaml, config-json, config-hocon modules`) and the roadmap discussion for making the config system best-in-class.
 
 The core direction is strong:
 

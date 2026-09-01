@@ -1,12 +1,7 @@
 # Aspects
 
 > It is possible to define _aspects_ of type `AwsCallAspect[R]` that can modify the behavior of the AWS client modules. This can be used for example 
-to add logging or metrics to the AWS clients and it's also the recommended way to handle retries or apply rate limiting and other similar patterns.
-
-# Aspects
-
-It is possible to define _aspects_ of type `AwsCallAspect[R]` that can modify the behavior of the AWS client modules. This can be used for example 
-to add logging or metrics to the AWS clients and it's also the recommended way to handle retries or apply rate limiting and other similar patterns.
+> to add logging or metrics to the AWS clients and it's also the recommended way to handle retries or apply rate limiting and other similar patterns.
 
 The library contains two default aspects, implementing logging and metrics on top of ZIO 2's core capabilities:
 

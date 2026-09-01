@@ -1,20 +1,12 @@
 # Sharing Layers within the Same File
 
 > The `Spec` data type has a mechanism to share layers within all tests in a suite. Instead of acquiring and releasing dependencies for each test, we can share the layer within all tests of a given suite. The suite acquires that layer for once and shares that between all tests. When the execution of all tests in that suite is finished, the layer will be released. To share layers between multiple specs we can use one of the provide methods ending with `Shared`:
-- `provideShared`
-- `provideCustomShared`
-- `provideSomeShared`
-- `provideLayerShared`
-- `provideCustomLayerShared`
-- `provideSomeLayerShared`
-
-The `Spec` data type has a mechanism to share layers within all tests in a suite. Instead of acquiring and releasing dependencies for each test, we can share the layer within all tests of a given suite. The suite acquires that layer for once and shares that between all tests. When the execution of all tests in that suite is finished, the layer will be released. To share layers between multiple specs we can use one of the provide methods ending with `Shared`:
-- `provideShared`
-- `provideCustomShared`
-- `provideSomeShared`
-- `provideLayerShared`
-- `provideCustomLayerShared`
-- `provideSomeLayerShared`
+> - `provideShared`
+> - `provideCustomShared`
+> - `provideSomeShared`
+> - `provideLayerShared`
+> - `provideCustomLayerShared`
+> - `provideSomeLayerShared`
 
 ```scala
 {

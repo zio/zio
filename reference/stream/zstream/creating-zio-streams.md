@@ -2,8 +2,6 @@
 
 > There are several ways to create ZIO Stream. In this section, we are going to enumerate some of the important ways of creating `ZStream`.
 
-There are several ways to create ZIO Stream. In this section, we are going to enumerate some of the important ways of creating `ZStream`.
-
 ## Common Constructors
 
 **ZStream.apply** — Creates a pure stream from a variable list of values:
@@ -79,14 +77,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@1696847f
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@625b9840
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@646ccac6
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@2335f283
 ```
 
 ## From ZIO

@@ -2,8 +2,6 @@
 
 > `zio.http.htmx` is a **typed HTMX DSL** for building safe, compile-time HTMX attribute declarations within `zio.blocks.html`. It provides immutable types representing HTMX events, swap strategies, target selectors, and request modifiers, eliminating stringly-typed misuse through rich domain types while maintaining explicit string surfaces for URLs and raw JavaScript where needed.
 
-`zio.http.htmx` is a **typed HTMX DSL** for building safe, compile-time HTMX attribute declarations within `zio.blocks.html`. It provides immutable types representing HTMX events, swap strategies, target selectors, and request modifiers, eliminating stringly-typed misuse through rich domain types while maintaining explicit string surfaces for URLs and raw JavaScript where needed.
-
 Core types: `HxTrigger`, `HxSwap`, `HxTarget`, `HxParams`, `HxUrlUpdate`, `HxEncoding`, `HxSync`, `HtmxAttrKey`, `ToHtmxValue`.
 
 Here are the core patterns of typed HTMX construction:

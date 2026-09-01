@@ -4,8 +4,6 @@
 
 ### Inheriting I/O
 
-If you'd like to run a process and handle its input/output in the current process, you can inherit its I/O. For example, running the Scala REPL:
-
 ```scala
 Command("scala").inheritIO.exitCode
 ```

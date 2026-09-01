@@ -1,12 +1,9 @@
 # ZIO CLI SBT Plugin
 
 > **ZIO CLI** offers an SBT plugin to provide some tasks to make generation and deployment of 
-applications simple.
+> applications simple.
 
 ## Overview
-
-**ZIO CLI** offers an SBT plugin to provide some tasks to make generation and deployment of 
-applications simple.
 
 ## Current State
 

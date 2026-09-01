@@ -2,8 +2,6 @@
 
 > This quickstart shows how to build a RESTful web service using ZIO. It uses
 
-This quickstart shows how to build a RESTful web service using ZIO. It uses
-
 - [ZIO HTTP](https://ziohttp.com/) for the HTTP server
 - [ZIO JSON](https://zio.dev/zio-schema/) for schema generation and JSON serialization
 - [ZIO Quill](https://zio.dev/zio-quill/) for type-safe queries on the JDBC database

@@ -2,8 +2,6 @@
 
 > `Pipeline[-In, +Out]` is a **reusable, composable stream transformation** that converts elements of type `In` into elements of type `Out`. Pipelines are first-class values: you can define them once, compose them with `andThen`, and apply them to any [Stream](./stream.md) via `stream.via(pipe)` or to any `Sink` via `pipe.andThenSink(sink)`.
 
-`Pipeline[-In, +Out]` is a **reusable, composable stream transformation** that converts elements of type `In` into elements of type `Out`. Pipelines are first-class values: you can define them once, compose them with `andThen`, and apply them to any [Stream](./stream.md) via `stream.via(pipe)` or to any `Sink` via `pipe.andThenSink(sink)`.
-
 `Pipeline`:
 - Is contravariant in `In` and covariant in `Out` (like a function `In => Out`)
 - Can be applied to a **Stream** (transforming the output) or a **Sink** (pre-processing the input)

@@ -2,8 +2,6 @@
 
 > A `LogFilter` represents function/conditions for log filtering.
 
-A `LogFilter` represents function/conditions for log filtering.
-
 Following filter
 
 [//]: # (TODO: make snippet type-checked using mdoc)

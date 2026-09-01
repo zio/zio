@@ -2,8 +2,6 @@
 
 > `zio.blocks.config` provides typed configuration loading, feature flags, provenance tracking, rollout selection, and source adapters for YAML, JSON, and HOCON. The module is synchronous and zero-dependency: configuration is loaded from `ConfigSource`, flags are read through `FlagSource`, and typed decoding is derived from `Schema[A]`.
 
-`zio.blocks.config` provides typed configuration loading, feature flags, provenance tracking, rollout selection, and source adapters for YAML, JSON, and HOCON. The module is synchronous and zero-dependency: configuration is loaded from `ConfigSource`, flags are read through `FlagSource`, and typed decoding is derived from `Schema[A]`.
-
 ## Installation
 
 ```scala

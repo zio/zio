@@ -2,8 +2,6 @@
 
 > Zio-kafka 3.0.0 brings a number of backwards incompatible changes:
 
-Zio-kafka 3.0.0 brings a number of backwards incompatible changes:
-
 1. Removal of all deprecated methods, _including accessor methods,_
 2. Kafka 4.x
 3. The transactional producer is now much easier to use,

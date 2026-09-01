@@ -2,8 +2,6 @@
 
 > Let's write an application that takes numerator and denominator from the user and then print the result back to the user:
 
-Let's write an application that takes numerator and denominator from the user and then print the result back to the user:
-
 ```scala
 import zio._
 import java.io.IOException

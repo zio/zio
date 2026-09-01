@@ -2,8 +2,6 @@
 
 > Most of the constructors of `ZStream` have a special variant to lift a scoped resource to a Stream (e.g. `ZStream.fromReaderScoped`). By using these constructors, we are creating streams that are resource-safe. Before creating a stream, they acquire the resource, and after usage; they close the stream.
 
-Most of the constructors of `ZStream` have a special variant to lift a scoped resource to a Stream (e.g. `ZStream.fromReaderScoped`). By using these constructors, we are creating streams that are resource-safe. Before creating a stream, they acquire the resource, and after usage; they close the stream.
-
 ZIO Stream also has `acquireRelease` and `finalizer` constructors which are similar to `ZIO.acquireRelease`. They allow us to clean up or finalizing before the stream ends:
 
 ## Acquire Release

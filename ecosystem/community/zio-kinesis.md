@@ -2,8 +2,6 @@
 
 > [ZIO Kinesis](https://github.com/svroonland/zio-kinesis) is a ZIO-based AWS Kinesis client for Scala.
 
-[ZIO Kinesis](https://github.com/svroonland/zio-kinesis) is a ZIO-based AWS Kinesis client for Scala.
-
 ## Introduction
 
 ZIO Kinesis is an interface to Amazon Kinesis Data Streams for consuming and producing data. This library is built on top of [ZIO AWS](https://github.com/zio/zio-aws), a library of automatically generated ZIO wrappers around AWS SDK methods.

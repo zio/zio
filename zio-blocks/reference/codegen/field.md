@@ -2,8 +2,6 @@
 
 > `Field` represents a class field (constructor parameter) in the IR. Combine a name with a type reference, optionally adding default values and modifiers.
 
-`Field` represents a class field (constructor parameter) in the IR. Combine a name with a type reference, optionally adding default values and modifiers.
-
 ## Use Cases
 
 - Defining constructor parameters for case classes

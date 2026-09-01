@@ -4,8 +4,6 @@
 
 ## Introduction
 
-The QDSL allows the user to write plain Scala code, leveraging Scala's syntax and type system. Quotations are created using the `quote` method and can contain any excerpt of code that uses supported operations. To create quotations, first create a context instance. Please see the [context](contexts.md) section for more details on the different context available.
-
 For this documentation, a special type of context that acts as a [mirror](contexts.md#mirror-context) is used:
 
 ```scala

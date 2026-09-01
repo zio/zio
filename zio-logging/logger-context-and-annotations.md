@@ -1,10 +1,7 @@
 # Logger Context and Annotations
 
 > The `logContext` fiber reference is used to store typed, structured log
-annotations, which can be utilized by backends to enrich log messages.
-
-The `logContext` fiber reference is used to store typed, structured log
-annotations, which can be utilized by backends to enrich log messages.
+> annotations, which can be utilized by backends to enrich log messages.
 
 Because `logContext` is an ordinary `zio.FiberRef`, it may be get, set,
 and updated like any other fiber reference. However, the idiomatic way to

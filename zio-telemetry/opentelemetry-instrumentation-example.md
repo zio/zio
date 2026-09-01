@@ -2,8 +2,6 @@
 
 > You can find the source code [here](https://github.com/zio/zio-telemetry/tree/series/2.x/opentelemetry-instrumentation-example).
 
-You can find the source code [here](https://github.com/zio/zio-telemetry/tree/series/2.x/opentelemetry-instrumentation-example).
-
 Firstly, we need to start the observability backends ([Jaeger](https://www.jaegertracing.io/) and [Seq](https://datalust.co/seq))
 
 Start Jaeger by running the following command:

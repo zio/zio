@@ -4,8 +4,6 @@
 
 ## Field naming
 
-By default, the field names of a case class are used as the JSON fields, but it is easy to override this with an annotation `@jsonField`.
-
 Moreover, you can also mark a whole case class with a member name transformation that will be applied to all members using `@jsonMemberNames` annotation. It takes an argument of type `JsonMemberFormat` which encodes the transformation that will be applied to member names.
 
 Four most popular transformations are already provided: KebabCase, SnakeCase, PascalCase and CamelCase. If you require something more specific you can also use CustomCase which takes a function of shape `String => String` as an argument and can be used to perform any arbitrary transformation. `@jsonField` annotation takes priority over the transformation defined by `@jsonMemberNames`.

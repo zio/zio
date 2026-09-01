@@ -2,8 +2,6 @@
 
 > Once we generate a schema for a type, we can derive a codec for that type.
 
-Once we generate a schema for a type, we can derive a codec for that type.
-
 A codec is a utility that can encode/decode a value of some type `A` to/from some format (e.g. binary format, JSON, etc.)
 
 ## Codec

@@ -4,8 +4,6 @@
 
 ## Catching Failures
 
-If we want to catch and recover from all _typed error_ and effectfully attempt recovery, we can use the `ZIO#catchAll` operator:
-
 ```scala
 trait ZIO[-R, +E, +A] {
   def catchAll[R1 <: R, E2, A1 >: A](h: E => ZIO[R1, E2, A1]): ZIO[R1, E2, A1]

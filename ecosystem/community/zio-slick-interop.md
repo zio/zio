@@ -2,8 +2,6 @@
 
 > [ZIO Slick Interop](https://github.com/ScalaConsultants/zio-slick-interop) is a small library, that provides interop between Slick and ZIO.
 
-[ZIO Slick Interop](https://github.com/ScalaConsultants/zio-slick-interop) is a small library, that provides interop between Slick and ZIO.
-
 ## Installation
 
 In order to use this library, we need to add the following line in our `build.sbt` file:

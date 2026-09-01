@@ -2,8 +2,6 @@
 
 > A `Histogram` is a metric representing a collection of numerical with the distribution of the cumulative values over time. They organize a range of measurements into distinct intervals, known as buckets, and record the frequency of measurements falling within each bucket.
 
-A `Histogram` is a metric representing a collection of numerical with the distribution of the cumulative values over time. They organize a range of measurements into distinct intervals, known as buckets, and record the frequency of measurements falling within each bucket. 
-
 Histograms allow representing not only the value of the quantity being measured but its distribution. They are representation of the distribution of a dataset, which organizes the data into buckets and display the frequency or count of data points within each bucket. 
 
 ## Internals

@@ -2,8 +2,6 @@
 
 > An interop module is provided for [HTTP4s v0.21](https://http4s.org/v0.21)
 
-An interop module is provided for [HTTP4s v0.21](https://http4s.org/v0.21)
-
 ## Installation
 
 ```scala

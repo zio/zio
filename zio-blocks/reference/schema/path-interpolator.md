@@ -1,12 +1,8 @@
 # Path Interpolator
 
 > :::note
-To use the path interpolator `p"..."`, you must import the schema package: `import zio.blocks.schema._`
-:::
-
-:::note
-To use the path interpolator `p"..."`, you must import the schema package: `import zio.blocks.schema._`
-:::
+> To use the path interpolator `p"..."`, you must import the schema package: `import zio.blocks.schema._`
+> :::
 
 The path interpolator `p"..."` is a compile-time string interpolator for constructing `DynamicOptic` instances in ZIO Blocks. It provides a clean, concise syntax for building optic paths that navigate through complex data structures, with all parsing and validation happening at compile time for zero runtime overhead.
 

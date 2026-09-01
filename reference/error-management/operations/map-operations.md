@@ -2,8 +2,6 @@
 
 > Other than `ZIO#map` and `ZIO#flatMap`, ZIO has several other operators to manage errors while mapping:
 
-Other than `ZIO#map` and `ZIO#flatMap`, ZIO has several other operators to manage errors while mapping:
-
 ## `ZIO#mapError`/`ZIO#mapErrorCause`
 
 Let's begin with `ZIO#mapError` and `ZIO#mapErrorCause`. These operators help us to access the error channel as a raw error value or as a type of `Cause` and map their values:

@@ -2,8 +2,6 @@
 
 > A `Gen[R, A]` represents a generator of values of type `A`, which requires an environment `R`. The `Gen` data type is the base functionality for generating test data for property-based testing. We use them to produce deterministic and non-deterministic (PRNG) random values.
 
-A `Gen[R, A]` represents a generator of values of type `A`, which requires an environment `R`. The `Gen` data type is the base functionality for generating test data for property-based testing. We use them to produce deterministic and non-deterministic (PRNG) random values.
-
 It is encoded as a stream of optional samples:
 
 ```scala
@@ -12,7 +10,7 @@ case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]])
 
 Before deep into the generators, let's see what property-based testing is and what problem it solves in the testing world.
 
-## How Generators Work?
+
 
 We can think of `Gen[R, A]` as a `ZStream[R, Nothing, A]`. For example, the `Gen.int` is a stream of random integers `ZStream.fromZIO(Random.nextInt)`.
 

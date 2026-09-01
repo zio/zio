@@ -4,8 +4,6 @@
 
 ## Introduction
 
-Apache Thrift is an open-source framework that allows seamless communication and data sharing between different programming languages and platforms. In this section, we will explore how to derive Apache Thrift codecs from a ZIO Schema.
-
 ## Installation
 
 To derive Apache Thrift codecs from a ZIO Schema, we need to add the following dependency to our `build.sbt` file:

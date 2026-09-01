@@ -2,8 +2,6 @@
 
 > `SpscRingBuffer[A]` is optimized for the simplest and fastest case: exactly one producer thread and one consumer thread. It uses the **FastFlow** algorithm to eliminate all cross-core cache traffic, achieving nanosecond-scale latencies with no volatile reads on the fast path.
 
-`SpscRingBuffer[A]` is optimized for the simplest and fastest case: exactly one producer thread and one consumer thread. It uses the **FastFlow** algorithm to eliminate all cross-core cache traffic, achieving nanosecond-scale latencies with no volatile reads on the fast path.
-
 ## Why FastFlow?
 
 Understanding the FastFlow algorithm helps explain why `SpscRingBuffer` achieves such high performance.

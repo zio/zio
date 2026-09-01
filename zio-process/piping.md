@@ -1,10 +1,7 @@
 # Piping
 
 > You can pipe the output of one process as the input to another. For example, if you want to return a list of all running
-Java process IDs, you can do the following:
-
-You can pipe the output of one process as the input to another. For example, if you want to return a list of all running
-Java process IDs, you can do the following:
+> Java process IDs, you can do the following:
 
 ### Manually
 

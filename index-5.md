@@ -2,8 +2,6 @@
 
 > ZIO has a number of events that are organized by the community all around the world. These events are a great way to learn about ZIO, meet other ZIO users and contributors, and have fun.
 
-ZIO has a number of events that are organized by the community all around the world. These events are a great way to learn about ZIO, meet other ZIO users and contributors, and have fun.
-
 If you know of an upcoming event related to ZIO, please add it to the list below by submitting a pull request.
 
 ## ZIO Hackathons

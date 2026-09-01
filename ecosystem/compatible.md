@@ -2,8 +2,6 @@
 
 > List of ZIO compatible libraries:
 
-List of ZIO compatible libraries:
-
 - [d4s](https://github.com/PlayQ/d4s) — "Dynamo DB Database done Scala way". A library that allows accessing the DynamoDB in a purely functional way
 - [Edomata](https://github.com/hnaderi/edomata) — Production ready event-driven automata for Scala, Scala.js and scala native
 - [elastic4s](https://github.com/sksamuel/elastic4s) — Elasticsearch Scala Client - Reactive, Non Blocking, Type Safe, HTTP Client

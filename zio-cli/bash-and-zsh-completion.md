@@ -1,22 +1,14 @@
 # Bash and Zsh Completion
 
 > **ZIO CLI** supports a mechanism for performing tab completion of command line
-options and arguments in bash and zsh. The approach that **ZIO CLI** uses to
-communicate with the shell tooling for performing tab completion is heavily
-inspired by the excellent Haskell
-[optparse-applicative](https://github.com/pcapriotti/optparse-applicative#bash-zsh-and-fish-completions)
-library. Every `CliApp` is extended with a few hidden built-in options for
-providing tab completions to shell environments.
+> options and arguments in bash and zsh. The approach that **ZIO CLI** uses to
+> communicate with the shell tooling for performing tab completion is heavily
+> inspired by the excellent Haskell
+> [optparse-applicative](https://github.com/pcapriotti/optparse-applicative#bash-zsh-and-fish-completions)
+> library. Every `CliApp` is extended with a few hidden built-in options for
+> providing tab completions to shell environments.
 
 ## Overview
-
-**ZIO CLI** supports a mechanism for performing tab completion of command line
-options and arguments in bash and zsh. The approach that **ZIO CLI** uses to
-communicate with the shell tooling for performing tab completion is heavily
-inspired by the excellent Haskell
-[optparse-applicative](https://github.com/pcapriotti/optparse-applicative#bash-zsh-and-fish-completions)
-library. Every `CliApp` is extended with a few hidden built-in options for
-providing tab completions to shell environments.
 
 In what follows, pretend that your CLI application (called `my-cli-app`) has been
 installed into a stable location in your path (such as the `~/.local/bin`

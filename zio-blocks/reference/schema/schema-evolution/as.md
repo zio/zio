@@ -2,8 +2,6 @@
 
 > `As[A, B]` is a **bidirectional conversion type class** that extends `Into[A, B]` with a reverse direction. In addition to converting `A → B` via `As#into`, it also converts `B → A` via `As#from`, providing a round-trip guarantee.
 
-`As[A, B]` is a **bidirectional conversion type class** that extends `Into[A, B]` with a reverse direction. In addition to converting `A → B` via `As#into`, it also converts `B → A` via `As#from`, providing a round-trip guarantee.
-
 `As`:
 - extends `Into[A, B]`, so every `As` can be used wherever an `Into` is expected
 - returns `Right(b)` or `Right(a)` on success and `Left(error)` on validation failure in both directions

@@ -2,8 +2,6 @@
 
 > [ZIO Apache Parquet](https://github.com/grouzen/zio-apache-parquet) is a ZIO-powered Apache Parquet library.
 
-[ZIO Apache Parquet](https://github.com/grouzen/zio-apache-parquet) is a ZIO-powered Apache Parquet library.
-
 ## Introduction
 
 ZIO Apache Parquet is a ZIO wrapper for [parquet-java](https://github.com/apache/parquet-java) and [hadoop](https://github.com/apache/hadoop) to easily read and write Parquet files without running a Spark cluster.

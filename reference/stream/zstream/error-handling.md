@@ -4,8 +4,6 @@
 
 ## Recovering from Failure
 
-If we have a stream that may fail, we might need to recover from the failure and run another stream, the `ZStream#orElse` takes another stream, so when the failure occurs it will switch over to the provided stream:
-
 ```scala
 import zio.stream._
 

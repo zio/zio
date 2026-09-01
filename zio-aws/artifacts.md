@@ -1,8 +1,8 @@
 # Artifacts
 
 > ```scala
-"dev.zio" %% "zio-aws-core" % "7.30.16.1"
-```
+> "dev.zio" %% "zio-aws-core" % "7.30.16.1"
+> ```
 
 # Published artifacts
 

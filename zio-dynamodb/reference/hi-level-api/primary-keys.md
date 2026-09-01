@@ -2,9 +2,6 @@
 
 > In the native AWS DynamoDB API primary keys are represented in two different ways depending on context:
 
-In the native AWS DynamoDB API primary keys are represented in two different ways depending on context:
-
- 
 | AWS|Example|Context
 | ---|---|---
 | Primary Keys | `{"id": "1", "year": 2023}` | `GetItem`, `PutItem`, `DeleteItem` [AWS API](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_GetItem.html#DDB-GetItem-request-Key)

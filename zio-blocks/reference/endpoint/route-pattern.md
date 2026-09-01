@@ -2,8 +2,6 @@
 
 > `RoutePattern[A]` pairs an HTTP method with a typed path pattern. It is the primary routing descriptor in `zio-blocks-endpoint`: every `Endpoint` carries a `RoutePattern` that determines which HTTP method and URL path it matches. Like `PathCodec`, it also carries a phantom `PathVars` track that mirrors the ordered path-variable declarations contributed by its path codec. Its shape is:
 
-`RoutePattern[A]` pairs an HTTP method with a typed path pattern. It is the primary routing descriptor in `zio-blocks-endpoint`: every `Endpoint` carries a `RoutePattern` that determines which HTTP method and URL path it matches. Like `PathCodec`, it also carries a phantom `PathVars` track that mirrors the ordered path-variable declarations contributed by its path codec. Its shape is:
-
 ```scala
 final case class RoutePattern[A](
   method: Method,

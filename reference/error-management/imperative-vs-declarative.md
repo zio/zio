@@ -2,8 +2,6 @@
 
 > To figure out the benefit of typed errors in declarative error handling, we need to understand the drawbacks of the imperative approach and then see how the declarative approach can be used to solve the same problem.
 
-To figure out the benefit of typed errors in declarative error handling, we need to understand the drawbacks of the imperative approach and then see how the declarative approach can be used to solve the same problem.
-
 ## Imperative Error Handling
 
 In the imperative style, when we encounter a wrong state, we throw an exception, and to handle exceptions, we have to use the `try`/`catch` language construct. Whenever we encounter an exception inside a `try` block, the control flow will jump to the `catch` block. In the catch block, we can handle the exception and decide what to do next. This is a very common pattern in imperative programming.

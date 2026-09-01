@@ -2,8 +2,6 @@
 
 > `TPromise` is a mutable reference that can be set exactly once and can participate in transactions in STM.
 
-`TPromise` is a mutable reference that can be set exactly once and can participate in transactions in STM.
-
 ## Create a TPromise
 
 Creating a `TPromise`:

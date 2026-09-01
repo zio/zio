@@ -2,8 +2,6 @@
 
 > You can find the source code [here](https://github.com/zio/zio-telemetry/tree/series/2.x/opentracing-example).
 
-You can find the source code [here](https://github.com/zio/zio-telemetry/tree/series/2.x/opentracing-example).
-
 Firstly, start [Jaeger](https://www.jaegertracing.io) by running the following command:
 ```bash
 docker run --rm -it \

@@ -2,8 +2,6 @@
 
 > Having created the sink, we can transform it with provided operations.
 
-Having created the sink, we can transform it with provided operations.
-
 ## contramap
 
 Contramap is a simple combinator to change the domain of an existing function. While _map_ changes the co-domain of a function, the _contramap_ changes the domain of a function. So the _contramap_ takes a function and maps over its input.

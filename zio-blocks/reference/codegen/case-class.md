@@ -2,8 +2,6 @@
 
 > `CaseClass` represents an immutable case class in the IR. Use it when generating Scala code from data models, APIs, or structured data—it's the most frequently chosen type definition.
 
-`CaseClass` represents an immutable case class in the IR. Use it when generating Scala code from data models, APIs, or structured data—it's the most frequently chosen type definition.
-
 ## Use Cases
 
 - Modeling product types (records) from OpenAPI schemas, JSON Schema, or data formats

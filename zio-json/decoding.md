@@ -4,8 +4,6 @@
 
 ## Automatic Derivation
 
-Say we want to be able to read some JSON like
-
 ```json
 { "curvature": 0.5 }
 ```

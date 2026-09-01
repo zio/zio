@@ -2,8 +2,6 @@
 
 > `IdentityEither[F]` describes an associative way to combine two values `F[A]` and `F[B]` into a value `F[Either[A, B]]` with an identity value `none` of type `F[Nothing]`.
 
-`IdentityEither[F]` describes an associative way to combine two values `F[A]` and `F[B]` into a value `F[Either[A, B]]` with an identity value `none` of type `F[Nothing]`.
-
 Its signature is:
 
 ```scala

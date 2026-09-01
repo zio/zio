@@ -2,8 +2,6 @@
 
 > `HxTarget` represents the `hx-target` attribute and related selector-based attributes, declaring where HTMX applies the swap. It supports DOM traversal patterns like "closest ancestor," "first descendant," "next sibling," and raw CSS selectors, eliminating stringly mistakes in selector construction.
 
-`HxTarget` represents the `hx-target` attribute and related selector-based attributes, declaring where HTMX applies the swap. It supports DOM traversal patterns like "closest ancestor," "first descendant," "next sibling," and raw CSS selectors, eliminating stringly mistakes in selector construction.
-
 Use `HxTarget.This` for the current element, or call traversal methods like `closest()`, `find()`, `next()`, and `previous()` for common patterns. For arbitrary CSS selectors, use `css()`. Here are the core patterns:
 
 ```scala

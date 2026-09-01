@@ -1,12 +1,8 @@
 # SQL — ZIO Integration
 
 > `zio-blocks-sql-zio` is the ZIO adapter for `zio-blocks-sql`. It wraps the
-core JDBC transactor so ZIO applications can use the same SQL layer without
-changing the underlying database API.
-
-`zio-blocks-sql-zio` is the ZIO adapter for `zio-blocks-sql`. It wraps the
-core JDBC transactor so ZIO applications can use the same SQL layer without
-changing the underlying database API.
+> core JDBC transactor so ZIO applications can use the same SQL layer without
+> changing the underlying database API.
 
 This guide covers two integration styles: `ZLayer`-based dependency injection
 for the plain synchronous `Transactor` (via `JdbcTransactor.postgresLayer` /

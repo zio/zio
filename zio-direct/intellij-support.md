@@ -4,8 +4,6 @@
 
 # IntelliJ Support
 
-> It is highly recommended that you use Metals instead of IntelliJ for ZIO-Direct development since Metals correctly infers types for `defer` blocks (and other whitebox macros). This is especially true in Scala 3 where IntelliJ does not properly support union-types upon which the `defer` mechanism relies for ZIO error type composition.
-
 It is well known that IntelliJ does not support type inference with whitebox macros because it does not read types from the Scala compiler.
 Since `defer` is a whitebox macro, IntelliJ will not be able to infer the type of the `defer` block.
 

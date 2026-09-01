@@ -2,8 +2,6 @@
 
 > In addition to abstractions for concrete types, ZIO Prelude provides a set of functional abstractions to describe the common structure of _parameterized types_.
 
-In addition to abstractions for concrete types, ZIO Prelude provides a set of functional abstractions to describe the common structure of _parameterized types_.
-
 A parameterized type is a type that is parameterized on one or more other types. For example, a `List[A]` is parameterized on the element type `A`.
 
 When we are describing the common structure of parameterized types we are talking about the structure of the parameterized type without knowing about the type it is parameterized on. For example, consider the following two abstractions to describe associative ways of combining two values of a data type.

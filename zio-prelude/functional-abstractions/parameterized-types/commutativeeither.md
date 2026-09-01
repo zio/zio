@@ -2,8 +2,6 @@
 
 > `CommutativeEither[F]` describes a way of combining two parameterized types `F[A]` and `F[B]` that is commutative.
 
-`CommutativeEither[F]` describes a way of combining two parameterized types `F[A]` and `F[B]` that is commutative.
-
 Its signature is:
 
 ```scala

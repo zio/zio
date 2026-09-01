@@ -2,8 +2,6 @@
 
 > `Schema[A]` is the primary data type in ZIO Blocks (ZIO Schema 2) that contains reified information about the structure of a Scala data type `A`, together with the ability to tear down and build up values of that type.
 
-`Schema[A]` is the primary data type in ZIO Blocks (ZIO Schema 2) that contains reified information about the structure of a Scala data type `A`, together with the ability to tear down and build up values of that type.
-
 ```scala
 final case class Schema[A](reflect: Reflect.Bound[A])
 ```

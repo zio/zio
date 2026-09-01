@@ -2,8 +2,6 @@
 
 > Instructions on how to contribute to Quill project.
 
-Instructions on how to contribute to Quill project.
-
 ## Building the project using Docker
 
 The only dependency you need to build Quill locally is [Docker](https://www.docker.com/).

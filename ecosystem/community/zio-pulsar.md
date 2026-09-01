@@ -2,8 +2,6 @@
 
 > [ZIO Pulsar](https://github.com/apache/pulsar) is the _Apache Pulsar_ client for Scala with ZIO and ZIO Streams integration.
 
-[ZIO Pulsar](https://github.com/apache/pulsar) is the _Apache Pulsar_ client for Scala with ZIO and ZIO Streams integration.
-
 ## Introduction
 
 ZIO Pulsar is a purely functional Scala wrapper over the official Pulsar client. Some key features of this library:

@@ -2,8 +2,6 @@
 
 > `Ord[A]` describes a total ordering on values of type `A`.
 
-`Ord[A]` describes a total ordering on values of type `A`.
-
 Its signature is:
 
 ```scala

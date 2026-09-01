@@ -2,8 +2,6 @@
 
 > `BindingResolver` is the **read-only interface for looking up bindings by type identity** during schema rebinding. Given a type `A`, a resolver searches its internal storage and returns either the matching `Binding` or `None`.
 
-`BindingResolver` is the **read-only interface for looking up bindings by type identity** during schema rebinding. Given a type `A`, a resolver searches its internal storage and returns either the matching `Binding` or `None`.
-
 ```scala
 trait BindingResolver {
   def resolveRecord[A](implicit typeId: TypeId[A]): Option[Binding.Record[A]]

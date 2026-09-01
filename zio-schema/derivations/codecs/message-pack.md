@@ -4,8 +4,6 @@
 
 ## Introduction
 
-MessagePack is a binary serialization format designed for efficient data exchange between different systems and languages. In this section, we will explore how to derive MessagePack codecs from a ZIO Schema. MessagePack codecs allow us to easily serialize and deserialize data in MessagePack format.
-
 ## Installation
 
 To use MessagePack codecs, you need to add the following dependency to your build.sbt file:

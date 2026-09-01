@@ -4,8 +4,6 @@
 
 ## Introduction
 
-Resource management and dependency injection are fundamental to building reliable, maintainable applications. ZIO Blocks provides three complementary types that work together to eliminate common lifetime bugs while enabling powerful composition patterns: **Scope** provides compile-time safe resource boundaries, **Resource** encapsulates acquisition and cleanup with automatic finalization, and **Wire** describes dependency graphs with type-safe construction recipes. Together, they form a cohesive system for managing object lifecycles, preventing resource leaks, and building dependency-injected architectures.
-
 ## Overview
 
 These three types solve the fundamental problem of managing resources and dependencies in concurrent, long-lived applications:

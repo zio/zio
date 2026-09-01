@@ -4,8 +4,6 @@
 
 ## Introduction
 
-As we have seen in the [previous tutorial](enable-logging-in-a-zio-application.md), ZIO has a variety of built-in logging facilities. Also, it has a default logger that can be used to print log messages to the console. When we go to production, we may want to use a different logger with a customized configuration. For example, we may want to log to a file or a database instead of the console.
-
 In this tutorial, we are going to see how we can create a custom logger for a ZIO application.
 
 ## Running the Examples

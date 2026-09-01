@@ -2,8 +2,6 @@
 
 > Working with streams of primitives (integers, longs, doubles, booleans) presents a performance challenge in languages with generic types: **boxing**. Without special care, primitive values get wrapped in objects, causing memory waste and slower code. ZIO Blocks Streams eliminates this overhead entirely through a novel runtime type-dispatch system.
 
-Working with streams of primitives (integers, longs, doubles, booleans) presents a performance challenge in languages with generic types: **boxing**. Without special care, primitive values get wrapped in objects, causing memory waste and slower code. ZIO Blocks Streams eliminates this overhead entirely through a novel runtime type-dispatch system.
-
 ## The Boxing Problem
 
 In Scala, primitive types (`Int`, `Long`, `Double`, `Boolean`) are fundamentally different from their object counterparts (`Integer`, `Long`, `Double`, `Boolean`). When a generic class like `Stream[E, A]` works with primitives, the compiler must box them into objects to satisfy the generic contract:

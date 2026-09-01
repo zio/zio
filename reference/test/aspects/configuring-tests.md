@@ -2,8 +2,6 @@
 
 > To run cases, there are some [default configuration settings](../services/test-config.md) which are used by test runner, such as _repeats_, _retries_, _samples_ and _shrinks_. We can change these settings using test aspects:
 
-To run cases, there are some [default configuration settings](../services/test-config.md) which are used by test runner, such as _repeats_, _retries_, _samples_ and _shrinks_. We can change these settings using test aspects:
-
 ## Number of Repeats
 
 The `repeats(n: Int)` test aspect runs each test with the number of times to repeat tests to ensure they are stable set to the specified value:

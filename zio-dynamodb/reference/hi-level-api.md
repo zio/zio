@@ -1,14 +1,9 @@
 # Creating Models
 
 > The High Level API provides automatic serialization and deserialization of Scala case classes to and from DynamoDB types.
-This is done by requiring that an implicit ZIO Schema instance is in scope for the case class. This schema instance is 
-generated semi-automatically by using the ZIO Schema `DeriveSchema.gen[A]` - placing this in the companion object of 
-the case class ensures that this implicit is automatically in scope.
-
-The High Level API provides automatic serialization and deserialization of Scala case classes to and from DynamoDB types.
-This is done by requiring that an implicit ZIO Schema instance is in scope for the case class. This schema instance is 
-generated semi-automatically by using the ZIO Schema `DeriveSchema.gen[A]` - placing this in the companion object of 
-the case class ensures that this implicit is automatically in scope.
+> This is done by requiring that an implicit ZIO Schema instance is in scope for the case class. This schema instance is 
+> generated semi-automatically by using the ZIO Schema `DeriveSchema.gen[A]` - placing this in the companion object of 
+> the case class ensures that this implicit is automatically in scope.
 
 ```scala
 final case class Person(email: String, hobbies: Map[String, List[String]], registrationDate: Instant)

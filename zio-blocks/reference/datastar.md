@@ -2,8 +2,6 @@
 
 > `zio-blocks-datastar` provides a type-safe Scala SDK for [Datastar](https://data-star.dev/), the hypermedia framework that brings reactive UIs via server-sent events (SSE). It builds on `zio-blocks-html` for DOM construction and `zio-blocks-schema` for JSON serialization.
 
-`zio-blocks-datastar` provides a type-safe Scala SDK for [Datastar](https://data-star.dev/), the hypermedia framework that brings reactive UIs via server-sent events (SSE). It builds on `zio-blocks-html` for DOM construction and `zio-blocks-schema` for JSON serialization.
-
 ## Installation
 
 ```scala

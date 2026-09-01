@@ -2,8 +2,6 @@
 
 > `Task[A]` is a type alias for `ZIO[Any, Throwable, A]`, which represents an effect that has no requirements, and may fail with a `Throwable` value, or succeed with an `A`.
 
-`Task[A]` is a type alias for `ZIO[Any, Throwable, A]`, which represents an effect that has no requirements, and may fail with a `Throwable` value, or succeed with an `A`.
-
 :::note
 
 In Scala, a _type alias_ is a way to give a name to another type, to avoid having to repeat the original type again and again. It doesn't affect results of the type-checking process. It just helps us to have an expressive API design.

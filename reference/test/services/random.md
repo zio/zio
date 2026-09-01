@@ -41,9 +41,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$19909/0x00007f3a2f05f9d0@1d838729
+//             onState = zio.ZIO$$$Lambda$19833/0x00007ffb3f10e1e0@c8726e0
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$19918/0x00007f3a2f065350@58810afd
+//           successK = zio.test.package$ZTest$$$Lambda$19842/0x00007ffb3f113c58@4985b914
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )

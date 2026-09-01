@@ -2,8 +2,6 @@
 
 > `ZSet` is a version of a set that generalizes the measure of "how many times" each element appears in the set.
 
-`ZSet` is a version of a set that generalizes the measure of "how many times" each element appears in the set.
-
 Conceptually, we can think of a `ZSet[A, B]` as a `Map[A, B]`, where `A` represents the elements of the set and `B` represents some notion of how many times each element appears.
 
 We can then define a `Set` as a `ZSet` where the measure of how many times each element appears is a `Boolean`.

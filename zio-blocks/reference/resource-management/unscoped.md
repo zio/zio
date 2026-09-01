@@ -2,8 +2,6 @@
 
 > `Unscoped[A]` is a marker typeclass for types that can safely escape a scope without tracking. Types with an `Unscoped` instance are considered "safe data"—they don't hold resources and can be freely extracted from a scope. Here's the definition:
 
-`Unscoped[A]` is a marker typeclass for types that can safely escape a scope without tracking. Types with an `Unscoped` instance are considered "safe data"—they don't hold resources and can be freely extracted from a scope. Here's the definition:
-
 ```scala
 trait Unscoped[A]
 ```

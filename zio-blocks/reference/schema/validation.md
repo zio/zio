@@ -2,8 +2,6 @@
 
 > `Validation` is a sealed trait in ZIO Blocks that represents declarative constraints on primitive values. Validations are attached to `PrimitiveType` instances and are checked during schema operations like decoding from `DynamicValue` or validating against a `DynamicSchema`.
 
-`Validation` is a sealed trait in ZIO Blocks that represents declarative constraints on primitive values. Validations are attached to `PrimitiveType` instances and are checked during schema operations like decoding from `DynamicValue` or validating against a `DynamicSchema`.
-
 ## Overview
 
 The validation system in ZIO Blocks provides:

@@ -2,8 +2,6 @@
 
 > Zio-kafka's consumer can be tuned for:
 
-Zio-kafka's consumer can be tuned for:
-
 * throughput
 * latency
 * memory usage

@@ -4,8 +4,6 @@
 
 ## Option
 
-We can extract a value from a Some using `ZIO#some` and then we can unsome it again using `ZIO#unsome`:
-
 ```scala
 ZIO.attempt(Option("something")) // ZIO[Any, Throwable, Option[String]]
   .some                          // ZIO[Any, Option[Throwable], String]

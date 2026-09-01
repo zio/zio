@@ -4,8 +4,6 @@
 
 ## Introduction
 
-Welcome! In this tutorial we explore one of ZIO's most compelling runtime features: the ability to **hot-swap a service** while the application keeps running.
-
 Imagine your application connects to a database using credentials stored in a configuration file. When the credentials rotate, you want to tear down the old connection pool and build a fresh one without restarting the process. That is exactly what `Reloadable[Service]` lets you do.
 
 By the end of this tutorial you will be able to:

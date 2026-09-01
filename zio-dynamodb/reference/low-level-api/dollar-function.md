@@ -2,8 +2,6 @@
 
 > The `$` and `parse` functions are the primary way to create a `ProjectionExpression` in the Low Level API.
 
-The `$` and `parse` functions are the primary way to create a `ProjectionExpression` in the Low Level API.
-
 They take a string representation of the attribute path that uses the 
 [standard AWS DynamoDB path expression syntax](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Expressions.ProjectionExpressions.html)
 and return a `ProjectionExpression`.

@@ -1,10 +1,7 @@
 # Consuming, Producing and Committing Offsets
 
 > Consuming from Kafka and then producing a transformed message back to Kafka, is a regular pattern in systems that use
-Kafka. This page shows an example of an application that does this. Next we discuss how throughput can be improved.
-
-Consuming from Kafka and then producing a transformed message back to Kafka, is a regular pattern in systems that use
-Kafka. This page shows an example of an application that does this. Next we discuss how throughput can be improved.
+> Kafka. This page shows an example of an application that does this. Next we discuss how throughput can be improved.
 
 This page is also useful as a deep dive into producing to Kafka with data from other streaming sources.
 

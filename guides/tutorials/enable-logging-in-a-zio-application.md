@@ -4,8 +4,6 @@
 
 ## Introduction
 
-ZIO has built-in support for logging. This tutorial will show you how to enable logging for a ZIO application.
-
 ## Running The Examples
 
 In [this quickstart](../quickstarts/restful-webservice.md), we developed a web service containing 4 different HTTP Applications, but we haven't enabled logging for them. In this tutorial, we are going to enable logging for the `UserApp` we have developed in this quickstart.

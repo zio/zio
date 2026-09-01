@@ -2,8 +2,6 @@
 
 > Let's take a look at a round-trip converting an object to JSON and back, then converting it to a protobuf and back. This is a simple example, but it shows how to combine different encoders to achieve a round-trip.
 
-Let's take a look at a round-trip converting an object to JSON and back, then converting it to a protobuf and back. This is a simple example, but it shows how to combine different encoders to achieve a round-trip.
-
 ```scala
 object CombiningExample extends zio.App {
   import zio.schema.codec.JsonCodec

@@ -2,8 +2,6 @@
 
 > [ZIO Test Akka HTTP](https://github.com/senia-psm/zio-test-akka-http) is an Akka-HTTP Route TestKit for zio-test.
 
-[ZIO Test Akka HTTP](https://github.com/senia-psm/zio-test-akka-http) is an Akka-HTTP Route TestKit for zio-test.
-
 ## Installation
 
 In order to use this library, we need to add the following line in our `build.sbt` file:

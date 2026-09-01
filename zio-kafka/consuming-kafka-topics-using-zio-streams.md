@@ -2,8 +2,6 @@
 
 > You can stream data from Kafka using the `plainStream` method:
 
-You can stream data from Kafka using the `plainStream` method:
-
 ```scala
 import zio._
 import zio.Console.printLine

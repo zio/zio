@@ -2,8 +2,6 @@
 
 > `MpmcRingBuffer[A]` is the fully general-purpose implementation for systems with multiple producer and consumer threads. It uses the **Vyukov/Dmitry sequence-buffer algorithm**, a sophisticated lock-free design that coordinates all access through monotonically increasing indices and per-slot sequence stamps—making every slot's state self-describing at any moment.
 
-`MpmcRingBuffer[A]` is the fully general-purpose implementation for systems with multiple producer and consumer threads. It uses the **Vyukov/Dmitry sequence-buffer algorithm**, a sophisticated lock-free design that coordinates all access through monotonically increasing indices and per-slot sequence stamps—making every slot's state self-describing at any moment.
-
 ## Algorithm
 
 `MpmcRingBuffer` handles the hardest case: **many producers and many consumers** all accessing the same buffer at once. It uses the **Vyukov/Dmitry algorithm**, which is a lock-free MPMC queue design.

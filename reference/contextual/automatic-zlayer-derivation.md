@@ -1,12 +1,8 @@
 # Automatic ZLayer Derivation
 
 > ZIO's `ZLayer` is a powerful tool for building modular, testable, and composable applications. With the `ZLayer.derive`
-utility, you can automatically derive simple `ZLayer` instances for your services, reducing boilerplate and simplifying
-your codebase.
-
-ZIO's `ZLayer` is a powerful tool for building modular, testable, and composable applications. With the `ZLayer.derive`
-utility, you can automatically derive simple `ZLayer` instances for your services, reducing boilerplate and simplifying
-your codebase.
+> utility, you can automatically derive simple `ZLayer` instances for your services, reducing boilerplate and simplifying
+> your codebase.
 
 ## Basic Use Cases
 

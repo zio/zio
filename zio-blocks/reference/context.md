@@ -2,8 +2,6 @@
 
 > `Context[+R]` is a type-indexed heterogeneous collection that stores values of different types, indexed by their types, with compile-time type safety for lookups. It provides an immutable, cache-aware dependency container where the phantom type `R` (using intersection types) tracks which types are present.
 
-`Context[+R]` is a type-indexed heterogeneous collection that stores values of different types, indexed by their types, with compile-time type safety for lookups. It provides an immutable, cache-aware dependency container where the phantom type `R` (using intersection types) tracks which types are present.
-
 The core type looks like this:
 
 ```scala

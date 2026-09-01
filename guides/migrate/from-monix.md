@@ -1,12 +1,8 @@
 # How to Migrate from Monix to ZIO?
 
 > Monix's `Task[A]` can be easily replaced with ZIO's `Task[A]` (an alias for `ZIO[Any, Throwable, A]`).
-Translation should be relatively straightforward. Below, you'll find tables showing the ZIO equivalents of 
- `monix.eval.Task`'s methods.
-
-Monix's `Task[A]` can be easily replaced with ZIO's `Task[A]` (an alias for `ZIO[Any, Throwable, A]`).
-Translation should be relatively straightforward. Below, you'll find tables showing the ZIO equivalents of 
- `monix.eval.Task`'s methods. 
+> Translation should be relatively straightforward. Below, you'll find tables showing the ZIO equivalents of 
+>  `monix.eval.Task`'s methods.
 
 Once you've completed the initial translation, you'll find that ZIO is outfitted with many additional
 methods which have no Monix equivalents, so have fun exploring the API and see if you can rewrite some

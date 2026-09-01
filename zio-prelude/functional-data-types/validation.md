@@ -2,8 +2,6 @@
 
 > A `Validation[E, A]` is a data type that is either a `Success` with a value of type `A` or a `Failure` with one or more errors of type `E`.
 
-A `Validation[E, A]` is a data type that is either a `Success` with a value of type `A` or a `Failure` with one or more errors of type `E`.
-
 You can think of a `Validation` as looking something like this:
 
 ```scala

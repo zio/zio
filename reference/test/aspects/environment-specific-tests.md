@@ -4,8 +4,6 @@
 
 ## OS-specific Tests
 
-To run a test on a specific operating system, we can use one of the `unix`, `mac` or `windows` test aspects or a combination of them. Additionally, we can use the `os` test aspect directly:
-
 ```scala
 import zio._
 import zio.test.{test, _}

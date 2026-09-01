@@ -2,8 +2,6 @@
 
 > The high level API relies on two mechanisms to provide type safety and reduce boilerplate code:
 
-The high level API relies on two mechanisms to provide type safety and reduce boilerplate code:
-
 1. Automatic ZIO Schema derivation for case classes
 2. Semi automatic generation of `ProjectionExpression`'s for case classes and sealed traits 
 

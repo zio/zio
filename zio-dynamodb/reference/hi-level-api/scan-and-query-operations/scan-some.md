@@ -1,11 +1,11 @@
 # scanSome
 
 > ```scala
-  def scanSome[A: Schema](
-    tableName: String,
-    limit: Int
-  ): DynamoDBQuery[A, (Chunk[A], LastEvaluatedKey)] = ???  
-```
+>   def scanSome[A: Schema](
+>     tableName: String,
+>     limit: Int
+>   ): DynamoDBQuery[A, (Chunk[A], LastEvaluatedKey)] = ???  
+> ```
 
 ```scala
   def scanSome[A: Schema](

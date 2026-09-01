@@ -2,8 +2,6 @@
 
 > `HttpCodec[K, A]` is a composable, typed descriptor for HTTP request and response parts. The phantom type parameter `K` (either `CodecKind.Request` or `CodecKind.Response`) tracks which direction the codec belongs to, so the compiler prevents mixing request-side codecs (query, request header, request body) with response-side codecs (status, response header, response body). The trait signature is:
 
-`HttpCodec[K, A]` is a composable, typed descriptor for HTTP request and response parts. The phantom type parameter `K` (either `CodecKind.Request` or `CodecKind.Response`) tracks which direction the codec belongs to, so the compiler prevents mixing request-side codecs (query, request header, request body) with response-side codecs (status, response header, response body). The trait signature is:
-
 ```scala
 sealed trait HttpCodec[+K <: CodecKind, A]
 ```

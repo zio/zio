@@ -2,8 +2,6 @@
 
 > `SchemaExpr[A, B]` is a **schema-aware expression** that computes a result of type `B` from an input value of type `A`. It is invariant in both type parameters. The input type `A` must be fully described by a [`Schema`](./schema.md), and the expression is built from [optics](./optics.md), literal values, and operators. The fundamental operations are `eval` and `evalDynamic`.
 
-`SchemaExpr[A, B]` is a **schema-aware expression** that computes a result of type `B` from an input value of type `A`. It is invariant in both type parameters. The input type `A` must be fully described by a [`Schema`](./schema.md), and the expression is built from [optics](./optics.md), literal values, and operators. The fundamental operations are `eval` and `evalDynamic`.
-
 At runtime, `SchemaExpr` is a typed wrapper around `DynamicSchemaExpr`. The typed layer carries the input and output schemas, while the dynamic layer stores the serializable AST. This split is why you will sometimes see both `.dynamic` and `DynamicSchemaExpr` in advanced examples: `SchemaExpr` is the public typed API, and `DynamicSchemaExpr` is the untyped transport/runtime form underneath it.
 
 `SchemaExpr`:

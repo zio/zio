@@ -4,8 +4,6 @@
 
 ## Introduction
 
-ZIO Blocks Schema is the core type system and serialization framework that provides reified structural metadata for Scala data types. It enables type-safe schema definition, validation, optics-based data access, multi-format serialization, and runtime introspection — all derived from a single `Schema` definition.
-
 **Core Type System:**
 - [`Schema`](./schema.md) — Primary data type containing reified structure of a Scala data type
 - [`Reflect`](./reflect.md) — Foundational data structure containing reified structural information

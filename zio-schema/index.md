@@ -2,8 +2,6 @@
 
 > Once we have defined our schemas, we can use them to perform a variety of operations. In this section, we will explore some of the most common operations that we can perform on schemas.
 
-Once we have defined our schemas, we can use them to perform a variety of operations. In this section, we will explore some of the most common operations that we can perform on schemas.
-
 Before diving into the details, let's see a quick overview of the operations that we can perform on schemas:
 
 ```scala

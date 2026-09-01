@@ -2,8 +2,6 @@
 
 > ZIO Prelude provides functionality for creating zero overhead new types to allow you to increase the type safety of your application without compromising performance or ergonomics.
 
-ZIO Prelude provides functionality for creating zero overhead new types to allow you to increase the type safety of your application without compromising performance or ergonomics.
-
 A common situation in domain modeling is that we have multiple types in our business domain with the same underlying representation in Scala. For example:
 
 ```scala
@@ -30,7 +28,7 @@ We can try to minimize these allocations using techniques such as extending `Any
 
 Let's see how ZIO Prelude helps us get the best of both worlds here.
 
-## New Types
+
 
 A new type in ZIO Prelude is a type that has the same underlying representation as another type at runtime but is a separate type at compile time.
 

@@ -2,8 +2,6 @@
 
 > The `ZStream` data type, has two type aliases:
 
-The `ZStream` data type, has two type aliases:
-
 ```scala
 type Stream[+E, +A] = ZStream[Any, E, A]
 type UStream[+A]    = ZStream[Any, Nothing, A]

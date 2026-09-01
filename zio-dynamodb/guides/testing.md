@@ -1,12 +1,9 @@
 # Testing ZIO DynamoDB Applications
 
 > The recommendation is to use full-stack integration tests of your ZIO DynamoDB repository code against a "local" DynamoDB 
-instance of which there are two choices:
+> instance of which there are two choices:
 
 ### Full Stack Integration Testing
-
-The recommendation is to use full-stack integration tests of your ZIO DynamoDB repository code against a "local" DynamoDB 
-instance of which there are two choices:
 
 - [DynamoDB Local JAR](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html) - a stand-alone 
 JAR file that can be run on your local machine, also is available as a docker image.

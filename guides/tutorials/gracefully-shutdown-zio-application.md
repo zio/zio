@@ -4,8 +4,6 @@
 
 ## Introduction
 
-Graceful shutdown is a critical aspect of building robust and reliable software applications. It ensures that an application terminates smoothly, allowing it to complete necessary operations, release resources, and exit in a controlled manner.
-
 In this article, we will explore how to achieve a graceful shutdown in ZIO applications, leveraging the power of the ZIO functional effect system.
 
 ## What is Graceful Shutdown?

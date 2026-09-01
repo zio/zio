@@ -2,8 +2,6 @@
 
 > `SchemaError` is a **structured error type** for schema operations in ZIO Blocks. It represents one or more validation, conversion, or structural failures that occurred while decoding, encoding, or transforming data, each annotated with a [`DynamicOptic`](./dynamic-optic.md) path that pinpoints the failing location in the data structure.
 
-`SchemaError` is a **structured error type** for schema operations in ZIO Blocks. It represents one or more validation, conversion, or structural failures that occurred while decoding, encoding, or transforming data, each annotated with a [`DynamicOptic`](./dynamic-optic.md) path that pinpoints the failing location in the data structure.
-
 ```scala
 final case class SchemaError(errors: ::[SchemaError.Single])
   extends Exception with NoStackTrace

@@ -2,9 +2,7 @@
 
 > 1. `Gen#zipWith` — Composes this generator with the specified generator to create a cartesian product of elements with the specified function:
 
-1. `Gen#zipWith` — Composes this generator with the specified generator to create a cartesian product of elements with the specified function:
-
-  ```scala mdoc:compile-only
+```scala mdoc:compile-only
   Gen.elements("a", "b", "c").zipWith(Gen.elements("1", "2", "3"))(_ + _)
     .runCollectN(5)
   // Sample Output: List(b1, a2, c1, b1, b1)

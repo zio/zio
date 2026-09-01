@@ -2,8 +2,6 @@
 
 > `Migration[A, B]` is ZIO Blocks Schema's typed API for evolving data from one schema version to another. It wraps a fully serializable [`DynamicMigration`](#dynamicmigration) core with typed source and target schemas, giving you a builder-based workflow for adding fields, dropping fields, renaming fields, changing types, migrating nested values, transforming collections and maps, and composing migrations.
 
-`Migration[A, B]` is ZIO Blocks Schema's typed API for evolving data from one schema version to another. It wraps a fully serializable [`DynamicMigration`](#dynamicmigration) core with typed source and target schemas, giving you a builder-based workflow for adding fields, dropping fields, renaming fields, changing types, migrating nested values, transforming collections and maps, and composing migrations.
-
 ## Overview
 
 The migration system is split into three layers:

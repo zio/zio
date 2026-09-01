@@ -2,8 +2,6 @@
 
 > `Inverse[A]` describes a type that has a `combine` operator and also has an `inverse` operator that is the inverse of the `combine` operator.
 
-`Inverse[A]` describes a type that has a `combine` operator and also has an `inverse` operator that is the inverse of the `combine` operator.
-
 Its signature is:
 
 ```scala

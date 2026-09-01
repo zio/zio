@@ -2,8 +2,6 @@
 
 > To build a description of a command:
 
-To build a description of a command:
-
 ```scala
 val command = Command("cat", "file.txt")
 ```

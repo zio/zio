@@ -2,8 +2,6 @@
 
 > The `Live` trait provides access to the _live_ environment from within the test environment for effects such as printing test results to the console or timing out tests where it is necessary to access the real environment.
 
-The `Live` trait provides access to the _live_ environment from within the test environment for effects such as printing test results to the console or timing out tests where it is necessary to access the real environment.
-
 ## Providing Live Environment 
 
 ### To the Entire Effect

@@ -1,11 +1,11 @@
 # Codec Customization
 
 > ```scala
-sealed trait TrafficLight
-final case class Green(rgb: Int) extends TrafficLight 
-final case class Red(rgb: Int) extends TrafficLight
-final case class Box(trafficLightColour: TrafficLight)
-```
+> sealed trait TrafficLight
+> final case class Green(rgb: Int) extends TrafficLight 
+> final case class Red(rgb: Int) extends TrafficLight
+> final case class Box(trafficLightColour: TrafficLight)
+> ```
 
 ## Sealed trait members that are case classes
 

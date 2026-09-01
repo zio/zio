@@ -2,8 +2,6 @@
 
 > A `Frequency` represents the number of occurrences of specified values. We can think of a `Frequency` as a set of counters associated with each value except that new counters will automatically be created when new values are observed.
 
-A `Frequency` represents the number of occurrences of specified values. We can think of a `Frequency` as a set of counters associated with each value except that new counters will automatically be created when new values are observed.
-
 Essentially, a `Frequency` is a set of related counters sharing the same name and tags. The counters are set apart from each other by an additional configurable tag. The values of the tag represent the observed distinct values.
 
 ## API

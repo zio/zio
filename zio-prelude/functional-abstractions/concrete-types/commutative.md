@@ -2,8 +2,6 @@
 
 > `Commutative[A]` describes a data type that has a `combine` operator that is commutative and associative.
 
-`Commutative[A]` describes a data type that has a `combine` operator that is commutative and associative.
-
 Its signature is:
 
 ```scala

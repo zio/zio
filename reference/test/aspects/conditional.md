@@ -2,8 +2,6 @@
 
 > When we apply a conditional aspect, it will run the spec only if the specified predicate is satisfied.
 
-When we apply a conditional aspect, it will run the spec only if the specified predicate is satisfied.
-
 - **`ifEnv`** — Only runs a test if the specified environment variable satisfies the specified assertion.
 - **`ifEnvSet`** — Only runs a test if the specified environment variable is set.
 - **`ifProp`** — Only runs a test if the specified Java property satisfies the specified assertion.

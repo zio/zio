@@ -1,12 +1,12 @@
 # deleteFrom
 
 > ```scala
-  def deleteFrom[From: Schema](
-    tableName: String
-  )(
-    primaryKeyExpr: KeyConditionExpr.PrimaryKeyExpr[From]
-  ): DynamoDBQuery[Any, Option[From]] = ???
-```
+>   def deleteFrom[From: Schema](
+>     tableName: String
+>   )(
+>     primaryKeyExpr: KeyConditionExpr.PrimaryKeyExpr[From]
+>   ): DynamoDBQuery[Any, Option[From]] = ???
+> ```
 
 ```scala
   def deleteFrom[From: Schema](

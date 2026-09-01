@@ -2,8 +2,6 @@
 
 > ZIO 2 test library has test logger implementation for testing:
 
-ZIO 2 test library has test logger implementation for testing:
-
 ```scala
 libraryDependencies += "dev.zio" %% "zio-test" % ZioVersion % Test
 ```

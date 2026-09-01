@@ -2,8 +2,6 @@
 
 > The High Level API mirrors the Scan and Query operations of DDB but with a high level of type safety.
 
-The High Level API mirrors the Scan and Query operations of DDB but with a high level of type safety. 
-
 We have to start of with a Scala model of the table and add an implicit schema reference in the companion object together with some convenience `ProjectionExpression`'s via the `accessors` function. 
 
 ```scala

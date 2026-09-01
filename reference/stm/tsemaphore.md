@@ -1,10 +1,7 @@
 # TSemaphore
 
 > `TSemaphore` is a semaphore with transactional semantics that can be used to control access to a common resource. It 
-holds a certain number of permits, and permits may be acquired or released.
-
-`TSemaphore` is a semaphore with transactional semantics that can be used to control access to a common resource. It 
-holds a certain number of permits, and permits may be acquired or released.
+> holds a certain number of permits, and permits may be acquired or released.
 
 ## Create a TSemaphore
 Creating a `TSemaphore` with 10 permits:

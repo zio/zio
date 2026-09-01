@@ -2,8 +2,6 @@
 
 > `CommutativeBoth[F]` describes a way of combining two values `F[A]` and `F[B]` into a value `F[(A, B)]` that is commutative.
 
-`CommutativeBoth[F]` describes a way of combining two values `F[A]` and `F[B]` into a value `F[(A, B)]` that is commutative.
-
 Its signature is:
 
 ```scala

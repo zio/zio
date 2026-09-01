@@ -2,8 +2,6 @@
 
 > ZIO Schema allows us to create representations of our data types as values.
 
-ZIO Schema allows us to create representations of our data types as values.
-
 Once we have a representation of our data types, we can use it to
   - Serialize and deserialize our types
   - Validate our types

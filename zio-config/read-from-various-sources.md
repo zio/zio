@@ -2,8 +2,6 @@
 
 > zio-config supports various sources.
 
-zio-config supports various sources.
-
 ```scala
 import zio._, Config._, ConfigProvider._
 import zio.config._, magnolia._

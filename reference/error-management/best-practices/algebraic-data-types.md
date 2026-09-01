@@ -2,8 +2,6 @@
 
 > It is best to use _algebraic data types (ADTs)_ when modeling errors within the same domain or subdomain.
 
-It is best to use _algebraic data types (ADTs)_ when modeling errors within the same domain or subdomain.
-
 Sealed traits allow us to introduce an error type as a common supertype and all errors within a domain are part of that error type by extending that:
 
 ```scala

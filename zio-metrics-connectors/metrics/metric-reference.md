@@ -1,12 +1,9 @@
 # ZIO Metric Reference
 
 > All ZIO metrics are defined in the form of aspects that can be applied with `@@` to measure an effect. Applying an
-aspect to an effect does not change the type of the effect. For example:
+> aspect to an effect does not change the type of the effect. For example:
 
 ## Measuring
-
-All ZIO metrics are defined in the form of aspects that can be applied with `@@` to measure an effect. Applying an
-aspect to an effect does not change the type of the effect. For example:
 
 ```scala
 val metric = Metric.counter("effect_counter")

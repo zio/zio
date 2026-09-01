@@ -4,8 +4,6 @@
 
 ## Introduction
 
-JSON (JavaScript Object Notation) is a widely used data interchange format for transmitting and storing data. ZIO Schema provides `zio-schema-json` module which has functionality to derive JSON codecs from a ZIO Schema. JSON codecs allow us to easily serialize and deserialize data in JSON format. In this article, we will explore how derive JSON codecs using the ZIO Schema.
-
 ## Installation
 
 To derive JSON codecs from a ZIO Schema, we need to add the following dependency to our `build.sbt` file:

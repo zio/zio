@@ -2,8 +2,6 @@
 
 > In the case of retrying, ZIO has a `ZIO#retry` function, which takes a schedule as a repetition policy and returns another effect that describes an effect with repetition strategy which will retry following the failure of the original effect.
 
-In the case of retrying, ZIO has a `ZIO#retry` function, which takes a schedule as a repetition policy and returns another effect that describes an effect with repetition strategy which will retry following the failure of the original effect.
-
 Repeat policies are used in the following functions:
 
 * `ZIO#retry` – Retries an effect until it succeeds.

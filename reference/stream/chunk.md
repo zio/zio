@@ -2,8 +2,6 @@
 
 > A `Chunk[A]` represents a chunk of values of type `A`. Chunks are usually backed by arrays, but expose a purely functional, safe interface to the underlying elements, and they become lazy on operations that would be costly with arrays, such as repeated concatenation. Like lists and arrays, Chunk is an ordered collection.
 
-A `Chunk[A]` represents a chunk of values of type `A`. Chunks are usually backed by arrays, but expose a purely functional, safe interface to the underlying elements, and they become lazy on operations that would be costly with arrays, such as repeated concatenation. Like lists and arrays, Chunk is an ordered collection. 
-
 ## Why Chunk?
 Arrays are fast and don’t box primitive values but due to `ClassTag` requirements and mutability they are painful to use and don't integrate well into functional code. ZIO chunks are backed by arrays so they also have zero boxing for primitives while providing an immutable interface and avoiding `ClassTag` requirements.
 

@@ -2,8 +2,6 @@
 
 > By bringing in `zio-config-magnolia` we  avoid all the boilerplate required to define the config. With a single import, `Config` is automatically derived.
 
-By bringing in `zio-config-magnolia` we  avoid all the boilerplate required to define the config. With a single import, `Config` is automatically derived.
-
 ### Example
 
 #### Config

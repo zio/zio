@@ -2,8 +2,6 @@
 
 > `HxSwap` represents the `hx-swap` attribute, controlling how HTMX replaces DOM content after a successful response. It combines a base strategy (innerHTML, outerHTML, etc.) with optional modifiers that refine timing, animation, scrolling, and focus behavior.
 
-`HxSwap` represents the `hx-swap` attribute, controlling how HTMX replaces DOM content after a successful response. It combines a base strategy (innerHTML, outerHTML, etc.) with optional modifiers that refine timing, animation, scrolling, and focus behavior.
-
 Start from one of the predefined strategies, then call modifier methods to customize timing, animation, and scroll behavior. All modifiers are optional, and calling the same modifier twice replaces the earlier value rather than stacking. Here are the core patterns:
 
 ```scala

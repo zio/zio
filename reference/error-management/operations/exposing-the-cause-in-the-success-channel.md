@@ -2,8 +2,6 @@
 
 > Using the `ZIO#cause` operation we can expose the cause, and then by using `ZIO#uncause` we can reverse this operation:
 
-Using the `ZIO#cause` operation we can expose the cause, and then by using `ZIO#uncause` we can reverse this operation:
-
 ```scala
 trait ZIO[-R, +E, +A] {
   def cause: URIO[R, Cause[E]]

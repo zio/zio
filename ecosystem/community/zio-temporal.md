@@ -2,8 +2,6 @@
 
 > [ZIO Temporal](https://zio-temporal.vhonta.dev/) is a ZIO library for Temporal, a microservice workflow orchestration platform.
 
-[ZIO Temporal](https://zio-temporal.vhonta.dev/) is a ZIO library for Temporal, a microservice workflow orchestration platform.
-
 ## Introduction
 
 ZIO Temporal is a ZIO library based on the Temporal Java-SDK. ZIO Temporal brings first-class Scala & ZIO support with additional compile-time checks that Java SDK lacks.

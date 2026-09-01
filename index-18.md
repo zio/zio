@@ -2,8 +2,6 @@
 
 > [ZIO Json](https://github.com/zio/zio-json) is a fast and secure JSON library with tight ZIO integration.
 
-[ZIO Json](https://github.com/zio/zio-json) is a fast and secure JSON library with tight ZIO integration.
-
 @PROJECT_BADGES@
 
 ## Introduction
@@ -42,12 +40,16 @@ All the following code snippets assume that the following imports have been decl
 
   
 
+**Scala 2**
+
 ```scala
 import zio.json._
 ```
 
   
   
+
+**Scala 3**
 
 ```scala
 import zio.json.*
@@ -69,6 +71,8 @@ final case class Banana(curvature: Double)
 
   
 
+**Scala 2**
+
 To do this, we create an *instance* of the `JsonDecoder` typeclass for `Banana` using the `zio-json` code generator. It is best practice to put it on the companion of `Banana`, like so
 
 ```scala
@@ -79,6 +83,8 @@ object Banana {
 
   
   
+
+**Scala 3**
 
 To do this, we derive an *instance* of the `JsonDecoder` typeclass for `Banana`.
 
@@ -101,6 +107,8 @@ Likewise, to produce JSON from our data we derive a `JsonEncoder`
 
   
 
+**Scala 2**
+
 ```scala
 object Banana {
   ...
@@ -110,6 +118,8 @@ object Banana {
 
   
   
+
+**Scala 3**
 
 ```scala
 final case class Banana(curvature: Double) derives JsonEncoder
@@ -139,6 +149,8 @@ Say we extend our data model to include more data types
 
   
 
+**Scala 2**
+
 ```scala
 sealed trait Fruit
 final case class Banana(curvature: Double) extends Fruit
@@ -147,6 +159,8 @@ final case class Apple (poison: Boolean)   extends Fruit
 
   
   
+
+**Scala 3**
 
 ```scala
 enum Fruit {
@@ -161,6 +175,8 @@ we can generate the encoder and decoder for the entire `sealed` family
 
   
 
+**Scala 2**
+
 ```scala
 object Fruit {
   implicit val decoder: JsonDecoder[Fruit] = DeriveJsonDecoder.gen[Fruit]
@@ -170,6 +186,8 @@ object Fruit {
 
   
   
+
+**Scala 3**
 
 ```scala
 enum Fruit derives JsonCodec {
@@ -193,6 +211,8 @@ val res: Either[String, Fruit] = Right(Apple(false))
 Almost all of the standard library data types are supported as fields on the case class, and it is easy to add support if one is missing.
 
   
+
+**Scala 2**
 
 ```scala mdoc:compile-only
 import zio.json._
@@ -222,6 +242,8 @@ List(Apple(false), Banana(0.4)).toJsonPretty
 
   
   
+
+**Scala 3**
 
 ```scala
 import zio.json.*

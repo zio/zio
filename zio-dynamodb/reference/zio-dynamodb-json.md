@@ -1,10 +1,7 @@
 # ZIO DynamoDB JSON Module
 
 > **`zio-dynamodb-json`** is a new experimental optional module designed for debugging and troubleshooting purposes.
-It renders a representation of the native DynamoDB types and data in a standard JSON format used in AWS console views
-
-**`zio-dynamodb-json`** is a new experimental optional module designed for debugging and troubleshooting purposes.
-It renders a representation of the native DynamoDB types and data in a standard JSON format used in AWS console views
+> It renders a representation of the native DynamoDB types and data in a standard JSON format used in AWS console views
 
 It uses the same codecs as the regular library and provides an accurate representation of how the data that would be stored in DynamoDB. 
 It works at the level of the AttributeValue type and so works with both the low level and high level APIs.

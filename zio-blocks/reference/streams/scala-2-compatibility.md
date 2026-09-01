@@ -2,8 +2,6 @@
 
 > This document explains the design of Scala 2.13 support for `zio.blocks.streams` and the constraints that shaped it.
 
-This document explains the design of Scala 2.13 support for `zio.blocks.streams` and the constraints that shaped it.
-
 ## Motivation
 
 HTTP data types in `zio-blocks` depend on streams. `zio-http` 4 depends on those HTTP data types. Without Scala 2 stream support, `zio-http` cannot offer Scala 2 support. That dependency chain makes Scala 2.13 support for streams a hard requirement, not an optional nicety.

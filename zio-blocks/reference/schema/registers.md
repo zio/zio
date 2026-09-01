@@ -2,8 +2,6 @@
 
 > The register system is one of the key innovations in ZIO Blocks (ZIO Schema 2) that enables **zero-allocation, box-free construction and deconstruction** of data types.
 
-The register system is one of the key innovations in ZIO Blocks (ZIO Schema 2) that enables **zero-allocation, box-free construction and deconstruction** of data types. 
-
 ## The Problem: Boxing/Unboxing Overheads
 
 When building generic abstractions over data types (like serialization libraries), you need to describe all possible constructions and deconstructions uniformly. The traditional approach uses tuples and boxed primitives. For example assume we have a simple record data type:

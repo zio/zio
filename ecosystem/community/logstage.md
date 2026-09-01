@@ -2,8 +2,6 @@
 
 > [LogStage](https://izumi.7mind.io/logstage/) is a zero-cost structural logging framework for Scala & Scala.js.
 
-[LogStage](https://izumi.7mind.io/logstage/) is a zero-cost structural logging framework for Scala & Scala.js.
-
 ## Introduction
 
 Some key features of _LogStage_:

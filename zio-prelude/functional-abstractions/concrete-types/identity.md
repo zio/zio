@@ -2,8 +2,6 @@
 
 > `Identity[A]` describes a data type with an associative combining operation that also has an identity element.
 
-`Identity[A]` describes a data type with an associative combining operation that also has an identity element.
-
 Its signature is:
 
 ```scala

@@ -2,8 +2,6 @@
 
 > A `Lookup` is a lookup function that, given a key of type `Key`, knows how to compute a value of type `Value`, requiring an environment of type `Environment` and potentially failing with an error of type `Error`.
 
-A `Lookup` is a lookup function that, given a key of type `Key`, knows how to compute a value of type `Value`, requiring an environment of type `Environment` and potentially failing with an error of type `Error`.
-
 ```scala
 import zio._
 

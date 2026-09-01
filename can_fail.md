@@ -48,13 +48,6 @@ Code | Rewrite
 `ustream.mapError(f)` | `ustream`
 `ustream.orElse(zstream)` | `ustream`
 
-## ZStreamChunk
-
-Code | Rewrite 
---- | ---
-`ustream.either` | `ustream`
-`ustream.orElse(zstream)` | `ustream`
-
 ## (*) Notes:
 
 - `either`, `option`, `orElseEither`, and `retryOrElseEither` wrap their results in `Some` or `Right` so after rewriting, code calling these methods can be simplified to accept an `A` rather than an `Option[A]` or `Either[E, A]`. 

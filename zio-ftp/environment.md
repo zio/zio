@@ -1,10 +1,7 @@
 # Environment
 
 > FtpClient & Blocking
----
-
-FtpClient & Blocking
----
+> ---
 
 ZIO Ftp use Environment type parameter to required a blocking context. Since (s)ftp java client don't provide any async client, 
 we are lifting all blocking (effectful) functions into a blocking execution context by using `zio.blocking.effectBlocking()`.

@@ -1,16 +1,10 @@
 # Introduction
 
 > ZIO Test has out of the box test implementations for all built-in ZIO services, such as `Console`, `Clock`, `Random` and `System` through the following modules:
-- [`TestConsole`](./console.md)
-- [`TestClock`](./clock.md)
-- [`TestRandom`](./random.md)
-- [`TestSystem`](./system.md)
-
-ZIO Test has out of the box test implementations for all built-in ZIO services, such as `Console`, `Clock`, `Random` and `System` through the following modules:
-- [`TestConsole`](./console.md)
-- [`TestClock`](./clock.md)
-- [`TestRandom`](./random.md)
-- [`TestSystem`](./system.md)
+> - [`TestConsole`](./console.md)
+> - [`TestClock`](./clock.md)
+> - [`TestRandom`](./random.md)
+> - [`TestSystem`](./system.md)
 
 Stability is what we expect from tests, at least those we consider unit tests. Consecutive runs should yield the same results and take more or less the same amount of time.
 

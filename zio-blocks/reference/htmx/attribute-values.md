@@ -2,8 +2,6 @@
 
 > This section documents supporting attribute value types and infrastructure for the HTMX DSL. These types handle specialized data encoding, configuration, and type-class infrastructure that enables extensibility.
 
-This section documents supporting attribute value types and infrastructure for the HTMX DSL. These types handle specialized data encoding, configuration, and type-class infrastructure that enables extensibility.
-
 ## Attribute Value Types
 
 These types enable specialized data encoding and configuration:

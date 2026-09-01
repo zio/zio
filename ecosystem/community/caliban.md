@@ -2,8 +2,6 @@
 
 > [Caliban](https://ghostdogpr.github.io/caliban/) is a purely functional library for creating GraphQL servers and clients in Scala.
 
-[Caliban](https://ghostdogpr.github.io/caliban/) is a purely functional library for creating GraphQL servers and clients in Scala.
-
 ## Introduction
 
 Key features of Caliban

@@ -2,8 +2,6 @@
 
 > `zio-kafka` offers several ways to control which Kafka topics and partitions are assigned to your application.
 
-`zio-kafka` offers several ways to control which Kafka topics and partitions are assigned to your application.
-
 | Use case                                           | Method                                                  |
 |----------------------------------------------------|---------------------------------------------------------|
 | One or more topics, automatic partition assignment | `Subscription.topics("my_topic", "other_topic")`        |

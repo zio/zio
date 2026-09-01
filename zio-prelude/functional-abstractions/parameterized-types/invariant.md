@@ -2,8 +2,6 @@
 
 > `Invariant[F]` describes a parameterized type `F[A]` that potentially both consumes and produces `A` values.
 
-`Invariant[F]` describes a parameterized type `F[A]` that potentially both consumes and produces `A` values.
-
 Its signature is:
 
 ```scala

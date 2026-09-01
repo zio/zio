@@ -2,8 +2,6 @@
 
 > Like [tapping for success values](../../core/zio/zio.md#tapping) ZIO has several operators for tapping error values. So we can peek into failures or underlying defects or causes:
 
-Like [tapping for success values](../../core/zio/zio.md#tapping) ZIO has several operators for tapping error values. So we can peek into failures or underlying defects or causes:
-
 ```scala
 trait ZIO[-R, +E, +A] {
   def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any]): ZIO[R1, E1, A]

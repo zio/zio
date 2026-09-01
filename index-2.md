@@ -4,8 +4,6 @@
 
 ## Quickstart Guides
 
-The following guides have been written to help you get started with ZIO with minimal effort and without the need to fully understand the underlying technology:
-
 1. [ZIO Quickstart: Hello World](quickstarts/hello-world.md)
 2. [ZIO Quickstart: Building a RESTful Web Service](quickstarts/restful-webservice.md)
 3. [ZIO Quickstart: Building a GraphQL Web Service](quickstarts/graphql-webservice.md)

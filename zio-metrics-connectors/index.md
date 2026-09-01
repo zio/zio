@@ -1,12 +1,8 @@
 # Metrics
 
 > ZIO Metrics allows you to apply special aspects to the workflows of any ZIO based application. This is called
-instrumentation. The type of the original ZIO workflow will not change by adding one or more aspects to it. (From here
-on, we'll use the word _effect_ instead of workflow.)
-
-ZIO Metrics allows you to apply special aspects to the workflows of any ZIO based application. This is called
-instrumentation. The type of the original ZIO workflow will not change by adding one or more aspects to it. (From here
-on, we'll use the word _effect_ instead of workflow.)
+> instrumentation. The type of the original ZIO workflow will not change by adding one or more aspects to it. (From here
+> on, we'll use the word _effect_ instead of workflow.)
 
 Whenever an instrumented effect executes, all the aspects will be executed as well. Each of the aspects will capture
 some data of interest and update some Metric internal state. Which data will be captured and how it can be used later on

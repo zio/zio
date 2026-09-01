@@ -2,8 +2,6 @@
 
 > `Finalization` is the result of running all finalizers in a scope, collecting any errors that occurred during cleanup:
 
-`Finalization` is the result of running all finalizers in a scope, collecting any errors that occurred during cleanup:
-
 ```scala
 import zio.blocks.chunk.Chunk
 

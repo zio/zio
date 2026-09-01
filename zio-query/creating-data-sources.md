@@ -2,8 +2,6 @@
 
 > To construct a `ZQuery` that executes a request, you first need to create a `DataSource`. A `DataSource[R, A]` requires an environment `R` and is capable of executing requests of type `A`. It is defined in terms of:
 
-To construct a `ZQuery` that executes a request, you first need to create a `DataSource`. A `DataSource[R, A]` requires an environment `R` and is capable of executing requests of type `A`. It is defined in terms of:
-
 - an `identifier` that uniquely identifies the data source
 - an effectual function `runAll` from a `Chunk[Chunk[A]]` of requests to a `CompletedRequestMap` of requests and results
 

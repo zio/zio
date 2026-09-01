@@ -2,8 +2,6 @@
 
 > The `failing` aspect makes a test that failed for any reason pass.
 
-The `failing` aspect makes a test that failed for any reason pass.
-
 ```scala
 import zio._
 import zio.test.{test, _}

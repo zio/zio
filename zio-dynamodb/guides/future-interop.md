@@ -1,10 +1,7 @@
 # Future Interop
 
 > The **`zio-dynamodb-future`** interop module provides a way to use ZIO DynamoDB with vanilla scala Futures with minimal 
-effort.
-
-The **`zio-dynamodb-future`** interop module provides a way to use ZIO DynamoDB with vanilla scala Futures with minimal 
-effort.
+> effort.
 
 ## Usage
 

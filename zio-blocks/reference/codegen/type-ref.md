@@ -2,8 +2,6 @@
 
 > `TypeRef` represents a reference to a Scala type in the IR. It captures both simple types (like `String`, `Int`) and generic types (like `List[String]`, `Map[String, Int]`).
 
-`TypeRef` represents a reference to a Scala type in the IR. It captures both simple types (like `String`, `Int`) and generic types (like `List[String]`, `Map[String, Int]`).
-
 ## Use Cases
 
 - Specifying the types of fields in case classes

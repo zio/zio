@@ -1,10 +1,7 @@
 # Datadog Client
 
 > In a normal DataDog setup we will find a DataDog agent with an open UDP port where applications send their
-metrics to. The format of the metrics is defined by the [DogStatsD protocol](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell/?tab=metrics).
-
-In a normal DataDog setup we will find a DataDog agent with an open UDP port where applications send their
-metrics to. The format of the metrics is defined by the [DogStatsD protocol](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell/?tab=metrics).
+> metrics to. The format of the metrics is defined by the [DogStatsD protocol](https://docs.datadoghq.com/developers/dogstatsd/datagram_shell/?tab=metrics).
 
 With the DataDog client zio metrics creates the relevant DogStatsD datagrams and sends them via UDP.
 

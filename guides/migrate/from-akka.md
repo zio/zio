@@ -4,8 +4,6 @@
 
 ## Overview
 
-Here, we summarized alternative ZIO solutions for Akka Actor features. So before starting the migration, let's see an overview of corresponding features in ZIO:
-
 | Topics                      | Akka                                        | ZIO                                        |
 |-----------------------------|---------------------------------------------|--------------------------------------------|
 | Parallelism                 | [Akka Actor][1]                             | [ZIO][2], [Concurrent Data Types][3]       |

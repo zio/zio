@@ -2,8 +2,6 @@
 
 > `zio-blocks-schema-yaml` is a **schema-driven YAML codec module** for serializing and deserializing Scala types to and from YAML format. It provides comprehensive encoding and decoding with support for 27 primitive types, records, variants, sequences, maps, and recursive types. Core types: `Yaml`, `YamlCodec`, `YamlCodecDeriver`, `YamlOptions`.
 
-`zio-blocks-schema-yaml` is a **schema-driven YAML codec module** for serializing and deserializing Scala types to and from YAML format. It provides comprehensive encoding and decoding with support for 27 primitive types, records, variants, sequences, maps, and recursive types. Core types: `Yaml`, `YamlCodec`, `YamlCodecDeriver`, `YamlOptions`.
-
 The module integrates with a pure-Scala YAML parser and writer to provide human-readable serialization with optional JSON interoperability, configuration options for pretty-printing, and automatic schema generation.
 
 ## Motivation

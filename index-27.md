@@ -2,8 +2,6 @@
 
 > ZIO Profiling is a collection of different profilers for better understanding the runtime behavior of ZIO programs.
 
-ZIO Profiling is a collection of different profilers for better understanding the runtime behavior of ZIO programs.
-
 [![Concept](https://img.shields.io/badge/Project%20Stage-Concept-orange.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-profiling/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-profiling_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-profiling_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-profiling_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-profiling_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-profiling-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-profiling-docs_2.13) [![ZIO Profiling](https://img.shields.io/github/stars/zio/zio-profiling?style=social)](https://github.com/zio/zio-profiling)
 
 ## Introduction

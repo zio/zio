@@ -1,16 +1,10 @@
 # Args
 
 > The `Args` data type models command-line arguments. Arguments are name-less, position-based parameters passed to a command-line program that modify its behavior. For example, the Git CLI has a command named `git clone` that creates a copy of an existing repository. It has an argument called "repository" that represents the existing repository's path. To clone the **ZIO CLI** repository, it can be called this way:
-```
-git clone https://github.com/zio/zio-cli.git
-```
-where `https://github.com/zio/zio-cli.git` is the path of the repository.
-
-The `Args` data type models command-line arguments. Arguments are name-less, position-based parameters passed to a command-line program that modify its behavior. For example, the Git CLI has a command named `git clone` that creates a copy of an existing repository. It has an argument called "repository" that represents the existing repository's path. To clone the **ZIO CLI** repository, it can be called this way:
-```
-git clone https://github.com/zio/zio-cli.git
-```
-where `https://github.com/zio/zio-cli.git` is the path of the repository.
+> ```
+> git clone https://github.com/zio/zio-cli.git
+> ```
+> where `https://github.com/zio/zio-cli.git` is the path of the repository.
 
 In **ZIO CLI**, Arguments are represented by instances of class `Args[_]`. `Args[A]` is a description of the process of constructing an instance of `A` from a valid input of the CLI. It is not yet a specified argument for the CLI. In other words, an `Args[A]` defines a collection of valid arguments for a command and a way to construct a value `A` from them.
 

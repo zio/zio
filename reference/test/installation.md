@@ -2,8 +2,6 @@
 
 > In order to use ZIO Test, we need to add the required configuration in our SBT settings:
 
-In order to use ZIO Test, we need to add the required configuration in our SBT settings:
-
 ```scala
 libraryDependencies ++= Seq(
   "dev.zio" %% "zio-test"          % "2.1.26" % Test,

@@ -2,8 +2,6 @@
 
 > `ScalaFile` is the root IR node representing a complete Scala source file. It holds everything needed to emit a compilable file: the package declaration, imports, and type definitions.
 
-`ScalaFile` is the root IR node representing a complete Scala source file. It holds everything needed to emit a compilable file: the package declaration, imports, and type definitions.
-
 ## Use Cases
 
 - As the entry point to `ScalaEmitter.emit(file, config)` to generate source code

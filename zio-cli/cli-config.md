@@ -1,10 +1,7 @@
 # Cli Configuration
 
 > It is possible to tweak the behavior of our `CliApp` specifying a custom `CliConfig` in the parameter `cliConfig` of method `CliApp.make`. By default, `CliApp.make` uses `CliConfig.default`. `CliConfig` specifies how a `CliApp`
-determines the valid commands from the `command: Command[Model]` parameter.
-
-It is possible to tweak the behavior of our `CliApp` specifying a custom `CliConfig` in the parameter `cliConfig` of method `CliApp.make`. By default, `CliApp.make` uses `CliConfig.default`. `CliConfig` specifies how a `CliApp`
-determines the valid commands from the `command: Command[Model]` parameter.
+> determines the valid commands from the `command: Command[Model]` parameter.
 
 ## Parameters
 

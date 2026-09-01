@@ -2,8 +2,6 @@
 
 > [Rezilience](https://github.com/svroonland/rezilience) is a ZIO-native library for making resilient distributed systems.
 
-[Rezilience](https://github.com/svroonland/rezilience) is a ZIO-native library for making resilient distributed systems.
-
 ## Introduction
 
 Rezilience is a ZIO-native fault tolerance library with a collection of policies for making asynchronous systems more resilient to failures inspired by Polly, Resilience4J, and Akka. It does not have external library dependencies other than ZIO.

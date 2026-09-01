@@ -2,8 +2,6 @@
 
 > `Debug[A]` describes the ability to render a value of type `A` to a human readable format for debugging purposes.
 
-`Debug[A]` describes the ability to render a value of type `A` to a human readable format for debugging purposes.
-
 Its signature is:
 
 ```scala

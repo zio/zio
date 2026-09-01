@@ -1,8 +1,8 @@
 # Getting Started
 
 > ```scala
-libraryDependencies += "dev.zio" %% "zio-dynamodb" % 1.0.0-RC24
-```
+> libraryDependencies += "dev.zio" %% "zio-dynamodb" % 1.0.0-RC24
+> ```
 
 ## Add the dependency to your build.sbt file
 

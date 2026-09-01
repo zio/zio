@@ -2,8 +2,6 @@
 
 > `Maybe[A]` is a **low-allocation alternative to `Option[A]`** that uses `null` to represent the absence of a value. It is an opaque type alias for `A | Null`, allowing you to write nullable-like code with the safety and ergonomics of an Option-style API. Core types: `Maybe[A]`.
 
-`Maybe[A]` is a **low-allocation alternative to `Option[A]`** that uses `null` to represent the absence of a value. It is an opaque type alias for `A | Null`, allowing you to write nullable-like code with the safety and ergonomics of an Option-style API. Core types: `Maybe[A]`.
-
 Here's the type definition and basic construction:
 
 ```scala

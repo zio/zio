@@ -2,8 +2,6 @@
 
 > Unlike `ZIO#flatMap` the `ZIO#flatMapError` combinator chains two effects, where the second effect is dependent on the error channel of the first effect:
 
-Unlike `ZIO#flatMap` the `ZIO#flatMapError` combinator chains two effects, where the second effect is dependent on the error channel of the first effect:
-
 ```scala
 trait ZIO[-R, +E, +A] {
   def flatMapError[R1 <: R, E2](

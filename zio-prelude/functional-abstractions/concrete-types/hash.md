@@ -2,8 +2,6 @@
 
 > `Hash[A]` describes the ability to hash a value of type `A`.
 
-`Hash[A]` describes the ability to hash a value of type `A`.
-
 The signature is:
 
 ```scala

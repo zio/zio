@@ -1,16 +1,10 @@
 # Configuration
 
 > Each _service module_ depends on the `AwsConfig` layer. This layer is responsible for setting up the 
-AWS Java SDK's async client, by setting the [underlying HTTP engine](http.md) and all the common
-settings. You can use the following layers to provide `AwsConfig`:
-
-# Configuration
+> AWS Java SDK's async client, by setting the [underlying HTTP engine](http.md) and all the common
+> settings. You can use the following layers to provide `AwsConfig`:
 
 ## Common configuration
-
-Each _service module_ depends on the `AwsConfig` layer. This layer is responsible for setting up the 
-AWS Java SDK's async client, by setting the [underlying HTTP engine](http.md) and all the common
-settings. You can use the following layers to provide `AwsConfig`:
 
 #### Default
 `AwsConfig.default` requires a `HttpClient` as dependency, but does not customize any other setting of the client

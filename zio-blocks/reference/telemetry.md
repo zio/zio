@@ -2,8 +2,6 @@
 
 > `zio-blocks-telemetry` is an **effect-free, zero-allocation** observability library covering logging, tracing, and metrics. It follows the OpenTelemetry data model but has no dependency on the OpenTelemetry SDK. Hot paths are macro-generated so that a disabled log level costs exactly one volatile read plus one array scan (usually empty). Backends are pluggable: the default writes to the console with no setup, and production exporters live in the companion `zio-blocks-telemetry-otel` module.
 
-`zio-blocks-telemetry` is an **effect-free, zero-allocation** observability library covering logging, tracing, and metrics. It follows the OpenTelemetry data model but has no dependency on the OpenTelemetry SDK. Hot paths are macro-generated so that a disabled log level costs exactly one volatile read plus one array scan (usually empty). Backends are pluggable: the default writes to the console with no setup, and production exporters live in the companion `zio-blocks-telemetry-otel` module.
-
 The three main entry points are:
 - `log` — structured logging with macro-generated call sites
 - `trace` — distributed tracing with automatic parent propagation

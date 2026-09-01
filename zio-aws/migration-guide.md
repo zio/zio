@@ -4,8 +4,6 @@
 
 # Migration from v3.x.x.x
 
-There are some major changes compared to the ZIO 1 version (v3.x.x.x and v4.x.x.x). This section contains detailed information about what changed and how to modify existing code.
-
 ## New package names
 Previously the zio-aws packages had the root package `io.github.vigoo.zioaws`. By moving to the ZIO organisation this changed to be simply `zio.aws`. 
 

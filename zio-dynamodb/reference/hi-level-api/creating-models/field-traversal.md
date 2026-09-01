@@ -1,10 +1,7 @@
 # Field Traversal
 
 > We will be using the below model for the examples which contains a complex collection field `hobbies` and a nested case 
-class field `address`. Note that ZIO DynamoDB also supports case classes as collection elements (not shown in this example).
-
-We will be using the below model for the examples which contains a complex collection field `hobbies` and a nested case 
-class field `address`. Note that ZIO DynamoDB also supports case classes as collection elements (not shown in this example).
+> class field `address`. Note that ZIO DynamoDB also supports case classes as collection elements (not shown in this example).
 
 ```scala
 final case class Address(number: String, street: String)

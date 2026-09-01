@@ -2,8 +2,6 @@
 
 > __Note that this documentation is for 1.x series. For newer versions, please refer to [docs](https://github.com/zio/zio-config/tree/master/docs) section in GitHub.__
 
-__Note that this documentation is for 1.x series. For newer versions, please refer to [docs](https://github.com/zio/zio-config/tree/master/docs) section in GitHub.__
-
 ## Describe the config by hand
 
 We must fetch the configuration from the environment to a case class (product) in scala. Let it be `MyConfig`

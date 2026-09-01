@@ -1,10 +1,7 @@
 # OpenCensus
 
 > OpenCensus is a stats collection and distributed tracing framework. Well known implementations are [Jaeger](https://www.jaegertracing.io)
-and [Zipkin](https://www.zipkin.io).
-
-OpenCensus is a stats collection and distributed tracing framework. Well known implementations are [Jaeger](https://www.jaegertracing.io)
-and [Zipkin](https://www.zipkin.io).
+> and [Zipkin](https://www.zipkin.io).
 
 ## Installation
 

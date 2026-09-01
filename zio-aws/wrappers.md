@@ -8,8 +8,6 @@
 For each AWS Service the library defines a _ZIO service_ with wrapper functions for all the _operations_, a `live` 
 implementation calling the Java SDK and a `mock` implementation using [zio-mock](https://github.com/zio/zio-mock).
 
-The live implementation depends on a core _AWS configuration layer_:
-
 ```scala
 val live: ZLayer[AwsConfig, Throwable, Ec2]
 ``` 

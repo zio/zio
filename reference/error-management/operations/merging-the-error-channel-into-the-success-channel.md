@@ -2,8 +2,6 @@
 
 > With `ZIO#merge` we can merge the error channel into the success channel:
 
-With `ZIO#merge` we can merge the error channel into the success channel:
-
 ```scala
 import zio._
 

@@ -1,10 +1,7 @@
 # ProjectionExpression
 
 > The `ProjectionExpression` API is common to both the Type Safe High Level API (with the exception the primary keys API) 
-and the Low Level API - however the way one is constructed is different.
-
-The `ProjectionExpression` API is common to both the Type Safe High Level API (with the exception the primary keys API) 
-and the Low Level API - however the way one is constructed is different.
+> and the Low Level API - however the way one is constructed is different.
 
 **High Level API construction**
 

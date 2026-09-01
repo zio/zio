@@ -4,8 +4,6 @@
 
 ## Collecting Leftovers
 
-A sink consumes a variable amount of `I` elements (zero or more) from the upstream. If the upstream is finite, we can collect leftover values by calling `ZSink#collectLeftover`. It returns a tuple that contains the result of the previous sink and its leftovers:
-
 ```scala
 val s1: ZIO[Any, Nothing, (Chunk[Int], Chunk[Int])] =
   ZStream(1, 2, 3, 4, 5).run(

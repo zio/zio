@@ -2,8 +2,6 @@
 
 > The JSON codec module provides four configuration types for controlling encoding and decoding behavior: `WriterConfig`, `ReaderConfig`, `MergeStrategy`, and `NameMapper`. These types allow fine-grained control over how JSON is serialized and deserialized.
 
-The JSON codec module provides four configuration types for controlling encoding and decoding behavior: `WriterConfig`, `ReaderConfig`, `MergeStrategy`, and `NameMapper`. These types allow fine-grained control over how JSON is serialized and deserialized.
-
 ## WriterConfig
 
 `WriterConfig` controls the formatting and content of encoded JSON output. Use it when calling `Json#print` on `Json` values or when encoding values with specific formatting requirements.

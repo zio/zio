@@ -2,8 +2,6 @@
 
 > Like many other data types in ZIO, the `Validation` data type we learned about before is actually a type alias for a more general data type called `ZValidation`.
 
-Like many other data types in ZIO, the `Validation` data type we learned about before is actually a type alias for a more general data type called `ZValidation`.
-
 A `ZValidation[W, E, A]` is either a `Success` with a value of type `A` or a `Failure` with one or more errors of type `E`, and in either case contains a log of values of type `W`. A `Validation[E, A]` is just a type alias for `ZValidation[Nothing, E, A]` and since the log type was `Nothing` we were able to ignore it.
 
 ```scala

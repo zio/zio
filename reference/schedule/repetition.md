@@ -2,8 +2,6 @@
 
 > In the case of repetition, ZIO has a `ZIO#repeat` function, which takes a schedule as a repetition policy and returns another effect that describes an effect with repetition strategy according to that policy.
 
-In the case of repetition, ZIO has a `ZIO#repeat` function, which takes a schedule as a repetition policy and returns another effect that describes an effect with repetition strategy according to that policy.
-
 Repeat policies are used in the following functions:
 
 * `ZIO#repeat` — Repeats an effect until the schedule is done.

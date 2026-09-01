@@ -2,8 +2,6 @@
 
 > `HxTrigger` represents the `hx-trigger` attribute, declaring which event fires an HTMX request. It combines an event name with optional modifiers that refine timing (delay, throttle), state (once, changed), source (from), queue strategy, and filtering. `HxTriggerSet` composes multiple triggers in a comma-separated list for complex event handling.
 
-`HxTrigger` represents the `hx-trigger` attribute, declaring which event fires an HTMX request. It combines an event name with optional modifiers that refine timing (delay, throttle), state (once, changed), source (from), queue strategy, and filtering. `HxTriggerSet` composes multiple triggers in a comma-separated list for complex event handling.
-
 Start from a predefined trigger like `HxTrigger.click` or construct one with `HxTrigger("eventName")`. Add modifiers by chaining methods. Modifiers within the same group (e.g., two `delay` calls) replace earlier values; unrelated modifiers accumulate. Here are the core patterns:
 
 ```scala

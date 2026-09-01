@@ -2,8 +2,6 @@
 
 > We can interrupt a channel using the `ZChannel.interruptWhen` operator. It takes a ZIO effect that will be evaluated, if it finishes before the channel is closed, it will interrupt the channel, and the terminal value of the returned channel will be the success value of the effect:
 
-We can interrupt a channel using the `ZChannel.interruptWhen` operator. It takes a ZIO effect that will be evaluated, if it finishes before the channel is closed, it will interrupt the channel, and the terminal value of the returned channel will be the success value of the effect:
-
 ```scala
 import zio._
 import zio.stream._

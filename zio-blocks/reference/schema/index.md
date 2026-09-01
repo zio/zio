@@ -2,8 +2,6 @@
 
 > ZIO Blocks Schema provides codec derivation for multiple serialization formats. Once you have a `Schema[A]` for your data type, you can derive codecs for most formats using the unified `Schema.derive(Format)` pattern. BSON uses a different API: `BsonSchemaCodec.bsonCodec(schema)`. See the [Format documentation](../format.md) for details on how formats work.
 
-ZIO Blocks Schema provides codec derivation for multiple serialization formats. Once you have a `Schema[A]` for your data type, you can derive codecs for most formats using the unified `Schema.derive(Format)` pattern. BSON uses a different API: `BsonSchemaCodec.bsonCodec(schema)`. See the [Format documentation](../format.md) for details on how formats work.
-
 ## Built-in Codecs
 
 Here's a summary of the codecs currently supported by ZIO Blocks. Most codecs provide a `BinaryFormat` or `TextFormat` object that can be passed to `derive`. BSON uses a different API (see below). See the dedicated codec documentation for installation, usage examples, and detailed type mappings:

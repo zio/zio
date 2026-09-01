@@ -2,8 +2,6 @@
 
 > `Equal[A]` describes the ability to compare two values of type `A` for equality.
 
-`Equal[A]` describes the ability to compare two values of type `A` for equality.
-
 Its signature is:
 
 ```scala

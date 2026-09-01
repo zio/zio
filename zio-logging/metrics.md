@@ -1,12 +1,8 @@
 # Log Metrics
 
 > Log metrics collecting metrics related to ZIO logging (all `ZIO.log*` functions).
-As ZIO core supporting multiple loggers, this logging metrics collector is implemented as specific `ZLogger`
-which is responsible just for collecting metrics of all logs - `ZIO.log*` functions.
-
-Log metrics collecting metrics related to ZIO logging (all `ZIO.log*` functions).
-As ZIO core supporting multiple loggers, this logging metrics collector is implemented as specific `ZLogger`
-which is responsible just for collecting metrics of all logs - `ZIO.log*` functions.
+> As ZIO core supporting multiple loggers, this logging metrics collector is implemented as specific `ZLogger`
+> which is responsible just for collecting metrics of all logs - `ZIO.log*` functions.
 
 The Metrics layer
 

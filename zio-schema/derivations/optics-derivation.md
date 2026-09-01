@@ -2,8 +2,6 @@
 
 > Optics are a way of accessing and manipulating data in a functional way. They can be used to get, set, and update values in data structures, as well as to traverse and explore data.
 
-Optics are a way of accessing and manipulating data in a functional way. They can be used to get, set, and update values in data structures, as well as to traverse and explore data.
-
 ## Manual Derivation of Optics
 
 Before we dive into auto-derivation of optics and how we can derive optics from a ZIO Schema, let's take a look at the pure optics and how we can create them manually using [ZIO Optics](https://zio.dev/zio-optics) library.

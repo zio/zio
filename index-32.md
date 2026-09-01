@@ -2,8 +2,6 @@
 
 > Thin wrapper over S3 async client for ZIO
 
-Thin wrapper over S3 async client for ZIO
-
 Setup
 -----
 

@@ -2,8 +2,6 @@
 
 > When asserting two things are the same it's sometimes difficult to see the difference. Luckily there is a `zio.test.Diff` type-class. The purpose this type class is to output the difference between two things.
 
-When asserting two things are the same it's sometimes difficult to see the difference. Luckily there is a `zio.test.Diff` type-class. The purpose this type class is to output the difference between two things.
-
 This can be one of the primitives types like `String`, `Int`, `Double`, etc. But also more complex structures like a `Map`, `List` and so-forth.
 
 ### Derive for case classes and algebraic data types

@@ -4,8 +4,6 @@
 
 ## Introduction
 
-IntelliJ IDEA is a popular IDE for Java developers. It is a powerful tool for developing Java applications. Fortunately, not only does it support the Java language, but it also supports many other languages, including Scala.
-
 ## Prerequisites
 
 We assume that the reader has already installed IntelliJ IDEA. To download the latest version of IntelliJ IDEA, visit [IntelliJ IDEA download page](https://www.jetbrains.com/idea/download/).

@@ -1,14 +1,9 @@
 # Micrometer Connector
 
 > ZIO Metrics has an integration with [Micrometer](https://micrometer.io/), a powerful metrics instrumentation library.
-By combining these two frameworks, developers can benefit from comprehensive and flexible metrics monitoring capabilities
-within their ZIO applications. This integration allows for efficient monitoring, gathering, and reporting of key
-performance indicators (KPIs) and other metrics for enhanced observability.
-
-ZIO Metrics has an integration with [Micrometer](https://micrometer.io/), a powerful metrics instrumentation library.
-By combining these two frameworks, developers can benefit from comprehensive and flexible metrics monitoring capabilities
-within their ZIO applications. This integration allows for efficient monitoring, gathering, and reporting of key
-performance indicators (KPIs) and other metrics for enhanced observability.
+> By combining these two frameworks, developers can benefit from comprehensive and flexible metrics monitoring capabilities
+> within their ZIO applications. This integration allows for efficient monitoring, gathering, and reporting of key
+> performance indicators (KPIs) and other metrics for enhanced observability.
 
 ## Benefits
 

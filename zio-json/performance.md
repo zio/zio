@@ -2,8 +2,6 @@
 
 > The following benchmarks are freely available to run on your hardware with `sbt "zioJsonJVM/jmh:run -prof gc"` and can be extended to include more niche libraries. We only compare `zio-json` against Circe and Play as they are the incumbent solutions used by most of the Scala ecosystem.
 
-The following benchmarks are freely available to run on your hardware with `sbt "zioJsonJVM/jmh:run -prof gc"` and can be extended to include more niche libraries. We only compare `zio-json` against Circe and Play as they are the incumbent solutions used by most of the Scala ecosystem.
-
 `zio-json`, when used in legacy mode (i.e. using a `StringReader`), is typically x2 faster than Circe and x5 faster than Play. When used with Loom, `zio-json` has finished its work before the others even begin. The following benchmarks are therefore only for legacy mode comparisons.
 
 There are two main factors to consider when comparing the performance of JSON libraries: memory usage and operations per second. We perform measurements in one thread at a time but in a real server situation, there are multiple threads each consuming resources.

@@ -2,8 +2,6 @@
 
 > `HxSync` represents the `hx-sync` attribute, coordinating multiple HTMX requests by specifying how new requests interact with pending or running requests on a target element. This prevents race conditions and ensures predictable behavior when multiple events fire in quick succession.
 
-`HxSync` represents the `hx-sync` attribute, coordinating multiple HTMX requests by specifying how new requests interact with pending or running requests on a target element. This prevents race conditions and ensures predictable behavior when multiple events fire in quick succession.
-
 Create an `HxSync` by pairing an `HxTarget` (which element to synchronize) with a `HxSyncStrategy` (how to handle conflicts):
 
 ```scala

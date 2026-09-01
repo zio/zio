@@ -1,10 +1,7 @@
 # Cats Effect Interop
 
 > The **`zio-dynamodb-ce`** cats effect interop module provides a way to use ZIO DynamoDB with Cats Effect 3 with minimal 
-effort.
-
-The **`zio-dynamodb-ce`** cats effect interop module provides a way to use ZIO DynamoDB with Cats Effect 3 with minimal 
-effort.
+> effort.
 
 ## Usage
 

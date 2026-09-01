@@ -4,8 +4,6 @@
 
 ## `ZIO#orElse`
 
-We can try one effect, or if it fails, try another effect with the `orElse` combinator:
-
 ```scala
 trait ZIO[-R, +E, +A] {
   def orElse[R1 <: R, E2, A1 >: A](that: => ZIO[R1, E2, A1]): ZIO[R1, E2, A1]

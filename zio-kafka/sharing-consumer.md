@@ -2,8 +2,6 @@
 
 > Often in a single application, you want to consume from multiple Kafka topics and process each topic in a distinct way. With `zio-kafka` you can use a single `Consumer` instance for multiple streams from different topics. It is not only easier to create a single `Consumer` layer instead of one for each topic, but it may be more resource efficient as well. The underlying Apache Kafka consumer, its thread pool and communication with the Kafka brokers will be shared, resulting in less resource consumption compared to when you create a Consumer instance for every topic.
 
-Often in a single application, you want to consume from multiple Kafka topics and process each topic in a distinct way. With `zio-kafka` you can use a single `Consumer` instance for multiple streams from different topics. It is not only easier to create a single `Consumer` layer instead of one for each topic, but it may be more resource efficient as well. The underlying Apache Kafka consumer, its thread pool and communication with the Kafka brokers will be shared, resulting in less resource consumption compared to when you create a Consumer instance for every topic.
-
 For each of the topics/patterns you subscribe to, you can define a dedicated stream to process the records, a dedicated `Deserializer` for the keys, and a dedicated `Deserializer` for the values. Other settings like poll interval and offset strategy are common to all subscriptions. For example, the value of the `max.poll.records` setting is the maximum number of records returned in each poll for all the subscriptions combined. If you need different settings for each topic/pattern, you need to create a `Consumer` instance per topic/pattern.
 
 ```scala

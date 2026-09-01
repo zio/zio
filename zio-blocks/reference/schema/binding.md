@@ -2,8 +2,6 @@
 
 > `Binding` is a sealed trait in ZIO Blocks that provides the operational machinery for constructing and deconstructing values of schema-described types. While `Reflect` describes the **structure** of data types, `Binding` provides the **behavior** needed to work with those types at runtime.
 
-`Binding` is a sealed trait in ZIO Blocks that provides the operational machinery for constructing and deconstructing values of schema-described types. While `Reflect` describes the **structure** of data types, `Binding` provides the **behavior** needed to work with those types at runtime.
-
 In other words, a binding is used to attach non-serializable Scala functions, such as **constructors**, **deconstructors**, and **matchers**, to a reflection type.
 
 The combination of `Reflect` and `Binding` forms the foundation of `Schema`: a bound reflect (one where `F[_, _] = Binding`) that can both describe and manipulate data.

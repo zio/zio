@@ -2,8 +2,6 @@
 
 > Low Level API operations are found on the `DynamoDBQuery` companion object. All the function names contain the word `Item` to indicate that they are operations on AWS DDB [items](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/WorkingWithItems.html) in a table.
 
-Low Level API operations are found on the `DynamoDBQuery` companion object. All the function names contain the word `Item` to indicate that they are operations on AWS DDB [items](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/WorkingWithItems.html) in a table.
-
 ```scala
 object DynamoDBQuery {
 

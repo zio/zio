@@ -2,8 +2,6 @@
 
 > When we write layered applications, where different layers are decoupled from each other, we need to transfer data between layers. For example, assume we have a layer that has `Person` data type and it receives JSON string of type `PersonDTO` from another layer. We need to convert `PersonDTO` to `Person` and maybe vice versa.
 
-When we write layered applications, where different layers are decoupled from each other, we need to transfer data between layers. For example, assume we have a layer that has `Person` data type and it receives JSON string of type `PersonDTO` from another layer. We need to convert `PersonDTO` to `Person` and maybe vice versa.
-
 One way to do this is to write codec for `PersonDTO` and convert the JSON String to the `PersonDTO` and then convert `PersonDTO` to `Person`. This approach is not very convenient and we need to write some boilerplate code. With ZIO Schema we can simplify this process and write a codec for `Person` that uses a specialized schema for `Person`, i.e. `personDTOMapperSchema`, which describes `Person` data type in terms of transformation from `PersonDTO` to `Person` and vice versa. With this approach, we can directly convert the JSON string to `Person` in one step:
 
 ```scala

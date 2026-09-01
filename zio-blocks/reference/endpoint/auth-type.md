@@ -2,8 +2,6 @@
 
 > `AuthType` is a sealed trait that describes an HTTP authentication scheme as a first-class type parameter on `Endpoint`. Each `AuthType` variant carries an associated type `ClientRequirement` — the type of credential the client must provide — and a codec that extracts it from the request. Its definition is:
 
-`AuthType` is a sealed trait that describes an HTTP authentication scheme as a first-class type parameter on `Endpoint`. Each `AuthType` variant carries an associated type `ClientRequirement` — the type of credential the client must provide — and a codec that extracts it from the request. Its definition is:
-
 ```scala
 sealed trait AuthType {
   type ClientRequirement

@@ -2,8 +2,6 @@
 
 > `Stream[+E, +A]` is a **lazy, pull-based, typed-error stream** of elements that may fail with an error of type `E`. Nothing executes until a terminal operation is called. When you run a stream synchronously, you get `Either[E, Z]` — typed errors surface as `Left(e)`, and untyped defects propagate as exceptions:
 
-`Stream[+E, +A]` is a **lazy, pull-based, typed-error stream** of elements that may fail with an error of type `E`. Nothing executes until a terminal operation is called. When you run a stream synchronously, you get `Either[E, Z]` — typed errors surface as `Left(e)`, and untyped defects propagate as exceptions:
-
 ```scala
 abstract class Stream[+E, +A] {
   def run[E2 >: E, Z](sink: Sink[E2, A, Z]): Either[E2, Z]
@@ -981,6 +979,8 @@ For unrelated element types, Scala 3 produces a direct union while Scala 2 produ
 
   
 
+**Scala 2.13**
+
 ```scala
 val combined: Stream[Nothing, Either[String, Int]] =
   Stream.succeed("left") ++ Stream.succeed(1)
@@ -988,6 +988,8 @@ val combined: Stream[Nothing, Either[String, Int]] =
 
   
   
+
+**Scala 3.x**
 
 ```scala
 val combined: Stream[Nothing, String | Int] =

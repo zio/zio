@@ -2,8 +2,6 @@
 
 > ZIO contains a few data types that can help you solve complex problems in asynchronous and concurrent programming. ZIO data types categorize into these sections:
 
-ZIO contains a few data types that can help you solve complex problems in asynchronous and concurrent programming. ZIO data types categorize into these sections:
-
 1. [Core Data Types](#core-data-types)
 2. [Contextual Data Types](#contextual-data-types)
 3. [State Management](#state-management)

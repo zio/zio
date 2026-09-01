@@ -2,8 +2,6 @@
 
 > In ZIO on the JVM platform, the `VirtualMachineError` and all its subtypes are the only errors considered fatal by the ZIO runtime. So if during the running application, the JVM throws any of these errors like `StackOverflowError`, the ZIO runtime considers it as a catastrophic fatal error. So it will interrupt the whole application immediately without safe resource interruption. None of the `ZIO#catchAll` and `ZIO#catchAllDefects` can catch these fatal errors. At most, if we set the `Runtime.setReportFatal`, the application will log the stack trace before interrupting the entire application.
 
-In ZIO on the JVM platform, the `VirtualMachineError` and all its subtypes are the only errors considered fatal by the ZIO runtime. So if during the running application, the JVM throws any of these errors like `StackOverflowError`, the ZIO runtime considers it as a catastrophic fatal error. So it will interrupt the whole application immediately without safe resource interruption. None of the `ZIO#catchAll` and `ZIO#catchAllDefects` can catch these fatal errors. At most, if we set the `Runtime.setReportFatal`, the application will log the stack trace before interrupting the entire application.
-
 Here is an example of manually creating a fatal error. Although we are ignoring all expected and unexpected errors, the fatal error interrupts the whole application:
 
 ```scala

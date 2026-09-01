@@ -2,8 +2,6 @@
 
 > A ZIO-based AWS Custom Runtime compatible with GraalVM Native Image.
 
-A ZIO-based AWS Custom Runtime compatible with GraalVM Native Image.
-
 [![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-lambda/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-lambda_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-lambda_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-lambda_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-lambda_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-lambda-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-lambda-docs_2.13) [![ZIO Lambda](https://img.shields.io/github/stars/zio/zio-lambda?style=social)](https://github.com/zio/zio-lambda)
 
 ## Installation

@@ -2,8 +2,6 @@
 
 > We can write more complex channels by using `read` operators and composing them recursively.
 
-We can write more complex channels by using `read` operators and composing them recursively. 
-
 Let's try some examples:
 
 ## Simple Echo Channel

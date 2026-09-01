@@ -1,14 +1,9 @@
 # Instrumentation Examples
 
 > The trait below is used in the
-[zio metrics sample application](https://github.com/zio/zio-metrics-connectors/blob/docs/sample-app/src/main/scala/sample/SamplePrometheusStatsDApp.scala)
-that is provided in the zio-metrics-connectors repository on GitHub. It shows how the individual metrics can be
-configured and used.
-
-The trait below is used in the
-[zio metrics sample application](https://github.com/zio/zio-metrics-connectors/blob/docs/sample-app/src/main/scala/sample/SamplePrometheusStatsDApp.scala)
-that is provided in the zio-metrics-connectors repository on GitHub. It shows how the individual metrics can be
-configured and used.
+> [zio metrics sample application](https://github.com/zio/zio-metrics-connectors/blob/docs/sample-app/src/main/scala/sample/SamplePrometheusStatsDApp.scala)
+> that is provided in the zio-metrics-connectors repository on GitHub. It shows how the individual metrics can be
+> configured and used.
 
 Please refer to [StatsD](statsd-client.md) and [Prometheus](prometheus-client.md) to see how the captured metrics can be
 visualized in the supported back ends.

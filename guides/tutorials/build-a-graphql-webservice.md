@@ -2,8 +2,6 @@
 
 > Having GraphQL APIs enables the clients the ability to query the exact data they need. This powerful feature makes GraphQL more flexible than RESTful APIs.
 
-Having GraphQL APIs enables the clients the ability to query the exact data they need. This powerful feature makes GraphQL more flexible than RESTful APIs.
-
 Instead of having endpoints for our resources, the GraphQL API only provides a set of types and fields in terms of schemas. The client can ask for this schema, and that will help the client to know what kind of data they can expect from the server, and finally, the client can use the schema to build its queries.
 
 GraphQL supports three types of operations: **queries**, **mutations**, and **subscriptions**. In this tutorial, we are going to learn the foundation of GraphQL using _queries_. Once we learned that, we can easily write two other types of operations.

@@ -1,16 +1,10 @@
 # TReentrantLock
 
 > A `TReentrantLock` allows safe concurrent access to some mutable state efficiently, allowing multiple fibers to read the 
-state (because that is safe to do) but only one fiber to modify the state (to prevent data corruption). Also, even though 
-the `TReentrantLock` is implemented using `STM`; reads and writes can be committed, allowing this to be used as a building 
-block for solutions that expose purely ZIO effects and internally allow locking on more than one piece of state in a 
-simple and composable way (thanks to STM).
-
-A `TReentrantLock` allows safe concurrent access to some mutable state efficiently, allowing multiple fibers to read the 
-state (because that is safe to do) but only one fiber to modify the state (to prevent data corruption). Also, even though 
-the `TReentrantLock` is implemented using `STM`; reads and writes can be committed, allowing this to be used as a building 
-block for solutions that expose purely ZIO effects and internally allow locking on more than one piece of state in a 
-simple and composable way (thanks to STM).
+> state (because that is safe to do) but only one fiber to modify the state (to prevent data corruption). Also, even though 
+> the `TReentrantLock` is implemented using `STM`; reads and writes can be committed, allowing this to be used as a building 
+> block for solutions that expose purely ZIO effects and internally allow locking on more than one piece of state in a 
+> simple and composable way (thanks to STM).
 
 A `TReentrantLock` is a _reentrant_ read/write lock. A reentrant lock is one where a fiber can claim the lock multiple 
 times without blocking on itself. It's useful in situations where it's not easy to keep track of whether you have already 

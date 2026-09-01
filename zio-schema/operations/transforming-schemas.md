@@ -2,8 +2,6 @@
 
 > Using the `Schema#transform` method, we can transform a `Schema[A]` into a `Schema[B]` by supplying two functions that can transform between `A` and `B`.  In normal Scala code this would be the equivalent of `map`, but with isomorphism property.
 
-Using the `Schema#transform` method, we can transform a `Schema[A]` into a `Schema[B]` by supplying two functions that can transform between `A` and `B`.  In normal Scala code this would be the equivalent of `map`, but with isomorphism property.
-
 ```scala
 object Schema {
   def transform[B](f: A => B, g: B => A): Schema[B] = ???

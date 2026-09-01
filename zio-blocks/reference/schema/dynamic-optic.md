@@ -1,14 +1,9 @@
 # DynamicOptic
 
 > `DynamicOptic` is a runtime path through nested data structures in ZIO Blocks. It is the untyped,
-dynamically-constructed counterpart to the typed [`Optic[S, A]`](./optics.md). Where typed optics are bound to specific
-Scala types at compile time, a `DynamicOptic` is a sequence of **navigation steps** that can be built, composed, and
-applied at runtime:
-
-`DynamicOptic` is a runtime path through nested data structures in ZIO Blocks. It is the untyped,
-dynamically-constructed counterpart to the typed [`Optic[S, A]`](./optics.md). Where typed optics are bound to specific
-Scala types at compile time, a `DynamicOptic` is a sequence of **navigation steps** that can be built, composed, and
-applied at runtime:
+> dynamically-constructed counterpart to the typed [`Optic[S, A]`](./optics.md). Where typed optics are bound to specific
+> Scala types at compile time, a `DynamicOptic` is a sequence of **navigation steps** that can be built, composed, and
+> applied at runtime:
 
 ```scala
 import zio.blocks.schema._

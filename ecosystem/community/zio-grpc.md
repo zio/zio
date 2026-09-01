@@ -2,8 +2,6 @@
 
 > [ZIO-gRPC](https://scalapb.github.io/zio-grpc/) lets us write purely functional gRPC servers and clients.
 
-[ZIO-gRPC](https://scalapb.github.io/zio-grpc/) lets us write purely functional gRPC servers and clients.
-
 ## Introduction
 
 Key features of ZIO gRPC:

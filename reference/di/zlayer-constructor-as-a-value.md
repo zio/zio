@@ -2,8 +2,6 @@
 
 > Before jumping into the next section, which will explain dependency injection in ZIO, let's take a look at the philosophy behind the `ZLayer` data type.
 
-Before jumping into the next section, which will explain dependency injection in ZIO, let's take a look at the philosophy behind the `ZLayer` data type.
-
 In the [motivation](motivation.md) section, we find out that the ordinary Scala constructors are not powerful enough to help us to build the dependency graph easily. So `ZLayer` was created to overcome scala constructors' limitations.
 
 We can think of `ZLayer` as an alternative to constructors but with the following powerful features:

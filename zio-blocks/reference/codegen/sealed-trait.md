@@ -2,8 +2,6 @@
 
 > `SealedTrait` represents a sealed trait in the IR—a sum type (algebraic data type) that enumerates all possible cases. It's essential for modeling discriminated unions and exhaustive pattern matching.
 
-`SealedTrait` represents a sealed trait in the IR—a sum type (algebraic data type) that enumerates all possible cases. It's essential for modeling discriminated unions and exhaustive pattern matching.
-
 ## Use Cases
 
 - Modeling sum types (ADTs) from API responses or domain models

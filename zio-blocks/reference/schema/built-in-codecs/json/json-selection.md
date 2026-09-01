@@ -2,8 +2,6 @@
 
 > `JsonSelection` is a fluent wrapper type that enables composable, chainable navigation through JSON structures. It wraps `Either[SchemaError, Chunk[Json]]`, allowing operations that may fail gracefully or return multiple values.
 
-`JsonSelection` is a fluent wrapper type that enables composable, chainable navigation through JSON structures. It wraps `Either[SchemaError, Chunk[Json]]`, allowing operations that may fail gracefully or return multiple values.
-
 ## Overview
 
 `JsonSelection` makes it easy to navigate unknown or deeply nested JSON at runtime without needing to match on `Either` at each step. Chain operations like `JsonSelection#get`, `JsonSelection#apply`, `JsonSelection#filter`, and `JsonSelection#as` to build powerful queries.

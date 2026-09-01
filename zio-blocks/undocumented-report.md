@@ -2,10 +2,6 @@
 
 > Comprehensive analysis of documentation gaps in ZIO Blocks, combining automated scanning with manual source-code review.
 
-# Documentation Coverage Report
-
-Comprehensive analysis of documentation gaps in ZIO Blocks, combining automated scanning with manual source-code review.
-
 ## Summary
 
 | Metric | Count |

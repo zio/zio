@@ -2,8 +2,6 @@
 
 > Note this guide assumes the reader has some basic knowledge of [AWS DynamoDB API](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.CoreComponents.html).
 
-Note this guide assumes the reader has some basic knowledge of [AWS DynamoDB API](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.CoreComponents.html).
-
 Assuming the below model
 ```scala
 final case class Person(id: String, name: String, year: Int)

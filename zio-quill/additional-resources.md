@@ -4,8 +4,6 @@
 
 ## Templates
 
-In order to quickly start with Quill, we have setup some template projects:
-
 * [Play Framework with Quill JDBC](https://github.com/getquill/play-quill-jdbc)
 * [Play Framework with Quill async-postgres](https://github.com/jeffmath/play-quill-async-postgres-example)
 

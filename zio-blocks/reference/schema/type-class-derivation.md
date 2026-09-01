@@ -2,8 +2,6 @@
 
 > Type classes are one of the most powerful abstraction mechanisms in functional programming. Originating from Haskell, they enable ad-hoc polymorphism—the ability to define generic behavior that can be extended to new types without modifying those types. ZIO Blocks has a robust type class derivation system built around the `Deriver` trait, which allows automatic generation of type class instances for any data type with an associated `Schema`.
 
-Type classes are one of the most powerful abstraction mechanisms in functional programming. Originating from Haskell, they enable ad-hoc polymorphism—the ability to define generic behavior that can be extended to new types without modifying those types. ZIO Blocks has a robust type class derivation system built around the `Deriver` trait, which allows automatic generation of type class instances for any data type with an associated `Schema`.
-
 The `Deriver` trait is a cornerstone of ZIO Blocks' type class derivation system. It provides a unified, elegant mechanism for automatically generating type class instances (such as codecs) for any data type that has a `Schema`. Unlike traditional macro-based derivation approaches, `Deriver` requires implementing only a few methods to enable full type class derivation with rich reflective metadata support for every use case.
 
 ## The Problem

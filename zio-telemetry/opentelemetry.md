@@ -2,8 +2,6 @@
 
 > OpenTelemetry is a collection of tools, APIs, and SDKs. You can use it to instrument, generate, collect, and export telemetry data for analysis in order to understand your software's performance and behavior. Well known implementations are [Jaeger](https://www.jaegertracing.io) and [Zipkin](https://www.zipkin.io).
 
-OpenTelemetry is a collection of tools, APIs, and SDKs. You can use it to instrument, generate, collect, and export telemetry data for analysis in order to understand your software's performance and behavior. Well known implementations are [Jaeger](https://www.jaegertracing.io) and [Zipkin](https://www.zipkin.io).
-
 The library provides an idiomatic ZIO 2.0 interface to OpenTelemetry, ensuring seamless interoperability with the native ZIO capabilities and beyond.
 
 Some of the key features:

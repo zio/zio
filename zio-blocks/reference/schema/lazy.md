@@ -2,8 +2,6 @@
 
 > The `Lazy[A]` data type represents a deferred computation that produces a value of type `A`. Unlike Scala's built-in `lazy val`, ZIO Blocks' `Lazy` provides a powerful, monadic abstraction with explicit error handling, memoization, and stack-safe evaluation through trampolining:
 
-The `Lazy[A]` data type represents a deferred computation that produces a value of type `A`. Unlike Scala's built-in `lazy val`, ZIO Blocks' `Lazy` provides a powerful, monadic abstraction with explicit error handling, memoization, and stack-safe evaluation through trampolining:
-
 ```scala
 sealed trait Lazy[+A] {
   def force: A

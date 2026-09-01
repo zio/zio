@@ -2,8 +2,6 @@
 
 > `HxUrlUpdate` represents the `hx-push-url` and `hx-replace-url` attributes, controlling whether and how the browser's URL bar updates after an HTMX request. You can enable/disable URL updates as booleans or specify a custom URL to push/replace.
 
-`HxUrlUpdate` represents the `hx-push-url` and `hx-replace-url` attributes, controlling whether and how the browser's URL bar updates after an HTMX request. You can enable/disable URL updates as booleans or specify a custom URL to push/replace.
-
 Use `HxUrlUpdate.Enabled` or `HxUrlUpdate(true)` to update the URL with the response URL, or pass a custom URL string/Path/URL to update to a different address. Use `HxUrlUpdate.Disabled` or `HxUrlUpdate(false)` to prevent updates. Here are the core patterns:
 
 ```scala

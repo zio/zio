@@ -2,8 +2,6 @@
 
 > Although we have access to built-in Scala control flow structures, ZIO has several control flow combinators. In this section, we are going to introduce different ways of controlling flows in ZIO applications.
 
-Although we have access to built-in Scala control flow structures, ZIO has several control flow combinators. In this section, we are going to introduce different ways of controlling flows in ZIO applications.
-
 ## `if` Expression
 
 When working with ZIO values, we can use built-in Scala if-then-else expressions:

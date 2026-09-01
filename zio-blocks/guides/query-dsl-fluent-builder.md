@@ -2,8 +2,6 @@
 
 > In this guide, we will build a fluent, type-safe SQL statement builder on top of the query expression language from Parts 1–3. By the end, you will have builder functions for SELECT, UPDATE, INSERT, and DELETE that compose naturally with both built-in `SchemaExpr` operators and extended `Expr` operators — no manual `.toExpr` lifting required.
 
-In this guide, we will build a fluent, type-safe SQL statement builder on top of the query expression language from Parts 1–3. By the end, you will have builder functions for SELECT, UPDATE, INSERT, and DELETE that compose naturally with both built-in `SchemaExpr` operators and extended `Expr` operators — no manual `.toExpr` lifting required.
-
 We'll take an incremental approach: starting with seamless condition composition, then adding table references and fluent statement builders for each SQL operation until we have a complete, native-feeling SQL DSL.
 
 This is Part 4 of the Query DSL series. [Part 1](./query-dsl-reified-optics.md) covered expressions, [Part 2](./query-dsl-sql.md) covered SQL generation, and [Part 3](./query-dsl-extending.md) covered extending the expression language.

@@ -2,8 +2,6 @@
 
 > `AssociativeFlatten[F]` describes a way of combining two layers of a value of type `F[F[A]]` into a `F[A]` in a way that is associative.
 
-`AssociativeFlatten[F]` describes a way of combining two layers of a value of type `F[F[A]]` into a `F[A]` in a way that is associative.
-
 Its signature is:
 
 ```scala

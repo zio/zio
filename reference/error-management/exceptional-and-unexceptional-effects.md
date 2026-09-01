@@ -2,8 +2,6 @@
 
 > Besides the `IO` type alias, ZIO has four different type aliases which can be categorized into two different categories:
 
-Besides the `IO` type alias, ZIO has four different type aliases which can be categorized into two different categories:
-
 - **Exceptional Effect**— `Task` and `RIO` are two effects whose error parameter is fixed to `Throwable`, so we call them exceptional effects.
 - **Unexceptional Effect**— `UIO` and `URIO` have error parameters that are fixed to `Nothing`, indicating that they are unexceptional effects. So they can't fail, and the compiler knows about it.
 

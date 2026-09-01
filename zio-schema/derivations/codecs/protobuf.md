@@ -4,8 +4,6 @@
 
 ## Introduction
 
-Protocol Buffers (protobuf) is a binary serialization format developed by Google. It is designed for efficient data exchange between different systems and languages. In this article, we will explore how to derive Protobuf codecs from a ZIO Schema. Protobuf codecs allow us to easily serialize and deserialize data in Protobuf format, making it simple to interact with APIs and data sources that use Protobuf as their data format.
-
 ## Installation
 
 To start using Protobuf codecs in ZIO, you need to add the following dependency to your build.sbt file:

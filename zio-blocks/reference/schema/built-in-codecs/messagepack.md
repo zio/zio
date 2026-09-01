@@ -2,8 +2,6 @@
 
 > `zio-blocks-schema-messagepack` is a **schema-driven MessagePack codec module** for serializing and deserializing Scala types to and from MessagePack binary format. It provides comprehensive encoding and decoding with support for 27 primitive types, records, variants, sequences, maps, and recursive types. Core types: `MessagePackCodec`, `MessagePackCodecDeriver`, `MessagePackFormat`.
 
-`zio-blocks-schema-messagepack` is a **schema-driven MessagePack codec module** for serializing and deserializing Scala types to and from MessagePack binary format. It provides comprehensive encoding and decoding with support for 27 primitive types, records, variants, sequences, maps, and recursive types. Core types: `MessagePackCodec`, `MessagePackCodecDeriver`, `MessagePackFormat`.
-
 The module integrates with MessagePack specification to provide compact binary serialization with automatic schema generation and optimized reader/writer pools for high-performance streaming.
 
 ## Motivation

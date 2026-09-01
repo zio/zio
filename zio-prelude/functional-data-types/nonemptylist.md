@@ -2,8 +2,6 @@
 
 > `NonEmptyList` represents a `List` that is guaranteed not to be empty.
 
-`NonEmptyList` represents a `List` that is guaranteed not to be empty.
-
 This is useful to allow more accurate domain modeling in situations where we know a collection is not empty.
 
 For example, we might be handling a collection of errors. If an error has occurred at all then we know the collection is not empty.

@@ -2,8 +2,6 @@
 
 > Quill will probably make the slow scala compiler even slower, since a lot of additional `Parsing`, `Typechecking`, `Implicit resolution` works introduced to expand a Query.
 
-Quill will probably make the slow scala compiler even slower, since a lot of additional `Parsing`, `Typechecking`, `Implicit resolution` works introduced to expand a Query.
-
 Following tips may help improving compilation time.
 
 ## Use `-Yprofile-trace` scalac options.

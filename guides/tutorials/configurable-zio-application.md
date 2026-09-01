@@ -4,8 +4,6 @@
 
 ## Introduction
 
-One of the most common requirements for writing an application is to be able to configure it, especially when we are writing cloud-native applications.
-
 In this tutorial, we will start with a simple ZIO application and then try to make it configurable using the ZIO Config library.
 
 ## Prerequisites

@@ -2,8 +2,6 @@
 
 > Create a consumer with `Consumer.make`, passing some `ConsumerSettings`:
 
-Create a consumer with `Consumer.make`, passing some `ConsumerSettings`:
-
 ```scala
 import zio.*
 import zio.kafka.consumer.{ Consumer, ConsumerSettings }

@@ -1,10 +1,10 @@
 # get
 
 > ```scala
-  def get[From: Schema](tableName: String)(
-    primaryKeyExpr: KeyConditionExpr.PrimaryKeyExpr[From]
-  ): DynamoDBQuery[From, Either[ItemError, From]] = ???
-```
+>   def get[From: Schema](tableName: String)(
+>     primaryKeyExpr: KeyConditionExpr.PrimaryKeyExpr[From]
+>   ): DynamoDBQuery[From, Either[ItemError, From]] = ???
+> ```
 
 ```scala
   def get[From: Schema](tableName: String)(

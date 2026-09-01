@@ -2,8 +2,6 @@
 
 > The `timeout` test aspect takes a duration and times out each test. If the test case runs longer than the time specified, it is immediately canceled and reported as a failure, with a message showing that the timeout was exceeded:
 
-The `timeout` test aspect takes a duration and times out each test. If the test case runs longer than the time specified, it is immediately canceled and reported as a failure, with a message showing that the timeout was exceeded:
-
 ```scala
 import zio._
 import zio.test.{test, _}

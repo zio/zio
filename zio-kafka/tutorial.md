@@ -4,8 +4,6 @@
 
 ## Introduction
 
-Kafka is a distributed, fault-tolerant, message-oriented event-store platform. It is used as a message broker for distributed applications. Zio-kafka is a library that provides a way to consume and produce data from Kafka topics, and it also supports the ability to have streaming consumers and producers.
-
 In this tutorial, we will learn how to use zio-streams and zio-kafka to produce and consume data from Kafka topics.
 
 ## Running Examples

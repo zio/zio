@@ -2,8 +2,6 @@
 
 > When we use the Low or High Level API constructors to create a query we end up with the type `DynamoDBQuery` which is a sealed trait.
 
-When we use the Low or High Level API constructors to create a query we end up with the type `DynamoDBQuery` which is a sealed trait.
-
 One of the primary methods on this trait is `execute` which will run the query and return the result as a ZIO effect. 
 
 ```scala

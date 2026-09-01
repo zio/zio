@@ -2,8 +2,6 @@
 
 > [MUnit ZIO](https://github.com/poslegm/munit-zio) is an integration library between MUnit and ZIO.
 
-[MUnit ZIO](https://github.com/poslegm/munit-zio) is an integration library between MUnit and ZIO.
-
 ## Introduction
 
 [MUnit](https://scalameta.org/munit/) is a Scala testing library that is implemented as a JUnit runner. It has _actionable errors_, so the test reports are colorfully pretty-printed, stack traces are highlighted, error messages are pointed to the source code location where the failure happened.

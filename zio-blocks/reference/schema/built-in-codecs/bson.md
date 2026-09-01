@@ -2,8 +2,6 @@
 
 > `zio-blocks-schema-bson` is a **schema-driven BSON codec module** for serializing and deserializing Scala types to and from BSON (Binary JSON) format. It provides comprehensive encoding and decoding with support for 27 primitive types, records, variants, sequences, maps, and recursive types.
 
-`zio-blocks-schema-bson` is a **schema-driven BSON codec module** for serializing and deserializing Scala types to and from BSON (Binary JSON) format. It provides comprehensive encoding and decoding with support for 27 primitive types, records, variants, sequences, maps, and recursive types. 
-
 Core types: `BsonCodec`, `BsonEncoder`, `BsonDecoder`, `BsonSchemaCodec`.
 
 The module integrates with org.bson to provide native BSON type support including special handling for `ObjectId`, `Decimal128`, and other BSON-specific types.

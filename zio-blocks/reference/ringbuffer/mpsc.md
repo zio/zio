@@ -2,8 +2,6 @@
 
 > `MpscRingBuffer[A]` handles the inverse case: multiple producer threads safely offering elements to a single consumer thread. It uses a **hybrid design** combining producer-side CAS coordination with a FastFlow-style relaxed-poll consumer, balancing producer contention while keeping the consumer blazingly fast.
 
-`MpscRingBuffer[A]` handles the inverse case: multiple producer threads safely offering elements to a single consumer thread. It uses a **hybrid design** combining producer-side CAS coordination with a FastFlow-style relaxed-poll consumer, balancing producer contention while keeping the consumer blazingly fast.
-
 ## Algorithm
 
 `MpscRingBuffer` handles multiple producers with a single consumer, based on the **JCTools `MpscArrayQueue`** design. It's a hybrid: producers use CAS among themselves, while the consumer remains FastFlow-style.

@@ -2,8 +2,6 @@
 
 > `TArray` is an array of mutable references that can participate in transactions in STM.
 
-`TArray` is an array of mutable references that can participate in transactions in STM.
-
 ## Create a TArray
 
 Creating an empty `TArray`:

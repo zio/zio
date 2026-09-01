@@ -1,10 +1,10 @@
 # update
 
 > ```scala
-def update[From: Schema](tableName: String)(primaryKeyExpr: KeyConditionExpr.PrimaryKeyExpr[From])(
-    action: Action[From]
-): DynamoDBQuery[From, Option[From]]  = ???
-```
+> def update[From: Schema](tableName: String)(primaryKeyExpr: KeyConditionExpr.PrimaryKeyExpr[From])(
+>     action: Action[From]
+> ): DynamoDBQuery[From, Option[From]]  = ???
+> ```
 
 ```scala
 def update[From: Schema](tableName: String)(primaryKeyExpr: KeyConditionExpr.PrimaryKeyExpr[From])(

@@ -2,8 +2,6 @@
 
 > We can reject some success values using the `ZIO#reject` operator:
 
-We can reject some success values using the `ZIO#reject` operator:
-
 ```scala
 trait ZIO[-R, +E, +A] {
   def reject[E1 >: E](pf: PartialFunction[A, E1]): ZIO[R, E1, A]

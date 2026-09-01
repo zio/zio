@@ -1,10 +1,7 @@
 # OpenTracing
 
 > OpenTracing is a standard and API for distributed tracing, i.e. collecting timings,
-and logs across process boundaries. Well known implementations are [Jaeger](https://www.jaegertracing.io) and [Zipkin](https://www.zipkin.io).
-
-OpenTracing is a standard and API for distributed tracing, i.e. collecting timings,
-and logs across process boundaries. Well known implementations are [Jaeger](https://www.jaegertracing.io) and [Zipkin](https://www.zipkin.io).
+> and logs across process boundaries. Well known implementations are [Jaeger](https://www.jaegertracing.io) and [Zipkin](https://www.zipkin.io).
 
 ## Installation
 

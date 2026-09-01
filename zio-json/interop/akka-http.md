@@ -2,8 +2,6 @@
 
 > An interop module is provided for [Akka Http 10.2.4](https://doc.akka.io/docs/akka-http/10.2.4/index.html)
 
-An interop module is provided for [Akka Http 10.2.4](https://doc.akka.io/docs/akka-http/10.2.4/index.html)
-
 ## Installation
 
 ```scala

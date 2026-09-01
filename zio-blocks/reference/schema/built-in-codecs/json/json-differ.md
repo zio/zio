@@ -2,8 +2,6 @@
 
 > `JsonDiffer` is a **diff algorithm for JSON values** that computes the minimal [`JsonPatch`](./json-patch.md) transforming one `Json` value into another. It is the foundation of `JsonPatch.diff`.
 
-`JsonDiffer` is a **diff algorithm for JSON values** that computes the minimal [`JsonPatch`](./json-patch.md) transforming one `Json` value into another. It is the foundation of `JsonPatch.diff`.
-
 ```scala
 object JsonDiffer {
   def diff(source: Json, target: Json): JsonPatch

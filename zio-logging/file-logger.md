@@ -2,8 +2,6 @@
 
 > logger layer with configuration from config provider:
 
-logger layer with configuration from config provider:
-
 ```scala
 import zio.logging.fileLogger
 import zio.{ ConfigProvider, Runtime }
@@ -70,7 +68,7 @@ see also [log format configuration](formatting-log-records.md#log-format-configu
 
 You can find the source code [here](https://github.com/zio/zio-logging/tree/master/examples)
 
-### File Logger 
+
 
 [//]: # (TODO: make snippet type-checked using mdoc)
 

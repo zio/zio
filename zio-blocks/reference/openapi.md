@@ -2,8 +2,6 @@
 
 > `zio-blocks-openapi` is a **complete, type-safe OpenAPI 3.1 data model** for building API documentation programmatically. It provides immutable case classes and sealed traits representing every OpenAPI concept—operations, parameters, security schemes, and components—enabling you to construct OpenAPI documents in compile-time-safe Scala and export them as JSON for consumption by tools like Swagger UI, Redoc, and API validators.
 
-`zio-blocks-openapi` is a **complete, type-safe OpenAPI 3.1 data model** for building API documentation programmatically. It provides immutable case classes and sealed traits representing every OpenAPI concept—operations, parameters, security schemes, and components—enabling you to construct OpenAPI documents in compile-time-safe Scala and export them as JSON for consumption by tools like Swagger UI, Redoc, and API validators.
-
 Core types: `OpenAPI`, `Info`, `Paths`, `PathItem`, `Operation`, `Parameter`, `RequestBody`, `Response`, `Components`, `SchemaObject`, `SecurityScheme`, `ReferenceOr`.
 
 ```scala
@@ -355,7 +353,7 @@ The OpenAPI module integrates tightly with other ZIO Blocks components:
 
 ---
 
-## OpenAPI
+
 
 `OpenAPI` is the root document object representing a complete OpenAPI 3.1 specification.
 

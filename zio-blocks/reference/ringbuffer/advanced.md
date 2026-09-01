@@ -4,8 +4,6 @@
 
 ## Thread Safety and Correctness
 
-Ring buffers are **lock-free** but must be used correctly:
-
 - **Wrong thread access causes undefined behavior**: Using `SpscRingBuffer` from multiple producer threads produces data races, silent data loss, or crashes. Always use the implementation matching your thread pattern.
 - **`SpscRingBuffer#offer` and `SpscRingBuffer#take` thread contract**: The producer thread must be the sole caller of `SpscRingBuffer#offer`; the consumer thread must be the sole caller of `SpscRingBuffer#take`. They may be the same physical thread (as in single-threaded environments like Scala.js or unit tests) or different threads.
 - **State queries are approximate**: Under concurrency, `SpscRingBuffer#size`, `SpscRingBuffer#isEmpty`, and `SpscRingBuffer#isFull` may stay stale by the time they return. Do not rely on them for exact synchronization — use `SpscRingBuffer#offer`'s return value for backpressure instead.

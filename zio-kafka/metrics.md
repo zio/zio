@@ -1,10 +1,7 @@
 # Zio-Kafka Metrics
 
 > Zio-kafka exposes all the metrics of the wrapped Java based consumer and producer, plus some more metrics about the
-zio-kafka consumer itself.
-
-Zio-kafka exposes all the metrics of the wrapped Java based consumer and producer, plus some more metrics about the
-zio-kafka consumer itself.
+> zio-kafka consumer itself.
 
 ## Java client metrics
 

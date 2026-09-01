@@ -2,8 +2,6 @@
 
 > The ZIO ecosystem is provided by a worldwide community, just like the project itself. So if you are reading this page, you can help us to improve the ecosystem.
 
-The ZIO ecosystem is provided by a worldwide community, just like the project itself. So if you are reading this page, you can help us to improve the ecosystem.
-
 Please read the [Contributor Guideline](contributor-guidelines.md) before contributing to the ecosystem.
 
 ## Branching Naming Convention

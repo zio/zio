@@ -2,8 +2,6 @@
 
 > `zio-blocks-endpoint` is a **pure, type-safe HTTP endpoint descriptor** for building clients, servers, and API documentation from a single source of truth. It provides composable types that describe every part of an HTTP surface — routes, query parameters, headers, request bodies, response bodies, error shapes, and authentication — without committing to any particular server or client implementation.
 
-`zio-blocks-endpoint` is a **pure, type-safe HTTP endpoint descriptor** for building clients, servers, and API documentation from a single source of truth. It provides composable types that describe every part of an HTTP surface — routes, query parameters, headers, request bodies, response bodies, error shapes, and authentication — without committing to any particular server or client implementation.
-
 Core types: `Endpoint`, `HttpCodec`, `RoutePattern`, `PathCodec`, `SegmentCodec`, `AuthType`, `RouteTree`. The top-level descriptor holds all of them together:
 
 ```scala

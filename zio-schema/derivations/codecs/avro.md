@@ -4,8 +4,6 @@
 
 ## Introduction
 
-Apache Avro is a popular data serialization format used in distributed systems, particularly in the Apache Hadoop ecosystem. In this article, we will explore how to work with Apache Avro codecs in Scala using the ZIO Schema. Avro codecs allow us to easily serialize and deserialize data in Avro's binary and JSON formats.
-
 ## Installation
 
 To use the Avro codecs, we need to add the following dependency to our `build.sbt` file:

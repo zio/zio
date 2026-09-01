@@ -2,8 +2,6 @@
 
 > `Into[-A, +B]` is a **one-way conversion type class** that converts values of type `A` into values of type `B`, returning `Either[SchemaError, B]` to represent both successful conversions and validation failures. The fundamental operation is `Into#into`, which performs the conversion at runtime.
 
-`Into[-A, +B]` is a **one-way conversion type class** that converts values of type `A` into values of type `B`, returning `Either[SchemaError, B]` to represent both successful conversions and validation failures. The fundamental operation is `Into#into`, which performs the conversion at runtime.
-
 `Into`:
 - is contravariant in `A` and covariant in `B`, following standard type class variance
 - returns `Right(b)` on success and `Left(error)` on validation failure

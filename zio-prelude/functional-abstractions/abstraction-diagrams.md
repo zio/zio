@@ -1,32 +1,32 @@
 # ZIO Prelude Abstraction Diagrams
 
 > ```mermaid
-classDiagram
-  Absorption~A~ <|-- DistributiveAbsorption~A~
-  Absorption~A~ <|-- Noncontradiction~A~
-  Absorption~A~ <|-- ExcludedMiddle~A~
-  ExcludedMiddle~A~ <|-- Involution~A~
-  Noncontradiction~A~ <|-- Involution~A~
-  class Absorption~A~{
-    () or(=> A, => A): A
-    () and(=> A, => A): A
-  }
-  class DistributiveAbsorption~A~{
-    Boolean
-    Set[A]
-  }
-  class Noncontradiction~A~{
-    () complement(=> A): A
-    () bottom: A
-  }
-  class ExcludedMiddle~A~{
-    () complement(=> A): A
-    () top: A
-  }
-  class Involution~A~{
-    Boolean
-  }
-```
+> classDiagram
+>   Absorption~A~ <|-- DistributiveAbsorption~A~
+>   Absorption~A~ <|-- Noncontradiction~A~
+>   Absorption~A~ <|-- ExcludedMiddle~A~
+>   ExcludedMiddle~A~ <|-- Involution~A~
+>   Noncontradiction~A~ <|-- Involution~A~
+>   class Absorption~A~{
+>     () or(=> A, => A): A
+>     () and(=> A, => A): A
+>   }
+>   class DistributiveAbsorption~A~{
+>     Boolean
+>     Set[A]
+>   }
+>   class Noncontradiction~A~{
+>     () complement(=> A): A
+>     () bottom: A
+>   }
+>   class ExcludedMiddle~A~{
+>     () complement(=> A): A
+>     () top: A
+>   }
+>   class Involution~A~{
+>     Boolean
+>   }
+> ```
 
 ## Absorption
 

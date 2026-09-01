@@ -2,8 +2,6 @@
 
 > ZIO Prelude features a set of fundamental functional abstractions for working with concrete data types.
 
-ZIO Prelude features a set of fundamental functional abstractions for working with concrete data types.
-
 These abstractions fall into two categories.
 
 ## Properties Of Concrete Types

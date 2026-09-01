@@ -2,8 +2,6 @@
 
 > ZIO Metrics lets you observe everything that goes on in your ZIO application.
 
-ZIO Metrics lets you observe everything that goes on in your ZIO application.
-
 Tests are important for verifying the correctness of the code we write. However, when we go into production conditions
 are inevitably different than in testing. Still, we do need to know what is going on in our application in real time so
 that we can diagnose and address problems.

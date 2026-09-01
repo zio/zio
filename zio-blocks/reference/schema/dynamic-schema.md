@@ -2,8 +2,6 @@
 
 > `DynamicSchema` is a **type-erased schema container** that wraps a `Reflect.Unbound[_]` tree — all the structural information from a `Schema[A]` (field names, case names, type identities, validations, annotations) with no Scala functions attached. The two fundamental uses are validating `DynamicValue` instances at runtime, and transporting schemas across process boundaries.
 
-`DynamicSchema` is a **type-erased schema container** that wraps a `Reflect.Unbound[_]` tree — all the structural information from a `Schema[A]` (field names, case names, type identities, validations, annotations) with no Scala functions attached. The two fundamental uses are validating `DynamicValue` instances at runtime, and transporting schemas across process boundaries.
-
 ```scala
 final case class DynamicSchema(reflect: Reflect.Unbound[_])
 ```

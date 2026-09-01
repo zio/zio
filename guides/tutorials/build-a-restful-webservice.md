@@ -2,8 +2,6 @@
 
 > ZIO provides good support for building RESTful web services. Using _Service Pattern_, we can build web services that are modular and easy to test and maintain. On the other hand, we have several powerful official and community libraries that can help us to work with JSON data types, and databases and also work with HTTP protocol.
 
-ZIO provides good support for building RESTful web services. Using _Service Pattern_, we can build web services that are modular and easy to test and maintain. On the other hand, we have several powerful official and community libraries that can help us to work with JSON data types, and databases and also work with HTTP protocol.
-
 In this tutorial, we will learn how to build a RESTful web service using ZIO. The corresponding source code for this tutorial is available on [GitHub](https://github.com/zio/zio-quickstarts). If you haven't read the [ZIO Quickstart: Building RESTful Web Service](../quickstarts/restful-webservice.md) yet, we recommend you read it first and download and run the source code, before reading this tutorial.
 
 ## Installation

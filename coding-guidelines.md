@@ -2,8 +2,6 @@
 
 > These are coding guidelines strictly for ZIO contributors working on ZIO projects and not general conventions to be applied by the Scala community at large.
 
-These are coding guidelines strictly for ZIO contributors working on ZIO projects and not general conventions to be applied by the Scala community at large.
-
 Additionally, bear in mind that, although we try to enforce these rules to the best of our ability, both via automated rules (scalafmt) and strict reviewing processes, it is still possible to find existing code that does not comply with these rules. If that is the case, we would be extremely grateful if you could make a contribution by providing a fix for the issue.
 
 Last, but not least, these rules are continuously evolving and, as such, refer to them once in a while when in doubt.

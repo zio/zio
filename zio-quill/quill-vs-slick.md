@@ -2,8 +2,6 @@
 
 > This document compares Quill to the [Typesafe Slick](https://scala-slick.org) library. This is an incomplete comparison, additions and corrections are welcome.
 
-This document compares Quill to the [Typesafe Slick](https://scala-slick.org) library. This is an incomplete comparison, additions and corrections are welcome.
-
 ## Abstraction level ##
 
 Quill and Slick have similar abstraction levels. They represent database rows as flat immutable structures (case classes without nested data) and provide a type-safe composable query DSL.

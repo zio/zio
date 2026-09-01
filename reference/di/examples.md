@@ -4,8 +4,6 @@
 
 ## An Example of a ZIO Application with Multiple Config Layers
 
-In the following example, we have an application that requires `AppConfig` layer, which itself requires `DBConfig` and `ServerConfig` layers:
-
 ```scala
 import zio._
 

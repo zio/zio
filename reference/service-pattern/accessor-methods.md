@@ -1,10 +1,7 @@
 # Accessor Methods (deprecated)
 
 > Accessor methods are little helper methods that lookup a service from the environment, and then forward your call to
-that service.
-
-Accessor methods are little helper methods that lookup a service from the environment, and then forward your call to
-that service.
+> that service.
 
 :::info
 The [service pattern](service-pattern.md) provides a better way to structure programs, and it does not need accessor

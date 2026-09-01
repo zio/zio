@@ -2,8 +2,6 @@
 
 > `Covariant[F]` describes a parameterized type `F[A]` that potentially produces but never consumes `A` values.
 
-`Covariant[F]` describes a parameterized type `F[A]` that potentially produces but never consumes `A` values.
-
 Its signature is:
 
 ```scala

@@ -2,8 +2,6 @@
 
 > [Distage](https://izumi.7mind.io/distage/) is a compile-time safe, transparent, and debuggable Dependency Injection framework for pure FP Scala.
 
-[Distage](https://izumi.7mind.io/distage/) is a compile-time safe, transparent, and debuggable Dependency Injection framework for pure FP Scala.
-
 ## Introduction
 
 By using _Distage_ we can auto-wire all components of our application.

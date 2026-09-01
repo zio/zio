@@ -2,8 +2,6 @@
 
 > `Contravariant` describes a parameterized type `F[A]` that potentially consumes but never produces `A` values.
 
-`Contravariant` describes a parameterized type `F[A]` that potentially consumes but never produces `A` values.
-
 Its signature is:
 
 ```scala

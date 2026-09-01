@@ -2,8 +2,6 @@
 
 > The primary goal of a streaming library is to introduce **a high-level API that abstracts the mechanism of reading and writing operations using data sources and destinations**.
 
-The primary goal of a streaming library is to introduce **a high-level API that abstracts the mechanism of reading and writing operations using data sources and destinations**.
-
 A streaming library helps us to concentrate on the business logic and separates us from low-level implementation details.
 
 ## Use Cases

@@ -1,14 +1,10 @@
 # Type Mappings
 
 > ZIO Bson provides `BsonEncoder` and `BsonDecoder` typeclass instances for a wide range of Scala and Java types.
-The encoder determines the primary BSON type a value is written as.
-The decoder accepts the primary type and, where it makes sense, additional fallback BSON types.
+> The encoder determines the primary BSON type a value is written as.
+> The decoder accepts the primary type and, where it makes sense, additional fallback BSON types.
 
 ## Scala / Java to BSON Type Mappings
-
-ZIO Bson provides `BsonEncoder` and `BsonDecoder` typeclass instances for a wide range of Scala and Java types.
-The encoder determines the primary BSON type a value is written as.
-The decoder accepts the primary type and, where it makes sense, additional fallback BSON types.
 
 | Scala / Java Type | Encoder → BSON | Decoder fallbacks |
 |---|---|---|

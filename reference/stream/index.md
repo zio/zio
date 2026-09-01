@@ -2,8 +2,6 @@
 
 > Channels are the nexus of communications, which support both reading and writing. They allow us to have a unidirectional flow of data from the input to the output.
 
-Channels are the nexus of communications, which support both reading and writing. They allow us to have a unidirectional flow of data from the input to the output.
-
 A `ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone]` requires some environment `Env` and have two main operations:
 
 - It can read some data `InElem` from the input port, and finally can terminate with a done value of type `InDone`. If the read operation fails, the channel will terminate with an error of type `InErr`.

@@ -2,8 +2,6 @@
 
 > `TestConsole` allows testing of applications that interact with the console by modeling working with standard input and output as writing and reading to and from internal buffers:
 
-`TestConsole` allows testing of applications that interact with the console by modeling working with standard input and output as writing and reading to and from internal buffers:
-
 ```scala
 import zio._
 import zio.test.{test, _}

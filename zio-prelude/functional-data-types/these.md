@@ -2,8 +2,6 @@
 
 > `These[A, B]` is a data type that models a value that can be either a `Left` with a value of type `A`, a `Right` with a value of type `B`, or a `Both` with both a value of type `A` and a value of type `B`.
 
-`These[A, B]` is a data type that models a value that can be either a `Left` with a value of type `A`, a `Right` with a value of type `B`, or a `Both` with both a value of type `A` and a value of type `B`.
-
 ```scala
 sealed trait These[+A, +B] {
   case class Left[+A](a: A)           extends These[A, Nothing]

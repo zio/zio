@@ -2,8 +2,6 @@
 
 > `Chunk[A]` is an **immutable, indexed sequence** of elements of type `A`. Unlike `Array`, `Chunk` provides a purely functional interface with optimized performance for high-level operations. It is lazy on expensive operations like repeated concatenation (which use balanced tree structures) while remaining fast on access.
 
-`Chunk[A]` is an **immutable, indexed sequence** of elements of type `A`. Unlike `Array`, `Chunk` provides a purely functional interface with optimized performance for high-level operations. It is lazy on expensive operations like repeated concatenation (which use balanced tree structures) while remaining fast on access.
-
 `Chunk[A]`:
 - Is purely functional and immutable
 - Provides O(1) typical random access (O(log n) worst-case for tree-structured chunks)

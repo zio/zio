@@ -1,12 +1,9 @@
 # HTTP
 
 > By default the AWS Java SDK uses _netty_ under the hood to make the HTTP client calls. `zio-aws` defines the http client
-as a _layer_ (`HttpClient`) that has to be provided to the _AWS configuration layer_.
+> as a _layer_ (`HttpClient`) that has to be provided to the _AWS configuration layer_.
 
 # HTTP implementations
-
-By default the AWS Java SDK uses _netty_ under the hood to make the HTTP client calls. `zio-aws` defines the http client
-as a _layer_ (`HttpClient`) that has to be provided to the _AWS configuration layer_.
 
 Currently the following implementations can be used:
 - `zio-aws-netty` contains the default netty implementation packed as a layer

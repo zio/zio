@@ -4,8 +4,6 @@
 
 ## Parallel Zipping
 
-Like `ZStream`, two `ZSink` can be zipped together. Both of them will be run in parallel, and their results will be combined in a tuple:
-
 ```scala
 import zio._
 import zio.stream._

@@ -2,8 +2,6 @@
 
 > `ScalaEmitter` is the core emission engine that converts IR models to formatted Scala source code. It provides the main entry point and methods to emit any IR construct as a properly formatted string.
 
-`ScalaEmitter` is the core emission engine that converts IR models to formatted Scala source code. It provides the main entry point and methods to emit any IR construct as a properly formatted string.
-
 ## Use Cases
 
 - Converting a complete `ScalaFile` IR to a Scala source string

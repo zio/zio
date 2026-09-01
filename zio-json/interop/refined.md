@@ -1,10 +1,10 @@
 # Refined Interop
 
 > ```scala
-libraryDependencies ++= Seq(
-  "dev.zio" % "zio-json-interop-refined" % "0.8.0"
-)
-```
+> libraryDependencies ++= Seq(
+>   "dev.zio" % "zio-json-interop-refined" % "0.8.0"
+> )
+> ```
 
 ## Installation
 

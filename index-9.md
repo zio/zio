@@ -2,8 +2,6 @@
 
 > **Modular, zero-dependency building blocks for modern Scala applications.**
 
-**Modular, zero-dependency building blocks for modern Scala applications.**
-
 [![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-blocks/workflows/CI/badge.svg) [![ZIO Blocks](https://img.shields.io/github/stars/zio/zio-blocks?style=social)](https://github.com/zio/zio-blocks)
 
 ## What Is ZIO Blocks?

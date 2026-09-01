@@ -2,8 +2,6 @@
 
 > `IdentityFlatten[F]` describes a way of combining two layers of a value of type `F[F[A]]` into a `F[A]` in a way that is associative and has an identity value `any` of type `F[Any]`.
 
-`IdentityFlatten[F]` describes a way of combining two layers of a value of type `F[F[A]]` into a `F[A]` in a way that is associative and has an identity value `any` of type `F[Any]`.
-
 Its signature is:
 
 ```scala

@@ -2,8 +2,6 @@
 
 > The `combinators` module provides compile-time typeclasses for composing and decomposing values in type-safe ways. Each module focuses on a specific domain: tuples, choices, concatenation widening, Either types, and union types.
 
-The `combinators` module provides compile-time typeclasses for composing and decomposing values in type-safe ways. Each module focuses on a specific domain: tuples, choices, concatenation widening, Either types, and union types.
-
 ## Overview
 
 The combinators module consists of five core modules:
@@ -417,6 +415,8 @@ The combinators module supports both Scala 2's implicit parameters and Scala 3's
 
   
 
+**Scala 2**
+
 To combine multiple values using implicit typeclass resolution:
 
 ```scala
@@ -436,6 +436,8 @@ val result = combineAll(1, "hello", true)
 
   
   
+
+**Scala 3**
 
 To combine multiple values using context parameters:
 
@@ -500,6 +502,8 @@ The combinators module works across Scala 2.13 and Scala 3.x with **full source 
 
   
 
+**Scala 2.13**
+
 In Scala 2.13, combining two tuples on the right side fails to compile:
 
 ```scala
@@ -511,6 +515,8 @@ val result = Tuples.combine((1, 2), (3, 4))  // Type mismatch
 
   
   
+
+**Scala 3.x**
 
 In Scala 3.x, recursive flattening on both sides works seamlessly:
 

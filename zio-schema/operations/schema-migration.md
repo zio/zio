@@ -4,8 +4,6 @@
 
 ## Automatic Migration
 
-With ZIO Schema, we can automatically migrate data from one version of a schema to another. As software evolves, we often need to add, change or remove old fields. ZIO Schema provides two methods called `migrate` and `coerce` which help migrate the old schema to the new one:
-
 ```scala
 sealed trait Schema[A] {
   def migrate[B](newSchema: Schema[B]): Either[String, A => scala.util.Either[String, B]]

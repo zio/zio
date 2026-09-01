@@ -2,8 +2,6 @@
 
 > A `MetricLabel` metadata represents a key-value pair that allows analyzing metrics at an additional level of granularity. For example, if a metric tracks the response time of a service, labels could be used to create separate versions that track response times for different clients.
 
-A `MetricLabel` metadata represents a key-value pair that allows analyzing metrics at an additional level of granularity. For example, if a metric tracks the response time of a service, labels could be used to create separate versions that track response times for different clients. 
-
 ZIO Metrics has a _label based dimensional_ data model where we have a metric name and just a list of key-value pairs attached to that metric name. So labels are the first-class citizen in ZIO Metrics. In monitoring dashboards, we can find or filter metrics using these labels.
 
 For example, we can append following labels (dimensions) to our metric aspects:

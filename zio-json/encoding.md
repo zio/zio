@@ -4,8 +4,6 @@
 
 ## Automatic Derivation
 
-Assume we want to encode this case class
-
 ```scala
 case class Banana(curvature: Double)
 ```

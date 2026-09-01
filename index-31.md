@@ -2,8 +2,6 @@
 
 > A ZIO-based interface to RocksDB.
 
-A ZIO-based interface to RocksDB.
-
 ## Installation
 
 Add the following dependencies to your `build.sbt` file:

@@ -1,18 +1,11 @@
 # Commands
 
 > A command is a piece of text representing a directive for a CLI application. This allows the user to communicate easily which task must perform the application. A popular CLI app is the Version Control System called Git. Commonly used commands of Git are among the following.
-```
-git clone // Creates a copy of a repository
-git add   // Adds modified or new files that will be committed after using git commit
-```
-**ZIO CLI** uses class `Command[Model]` as a description of a CLI command. When using `CliApp.make`, it is needed to specify a `Command[Model]` instance. This parameter is parsed by `CliApp` to produce a collection of possible commands and transform a valid input from a user into an instance of type `Model`. Then you can implement the functionality of the CLI App using pattern matching on instances of `Model`.
-
-A command is a piece of text representing a directive for a CLI application. This allows the user to communicate easily which task must perform the application. A popular CLI app is the Version Control System called Git. Commonly used commands of Git are among the following.
-```
-git clone // Creates a copy of a repository
-git add   // Adds modified or new files that will be committed after using git commit
-```
-**ZIO CLI** uses class `Command[Model]` as a description of a CLI command. When using `CliApp.make`, it is needed to specify a `Command[Model]` instance. This parameter is parsed by `CliApp` to produce a collection of possible commands and transform a valid input from a user into an instance of type `Model`. Then you can implement the functionality of the CLI App using pattern matching on instances of `Model`.
+> ```
+> git clone // Creates a copy of a repository
+> git add   // Adds modified or new files that will be committed after using git commit
+> ```
+> **ZIO CLI** uses class `Command[Model]` as a description of a CLI command. When using `CliApp.make`, it is needed to specify a `Command[Model]` instance. This parameter is parsed by `CliApp` to produce a collection of possible commands and transform a valid input from a user into an instance of type `Model`. Then you can implement the functionality of the CLI App using pattern matching on instances of `Model`.
 
 ### Subcommands
 A subcommand is a command that belongs to a larger command. Thus, it is possible for a command to have different subcommands. Subcommands can be used to better organize and design the functionality of a CLI app. Different subcommands can represent different types of task that a CLI can perform and give them a descriptive name. In the Git example above, `git` is the name of the command while `clone` or `add` are subcommands of `git`. As the functionality of `git clone` and `git add` are very different, it is better to use different subcommands. In the same way, it would be possible for a subcommand to have other subcommands.

@@ -2,8 +2,6 @@
 
 > [ZIO K8S](https://github.com/coralogix/zio-k8s) is an idiomatic ZIO client for the Kubernetes API.
 
-[ZIO K8S](https://github.com/coralogix/zio-k8s) is an idiomatic ZIO client for the Kubernetes API.
-
 ## Introduction
 
 This library provides a client for the full Kubernetes API as well as providing code generator support for custom resources and higher-level concepts such as operators, taking full advantage of the ZIO library.

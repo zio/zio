@@ -2,8 +2,6 @@
 
 > In this section, we are going to talk about the design elements of a ZIO application and the ZIO idiomatic way of structuring codes to write ZIO applications.
 
-In this section, we are going to talk about the design elements of a ZIO application and the ZIO idiomatic way of structuring codes to write ZIO applications.
-
 ## Onion Architecture
 
 Onion architecture is a software architecture pattern that is used to create loosely coupled, maintainable, and testable applications by layering the application into a set of concentric circles.

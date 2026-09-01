@@ -2,8 +2,6 @@
 
 > `HxEncoding` represents the `hx-encoding` attribute, controlling how form data is encoded when sent in an HTMX request. The primary use case is file uploads, which require `multipart/form-data` encoding instead of the default URL-encoded form submission.
 
-`HxEncoding` represents the `hx-encoding` attribute, controlling how form data is encoded when sent in an HTMX request. The primary use case is file uploads, which require `multipart/form-data` encoding instead of the default URL-encoded form submission.
-
 Use `HxEncoding.Multipart` to enable multipart form data encoding for requests that include file fields. Here is the core pattern:
 
 ```scala

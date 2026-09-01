@@ -2,8 +2,6 @@
 
 > An `Equivalence[A, B]` describes an equivalence relationship between two types `A` and `B`.
 
-An `Equivalence[A, B]` describes an equivalence relationship between two types `A` and `B`.
-
 An equivalence relationship is defined in terms of two functions `to` and `from` that convert a value of type `A` to a value of type `B` and vice versa.
 
 ```scala

@@ -2,8 +2,6 @@
 
 > Sequential combinators such as `ZIO#zip` and `ZIO.foreach` stop when they reach the first error and return immediately. So their policy on error management is to fail fast.
 
-Sequential combinators such as `ZIO#zip` and `ZIO.foreach` stop when they reach the first error and return immediately. So their policy on error management is to fail fast.
-
 In the following example, we can see that the `ZIO#zip` operator will fail as soon as it reaches the first failure. As a result, we only see the first error in the stack trace:
 
 ```scala

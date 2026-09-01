@@ -2,8 +2,6 @@
 
 > This quickstart shows how to build a GraphQL web service using ZIO. It uses
 
-This quickstart shows how to build a GraphQL web service using ZIO. It uses
-
 - [ZIO HTTP](https://ziohttp.com/) for the HTTP server
 - [Caliban](https://ghostdogpr.github.io/caliban/) for the GraphQL
 

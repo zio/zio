@@ -2,8 +2,6 @@
 
 > A simple and regular ZIO application usually fails with one error, which is the first error encountered by the ZIO runtime:
 
-A simple and regular ZIO application usually fails with one error, which is the first error encountered by the ZIO runtime:
-
 ```scala
 import zio._
 

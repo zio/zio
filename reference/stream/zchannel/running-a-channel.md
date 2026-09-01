@@ -2,8 +2,6 @@
 
 > To run a channel, we can use the `ZChannel.runXYZ` methods:
 
-To run a channel, we can use the `ZChannel.runXYZ` methods:
-
 - `ZChannel#run`— The `run` method is the simplest way to run a channel. It only runs a channel that doesn't read any input or write any output.
 - `ZChannel#runCollect`— It will run a channel and collects the output and finally returns it along with the done value of the channel.
 - `ZChannel#runDrain`— It will run a channel and ignore any emitted output.

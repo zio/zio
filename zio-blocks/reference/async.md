@@ -1,20 +1,12 @@
 # Async
 
 > The `async` module provides `Async[A]`, a lightweight, zero-dependency
-asynchronous effect type for modern Scala. It is designed around a single idea:
-**a ready `Async[A]` is just an `A`**. The happy path allocates nothing — no
-effect tree, no wrapper, no boxing beyond what a generic JVM method already
-requires — so synchronous code composed with `map` / `flatMap` runs at
-hand-written speed while still being able to suspend on genuinely asynchronous
-work.
-
-The `async` module provides `Async[A]`, a lightweight, zero-dependency
-asynchronous effect type for modern Scala. It is designed around a single idea:
-**a ready `Async[A]` is just an `A`**. The happy path allocates nothing — no
-effect tree, no wrapper, no boxing beyond what a generic JVM method already
-requires — so synchronous code composed with `map` / `flatMap` runs at
-hand-written speed while still being able to suspend on genuinely asynchronous
-work.
+> asynchronous effect type for modern Scala. It is designed around a single idea:
+> **a ready `Async[A]` is just an `A`**. The happy path allocates nothing — no
+> effect tree, no wrapper, no boxing beyond what a generic JVM method already
+> requires — so synchronous code composed with `map` / `flatMap` runs at
+> hand-written speed while still being able to suspend on genuinely asynchronous
+> work.
 
 ## Overview
 

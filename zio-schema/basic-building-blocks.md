@@ -1,10 +1,7 @@
 # Basic Building Blocks
 
 > To get started, first we need to understand that a ZIO Schema is basically built-up from these three
-sealed traits: `Record[R]`, `Enum[A]` and `Sequence[Col, Elem]`, along with the case class `Primitive[A]`. Every other type is just a specialisation of one of these (or not relevant to get you started).
-
-To get started, first we need to understand that a ZIO Schema is basically built-up from these three
-sealed traits: `Record[R]`, `Enum[A]` and `Sequence[Col, Elem]`, along with the case class `Primitive[A]`. Every other type is just a specialisation of one of these (or not relevant to get you started).
+> sealed traits: `Record[R]`, `Enum[A]` and `Sequence[Col, Elem]`, along with the case class `Primitive[A]`. Every other type is just a specialisation of one of these (or not relevant to get you started).
 
 The core data type of ZIO Schema is a `Schema[A]` which is **invariant in `A`** by necessity, because a Schema allows us to derive operations that produce an `A` but also operations that consume an `A` and that imposes limitations on the types of **transformation operators** and **composition operators** that we can provide based on a `Schema`.
 

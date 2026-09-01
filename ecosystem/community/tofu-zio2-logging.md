@@ -1,14 +1,9 @@
 # Tofu ZIO 2 Logging
 
 > [Tofu](https://docs.tofu.tf/) is a functional toolkit modules providing a comprehensive set of tools adressing
-real-world problems through the prism of the tagless-final approach and functional programming in general.
-Tofu consists of several independent modules, one of them is [Tofu Logging](https://docs.tofu.tf/docs/tofu.logging.home)
-, which provides first-class [ZIO support](https://docs.tofu.tf/docs/tofu.logging.recipes.zio2).
-
-[Tofu](https://docs.tofu.tf/) is a functional toolkit modules providing a comprehensive set of tools adressing
-real-world problems through the prism of the tagless-final approach and functional programming in general.
-Tofu consists of several independent modules, one of them is [Tofu Logging](https://docs.tofu.tf/docs/tofu.logging.home)
-, which provides first-class [ZIO support](https://docs.tofu.tf/docs/tofu.logging.recipes.zio2).
+> real-world problems through the prism of the tagless-final approach and functional programming in general.
+> Tofu consists of several independent modules, one of them is [Tofu Logging](https://docs.tofu.tf/docs/tofu.logging.home)
+> , which provides first-class [ZIO support](https://docs.tofu.tf/docs/tofu.logging.recipes.zio2).
 
 Key features of Tofu Logging:
 

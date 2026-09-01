@@ -2,8 +2,6 @@
 
 > `Sink[+E, -A, +Z]` is a **stream consumer** that reads elements of type `A` and produces a result of type `Z`, potentially failing with an error of type `E`. You pass a sink to [Stream.run](./stream.md) to execute the stream synchronously and get `Either[E, Z]`.
 
-`Sink[+E, -A, +Z]` is a **stream consumer** that reads elements of type `A` and produces a result of type `Z`, potentially failing with an error of type `E`. You pass a sink to [Stream.run](./stream.md) to execute the stream synchronously and get `Either[E, Z]`.
-
 `Sink`:
 - Is covariant in `E` (error) and `Z` (result) — these are outputs
 - Is contravariant in `A` (input) — a `Sink[_, Any, _]` accepts any element type

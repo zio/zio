@@ -2,8 +2,6 @@
 
 > The `ZKeyedPool[+Err, -Key, Item]` is a pool of items of type `Item` that are associated with a key of type `Key`. An attempt to get an item from a pool may fail with an error of type `Err`.
 
-The `ZKeyedPool[+Err, -Key, Item]` is a pool of items of type `Item` that are associated with a key of type `Key`. An attempt to get an item from a pool may fail with an error of type `Err`.
-
 The interface is similar to [`ZPool`](zpool.md), but it allows associating items with keys:
 
 ```scala

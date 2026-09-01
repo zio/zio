@@ -2,8 +2,6 @@
 
 > `NomEmptyForEach[F]` describes a parameterized type `F[A]` that contains one or more values of type `A`.
 
-`NomEmptyForEach[F]` describes a parameterized type `F[A]` that contains one or more values of type `A`.
-
 Its signature is:
 
 ```scala

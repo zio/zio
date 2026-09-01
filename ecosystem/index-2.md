@@ -2,8 +2,6 @@
 
 > Official ZIO libraries are hosted in the [ZIO organization](https://github.com/zio/) on GitHub, and are generally maintained by core contributors to ZIO.
 
-Official ZIO libraries are hosted in the [ZIO organization](https://github.com/zio/) on GitHub, and are generally maintained by core contributors to ZIO.
-
 ## Development Status
 
 Each project in the ZIO organization namespace has a _Stage Badge_ which indicates the current status of that project:

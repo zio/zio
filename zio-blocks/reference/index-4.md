@@ -2,10 +2,6 @@
 
 > `zio-http-model` is a **pure, zero-dependency HTTP data model** for building HTTP clients and servers. It provides immutable types representing all HTTP concepts: requests, responses, headers, URLs, paths, query parameters, methods, status codes, versions, cookies, and forms. The module separates protocol concerns (representing HTTP messages) from effect concerns (actually sending/receiving them), enabling portable, testable HTTP code across any Scala application.
 
-# HTTP Model
-
-`zio-http-model` is a **pure, zero-dependency HTTP data model** for building HTTP clients and servers. It provides immutable types representing all HTTP concepts: requests, responses, headers, URLs, paths, query parameters, methods, status codes, versions, cookies, and forms. The module separates protocol concerns (representing HTTP messages) from effect concerns (actually sending/receiving them), enabling portable, testable HTTP code across any Scala application.
-
 ## Core Capabilities
 
 The HTTP model is organized into two complementary modules:

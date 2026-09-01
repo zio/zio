@@ -2,8 +2,6 @@
 
 > `ZChannel` have several constructors and also built-in channels, where suitable to create more complex channels.
 
-`ZChannel` have several constructors and also built-in channels, where suitable to create more complex channels.
-
 Without further ado, let's learn them one by one:
 
 ## `ZChannel.succeed`

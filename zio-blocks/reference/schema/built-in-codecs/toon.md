@@ -2,8 +2,6 @@
 
 > `zio-blocks-schema-toon` is a **schema-driven TOON codec module** for serializing and deserializing Scala types to and from TOON format. It provides comprehensive encoding and decoding with support for 27 primitive types, records, variants, sequences, maps, and recursive types. Core types: `ToonCodec`, `ToonCodecDeriver`, `ToonFormat`, `ToonReader`, `ToonWriter`.
 
-`zio-blocks-schema-toon` is a **schema-driven TOON codec module** for serializing and deserializing Scala types to and from TOON format. It provides comprehensive encoding and decoding with support for 27 primitive types, records, variants, sequences, maps, and recursive types. Core types: `ToonCodec`, `ToonCodecDeriver`, `ToonFormat`, `ToonReader`, `ToonWriter`.
-
 The module integrates with a pure-Scala TOON parser and writer to provide line-oriented, indentation-based serialization that is 30-60% more compact than JSON. TOON (Token-Oriented Object Notation) appears widely across LLM prompts, configuration files, and data exchange where compactness and human readability matter equally.
 
 ## Motivation

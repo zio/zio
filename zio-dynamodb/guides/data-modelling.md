@@ -2,8 +2,6 @@
 
 > The High Level API relies heavily on ZIO Schema and inherits some of it's limitations, namely:
 
-The High Level API relies heavily on ZIO Schema and inherits some of it's limitations, namely:
-
 - A maximum of **22** fields per case class 
 - Deep Object-Oriented hierarchies with abstract classes/fields are not supported - only hierarchies one level deep are supported
 

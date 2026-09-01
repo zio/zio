@@ -2,8 +2,6 @@
 
 > `zio-blocks-mux` is a **high-performance multiplexer for ID-multiplexed protocols** (HTTP/2, QUIC, WebSockets with multiplexing, and other stream-based transports). It manages multiple concurrent independent streams over a shared transport, each identified by a unique ID, with separate inbound/outbound message queues and automatic state machine lifecycle management.
 
-`zio-blocks-mux` is a **high-performance multiplexer for ID-multiplexed protocols** (HTTP/2, QUIC, WebSockets with multiplexing, and other stream-based transports). It manages multiple concurrent independent streams over a shared transport, each identified by a unique ID, with separate inbound/outbound message queues and automatic state machine lifecycle management.
-
 Core types: `Mux`, `MuxStream`, `MuxError`.
 
 Create a mux and exchange messages:
@@ -155,6 +153,8 @@ The mux holds multiple streams in a concurrent map. Each stream can be accessed 
 
   
 
+**Scala 2**
+
 ```scala
 import zio.blocks.mux._
 
@@ -191,6 +191,8 @@ mux.get(2).foreach { stream =>
 
   
   
+
+**Scala 3**
 
 ```scala
 import zio.blocks.mux._
@@ -344,6 +346,8 @@ The mux does not depend on external modules except `zio-blocks-ringbuffer` for i
 
   
 
+**Scala 2**
+
 Here are the error type definitions for both Scala versions:
 
 ```scala
@@ -361,6 +365,8 @@ object MuxError {
 
   
   
+
+**Scala 3**
 
 Scala 3 uses the same structure with union return types in method signatures:
 
@@ -395,7 +401,7 @@ object MuxError {
 
 ---
 
-## Mux
+
 
 `Mux[Id, In, Out]` is the entry point for multiplexed stream coordination. It manages a registry of active streams, enforces capacity limits, and provides operations to open, retrieve, cancel, and close streams.
 
@@ -422,6 +428,8 @@ Opening a stream with error handling:
 
   
 
+**Scala 2**
+
 ```scala
 import zio.blocks.mux._
 
@@ -435,6 +443,8 @@ mux.open(1) match {
 
   
   
+
+**Scala 3**
 
 ```scala
 import zio.blocks.mux._
@@ -569,6 +579,8 @@ Sending a message on a stream:
 
   
 
+**Scala 2**
+
 ```scala
 import zio.blocks.mux._
 
@@ -583,6 +595,8 @@ val sendResult = stream.send("hello")
 
   
   
+
+**Scala 3**
 
 ```scala
 import zio.blocks.mux._
@@ -609,6 +623,8 @@ Use this in a polling loop or with a reactor to wait for messages:
 
   
 
+**Scala 2**
+
 ```scala
 import zio.blocks.mux._
 
@@ -623,6 +639,8 @@ val result = stream.receive()
 
   
   
+
+**Scala 3**
 
 ```scala
 import zio.blocks.mux._
@@ -649,6 +667,8 @@ Draining messages from the outbound queue:
 
   
 
+**Scala 2**
+
 ```scala
 import zio.blocks.mux._
 
@@ -664,6 +684,8 @@ val outbound = stream.takeOutbound()
 
   
   
+
+**Scala 3**
 
 ```scala
 import zio.blocks.mux._
@@ -692,6 +714,8 @@ Delivering a message to the inbound queue:
 
   
 
+**Scala 2**
+
 ```scala
 import zio.blocks.mux._
 
@@ -707,6 +731,8 @@ val received = stream.receive()
 
   
   
+
+**Scala 3**
 
 ```scala
 import zio.blocks.mux._

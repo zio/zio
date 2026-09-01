@@ -1,8 +1,8 @@
 # ZIO 2.x Interoperation with Cats 2.x
 
 > ```sbt
-libraryDependencies += "dev.zio" %% "zio-interop-cats" % "22.0.0.0"
-```
+> libraryDependencies += "dev.zio" %% "zio-interop-cats" % "22.0.0.0"
+> ```
 
 ## Installation
 

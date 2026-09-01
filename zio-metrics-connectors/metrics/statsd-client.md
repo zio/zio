@@ -1,9 +1,9 @@
 # StatsD Client
 
 > ```scala
-import zio._
-import zio.metrics._
-```
+> import zio._
+> import zio.metrics._
+> ```
 
 ```scala
 import zio._

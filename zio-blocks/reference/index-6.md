@@ -2,8 +2,6 @@
 
 > Ring buffers are **fixed-size, lock-free queues** for efficiently exchanging elements between producer and consumer threads with minimal contention and cache-line effects. They use a circular array to recycle memory, eliminating garbage collection pressure from transient allocations. The `zio.blocks.ringbuffer` module provides four specialized implementations tuned for different producer/consumer thread patterns:
 
-Ring buffers are **fixed-size, lock-free queues** for efficiently exchanging elements between producer and consumer threads with minimal contention and cache-line effects. They use a circular array to recycle memory, eliminating garbage collection pressure from transient allocations. The `zio.blocks.ringbuffer` module provides four specialized implementations tuned for different producer/consumer thread patterns:
-
 ```scala
 final class SpscRingBuffer[A <: AnyRef](val capacity: Int) {
   def offer(a: A): Boolean

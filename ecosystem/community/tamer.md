@@ -2,11 +2,7 @@
 
 > [Tamer](https://github.com/laserdisc-io/tamer) is a multi-functional Kafka connector for producing data based on [ZIO Kafka](https://github.com/zio/zio-kafka).
 
-## Tamer
-
- [Tamer](https://github.com/laserdisc-io/tamer) is a multi-functional Kafka connector for producing data based on [ZIO Kafka](https://github.com/zio/zio-kafka).
-
- ### Introduction
+### Introduction
 
  Tamer is a completely customizable source connector that produces to Kafka. It ships with preconfigured modules for SQL, cloud storage and REST API, but you can provide your own functions and Tamer will take care of the rest.
 

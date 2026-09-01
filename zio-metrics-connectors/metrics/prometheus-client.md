@@ -1,12 +1,8 @@
 # Prometheus Client
 
 > In a normal prometheus setup we will find prometheus agents which query configured endpoints at regular intervals. The
-endpoints are HTTP endpoints serving the current metric state in an encoding defined by
-[prometheus](https://prometheus.io/docs/instrumenting/exposition_formats/#text-based-format).
-
-In a normal prometheus setup we will find prometheus agents which query configured endpoints at regular intervals. The
-endpoints are HTTP endpoints serving the current metric state in an encoding defined by
-[prometheus](https://prometheus.io/docs/instrumenting/exposition_formats/#text-based-format).
+> endpoints are HTTP endpoints serving the current metric state in an encoding defined by
+> [prometheus](https://prometheus.io/docs/instrumenting/exposition_formats/#text-based-format).
 
 ZIO Metrics Connectors provides the Prometheus encoding for the captured metrics out of the box. To avoid enforcing a
 particular HTTP implementation, an instrumented application needs to expose the encoded format as an endpoint with the
