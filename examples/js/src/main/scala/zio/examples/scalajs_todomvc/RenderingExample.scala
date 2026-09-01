@@ -20,13 +20,10 @@ import zio.Trace
  * Call `Render.main(container, state)` after any state change to update the
  * entire UI.
  *
- * Run with: sbt appJS/fastLinkJS
- *
- * Expected behavior:
- *   - Add a todo, toggle its done flag, delete it, click filter buttons — the
- *     UI updates correctly.
- *   - Filter buttons highlight the active filter.
- *   - Footer shows count of remaining active todos.
+ * This object is excerpted for reference — it has no entry point of its own and
+ * is not meant to be compiled standalone. It becomes part of `Main.scala`'s
+ * rendering in the complete app; see CompleteExample.scala and the guide's
+ * "Putting It Together" section for the runnable, complete version.
  */
 object RenderingExample {
 

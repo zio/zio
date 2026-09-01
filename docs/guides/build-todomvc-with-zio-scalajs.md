@@ -58,20 +58,22 @@ The pain is obvious: mutable state shared across multiple callbacks, duplicated 
 
 ## Prerequisites
 
-Add the ZIO library and Scala.js DOM bindings to your project:
+Add the ZIO library and Scala.js DOM bindings to your project. ZIO's runtime uses `java.time` and `java.util.UUID` internally, neither of which Scala.js implements out of the box, so both polyfills are required — without them the linker fails with "Referring to non-existent class" errors and produces no output:
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.zio"        %%% "zio"           % "@VERSION@",
-  "org.scala-js"   %%% "scalajs-dom"   % "2.8.1"
+  "dev.zio"            %%% "zio"                       % "@VERSION@",
+  "org.scala-js"       %%% "scalajs-dom"                % "2.8.1",
+  "io.github.cquiroz"  %%% "scala-java-time"            % "2.2.0",
+  "io.github.cquiroz"  %%% "scala-java-time-tzdb"       % "2.2.0",
+  "org.scala-js"       %%% "scalajs-java-securerandom"  % "1.0.0"
 )
 ```
 
-Ensure you have the Scala.js sbt plugins in `project/plugins.sbt`:
+Ensure you have the Scala.js sbt plugin in `project/plugins.sbt`:
 
 ```scala
 addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.22.0")
-addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.4.0")
 ```
 
 Configure your `build.sbt` to enable Scala.js compilation and the browser entry point (covered in the first capability section).
@@ -106,22 +108,39 @@ final case class AppState(
 
 ## Set Up Scala.js with ZIO
 
-Scala.js requires explicit sbt configuration to cross-compile your code to JavaScript and set up a browser entry point. Your build needs the plugins loaded, and your code module must enable the main initializer so the browser can run your ZIO app.
+Scala.js requires explicit sbt configuration to compile your code to JavaScript and set up a browser entry point. Create a new, empty directory for this project — do not add it inside an existing checkout. Your build needs the plugin loaded, and your project must enable the main initializer so the browser can run your ZIO app.
 
-Define a cross-project that compiles to both JVM and JS (in `build.sbt`):
+Define the project (in `build.sbt`):
 
 ```scala mdoc:embed:examples/js/src/main/scala/zio/examples/scalajs_todomvc/ProjectSetupExample.scala
 ```
 
-The key flag `scalaJSUseMainModuleInitializer := true` tells the Scala.js compiler to generate a `main()` function that runs immediately in the browser, starting your ZIO runtime.
+The key flag `scalaJSUseMainModuleInitializer := true` tells the Scala.js compiler to generate a `main()` function that runs immediately in the browser, starting your ZIO runtime. It resolves automatically only when your project has exactly one `ZIOAppDefault` object — keep a single `src/main/scala/Main.scala` file and replace its content as you progress through this guide, rather than accumulating multiple entry-point objects side by side.
 
-Confirm compilation succeeds:
+There's nothing to compile yet — `scalaJSUseMainModuleInitializer` requires a real entry point to link against, so the first build happens once you've added `Main.scala` in the next section.
 
-```bash
-sbt examplesJS/fastLinkJS
+Create `index.html` at your project root now — every element ID it defines (`app`, `todoInput`, `addTodo`, `todoList`, `footer`, `filters`) is one the app code looks up directly, so the skeleton must be in place before the app's first render:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>ZIO TodoMVC</title>
+  </head>
+  <body>
+    <div id="app">
+      <h1>todos</h1>
+      <input id="todoInput" placeholder="What needs to be done?" />
+      <button id="addTodo">Add</button>
+      <ul id="todoList"></ul>
+      <div id="footer"></div>
+      <div id="filters"></div>
+    </div>
+    <script src="target/scala-2.13/todomvc-fastopt/main.js"></script>
+  </body>
+</html>
 ```
-
-You should see no errors and a compiled JS file at `examples/js/target/scala-2.13/examples-fastopt/main.js`. Open the HTML file (`index.html`, provided in the example) in a browser and check the DevTools console for output.
 
 ## Create the Entry Point
 
@@ -134,7 +153,7 @@ Implement the entry point and wire up state and handlers:
 
 The `for` comprehension initializes a `Ref[AppState]`, renders the initial state to the DOM, wires all event handlers, and then calls `ZIO.never` to keep the application alive. When the browser closes the tab or navigates away, the app terminates naturally.
 
-Compile and check the browser console: you should see the startup message.
+Save this as your project's `src/main/scala/Main.scala`, replacing the placeholder. Rebuild (`sbt todomvc/fastLinkJS`) and open `index.html` in a browser — check the DevTools console for the startup message.
 
 ## Model State with Ref
 
@@ -147,7 +166,7 @@ Define the core state mutation functions:
 
 Each function takes the `Ref`, reads it, transforms the state, and returns both the result (usually the new state for re-rendering) and the updated state. Because these operations happen inside `Ref.modify`, they are atomic: no concurrent handler can see a partially updated state.
 
-Test by adding multiple todos in rapid succession in the browser — no race conditions, all todos appear, and the state remains consistent.
+These functions aren't wired to any UI yet — that happens in "Wire Event Handlers" below. Once the complete app is running, you can confirm this by adding multiple todos in rapid succession in the browser: no race conditions, all todos appear, and the state remains consistent.
 
 ## Render UI Components
 
@@ -160,7 +179,7 @@ Define rendering functions:
 
 Call `Render.main(container, state)` after any state change to update the entire UI. The individual render functions are small and easy to reason about — each one knows exactly which DOM elements it owns and how to update them based on the current `AppState`.
 
-Confirm: add a todo, toggle its done flag, delete it, click filter buttons — the UI updates correctly each time.
+Nothing calls these functions yet — that wiring happens in "Wire Event Handlers" below. Once the complete app is running, you can confirm: add a todo, toggle its done flag, delete it, click filter buttons — the UI updates correctly each time.
 
 ## Wire Event Handlers
 
@@ -186,30 +205,16 @@ This single file defines the domain types, the main entry point, rendering logic
 
 ## Running the Examples
 
-Clone the ZIO repository and navigate to the examples directory:
-
-```bash
-git clone https://github.com/zio/zio.git
-cd zio/examples
-```
+Create a new, empty directory for this project — these steps build up a single project incrementally, not a checkout of the ZIO repository.
 
 <details open><summary>Step 5: Set Up Scala.js with ZIO</summary>
 
-This step configures sbt to cross-compile your code to JavaScript and sets up the browser entry point.
+This step configures sbt and creates the browser entry point for a standalone project named `todomvc`.
 
 ```scala mdoc:embed:examples/js/src/main/scala/zio/examples/scalajs_todomvc/ProjectSetupExample.scala:show-line-numbers
 ```
 
-Run:
-
-```bash
-sbt examplesJS/fastLinkJS
-```
-
-Expected output:
-- Compilation succeeds with no errors.
-- `examples/js/target/scala-2.13/examples-fastopt/main.js` is generated.
-- Opening `index.html` in a browser shows no JavaScript errors in the console.
+Create the `index.html` shown in "Set Up Scala.js with ZIO" above. There's nothing to compile yet — `scalaJSUseMainModuleInitializer` requires a real entry point, added in the next step.
 
 </details>
 
@@ -220,92 +225,59 @@ This step implements `ZIOAppDefault` for the browser and wires the state and han
 ```scala mdoc:embed:examples/js/src/main/scala/zio/examples/scalajs_todomvc/EntryPointExample.scala:show-line-numbers
 ```
 
-Run:
+Save this as `src/main/scala/Main.scala`, replacing the placeholder, then run:
 
 ```bash
-sbt examplesJS/fastLinkJS
+sbt todomvc/fastLinkJS
 ```
 
 Expected output:
 - Compilation succeeds.
-- Browser DevTools console shows startup messages: `TodoMVC starting...` and `TodoMVC ready!`
+- Opening `index.html` in a browser and checking DevTools shows the startup messages: `TodoMVC starting...` and `TodoMVC ready!`
 
 </details>
 
 <details><summary>Step 7: Model State with Ref</summary>
 
-This step implements atomic state mutations using `Ref.modify`.
+This step implements atomic state mutations using `Ref.modify`. It's shown here for reference — these functions have no entry point of their own and aren't meant to be compiled standalone; they become part of `Main.scala` in the complete app in Step 10 below.
 
 ```scala mdoc:embed:examples/js/src/main/scala/zio/examples/scalajs_todomvc/StateManagementExample.scala:show-line-numbers
 ```
-
-Run:
-
-```bash
-sbt examplesJS/fastLinkJS
-```
-
-Expected output:
-- Compilation succeeds.
-- State functions are available for handlers to call.
-- Rapid state mutations (e.g., clicking "Add" multiple times quickly) produce no race conditions.
 
 </details>
 
 <details><summary>Step 8: Render UI Components</summary>
 
-This step implements composable rendering functions that update the DOM based on state changes.
+This step implements composable rendering functions that update the DOM based on state changes. It's shown here for reference — this object has no entry point of its own and isn't meant to be compiled standalone; it becomes part of `Main.scala` in the complete app in Step 10 below.
 
 ```scala mdoc:embed:examples/js/src/main/scala/zio/examples/scalajs_todomvc/RenderingExample.scala:show-line-numbers
 ```
-
-Run:
-
-```bash
-sbt examplesJS/fastLinkJS
-```
-
-Expected output:
-- Compilation succeeds.
-- Opening `index.html` shows the initial empty todo list.
-- The footer and filter buttons are rendered with correct styling.
 
 </details>
 
 <details><summary>Step 9: Wire Event Handlers</summary>
 
-This step connects DOM event listeners to state mutations and rendering.
+This step connects DOM event listeners to state mutations. It's shown here for reference — this object has no entry point of its own and isn't meant to be compiled standalone; it becomes part of `Main.scala` in the complete app in Step 10 below.
 
 ```scala mdoc:embed:examples/js/src/main/scala/zio/examples/scalajs_todomvc/EventHandlersExample.scala:show-line-numbers
 ```
 
-Run:
-
-```bash
-sbt examplesJS/fastLinkJS
-```
-
-Expected output:
-- Compilation succeeds.
-- All DOM event listeners are attached without errors.
-- DevTools console shows no "event handler" errors (unless intentionally testing error cases).
-
 </details>
 
-<details><summary>Complete TodoMVC Application</summary>
+<details><summary>Step 10: Complete TodoMVC Application</summary>
 
 This is the full, integrated TodoMVC application combining all steps.
 
 ```scala mdoc:embed:examples/js/src/main/scala/zio/examples/scalajs_todomvc/CompleteExample.scala:show-line-numbers
 ```
 
-Run:
+Save this as `src/main/scala/Main.scala`, replacing the entry-point-only version from Step 6, then run:
 
 ```bash
-sbt examplesJS/fastLinkJS
+sbt todomvc/fastLinkJS
 ```
 
-Then serve the HTML file with a local web server:
+Then serve the project directory with a local web server:
 
 ```bash
 python3 -m http.server 8080
@@ -329,10 +301,7 @@ Expected output:
 
 This guide covered the core: setting up Scala.js, modeling state with `Ref`, rendering, and wiring event handlers. For more:
 
-- **ZIO reference**: Read about [`Ref`](../reference/concurrency/ref.md) for other atomic operations and state management patterns.
+- **ZIO reference**: Read about [`Ref`](../reference/concurrency/ref.md) for other atomic operations and state management patterns. You may also want to review [`ZIOAppDefault`](../reference/core/zioapp.md) for details on structuring your application's entry point across different platforms.
 - **Scala.js FFI**: Explore [Scala.js external method definitions](https://www.scala-js.org/doc/interoperability/calling-javascript.html) to call JavaScript libraries and use native APIs.
 - **ZIO-based frontend frameworks**: Investigate [`ZIO-themed UI libraries`](https://zio.dev/ecosystem) for higher-level abstractions (e.g., composable components, routing, middleware).
-- **Asynchronous patterns**: Deepen your understanding of how `Runtime.default.unsafe.fork` works and when to use `ZIO.never` vs. explicit shutdown.
-
-</content>
-</invoke>
+- **Asynchronous patterns**: Deepen your understanding of how [`Runtime`](../reference/core/runtime.md) executes effects and how `Runtime.default.unsafe.fork` works when you need to run effects from synchronous callbacks. Compare this with when to use `ZIO.never` vs. explicit shutdown.

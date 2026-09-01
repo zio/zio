@@ -24,14 +24,12 @@ import scala.annotation.unused
  * mutate the state via `Ref.modify`, re-render, and clean up (clear input,
  * etc.).
  *
- * Run with: sbt appJS/fastLinkJS
- *
- * Expected behavior:
- *   - Click "Add" with text: todo appears, input clears
- *   - Click checkbox: todo.done toggles, strikethrough appears/disappears
- *   - Click "×": todo removed from list
- *   - Click filter link: active filter highlights, list updates
- *   - Click "Clear completed": all done todos vanish
+ * This object is excerpted for reference — it has no entry point of its own and
+ * is not meant to be compiled standalone. It shows the core fork-and-mutate
+ * pattern without the re-render call; the complete pattern, including
+ * re-rendering after each state change, is in CompleteExample.scala and the
+ * guide's "Putting It Together" section, which is the runnable, complete
+ * version.
  */
 object EventHandlersExample {
 

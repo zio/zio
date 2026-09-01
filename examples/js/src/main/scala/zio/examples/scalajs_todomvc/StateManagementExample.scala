@@ -16,10 +16,11 @@ import zio.Trace
  * Key pattern: stateRef.modify { state => val newState = computeNewState(state)
  * (resultValue, newState) // Return (value, updatedState) }
  *
- * Run with: sbt appJS/fastLinkJS
- *
- * Test by adding multiple todos in rapid succession in the browser — no race
- * conditions, all todos appear, and the state remains consistent.
+ * This object is excerpted for reference — its functions have no entry point of
+ * their own and are not meant to be compiled standalone. They become part of
+ * `Main.scala`'s state handling in the complete app; see CompleteExample.scala
+ * and the guide's "Putting It Together" section for the runnable, complete
+ * version.
  */
 object StateManagementExample {
 

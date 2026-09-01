@@ -20,7 +20,9 @@ import scala.annotation.unused
  *   - All state flows through a `Ref[AppState]`, and all mutations happen
  *     atomically.
  *
- * Run with: sbt appJS/fastLinkJS
+ * Save this file's content as `src/main/scala/Main.scala` in the `todomvc`
+ * project from the setup step (replacing the empty placeholder), then run: sbt
+ * todomvc/fastLinkJS
  *
  * Expected output in browser DevTools console: TodoMVC starting... TodoMVC
  * ready!

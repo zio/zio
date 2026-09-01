@@ -16,7 +16,9 @@ import zio.Trace
  * logic, state mutations, and all event handlers. It is self-contained and
  * ready to compile and run in the browser.
  *
- * Run with: sbt appJS/fastLinkJS
+ * Save this file's content as `src/main/scala/Main.scala` in your `todomvc`
+ * project (replacing the entry-point-only version from earlier), then run: sbt
+ * todomvc/fastLinkJS
  *
  * Then serve with: python3 -m http.server 8080
  *
