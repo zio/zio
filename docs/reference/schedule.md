@@ -222,6 +222,21 @@ val customSteps = Schedule.fromDurations(4.seconds, 7.seconds, 12.seconds, 19.se
 val thirtySeconds = Schedule.upTo(30.seconds)
 ```
 
+`upTo` is easy to misread as "recur every 30 seconds" — it isn't. On its own it adds **no delay at all**: it just keeps recurring as fast as possible, tracking how much total time has passed, and stops once that exceeds `30.seconds`. Used by itself with `.repeat`, `thirtySeconds` would fire thousands of times in that window, back to back. `upTo` becomes useful once you intersect it (`&&`) with a schedule that *does* provide a delay, capping that schedule's total run time without changing how often it fires in between:
+
+```scala mdoc:compile-only
+import zio._
+
+// Poll once a second, but give up after 30 seconds total — not "wait 30s, then poll once"
+val pollFor30Seconds: Schedule[Any, Any, (Long, Duration)] =
+  Schedule.spaced(1.second) && Schedule.upTo(30.seconds)
+
+val poll: ZIO[Any, Nothing, Unit] =
+  ZIO.logInfo("checking status").repeat(pollFor30Seconds).unit
+```
+
+Here `Schedule.spaced(1.second)` decides the *rhythm* (once per second) and `Schedule.upTo(30.seconds)` decides the *deadline* (stop after 30 seconds have passed); `&&` keeps both running together and stops as soon as either one would stop — see [Intersection (AND)](#intersection-and) for how `&&` combines two schedules.
+
 ### Calendar and Cron-Like
 
 The calendar schedules trigger at specific positions within a time unit, similar to cron expressions:
