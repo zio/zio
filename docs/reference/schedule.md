@@ -157,7 +157,22 @@ Each of these controls timing in a different way:
 - **`exponential(base, factor)`** — each delay is multiplied by `factor` (default `2.0`), so it grows fast: `base`, `base×2`, `base×4`, `base×8`, … This is the classic "exponential backoff" used when retrying a failing remote call, so you back off quickly instead of hammering it.
 - **`fibonacci(one)`** — delays follow the Fibonacci sequence (each one is the sum of the two before it): `one, one, 2×one, 3×one, 5×one, …`. A middle ground between `linear`'s steady growth and `exponential`'s fast growth.
 
-The last three (`linear`, `exponential`, `fibonacci`) each output the delay itself as their `Duration` result, so you can inspect or log how long the next wait will be.
+Recall from [Usage](#usage) that a `Schedule[-Env, -In, +Out]` produces an `Out` value on every step — that third type parameter. For `spaced`, `fixed`, and `windowed`, `Out` is just a `Long` counter (how many times the schedule has fired so far), which isn't very interesting on its own. But `linear`, `exponential`, and `fibonacci` set `Out` to the actual `Duration` they just waited. In other words, the delay isn't hidden inside the schedule — it *is* the schedule's output, exactly like any other `Out` value. That means any combinator that works on a schedule's output also works here, for free — including `tapOutput` (covered later, in [Tapping Inputs and Outputs](#tapping-inputs-and-outputs)), which runs an effect on every `Out` value without changing what the schedule does. Here it's used to log each backoff delay right before it's used:
+
+```scala mdoc:compile-only
+import zio._
+
+// `tapOutput` receives each Duration the schedule produces — here, we just log it
+val loggedBackoff: Schedule[Any, Any, Duration] =
+  Schedule.exponential(100.millis).tapOutput(delay => ZIO.logInfo(s"retrying in $delay"))
+
+val result: ZIO[Any, Nothing, String] =
+  ZIO.fail(new RuntimeException("service unavailable"))
+    .retry(loggedBackoff)
+    .orElse(ZIO.succeed("gave up after all attempts"))
+```
+
+Running `result` logs `retrying in 100ms`, then `retrying in 200ms`, then `retrying in 400ms`, … right before each retry — the exact `Duration` values `exponential` is producing as its `Out`, read straight off the schedule with no separate tracking of your own.
 
 The following block shows these schedules as candidates for retry policies with progressively longer backoffs:
 
