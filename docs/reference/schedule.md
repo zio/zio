@@ -495,9 +495,37 @@ object Schedule {
 }
 ```
 
-`Schedule.identity[A]` always recurs with no delay, passing each input through as output — it is the foundation of all `recurWhile*`, `recurUntil*`, and `collectAll*` factories. `Schedule.succeed(a)` always recurs, producing the constant value `a` at each step. `Schedule.fromFunction(f)` always recurs, mapping each input through `f` to produce the output. `Schedule.unfold(a)(f)` always recurs with no delay: it starts from state `a` and applies `f` to advance the state, emitting the state as output — this is how `forever` and `count` are implemented.
+These are the raw building blocks nearly everything else in `Schedule`'s companion object is built from
+— you rarely need them directly, but knowing what they do explains where the higher-level factories come
+from and gives you an escape hatch when none of them fit:
 
-`Schedule.delayed(schedule)` is a *companion constructor* that wraps a schedule which already produces `Duration` values and adds each duration as a delay to the corresponding interval. This is distinct from the instance method `schedule.delayed(f: Duration => Duration)`, which transforms an existing delay — see [Scaling the Delay](#scaling-the-delay).
+- **`identity[A]`** — the simplest schedule there is: recurs forever with no delay, passing each input
+  straight through as output, unchanged. You'll rarely reach for it by name, but it's the foundation
+  every `recurWhile*`, `recurUntil*`, and `collectAll*` factory is built on (see
+  [Predicate and Equality Variants](#predicate-and-equality-variants) and
+  [Collecting Inputs](#collecting-inputs)) — each of them is `identity` with a stopping condition or an
+  accumulator layered on top.
+- **`succeed(a)`** — ignores whatever input it receives and always outputs the fixed value `a`. Useful
+  when a schedule's *timing* is all you care about, and you're going to discard or ignore its output
+  anyway (for example, `&&`/`<*` with another schedule just for its delay behavior).
+- **`fromFunction(f)`** — recurs forever, passing each input through the pure function `f` to produce the
+  output. Useful for reshaping what a schedule reports without writing a full custom schedule — for
+  example, turning a caught exception into its message length for a metric, instead of passing the whole
+  exception through.
+- **`unfold(a)(f)`** — the general-purpose "build your own sequence" primitive: starts at `a`, and on
+  every step calls `f` on the *previous* output to produce the next one, recurring forever with no delay.
+  `Schedule.forever` and `Schedule.count` are both just `unfold(0L)(_ + 1L)` — a running count is the
+  simplest possible unfold. Reach for it directly when you need a progression none of the built-in
+  factories produce, like the doubling sequence below.
+
+`Schedule.delayed(schedule)` is a different kind of primitive — a *companion constructor* that takes a
+schedule whose **output** is already a `Duration` and turns that output into the actual delay before the
+next step. It's how you'd wire up a fully custom backoff curve that `spaced`/`linear`/`exponential`/
+`fibonacci` don't cover — the example below reproduces `exponential`'s curve by hand from `unfold`, to
+show the shape; in practice you'd use `delayed` for a sequence those built-ins can't produce, such as a
+custom multiplier or a tiered set of delays keyed to how many attempts have been made. This is distinct
+from the instance method `schedule.delayed(f: Duration => Duration)`, which transforms an *existing*
+delay — see [Scaling the Delay](#scaling-the-delay).
 
 ```scala mdoc:compile-only
 import zio._
