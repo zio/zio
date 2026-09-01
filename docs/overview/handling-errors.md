@@ -143,7 +143,7 @@ val retryOpenFile: ZIO[Any, IOException, DefaultData) =
       .retryOrElse(Schedule.recurs(5), (_, _) => ZIO.succeed(DefaultData))
 ```
 
-For more information on how to build schedules, see the documentation on [Schedule](../reference/schedule/index.md).
+For more information on how to build schedules, see the documentation on [Schedule](../reference/schedule.md).
 
 ## Next Steps
 

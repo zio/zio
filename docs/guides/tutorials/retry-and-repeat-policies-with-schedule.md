@@ -602,9 +602,6 @@ This tutorial traced a complete path from "use a schedule" to "understand how a 
 
 With the step-function mental model in hand, the following topics are natural next steps:
 
-- **[Schedule reference](../../reference/schedule/index.md).** The reference documentation for `Schedule` covers every combinator and factory method in detail, including `windowed`, `upTo`, `resetAfter`, `whileInput`, `untilOutput`, `addDelay`, `modifyDelayZIO`, and the cron-like helpers `secondOfMinute`, `minuteOfHour`, `hourOfDay`, `dayOfWeek`, and `dayOfMonth`.
-- **[Built-in schedules](../../reference/schedule/built-in-schedules.md).** The built-in schedules reference page catalogs every factory method in the `Schedule` companion object with concise descriptions and signatures.
-- **[Retry strategies](../../reference/schedule/retrying.md).** The retrying reference page shows patterns for combining schedules with error types, including filtering which errors trigger a retry using `Schedule#whileInput`.
-- **[Repetition patterns](../../reference/schedule/repetition.md).** The repetition reference page covers `ZIO#repeatUntil`, `ZIO#repeatWhile`, and `ZIO#repeatN` for common cases where a full schedule is not needed.
+- **[Schedule reference](../../reference/schedule.md).** The complete API reference for `Schedule` — every constructor and combinator (including `windowed`, `upTo`, `resetAfter`, `whileInput`, `untilOutput`, `addDelay`, `modifyDelayZIO`, and the cron-like helpers `secondOfMinute`, `minuteOfHour`, `hourOfDay`, `dayOfWeek`, and `dayOfMonth`), the `Driver` interface, retry and repetition patterns, with full type signatures, variance notes, and behavioral descriptions.
 - **ZStream scheduling.** `ZStream.fromSchedule(schedule)` treats any schedule as a finite or infinite source of `Out` values, stepping once per emitted element. This connects scheduling to the broader stream processing API.
 - **Test scheduling.** ZIO Test's `TestClock` lets you advance simulated time instantly, eliminating real sleeping in tests that use `spaced`, `exponential`, or any other delay-based schedule. This is the standard approach for unit-testing retry and repeat logic.
