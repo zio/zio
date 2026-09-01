@@ -391,6 +391,37 @@ val awaitReady: Schedule[Any, Event, Option[Int]] =
   Schedule.recurUntil[Event, Int] { case Ready(v) => v }
 ```
 
+A realistic use is polling a CI pipeline run for its status, stopping and extracting the deploy URL as
+soon as it succeeds — while any other status, `Failed` included, simply keeps the schedule going:
+
+```scala mdoc:compile-only
+import zio._
+
+sealed trait PipelineStatus
+case object Running                            extends PipelineStatus
+final case class Succeeded(deployUrl: String)  extends PipelineStatus
+final case class Failed(reason: String)        extends PipelineStatus
+
+trait CiApi {
+  def statusOf(runId: String): Task[PipelineStatus]
+}
+
+// Poll every 5 seconds, up to 10 times, extracting the deploy URL once the run succeeds
+def awaitDeployUrl(runId: String): ZIO[CiApi, Throwable, Option[String]] =
+  ZIO
+    .serviceWithZIO[CiApi](_.statusOf(runId))
+    .repeat(
+      Schedule.recurUntil[PipelineStatus, String] { case Succeeded(url) => url } <*
+        Schedule.spaced(5.seconds) <*
+        Schedule.recurs(10)
+    )
+```
+
+`<*` behaves like `&&` — both schedules still run and still gate when recurrence stops — but keeps only
+the *left* schedule's output, so the result stays `Option[String]` instead of a nested tuple. If the run
+never reaches `Succeeded` within 10 polls, `awaitDeployUrl` completes with `None` rather than polling
+forever.
+
 ### Collecting Inputs
 
 These companion-object schedules always recur and accumulate the stream of *input* values into a `Chunk`:
