@@ -343,6 +343,29 @@ val whileBusy: Schedule[Any, String, String] =
   Schedule.recurWhileZIO[Any, String](s => ZIO.succeed(s == "busy"))
 ```
 
+The `whileBusy` predicate above is effectful only in the technical sense — it wraps a pure comparison in `ZIO.succeed`. A more realistic `recurWhileZIO` predicate does real I/O of its own, such as polling an external job runner whose status check is itself an HTTP call or a database query:
+
+```scala mdoc:compile-only
+import zio._
+
+trait ExportJobs {
+  // A genuine effectful check — an HTTP call or DB query against the job runner
+  def statusOf(jobId: String): Task[String] // "RUNNING", "SUCCEEDED", or "FAILED"
+}
+
+def awaitCompletion(jobId: String): ZIO[ExportJobs, Throwable, Unit] =
+  ZIO
+    .serviceWithZIO[ExportJobs](_.statusOf(jobId))
+    .repeat(
+      Schedule.recurWhileZIO[Any, String] { status =>
+        ZIO.logInfo(s"job $jobId still $status, checking again").as(status == "RUNNING")
+      } && Schedule.spaced(5.seconds)
+    )
+    .unit
+```
+
+Here the predicate logs on every check before deciding whether to continue, and `statusOf` performs real I/O each time `.repeat` calls it. `&& Schedule.spaced(5.seconds)` adds the delay `recurWhileZIO` doesn't provide on its own — the same pattern used in [Duration-Bounded](#duration-bounded) — so the loop polls the job runner every 5 seconds instead of hammering it.
+
 #### Partial-Function Variant
 
 `recurUntil` has a second overload that accepts a `PartialFunction` and outputs `Option[B]`:
