@@ -62,12 +62,11 @@ jobs:
         timeout-minutes: 5
 
       - name: Post Preview URL Comment
-        uses: marocchino/sticky-pull-request-comment@v3
+        uses: peter-evans/create-or-update-comment@v4
         with:
-          number: ${{ steps.pr.outputs.number }}
-          header: netlify-preview
-          message: |
-            🚀 Preview deployed to Netlify: ${{ steps.netlify-deploy.outputs.deploy-url }}
+          issue-number: ${{ steps.pr.outputs.number }}
+          body: |
+            🚀 New preview deployed to Netlify: ${{ steps.netlify-deploy.outputs.deploy-url }}
 
             🕒 Deployed at: ${{ steps.meta.outputs.time }}
             📌 Commit: [`${{ steps.meta.outputs.short_sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.event.workflow_run.head_sha }})
