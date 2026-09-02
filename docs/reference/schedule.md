@@ -1435,6 +1435,13 @@ val stopsAt3: Schedule[Any, Any, Long] =
   }
 ```
 
+In plain terms: `recurs(10)` decides what it wants to do each step, and this callback gets to see that decision before it happens and change it.
+
+- If `recurs(10)` already said `Done`, you can rename the output, but you can't bring it back to life — `Done` stays `Done` no matter what you return.
+- If `recurs(10)` said `Continue`, you get a choice: let it continue as planned, or force a stop yourself. Here, it forces a stop once the count reaches 3.
+
+So `stopsAt3` counts 0, 1, 2, then stops — same as just writing `Schedule.recurs(3)`. Nobody would actually write it this way; it's here only to show how `reconsider` works.
+
 ### Observability and Lifecycle
 
 These methods attach side effects to a schedule without altering its recurrence logic.
