@@ -788,7 +788,7 @@ lazy val docs_make_zio_app_configurable =
         `zio-json`
       )
     )
-    .dependsOn(core.jvm, streams.jvm)
+    .dependsOn(core.jvm, streams.jvm, tests.jvm)
     .enablePlugins(MdocPlugin)
 
 lazy val docs = project.module
