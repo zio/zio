@@ -599,7 +599,14 @@ trait Schedule[-Env, -In, +Out] { self =>
 }
 ```
 
-`zip` is the named alias for `&&`; `<*>` is the operator alias. `<*` is the operator alias for `zipLeft`; `*>` is the operator alias for `zipRight`. `&&` delegates to `intersectWith` with `_.intersect(_)`.
+| Operator | Named method               | Output kept                        |
+|----------|-----------------------------|-------------------------------------|
+| `&&`     | `zip`                       | Both, combined via `Zippable`      |
+| `<*>`    | operator alias for `zip`    | Both, combined via `Zippable`      |
+| `<*`     | `zipLeft`                   | Left only                          |
+| `*>`     | `zipRight`                  | Right only                         |
+
+`&&` (and therefore `zip`) delegates to `intersectWith` with `_.intersect(_)`.
 
 ```scala mdoc:compile-only
 import zio._
