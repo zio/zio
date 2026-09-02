@@ -207,7 +207,8 @@ This single file defines the domain types, the main entry point, rendering logic
 
 Create a new, empty directory for this project — these steps build up a single project incrementally, not a checkout of the ZIO repository.
 
-<details open><summary>Step 5: Set Up Scala.js with ZIO</summary>
+<details open>
+<summary>Step 5: Set Up Scala.js with ZIO</summary>
 
 This step configures sbt and creates the browser entry point for a standalone project named `todomvc`.
 
@@ -218,7 +219,8 @@ Create the `index.html` shown in "Set Up Scala.js with ZIO" above. There's nothi
 
 </details>
 
-<details><summary>Step 6: Create the Entry Point</summary>
+<details>
+<summary>Step 6: Create the Entry Point</summary>
 
 This step implements `ZIOAppDefault` for the browser and wires the state and handlers.
 
@@ -237,7 +239,8 @@ Expected output:
 
 </details>
 
-<details><summary>Step 7: Model State with Ref</summary>
+<details>
+<summary>Step 7: Model State with Ref</summary>
 
 This step implements atomic state mutations using `Ref.modify`. It's shown here for reference — these functions have no entry point of their own and aren't meant to be compiled standalone; they become part of `Main.scala` in the complete app in Step 10 below.
 
@@ -246,7 +249,8 @@ This step implements atomic state mutations using `Ref.modify`. It's shown here 
 
 </details>
 
-<details><summary>Step 8: Render UI Components</summary>
+<details>
+<summary>Step 8: Render UI Components</summary>
 
 This step implements composable rendering functions that update the DOM based on state changes. It's shown here for reference — this object has no entry point of its own and isn't meant to be compiled standalone; it becomes part of `Main.scala` in the complete app in Step 10 below.
 
@@ -255,7 +259,8 @@ This step implements composable rendering functions that update the DOM based on
 
 </details>
 
-<details><summary>Step 9: Wire Event Handlers</summary>
+<details>
+<summary>Step 9: Wire Event Handlers</summary>
 
 This step connects DOM event listeners to state mutations. It's shown here for reference — this object has no entry point of its own and isn't meant to be compiled standalone; it becomes part of `Main.scala` in the complete app in Step 10 below.
 
@@ -264,7 +269,8 @@ This step connects DOM event listeners to state mutations. It's shown here for r
 
 </details>
 
-<details><summary>Step 10: Complete TodoMVC Application</summary>
+<details>
+<summary>Step 10: Complete TodoMVC Application</summary>
 
 This is the full, integrated TodoMVC application combining all steps.
 

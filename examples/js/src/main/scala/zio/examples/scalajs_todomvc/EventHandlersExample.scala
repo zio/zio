@@ -177,10 +177,10 @@ object EventHandlersExample {
                      }
                      for {
                        // Atomically change filter
-                       newState <- stateRef.modify { state =>
-                                     val newState = state.copy(filter = filter)
-                                     (newState, newState)
-                                   }
+                       _ <- stateRef.modify { state =>
+                              val newState = state.copy(filter = filter)
+                              (newState, newState)
+                            }
                        // Re-render with new state (demonstrates the full pattern)
                        _ <- Console.printLine(s"Changed filter to: ${filter.getClass.getSimpleName}")
                      } yield ()
