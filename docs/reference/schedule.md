@@ -730,7 +730,7 @@ val exponentialElapsed: Schedule[Any, Any, Duration] =
 
 #### Input Routing
 
-These operators split or route inputs between two independent schedules:
+`&&` and `||` run two schedules over the *same* input at the same time. The operators here are different: each runs two *independent* schedules side by side, splitting a combined input between them. There are two flavors — **splitting** a pair, where both schedules always run on their own half (`***`, `first`, `second`), and **routing** an `Either`, where only one schedule runs per step, chosen by which side the input landed on (`+++`, `|||`, `left`, `right`):
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -754,7 +754,16 @@ trait Schedule[-Env, -In, +Out] { self =>
 }
 ```
 
-`***` takes a tuple input `(In, In2)` and applies `self` to the first element and `that` to the second. Both schedules must want to continue — if either emits `Done`, the combined schedule stops. When both continue, the next wakeup is the earlier of the two intervals (union on timing, unlike `&&` which uses the later of the two). `+++` routes `Left[In]` to `self` and `Right[In2]` to `that`, outputting `Either[Out, Out2]`. `|||` is `(self +++ that).map(_.merge)` — it routes `Either` inputs but merges the output to a single type `Out1`. `first` applies `self` to the first element of a pair, passing the second through unchanged. `second` applies `self` to the second element of a pair. `left` applies `self` to `Left` inputs and passes `Right` through unchanged. `right` applies `self` to `Right` inputs and passes `Left` through unchanged.
+**Splitting a pair:**
+
+- **`***`** — takes a tuple input `(In, In2)`, applies `self` to the first element and `that` to the second, and runs both at once. Both must want to continue for the pair to continue — if either emits `Done`, the combined schedule stops. The next wakeup is the *earlier* of the two intervals, unlike `&&`, which waits for the *later* of the two. Reach for it when you have two unrelated things to schedule together — for example, tracking two independent retry counters for two different resources in one combined schedule.
+- **`first`** / **`second`** — apply `self` to only one side of a pair, letting the other side pass straight through unchanged. `first` acts on the pair's first element; `second` acts on its second. Think of `first` as `self *** Schedule.identity` without the boilerplate of writing out the identity half yourself.
+
+**Routing an `Either`:**
+
+- **`+++`** — takes `Either[In, In2]`: a `Left` input runs through `self`, a `Right` input runs through `that`. Only one schedule actually runs per step, whichever side matched, and the output stays tagged as `Either[Out, Out2]` so you know which one produced it.
+- **`|||`** — the same routing as `+++`, but merges both outputs into one common type instead of keeping them tagged (it's literally defined as `(self +++ that).map(_.merge)`). Reach for `|||` when you don't need to know which schedule fired, just the resulting value — for example, giving transient failures exponential backoff and fatal failures no retries at all, then treating the result as a single `Duration` either way.
+- **`left`** / **`right`** — apply `self` to only one side of an `Either`, passing the other side straight through unchanged. `left` reacts to `Left`; `right` reacts to `Right`.
 
 ```scala mdoc:compile-only
 import zio._
@@ -767,6 +776,28 @@ val pairSchedule: Schedule[Any, (Int, String), (Long, Long)] =
 val eitherSchedule: Schedule[Any, Either[Int, String], Either[Long, Long]] =
   Schedule.recurs(5) +++ Schedule.recurs(3)
 ```
+
+A realistic use of `|||` is giving two different categories of failure two different retry policies, without the caller needing to know which category actually fired:
+
+```scala mdoc:compile-only
+import zio._
+
+final case class Transient(cause: String)
+final case class Fatal(cause: String)
+
+// Transient failures back off exponentially; fatal failures don't retry at all —
+// ||| merges both branches down to a single Duration output either way
+val routedBackoff: Schedule[Any, Either[Transient, Fatal], Duration] =
+  Schedule.exponential(100.millis) ||| Schedule.stop.as(Duration.Zero)
+
+val callService: IO[Either[Transient, Fatal], String] =
+  ZIO.fail(Left(Transient("timeout")))
+
+val result: ZIO[Any, Either[Transient, Fatal], String] =
+  callService.retry(routedBackoff)
+```
+
+`callService` only has to produce `Left(transient)` or `Right(fatal)`; `routedBackoff` handles picking the right policy, and `result`'s type never has to mention which schedule ran.
 
 ### Transforming
 
