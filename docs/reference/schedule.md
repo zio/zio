@@ -1591,6 +1591,31 @@ val manualDriving: ZIO[Any, Nothing, Unit] = for {
 } yield ()
 ```
 
+A realistic use is exactly the "external event source" case mentioned above: a callback-based subscription API — the shape you get from many real message-bus clients (Kafka, MQTT, a WebSocket wrapper) — hands you one message at a time instead of a single `ZIO` effect you could give to `.repeat`. `driver.next` lets you decide, inside each callback, whether to keep listening:
+
+```scala mdoc:compile-only
+import zio._
+
+sealed trait Message
+final case class Payload(body: String) extends Message
+
+trait MessageBus {
+  def subscribe(onMessage: Message => UIO[Unit]): UIO[Unit]
+  def unsubscribe: UIO[Unit]
+}
+
+// Auto-unsubscribe after 100 messages, deciding one message at a time via driver.next
+def consumeUpTo100(bus: MessageBus): UIO[Unit] =
+  Schedule.recurs(100).driver.flatMap { driver =>
+    bus.subscribe { msg =>
+      driver.next(msg).foldZIO(
+        _ => bus.unsubscribe,
+        _ => ZIO.unit
+      )
+    }
+  }
+```
+
 ## Nested Types
 
 `Schedule` defines five nested types that appear throughout its API: `WithState`, `Decision`, `Interval`, `Intervals`, and `Driver`.
