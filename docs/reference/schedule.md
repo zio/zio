@@ -788,7 +788,11 @@ val eitherSchedule: Schedule[Any, Either[Int, String], Either[Long, Long]] =
   Schedule.recurs(5) +++ Schedule.recurs(3)
 ```
 
-A realistic use of `|||` is giving two different categories of failure two different retry policies, without the caller needing to know which category actually fired:
+Walking through `pairSchedule` step by step: `Schedule.recurs(5)` becomes the `self` half of `***` — it looks only at the *first* element of the pair, a `PrimaryError`, and counts up to 5. `Schedule.recurs(3)` becomes the `that` half — it looks only at the *second* element, a `FallbackError`, and counts up to 3. `***` zips the two into one schedule over `(PrimaryError, FallbackError)`, producing `(Long, Long)`: the primary call's own count and the fallback write's own count, kept side by side rather than merged into one number.
+
+The part that's easy to miss: `***` requires *both* sides to still want to continue, so the pair stops the moment either one does. `Schedule.recurs(3)` runs out first — so `pairSchedule` actually stops after 3 total repeats, not 5. The primary call's own budget of 5 attempts is never fully used; it gets capped down to whatever the shorter-lived fallback schedule allows, because the combined schedule can only continue while both halves agree to.
+
+Now problem 2, solved for real with `|||`: two different categories of failure, two different retry policies, and the caller never has to know which category actually fired:
 
 ```scala mdoc:compile-only
 import zio._
