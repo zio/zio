@@ -54,20 +54,46 @@ package object test extends CompileVariants {
   object TestEnvironment {
     private val sizedLive  = Sized.live(100)(Trace.empty)
     private val configLive = TestConfig.live(100, 100, 200, 1000)(Trace.empty)
+    private val defaultTestConfig =
+      TestConfig.TestV2(100, 100, 200, 1000, ZIOAspect.identity)
 
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
       ZLayer.environment[TestEnvironment](Tracer.newTrace)
     val live: ZLayer[Clock with Console with System with Random, Nothing, TestEnvironment] = {
       implicit val trace = Tracer.newTrace
-      Annotations.live <*>
-        Live.default <*>
-        sizedLive <*>
-        ((Live.default <*> Annotations.live) >>> TestClock.default) <*>
-        configLive <*>
-        ((Live.default <*> Annotations.live) >>> TestConsole.debug) <*>
-        TestRandom.deterministic <*>
-        TestSystem.default
+      ZLayer.scopedEnvironment {
+        ZIO.environmentWithZIO[Scope with Clock with Console with System with Random] { liveEnvironment =>
+          val scope       = liveEnvironment.getScope
+          val annotations = Annotations.unsafe.make()(Unsafe)
+          val live        = Live.Test(liveEnvironment)
+          val sized       = Sized.unsafe.make(100)(Unsafe)
+          val testClock   = TestClock.unsafe.make(TestClock.DefaultData, live, annotations)(Unsafe)
+          val testConsole =
+            TestConsole.unsafe.make(TestConsole.DefaultData, true, live, annotations)(Unsafe)
+          val testRandom = TestRandom.unsafe.make(TestRandom.DefaultData)(Unsafe)
+          val testSystem = TestSystem.unsafe.make(TestSystem.DefaultData)(Unsafe)
 
+          for {
+            testServices    <- TestServices.currentServices.get
+            defaultServices <- DefaultServices.currentServices.get
+            _               <- scope.addFinalizer(TestClock.unsafe.close(testClock))
+            _ <- TestServices.currentServices.locallyScoped(
+                   testServices
+                     .add[Annotations](annotations)
+                     .add[Live](live)
+                     .add[Sized](sized)
+                     .add[TestConfig](defaultTestConfig)
+                 )
+            _ <- DefaultServices.currentServices.locallyScoped(
+                   defaultServices
+                     .add[TestClock](testClock)
+                     .add[TestConsole](testConsole)
+                     .add[TestRandom](testRandom)
+                     .add[TestSystem](testSystem)
+                 )
+          } yield ZEnvironment[Annotations, Live, Sized, TestConfig](annotations, live, sized, defaultTestConfig)
+        }
+      }
     }
   }
 
