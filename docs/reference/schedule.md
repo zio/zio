@@ -547,6 +547,14 @@ val delayedPowers: Schedule[Any, Any, Duration] =
   Schedule.delayed(Schedule.unfold(1)(_ * 2).map(n => (n * 100).millis))
 ```
 
+`delayedPowers` is the densest line in that block, so it's worth walking through step by step:
+
+1. `Schedule.unfold(1)(_ * 2)` builds the sequence 1, 2, 4, 8, 16, … — doubling the previous output every step, with no delay of its own.
+2. `.map(n => (n * 100).millis)` turns each of those numbers into a `Duration`: 100ms, 200ms, 400ms, 800ms, …
+3. `Schedule.delayed(...)` takes that schedule of `Duration`s and, instead of just reporting them as `Out`, uses each one as the actual sleep before the *next* step.
+
+Put together, `delayedPowers` behaves exactly like `Schedule.exponential(100.millis)` — which is the point: this is the by-hand version of an exponential backoff, built entirely from primitives, so you can see how `delayed` turns "a schedule that outputs durations" into "a schedule that sleeps for those durations." Swap the doubling function in step 1 for any other progression and you get a custom backoff curve none of the built-in factories produce.
+
 ## Core Operations
 
 Instance methods on `Schedule` transform, filter, combine, and observe schedules. All are `final` and return a `WithState[..., ...]` with the concrete state type visible.
