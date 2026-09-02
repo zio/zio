@@ -502,27 +502,29 @@ These are the raw building blocks nearly everything else in `Schedule`'s compani
   val lastReading: ZIO[Any, Throwable, Double] =
     readSensor.repeat(Schedule.identity[Double] <* Schedule.recurs(4))
   ```
-- **`succeed(a)`** — ignores whatever input it receives and always outputs the fixed value `a`. Useful
-  when a schedule's *timing* is all you care about, and you're going to discard or ignore its output
-  anyway (for example, `&&`/`<*` with another schedule just for its delay behavior).
-- **`fromFunction(f)`** — recurs forever, passing each input through the pure function `f` to produce the
-  output. Useful for reshaping what a schedule reports without writing a full custom schedule — for
-  example, turning a caught exception into its message length for a metric, instead of passing the whole
-  exception through.
-- **`unfold(a)(f)`** — the general-purpose "build your own sequence" primitive: starts at `a`, and on
-  every step calls `f` on the *previous* output to produce the next one, recurring forever with no delay.
-  `Schedule.forever` and `Schedule.count` are both just `unfold(0L)(_ + 1L)` — a running count is the
-  simplest possible unfold. Reach for it directly when you need a progression none of the built-in
-  factories produce, like the doubling sequence below.
+- **`succeed(a)`** — ignores whatever input it receives and always outputs the fixed value `a`. Useful when a schedule's *timing* is all you care about, and you're going to discard or ignore its output anyway (for example, `&&`/`<*` with another schedule just for its delay behavior).
+- **`fromFunction(f)`** — recurs forever, passing each input through the pure function `f` to produce the output. Useful for reshaping what a schedule reports without writing a full custom schedule — for example, turning a caught exception into just its message length so a metric or log line downstream never has to deal with the whole exception object:
 
-`Schedule.delayed(schedule)` is a different kind of primitive — a *companion constructor* that takes a
-schedule whose **output** is already a `Duration` and turns that output into the actual delay before the
-next step. It's how you'd wire up a fully custom backoff curve that `spaced`/`linear`/`exponential`/
-`fibonacci` don't cover — the example below reproduces `exponential`'s curve by hand from `unfold`, to
-show the shape; in practice you'd use `delayed` for a sequence those built-ins can't produce, such as a
-custom multiplier or a tiered set of delays keyed to how many attempts have been made. This is distinct
-from the instance method `schedule.delayed(f: Duration => Duration)`, which transforms an *existing*
-delay — see [Scaling the Delay](#scaling-the-delay).
+  ```scala mdoc:compile-only
+  import zio._
+
+  // Reshape each retry error into just its message length before anything downstream sees it
+  val errorLengthMetric: Schedule[Any, Throwable, Int] =
+    Schedule.fromFunction[Throwable, Int](_.getMessage.length).tapOutput { len =>
+      ZIO.logInfo(s"retrying after a $len-character error message")
+    }
+
+  val fetchUser: Task[String] =
+    ZIO.fail(new RuntimeException("connection reset by peer"))
+
+  val result: ZIO[Any, Throwable, String] =
+    fetchUser.retry(errorLengthMetric && Schedule.recurs(3))
+  ```
+
+  `tapOutput`'s callback only ever sees an `Int`, never the original `Throwable` — `fromFunction` already did the reshaping before `tapOutput` runs, so the logging code doesn't need to know how to unwrap an exception at all.
+- **`unfold(a)(f)`** — the general-purpose "build your own sequence" primitive: starts at `a`, and on every step calls `f` on the *previous* output to produce the next one, recurring forever with no delay. `Schedule.forever` and `Schedule.count` are both just `unfold(0L)(_ + 1L)` — a running count is the simplest possible unfold. Reach for it directly when you need a progression none of the built-in factories produce, like the doubling sequence below.
+
+`Schedule.delayed(schedule)` is a different kind of primitive — a *companion constructor* that takes a schedule whose **output** is already a `Duration` and turns that output into the actual delay before the next step. It's how you'd wire up a fully custom backoff curve that `spaced`/`linear`/`exponential`/`fibonacci` don't cover — the example below reproduces `exponential`'s curve by hand from `unfold`, to show the shape; in practice you'd use `delayed` for a sequence those built-ins can't produce, such as a custom multiplier or a tiered set of delays keyed to how many attempts have been made. This is distinct from the instance method `schedule.delayed(f: Duration => Duration)`, which transforms an *existing* delay — see [Scaling the Delay](#scaling-the-delay).
 
 ```scala mdoc:compile-only
 import zio._
