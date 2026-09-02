@@ -730,7 +730,12 @@ val exponentialElapsed: Schedule[Any, Any, Duration] =
 
 #### Input Routing
 
-`&&` and `||` run two schedules over the *same* input at the same time. The operators here are different: each runs two *independent* schedules side by side, splitting a combined input between them. There are two flavors — **splitting** a pair, where both schedules always run on their own half (`***`, `first`, `second`), and **routing** an `Either`, where only one schedule runs per step, chosen by which side the input landed on (`+++`, `|||`, `left`, `right`):
+Two problems `&&` and `||` can't solve, because both of them always run *the same input* through both schedules:
+
+1. **Two independent things, one combined schedule.** Say you're retrying a primary API call and writing to a fallback cache at the same time, and each deserves its own retry policy — but you want to track them as a single combined schedule instead of juggling two separate `Schedule` values by hand.
+2. **One input, two different kinds of situation.** Say a failure can be one of two very different things — a transient network hiccup or a fatal validation error — and each needs a completely different response: back off and retry the transient one, but stop immediately on the fatal one. There's no way to express "run schedule A *or* schedule B, depending on which kind of thing showed up" with `&&`/`||` alone, since they never choose between schedules — they always run both.
+
+The operators below solve exactly these two problems: splitting a paired input so each half gets its own schedule (`***`, `first`, `second`), or routing an `Either` input to whichever one of two schedules matches it (`+++`, `|||`, `left`, `right`):
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -754,22 +759,28 @@ trait Schedule[-Env, -In, +Out] { self =>
 }
 ```
 
-**Splitting a pair:**
+**Splitting a pair — solves problem 1:**
 
-- **`***`** — takes a tuple input `(In, In2)`, applies `self` to the first element and `that` to the second, and runs both at once. Both must want to continue for the pair to continue — if either emits `Done`, the combined schedule stops. The next wakeup is the *earlier* of the two intervals, unlike `&&`, which waits for the *later* of the two. Reach for it when you have two unrelated things to schedule together — for example, tracking two independent retry counters for two different resources in one combined schedule.
+- **`***`** — takes a tuple input `(In, In2)`, applies `self` to the first element and `that` to the second, and runs both at once. Both must want to continue for the pair to continue — if either emits `Done`, the combined schedule stops. The next wakeup is the *earlier* of the two intervals, unlike `&&`, which waits for the *later* of the two.
 - **`first`** / **`second`** — apply `self` to only one side of a pair, letting the other side pass straight through unchanged. `first` acts on the pair's first element; `second` acts on its second. Think of `first` as `self *** Schedule.identity` without the boilerplate of writing out the identity half yourself.
 
-**Routing an `Either`:**
+**Routing an `Either` — solves problem 2:**
 
 - **`+++`** — takes `Either[In, In2]`: a `Left` input runs through `self`, a `Right` input runs through `that`. Only one schedule actually runs per step, whichever side matched, and the output stays tagged as `Either[Out, Out2]` so you know which one produced it.
-- **`|||`** — the same routing as `+++`, but merges both outputs into one common type instead of keeping them tagged (it's literally defined as `(self +++ that).map(_.merge)`). Reach for `|||` when you don't need to know which schedule fired, just the resulting value — for example, giving transient failures exponential backoff and fatal failures no retries at all, then treating the result as a single `Duration` either way.
+- **`|||`** — the same routing as `+++`, but merges both outputs into one common type instead of keeping them tagged (it's literally defined as `(self +++ that).map(_.merge)`). Reach for `|||` when you don't need to know which schedule fired, just the resulting value.
 - **`left`** / **`right`** — apply `self` to only one side of an `Either`, passing the other side straight through unchanged. `left` reacts to `Left`; `right` reacts to `Right`.
+
+**Usage examples.** First, the shape of `***` and `+++` — combining two counters into one pair-shaped schedule, and routing two different `Either` sides to two different counters:
 
 ```scala mdoc:compile-only
 import zio._
 
-// Apply different recurrence counts to a pair of inputs simultaneously
-val pairSchedule: Schedule[Any, (Int, String), (Long, Long)] =
+final case class PrimaryError(msg: String)
+final case class FallbackError(msg: String)
+
+// Retry a primary call up to 5 times and a fallback write up to 3 times,
+// tracked together as one schedule over the pair of their inputs
+val pairSchedule: Schedule[Any, (PrimaryError, FallbackError), (Long, Long)] =
   Schedule.recurs(5) *** Schedule.recurs(3)
 
 // Route Either inputs to the appropriate schedule
