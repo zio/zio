@@ -9,6 +9,7 @@ permissions:
   actions: read
   contents: read
   deployments: write
+  issues: write
   pull-requests: write
   statuses: write
 
@@ -61,13 +62,37 @@ jobs:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         timeout-minutes: 5
 
-      - name: Post Preview URL Comment
-        uses: marocchino/sticky-pull-request-comment@v3
+      - name: Mark previous preview comments as outdated
+        uses: actions/github-script@v7
         with:
-          number: ${{ steps.pr.outputs.number }}
-          header: netlify-preview
-          message: |
-            🚀 Preview deployed to Netlify: ${{ steps.netlify-deploy.outputs.deploy-url }}
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ steps.pr.outputs.number }},
+              per_page: 100,
+            });
+            const stale = comments.filter(
+              (c) => c.user.type === 'Bot' && c.body.includes('<!-- netlify-preview-comment -->')
+            );
+            for (const comment of stale) {
+              await github.graphql(
+                `mutation($id: ID!) {
+                  minimizeComment(input: { subjectId: $id, classifier: OUTDATED }) {
+                    minimizedComment { isMinimized }
+                  }
+                }`,
+                { id: comment.node_id }
+              );
+            }
+
+      - name: Post Preview URL Comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ steps.pr.outputs.number }}
+          body: |
+            <!-- netlify-preview-comment -->
+            🚀 New preview deployed to Netlify: ${{ steps.netlify-deploy.outputs.deploy-url }}
 
             🕒 Deployed at: ${{ steps.meta.outputs.time }}
             📌 Commit: [`${{ steps.meta.outputs.short_sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.event.workflow_run.head_sha }})
