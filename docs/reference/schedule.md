@@ -260,20 +260,15 @@ object Schedule {
 }
 ```
 
-Each one picks a fixed position inside a repeating unit of time, and fires every time the clock reaches
-that position:
+Each one picks a fixed position inside a repeating unit of time, and fires every time the clock reaches that position:
 
-- **`secondOfMinute(s)`** — fires at second `s` (0–59) of every minute. `secondOfMinute(30)` fires at
-  `12:00:30`, `12:01:30`, `12:02:30`, and so on.
-- **`minuteOfHour(m)`** — fires at minute `m` (0–59) of every hour. `minuteOfHour(0)` fires once at the
-  top of every hour.
+- **`secondOfMinute(s)`** — fires at second `s` (0–59) of every minute. `secondOfMinute(30)` fires at `12:00:30`, `12:01:30`, `12:02:30`, and so on.
+- **`minuteOfHour(m)`** — fires at minute `m` (0–59) of every hour. `minuteOfHour(0)` fires once at the top of every hour.
 - **`hourOfDay(h)`** — fires at hour `h` (0–23) of every day. `hourOfDay(9)` fires once at 09:00 each day.
 - **`dayOfWeek(d)`** — fires at midnight on ISO-8601 weekday `d` (1 = Monday, …, 7 = Sunday). `dayOfWeek(2)` fires at midnight every Tuesday.
-- **`dayOfMonth(d)`** — fires at midnight on day `d` (1–31) of every month, skipping any month that
-  doesn't have that day (e.g. day `31` is simply skipped in February).
+- **`dayOfMonth(d)`** — fires at midnight on day `d` (1–31) of every month, skipping any month that doesn't have that day (e.g. day `31` is simply skipped in February).
 
-Each one outputs how many times it has fired so far, as a `Long` starting at `0` — the same shape as
-`Schedule.forever`, just triggered on a calendar position instead of a fixed cadence.
+Each one outputs how many times it has fired so far, as a `Long` starting at `0` — the same shape as `Schedule.forever`, just triggered on a calendar position instead of a fixed cadence.
 
 ```scala mdoc:compile-only
 import zio._
@@ -391,8 +386,7 @@ val awaitReady: Schedule[Any, Event, Option[Int]] =
   Schedule.recurUntil[Event, Int] { case Ready(v) => v }
 ```
 
-A realistic use is polling a CI pipeline run for its status, stopping and extracting the deploy URL as
-soon as it succeeds — while any other status, `Failed` included, simply keeps the schedule going:
+A realistic use is polling a CI pipeline run for its status, stopping and extracting the deploy URL as soon as it succeeds — while any other status, `Failed` included, simply keeps the schedule going:
 
 ```scala mdoc:compile-only
 import zio._
@@ -417,10 +411,7 @@ def awaitDeployUrl(runId: String): ZIO[CiApi, Throwable, Option[String]] =
     )
 ```
 
-`<*` behaves like `&&` — both schedules still run and still gate when recurrence stops — but keeps only
-the *left* schedule's output, so the result stays `Option[String]` instead of a nested tuple. If the run
-never reaches `Succeeded` within 10 polls, `awaitDeployUrl` completes with `None` rather than polling
-forever.
+`<*` behaves like `&&` — both schedules still run and still gate when recurrence stops — but keeps only the *left* schedule's output, so the result stays `Option[String]` instead of a nested tuple. If the run never reaches `Succeeded` within 10 polls, `awaitDeployUrl` completes with `None` rather than polling forever.
 
 ### Collecting Inputs
 
@@ -445,8 +436,7 @@ object Schedule {
 }
 ```
 
-These companion constructors collect *inputs* — for collecting the *outputs* of an existing schedule,
-see `Schedule#collectAll` in [Collecting Outputs](#collecting-outputs).
+These companion constructors collect *inputs* — for collecting the *outputs* of an existing schedule, see `Schedule#collectAll` in [Collecting Outputs](#collecting-outputs).
 
 Like [`Schedule.identity`](#primitives-and-building-blocks) that they're built on, none of them add a delay of their own — pair them with `&&`/`<*` and a timing schedule (`spaced`, `recurs`, `upTo`, …) the same way [Duration-Bounded](#duration-bounded) pairs `upTo` with `spaced`, or they'll accumulate as fast as the input arrives:
 
@@ -495,19 +485,9 @@ object Schedule {
 }
 ```
 
-These are the raw building blocks nearly everything else in `Schedule`'s companion object is built from
-— you rarely need them directly, but knowing what they do explains where the higher-level factories come
-from and gives you an escape hatch when none of them fit:
+These are the raw building blocks nearly everything else in `Schedule`'s companion object is built from — you rarely need them directly, but knowing what they do explains where the higher-level factories come from and gives you an escape hatch when none of them fit:
 
-- **`identity[A]`** — the simplest schedule there is: recurs forever with no delay, passing each input
-  straight through as output, unchanged. It's the foundation every `recurWhile*`, `recurUntil*`, and
-  `collectAll*` factory is built on (see [Predicate and Equality Variants](#predicate-and-equality-variants)
-  and [Collecting Inputs](#collecting-inputs)) — each of them is `identity` with a stopping condition or
-  an accumulator layered on top. It's also directly useful on its own, any time you want `.repeat`'s
-  *result* to be the effect's last value rather than a repeat count. `Schedule.recurs(n)`'s `Out` is a
-  `Long` — the number of repeats — so `.repeat(Schedule.recurs(n))` discards whatever the effect actually
-  produced and gives you back that count instead. Pairing it with `identity` via `<*` keeps `recurs`'s
-  stopping condition but swaps its `Long` output for the input passed through unchanged:
+- **`identity[A]`** — the simplest schedule there is: recurs forever with no delay, passing each input straight through as output, unchanged. It's the foundation every `recurWhile*`, `recurUntil*`, and `collectAll*` factory is built on (see [Predicate and Equality Variants](#predicate-and-equality-variants) and [Collecting Inputs](#collecting-inputs)) — each of them is `identity` with a stopping condition or an accumulator layered on top. It's also directly useful on its own, any time you want `.repeat`'s *result* to be the effect's last value rather than a repeat count. `Schedule.recurs(n)`'s `Out` is a `Long` — the number of repeats — so `.repeat(Schedule.recurs(n))` discards whatever the effect actually produced and gives you back that count instead. Pairing it with `identity` via `<*` keeps `recurs`'s stopping condition but swaps its `Long` output for the input passed through unchanged:
 
   ```scala mdoc:compile-only
   import zio._
