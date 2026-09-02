@@ -730,7 +730,7 @@ val exponentialElapsed: Schedule[Any, Any, Duration] =
 
 #### Input Routing
 
-Two problems `&&` and `||` can't solve, because both of them always run *the same input* through both schedules:
+`&&` and `||` always feed *the same* input into both schedules — they're for when two rules are two different opinions about one shared fact. The operators here solve a different pair of problems, where the two schedules don't share a fact at all:
 
 1. **Two independent things, one combined schedule.** Say you're retrying a primary API call and writing to a fallback cache at the same time, and each deserves its own retry policy — but you want to track them as a single combined schedule instead of juggling two separate `Schedule` values by hand.
 2. **One input, two different kinds of situation.** Say a failure can be one of two very different things — a transient network hiccup or a fatal validation error — and each needs a completely different response: back off and retry the transient one, but stop immediately on the fatal one. There's no way to express "run schedule A *or* schedule B, depending on which kind of thing showed up" with `&&`/`||` alone, since they never choose between schedules — they always run both.
@@ -761,7 +761,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 
 **Splitting a pair — solves problem 1:**
 
-- **`***`** — takes a tuple input `(In, In2)`, applies `self` to the first element and `that` to the second, and runs both at once. Both must want to continue for the pair to continue — if either emits `Done`, the combined schedule stops. The next wakeup is the *earlier* of the two intervals, unlike `&&`, which waits for the *later* of the two.
+- **`***`** — takes a tuple input `(In, In2)`, applies `self` to the first element and `that` to the second, and runs both at once. Both must want to continue for the pair to continue — if either emits `Done`, the combined schedule stops. Timing works differently from `&&` too: the next wakeup is the *earlier* of the two intervals (a union), not the *later* (an intersection, like `&&` uses). That follows from what each operator represents: `&&` is synchronizing two opinions about the *same* fact, so it waits for the slower opinion before re-checking either; `***` runs two *independent* facts side by side, so it moves at the pace of whichever one is faster instead of holding one back for the other.
 - **`first`** / **`second`** — apply `self` to only one side of a pair, letting the other side pass straight through unchanged. `first` acts on the pair's first element; `second` acts on its second. Think of `first` as `self *** Schedule.identity` without the boilerplate of writing out the identity half yourself.
 
 **Routing an `Either` — solves problem 2:**
@@ -791,6 +791,48 @@ val eitherSchedule: Schedule[Any, Either[Int, String], Either[Long, Long]] =
 Walking through `pairSchedule` step by step: `Schedule.recurs(5)` becomes the `self` half of `***` — it looks only at the *first* element of the pair, a `PrimaryError`, and counts up to 5. `Schedule.recurs(3)` becomes the `that` half — it looks only at the *second* element, a `FallbackError`, and counts up to 3. `***` zips the two into one schedule over `(PrimaryError, FallbackError)`, producing `(Long, Long)`: the primary call's own count and the fallback write's own count, kept side by side rather than merged into one number.
 
 The part that's easy to miss: `***` requires *both* sides to still want to continue, so the pair stops the moment either one does. `Schedule.recurs(3)` runs out first — so `pairSchedule` actually stops after 3 total repeats, not 5. The primary call's own budget of 5 attempts is never fully used; it gets capped down to whatever the shorter-lived fallback schedule allows, because the combined schedule can only continue while both halves agree to.
+
+Here's `***` used for what it's actually for — not retrying a single failure, but polling two independent real things until each is ready, or has been checked enough times, whichever comes first:
+
+```scala mdoc:compile-only
+import zio._
+
+sealed trait PodStatus
+case object Pending extends PodStatus
+case object Ready extends PodStatus
+
+// A real service interface: a Kubernetes-style client reporting pod status
+trait KubeClient {
+  def statusOf(pod: String): Task[PodStatus]
+}
+
+// Keep polling pod A while it's still Pending; give pod B at most 3 polls regardless of status
+val podASchedule: Schedule[Any, PodStatus, PodStatus] = Schedule.recurWhile[PodStatus](_ == Pending)
+val podBSchedule: Schedule[Any, PodStatus, Long]      = Schedule.recurs(3)
+
+// *** ties the two independent polling schedules together: stop the moment either one would
+val bothPodsSchedule: Schedule[Any, (PodStatus, PodStatus), (PodStatus, Long)] =
+  podASchedule *** podBSchedule
+
+def awaitBothPods(podA: String, podB: String): ZIO[KubeClient, Throwable, (PodStatus, Long)] =
+  ZIO.serviceWithZIO[KubeClient] { client =>
+    (client.statusOf(podA) zip client.statusOf(podB))
+      .tap { case (a, b) => Console.printLine(s"poll: podA=$a podB=$b") }
+      .repeat(bothPodsSchedule)
+  }
+```
+
+`podASchedule` keeps polling while pod A is still `Pending`; `podBSchedule` caps the whole poll at 3 tries no matter what pod B reports. `***` combines them: the combined poll stops the instant *either* pod A becomes `Ready` or the 3-poll cap is hit — whichever happens first, exactly the "stop the moment either side does" rule from the bullets above, now doing real work instead of just enforcing a count.
+
+If pod A happens to turn `Ready` on the 3rd poll, this prints:
+
+```
+poll: podA=Pending podB=Pending
+poll: podA=Pending podB=Pending
+poll: podA=Ready podB=Pending
+```
+
+and `awaitBothPods` returns `(Ready, 2)` — `Schedule.recurs`'s own counting is zero-based, so its 3rd continue reports `2`. Notice pod B's own budget of 3 hadn't actually run out yet; it was pod A becoming ready that ended the poll. That's `***` working as intended: wait for pod A, but never wait forever, because pod B's cap is always watching too.
 
 Now problem 2, solved for real with `|||`: two different categories of failure, two different retry policies, and the caller never has to know which category actually fired:
 
