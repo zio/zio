@@ -80,6 +80,46 @@ object ZIOAppSpec extends ZIOBaseSpec {
         _     <- app.invoke(Chunk.empty)
         value <- ref2.get
       } yield assertTrue(value)
+    },
+    test("multiple finalizers all execute on interruption") {
+      for {
+        running <- Promise.make[Nothing, Unit]
+        ref     <- Ref.make(List.empty[String])
+        app = ZIOAppDefault.fromZIO {
+                ZIO.scoped {
+                  for {
+                    _ <- ZIO.addFinalizer(ref.update("finalizer1" :: _))
+                    _ <- ZIO.addFinalizer(ref.update("finalizer2" :: _))
+                    _ <- running.succeed(()) *> ZIO.never
+                  } yield ()
+                }
+              }
+        fiber      <- app.invoke(Chunk.empty).fork
+        _          <- running.await
+        _          <- fiber.interrupt
+        finalizers <- ref.get
+      } yield assertTrue(finalizers.contains("finalizer1")) &&
+        assertTrue(finalizers.contains("finalizer2"))
+    },
+    test("finalizers run in LIFO order on interruption") {
+      for {
+        running <- Promise.make[Nothing, Unit]
+        ref     <- Ref.make(List.empty[Int])
+        app = ZIOAppDefault.fromZIO {
+                ZIO.scoped {
+                  for {
+                    _ <- ZIO.addFinalizer(ref.update(1 :: _))
+                    _ <- ZIO.addFinalizer(ref.update(2 :: _))
+                    _ <- ZIO.addFinalizer(ref.update(3 :: _))
+                    _ <- running.succeed(()) *> ZIO.never
+                  } yield ()
+                }
+              }
+        fiber <- app.invoke(Chunk.empty).fork
+        _     <- running.await
+        _     <- fiber.interrupt
+        order <- ref.get
+      } yield assertTrue(order == List(1, 2, 3))
     }
   )
 }
