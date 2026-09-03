@@ -317,6 +317,74 @@ object SemaphoreSpec extends ZIOBaseSpec {
         quiescent <- sem.available.repeatUntil(_ == 2L)
       } yield assertTrue(queued == 0L, taken.isEmpty, quiescent == 2L)
     } @@ timeout(10.seconds),
+    test("releasing a permit inline does not change the releasing fiber's identity") {
+      // A contended release resumes the granted waiter on the releasing
+      // fiber's own thread. That runs the waiter's run loop inside this
+      // fiber's stack, so the `currentFiber` thread-local has to be restored
+      // afterwards; if it is not, this fiber's `FiberRef.asThreadLocal`
+      // accesses would silently read and write the woken fiber's state.
+      // The check has to run inside the releasing fiber in the step right
+      // after the release, since the thread-local is re-established for a
+      // fiber whenever its own drain resumes it.
+      val test = for {
+        sem      <- Semaphore.make(1L)
+        latch    <- Promise.make[Nothing, Unit]
+        held     <- Promise.make[Nothing, Unit]
+        reported <- Promise.make[Nothing, (Option[FiberId], FiberId)]
+        holder <- (for {
+                    self <- ZIO.descriptor.map(_.id)
+                    _    <- sem.withPermit(held.succeed(()) *> latch.await)
+                    seen <- ZIO.succeed(Unsafe.unsafe(implicit unsafe => Fiber.currentFiber().map(_.id)))
+                    _    <- reported.succeed((seen, self))
+                  } yield ()).fork
+        _ <- held.await
+        // Queued behind the holder, so releasing the permit must wake it.
+        waiter <- sem.withPermit(ZIO.unit).fork
+        _      <- sem.awaiting.repeatUntil(_ == 1)
+        _      <- latch.succeed(())
+        _      <- holder.join
+        _      <- waiter.join
+        result <- reported.await
+      } yield assertTrue(result._1.forall(_ == result._2))
+
+      test.provideLayer(Runtime.enableCurrentFiber)
+    } @@ timeout(10.seconds),
+    test("releasing a permit inline preserves identity when the woken fiber changes its flags") {
+      // The inline resume saves and restores `currentFiber` unconditionally,
+      // rather than reading the woken fiber's `CurrentFiber` flag to decide.
+      // Those are two different fibers' flags, and the woken one may change
+      // its own while it runs here: `patchRuntimeFlagsOnly` points the
+      // thread-local at the fiber that enables the flag, so a gated restore
+      // would be deciding on a flag that no longer describes what it is
+      // restoring. Here the woken fiber toggles the flag inside the guarded
+      // body while the releasing fiber holds it enabled throughout.
+      val test = for {
+        sem      <- Semaphore.make(1L)
+        held     <- Promise.make[Nothing, Unit]
+        latch    <- Promise.make[Nothing, Unit]
+        reported <- Promise.make[Nothing, (Option[FiberId], FiberId)]
+        holder <- (for {
+                    self <- ZIO.descriptor.map(_.id)
+                    _    <- sem.withPermit(held.succeed(()) *> latch.await)
+                    seen <- ZIO.succeed(Unsafe.unsafe(implicit unsafe => Fiber.currentFiber().map(_.id)))
+                    _    <- reported.succeed((seen, self))
+                  } yield ()).fork
+        _ <- held.await
+        waiter <- sem
+                    .withPermit(
+                      ZIO.unit.withRuntimeFlags(RuntimeFlags.disable(RuntimeFlag.CurrentFiber)) *>
+                        ZIO.unit.withRuntimeFlags(RuntimeFlags.enable(RuntimeFlag.CurrentFiber))
+                    )
+                    .fork
+        _      <- sem.awaiting.repeatUntil(_ == 1)
+        _      <- latch.succeed(())
+        _      <- holder.join
+        _      <- waiter.join
+        result <- reported.await
+      } yield assertTrue(result._1.forall(_ == result._2))
+
+      test.provideLayer(Runtime.enableCurrentFiber)
+    } @@ timeout(10.seconds),
     suite("unfair")(
       test("available reports the free permits even while a fiber is waiting") {
         for {
