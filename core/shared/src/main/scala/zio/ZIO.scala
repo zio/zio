@@ -6238,6 +6238,51 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   ) extends Continuation
       with ZIO[R, E, A]
 
+  /**
+   * The frame [[OnExitEffect]] and [[AcquireReleaseInline]] leave on the stack:
+   * run `finalizer` as the stack unwinds past it, on every exit path, then
+   * carry on unwinding with the value or cause unchanged.
+   *
+   * This is a continuation only, never an effect to evaluate, which is why it
+   * carries no inner effect the way [[OnExitEffect]] does.
+   */
+  private[zio] final case class RunFinalizer(trace: Trace, finalizer: () => Unit) extends Continuation
+
+  /**
+   * Attempts `acquire`; on success runs `onAcquired` with `release` installed
+   * to run as the stack unwinds past it, and on failure runs `onUnavailable`.
+   *
+   * The point of this node is what it does *not* need. Guarding a body with a
+   * resource normally has to hold the acquisition and the installation of its
+   * release in one uninterruptible region, because an interrupt landing between
+   * them leaks the resource; that costs a pair of [[UpdateRuntimeFlagsWithin]]
+   * nodes to disable interruption and restore it, which `Semaphore.withPermits`
+   * measured at about 48ns per acquisition, against 90ns for everything
+   * guarding costs there.
+   *
+   * The run loop polls for interrupts once per dispatch, at the top of its
+   * loop, before the effect is matched. So an acquisition and a stack push
+   * performed inside a single `case` cannot be separated by an interrupt at
+   * all, and need no flag changes to protect them. An interrupt that arrives
+   * before this node is dispatched replaces it with a failure and `acquire`
+   * never runs; one that arrives after is handled by the installed release,
+   * exactly as for any other frame.
+   *
+   * `acquire` and `release` therefore run on the fiber's own thread inside the
+   * run loop: both must be cheap, non-suspending and non-throwing.
+   * `onUnavailable` is a full effect and carries no such restriction, which is
+   * where a caller puts the path that has to queue and wait.
+   */
+  private[zio] final case class AcquireReleaseInline[R, E, A](
+    trace: Trace,
+    acquire: () => Boolean,
+    onAcquired: ZIO[R, E, A],
+    release: () => Unit,
+    // A thunk rather than an effect: the unavailable path is typically a whole
+    // subtree, and on the path this node exists to make cheap it is never used.
+    onUnavailable: () => ZIO[R, E, A]
+  ) extends ZIO[R, E, A]
+
   private[zio] sealed trait UpdateRuntimeFlagsWithin[R, E, A] extends ZIO[R, E, A] {
     def update: RuntimeFlags.Patch
     def scope(oldRuntimeFlags: RuntimeFlags): ZIO[R, E, A]

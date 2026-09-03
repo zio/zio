@@ -1141,8 +1141,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
 
-                  case onExit: ZIO.OnExitEffect[Any, Any, Any] =>
-                    onExit.finalizer()
+                  case fin: ZIO.RunFinalizer =>
+                    fin.finalizer()
 
                   case update =>
                     val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
@@ -1182,8 +1182,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
 
-                  case onExit: ZIO.OnExitEffect[Any, Any, Any] =>
-                    onExit.finalizer()
+                  case fin: ZIO.RunFinalizer =>
+                    fin.finalizer()
 
                   case update =>
                     val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
@@ -1334,8 +1334,8 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   // Must come before the catch-all: a release action has to run
                   // when the body fails or is interrupted, not only when it
                   // succeeds, or the permits are lost.
-                  case onExit: ZIO.OnExitEffect[Any, Any, Any] =>
-                    onExit.finalizer()
+                  case fin: ZIO.RunFinalizer =>
+                    fin.finalizer()
 
                   case _ => ()
                 }
@@ -1353,10 +1353,27 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
               cur = patchRuntimeFlags(updateRuntimeFlags.update, null, Exit.unit)
 
             case onExit: ZIO.OnExitEffect[Any, Any, Any] =>
-              updateLastTrace(onExit.trace)
+              val trace = onExit.trace
+              updateLastTrace(trace)
 
-              stackIndex = pushStackFrame(onExit, stackIndex)
+              stackIndex = pushStackFrame(ZIO.RunFinalizer(trace, onExit.finalizer), stackIndex)
               cur = onExit.first
+
+            case ar: ZIO.AcquireReleaseInline[Any, Any, Any] =>
+              val trace = ar.trace
+              updateLastTrace(trace)
+
+              // The acquisition and the installation of its release happen here,
+              // in one dispatch, with no interrupt poll between them: the loop
+              // polls once per iteration, above, before this match. That is what
+              // lets this node do without the uninterruptible region such a pair
+              // would otherwise need, and it is the whole point of the node.
+              if (ar.acquire()) {
+                stackIndex = pushStackFrame(ZIO.RunFinalizer(trace, ar.release), stackIndex)
+                cur = ar.onAcquired
+              } else {
+                cur = ar.onUnavailable()
+              }
 
             case effect =>
               throw new MatchError(effect)

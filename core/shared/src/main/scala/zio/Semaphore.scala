@@ -154,19 +154,28 @@ object Semaphore {
       if (n < 0L) die(n)
       else if (n == 0L) zio
       else
-        ZIO.uninterruptibleMask { restore =>
-          // The release is installed as an `OnExitEffect` continuation rather
-          // than an `exitWith`. Both run the release on every exit path, but
-          // `exitWith` compiles to a `FoldCauseZIO` frame and allocates an
-          // `Exit` on the success path in order to hand the exit to a closure
-          // that never reads it. This pushes a frame and calls a function.
-          // Measured at about 15ns per acquisition on the uncontended path,
-          // against a total guarding cost there of about 90ns.
-          val body = ZIO.OnExitEffect(trace, restore(zio), () => state.release(n))
+        ZIO.AcquireReleaseInline(
+          trace,
+          () => state.tryAcquire(n),
+          zio,
+          () => state.release(n),
+          // Only the queueing path needs the uninterruptible region. The fast
+          // path takes its permits and installs their release inside a single
+          // dispatch of the run loop, which cannot be interrupted partway, so it
+          // pays for no flag changes at all. Queueing has to suspend, and a
+          // suspension is interruptible by construction, so the waiter has to be
+          // enqueued and awaited under a mask that `enqueueAndAwait` restores
+          // around the suspension itself.
+          //
+          // By name: on the path this exists to make cheap, it is never built.
+          () =>
+            ZIO.uninterruptibleMask { restore =>
+              val body = ZIO.OnExitEffect(trace, restore(zio), () => state.release(n))
 
-          if (state.tryAcquire(n)) body
-          else enqueueAndAwait(n, restore).flatMap(_ => body)
-        }
+              if (state.tryAcquire(n)) body
+              else enqueueAndAwait(n, restore).flatMap(_ => body)
+            }
+        )
 
     def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
       if (n < 0L) die(n)
