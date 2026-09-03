@@ -1141,6 +1141,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
 
+                  case onExit: ZIO.OnExitEffect[Any, Any, Any] =>
+                    onExit.finalizer()
+
                   case update =>
                     val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
                     if (!ignoreFlagsUpdate(updateFlags.update, stackIndex)) {
@@ -1178,6 +1181,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
                   case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
+
+                  case onExit: ZIO.OnExitEffect[Any, Any, Any] =>
+                    onExit.finalizer()
 
                   case update =>
                     val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
@@ -1325,6 +1331,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
                     cause = patchRuntimeFlagsCause(updateFlags.update, cause)
 
+                  // Must come before the catch-all: a release action has to run
+                  // when the body fails or is interrupted, not only when it
+                  // succeeds, or the permits are lost.
+                  case onExit: ZIO.OnExitEffect[Any, Any, Any] =>
+                    onExit.finalizer()
+
                   case _ => ()
                 }
               }
@@ -1339,6 +1351,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             case updateRuntimeFlags: UpdateRuntimeFlags =>
               updateLastTrace(updateRuntimeFlags.trace)
               cur = patchRuntimeFlags(updateRuntimeFlags.update, null, Exit.unit)
+
+            case onExit: ZIO.OnExitEffect[Any, Any, Any] =>
+              updateLastTrace(onExit.trace)
+
+              stackIndex = pushStackFrame(onExit, stackIndex)
+              cur = onExit.first
 
             case effect =>
               throw new MatchError(effect)
