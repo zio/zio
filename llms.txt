@@ -244,7 +244,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [How to Interop with JavaScript?](https://zio.dev/guides/interop/with-javascript.md): Include ZIO in your Scala.js project by adding the following to your `build.sbt`:
 - [How to Migrate From Akka to ZIO?](https://zio.dev/guides/migrate/from-akka.md): Here, we summarized alternative ZIO solutions for Akka Actor features. So before starting the migration, let's see an overview of corresponding fea...
 - [Migrate from Cats Effect to ZIO](https://zio.dev/guides/migrate/from-cats-effect.md): A comprehensive reference for mapping cats-effect 3.x IO, Resource, Fiber, Ref, Deferred, typeclasses, and the std module to their ZIO 2.x equivalents
-- [How to Migrate from Monix to ZIO?](https://zio.dev/guides/migrate/from-monix.md): Monix's `Task[A]` can be easily replaced with ZIO's `Task[A]` (an alias for `ZIO[Any, Throwable, A]`).
+- [Migrate from Monix to ZIO 2.x](https://zio.dev/guides/migrate/from-monix.md): A comprehensive reference for mapping Monix 3.x Task, Coeval, Observable, TaskApp, Atomic, and monix.catnap to their ZIO 2.x equivalents
 - [ZIO 2.x Migration Guide](https://zio.dev/guides/migrate/zio-2.x-migration-guide.md): In this guide we want to introduce the migration process to ZIO 2.x. So if you have a project written in ZIO 1.x and want to migrate that to ZIO 2....
 - [ZIO Quickstart: Building GraphQL Web Service](https://zio.dev/guides/quickstarts/graphql-webservice.md): This quickstart shows how to build a GraphQL web service using ZIO. It uses
 - [ZIO Quickstart: Hello World](https://zio.dev/guides/quickstarts/hello-world.md): Simple introductory guide to creating your first ZIO application using ZIOAppDefault and Console operations for effect composition.
