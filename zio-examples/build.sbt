@@ -10,7 +10,9 @@ lazy val scalaNative = RootProject(file("scala-native"))
 
 lazy val migrateCatsEffect = RootProject(file("migrate-cats-effect"))
 
+lazy val migrateFromMonix = RootProject(file("migrate-from-monix"))
+
 lazy val root = project
   .in(file("."))
   .settings(publish / skip := true)
-  .aggregate(threadlocalBridge, reloadableServices, schedule, differCompositionalUpdates, scalaNative, migrateCatsEffect)
+  .aggregate(threadlocalBridge, reloadableServices, schedule, differCompositionalUpdates, scalaNative, migrateCatsEffect, migrateFromMonix)
