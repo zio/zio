@@ -89,7 +89,7 @@ object Schedule {
 
 `Schedule.forever` and `Schedule.count` are equivalent — both always recur, outputting an increasing count starting at 0. `Schedule.elapsed` always recurs and outputs the `Duration` since the very first step.
 
-We can pipe `elapsed` after a delay schedule to observe how much wall-clock time has passed:
+We can pipe `Schedule.elapsed` after a delay schedule to observe how much wall-clock time has passed:
 
 ```scala mdoc:compile-only
 import zio._
@@ -155,7 +155,7 @@ Each of these controls timing in a different way:
 - **`windowed(d)`** — imagine the clock divided into fixed-length slices of `d` (e.g. every 10 seconds, on the 0s, 10s, 20s, …). This runs once per slice, always at the slice boundary, no matter when inside the previous slice it actually started.
 - **`linear(base)`** — each delay grows by one more `base` than the last: `base`, `2×base`, `3×base`, and so on. Useful when you want retries to slow down gradually.
 - **`exponential(base, factor)`** — each delay is multiplied by `factor` (default `2.0`), so it grows fast: `base`, `base×2`, `base×4`, `base×8`, … This is the classic "exponential backoff" used when retrying a failing remote call, so you back off quickly instead of hammering it.
-- **`fibonacci(one)`** — delays follow the Fibonacci sequence (each one is the sum of the two before it): `one, one, 2×one, 3×one, 5×one, …`. A middle ground between `linear`'s steady growth and `exponential`'s fast growth.
+- **`fibonacci(one)`** — delays follow the Fibonacci sequence (each one is the sum of the two before it): `one, one, 2×one, 3×one, 5×one, …`. A middle ground between `Schedule.linear`'s steady growth and `Schedule.exponential`'s fast growth.
 
 Recall from [Usage](#usage) that a `Schedule[-Env, -In, +Out]` produces an `Out` value on every step — that third type parameter. For `spaced`, `fixed`, and `windowed`, `Out` is just a `Long` counter (how many times the schedule has fired so far), which isn't very interesting on its own. But `linear`, `exponential`, and `fibonacci` set `Out` to the actual `Duration` they just waited. In other words, the delay isn't hidden inside the schedule — it *is* the schedule's output, exactly like any other `Out` value. That means any combinator that works on a schedule's output also works here, for free — including `tapOutput` (covered later, in [Tapping Inputs and Outputs](#tapping-inputs-and-outputs)), which runs an effect on every `Out` value without changing what the schedule does. Here it's used to log each backoff delay right before it's used:
 
@@ -172,7 +172,7 @@ val result: ZIO[Any, Nothing, String] =
     .orElse(ZIO.succeed("gave up after all attempts"))
 ```
 
-Running `result` logs `retrying in 100ms`, then `retrying in 200ms`, then `retrying in 400ms`, … right before each retry — the exact `Duration` values `exponential` is producing as its `Out`, read straight off the schedule with no separate tracking of your own.
+Running `result` logs `retrying in 100ms`, then `retrying in 200ms`, then `retrying in 400ms`, … right before each retry — the exact `Duration` values `Schedule.exponential` is producing as its `Out`, read straight off the schedule with no separate tracking of your own.
 
 The following block shows these schedules as candidates for retry policies with progressively longer backoffs:
 
@@ -222,7 +222,7 @@ val customSteps = Schedule.fromDurations(4.seconds, 7.seconds, 12.seconds, 19.se
 val thirtySeconds = Schedule.upTo(30.seconds)
 ```
 
-`upTo` is easy to misread as "recur every 30 seconds" — it isn't. On its own it adds **no delay at all**: it just keeps recurring as fast as possible, tracking how much total time has passed, and stops once that exceeds `30.seconds`. Used by itself with `.repeat`, `thirtySeconds` would fire thousands of times in that window, back to back. `upTo` becomes useful once you intersect it (`&&`) with a schedule that *does* provide a delay, capping that schedule's total run time without changing how often it fires in between:
+`Schedule.upTo` is easy to misread as "recur every 30 seconds" — it isn't. On its own it adds **no delay at all**: it just keeps recurring as fast as possible, tracking how much total time has passed, and stops once that exceeds `30.seconds`. Used by itself with `ZIO#repeat`, `thirtySeconds` would fire thousands of times in that window, back to back. `Schedule.upTo` becomes useful once you intersect it (`&&`) with a schedule that *does* provide a delay, capping that schedule's total run time without changing how often it fires in between:
 
 ```scala mdoc:compile-only
 import zio._
@@ -281,7 +281,7 @@ val firstOfMonth    = Schedule.dayOfMonth(1)        // first day of each month
 ```
 
 :::caution
-Calendar schedules validate their argument **lazily**. A call such as `Schedule.dayOfWeek(9)` compiles without error, but the schedule dies with `IllegalArgumentException` the first time it runs. Valid ranges: `secondOfMinute` 0–59, `minuteOfHour` 0–59, `hourOfDay` 0–23, `dayOfWeek` 1–7 (ISO-8601), `dayOfMonth` 1–31.
+Calendar schedules validate their argument **lazily**. A call such as `Schedule.dayOfWeek(9)` compiles without error, but the schedule dies with `IllegalArgumentException` the first time it runs. Valid ranges: `Schedule.secondOfMinute` 0–59, `Schedule.minuteOfHour` 0–59, `Schedule.hourOfDay` 0–23, `Schedule.dayOfWeek` 1–7 (ISO-8601), `Schedule.dayOfMonth` 1–31.
 :::
 
 ### Conditional (Input-Driven)
@@ -290,9 +290,9 @@ These factories produce schedules whose recurrence is controlled by inspecting e
 
 #### Predicate and Equality Variants
 
-`recurWhile`, `recurWhileZIO`, and `recurWhileEquals` recur as long as a condition holds; `recurUntil`, `recurUntilZIO`, and `recurUntilEquals` recur until a condition holds. All pass the input through as output with no delay.
+`Schedule.recurWhile`, `Schedule.recurWhileZIO`, and `Schedule.recurWhileEquals` recur as long as a condition holds; `Schedule.recurUntil`, `Schedule.recurUntilZIO`, and `Schedule.recurUntilEquals` recur until a condition holds. All pass the input through as output with no delay.
 
-The `While` family (note: `recurWhileZIO` has no implicit `Trace` parameter):
+The `While` family (note: `Schedule.recurWhileZIO` has no implicit `Trace` parameter):
 
 ```scala
 object Schedule {
@@ -338,7 +338,7 @@ val whileBusy: Schedule[Any, String, String] =
   Schedule.recurWhileZIO[Any, String](s => ZIO.succeed(s == "busy"))
 ```
 
-The `whileBusy` predicate above is effectful only in the technical sense — it wraps a pure comparison in `ZIO.succeed`. A more realistic `recurWhileZIO` predicate does real I/O of its own, such as polling an external job runner whose status check is itself an HTTP call or a database query:
+The `whileBusy` predicate above is effectful only in the technical sense — it wraps a pure comparison in `ZIO.succeed`. A more realistic `Schedule.recurWhileZIO` predicate does real I/O of its own, such as polling an external job runner whose status check is itself an HTTP call or a database query:
 
 ```scala mdoc:compile-only
 import zio._
@@ -359,11 +359,11 @@ def awaitCompletion(jobId: String): ZIO[ExportJobs, Throwable, Unit] =
     .unit
 ```
 
-Here the predicate logs on every check before deciding whether to continue, and `statusOf` performs real I/O each time `.repeat` calls it. `&& Schedule.spaced(5.seconds)` adds the delay `recurWhileZIO` doesn't provide on its own — the same pattern used in [Duration-Bounded](#duration-bounded) — so the loop polls the job runner every 5 seconds instead of hammering it.
+Here the predicate logs on every check before deciding whether to continue, and `statusOf` performs real I/O each time `ZIO#repeat` calls it. `&& Schedule.spaced(5.seconds)` adds the delay `Schedule.recurWhileZIO` doesn't provide on its own — the same pattern used in [Duration-Bounded](#duration-bounded) — so the loop polls the job runner every 5 seconds instead of hammering it.
 
 #### Partial-Function Variant
 
-`recurUntil` has a second overload that accepts a `PartialFunction` and outputs `Option[B]`:
+`Schedule.recurUntil` has a second overload that accepts a `PartialFunction` and outputs `Option[B]`:
 
 ```scala
 object Schedule {
@@ -438,7 +438,7 @@ object Schedule {
 
 These companion constructors collect *inputs* — for collecting the *outputs* of an existing schedule, see `Schedule#collectAll` in [Collecting Outputs](#collecting-outputs).
 
-Like [`Schedule.identity`](#primitives-and-building-blocks) that they're built on, none of them add a delay of their own — pair them with `&&`/`<*` and a timing schedule (`spaced`, `recurs`, `upTo`, …) the same way [Duration-Bounded](#duration-bounded) pairs `upTo` with `spaced`, or they'll accumulate as fast as the input arrives:
+Like [`Schedule.identity`](#primitives-and-building-blocks) that they're built on, none of them add a delay of their own — pair them with `&&`/`<*` and a timing schedule (`Schedule.spaced`, `Schedule.recurs`, `Schedule.upTo`, …) the same way [Duration-Bounded](#duration-bounded) pairs `Schedule.upTo` with `Schedule.spaced`, or they'll accumulate as fast as the input arrives:
 
 - **`collectAll[A]`** — collects every input forever; nothing ever stops it on its own. Use it to build a full history for later inspection — for example, recording every error a retry loop sees so you can report all of them in a post-mortem, not just the last one.
 - **`collectWhile(f)`** — collects inputs and stops as soon as one fails `f`. Use it to gather a batch while it stays valid — for example, buffering queued orders as long as each one passes a validation check, then handing off the batch the moment an invalid order shows up.
@@ -487,7 +487,7 @@ object Schedule {
 
 These are the raw building blocks nearly everything else in `Schedule`'s companion object is built from — you rarely need them directly, but knowing what they do explains where the higher-level factories come from and gives you an escape hatch when none of them fit:
 
-- **`identity[A]`** — the simplest schedule there is: recurs forever with no delay, passing each input straight through as output, unchanged. It's the foundation every `recurWhile*`, `recurUntil*`, and `collectAll*` factory is built on (see [Predicate and Equality Variants](#predicate-and-equality-variants) and [Collecting Inputs](#collecting-inputs)) — each of them is `identity` with a stopping condition or an accumulator layered on top. It's also directly useful on its own, any time you want `.repeat`'s *result* to be the effect's last value rather than a repeat count. `Schedule.recurs(n)`'s `Out` is a `Long` — the number of repeats — so `.repeat(Schedule.recurs(n))` discards whatever the effect actually produced and gives you back that count instead. Pairing it with `identity` via `<*` keeps `recurs`'s stopping condition but swaps its `Long` output for the input passed through unchanged:
+- **`identity[A]`** — the simplest schedule there is: recurs forever with no delay, passing each input straight through as output, unchanged. It's the foundation every `Schedule.recurWhile*`, `Schedule.recurUntil*`, and `Schedule.collectAll*` factory is built on (see [Predicate and Equality Variants](#predicate-and-equality-variants) and [Collecting Inputs](#collecting-inputs)) — each of them is `Schedule.identity` with a stopping condition or an accumulator layered on top. It's also directly useful on its own, any time you want `ZIO#repeat`'s *result* to be the effect's last value rather than a repeat count. `Schedule.recurs(n)`'s `Out` is a `Long` — the number of repeats — so calling `ZIO#repeat` with `Schedule.recurs(n)` discards whatever the effect actually produced and gives you back that count instead. Pairing it with `Schedule.identity` via `<*` keeps `Schedule.recurs`'s stopping condition but swaps its `Long` output for the input passed through unchanged:
 
   ```scala mdoc:compile-only
   import zio._
@@ -521,10 +521,10 @@ These are the raw building blocks nearly everything else in `Schedule`'s compani
     fetchUser.retry(errorLengthMetric && Schedule.recurs(3))
   ```
 
-  `tapOutput`'s callback only ever sees an `Int`, never the original `Throwable` — `fromFunction` already did the reshaping before `tapOutput` runs, so the logging code doesn't need to know how to unwrap an exception at all.
-- **`unfold(a)(f)`** — the general-purpose "build your own sequence" primitive: starts at `a`, and on every step calls `f` on the *previous* output to produce the next one, recurring forever with no delay. `Schedule.forever` and `Schedule.count` are both just `unfold(0L)(_ + 1L)` — a running count is the simplest possible unfold. Reach for it directly when you need a progression none of the built-in factories produce, like the doubling sequence below.
+  `Schedule#tapOutput`'s callback only ever sees an `Int`, never the original `Throwable` — `Schedule.fromFunction` already did the reshaping before `Schedule#tapOutput` runs, so the logging code doesn't need to know how to unwrap an exception at all.
+- **`unfold(a)(f)`** — the general-purpose "build your own sequence" primitive: starts at `a`, and on every step calls `f` on the *previous* output to produce the next one, recurring forever with no delay. `Schedule.forever` and `Schedule.count` are both just `Schedule.unfold(0L)(_ + 1L)` — a running count is the simplest possible unfold. Reach for it directly when you need a progression none of the built-in factories produce, like the doubling sequence below.
 
-`Schedule.delayed(schedule)` is a different kind of primitive — a *companion constructor* that takes a schedule whose **output** is already a `Duration` and turns that output into the actual delay before the next step. It's how you'd wire up a fully custom backoff curve that `spaced`/`linear`/`exponential`/`fibonacci` don't cover — the example below reproduces `exponential`'s curve by hand from `unfold`, to show the shape; in practice you'd use `delayed` for a sequence those built-ins can't produce, such as a custom multiplier or a tiered set of delays keyed to how many attempts have been made. This is distinct from the instance method `schedule.delayed(f: Duration => Duration)`, which transforms an *existing* delay — see [Scaling the Delay](#scaling-the-delay).
+`Schedule.delayed(schedule)` is a different kind of primitive — a *companion constructor* that takes a schedule whose **output** is already a `Duration` and turns that output into the actual delay before the next step. It's how you'd wire up a fully custom backoff curve that `Schedule.spaced`/`Schedule.linear`/`Schedule.exponential`/`Schedule.fibonacci` don't cover — the example below reproduces `Schedule.exponential`'s curve by hand from `Schedule.unfold`, to show the shape; in practice you'd use `Schedule.delayed` for a sequence those built-ins can't produce, such as a custom multiplier or a tiered set of delays keyed to how many attempts have been made. This is distinct from the instance method `Schedule#delayed(f: Duration => Duration)`, which transforms an *existing* delay — see [Scaling the Delay](#scaling-the-delay).
 
 ```scala mdoc:compile-only
 import zio._
@@ -550,10 +550,10 @@ val delayedPowers: Schedule[Any, Any, Duration] =
 `delayedPowers` is the densest line in that block, so it's worth walking through step by step:
 
 1. `Schedule.unfold(1)(_ * 2)` builds the sequence 1, 2, 4, 8, 16, … — doubling the previous output every step, with no delay of its own.
-2. `.map(n => (n * 100).millis)` turns each of those numbers into a `Duration`: 100ms, 200ms, 400ms, 800ms, …
+2. `Schedule#map(n => (n * 100).millis)` turns each of those numbers into a `Duration`: 100ms, 200ms, 400ms, 800ms, …
 3. `Schedule.delayed(...)` takes that schedule of `Duration`s and, instead of just reporting them as `Out`, uses each one as the actual sleep before the *next* step.
 
-Put together, `delayedPowers` behaves exactly like `Schedule.exponential(100.millis)` — which is the point: this is the by-hand version of an exponential backoff, built entirely from primitives, so you can see how `delayed` turns "a schedule that outputs durations" into "a schedule that sleeps for those durations." Swap the doubling function in step 1 for any other progression and you get a custom backoff curve none of the built-in factories produce.
+Put together, `delayedPowers` behaves exactly like `Schedule.exponential(100.millis)` — which is the point: this is the by-hand version of an exponential backoff, built entirely from primitives, so you can see how `Schedule.delayed` turns "a schedule that outputs durations" into "a schedule that sleeps for those durations." Swap the doubling function in step 1 for any other progression and you get a custom backoff curve none of the built-in factories produce.
 
 ## Core Operations
 
@@ -862,7 +862,7 @@ These methods change the type or value of a schedule's inputs or outputs without
 
 #### Mapping Outputs
 
-`map` and `mapZIO` transform every output value the schedule produces:
+`Schedule#map` and `Schedule#mapZIO` transform every output value the schedule produces:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -874,7 +874,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 }
 ```
 
-`map` applies a pure function to each output. `mapZIO` applies an effectful function that may use services from `Env1`.
+`Schedule#map` applies a pure function to each output. `Schedule#mapZIO` applies an effectful function that may use services from `Env1`.
 
 ```scala mdoc:compile-only
 import zio._
@@ -890,7 +890,7 @@ val logged: Schedule[Any, Any, Long] =
 
 #### Constant Output
 
-`as` and `unit` replace the schedule's output with a fixed value:
+`Schedule#as` and `Schedule#unit` replace the schedule's output with a fixed value:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -902,7 +902,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 }
 ```
 
-`as(value)` replaces every output with `value`. `unit` is `as(())`.
+`Schedule#as(value)` replaces every output with `value`. `Schedule#unit` is `Schedule#as(())`.
 
 ```scala mdoc:compile-only
 import zio._
@@ -916,7 +916,7 @@ val noOutput: Schedule[Any, Any, Unit] = Schedule.recurs(5).unit
 
 #### Mapping Inputs
 
-`contramap`, `contramapZIO`, `dimap`, and `dimapZIO` transform the input type before the schedule observes it:
+`Schedule#contramap`, `Schedule#contramapZIO`, `Schedule#dimap`, and `Schedule#dimapZIO` transform the input type before the schedule observes it:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -982,7 +982,7 @@ These operators stop the schedule early based on conditions applied to the input
 
 #### Input-Based Guards
 
-`check`, `checkZIO`, `whileInput`, `whileInputZIO`, `untilInput`, and `untilInputZIO` stop the schedule based on the input value:
+`Schedule#check`, `Schedule#checkZIO`, `Schedule#whileInput`, `Schedule#whileInputZIO`, `Schedule#untilInput`, and `Schedule#untilInputZIO` stop the schedule based on the input value:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1026,7 +1026,7 @@ val untilFifty: Schedule[Any, Int, Long] =
 
 #### Output-Based Guards
 
-`whileOutput`, `whileOutputZIO`, `untilOutput`, and `untilOutputZIO` stop based on the schedule's own output value:
+`Schedule#whileOutput`, `Schedule#whileOutputZIO`, `Schedule#untilOutput`, and `Schedule#untilOutputZIO` stop based on the schedule's own output value:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1064,7 +1064,7 @@ These methods control how long the schedule sleeps between steps.
 
 #### Adding Delays
 
-`addDelay` and `addDelayZIO` add extra delay on top of whatever interval the schedule already produces:
+`Schedule#addDelay` and `Schedule#addDelayZIO` add extra delay on top of whatever interval the schedule already produces:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1092,7 +1092,7 @@ val linearExtra: Schedule[Any, Any, Long] =
 
 #### Scaling the Delay
 
-`delayed` (instance method) and `delayedZIO` transform the existing delay duration through a mapping function:
+`Schedule#delayed` (instance method) and `Schedule#delayedZIO` transform the existing delay duration through a mapping function:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1104,7 +1104,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 }
 ```
 
-`delayed(f)` replaces each interval's delay with `f(currentDelay)`, scaling or offsetting the existing delay without changing the schedule's output type.
+`Schedule#delayed(f)` replaces each interval's delay with `f(currentDelay)`, scaling or offsetting the existing delay without changing the schedule's output type.
 
 :::note
 This is the *instance method* `schedule.delayed(f: Duration => Duration)`. The companion constructor `Schedule.delayed(schedule)` is a different method: it wraps a schedule that already outputs `Duration` values and adds those durations as delays. See [Primitives and Building Blocks](#primitives-and-building-blocks).
@@ -1124,7 +1124,7 @@ val cappedDelay: Schedule[Any, Any, Duration] =
 
 #### Low-Level Delay Modification
 
-`modifyDelay` and `modifyDelayZIO` are the primitives underlying `addDelay` and `delayed`. They expose both the current output and the current delay together:
+`Schedule#modifyDelay` and `Schedule#modifyDelayZIO` are the primitives underlying `Schedule#addDelay` and `Schedule#delayed`. They expose both the current output and the current delay together:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1136,7 +1136,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 }
 ```
 
-Both `addDelayZIO` and `delayedZIO` delegate to `modifyDelayZIO`. Reach for these when you need both the output value and the delay at the same time to compute the new delay.
+Both `Schedule#addDelayZIO` and `Schedule#delayedZIO` delegate to `Schedule#modifyDelayZIO`. Reach for these when you need both the output value and the delay at the same time to compute the new delay.
 
 ```scala mdoc:compile-only
 import zio._
@@ -1204,7 +1204,7 @@ val backoffDelays: Schedule[Any, Any, Duration] =
 
 #### Bounding Elapsed Time
 
-The instance method `upTo` wraps an existing schedule and stops it once total elapsed time exceeds a bound:
+The instance method `Schedule#upTo` wraps an existing schedule and stops it once total elapsed time exceeds a bound:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1261,7 +1261,7 @@ These instance methods accumulate the outputs of a schedule into a summary value
 
 #### Collecting Outputs
 
-The instance `collectAll`, `collectWhile`, `collectWhileZIO`, `collectUntil`, and `collectUntilZIO` wrap `self` and collect its outputs into a `Chunk`:
+The instance methods `Schedule#collectAll`, `Schedule#collectWhile`, `Schedule#collectWhileZIO`, `Schedule#collectUntil`, and `Schedule#collectUntilZIO` wrap `self` and collect its outputs into a `Chunk`:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1284,10 +1284,10 @@ trait Schedule[-Env, -In, +Out] { self =>
 }
 ```
 
-Unlike the companion-object `Schedule.collectAll[A]` which collects *inputs* passed to the schedule, these instance methods collect the *outputs* of the wrapped schedule `self`. `collectWhile(f)` stops and emits the accumulated `Chunk` when `f(output)` is `false`. `collectUntil(f)` stops when `f(output)` is `true`.
+Unlike the companion-object `Schedule.collectAll[A]` which collects *inputs* passed to the schedule, these instance methods collect the *outputs* of the wrapped schedule `self`. `Schedule#collectWhile(f)` stops and emits the accumulated `Chunk` when `f(output)` is `false`. `Schedule#collectUntil(f)` stops when `f(output)` is `true`.
 
 :::note
-The first output emitted by `collectAll` and related folding operations is never an empty `Chunk`. An earlier implementation emitted the initial accumulator immediately, producing an empty chunk before any real outputs accumulated. This has been corrected.
+The first output emitted by `Schedule#collectAll` and related folding operations is never an empty `Chunk`. An earlier implementation emitted the initial accumulator immediately, producing an empty chunk before any real outputs accumulated. This has been corrected.
 :::
 
 ```scala mdoc:compile-only
@@ -1353,7 +1353,7 @@ val stepCount: Schedule[Any, Any, Long] =
 
 ### Inspecting and Simulating
 
-`run` simulates the schedule against a list of inputs without performing any actual sleeping:
+`Schedule#run` simulates the schedule against a list of inputs without performing any actual sleeping:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1381,7 +1381,7 @@ These methods give direct access to how a schedule's execution loop behaves.
 
 #### Looping Forever
 
-The instance method `forever` resets `self` to its initial state every time it reaches `Done`, creating an infinite cyclic loop:
+The instance method `Schedule#forever` resets `self` to its initial state every time it reaches `Done`, creating an infinite cyclic loop:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1400,7 +1400,7 @@ val cyclic: Schedule[Any, Any, Long] = Schedule.recurs(5).forever
 
 #### Reconsidering Every Decision
 
-`reconsider` and `reconsiderZIO` intercept every `step` decision and allow overriding both the decision and the output:
+`Schedule#reconsider` and `Schedule#reconsiderZIO` intercept every `step` decision and allow overriding both the decision and the output:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1417,7 +1417,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 Returning `Left(out2)` means stop; returning `Right((out2, interval))` means continue with the given interval and new output.
 
 :::tip
-`reconsider` is a low-level building block. For most use cases, prefer `check` or `whileOutput` to stop on a condition, `addDelay` or `delayed` to adjust timing, and `map` to transform the output. Reach for `reconsider` only when you need simultaneous access to the schedule's raw state, its current output, and its pending decision.
+`Schedule#reconsider` is a low-level building block. For most use cases, prefer `Schedule#check` or `Schedule#whileOutput` to stop on a condition, `Schedule#addDelay` or `Schedule#delayed` to adjust timing, and `Schedule#map` to transform the output. Reach for `Schedule#reconsider` only when you need simultaneous access to the schedule's raw state, its current output, and its pending decision.
 :::
 
 ```scala mdoc:compile-only
@@ -1440,7 +1440,7 @@ In plain terms: `recurs(10)` decides what it wants to do each step, and this cal
 - If `recurs(10)` already said `Done`, you can rename the output, but you can't bring it back to life — `Done` stays `Done` no matter what you return.
 - If `recurs(10)` said `Continue`, you get a choice: let it continue as planned, or force a stop yourself. Here, it forces a stop once the count reaches 3.
 
-So `stopsAt3` counts 0, 1, 2, then stops — same as just writing `Schedule.recurs(3)`. Nobody would actually write it this way; it's here only to show how `reconsider` works.
+So `stopsAt3` counts 0, 1, 2, then stops — same as just writing `Schedule.recurs(3)`. Nobody would actually write it this way; it's here only to show how `Schedule#reconsider` works.
 
 ### Observability and Lifecycle
 
@@ -1448,7 +1448,7 @@ These methods attach side effects to a schedule without altering its recurrence 
 
 #### Tapping Inputs and Outputs
 
-`tapInput` and `tapOutput` run a side-effecting function at each step without changing the schedule's behaviour:
+`Schedule#tapInput` and `Schedule#tapOutput` run a side-effecting function at each step without changing the schedule's behaviour:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1460,7 +1460,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 }
 ```
 
-`tapInput` is useful for logging or recording each input the schedule sees; `tapOutput` covers the computed output side:
+`Schedule#tapInput` is useful for logging or recording each input the schedule sees; `Schedule#tapOutput` covers the computed output side:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1500,7 +1500,7 @@ val observed: Schedule[Any, Any, Long] =
 
 #### Finalisation
 
-`ensuring` runs a finalizer when the schedule reaches `Done`:
+`Schedule#ensuring` runs a finalizer when the schedule reaches `Done`:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1510,7 +1510,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 ```
 
 :::caution
-`ensuring` fires only when the schedule's decision loop reaches `Done`. If the fiber running the repeat or retry loop is interrupted before the schedule finishes, `finalizer` does not run. For interruption-safe cleanup, use `ZIO#ensuring` at the effect level instead.
+`Schedule#ensuring` fires only when the schedule's decision loop reaches `Done`. If the fiber running the repeat or retry loop is interrupted before the schedule finishes, `finalizer` does not run. For interruption-safe cleanup, use `ZIO#ensuring` at the effect level instead.
 :::
 
 ```scala mdoc:compile-only
@@ -1527,7 +1527,7 @@ These methods supply or narrow the environment a schedule requires.
 
 #### Eliminating the Environment
 
-`provideEnvironment` eliminates the schedule's environment requirement by supplying a full `ZEnvironment[Env]`:
+`Schedule#provideEnvironment` eliminates the schedule's environment requirement by supplying a full `ZEnvironment[Env]`:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1538,7 +1538,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 
 #### Narrowing the Environment
 
-`provideSomeEnvironment` narrows the environment via a transformation function, mapping a broader `Env2` down to the required `Env`:
+`Schedule#provideSomeEnvironment` narrows the environment via a transformation function, mapping a broader `Env2` down to the required `Env`:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1548,7 +1548,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 }
 ```
 
-Together, `provideEnvironment` and `provideSomeEnvironment` allow a schedule to be constructed against a service interface and then wired to a concrete implementation at the call site:
+Together, `Schedule#provideEnvironment` and `Schedule#provideSomeEnvironment` allow a schedule to be constructed against a service interface and then wired to a concrete implementation at the call site:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1591,7 +1591,7 @@ val manualDriving: ZIO[Any, Nothing, Unit] = for {
 } yield ()
 ```
 
-A realistic use is exactly the "external event source" case mentioned above: a callback-based subscription API — the shape you get from many real message-bus clients (Kafka, MQTT, a WebSocket wrapper) — hands you one message at a time instead of a single `ZIO` effect you could give to `.repeat`. `driver.next` lets you decide, inside each callback, whether to keep listening:
+A realistic use is exactly the "external event source" case mentioned above: a callback-based subscription API — the shape you get from many real message-bus clients (Kafka, MQTT, a WebSocket wrapper) — hands you one message at a time instead of a single `ZIO` effect you could give to `ZIO#repeat`. `Schedule.Driver#next` lets you decide, inside each callback, whether to keep listening:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1716,15 +1716,15 @@ object Schedule {
 }
 ```
 
-`Interval.after(start)` creates an interval with no upper bound — used by schedules that always continue. `Interval.before(end)` creates an interval with no lower bound. `Interval.empty` has `start == end`. The `apply` constructor canonicalises: if `start > end`, the result is `empty`. A zero-width interval where `start == end` is valid and is not collapsed to `empty`.
+`Interval.after(start)` creates an interval with no upper bound — used by schedules that always continue. `Interval.before(end)` creates an interval with no lower bound. `Interval.empty` has `start == end`. The `Interval.apply` constructor canonicalises: if `start > end`, the result is `Interval.empty`. A zero-width interval where `start == end` is valid and is not collapsed to `Interval.empty`.
 
-| Method                 | Description                                                                 |
-|------------------------|-----------------------------------------------------------------------------|
-| `size: Duration`       | Width of the interval as a nanosecond-precise `Duration`                    |
-| `intersect(that)`      | Overlapping sub-interval; `empty` if the two intervals do not overlap       |
-| `min(that)`            | The interval whose end comes first                                          |
-| `max(that)`            | The interval whose start comes last                                         |
-| `<(that): Boolean`     | `true` if `self` ends before `that` starts                                  |
+| Method                 | Description                                                                     |
+|------------------------|-----------------------------------------------------------------------------------|
+| `size: Duration`       | Width of the interval as a nanosecond-precise `Duration`                          |
+| `intersect(that)`      | Overlapping sub-interval; `Interval.empty` if the two intervals do not overlap     |
+| `min(that)`            | The interval whose end comes first                                                |
+| `max(that)`            | The interval whose start comes last                                               |
+| `<(that): Boolean`     | `true` if `self` ends before `that` starts                                        |
 
 ### `Intervals`
 
@@ -1809,7 +1809,7 @@ The `state` field was added to `Driver` after the initial ZIO 2.0 release. If yo
 | ZIO method              | Schedule parameter       | Mapping                                                                            |
 |-------------------------|--------------------------|------------------------------------------------------------------------------------|
 | `repeat(s)`             | `Schedule[R1, A, B]`     | `In = A`: the schedule observes the effect's *success* value                       |
-| `repeat(s)`             | `Schedule[R1, A, B]`     | `Out = B`: the final result of `repeat`                                            |
+| `repeat(s)`             | `Schedule[R1, A, B]`     | `Out = B`: the final result of `ZIO#repeat`                                        |
 | `retry(policy)`         | `Schedule[R1, E, S]`     | `In = E`: the schedule observes the effect's *error* value                         |
 | `retry(policy)`         | `Schedule[R1, E, S]`     | `Out = S`: the schedule output (discarded; last error is re-raised on `Done`)      |
 | `retryOrElse(policy, f)` | `Schedule[R1, E, S]`    | `S` is passed to `f` as the last schedule output                                   |
@@ -1939,7 +1939,14 @@ val selectiveRetry: ZIO[Any, String, Int] =
 
 ### Scheduling Effects — `ZIO#schedule`
 
-`schedule` and `scheduleFork` run an effect on a schedule whose input is `Any` — the effect's output genuinely never reaches the schedule, so it can only make its decisions from timing and count. `scheduleFrom` is different: its schedule's input is `A1`, the effect's *own* success type, so after the first step it reacts to the real output exactly like `.repeat` does. The seed value it takes isn't "irrelevant output" either — it stands in for the output the effect hasn't produced yet, letting the schedule make its very first decision before running the effect even once:
+In plain terms: `ZIO#schedule` is like a kitchen timer that rings every 5 minutes to remind you to stir a
+pot — the timer doesn't know or care what's actually in the pot, it just rings on a fixed schedule.
+`ZIO#scheduleFrom` is more like checking on a delivery that might already be done: you tell it what you
+*already know* the status is before making a single call, and if you already know it's "delivered,"
+it doesn't bother calling at all; if not, every call after that looks at the real, current status to
+decide whether to check again.
+
+`ZIO#schedule` and `ZIO#scheduleFork` run an effect on a schedule whose input is `Any` — the effect's output genuinely never reaches the schedule, so it can only make its decisions from timing and count. `ZIO#scheduleFrom` is different: its schedule's input is `A1`, the effect's *own* success type, so after the first step it reacts to the real output exactly like `ZIO#repeat` does. The seed value it takes isn't "irrelevant output" either — it stands in for the output the effect hasn't produced yet, letting the schedule make its very first decision before running the effect even once:
 
 ```scala
 trait ZIO[-R, +E, +A] { self =>
@@ -1955,7 +1962,7 @@ trait ZIO[-R, +E, +A] { self =>
 }
 ```
 
-`schedule(s)` runs the effect according to `s`, discarding the effect's output (the schedule takes `Any` as input) and returning the last schedule output `B`. `scheduleFrom(a)(s)` is similar but provides an explicit initial value `a` that the *first* schedule step receives, allowing the schedule's initial decision to depend on a prior result. `scheduleFork(s)` runs the schedule in a new fiber attached to the current `Scope` — the fiber terminates when the scope closes.
+`ZIO#schedule(s)` runs the effect according to `s`, discarding the effect's output (the schedule takes `Any` as input) and returning the last schedule output `B`. `ZIO#scheduleFrom(a)(s)` is similar but provides an explicit initial value `a` that the *first* schedule step receives, allowing the schedule's initial decision to depend on a prior result. `ZIO#scheduleFork(s)` runs the schedule in a new fiber attached to the current `Scope` — the fiber terminates when the scope closes.
 
 ```scala mdoc:compile-only
 import zio._
@@ -1971,7 +1978,7 @@ val forked: ZIO[Scope, Nothing, Fiber.Runtime[Nothing, Long]] =
   sideEffect.scheduleFork(Schedule.spaced(1.second))
 ```
 
-A realistic use of `scheduleFrom`: resuming a deployment monitor from a status persisted the last time the app ran, so a deployment that already finished doesn't trigger a single unnecessary status check:
+A realistic use of `ZIO#scheduleFrom`: resuming a deployment monitor from a status persisted the last time the app ran, so a deployment that already finished doesn't trigger a single unnecessary status check:
 
 ```scala mdoc:compile-only
 import zio._
@@ -1990,11 +1997,11 @@ def resumeMonitoring(lastKnownStatus: DeployStatus): ZIO[Any, Throwable, DeployS
   )
 ```
 
-If `lastKnownStatus` is already `Completed`, the schedule's very first decision — made from the seed alone — is `Done`, and `resumeMonitoring` returns `Completed` without ever calling `checkDeployStatus`. `.repeat` can't do this: it always has to run the effect once before the schedule gets a chance to decide anything.
+If `lastKnownStatus` is already `Completed`, the schedule's very first decision — made from the seed alone — is `Done`, and `resumeMonitoring` returns `Completed` without ever calling `checkDeployStatus`. `ZIO#repeat` can't do this: it always has to run the effect once before the schedule gets a chance to decide anything.
 
-#### `schedule` vs. `repeat`: does the effect always run at least once?
+#### `ZIO#schedule` vs. `ZIO#repeat`: does the effect always run at least once?
 
-This is a real behavioral difference, not just a naming choice — `schedule(s)` is literally defined as `scheduleFrom(())(s)`, so it inherits `scheduleFrom`'s "ask the schedule first" order. `.repeat` runs the effect *unconditionally* before ever consulting the schedule; `.schedule` consults the schedule *before* the effect has run even once, so the schedule can veto the first run entirely. `Schedule.recurs(0)` makes the difference concrete, since "0 additional repeats" already means the schedule is exhausted on its very first check:
+This is a real behavioral difference, not just a naming choice — `ZIO#schedule(s)` is literally defined as `ZIO#scheduleFrom(())(s)`, so it inherits `ZIO#scheduleFrom`'s "ask the schedule first" order. `ZIO#repeat` runs the effect *unconditionally* before ever consulting the schedule; `ZIO#schedule` consults the schedule *before* the effect has run even once, so the schedule can veto the first run entirely. `Schedule.recurs(0)` makes the difference concrete, since "0 additional repeats" already means the schedule is exhausted on its very first check:
 
 ```scala mdoc:compile-only
 import zio._
@@ -2017,4 +2024,4 @@ val viaSchedule: UIO[Int] =
   } yield runs
 ```
 
-`viaRepeat` evaluates to `1`: `Schedule.recurs(0)` means zero repeats *in addition to* the first execution, and `.repeat` always performs that first execution before the schedule is asked anything. `viaSchedule` evaluates to `0`: `.schedule` asks `Schedule.recurs(0)` first, using the seed `()`, and a schedule with zero budget reports `Done` immediately — `countRuns` never runs at all. This is exactly why `.schedule` fits a scheduled/cron-style job that might legitimately decide, from external state alone, to skip a cycle entirely — `.repeat` structurally cannot do that.
+`viaRepeat` evaluates to `1`: `Schedule.recurs(0)` means zero repeats *in addition to* the first execution, and `ZIO#repeat` always performs that first execution before the schedule is asked anything. `viaSchedule` evaluates to `0`: `ZIO#schedule` asks `Schedule.recurs(0)` first, using the seed `()`, and a schedule with zero budget reports `Done` immediately — `countRuns` never runs at all. This is exactly why `ZIO#schedule` fits a scheduled/cron-style job that might legitimately decide, from external state alone, to skip a cycle entirely — `ZIO#repeat` structurally cannot do that.
