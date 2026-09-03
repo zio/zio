@@ -1674,6 +1674,23 @@ def describeDecision(d: Decision): String = d match {
 }
 ```
 
+A realistic use is turning [`onDecision`](#observing-decisions)'s raw `Decision` into an actionable log line — a different message, and a different log level, for each case:
+
+```scala mdoc:compile-only
+import zio._
+import zio.Schedule.Decision
+
+def logDecision(decision: Decision): UIO[Unit] = decision match {
+  case Decision.Continue(interval) => ZIO.logInfo(s"retrying at ${interval.start}")
+  case Decision.Done                => ZIO.logWarning("giving up, no more retries")
+}
+
+val loggedRetry: Schedule[Any, Any, Duration] =
+  Schedule.exponential(100.millis).onDecision((_, _, decision) => logDecision(decision))
+```
+
+Without pattern-matching, `onDecision` can only log the whole `Decision` as-is (as in its own example above) — matching on `Continue`/`Done` is what lets the log line say something a reader can act on, like the exact next-retry time or a distinct warning when a retry loop gives up.
+
 ### `Interval`
 
 `Interval` represents a half-open time interval `[start, end)`:
@@ -1922,20 +1939,18 @@ val selectiveRetry: ZIO[Any, String, Int] =
 
 ### Scheduling Effects — `ZIO#schedule`
 
-These three methods run an effect on a schedule where the effect's output is irrelevant to the scheduling decision:
+`schedule` and `scheduleFork` run an effect on a schedule whose input is `Any` — the effect's output genuinely never reaches the schedule, so it can only make its decisions from timing and count. `scheduleFrom` is different: its schedule's input is `A1`, the effect's *own* success type, so after the first step it reacts to the real output exactly like `.repeat` does. The seed value it takes isn't "irrelevant output" either — it stands in for the output the effect hasn't produced yet, letting the schedule make its very first decision before running the effect even once:
 
 ```scala
 trait ZIO[-R, +E, +A] { self =>
-  final def schedule[R1 <: R, B](schedule: => Schedule[R1, Any, B])(implicit
-    trace: Trace
-  ): ZIO[R1, E, B]
+  final def schedule[R1 <: R, B](schedule: => Schedule[R1, Any, B]): ZIO[R1, E, B]
 
   final def scheduleFrom[R1 <: R, A1 >: A, B](a: => A1)(
     schedule0: => Schedule[R1, A1, B]
   ): ZIO[R1, E, B]
 
-  final def scheduleFork[R1 <: R, B](schedule: => Schedule[R1, Any, B])(implicit
-    trace: Trace
+  final def scheduleFork[R1 <: R, B](
+    schedule: => Schedule[R1, Any, B]
   ): ZIO[R1 with Scope, Nothing, Fiber.Runtime[E, B]]
 }
 ```
@@ -1955,3 +1970,51 @@ val ticker: ZIO[Any, Nothing, Long] =
 val forked: ZIO[Scope, Nothing, Fiber.Runtime[Nothing, Long]] =
   sideEffect.scheduleFork(Schedule.spaced(1.second))
 ```
+
+A realistic use of `scheduleFrom`: resuming a deployment monitor from a status persisted the last time the app ran, so a deployment that already finished doesn't trigger a single unnecessary status check:
+
+```scala mdoc:compile-only
+import zio._
+
+sealed trait DeployStatus
+case object InProgress extends DeployStatus
+case object Completed extends DeployStatus
+
+def checkDeployStatus: Task[DeployStatus] = ZIO.succeed(Completed)
+
+// Keep polling while still InProgress; if the persisted status is already Completed,
+// the schedule says Done before checkDeployStatus ever runs
+def resumeMonitoring(lastKnownStatus: DeployStatus): ZIO[Any, Throwable, DeployStatus] =
+  checkDeployStatus.scheduleFrom(lastKnownStatus)(
+    Schedule.recurWhile[DeployStatus](_ == InProgress) <* Schedule.spaced(5.seconds)
+  )
+```
+
+If `lastKnownStatus` is already `Completed`, the schedule's very first decision — made from the seed alone — is `Done`, and `resumeMonitoring` returns `Completed` without ever calling `checkDeployStatus`. `.repeat` can't do this: it always has to run the effect once before the schedule gets a chance to decide anything.
+
+#### `schedule` vs. `repeat`: does the effect always run at least once?
+
+This is a real behavioral difference, not just a naming choice — `schedule(s)` is literally defined as `scheduleFrom(())(s)`, so it inherits `scheduleFrom`'s "ask the schedule first" order. `.repeat` runs the effect *unconditionally* before ever consulting the schedule; `.schedule` consults the schedule *before* the effect has run even once, so the schedule can veto the first run entirely. `Schedule.recurs(0)` makes the difference concrete, since "0 additional repeats" already means the schedule is exhausted on its very first check:
+
+```scala mdoc:compile-only
+import zio._
+
+// A Ref-based counter proves exactly how many times the effect actually ran
+def countRuns(counter: Ref[Int]): UIO[Unit] = counter.update(_ + 1)
+
+val viaRepeat: UIO[Int] =
+  for {
+    counter <- Ref.make(0)
+    _       <- countRuns(counter).repeat(Schedule.recurs(0))
+    runs    <- counter.get
+  } yield runs
+
+val viaSchedule: UIO[Int] =
+  for {
+    counter <- Ref.make(0)
+    _       <- countRuns(counter).schedule(Schedule.recurs(0))
+    runs    <- counter.get
+  } yield runs
+```
+
+`viaRepeat` evaluates to `1`: `Schedule.recurs(0)` means zero repeats *in addition to* the first execution, and `.repeat` always performs that first execution before the schedule is asked anything. `viaSchedule` evaluates to `0`: `.schedule` asks `Schedule.recurs(0)` first, using the seed `()`, and a schedule with zero budget reports `Done` immediately — `countRuns` never runs at all. This is exactly why `.schedule` fits a scheduled/cron-style job that might legitimately decide, from external state alone, to skip a cycle entirely — `.repeat` structurally cannot do that.
