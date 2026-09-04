@@ -118,7 +118,11 @@ final case class LayerBuilder[Type, Expr](
       for {
         original    <- graph.buildComplete(target)
         sideEffects <- graph.buildNodes(sideEffectNodes)
-      } yield sideEffects ++ original
+      } yield
+      // Sibling de-duplication can drop a `Shared` node while leaving `Ref`s to
+      // it elsewhere in the tree, so the definitions are taken from the graph,
+      // which records every one, rather than from the tree itself.
+      LayerTree.withSharedDefs(sideEffects ++ original, graph.sharedSubTrees)
     }
 
     layerTreeEither match {
