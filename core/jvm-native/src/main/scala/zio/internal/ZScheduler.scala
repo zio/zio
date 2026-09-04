@@ -62,6 +62,29 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   override private[zio] def isCurrentThreadInExecutor: Boolean =
     Thread.currentThread().isInstanceOf[ZScheduler.Worker]
 
+  /**
+   * The current thread's worker, but only when this scheduler owns it. A worker
+   * of some other `ZScheduler` is not a thread this scheduler may run anything
+   * on, and its inline budget is not this scheduler's to spend.
+   */
+  private[this] def ownWorkerOrNull(): ZScheduler.Worker = {
+    val worker = workerOrNull()
+    if ((worker ne null) && (worker.scheduler eq parent)) worker else null
+  }
+
+  override private[zio] def claimInlineExecution(): Boolean = {
+    val worker = ownWorkerOrNull()
+    if ((worker ne null) && worker.inlineExecutions < ZScheduler.MaxInlineExecutions) {
+      worker.inlineExecutions += 1
+      true
+    } else false
+  }
+
+  override private[zio] def releaseInlineExecution(): Unit = {
+    val worker = ownWorkerOrNull()
+    if (worker ne null) worker.inlineExecutions -= 1
+  }
+
   def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics] = {
     val metrics = new ExecutionMetrics {
       def capacity: Int =
@@ -282,6 +305,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
     new ZScheduler.Worker {
       self =>
       override val submittedLocations: ZScheduler.Locations = makeLocations()
+      override val scheduler: AnyRef                        = parent
 
       final override def run(): Unit = {
         // Store parent mutable object references in stack memory to avoid fetching it from the heap every time
@@ -464,6 +488,22 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 private object ZScheduler {
   private val poolSize = java.lang.Runtime.getRuntime.availableProcessors
 
+  /**
+   * How deep a chain of inline fiber executions may go on one worker before
+   * further fibers are handed back to the run queue.
+   *
+   * Each level costs a fixed handful of stack frames, not a run loop's worth:
+   * `runLoop` iterates rather than recursing, and `MaxDepthBeforeTrampoline`
+   * separately bounds what recursion it does by moving the continuation to the
+   * fiber's inbox. What this limit protects is the worker: a thread that runs
+   * an unbounded chain of other fibers' work is not serving its own run queue
+   * meanwhile. Measured on a semaphore passing one permit between ten fibers,
+   * where the chains are as deep as anything is likely to make them: a limit of
+   * 8 gives up almost all of the benefit, while 128 recovers most of what an
+   * unbounded chain achieves.
+   */
+  private final val MaxInlineExecutions = 128
+
   def markCurrentWorkerAsBlocking(): Unit = {
     val worker = workerOrNull()
     if (worker ne null) {
@@ -539,6 +579,19 @@ private object ZScheduler {
     val submittedLocations: Locations
 
     /**
+     * The scheduler that owns this worker.
+     *
+     * Several checks only ask whether the current thread is a `Worker` at all,
+     * which is not the same question as whether it is one of *this*
+     * scheduler's: more than one `ZScheduler` can be alive at once, since
+     * `Executor.makeDefault` builds a fresh one and the default runtime already
+     * adds a second for blocking work. Running a fiber on a worker belonging to
+     * a different scheduler would escape the executor it was locked to, so the
+     * inline path identifies the owner rather than the type.
+     */
+    val scheduler: AnyRef
+
+    /**
      * Whether this worker is currently active.
      */
     @volatile
@@ -578,6 +631,18 @@ private object ZScheduler {
     @volatile
     var opCount: Long =
       0L
+
+    /**
+     * How many fibers are currently being run inline on this worker's stack,
+     * one nested inside the next.
+     *
+     * Only ever read and written by this worker's own thread, so it needs no
+     * synchronization. It lives here rather than in a `ThreadLocal` because
+     * this is precisely per-worker state, and the scheduler already keeps its
+     * other per-worker bookkeeping in these fields.
+     */
+    var inlineExecutions: Int =
+      0
 
     def markAsBlocking(): Unit
 

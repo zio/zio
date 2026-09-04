@@ -1141,6 +1141,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
 
+                  case fin: ZIO.RunFinalizer =>
+                    fin.finalizer()
+
                   case update =>
                     val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
                     if (!ignoreFlagsUpdate(updateFlags.update, stackIndex)) {
@@ -1178,6 +1181,9 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
                   case map: ZIO.Mapped[Any, Any, Any, Any] =>
                     value = map.successK(value)
+
+                  case fin: ZIO.RunFinalizer =>
+                    fin.finalizer()
 
                   case update =>
                     val updateFlags = update.asInstanceOf[ZIO.UpdateRuntimeFlags]
@@ -1325,6 +1331,12 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
                   case updateFlags: ZIO.UpdateRuntimeFlags if !ignoreFlagsUpdate(updateFlags.update, stackIndex) =>
                     cause = patchRuntimeFlagsCause(updateFlags.update, cause)
 
+                  // Must come before the catch-all: a release action has to run
+                  // when the body fails or is interrupted, not only when it
+                  // succeeds, or the permits are lost.
+                  case fin: ZIO.RunFinalizer =>
+                    fin.finalizer()
+
                   case _ => ()
                 }
               }
@@ -1339,6 +1351,29 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             case updateRuntimeFlags: UpdateRuntimeFlags =>
               updateLastTrace(updateRuntimeFlags.trace)
               cur = patchRuntimeFlags(updateRuntimeFlags.update, null, Exit.unit)
+
+            case onExit: ZIO.OnExitEffect[Any, Any, Any] =>
+              val trace = onExit.trace
+              updateLastTrace(trace)
+
+              stackIndex = pushStackFrame(ZIO.RunFinalizer(trace, onExit.finalizer), stackIndex)
+              cur = onExit.first
+
+            case ar: ZIO.AcquireReleaseInline[Any, Any, Any] =>
+              val trace = ar.trace
+              updateLastTrace(trace)
+
+              // The acquisition and the installation of its release happen here,
+              // in one dispatch, with no interrupt poll between them: the loop
+              // polls once per iteration, above, before this match. That is what
+              // lets this node do without the uninterruptible region such a pair
+              // would otherwise need, and it is the whole point of the node.
+              if (ar.acquire()) {
+                stackIndex = pushStackFrame(ZIO.RunFinalizer(trace, ar.release), stackIndex)
+                cur = ar.onAcquired
+              } else {
+                cur = ar.onUnavailable()
+              }
 
             case effect =>
               throw new MatchError(effect)
@@ -1525,6 +1560,65 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     if (running.compareAndSet(false, true)) drainQueueLaterOnExecutor(false)
   }
 
+  /**
+   * Resumes this fiber, running it on the calling thread when that thread
+   * already belongs to the fiber's executor, rather than handing it to the
+   * scheduler.
+   *
+   * The ordinary [[tell]] publishes the fiber to a run queue and may `unpark` a
+   * worker to collect it, so a resume costs a scheduling round trip even when
+   * the calling thread is about to have nothing to do. Running the fiber here
+   * skips the queue, the wakeup, and the round trip. This is the same trick
+   * [[interruptAs]] already uses, for the same reason.
+   *
+   * '''This runs the woken fiber's run loop inside the caller's stack''', so
+   * the caller must be somewhere it can afford to run arbitrary other work. It
+   * is meant for a caller that has just handed this fiber a resource and is
+   * about to stop running, as when a semaphore grants away its last permit.
+   *
+   * The resumed fiber runs until it suspends or finishes, and what it does can
+   * resume further fibers on the same stack, so the nesting is bounded by the
+   * executor through `claimInlineExecution`. Passing that bound, or running on
+   * a thread the executor does not own, falls back to what [[tell]] does.
+   */
+  private[zio] def tellResumeInline(message: FiberMessage): Unit = {
+    inbox.add(message)
+
+    if (running.compareAndSet(false, true)) {
+      val executor = getCurrentExecutor()
+
+      if (executor.isCurrentThreadInExecutor && executor.claimInlineExecution()) {
+        // `drainQueueOnCurrentThread` points `Fiber._currentFiber` at the fiber
+        // it drains and restores only `running`, because its other callers are
+        // the fiber itself and so have nothing to put back. Here the caller is
+        // a different fiber that keeps running once this returns, so the
+        // thread-local has to be saved and put back. Otherwise that fiber's
+        // `FiberRef.asThreadLocal` reads and writes would land on the fiber
+        // woken here.
+        //
+        // Both halves are unconditional, unlike `start`, which gates them on
+        // the runtime flag. The flags read here are the woken fiber's, and it
+        // may change them while it runs: a fiber that enables `CurrentFiber`
+        // mid-run has `patchRuntimeFlagsOnly` point the thread-local at itself,
+        // so a gated restore would decide on a flag that no longer describes
+        // the state it is restoring. Saving and restoring whatever was there is
+        // correct whichever way both fibers have the flag set, and costs a
+        // thread-local read on a path that is already running a fiber.
+        val previousFiber = Fiber._currentFiber.get()
+        try drainQueueOnCurrentThread(0)
+        finally {
+          Fiber._currentFiber.set(previousFiber)
+          executor.releaseInlineExecution()
+        }
+      } else {
+        // Either this thread has already nested inline executions up to its
+        // limit, or it is not one of the executor's, so hand this one to the
+        // scheduler.
+        drainQueueLaterOnExecutor(false)
+      }
+    }
+  }
+
   private[zio] def tellAddChild(child: Fiber.Runtime[_, _]): Unit =
     tell(FiberMessage.Stateful(parentFiber => parentFiber.addChild(child)))
 
@@ -1694,7 +1788,7 @@ object FiberRuntime {
    *   def apply(callback: Callback, onInterrupt: ZIO.Erased): AsyncContWith
    * }}}
    */
-  private class AsyncContWith private (private val value: AnyRef) extends AnyVal {
+  private[zio] class AsyncContWith private (private val value: AnyRef) extends AnyVal {
     import AsyncContWith.Callback
 
     def callback: Callback = value match {
@@ -1709,7 +1803,7 @@ object FiberRuntime {
     }
   }
 
-  private object AsyncContWith {
+  private[zio] object AsyncContWith {
 
     /**
      * Callback to be invoked when an asynchronous effect completes.
@@ -1734,6 +1828,19 @@ object FiberRuntime {
       def completeCause(cause: Cause[Nothing]): Boolean =
         if (compareAndSet(false, true)) {
           fiber.tell(FiberMessage.Resume(Exit.Failure(cause)))
+          true
+        } else {
+          false
+        }
+
+      /**
+       * Resumes the fiber on the calling thread when that thread belongs to its
+       * executor, rather than through the scheduler. See
+       * [[FiberRuntime.tellResumeInline]] for what that asks of the caller.
+       */
+      def completeZIOInline(effect: ZIO.Erased): Boolean =
+        if (compareAndSet(false, true)) {
+          fiber.tellResumeInline(FiberMessage.Resume(effect))
           true
         } else {
           false
