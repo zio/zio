@@ -41,6 +41,119 @@ Four design properties make `Schedule` a full algebra:
 - **Effect-capable** — Because `step` returns `ZIO[Env, Nothing, ...]`, a schedule can read clocks, draw random numbers, or call any service, all without breaking the functional model.
 - **Composable algebra** — Operators such as `&&`, `||`, `>>>`, and `++` build new `Schedule` values from existing ones, intersecting or unioning timing and combining outputs with full type-safety.
 
+## Motivation
+
+Before diving into how to *use* `Schedule`, it's worth understanding why it's *built* the way it is — why `step` takes the three arguments it does, why `Decision` carries an `Intervals` instead of a plain `Duration`, and why `State` exists as an abstract type member instead of a type parameter. None of this is required to use `Schedule` effectively, but it turns the trait shown above from something that looks arbitrary into something that couldn't really be built any other way.
+
+### The Problem
+
+Retrying and repeating effects sounds simple until the requirements pile up. A retry policy needs to remember how many attempts it's made so far, or how much time has elapsed — some kind of memory that survives from one attempt to the next. It needs to react to what actually happened — a `RuntimeException` might deserve a retry, a validation error might not, and a schedule that only ever counts attempts can't tell them apart. It needs to control timing precisely — not just "yes, try again" but *when*, since a real backoff strategy waits 100ms, then 200ms, then 400ms, not "immediately, forever." And critically, it needs to compose — a real system wants "retry with exponential backoff, but give up after a minute no matter what," which is two independent policies combined into one, not one policy hand-coded to do both jobs at once.
+
+Hand-rolling this with recursion and `ZIO.sleep` calls solves it once, for one call site, with the logic buried inside a `flatMap` chain that can't be reused, tested without waiting in real time, or combined with a second policy. The problem `Schedule` solves is turning "when and how often should this run again" into a *value* — something you can build once, combine with `&&`/`||`/`***`, hand to `ZIO#repeat` or `ZIO#retry`, and test by simulating time instead of waiting for it.
+
+### The Idea, in Plain English
+
+A `Schedule` is a tiny decision-maker that gets asked, over and over, one question: "given what just happened, and what you remember from before, should we go again — and if so, when — or should we stop?" Answering that question honestly requires exactly three things: somewhere to keep memory between one ask and the next, awareness of what just happened so the answer can depend on it, and a way to report back both a verdict (continue or stop) and, when continuing, precisely when. Everything in the real `Schedule` trait exists to make that one question answerable.
+
+### Building Up to the Real Model
+
+Rather than presenting the final trait and asking you to take its shape on faith, here's the same design arrived at the way it would actually be discovered — starting from the simplest thing that could possibly work, and adding exactly one capability at a time, each one motivated by something the previous version couldn't do.
+
+#### Step 1: Just a Count
+
+The simplest possible "keep retrying" rule counts attempts and stops at a limit:
+
+```scala
+def shouldContinue(attempt: Long): Boolean = attempt < 5
+```
+
+This is enough to answer "have we tried too many times yet?" — nothing more. There's no way to add a delay between attempts (`Schedule.spaced`, `Schedule.exponential` are impossible), and no way to look at *what happened* on a given attempt (`Schedule.recurWhile`, `Schedule.recurUntil` are impossible) — `attempt` is the only information available, and it says nothing about success or failure.
+
+#### Step 2: Add Timing
+
+Real backoff strategies don't just decide *whether* to continue — they decide *when*. Swap the `Boolean` for something that can also carry a delay:
+
+```scala
+def nextStep(attempt: Long): Option[Duration] =
+  if (attempt >= 5) None                          // stop
+  else Some((100 * attempt).millis)                // continue, after this delay
+```
+
+`None` means stop; `Some(delay)` means continue after waiting `delay`. This is enough to express `Schedule.spaced`, `Schedule.linear`, and `Schedule.exponential` — real timing strategies, not just a raw count. It's still blind to the actual effect: two different errors on two different attempts get treated identically, because `attempt` is still the only input.
+
+#### Step 3: Generalize the Counter into State, and Add Input
+
+The counter in Step 2 is really just one *specific* kind of memory. A schedule might instead need to remember the last delay used, a running total of elapsed time, or nothing at all — any of these should be expressible, not just a `Long`. At the same time, the schedule needs to see what actually happened at each step — the error being retried, or the value being repeated — not just how many times it's been asked:
+
+```scala
+trait MiniSchedule[State, In] {
+  def initial: State
+  def step(state: State, in: In): (State, Option[Duration])
+}
+```
+
+Generalizing the counter into an abstract `State` unlocks any policy that needs to remember something other than a count — the previous delay, an accumulated `Chunk` of outputs, an elapsed `Duration`. Adding `In` unlocks reacting to content — `Schedule.recurWhile`, `Schedule.recurUntil`, and the whole "conditional" family become expressible, because the step function can finally inspect what happened, not just count how many times it's been called.
+
+#### Step 4: Report Something Back
+
+`ZIO#repeat`'s whole point is often to hand back *something* useful when it finishes — the number of times it ran, the last value produced, an accumulated log. Step 3's model can decide when to stop, but it has nothing to report:
+
+```scala
+trait MiniSchedule[State, In, Out] {
+  def initial: State
+  def step(state: State, in: In): (State, Out, Option[Duration])
+}
+```
+
+Adding `Out` is what makes `ZIO#repeat`'s return value meaningful, and it's what every output-facing combinator — `Schedule#map`, `Schedule#tapOutput`, `Schedule#collectAll` — actually operates on. Without it, a schedule can gate *whether* something continues, but can never itself produce a value the caller cares about.
+
+#### Step 5: Make It Effectful, and Make Time Explicit
+
+Some schedules need to do more than pure computation to decide their next step — `Schedule#jittered` needs randomness, `Schedule.secondOfMinute` and the other calendar schedules need to know the current wall-clock time to compute the next matching boundary, and a schedule built from `Schedule.recurWhileZIO` needs to run a real effect to evaluate its condition. Deciding the next step has to become an effect, and the current time has to become an explicit input rather than something each schedule reads for itself:
+
+```scala
+trait MiniSchedule[Env, State, In, Out] {
+  def initial: State
+  def step(now: OffsetDateTime, in: In, state: State): ZIO[Env, Nothing, (State, Out, Option[Duration])]
+}
+```
+
+`now` is passed in rather than read via `Clock.currentDateTime` inside each schedule for a specific reason: when two schedules are combined with `&&`, both sides have to be evaluated against the *same* instant for their timing decisions to be comparable at all — if each side read the clock independently, a few nanoseconds apart, `&&`'s "intersect the two windows" logic would be comparing intervals computed against two different "nows." Threading `now` through the call, rather than letting each schedule fetch it independently, is what makes the two sides of a combined schedule comparable in the first place.
+
+#### Step 6: Refine "a Delay" into "a Set of Valid Windows"
+
+`Option[Duration]` says "wait exactly this long" — but combining two schedules needs more than that. `&&` has to compute the *intersection* of two schedules' acceptable next-run windows, and `||` the *union*; neither operation is well-defined on a single point-in-time delay. Two schedules due at 1s and 5s don't "intersect" to a delay at all unless you think in terms of *windows* — the earliest and latest moment each schedule considers acceptable — rather than a single instant. And a schedule can have more than one acceptable window at once (a calendar schedule can validly fire at several boundaries): a bare `Duration`, or even a single window, can't represent that either. This is exactly why the real model represents a step's continue-instruction with a whole *set* of time windows — `Interval` for one window (with real `intersect`/`union`/comparison operations), `Intervals` for a sorted, non-overlapping collection of them — bundled into a `Decision` that also has to allow for the "no more windows, we're done" case:
+
+```scala
+sealed trait Decision
+object Decision {
+  final case class Continue(interval: Intervals) extends Decision
+  case object Done extends Decision
+}
+```
+
+This is precisely the [`Decision`](#decision), [`Interval`](#interval), and [`Intervals`](#intervals) machinery documented in [Nested Types](#nested-types) — not designed for its own sake, but because "intersect two schedules' timing" and "union two schedules' timing" are real operations `&&` and `||` need to perform, and neither is expressible over a bare `Duration`.
+
+#### The Real Model
+
+Assembling Steps 3 through 6 — state, input, output, effectfulness, explicit time, and windows-instead-of-a-single-delay — produces exactly the trait shown at the top of this page:
+
+```scala
+trait Schedule[-Env, -In, +Out] extends Serializable { self =>
+  type State
+
+  def initial: State
+
+  def step(now: OffsetDateTime, in: In, state: State)(implicit
+    trace: Trace
+  ): ZIO[Env, Nothing, (State, Out, Decision)]
+}
+```
+
+`State` is an abstract type member rather than a type parameter for a practical reason: when two schedules combine (`&&`, `***`, `andThen`, …), their combined state is a pair of the two originals' states — `(self.State, that.State)` — and that pair's shape is different for every combination. Making `State` a member lets each combinator declare its own concrete state shape via `WithState` without polluting `Schedule`'s own type parameter list with a fourth, ever-changing parameter.
+
+Everything documented in [Core Operations](#core-operations) is a function that builds a *new* `step` out of one or two existing ones — `Schedule#map` runs `self.step` and transforms the `Out` in the result; `&&` runs both sides' `step` against the same `now` and combines their decisions by intersecting their `Intervals`; `Schedule.recurs` is a `step` that ignores its `State` after decrementing a counter. There's no separate execution engine hidden elsewhere — `ZIO#repeat`, `ZIO#retry`, `ZIO#schedule`, and manual [driving](#manual-driving) are all callers that do the same thing: run the effect (or not, for `ZIO#schedule`), call `step`, and either sleep until the returned `Intervals` and call it again, or stop on `Decision.Done`. Once `step` is understood, so is the entire type.
+
 ## Usage
 
 A typical use is retrying a failing effect with exponential backoff capped to a fixed number of attempts, combined with repeat for periodic polling:
@@ -1148,7 +1261,7 @@ val scaledByCount: Schedule[Any, Any, Long] =
 
 #### Jitter
 
-`jittered` randomly perturbs the delay at each step, reducing thundering-herd problems when many effects retry simultaneously:
+`Schedule#jittered` randomly perturbs the delay at each step, reducing thundering-herd problems when many effects retry simultaneously:
 
 ```scala
 trait Schedule[-Env, -In, +Out] { self =>
@@ -1163,11 +1276,11 @@ trait Schedule[-Env, -In, +Out] { self =>
 The no-arg form randomises each delay in the range `[0.8 × delay, 1.2 × delay]`. The two-argument form randomises in `[min × delay, max × delay]`.
 
 :::caution
-The no-arg `jittered` form keeps the *average* delay unchanged (factor ≈ 1.0), which spreads execution times slightly but does not reduce the overall retry load. Under high retry pressure — for example, when many clients retry simultaneously after a service restart — use `jittered(0.0, 1.0)` instead. That range reduces the amortized delay to 50% of the original, actively preventing a load spike.
+The no-arg `Schedule#jittered` form keeps the *average* delay unchanged (factor ≈ 1.0), which spreads execution times slightly but does not reduce the overall retry load. Under high retry pressure — for example, when many clients retry simultaneously after a service restart — use `Schedule#jittered(0.0, 1.0)` instead. That range reduces the amortized delay to 50% of the original, actively preventing a load spike.
 :::
 
 :::note
-`jittered` no longer requires `Random` in `Env`. In ZIO 2, `Random` is a built-in runtime service and is used internally without appearing in the schedule's environment type.
+`Schedule#jittered` no longer requires `Random` in `Env`. In ZIO 2, `Random` is a built-in runtime service and is used internally without appearing in the schedule's environment type.
 :::
 
 ```scala mdoc:compile-only
@@ -2025,3 +2138,4 @@ val viaSchedule: UIO[Int] =
 ```
 
 `viaRepeat` evaluates to `1`: `Schedule.recurs(0)` means zero repeats *in addition to* the first execution, and `ZIO#repeat` always performs that first execution before the schedule is asked anything. `viaSchedule` evaluates to `0`: `ZIO#schedule` asks `Schedule.recurs(0)` first, using the seed `()`, and a schedule with zero budget reports `Done` immediately — `countRuns` never runs at all. This is exactly why `ZIO#schedule` fits a scheduled/cron-style job that might legitimately decide, from external state alone, to skip a cycle entirely — `ZIO#repeat` structurally cannot do that.
+
