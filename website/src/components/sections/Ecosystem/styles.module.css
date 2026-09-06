@@ -74,7 +74,8 @@
 .ecosystemCardHeader {
   display: flex;
   align-items: center;
-  margin-bottom: 1rem;
+  justify-content: center;
+  margin-bottom: 2rem;
 }
 
 .ecosystemCardIcon {
