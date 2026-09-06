@@ -1,6 +1,12 @@
 ---
-id: console 
+id: "console"
 title: "Console"
+description: "Service providing simple I/O operations for reading/writing strings from/to standard input, output, and error console."
+keywords:
+  - "Console Service"
+  - "Standard Input/Output"
+  - "Error Handling"
+  - "String I/O"
 ---
 
 The Console service contains simple I/O operations for reading/writing strings from/to the standard input, output, and error console.
@@ -35,3 +41,7 @@ object MyHelloApp extends ZIOAppDefault {
 ```
 
 Note again, every line of our `program` are descriptions, not statements. As we can see the type of our `program` is `ZIO[Any, IOException, Unit]`, it means to run `program` we do not need any environment, it may fail due to failure of `readLine` and it will produce `Unit` value.
+
+## See Also
+
+- [Built-in Services](index.md) — Guide to ZIO's built-in services: Console, Clock, Random, and System with automatic environment management.

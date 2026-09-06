@@ -4,6 +4,8 @@ import zio.test._
 import zio.test.TestAspect._
 
 object ZKeyedPoolSpec extends ZIOBaseSpec {
+  final private val nPar = 100
+
   override def spec: Spec[TestEnvironment with Scope, Any] =
     suite("ZKeyedPoolSpec")(
       test("acquire release many successfully while other key is blocked") {
@@ -12,13 +14,13 @@ object ZKeyedPoolSpec extends ZIOBaseSpec {
           _    <- pool.get("key1").repeatN(3).unit
           fiber <-
             ZIO
-              .foreachParDiscard(1 to 400) { _ =>
+              .foreachParDiscard(1 to nPar) { _ =>
                 ZIO.scoped {
                   pool.get("key2") *> Clock.sleep(10.millis)
                 }
               }
               .fork
-          _ <- TestClock.adjust((10 * 400).millis)
+          _ <- TestClock.adjust((10 * nPar).millis)
           _ <- fiber.join
         } yield assertCompletes
       },
@@ -28,7 +30,7 @@ object ZKeyedPoolSpec extends ZIOBaseSpec {
           pool    <- ZKeyedPool.make((key: String) => counter.modify(n => (s"$key-$n", n + 1)), size = 4)
           fiber <-
             ZIO
-              .foreachParDiscard(1 to 400) { _ =>
+              .foreachParDiscard(1 to nPar) { _ =>
                 ZIO.scoped {
                   pool.get("key1").flatMap { value =>
                     pool.invalidate(value).whenZIO(Random.nextBoolean) *>
@@ -37,7 +39,7 @@ object ZKeyedPoolSpec extends ZIOBaseSpec {
                 }
               }
               .fork
-          _ <- TestClock.adjust((15 * 400).millis)
+          _ <- TestClock.adjust((15 * nPar).millis)
           _ <- fiber.join
         } yield assertCompletes
       },

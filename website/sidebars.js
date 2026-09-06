@@ -231,6 +231,7 @@ module.exports = {
               [
                 "reference/state-management/fiberref",
                 "reference/state-management/zstate",
+                "reference/state-management/threadlocal-bridge",
               ]
           }
         ]
@@ -308,6 +309,7 @@ module.exports = {
       link: { type: "doc", id: "reference/resource/index" },
       items: [
         "reference/resource/scope",
+        "reference/resource/cached",
         "reference/resource/zpool",
         "reference/resource/zkeyedpool",
         "reference/resource/scopedref",
@@ -366,7 +368,12 @@ module.exports = {
       type: "category",
       label: "Observability",
       items: [
-        "reference/observability/logging",
+        {
+          type: "category",
+          label: "Logging",
+          link: { type: "doc", id: "reference/observability/logging/index" },
+          items: ["reference/observability/logging/zlogger"],
+        },
         {
           type: "category",
           label: "Metrics",
@@ -488,6 +495,7 @@ module.exports = {
       type: "category",
       label: "Tutorial Guides",
       items: [
+        "guides/tutorials/retry-and-repeat-policies-with-schedule",
         "guides/tutorials/configurable-zio-application",
         "guides/tutorials/encode-and-decode-json-data",
         "guides/tutorials/enable-logging-in-a-zio-application",
@@ -495,27 +503,26 @@ module.exports = {
         "guides/tutorials/run-our-first-zio-project-with-vscode",
         "guides/tutorials/run-our-first-zio-project-with-intellij-idea",
         "guides/tutorials/deploy-a-zio-application-using-docker",
-        "guides/tutorials/producing-consuming-data-from-kafka-topics",
         "guides/tutorials/monitor-a-zio-application-using-zio-built-in-metric-system",
         "guides/tutorials/debug-a-zio-application",
         "guides/tutorials/build-a-restful-webservice",
         "guides/tutorials/build-a-graphql-webservice",
         "guides/tutorials/gracefully-shutdown-zio-application",
+        "guides/tutorials/getting-started-threadlocal-bridge",
+        "guides/tutorials/reloadable-services",
+        "guides/compositional-fiberref-updates-with-differ",
       ]
     },
     {
       type: "category",
       label: "Integration Guides",
       items: [
+        { type: "doc", id: "guides/scala-native", label: "Scala Native" },
+        { type: "doc", id: "guides/scala-js", label: "Scala.js" },
         "guides/interop/with-cats-effect",
         "guides/interop/with-future",
         "guides/interop/with-java",
-        "guides/interop/with-javascript",
-        "guides/interop/with-monix",
-        "guides/interop/with-scalaz-7x",
-        "guides/interop/with-reactive-streams",
-        "guides/interop/with-twitter",
-        "guides/interop/with-guava"
+        "guides/interop/with-javascript"
       ]
     },
     {
@@ -556,6 +563,7 @@ module.exports = {
         "ecosystem/community/tranzactio",
         "ecosystem/community/zio-amqp",
         "ecosystem/community/zio-apache-parquet",
+        "ecosystem/community/zio-eclipsestore",
         "ecosystem/community/zio-grpc",
         "ecosystem/community/zio-k8s",
         "ecosystem/community/zio-kinesis",
@@ -574,8 +582,6 @@ module.exports = {
     "resources/index",
     "resources/articles",
     "resources/videos",
-    "resources/cookbooks",
-    "resources/cheatsheets",
     "resources/sampleprojects",
     "resources/poweredbyzio"
   ]

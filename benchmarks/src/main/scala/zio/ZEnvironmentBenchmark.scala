@@ -146,6 +146,10 @@ class ZEnvironmentBenchmark {
   def prune() =
     env.prune[Foo001 with Foo002 with Foo003]
 
+  @Benchmark
+  def pruneOne() =
+    env.prune[Foo001]
+
 }
 
 object BenchmarkedEnvironment {

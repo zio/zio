@@ -36,7 +36,7 @@ object ThreadLocalBridge {
           }
       }
     }
-    supervisorLayer ++ bridgeLayer
+    supervisorLayer <*> bridgeLayer
   }
 
   private class FiberRefTrackingSupervisor extends Supervisor[Unit] {

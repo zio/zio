@@ -103,6 +103,86 @@ object FiberRefsSpec extends ZIOBaseSpec {
             val isEq     = fr1.joinAs(FiberId.Gen.Live.make(implicitly))(fr2) ne fr1
             assertTrue(isEq)
           }
+      } +
+      suite("diff patch") {
+        val ref0, ref1, ref2, ref3 = FiberRef.unsafe.make(0)
+
+        test("add") {
+          val frs1 = FiberRefs.empty
+            .updatedAs(id1)(ref1, 2)
+
+          val frs2 = FiberRefs.empty
+            .updatedAs(id1)(ref1, 2)
+            .updatedAs(id1)(ref2, 2)
+            .updatedAs(id1)(ref3, 2)
+
+          val toPatch = FiberRefs.empty
+            .updatedAs(id1)(ref0, -1)
+
+          val patched = FiberRefs.Patch.diff(frs1, frs2).apply(id1, toPatch)
+
+          assertTrue(
+            patched.fiberRefLocals.size == 3,
+            patched.getOrDefault(ref0) == -1,
+            patched.getOrDefault(ref2) == 2,
+            patched.getOrDefault(ref3) == 2
+          )
+        } + test("remove") {
+          val frs1 = FiberRefs.empty
+            .updatedAs(id1)(ref2, 2)
+            .updatedAs(id1)(ref3, 2)
+
+          val frs2 = FiberRefs.empty
+            .updatedAs(id1)(ref1, 2)
+
+          val toPatch = FiberRefs.empty
+            .updatedAs(id1)(ref0, -1)
+            .updatedAs(id1)(ref2, -1)
+
+          val patched = FiberRefs.Patch.diff(frs1, frs2).apply(id1, toPatch)
+          assertTrue(
+            patched.fiberRefLocals.size == 2,
+            patched.getOrDefault(ref0) == -1
+          )
+        } + test("update") {
+          val frs1 = FiberRefs.empty
+            .updatedAs(id1)(ref1, 2)
+
+          val frs2 = FiberRefs.empty
+            .updatedAs(id1)(ref1, 3)
+
+          val toPatch = FiberRefs.empty
+            .updatedAs(id1)(ref0, -1)
+            .updatedAs(id1)(ref1, -1)
+
+          val patched = FiberRefs.Patch.diff(frs1, frs2).apply(id1, toPatch)
+          assertTrue(
+            patched.fiberRefLocals.size == 2,
+            patched.getOrDefault(ref0) == -1,
+            patched.getOrDefault(ref1) == 3
+          )
+        } + test("combination") {
+          val frs1 = FiberRefs.empty
+            .updatedAs(id1)(ref1, 2)
+            .updatedAs(id1)(ref2, 2)
+
+          val frs2 = FiberRefs.empty
+            .updatedAs(id1)(ref2, 3)
+            .updatedAs(id1)(ref3, 3)
+
+          val toPatch = FiberRefs.empty
+            .updatedAs(id1)(ref0, -1)
+            .updatedAs(id1)(ref1, -1)
+            .updatedAs(id1)(ref2, -1)
+
+          val patched = FiberRefs.Patch.diff(frs1, frs2).apply(id1, toPatch)
+          assertTrue(
+            patched.fiberRefLocals.size == 3,
+            patched.getOrDefault(ref0) == -1,
+            patched.getOrDefault(ref2) == 3,
+            patched.getOrDefault(ref3) == 3
+          )
+        }
       }
   )
 }

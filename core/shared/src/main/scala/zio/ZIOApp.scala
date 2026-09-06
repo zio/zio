@@ -49,6 +49,16 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
   def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Any]
 
   /**
+   * The time that the application will wait for finalizers to run before
+   * exiting.
+   *
+   * '''NOTE''': This is currently used only for JVM & ScalaNative applications
+   */
+  def gracefulShutdownTimeout: Duration = Duration.Infinity
+
+  def runtime: Runtime[Any] = Runtime.default
+
+  /**
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application
    * that executes the logic of both applications.
    */
@@ -71,32 +81,47 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
    * A helper function to exit the application with the specified exit code.
    */
   final def exit(code: ExitCode)(implicit trace: Trace): UIO[Unit] =
-    ZIO.succeed {
-      if (shuttingDown.compareAndSet(false, true)) {
-        try Platform.exit(code.code)(Unsafe.unsafe)
-        catch {
-          case _: SecurityException =>
-        }
+    ZIO.succeed(exitUnsafe(code)(Unsafe))
+
+  protected[zio] def exitUnsafe(code: ExitCode)(implicit unsafe: Unsafe): Unit =
+    if (shuttingDown.compareAndSet(false, true)) {
+      try Platform.exit(code.code)
+      catch {
+        case _: SecurityException =>
       }
     }
+
+  protected[zio] final def exitUnsafe(exit: Exit[Nothing, ExitCode])(implicit unsafe: Unsafe): Unit =
+    exit match {
+      case Exit.Success(code) => exitUnsafe(code)
+      case _                  => exitUnsafe(ExitCode.failure)
+    }
+
+  protected[zio] final def workflow(args: Array[String])(implicit trace: Trace): ZIO[Any, Any, Any] =
+    workflow(Chunk.fromIterable(args), false)
+
+  protected[zio] final def workflow(args: Chunk[String], skipLogging: Boolean)(implicit
+    trace: Trace
+  ): ZIO[Any, Any, Any] = {
+    val newLayer = ZLayer.succeed(ZIOAppArgs(args)) >>> bootstrap +!+ ZLayer.environment[ZIOAppArgs]
+
+    (for {
+      runtime <- ZIO.runtime[Environment with ZIOAppArgs]
+      _       <- installSignalHandlers(runtime)
+      result <- runtime.run(ZIO.scoped[Environment with ZIOAppArgs](run)).tapErrorCause { c =>
+                  // Don't log an interruption error if we're shutting down
+                  if (skipLogging || (shuttingDown.get() && c.isInterruptedOnly)) Exit.unit
+                  else ZIO.logErrorCause(c)
+                }
+    } yield result)
+      .provideLayer(newLayer.tapErrorCause(cause => if (skipLogging) Exit.unit else ZIO.logErrorCause(cause)))
+  }
 
   /**
    * Invokes the main app. Designed primarily for testing.
    */
   final def invoke(args: Chunk[String])(implicit trace: Trace): ZIO[Any, Any, Any] =
-    ZIO.suspendSucceed {
-      val newLayer =
-        ZLayer.succeed(ZIOAppArgs(args)) >>>
-          bootstrap +!+ ZLayer.environment[ZIOAppArgs]
-
-      (for {
-        runtime <- ZIO.runtime[Environment with ZIOAppArgs]
-        _       <- installSignalHandlers(runtime)
-        result  <- runtime.run(ZIO.scoped[Environment with ZIOAppArgs](run))
-      } yield result).provideLayer(newLayer)
-    }
-
-  def runtime: Runtime[Any] = Runtime.default
+    ZIO.suspendSucceed(workflow(args, true))
 
   protected def installSignalHandlers(runtime: Runtime[Any])(implicit trace: Trace): UIO[Any] =
     ZIO.ignore {
@@ -110,6 +135,12 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
         }
       }
     }
+
+  protected[zio] def interruptRootFibers(mainFiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
+    for {
+      roots <- Fiber.roots
+      _     <- Fiber.interruptAll(roots.view.filter(fiber => fiber.isAlive() && (fiber.id != mainFiberId)))
+    } yield ()
 }
 
 object ZIOApp {

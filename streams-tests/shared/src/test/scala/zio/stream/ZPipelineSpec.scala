@@ -5,6 +5,7 @@ import zio.stream.encoding.EncodingException
 import zio.test.Assertion.{equalTo, fails, isEmpty}
 import zio.test._
 
+import java.nio.charset.Charset
 import scala.io.Source
 
 object ZPipelineSpec extends ZIOBaseSpec {
@@ -43,6 +44,20 @@ object ZPipelineSpec extends ZIOBaseSpec {
             .map(res => assert(res)(equalTo(Chunk[Byte](49, 50))))
         }
       ),
+      suite("encodeStringWith")(
+        test("doesn't cause OOM errors on large inputs") {
+          for {
+            bytes <- Random.RandomLive.nextString(12 * 1024 * 1024).map(_.getBytes)
+            stream = ZStream.fromIterable(bytes)
+            pipeline = ZPipeline.decodeStringWith(Charset.forName("UTF-8")) >>>
+                         ZPipeline.splitOn("\n") >>>
+                         ZPipeline.map[String, String](_.concat("\n")) >>>
+                         ZPipeline.encodeStringWith(Charset.forName("UTF-8"))
+            pipelined = stream.rechunk(1024).via(pipeline)
+            out      <- pipelined.runCollect
+          } yield assertTrue(out.dropRight(1).sameElements(bytes))
+        }
+      ) @@ TestAspect.jvmOnly,
       suite("splitLines")(
         test("preserves data")(
           check(weirdStringGenForSplitLines) { lines =>

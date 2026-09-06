@@ -4,10 +4,10 @@ import zio.test._
 import zio.{ZIO, ZLayer}
 
 private[test] object ResultPrinterJson {
-  val live: ZLayer[Any, Nothing, ResultPrinter] =
+  def live(jsonResultPath: String): ZLayer[Any, Nothing, ResultPrinter] =
     ZLayer.make[ResultPrinter](
       ResultSerializer.live,
-      ResultFileOps.live,
+      ResultFileOps.live(jsonResultPath),
       ZLayer.fromFunction(LiveImpl.apply _)
     )
 

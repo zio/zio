@@ -166,7 +166,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    *   `UIO[Exit, E, A]]`
    */
   final def interrupt(implicit trace: Trace): UIO[Exit[E, A]] =
-    ZIO.fiberIdWith(fiberId => self.interruptAs(fiberId))
+    ZIO.fiberIdWith(self.interruptAs)
 
   /**
    * Interrupts the fiber as if interrupted from the specified fiber. If the
@@ -176,7 +176,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * @return
    *   `UIO[Exit, E, A]]`
    */
-  final def interruptAs(fiberId: FiberId)(implicit trace: Trace): UIO[Exit[E, A]] =
+  def interruptAs(fiberId: FiberId)(implicit trace: Trace): UIO[Exit[E, A]] =
     self.interruptAsFork(fiberId) *> self.await
 
   /**
@@ -606,6 +606,14 @@ object Fiber extends FiberPlatformSpecific {
      */
     private[zio] def getRunningExecutor(): Option[Executor]
 
+    /**
+     * Boolean flag which indicates whether the fiber contains children that are
+     * currently running
+     *
+     * '''NOTE''': This method is safe to invoke from any fiber
+     */
+    private[zio] def hasChildrenAlive(implicit trace: Trace): UIO[Boolean]
+
     private[zio] def isAlive(): Boolean
 
     /**
@@ -616,8 +624,8 @@ object Fiber extends FiberPlatformSpecific {
      * invoked on this fiber, then values derived from the fiber's state
      * (including the log annotations and log level) may not be up-to-date.
      */
-    private[zio] final def isFatal(t: Throwable): Boolean =
-      getFiberRef(FiberRef.currentFatal).apply(t)
+    @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.21")
+    private[zio] final def isFatal(t: Throwable): Boolean = !nonFatal(t)
 
     /**
      * Logs using the current set of loggers.

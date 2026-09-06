@@ -29,7 +29,13 @@ private[zio] object FilteredSpec {
     val testSearchedSpec = args.testSearchTerms match {
       case Nil => spec
       case testSearchTerms =>
-        spec.filterLabels(label => testSearchTerms.exists(term => label.contains(term))).getOrElse(Spec.empty)
+        spec
+          .filterLabels(
+            label => testSearchTerms.exists(term => label.contains(term)),
+            prefix = "",
+            accumulatePrefix = true
+          )
+          .getOrElse(Spec.empty)
     }
     val tagIgnoredSpec = args.tagIgnoreTerms match {
       case Nil => testSearchedSpec

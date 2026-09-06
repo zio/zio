@@ -30,13 +30,15 @@ trait TestConstructorLowPriority1 extends TestConstructorLowPriority2 {
       type Out = Spec[R, E]
       def apply(
         label: String
-      )(assertion: => ZIO[R, E, A])(implicit sourceLocation: SourceLocation, trace: Trace): Spec[R, E] =
+      )(assertion: => ZIO[R, E, A])(implicit sourceLocation: SourceLocation, trace: Trace): Spec[R, E] = {
+        val assertion0 = ZIO.suspendSucceed(assertion)
         Spec.labeled(
           label,
           Spec
-            .test(ZTest(label, assertion), TestAnnotationMap.empty)
+            .test(ZTest(label, assertion0), TestAnnotationMap.empty)
             .annotate(TestAnnotation.trace, sourceLocation :: Nil)
         )
+      }
     }
 }
 

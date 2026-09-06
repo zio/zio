@@ -1,6 +1,13 @@
 ---
-id: uio
+id: "uio"
 title: "UIO"
+description: "Type alias for ZIO[Any, Nothing, A] representing an infallible effect that requires no environment and cannot fail, always succeeding with a value."
+keywords:
+  - "Infallible Effect"
+  - "Unexceptional Effect"
+  - "ZIO Type Alias"
+  - "Error-free Effect"
+  - "Effect Type"
 ---
 
 `UIO[A]` is a type alias for `ZIO[Any, Nothing, A]`, which represents an **Unexceptional** effect that doesn't require any specific environment, and cannot fail, but can succeed with an `A`.

@@ -6,7 +6,7 @@ private[zio] abstract class HasNoScopeCompanionVersionSpecific {
 
   val instance: HasNoScope[Any]
 
-  final transparent inline given hasNoScope[R]: HasNoScope[R] =
+  final inline given hasNoScope[R]: HasNoScope[R] =
     ${ HasNoScopeMacro.noScope[R] }
 
 }

@@ -69,7 +69,7 @@ class ZIOTestClassRunner(descriptor: ZIOTestClassDescriptor) {
               .map(_ => Spec.TestCase(test, annotations))
               .getOrElse(
                 // filtered out
-                Spec.TestCase(ZIO.succeed(TestSuccess.Ignored()), annotations)
+                Spec.TestCase(ZIO.succeed(TestSuccess.ignored), annotations)
               )
         }
 
@@ -127,7 +127,7 @@ class ZIOTestClassRunner(descriptor: ZIOTestClassDescriptor) {
     spec
       .runSpecAsApp(instrumented, TestArgs.empty, Console.ConsoleLive, eventHandler)
       .provide(
-        Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
+        Scope.default >>> (liveEnvironment >>> TestEnvironment.live <*> ZLayer.environment[Scope]),
         spec.bootstrap
       )
   }

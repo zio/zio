@@ -10,60 +10,62 @@ private[zio] trait ZIOAppPlatformSpecific { self: ZIOApp =>
    */
   final def main(args0: Array[String]): Unit = {
     implicit val trace: Trace   = Trace.empty
-    implicit val unsafe: Unsafe = Unsafe.unsafe
+    implicit val unsafe: Unsafe = Unsafe
 
-    val newLayer =
-      ZLayer.succeed(ZIOAppArgs(Chunk.fromIterable(args0))) >>>
-        bootstrap +!+ ZLayer.environment[ZIOAppArgs]
+    val app = workflow(args0)
 
-    val workflow =
-      (for {
-        runtime <- ZIO.runtime[Environment with ZIOAppArgs]
-        _       <- installSignalHandlers(runtime)
-        result  <- runtime.run(ZIO.scoped[Environment with ZIOAppArgs](run)).tapErrorCause(ZIO.logErrorCause(_))
-      } yield result).provideLayer(newLayer.tapErrorCause(ZIO.logErrorCause(_)))
+    val shutdownLatch = internal.OneShot.make[Unit]
 
-    runtime.unsafe.run {
-      ZIO.uninterruptible {
-        for {
-          fiberId <- ZIO.fiberId
-          fiber <- workflow.interruptible.exitWith { exit0 =>
-                     val exitCode = if (exit0.isSuccess) ExitCode.success else ExitCode.failure
-                     interruptRootFibers(fiberId).as(exitCode)
-                   }.fork
-          _ <-
-            ZIO.succeed(Platform.addShutdownHook { () =>
-              if (shuttingDown.compareAndSet(false, true)) {
-
-                if (FiberRuntime.catastrophicFailure.get) {
-                  println(
-                    "**** WARNING ****\n" +
-                      "Catastrophic error encountered. " +
-                      "Application not safely interrupted. " +
-                      "Resources may be leaked. " +
-                      "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
-                  )
-                } else {
-                  // NOTE: try-catch likely not needed,
-                  // but guarding against cases where the submission of the task fails spuriously
-                  try {
-                    fiber.tellInterrupt(Cause.interrupt(fiberId))
-                  } catch {
-                    case _: Throwable =>
-                  }
-                }
+    def shutdownHook(fiberId: FiberId, fiber: Fiber.Runtime[Nothing, ExitCode]): Unit =
+      Platform.addShutdownHook { () =>
+        if (shuttingDown.compareAndSet(false, true)) {
+          if (FiberRuntime.catastrophicFailure.get) {
+            println(
+              "**** WARNING ****\n" +
+                "Catastrophic error encountered. " +
+                "Application not safely interrupted. " +
+                "Resources may be leaked. " +
+                "Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context."
+            )
+          } else {
+            try {
+              fiber.tellInterrupt(Cause.interrupt(fiberId))
+              gracefulShutdownTimeout match {
+                case Duration.Infinity       => shutdownLatch.get()
+                case d if d <= Duration.Zero => ()
+                case d                       => shutdownLatch.get(d.toMillis)
               }
-            })
-          result <- fiber.join
-          _      <- exit(result)
-        } yield ()
+            } catch {
+              case _: OneShot.TimeoutException =>
+                println(
+                  "**** WARNING ****\n" +
+                    s"Timed out waiting for ZIO application to shut down after ${gracefulShutdownTimeout.render}. " +
+                    "You can adjust your application's shutdown timeout by overriding the `shutdownTimeout` method"
+                )
+              case _: Throwable =>
+            }
+          }
+        }
       }
-    }.getOrThrowFiberFailure()
-  }
 
-  private def interruptRootFibers(mainFiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
-    for {
-      roots <- Fiber.roots
-      _     <- Fiber.interruptAll(roots.view.filter(fiber => fiber.isAlive() && (fiber.id != mainFiberId)))
-    } yield ()
+    val exit0 =
+      runtime.unsafe.run {
+        ZIO.uninterruptibleMask { restore =>
+          for {
+            fiberId <- ZIO.fiberId
+            fiber <- restore(app).exitWith { exit0 =>
+                       val exitCode = if (exit0.isSuccess) ExitCode.success else ExitCode.failure
+                       interruptRootFibers(fiberId).as(exitCode)
+                     }.fork
+            result <- {
+              shutdownHook(fiberId, fiber)
+              fiber.join
+            }
+          } yield result
+        }
+      }
+
+    shutdownLatch.set(())
+    exitUnsafe(exit0)
+  }
 }

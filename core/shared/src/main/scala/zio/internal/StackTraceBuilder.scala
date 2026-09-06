@@ -22,19 +22,16 @@ import scala.collection.mutable.ArrayBuilder
 import scala.reflect.ClassTag
 
 private[zio] class StackTraceBuilder private () { self =>
-  private var last: Trace = null.asInstanceOf[Trace]
-  private val builder     = new ArrayBuilder.ofRef()(ClassTag.AnyRef.asInstanceOf[ClassTag[Trace]])
+  private[this] val builder = new ArrayBuilder.ofRef()(ClassTag.AnyRef.asInstanceOf[ClassTag[Trace]])
 
-  def +=(trace: Trace): Unit =
-    if ((trace ne null) && (trace ne Trace.empty) && (trace ne last)) {
+  def +=(trace: Trace): Unit = {
+    if ((trace ne null) && (trace ne Trace.empty))
       builder += trace
-      last = trace
-    }
-
-  def clear(): Unit = {
-    builder.clear()
-    last = null.asInstanceOf[Trace]
+    ()
   }
+
+  def clear(): Unit =
+    builder.clear()
 
   def result(): Chunk[Trace] =
     Chunk.fromArray(builder.result())

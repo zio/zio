@@ -1,0 +1,318 @@
+/* Ported from zio-http's HomepageCodeSnippet styles
+   (website/src/components/HomepageCodeSnippet/styles.module.css). */
+
+.codeSnippetSection {
+  /* Match the shared .section-alt band so all tinted sections agree. */
+  background-color: #ffffff;
+  /* Match the shared SectionWrapper vertical padding (py-10 = 2.5rem) so the
+     gap between every homepage section is consistent. */
+  padding: 2.5rem 0;
+  width: 100%;
+}
+
+[data-theme='dark'] .codeSnippetSection {
+  background-color: var(--ifm-background-surface-color);
+}
+
+.innerContainer {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: 4rem;
+  align-items: stretch;
+}
+
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Match the shared .section-title language used by every other section. */
+.leftColumn h2 {
+  color: var(--ifm-heading-color);
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+/* Left-aligned version of the shared .gradient-rule under section titles. */
+.headingRule {
+  width: 48px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--gradient-brand);
+  margin: -0.75rem 0 0;
+}
+
+.leftColumn p {
+  color: var(--ifm-text-color-secondary);
+  font-size: 1.1rem;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.leftColumn p.takeaway {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--ifm-heading-color);
+}
+
+.points {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  list-style: none;
+}
+
+.points li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  color: var(--ifm-text-color-secondary);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+/* Gradient-tinted check tile, matching the Features card icon language. */
+.pointIcon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.1rem;
+  border-radius: 0.5rem;
+  font-size: 0.7rem;
+  color: #dc2626;
+  background: linear-gradient(
+    135deg,
+    rgba(220, 38, 38, 0.12),
+    rgba(245, 158, 11, 0.12)
+  );
+}
+
+[data-theme='dark'] .pointIcon {
+  color: #f87171;
+}
+
+/* Pin the CTA to the bottom of the column so it stays put across tabs,
+   while the takeaway/points above vary in height. */
+.ctaWrap {
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
+/* Pill CTA matching the hero buttons. */
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  color: #fff;
+  background-color: var(--ifm-color-primary);
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.ctaButton:hover {
+  color: #fff;
+  text-decoration: none;
+  background-color: var(--ifm-color-primary-light);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ctaButton:hover {
+    transform: translateY(-2px);
+  }
+}
+
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Theme-aware panel matching the card-modern language: 14px radius, an
+   emphasis border, and a brand gradient top edge. Surfaces follow the
+   Infima palette so it is light in light mode and dark in dark mode. */
+.codePanel {
+  position: relative;
+  background-color: var(--ifm-card-background-color, #fff);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+.codePanel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-brand);
+  z-index: 1;
+}
+
+[data-theme='dark'] .codePanel {
+  background-color: var(--ifm-background-color);
+  border-color: var(--ifm-color-emphasis-300);
+}
+
+.tabBar {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  background-color: var(--ifm-color-emphasis-100);
+}
+
+.tabBar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
+
+.tab {
+  flex-shrink: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  border: none;
+  background: transparent;
+  color: var(--ifm-color-emphasis-600);
+  cursor: pointer;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+  font-family: inherit;
+}
+
+/* Reserve the bold (active) width at all times so switching tabs never
+   reflows the tab strip. The hidden copy always renders at weight 600. */
+.tab::after {
+  content: attr(data-label);
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.tab:hover {
+  color: var(--ifm-color-emphasis-900);
+}
+
+.tabActive {
+  color: var(--ifm-color-primary);
+  font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--ifm-color-primary);
+}
+
+.codeArea {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.pre {
+  margin: 0;
+  padding: 1.25rem 1rem;
+  overflow: auto;
+  /* Hold a stable height across tabs (tallest snippet is ~15 lines) so the
+     panel does not jump when switching between short and long examples. */
+  min-height: 24rem;
+  max-height: 500px;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.codeLine {
+  display: block;
+}
+
+.lineNumber {
+  display: inline-block;
+  width: 2.5ch;
+  min-width: 2.5ch;
+  margin-right: 1.5rem;
+  text-align: right;
+  color: var(--ifm-color-emphasis-400);
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.lineContent {
+  display: inline;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background-color: var(--ifm-color-emphasis-100);
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.langBadge {
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-600);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.copyButton {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-600);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.copyButton:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.copyButtonCopied {
+  color: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+}
+
+@media screen and (max-width: 996px) {
+  .innerContainer {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .tabBar {
+    overflow-x: auto;
+  }
+
+  .pre {
+    overflow: auto;
+    max-height: 450px;
+  }
+}

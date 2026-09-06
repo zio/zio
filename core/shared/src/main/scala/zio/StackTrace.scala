@@ -57,7 +57,8 @@ final case class StackTrace(
   }
 
   override def toString(): String =
-    prettyPrint("Stack trace for thread \"" + fiberId.threadName + "\":")
+    if (isEmpty) "StackTrace.none"
+    else prettyPrint("Stack trace for thread \"" + fiberId.threadName + "\":")
 }
 
 object StackTrace {

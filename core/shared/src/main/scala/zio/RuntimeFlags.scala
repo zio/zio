@@ -100,6 +100,7 @@ object RuntimeFlags {
   def windDown(flags: RuntimeFlags): Boolean =
     isEnabled(flags, RuntimeFlag.WindDown.mask)
 
+  @deprecated("Unused + unimplemented: using this flag will have no effect", "2.1.19")
   def workStealing(flags: RuntimeFlags): Boolean =
     isEnabled(flags, RuntimeFlag.WorkStealing.mask)
 

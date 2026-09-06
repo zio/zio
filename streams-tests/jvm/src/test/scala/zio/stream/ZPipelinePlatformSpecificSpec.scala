@@ -9,8 +9,6 @@ import java.nio.charset.StandardCharsets
 import java.util.zip.Deflater
 
 object ZPipelinePlatformSpecificSpec extends ZIOBaseSpec {
-  override def aspects: Chunk[TestAspectPoly] =
-    Chunk(TestAspect.timeout(300.seconds))
 
   def spec = suite("ZPipeline JVM")(
     suite("Constructors")(

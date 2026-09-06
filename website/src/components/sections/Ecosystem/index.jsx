@@ -6,13 +6,13 @@ import SectionWrapper from '@site/src/components/ui/SectionWrapper';
 
 import { ecosystemProjects } from './data';
 
-export default function Ecosystem({ title, subtitle, children}) {
+export default function Ecosystem({ eyebrow, title, subtitle, children}) {
   // Separate ZIO HTTP from other projects (featured project)
   const featuredProject = ecosystemProjects.find(p => p.name === 'ZIO HTTP');
   const otherProjects = ecosystemProjects.filter(p => p.name !== 'ZIO HTTP');
 
   return (
-    <SectionWrapper title={title} subtitle={subtitle} >
+    <SectionWrapper eyebrow={eyebrow} title={title} subtitle={subtitle} >
       <div className={styles.wideContainer}>
         {/* Featured project in its own row */}
         {featuredProject && (

@@ -1,7 +1,15 @@
 ---
-id: hello-world
+id: "hello-world"
 title: "ZIO Quickstart: Hello World"
 sidebar_label: "Hello World"
+description: "Simple introductory guide to creating your first ZIO application using ZIOAppDefault and Console operations for effect composition."
+keywords:
+  - "Hello World Quickstart"
+  - "ZIOAppDefault"
+  - "Console Operations"
+  - "Effect Composition"
+  - "Getting Started with ZIO"
+  - "For-Comprehension"
 ---
 
 This is the simplest quickstart for a ZIO application. You can download and run it very quickly. This will give you an idea of how to write similar apps.
@@ -30,7 +38,7 @@ sbt reStart
 :::note
 If you encounter a "port already in use" error, you can use `sbt-revolver` to manage server restarts more effectively. The `reStart` command will start your server and `reStop` will properly stop it, releasing the port.
 
-To enable this feature, we have included `sbt-revolver` in the project. For more details on this, refer to the [ZIO HTTP documentation on hot-reloading](https://zio.dev/zio-http/installation#hot-reload-changes-watch-mode).
+To enable this feature, we have included `sbt-revolver` in the project. For more details on this, refer to the [ZIO HTTP documentation on hot-reloading](https://ziohttp.com/installation#hot-reload-changes-watch-mode).
 :::
 
 ## Testing The Quickstart

@@ -472,7 +472,6 @@ object FiberRefSpec extends ZIOBaseSpec {
           FiberRef.overrideExecutor,
           FiberRef.currentEnvironment,
           FiberRef.currentBlockingExecutor,
-          FiberRef.currentFatal,
           FiberRef.currentFiberIdGenerator,
           FiberRef.currentLoggers,
           FiberRef.currentReportFatal,

@@ -1,6 +1,7 @@
 package zio.stream
 
 import zio.{LogAnnotation, Trace}
+import zio.metrics.MetricLabel
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 trait ZStreamAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
@@ -93,5 +94,14 @@ object ZStreamAspect {
     new ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
       def apply[R, E, A](stream: ZStream[R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
         ZStream.tagged(key, value) *> stream
+    }
+
+  /**
+   * An aspect that tags each metric in this stream with the specified tags.
+   */
+  def tagged(tags: (String, String)*): ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+    new ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
+      def apply[R, E, A](stream: ZStream[R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
+        ZStream.tagged(tags.map { case (key, value) => MetricLabel(key, value) }.toSet) *> stream
     }
 }

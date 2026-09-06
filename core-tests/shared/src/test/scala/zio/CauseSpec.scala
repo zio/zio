@@ -1,9 +1,11 @@
 package zio
 
-import zio.Cause.{Both, Then, empty}
+import zio.Cause.{Both, Die, Empty, Fail, Interrupt, Stackless, Then, empty}
 import zio.test.Assertion._
 import zio.test.TestAspect.samples
 import zio.test._
+
+import scala.annotation.tailrec
 
 object CauseSpec extends ZIOBaseSpec {
 
@@ -169,6 +171,81 @@ object CauseSpec extends ZIOBaseSpec {
         assert(stripped)(isNone)
       }
     ),
+    suite("toString")(
+      test("not fail with StackOverflowError") {
+        @tailrec
+        def genCause(current: Cause[String], depth: Int): Cause[String] =
+          if (depth <= 0) {
+            current
+          } else {
+            genCause(Both(current, Cause.fail(s"Error$depth")), depth - 1)
+          }
+
+        val cause = genCause(Cause.fail("Error"), 20000)
+
+        assert(cause.toString)(anything)
+      } @@ TestAspect.jvmOnly,
+      test("return properly structured string for nested cause") {
+        val fiberId    = FiberId(123, 456, Trace.empty)
+        val stackTrace = StackTrace(fiberId, Chunk.empty)
+
+        val cause = Both(
+          Both(
+            Both(
+              Stackless(Empty, true),
+              Die(new Exception("Ex1"), stackTrace)
+            ),
+            Empty
+          ),
+          Both(
+            Fail(new Exception("Ex2"), stackTrace),
+            Then(
+              Empty,
+              Interrupt(fiberId, stackTrace)
+            )
+          )
+        )
+
+        val expected =
+          """Both(Both(Both(Stackless(Empty,true),Die(java.lang.Exception: Ex1,Stack trace for thread "zio-fiber-123":
+            |)),Empty),Both(Fail(java.lang.Exception: Ex2,Stack trace for thread "zio-fiber-123":
+            |),Then(Empty,Interrupt(Runtime(123,456000,),Stack trace for thread "zio-fiber-123":
+            |))))""".stripMargin
+
+        assert(cause.toString)(equalTo(expected))
+      },
+      test("return properly structured string for simple causes") {
+        val fiberId    = FiberId(123, 456, Trace.empty)
+        val stackTrace = StackTrace(fiberId, Chunk.empty)
+
+        val simpleCauseExpectation = Seq(
+          (Empty, "Empty"),
+          (
+            Die(new Exception("Ex1"), stackTrace),
+            """Die(java.lang.Exception: Ex1,Stack trace for thread "zio-fiber-123":
+              |)""".stripMargin
+          ),
+          (
+            Fail(new Exception("Ex2"), stackTrace),
+            """Fail(java.lang.Exception: Ex2,Stack trace for thread "zio-fiber-123":
+              |)""".stripMargin
+          ),
+          (
+            Fail("Boom", StackTrace.none),
+            "Fail(Boom,StackTrace.none)"
+          ),
+          (
+            Interrupt(fiberId, stackTrace),
+            """Interrupt(Runtime(123,456000,),Stack trace for thread "zio-fiber-123":
+              |)""".stripMargin
+          )
+        )
+
+        simpleCauseExpectation.foldLeft(assertTrue(true)) { case (assertion, (cause, expectation)) =>
+          assertion && assert(cause.toString)(equalTo(expectation))
+        }
+      }
+    ),
     suite("filter")(
       test("fail.filter(false)") {
         val f1 = Cause.fail(())
@@ -264,12 +341,10 @@ object CauseSpec extends ZIOBaseSpec {
         val bldr = Seq.newBuilder[(Seq[String], Boolean)]
         val c = c123.filter { c =>
           val res = !c.isInstanceOf[Cause.Both[?]]
-          println(s"applying filter on: ${c.failures} -> $res")
           bldr += (c.failures -> res)
           res
         }
 
-        println(s"\nfiltered cause: $c")
         zio.test.assert(c)(Assertion.equalTo(c1)) &&
         zio.test.assert(bldr.result()) {
           equalTo {

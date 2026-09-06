@@ -37,17 +37,26 @@ addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/Test/compile;stacktracerJVM/Test/compile;streamsTestsJVM/Test/compile;testTestsJVM/Test/compile;testMagnoliaTestsJVM/Test/compile;testRefinedJVM/Test/compile;testRunnerJVM/Test/compile;examplesJVM/Test/compile;macrosTestsJVM/Test/compile;concurrentJVM/Test/compile;managedTestsJVM/Test/compile"
 )
+// Split Native commands in half so that we can run them in parallel in CI
+addCommandAlias(
+  "testNative1",
+  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;"
+)
+addCommandAlias(
+  "testNative2",
+  ";testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test"
+)
 addCommandAlias(
   "testNative",
-  ";coreTestsNative/test;stacktracerNative/test;streamsTestsNative/test;testTestsNative/test;examplesNative/Test/compile;macrosTestsNative/test;concurrentNative/test"
+  ";testNative1;testNative2"
 )
 addCommandAlias(
   "testJVM",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;testRunnerJVM/Test/run;examplesJVM/Test/compile;benchmarks/Test/compile;macrosTestsJVM/test;concurrentJVM/test;managedTestsJVM/test;set ThisBuild/isSnapshot:=true;testJunitRunnerTests/test;testJunitEngineTests/test;reload"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/test;testRunnerJVM/test;examplesJVM/Test/compile;benchmarks/Test/compile;macrosTestsJVM/test;concurrentJVM/test;managedTestsJVM/test;set ThisBuild/isSnapshot:=true;testJunitRunnerTests/test;testJunitEngineTests/test;reload"
 )
 addCommandAlias(
   "testJVMNoBenchmarks",
-  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/Test/compile;testRunnerJVM/Test/run;examplesJVM/Test/compile;concurrentJVM/test;managedTestsJVM/test"
+  ";coreTestsJVM/test;stacktracerJVM/test;streamsTestsJVM/test;testTestsJVM/test;testMagnoliaTestsJVM/test;testRefinedJVM/Test/compile;examplesJVM/Test/compile;concurrentJVM/test;managedTestsJVM/test"
 )
 addCommandAlias(
   "testJS",
@@ -193,6 +202,8 @@ lazy val root3 = project
     ) *
   )
 
+lazy val zioExamples = RootProject(file("zio-examples"))
+
 lazy val root = project
   .in(file("."))
   .settings(
@@ -205,7 +216,7 @@ lazy val root = project
     ),
     welcomeMessage
   )
-  .aggregate(root213)
+  .aggregate(root213, zioExamples)
   .enablePlugins(ScalaJSPlugin)
 
 lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
@@ -249,7 +260,7 @@ lazy val core = crossProject(JSPlatform, JVMPlatform, NativePlatform)
 
 lazy val coreTests = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("core-tests"))
-  .dependsOn(core, tests, testRunner)
+  .dependsOn(core, tests, testRunner, concurrent)
   .settings(stdSettings("core-tests"))
   .settings(crossProjectSettings)
   .settings(publish / skip := true)
@@ -505,7 +516,6 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .in(file("test-sbt"))
   .settings(stdSettings("zio-test-sbt"))
   .settings(crossProjectSettings)
-  .settings(Test / run / mainClass := Some("zio.test.sbt.TestMain"))
   .settings(scalacOptions += "-Wconf:msg=[zio.stacktracer.TracingImplicits.disableAutoTrace]:silent")
   .settings(scalacOptions += "-Wconf:msg=[@nowarn annotation does not suppress any warnings]:silent")
   .dependsOn(core, tests)
@@ -518,7 +528,7 @@ lazy val testRunner = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   )
   .nativeSettings(
     nativeSettings,
-    libraryDependencies ++= Seq("org.scala-native" %%% "test-interface" % nativeVersion)
+    libraryDependencies ++= Seq("org.scala-native" %%% "test-interface-sbt-defs" % nativeVersion)
   )
 
 lazy val testJunitRunner = project.module
@@ -538,15 +548,15 @@ lazy val commonJunitTestSettings = Seq(
   ),
   libraryDependencies ++= Seq(
     "junit"                     % "junit"                          % "4.13.2" % Test,
-    "org.scala-lang.modules"   %% "scala-xml"                      % "2.3.0"  % Test,
-    "org.apache.maven"          % "maven-embedder"                 % "3.9.9"  % Test,
-    "org.apache.maven"          % "maven-compat"                   % "3.9.9"  % Test,
+    "org.scala-lang.modules"   %% "scala-xml"                      % "2.4.0"  % Test,
+    "org.apache.maven"          % "maven-embedder"                 % "3.9.16" % Test,
+    "org.apache.maven"          % "maven-compat"                   % "3.9.16" % Test,
     "com.google.inject"         % "guice"                          % "6.0.0"  % Test,
-    "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "0.3.5"  % Test,
-    "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.23" % Test,
-    "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.23" % Test,
+    "org.eclipse.sisu"          % "org.eclipse.sisu.inject"        % "1.1.0"  % Test,
+    "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.27" % Test,
+    "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.27" % Test,
     "org.codehaus.plexus"       % "plexus-component-annotations"   % "2.2.0"  % Test,
-    "org.slf4j"                 % "slf4j-simple"                   % "2.0.17" % Test
+    "org.slf4j"                 % "slf4j-simple"                   % "2.0.18" % Test
   )
 )
 
@@ -622,7 +632,7 @@ lazy val examples = crossProject(JVMPlatform, JSPlatform, NativePlatform)
   .settings(publish / skip := true)
   .settings(Test / test := (Test / compile).value)
   .settings(
-    resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
+    resolvers += Resolver.sonatypeCentralSnapshots,
     libraryDependencies ++= List(
       `zio-http`,
       `zio-metrics-connectors`,
@@ -652,14 +662,14 @@ lazy val benchmarks = project.module
         "com.twitter"               %% "util-core"     % "24.2.0",
         "com.typesafe.akka"         %% "akka-stream"   % "2.8.8",
         "io.github.timwspence"      %% "cats-stm"      % "0.13.4",
-        "io.projectreactor"          % "reactor-core"  % "3.7.6",
+        "io.projectreactor"          % "reactor-core"  % "3.8.7",
         "io.reactivex.rxjava2"       % "rxjava"        % "2.2.21",
-        "org.jctools"                % "jctools-core"  % "4.0.5",
+        "org.jctools"                % "jctools-core"  % "4.0.7",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
-        "qa.hedgehog"               %% "hedgehog-core" % "0.12.0",
+        "qa.hedgehog"               %% "hedgehog-core" % "0.14.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
-        "org.springframework"        % "spring-core"   % "6.2.7"
+        "org.springframework"        % "spring-core"   % "7.0.9"
       )
     },
     excludeDependencies ++= {
@@ -771,13 +781,14 @@ lazy val docs_make_zio_app_configurable =
         `zio-config-magnolia`,
         "io.getquill"   %% "quill-zio"      % QuillVersion,
         "io.getquill"   %% "quill-jdbc-zio" % QuillVersion,
-        "com.h2database" % "h2"             % "2.3.232"
+        "com.h2database" % "h2"             % "2.3.232",
+        "dev.zio"       %% "zio-sbt-source" % "0.6.0"
       ),
       dependencyOverrides ++= Seq(
         `zio-json`
       )
     )
-    .dependsOn(core.jvm, streams.jvm)
+    .dependsOn(core.jvm, streams.jvm, tests.jvm)
     .enablePlugins(MdocPlugin)
 
 lazy val docs = project.module
@@ -808,13 +819,17 @@ lazy val docs = project.module
     cleanFiles += (ScalaUnidoc / unidoc / target).value,
     docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
     docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
-    resolvers ++= Resolver.sonatypeOssRepos("snapshots"),
+    resolvers += Resolver.sonatypeCentralSnapshots,
     mdocVariables ++= Map(
+      "VERSION"                        -> version.value.split('+').head,
       "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion,
       "ZIO_CONFIG_VERSION"             -> ZioConfigVersion,
-      "ZIO_JSON_VERSION"               -> ZioJsonVersion
+      "ZIO_JSON_VERSION"               -> ZioJsonVersion,
+      "SCALAJS_VERSION"                -> "1.22.0",
+      "SCALAJS_CROSSPROJECT_VERSION"   -> "1.4.0"
     ),
     libraryDependencies ++= Seq(
+      "dev.zio" %% "zio-sbt-source" % "0.6.0",
       `zio-http`,
       `distage-core`,
       `logstage-core`,

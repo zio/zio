@@ -65,7 +65,7 @@ trait Console extends Serializable { self =>
 
 object Console extends Serializable {
 
-  val tag: Tag[Console] = Tag[Console]
+  implicit val tag: Tag[Console] = Tag(EnvironmentTag.tagFromTagMacro[Console])
 
   object ConsoleLive extends Console {
 

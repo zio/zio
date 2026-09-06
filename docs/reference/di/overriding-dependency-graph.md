@@ -1,9 +1,18 @@
 ---
 id: overriding-dependency-graph
 title: "Overriding Dependency Graph"
+description: "Overview of overriding ZIO dependency graphs using global and local environments for flexible dependency injection."
+keywords:
+  - "Dependency Graph"
+  - "Dependency Injection"
+  - "Global Environment"
+  - "Local Environment"
+  - "ZIO Layers"
+  - "Environment Override"
+  - "Layer Override"
 ---
 
-We can create a ZIO application by providing a local or a global environment, or a combination:
+We can create a [ZIO](../core/zio/zio.md) application by providing a local or a global environment, or a combination:
 
 ## Global Environment
 
@@ -74,3 +83,8 @@ object MainApp extends ZIOAppDefault {
 ```
 
 ZIO Test's [Live service](../test/services/live.md) uses this pattern to provide real environment to a single part of an effect.
+
+## See Also
+
+- [Providing Different Implementation of a Service](providing-different-implementation-of-a-service.md) — Provide multiple service implementations to ZIO applications without modifying core logic using dependency injection.
+- [Building Dependency Graph](building-dependency-graph.md) — Build dependency graphs in ZIO using manual layer composition or automatic dependency injection with compile-time validation.

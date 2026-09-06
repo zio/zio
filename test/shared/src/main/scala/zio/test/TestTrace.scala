@@ -117,10 +117,10 @@ sealed trait TestTrace[+A] { self =>
   /**
    * Apply the code to every node in the tree.
    */
-  final def withCode(fullCode: Option[String]): TestTrace[A] =
+  final def withCode(fullCode: Option[String]): TestTrace[A] = if (fullCode.isDefined) {
     self match {
       case node: TestTrace.Node[_] =>
-        node.copy(fullCode = fullCode.orElse(node.fullCode), children = node.children.map(_.withCode(fullCode)))
+        node.copy(fullCode = fullCode, children = node.children.map(_.withCode(fullCode)))
       case TestTrace.AndThen(left, right) =>
         TestTrace.AndThen(left.withCode(fullCode), right.withCode(fullCode))
       case and: TestTrace.And =>
@@ -130,6 +130,9 @@ sealed trait TestTrace[+A] { self =>
       case not: TestTrace.Not =>
         TestTrace.Not(not.trace.withCode(fullCode)).asInstanceOf[TestTrace[A]]
     }
+  } else {
+    self
+  }
 
   /**
    * Apply the code to every node in the tree.
@@ -317,7 +320,7 @@ object TestTrace {
     }
   }
 
-  def fail: TestTrace[Nothing]                        = Node(Result.Fail)
+  val fail: TestTrace[Nothing]                        = Node(Result.Fail)
   def fail(message: String): TestTrace[Nothing]       = Node(Result.Fail, message = ErrorMessage.text(message))
   def fail(message: ErrorMessage): TestTrace[Nothing] = Node(Result.Fail, message = message)
   def succeed[A](value: A): TestTrace[A]              = Node(Result.succeed(value))

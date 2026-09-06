@@ -1,6 +1,14 @@
 ---
-id: basic-operations
+id: "basic-operations"
 title: "Basic Operations"
+description: "Guide to transforming and combining ZIO effects using mapping, chaining, for-comprehensions, and zipping operations."
+keywords:
+  - "Effect Transformation"
+  - "Effect Composition"
+  - "For Comprehensions"
+  - "Effect Chaining"
+  - "Zipping Effects"
+  - "Mapping Operations"
 ---
 
 Like the `String` data type, as well as the collection data types in Scala (such as `List`, `Map`, and `Set`), ZIO effects are _immutable_, and cannot be changed. 

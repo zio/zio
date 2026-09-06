@@ -1,6 +1,7 @@
 package zio
 
 import zio.test._
+import scala.annotation.nowarn
 
 object ZIOAppSpec extends ZIOBaseSpec {
   def spec = suite("ZIOAppSpec")(
@@ -13,12 +14,12 @@ object ZIOAppSpec extends ZIOBaseSpec {
     },
     test("failure translates into ExitCode.failure") {
       for {
-        code <- ZIOApp.fromZIO(ZIO.fail("Uh oh!")).invoke(Chunk.empty).exitCode
+        code <- ZIOApp.fromZIO(ZIO.fail("Uh oh!")).invoke(Chunk.empty).exitCode: @nowarn("cat=deprecation")
       } yield assertTrue(code == ExitCode.failure)
     },
     test("success translates into ExitCode.success") {
       for {
-        code <- ZIOApp.fromZIO(ZIO.succeed("Hurray!")).invoke(Chunk.empty).exitCode
+        code <- ZIOApp.fromZIO(ZIO.succeed("Hurray!")).invoke(Chunk.empty).exitCode: @nowarn("cat=deprecation")
       } yield assertTrue(code == ExitCode.success)
     },
     test("composed app logic runs component logic") {
@@ -52,7 +53,7 @@ object ZIOAppSpec extends ZIOBaseSpec {
       val app1 = ZIOApp(ZIO.fail("Uh oh!"), Runtime.addLogger(logger1))
 
       for {
-        c <- app1.invoke(Chunk.empty).exitCode
+        c <- app1.invoke(Chunk.empty).exitCode: @nowarn("cat=deprecation")
         v <- ZIO.succeed(counter.get())
       } yield assertTrue(c == ExitCode.failure) && assertTrue(v == 1)
     },

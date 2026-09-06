@@ -1,9 +1,12 @@
 package zio
 
 import zio.QueueSpecUtil._
+import zio.concurrent.CountdownLatch
 import zio.test.Assertion._
-import zio.test.TestAspect.{jvm, exceptJS, nonFlaky, samples, sequential}
+import zio.test.TestAspect.{exceptJS, jvm, nonFlaky, samples, sequential}
 import zio.test._
+
+import java.util.concurrent.atomic.AtomicReference
 
 object QueueSpec extends ZIOBaseSpec {
   import ZIOTag._
@@ -708,6 +711,32 @@ object QueueSpec extends ZIOBaseSpec {
         t     <- queue.poll
       } yield assert(t)(isNone)
     },
+    test("interrupting poll doesn't remove item from the queue") {
+      for {
+        q  <- Queue.unbounded[String]
+        p  <- Promise.make[Nothing, Unit]
+        ref = new AtomicReference[String]
+        fib <- ZIO.uninterruptibleMask { restore =>
+                 p.unsafe.succeed(())(implicitly, Unsafe)
+                 restore(q.take).map(ref.set)
+               }.forkDaemon
+        _ <- (p.await *> fib.interrupt) zipPar q.offer("foo")
+        s  = ref.get()
+        out <- if (s eq null) {
+                 // take was cancelled, item should be in q
+                 q.poll.flatMap { item =>
+                   if (item.isEmpty) ZIO.left("incorrect item: " + item)
+                   else ZIO.right(())
+                 }
+               } else {
+                 // take was completed, q should be empty
+                 q.isEmpty.flatMap { empty =>
+                   if (!empty) ZIO.left("nonempty q after completed take")
+                   else ZIO.right(())
+                 }
+               }
+      } yield assertTrue(out.isRight)
+    } @@ jvm(nonFlaky(100000)),
     test("multiple polls") {
       for {
         queue <- Queue.bounded[Int](5)
@@ -840,7 +869,7 @@ object QueueSpec extends ZIOBaseSpec {
           }
         }
       )
-    } @@ jvm(samples(500) @@ sequential),
+    } @@ jvm(samples(500)) @@ sequential,
     test("isEmpty") {
       for {
         queue <- Queue.bounded[Int](2)
@@ -882,7 +911,29 @@ object QueueSpec extends ZIOBaseSpec {
         test("takeBetween with min 1")(testSuspension(_.takeBetween(1, 10))),
         test("takeBetween with min >= 1")(testSuspension(_.takeBetween(5, 10)))
       )
-    } @@ TestAspect.timeout(5.seconds)
+    } @@ TestAspect.timeout(5.seconds),
+    test("offerAll does not silently drop messages (i10884)") {
+      ZIO
+        .foreachPar(1 to 1000)(_ =>
+          for {
+            queue  <- Queue.bounded[Int](10)
+            pulled <- Ref.make[List[Int]](Nil)
+            latch  <- CountdownLatch.make(5)
+            fibers <-
+              ZIO.foreach(1 to 5)(_ =>
+                ZIO.uninterruptibleMask(r => r(latch.countDown *> queue.take).flatMap(v => pulled.update(v :: _))).fork
+              )
+            _         <- latch.await
+            f         <- ZIO.foreachPar(fibers)(_.interrupt).fork // and then interrupt all of them
+            remaining <- queue.offerAll(1 to 5)
+            _         <- f.await
+            items     <- queue.takeAll
+            p         <- pulled.get
+            total      = p.size + items.size + remaining.size
+          } yield assertTrue(total == 5)
+        )
+        .map(_.foldLeft(assertTrue(true))(_ && _))
+    } @@ exceptJS(nonFlaky)
   )
 }
 

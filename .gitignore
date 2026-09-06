@@ -7,6 +7,7 @@ test-output/
 .bsp
 project/.sbt
 test-output/
+.cursor
 .bloop
 .metals
 metals.sbt
@@ -37,3 +38,7 @@ website/yarn-error.log
 website/ecosystem-sidebar.js
 .bsp/
 .vscode
+docs/.crossref-state/state.json
+/.flowrite/
+.superpowers/
+.scala-build/

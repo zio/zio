@@ -1,7 +1,9 @@
 package zio.stream
 
+import zio.Clock.ClockLive
 import zio._
 import zio.test.Assertion._
+import zio.test.TestAspect._
 import zio.test._
 
 import java.io._
@@ -111,6 +113,48 @@ object ZStreamPlatformSpecific2Spec extends ZIOBaseSpec {
             .exit
             .map(assert(_)(fails(isSubtype[IOException](anything))))
         }
+      ),
+      suite("async")(
+        test("ZStream.async must never drop any of the 10 elements on Native") {
+          def asyncTenStream: ZStream[Any, Nothing, Int] =
+            ZStream.async { cb =>
+              var i = 1
+              while (i <= 10) {
+                cb(ZIO.succeed(Chunk.single(i)))
+                i += 1
+              }
+              cb.end
+              ()
+            }
+          asyncTenStream.runCount.map(_.toInt).map(count => assertTrue(count == 10))
+        } @@ nonFlaky
+      ),
+      suite("fromInputStream")(
+        test("should be interruptible") {
+          for {
+            latch1      <- Promise.make[Nothing, Unit]
+            latch2      <- Promise.make[Nothing, Unit]
+            ref         <- Ref.make[List[Byte]](List.empty)
+            inputStream  = new PipedInputStream()
+            outputStream = new PipedOutputStream(inputStream)
+            arr          = Array.ofDim[Byte](10)
+            fiber <- {
+                       latch1.succeedUnit *> ZStream
+                         .fromInputStream(inputStream)
+                         .tapChunks(i => ref.update(_ ++ i) *> latch2.succeedUnit)
+                         .runCollect
+                     }.fork
+            _      <- latch1.await
+            _       = outputStream.write(Array[Byte](2, 3, 1))
+            _       = outputStream.flush()
+            _      <- latch2.await
+            _      <- ClockLive.sleep(1.milli) // Ensure that we're blocking waiting on input
+            _      <- fiber.interrupt
+            result <- fiber.await
+            _       = outputStream.write(0)    // Ensure that the stream is still open
+            out    <- ref.get
+          } yield assert(result)(isInterrupted) && assertTrue(out == List[Byte](2, 3, 1))
+        } @@ TestAspect.timeout(10.seconds) @@ TestAspect.jvm(nonFlaky)
       )
     )
   )

@@ -19,7 +19,10 @@ package zio.test
 import org.portablescala.reflect.annotation.EnableReflectiveInstantiation
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.render.ConsoleRenderer
+
+import java.util.concurrent.ThreadLocalRandom
+
+import scala.annotation.nowarn
 
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecific {
@@ -27,13 +30,13 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
 
   def spec: Spec[Environment with TestEnvironment with Scope, Any]
 
-  def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment]] =
-    Chunk(TestAspect.fibers, TestAspect.timeoutWarning(60.seconds))
-
   def bootstrap: ZLayer[Any, Any, Environment]
 
+  def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment]] =
+    Chunk.single(TestAspect.timeoutWarning(60.seconds))
+
   final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Summary] = {
-    implicit val trace = Trace.empty
+    implicit val trace: Trace = Trace.empty
 
     runSpec.provideSomeLayer[Environment with ZIOAppArgs with Scope](
       ZLayer.environment[Environment with ZIOAppArgs with Scope] +!+
@@ -72,14 +75,13 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       console <- ZIO.console
       testArgs = TestArgs.parse(args.getArgs.toArray)
       summary <- runSpecAsApp(spec, testArgs, console)
-      _ <- ZIO.when(testArgs.printSummary) {
+      _ <- ZIO.whenDiscard(testArgs.printSummary) {
              console.printLine(testArgs.testRenderer.renderSummary(summary)).orDie
            }
       _ <- ZIO
-             .when(summary.status == Summary.Failure) {
+             .whenDiscard(summary.status == Summary.Failure && !testArgs.ignoreFailures) {
                ZIO.fail(new RuntimeException("Tests failed."))
              }
-             .unless(testArgs.ignoreFailures)
     } yield summary
 
   /*
@@ -99,34 +101,31 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
   ] = {
     val filteredSpec: Spec[Environment with TestEnvironment with Scope, Any] = FilteredSpec(spec, testArgs)
 
-    for {
-      runtime <-
-        ZIO.runtime[
-          TestEnvironment with Scope
-        ]
-
-      scopeEnv: ZEnvironment[Scope] = runtime.environment
-      perTestLayer = (ZLayer.succeedEnvironment(scopeEnv) ++ liveEnvironment) >>>
-                       (TestEnvironment.live ++ ZLayer.environment[Scope])
-
-      executionEventSinkLayer = ExecutionEventSink.live(console, testArgs.testEventRenderer)
-      environment            <- ZIO.environment[Environment]
-      runner =
+    ZIO.environmentWithZIO[TestEnvironment & Scope & Environment] { env =>
+      val perTestLayer =
+        (ZLayer.succeedEnvironment[Scope](env) <*> liveEnvironment) >>>
+          (TestEnvironment.live <*> ZLayer.environment[Scope])
+      val executionEventSinkLayer = ExecutionEventSink.live(console, testArgs.testEventRenderer, testArgs.reportsParent)
+      val runner =
         TestRunner(
           TestExecutor
             .default[Environment, Any](
-              ZLayer.succeedEnvironment(environment),
+              ZLayer.succeedEnvironment(env),
               perTestLayer,
               executionEventSinkLayer,
               testEventHandler
             )
         )
-      randomId <- ZIO.withRandom(Random.RandomLive)(Random.nextInt).map("test_case_" + _)
-      summary <-
-        runner.run(randomId, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
-    } yield summary
+
+      val randomId = "test_case_" + ThreadLocalRandom.current().nextInt()
+      runner.run(
+        randomId,
+        aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers: @nowarn("cat=deprecation")
+      )
+    }
   }
 
+  @deprecated("use the overload that does not take Console parameter")
   private[zio] def runSpecWithSharedRuntimeLayer(
     fullyQualifiedName: String,
     spec: Spec[Environment with TestEnvironment with Scope, Any],
@@ -134,6 +133,22 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     runtime: Runtime[_],
     testEventHandler: ZTestEventHandler,
     console: Console
+  )(implicit
+    trace: Trace
+  ): UIO[Summary] = runSpecWithSharedRuntimeLayer(
+    fullyQualifiedName,
+    spec,
+    testArgs,
+    runtime,
+    testEventHandler
+  )
+
+  private[zio] def runSpecWithSharedRuntimeLayer(
+    fullyQualifiedName: String,
+    spec: Spec[Environment with TestEnvironment with Scope, Any],
+    testArgs: TestArgs,
+    runtime: Runtime[_],
+    testEventHandler: ZTestEventHandler
   )(implicit
     trace: Trace
   ): UIO[Summary] = {
@@ -146,10 +161,13 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
       TestExecutor
         .default[Environment, Any](
           ZLayer.succeedEnvironment(castedRuntime.environment),
-          testEnvironment ++ Scope.default,
+          testEnvironment <*> Scope.default,
           ZLayer.succeedEnvironment(castedRuntime.environment) >>> ExecutionEventSink.live,
           testEventHandler
         )
-    ).run(fullyQualifiedName, aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers)
+    ).run(
+      fullyQualifiedName,
+      aspects.foldLeft(filteredSpec)(_ @@ _) @@ TestAspect.fibers: @nowarn("cat=deprecation")
+    )
   }
 }

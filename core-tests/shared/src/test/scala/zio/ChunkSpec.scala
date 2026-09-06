@@ -27,7 +27,7 @@ object ChunkSpec extends ZIOBaseSpec {
       idx   <- Gen.int(0, chunk.length - 1)
     } yield (chunk, idx)
 
-  def spec = suite("ChunkSpec")(
+  override def spec: Spec[TestEnvironment with Scope, Any] = suite("ChunkSpec")(
     suite("size/length")(
       test("concatenated size must match length") {
         val chunk = Chunk.empty ++ Chunk.fromArray(Array(1, 2)) ++ Chunk(3, 4, 5) ++ Chunk.single(6)
@@ -174,7 +174,6 @@ object ChunkSpec extends ZIOBaseSpec {
       test("fails if the chunk does not contain the specified index") {
         val chunk     = Chunk(1, 2, 3)
         val prepended = 0 +: chunk
-        val _         = -1 +: chunk
         assert(prepended(-1))(throwsA[IndexOutOfBoundsException])
       }
     ),
@@ -534,6 +533,22 @@ object ChunkSpec extends ZIOBaseSpec {
       val c2 = Chunk(1, 2, 3)
       assert(c1 == c2 && c1.hashCode == c2.hashCode)(Assertion.isTrue)
     },
+    test("seq consistency") {
+      val c1 = Chunk(1, 2, 3)
+      val c2 = List(1, 2, 3)
+      assert(c1 == c2 && c1.hashCode == c2.hashCode)(Assertion.isTrue)
+    },
+    test("empty seq consistency") {
+      val c1 = Chunk()
+      val c2 = List()
+      val c3 = Vector()
+      assert(
+        c1 == c2 &&
+          c1 == c3 &&
+          c1.hashCode == c2.hashCode &&
+          c1.hashCode == c3.hashCode
+      )(Assertion.isTrue)
+    },
     test("nullArrayBug") {
       val c = Chunk.fromArray(Array(1, 2, 3, 4, 5))
 
@@ -697,8 +712,8 @@ object ChunkSpec extends ZIOBaseSpec {
     },
     test("fromIterable should works with Iterables traversing only once") {
       val traversableOnceIterable = new Iterable[Int] {
-        val it = new Iterator[Int] {
-          var c: Int                    = 3
+        private val it = new Iterator[Int] {
+          private var c: Int            = 3
           override def hasNext: Boolean = c > 0
           override def next(): Int      = { c = c - 1; c }
         }

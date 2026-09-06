@@ -39,15 +39,17 @@ object RuntimeFlag {
       FiberRoots,
       WindDown,
       CooperativeYielding,
-      WorkStealing,
       EagerShiftBack
     )
 
   /**
    * The interruption flag determines whether or not the ZIO runtime system will
    * interrupt a fiber.
+   *
+   * '''Note''': Modification of this flag is not recommended. It may cause
+   * unexpected behavior.
    */
-  case object Interruption extends RuntimeFlag {
+  private[zio] case object Interruption extends RuntimeFlag {
     final val index   = 0
     final val mask    = 1 << index
     final val notMask = ~mask
@@ -118,8 +120,11 @@ object RuntimeFlag {
    * effects in wind-down mode. In wind-down mode, even if interruption is
    * enabled and a fiber has been interrupted, the fiber will continue its
    * execution uninterrupted.
+   *
+   * '''Note''': Modification of this flag is not recommended. It may cause
+   * unexpected behavior.
    */
-  case object WindDown extends RuntimeFlag {
+  private[zio] case object WindDown extends RuntimeFlag {
     final val index   = 6
     final val mask    = 1 << index
     final val notMask = ~mask
@@ -142,7 +147,11 @@ object RuntimeFlag {
   /**
    * The work stealing flag determines whether threads running fibers about to
    * asynchronously suspend will first attempt to steal work before suspending.
+   *
+   * '''Note''': this flag is not implemented. [[zio.internal.ZScheduler]] will
+   * always steal work.
    */
+  @deprecated("Unused + unimplemented: using this flag will have no effect", "2.1.19")
   case object WorkStealing extends RuntimeFlag {
     final val index   = 8
     final val mask    = 1 << index

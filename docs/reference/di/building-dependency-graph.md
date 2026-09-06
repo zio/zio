@@ -1,6 +1,14 @@
 ---
 id: building-dependency-graph
 title: "Building Dependency Graph"
+description: "Build dependency graphs in ZIO using manual layer composition or automatic dependency injection with compile-time validation."
+keywords:
+  - "Dependency Graph"
+  - "Layer Construction"
+  - "Automatic Wiring"
+  - "ZLayer Composition"
+  - "Service Dependencies"
+  - "Compile-time Dependency Validation"
 ---
 
 We have two options to build a dependency graph:

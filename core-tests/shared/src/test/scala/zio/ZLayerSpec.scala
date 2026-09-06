@@ -74,11 +74,19 @@ object ZLayerSpec extends ZIOBaseSpec {
           r6 <- testSize(TestSystem.default, 1, "TestSystem.default")
         } yield r1 && r2 && r3 && r4 && r5 && r6
       },
-      test("Size of >>> (9)") {
+      test("Size of >>> (9) with ++") {
         val layer = liveEnvironment >>>
           (Annotations.live ++ ((Live.default ++ Annotations.live) >>> TestConsole.debug) ++
             Live.default ++ TestRandom.deterministic ++ Sized.live(100)
             ++ TestSystem.default)
+
+        testSize(layer, 6)
+      },
+      test("Size of >>> (9) with <*>") {
+        val layer = liveEnvironment >>>
+          (Annotations.live <*> ((Live.default <*> Annotations.live) >>> TestConsole.debug) <*>
+            Live.default <*> TestRandom.deterministic <*> Sized.live(100)
+            <*> TestSystem.default)
 
         testSize(layer, 6)
       },
@@ -96,6 +104,22 @@ object ZLayerSpec extends ZIOBaseSpec {
         val m1     = new Service1 {}
         val layer1 = ZLayer.succeed(m1)
         val env    = layer1 ++ (layer1 ++ layer1)
+        env.build.flatMap(m => ZIO.attempt(assert(m.get)(equalTo(m1))))
+      } @@ exceptJS(nonFlaky),
+      test("sharing with <*>") {
+        val expected = Vector(acquire1, release1)
+        for {
+          ref    <- makeRef
+          layer1  = makeLayer1(ref)
+          env     = (layer1 <*> layer1).build
+          _      <- ZIO.scoped(env)
+          actual <- ref.get
+        } yield assert(actual)(equalTo(expected))
+      } @@ exceptJS(nonFlaky),
+      test("sharing itself with <*>") {
+        val m1     = new Service1 {}
+        val layer1 = ZLayer.succeed(m1)
+        val env    = layer1 <*> (layer1 ++ layer1)
         env.build.flatMap(m => ZIO.attempt(assert(m.get)(equalTo(m1))))
       } @@ exceptJS(nonFlaky),
       test("sharing with >>>") {
@@ -128,6 +152,17 @@ object ZLayerSpec extends ZIOBaseSpec {
           layer1  = makeLayer1(ref)
           layer2  = makeLayer2(ref)
           env     = (layer1 ++ layer2).build
+          _      <- ZIO.scoped(env)
+          actual <- ref.get
+        } yield assert(actual.slice(0, 2))(hasSameElements(Vector(acquire1, acquire2))) &&
+          assert(actual.slice(2, 4))(hasSameElements(Vector(release1, release2)))
+      } @@ exceptJS(nonFlaky),
+      test("finalizers with ++") {
+        for {
+          ref    <- makeRef
+          layer1  = makeLayer1(ref)
+          layer2  = makeLayer2(ref)
+          env     = (layer1 <*> layer2).build
           _      <- ZIO.scoped(env)
           actual <- ref.get
         } yield assert(actual.slice(0, 2))(hasSameElements(Vector(acquire1, acquire2))) &&
@@ -304,6 +339,16 @@ object ZLayerSpec extends ZIOBaseSpec {
           ref    <- makeRef
           layer1  = makeLayer1(ref)
           env     = (layer1 ++ layer1.fresh).build
+          _      <- ZIO.scoped(env)
+          result <- ref.get
+        } yield assert(result)(equalTo(expected))
+      } @@ exceptJS(nonFlaky),
+      test("fresh with <*>") {
+        val expected = Vector(acquire1, acquire1, release1, release1)
+        for {
+          ref    <- makeRef
+          layer1  = makeLayer1(ref)
+          env     = (layer1 <*> layer1.fresh).build
           _      <- ZIO.scoped(env)
           result <- ref.get
         } yield assert(result)(equalTo(expected))

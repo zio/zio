@@ -1,6 +1,15 @@
 ---
-id: index
+id: "index"
 title: "Introduction to Concurrent Programming in ZIO"
+description: "Lock-free, composable, non-blocking concurrency model in ZIO for safe multi-fiber coordination using atomic primitives like Ref and Promise."
+keywords:
+  - "Concurrency"
+  - "Lock-free"
+  - "Non-blocking"
+  - "Ref"
+  - "Promise"
+  - "Composable"
+  - "Fibers"
 ---
 
 ## Overview

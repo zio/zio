@@ -1,7 +1,10 @@
 package zio
 
 import zio.test.Assertion.isNull
+import zio.test.TestAspect.{blocking, nonFlaky, sequential, withLiveClock}
 import zio.test._
+
+import java.util.concurrent.atomic.AtomicBoolean
 
 object ZIOSpecJVM extends ZIOBaseSpec {
 
@@ -46,6 +49,36 @@ object ZIOSpecJVM extends ZIOBaseSpec {
           _ <- ZIO.fromAutoCloseable(loadNonExistingFile)
         } yield assert(shouldBeNull)(isNull)
       }
+    ),
+    suite("race")(
+      test("interrupts both fibers running synchronous effects") {
+        // NOTE: Using Java's concurrency classes since we want our effects to run fully synchronously
+        val latch              = new java.util.concurrent.CountDownLatch(2)
+        val p1, p2             = new java.util.concurrent.Semaphore(1)
+        val p1Called, p2Called = new AtomicBoolean()
+
+        val f1 = ZIO.succeed {
+          latch.countDown()
+          p1.acquire()
+        } *> ZIO.succeed(p1Called.set(true))
+
+        val f2 = ZIO.succeed {
+          latch.countDown()
+          p2.acquire()
+        } *> ZIO.succeed(p2Called.set(true))
+
+        p1.acquire()
+        p2.acquire()
+        for {
+          f <- f1.race(f2).fork
+          _  = latch.await()
+          _ <- f.interruptFork
+          _ <- ZIO.sleep(2.millis) // No better way to do this, unfortunately
+          _  = p1.release()
+          _  = p2.release()
+          _ <- f.await
+        } yield assertTrue(!p1Called.get(), !p2Called.get())
+      } @@ nonFlaky(100) @@ blocking @@ withLiveClock
     )
-  )
+  ) @@ sequential
 }

@@ -1,12 +1,12 @@
 package zio.stream
 
 import zio._
-import zio.stm.TQueue
 import zio.concurrent.CountdownLatch
+import zio.stm.TQueue
 import zio.stream.ZStream.HaltStrategy
 import zio.stream.ZStreamGen._
 import zio.test.Assertion._
-import zio.test.TestAspect.{exceptJS, flaky, nonFlaky, scala2Only, withLiveClock}
+import zio.test.TestAspect.{identity => _, _}
 import zio.test._
 
 import java.io.{ByteArrayInputStream, IOException}
@@ -20,7 +20,7 @@ object ZStreamSpec extends ZIOBaseSpec {
   def inParallel(action: => Unit)(implicit ec: ExecutionContext): Unit =
     ec.execute(() => action)
 
-  def spec =
+  override def spec: Spec[TestEnvironment with Scope, Any] =
     suite("ZStreamSpec")(
       suite("Combinators")(
         suite("absolve")(
@@ -84,7 +84,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               sink = ZSink.foldZIO(List[Int]())(_ => true) { (acc, el: Int) =>
                        if (el == 1) ZIO.succeed(el :: acc)
                        else
-                         (latch.succeed(()) *> ZIO.infinity)
+                         (latch.succeed(()) *> ZIO.never)
                            .onInterrupt(cancelled.set(true))
                      }
               fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.fork
@@ -98,7 +98,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch     <- Promise.make[Nothing, Unit]
               cancelled <- Ref.make(false)
               sink = ZSink.fromZIO {
-                       (latch.succeed(()) *> ZIO.infinity)
+                       (latch.succeed(()) *> ZIO.never)
                          .onInterrupt(cancelled.set(true))
                      }
               fiber  <- ZStream(1, 1, 2).aggregateAsync(sink).runCollect.fork
@@ -246,7 +246,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               sink = ZSink.foldZIO(List[Int]())(_ => true) { (acc, el: Int) =>
                        if (el == 1) ZIO.succeed(el :: acc)
                        else
-                         (latch.succeed(()) *> ZIO.infinity)
+                         (latch.succeed(()) *> ZIO.never)
                            .onInterrupt(cancelled.set(true))
                      }
               fiber <- ZStream(1, 1, 2)
@@ -263,7 +263,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch     <- Promise.make[Nothing, Unit]
               cancelled <- Ref.make(false)
               sink = ZSink.fromZIO {
-                       (latch.succeed(()) *> ZIO.infinity)
+                       (latch.succeed(()) *> ZIO.never)
                          .onInterrupt(cancelled.set(true))
                      }
               fiber <- ZStream(1, 1, 2)
@@ -1316,6 +1316,113 @@ object ZStreamSpec extends ZIOBaseSpec {
             result <- ZStream.service[String].provideEnvironment(ZEnvironment("test")).runHead.some
           } yield assert(result)(equalTo("test"))
         },
+        suite("ensuringWith")(
+          test("should not throw ClassCastException when error type changes after ensuringWith") {
+            val testStream =
+              ZStream
+                .fail("boom")
+                .ensuringWith {
+                  case Exit.Success(_)     => ZIO.unit
+                  case Exit.Failure(cause) =>
+                    // This should work without ClassCastException even after mapError
+                    ZIO.foreachDiscard(cause.failureOption) { error =>
+                      // error should be of type Any, so we need to handle it safely
+                      error match {
+                        case s: String => Console.printLine(s"Original error: $s").orDie
+                        case i: Int    => Console.printLine(s"Transformed error: $i").orDie
+                        case other     => Console.printLine(s"Unexpected error type: $other").orDie
+                      }
+                    }
+                }
+                .mapError(_.length) // Changes error type from String to Int
+
+            for {
+              output <- testStream.runCollect.either
+              // The stream should fail with the mapped error (4)
+              result <- ZIO.succeed(assert(output)(isLeft(equalTo(4))))
+            } yield result
+          },
+          test("should work correctly with successful streams") {
+            val testStream =
+              ZStream
+                .succeed("success")
+                .ensuringWith {
+                  case Exit.Success(value) =>
+                    Console.printLine(s"Stream succeeded with: $value").orDie
+                  case Exit.Failure(_) =>
+                    ZIO.unit
+                }
+                .map(_.toUpperCase)
+
+            for {
+              output <- testStream.runCollect
+              result <- ZIO.succeed(assert(output)(equalTo(Chunk("SUCCESS"))))
+            } yield result
+          },
+          test("should handle defects properly") {
+            val testStream =
+              ZStream
+                .dieMessage("defect")
+                .ensuringWith {
+                  case Exit.Success(_)     => ZIO.unit
+                  case Exit.Failure(cause) =>
+                    // Should be able to handle defects without ClassCastException
+                    ZIO.succeed {
+                      if (cause.dieOption.nonEmpty) {
+                        // Handle defect
+                        println("Stream died with defect")
+                      }
+                    }
+                }
+                .mapError(_ => "mapped-error")
+
+            for {
+              exit   <- testStream.runCollect.exit
+              result <- ZIO.succeed(assert(exit)(dies(hasMessage(equalTo("defect")))))
+            } yield result
+          },
+          test("ZSink.ensuringWith should also work with changed error types") {
+            val sink =
+              ZSink
+                .fail[String]("sink-error")
+                .ensuringWith {
+                  case Exit.Success(_) => ZIO.unit
+                  case Exit.Failure(cause) =>
+                    ZIO.foreachDiscard(cause.failureOption) { error =>
+                      error match {
+                        case s: String => Console.printLine(s"Sink error: $s").orDie
+                        case i: Int    => Console.printLine(s"Transformed sink error: $i").orDie
+                        case _         => ZIO.unit
+                      }
+                    }
+                }
+                .mapError(_.length) // Changes error type from String to Int
+
+            for {
+              result <- ZStream("data").run(sink).either
+              // Should fail with the mapped error (10 = "sink-error".length)
+              assertion <- ZIO.succeed(assert(result)(isLeft(equalTo(10))))
+            } yield assertion
+          },
+          test("should preserve finalizer execution order") {
+            for {
+              executed <- Ref.make[List[String]](Nil)
+
+              stream =
+                ZStream
+                  .fail("error")
+                  .ensuringWith {
+                    case Exit.Success(_) => ZIO.unit
+                    case Exit.Failure(_) => executed.update("ensuringWith" :: _)
+                  }
+                  .ensuring(executed.update("ensuring" :: _))
+                  .mapError(_.length)
+
+              _     <- stream.runCollect.either.ignore
+              order <- executed.get.map(_.reverse)
+            } yield assert(order)(equalTo(List("ensuringWith", "ensuring")))
+          }
+        ),
         suite("environmentWithZIO")(
           test("environmentWithZIO") {
             for {
@@ -1466,11 +1573,9 @@ object ZStreamSpec extends ZIOBaseSpec {
                          _ <- ZStream.acquireReleaseWith(push("open1"))(_ => push("close1"))
                          _ <- ZStream
                                 .fromChunks(Chunk(()), Chunk(()))
-                                .tap(_ => ZIO.debug("use2") *> push("use2"))
+                                .tap(_ => push("use2"))
                                 .ensuring(push("close2"))
-                         _ <- ZStream.acquireReleaseWith(ZIO.debug("open3") *> push("open3"))(_ =>
-                                ZIO.debug("close3") *> push("close3")
-                              )
+                         _ <- ZStream.acquireReleaseWith(push("open3"))(_ => push("close3"))
                          _ <- ZStream
                                 .fromChunks(Chunk(()), Chunk(()))
                                 .tap(_ => push("use4"))
@@ -1507,10 +1612,8 @@ object ZStreamSpec extends ZIOBaseSpec {
               stream = for {
                          _ <- ZStream
                                 .fromChunks(Chunk(1), Chunk(2))
-                                .tap(n => ZIO.debug(s">>> use2 $n") *> push("use2"))
-                         _ <- ZStream.acquireReleaseWith(ZIO.debug("open3") *> push("open3"))(_ =>
-                                ZIO.debug("close3") *> push("close3")
-                              )
+                                .tap(_ => push("use2"))
+                         _ <- ZStream.acquireReleaseWith(push("open3"))(_ => push("close3"))
                        } yield ()
               _      <- stream.runDrain
               result <- effects.get
@@ -1562,7 +1665,21 @@ object ZStreamSpec extends ZIOBaseSpec {
                           }
                         }
             } yield assert(result)(equalTo(List(1, 2)))
-          }
+          },
+          test("does not leak memory with long-running flatMap (#10742)") {
+            // Simulates a Kafka consumer pattern: a long stream of records, each flatMapped
+            // into a sub-stream. Without the fix, closeLastSubstream accumulates a chain of
+            // child executor close effects via `prevLastClose *> f`, retaining all child
+            // executors. Each child executor retains its `emitted` field (the last value
+            // the sub-stream produced). With 15k * 1MB this far exceeds a 1GB heap.
+            val n = 15000
+            ZStream
+              .repeatZIO(ZIO.succeed(new Array[Byte](1024 * 1024)))
+              .take(n.toLong)
+              .flatMap(data => ZStream.succeed(data))
+              .runDrain
+              .as(assertCompletes)
+          } @@ TestAspect.jvmOnly
         ),
         suite("flatMapPar")(
           test("guarantee ordering")(check(tinyListOf(Gen.int)) { (m: List[Int]) =>
@@ -1605,7 +1722,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               fiber <- ZStream(())
                          .flatMapPar(1)(_ =>
                            ZStream.fromZIO(
-                             (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                             (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                            )
                          )
                          .runDrain
@@ -1621,7 +1738,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch              <- Promise.make[Nothing, Unit]
               result <- ZStream(
                           ZStream.fromZIO(
-                            (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                            (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                           ),
                           ZStream.fromZIO(latch.await *> ZIO.fail("Ouch"))
                         ).flatMapPar(2)(identity).runDrain.either
@@ -1635,7 +1752,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.fail("Ouch")))
                           .flatMapPar(2) { _ =>
                             ZStream.fromZIO(
-                              (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                              (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                             )
                           }
                           .runDrain
@@ -1651,7 +1768,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch              <- Promise.make[Nothing, Unit]
               result <- ZStream(
                           ZStream.fromZIO(
-                            (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                            (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                           ),
                           ZStream.fromZIO(latch.await *> ZIO.die(ex))
                         ).flatMapPar(2)(identity).runDrain.exit
@@ -1667,7 +1784,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.die(ex)))
                           .flatMapPar(2) { _ =>
                             ZStream.fromZIO(
-                              (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                              (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                             )
                           }
                           .runDrain
@@ -1721,7 +1838,27 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               exit <- stream.runDrain.exit
             } yield assertTrue(exit.isInterrupted)
-          }
+          },
+          test("does not deadlock when a partial take interrupts async inner streams") {
+            // Needs a pure Exit canceler, which leaves interruption disabled once delivered (#11115),
+            // so the interrupted producer keeps running and never releases its offer.
+            def asyncForever: ZStream[Any, Nothing, Int] =
+              ZStream.repeatZIOChunk {
+                ZIO.asyncInterrupt[Any, Nothing, Chunk[Int]] { k =>
+                  ExecutionContext.global.execute(() => k(Exit.succeed(Chunk(1, 2, 3, 4))))
+                  Left(Exit.unit)
+                }
+              }
+
+            ZStream
+              .fromIterable(0 until 10)
+              .map(_ => asyncForever)
+              .flatMapPar(256)(identity)
+              .take(6)
+              .runDrain
+              .as(assertCompletes)
+            // nonFlaky is load-bearing: without the fix, a single run only deadlocks ~8% of the time.
+          } @@ TestAspect.timeout(20.seconds) @@ exceptJS(nonFlaky(300))
         ),
         suite("flatMapParSwitch")(
           test("guarantee ordering no parallelism") {
@@ -1776,7 +1913,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               fiber <- ZStream(())
                          .flatMapParSwitch(1)(_ =>
                            ZStream.fromZIO(
-                             (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                             (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                            )
                          )
                          .runCollect
@@ -1792,7 +1929,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch              <- Promise.make[Nothing, Unit]
               result <- ZStream(
                           ZStream.fromZIO(
-                            (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                            (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                           ),
                           ZStream.fromZIO(latch.await *> ZIO.fail("Ouch"))
                         ).flatMapParSwitch(2)(identity).runDrain.either
@@ -1806,7 +1943,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.fail("Ouch")))
                           .flatMapParSwitch(2) { _ =>
                             ZStream.fromZIO(
-                              (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                              (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                             )
                           }
                           .runDrain
@@ -1822,7 +1959,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch              <- Promise.make[Nothing, Unit]
               result <- ZStream(
                           ZStream.fromZIO(
-                            (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                            (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                           ),
                           ZStream.fromZIO(latch.await *> ZIO.die(ex))
                         ).flatMapParSwitch(2)(identity).runDrain.exit
@@ -1838,7 +1975,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               result <- (ZStream(()) ++ ZStream.fromZIO(latch.await *> ZIO.die(ex)))
                           .flatMapParSwitch(2) { _ =>
                             ZStream.fromZIO(
-                              (latch.succeed(()) *> ZIO.infinity).onInterrupt(substreamCancelled.set(true))
+                              (latch.succeed(()) *> ZIO.never).onInterrupt(substreamCancelled.set(true))
                             )
                           }
                           .runDrain
@@ -2791,7 +2928,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               interrupted <- Ref.make(false)
               latch       <- Promise.make[Nothing, Unit]
               fib <- ZStream(())
-                       .mapZIOPar(1)(_ => (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true)))
+                       .mapZIOPar(1)(_ => (latch.succeed(()) *> ZIO.never).onInterrupt(interrupted.set(true)))
                        .runDrain
                        .fork
               _      <- latch.await
@@ -2893,7 +3030,26 @@ object ZStreamSpec extends ZIOBaseSpec {
                   containsCause[DbError](Cause.fail(QtyTooLarge))
               )
             )
-          } @@ flaky
+          } @@ flaky,
+          test("does not freeze when output is only partially consumed (#10195)") {
+            val stream = ZStream.range(0, 100).mapZIOPar(8)(_ => ZIO.unit)
+            assertZIO(stream.take(1).runDrain.exit)(succeeds(anything))
+          } @@ TestAspect.timeout(2.seconds) @@ TestAspect.nonFlaky,
+          test("does not freeze on failure with mapZIOPar (#10088)") {
+            val stream =
+              ZStream
+                .range(0, 10000)
+                .mapZIOPar(8, bufferSize = 32)(i => ZIO.succeed(i))
+                .mapZIOPar(8, bufferSize = 32) { i =>
+                  Live.live(
+                    ZIO
+                      .fail(new RuntimeException(i.toString))
+                      .delay(10.millis)
+                  )
+                }
+
+            assertZIO(stream.runDrain.exit)(fails(anything))
+          } @@ TestAspect.timeout(2.seconds) @@ TestAspect.nonFlaky
         ),
         suite("mapZIOParUnordered")(
           test("foreachParN equivalence") {
@@ -2917,7 +3073,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch       <- Promise.make[Nothing, Unit]
               fib <-
                 ZStream(())
-                  .mapZIOParUnordered(1)(_ => (latch.succeed(()) *> ZIO.infinity).onInterrupt(interrupted.set(true)))
+                  .mapZIOParUnordered(1)(_ => (latch.succeed(()) *> ZIO.never).onInterrupt(interrupted.set(true)))
                   .runDrain
                   .fork
               _      <- latch.await
@@ -3016,7 +3172,26 @@ object ZStreamSpec extends ZIOBaseSpec {
                 res <- f.join
               } yield assert(res)(equalTo(data.reverse))
             }
-          }
+          },
+          test("does not freeze when output is only partially consumed (#10195)") {
+            val stream = ZStream.range(0, 100).mapZIOParUnordered(8)(_ => ZIO.unit)
+            assertZIO(stream.take(1).runDrain.exit)(succeeds(anything))
+          } @@ TestAspect.timeout(2.seconds) @@ TestAspect.nonFlaky,
+          test("does not freeze on failure with mapZIOPar (#10088)") {
+            val stream =
+              ZStream
+                .range(0, 10000)
+                .mapZIOParUnordered(8, bufferSize = 32)(i => ZIO.succeed(i))
+                .mapZIOParUnordered(8, bufferSize = 32) { i =>
+                  Live.live(
+                    ZIO
+                      .fail(new RuntimeException(i.toString))
+                      .delay(10.millis)
+                  )
+                }
+
+            assertZIO(stream.runDrain.exit)(fails(anything))
+          } @@ TestAspect.timeout(2.seconds) @@ TestAspect.nonFlaky
         ),
         suite("mergeLeft/Right")(
           test("mergeLeft with HaltStrategy.Right terminates as soon as the right stream terminates") {
@@ -4636,7 +4811,7 @@ object ZStreamSpec extends ZIOBaseSpec {
             val pipeline = ZPipeline.fromFunction[Scope, Throwable, Byte, Unit] { s =>
               ZStream.fromZIO {
                 for {
-                  is <- s.toInputStream.debug("toInputStream")
+                  is <- s.toInputStream
                   _  <- ZIO.attemptBlocking(is.read())
                 } yield ()
               }
@@ -5625,11 +5800,32 @@ object ZStreamSpec extends ZIOBaseSpec {
             _ <- ZStream.fromIterableZIO(ZIO.succeed(1 to 5000000)).runDrain
           } yield assertCompletes
         },
-        test("fromIterator") {
-          check(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
-            assertZIO(ZStream.fromIterator(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
+        suite("fromIterator")(
+          test("with values") {
+            check(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), min = 1)) { (chunk, maxChunkSize) =>
+              assertZIO(ZStream.fromIterator(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
+            }
+          },
+          test("handles exceptions from making the iterator") {
+            check(Gen.small(Gen.const(_), min = 1)) { maxChunkSize =>
+              val exception                      = new RuntimeException("Iterator error")
+              def failingIterator: Iterator[Int] = throw exception
+
+              assertZIO(ZStream.fromIterator(failingIterator, maxChunkSize).runCollect.exit)(fails(equalTo(exception)))
+            }
+          },
+          test("handles exceptions from iterator") {
+            check(Gen.small(Gen.const(_), min = 1)) { maxChunkSize =>
+              val exception = new RuntimeException("Iterator error")
+              val failingIterator =
+                new Iterator[Int] {
+                  def hasNext: Boolean = true
+                  def next(): Int      = throw exception
+                }
+              assertZIO(ZStream.fromIterator(failingIterator, maxChunkSize).runCollect.exit)(fails(equalTo(exception)))
+            }
           }
-        },
+        ),
         test("fromIteratorSucceed") {
           check(Gen.small(Gen.chunkOfN(_)(Gen.int)), Gen.small(Gen.const(_), 1)) { (chunk, maxChunkSize) =>
             assertZIO(ZStream.fromIteratorSucceed(chunk.iterator, maxChunkSize).runCollect)(equalTo(chunk))
@@ -5754,6 +5950,19 @@ object ZStreamSpec extends ZIOBaseSpec {
               }
               .runCollect
           )(equalTo(Chunk(0, 1, 2, 3, 4, 5)))
+        },
+        test("paginateChunk - is lazy") {
+          val s = (Chunk.single(0), List(1, 2, 3, 4, 5))
+
+          val result =
+            try {
+              val _ = ZStream.paginateChunk(s)(_ => throw new RuntimeException("This should not be called"))
+              true
+            } catch {
+              case _: RuntimeException => false
+            }
+
+          assertTrue(result)
         },
         test("paginateChunkZIO") {
           val s        = (Chunk.single(0), List(1, 2, 3, 4, 5))
@@ -5930,7 +6139,7 @@ object ZStreamSpec extends ZIOBaseSpec {
           } yield assertTrue(output == Vector("acquire outer", "release outer"))
         }
       )
-    ) @@ TestAspect.timed @@ TestAspect.fibers @@ TestAspect.parallelN(2)
+    ) @@ TestAspect.timed @@ TestAspect.parallelN(2)
 
   trait ChunkCoordination[A] {
     def queue: Queue[Exit[Option[Nothing], Chunk[A]]]

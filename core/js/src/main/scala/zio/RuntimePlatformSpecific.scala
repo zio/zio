@@ -30,6 +30,7 @@ private[zio] trait RuntimePlatformSpecific {
   final val defaultBlockingExecutor: Executor =
     defaultExecutor
 
+  @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.23")
   final val defaultFatal: IsFatal =
     IsFatal.empty
 

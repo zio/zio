@@ -48,13 +48,13 @@ trait DefaultJvmMetrics {
       with VersionInfo
   ] =
     jvmMetricsSchedule >>>
-      (BufferPools.live ++
-        ClassLoading.live ++
-        GarbageCollector.live ++
-        MemoryAllocation.live ++
-        memoryPools ++
-        Standard.live ++
-        Thread.live ++
+      (BufferPools.live <*>
+        ClassLoading.live <*>
+        GarbageCollector.live <*>
+        MemoryAllocation.live <*>
+        memoryPools <*>
+        Standard.live <*>
+        Thread.live <*>
         VersionInfo.live)
 }
 

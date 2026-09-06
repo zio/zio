@@ -1,5 +1,5 @@
 import explicitdeps.ExplicitDepsPlugin.autoImport.*
-import mdoc.MdocPlugin.autoImport.{mdocIn, mdocOut}
+import mdoc.MdocPlugin.autoImport.{mdocIn, mdocOut, mdocVariables}
 import sbt.*
 import sbt.Keys.*
 import sbtbuildinfo.*
@@ -10,9 +10,9 @@ import scala.scalanative.build.{GC, Mode}
 import scala.scalanative.sbtplugin.ScalaNativePlugin.autoImport.*
 
 object BuildHelper {
-  val Scala212: String = "2.12.20"
-  val Scala213: String = "2.13.16"
-  val Scala3: String   = "3.3.5"
+  val Scala212: String = "2.12.21"
+  val Scala213: String = "2.13.18"
+  val Scala3: String   = "3.3.8"
 
   val JdkReleaseVersion: String = "11"
 
@@ -84,7 +84,7 @@ object BuildHelper {
         scalaVersion,
         sbtVersion,
         isSnapshot,
-        BuildInfoKey("optimizationsEnabled" -> isRelease)
+        BuildInfoKey("optimizationsEnabled" -> (isRelease || !isSnapshot.value))
       ),
       buildInfoPackage := packageName
     )
@@ -134,6 +134,7 @@ object BuildHelper {
       case Some((3, _)) =>
         Seq(
           "-language:implicitConversions",
+          "-language:noAutoTupling",
           "-Xignore-scala2-macros",
           "-Xmax-inlines:64",
           "-noindent"
@@ -262,10 +263,7 @@ object BuildHelper {
 
   def nativeSettings = Seq(
     nativeConfig ~= { cfg =>
-      val os = System.getProperty("os.name").toLowerCase
-      // For some unknown reason, we can't run the test suites in debug mode on MacOS
-      if (os.contains("mac")) cfg.withMode(Mode.releaseFast)
-      else cfg.withGC(GC.boehm) // See https://github.com/scala-native/scala-native/issues/4032
+      cfg.withMode(Mode.releaseFast)
     },
     scalacOptions += "-P:scalanative:genStaticForwardersForNonTopLevelObjects",
     Test / fork := false,
@@ -302,8 +300,9 @@ object BuildHelper {
   }
 
   def mdocSettings(docsDir: String, outDir: String) = Seq[sbt.Def.Setting[_]](
-    mdocIn  := baseDirectory.value / docsDir,
-    mdocOut := (LocalRootProject / baseDirectory).value / outDir
+    mdocIn                     := baseDirectory.value / docsDir,
+    mdocOut                    := (LocalRootProject / baseDirectory).value / outDir,
+    mdocVariables += "VERSION" -> version.value.split('+').head
   )
 
   implicit class ModuleHelper(p: Project) {

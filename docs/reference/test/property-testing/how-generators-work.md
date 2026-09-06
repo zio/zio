@@ -11,13 +11,13 @@ It is encoded as a stream of optional samples:
 case class Gen[-R, +A](sample: ZStream[R, Nothing, Option[Sample[R, A]]])
 ```
 
-Before deep into the generators, let's see what is property-based testing and what problem it solves in the testing world.
+Before deep into the generators, let's see what property-based testing is and what problem it solves in the testing world.
 
 ## How Generators Work?
 
-We can think of `Gen[R, A]` as a `ZStream[R, Nothing, A]`. For example the `Gen.int` is a stream of random integers `ZStream.fromZIO(Random.nextInt)`.
+We can think of `Gen[R, A]` as a `ZStream[R, Nothing, A]`. For example, the `Gen.int` is a stream of random integers `ZStream.fromZIO(Random.nextInt)`.
 
-To find out how a generator works, Let's take a look at the following snippet.  It shows how the `Gen` data type is implemented.
+To find out how a generator works, let's take a look at the following snippet.  It shows how the `Gen` data type is implemented.
 
 :::caution
 Although it doesn't provide the exact implementation, this condensed edition of the "Gen" data type is sufficient to grasp how generators operate.
@@ -71,20 +71,20 @@ Gen.fromIterable(List(1, 2, 3))
 // Output: List(1, 2, 3)
 ```
 
-So we can see that the `Gen` data type is nothing more than the stream of random/constant values.
+So we can see that the `Gen` data type is nothing more than a stream of random/constant values.
 
 ## Two Types of Generators
 
 We have two types of generators:
 
-1. **Deterministic Generators**— Generators that produce constant fixed values, such as `Gen.empty`, `Gen.const(42)` and `Gen.fromIterable(List(1, 2, 3))`.
+1. **Deterministic Generators**— Generators that produce constant fixed values, such as `Gen.empty`, `Gen.const(42)`, and `Gen.fromIterable(List(1, 2, 3))`.
 2. **Random Generators**— Generators that produce random values, such as `Gen.boolean`, `Gen.int`, and `Gen.elements(1, 2, 3)`.
 
 ## Random Generators Are Deterministic by Default
 
 The important fact about random generators is that they produce deterministic values by default. This means that if we run the same random generator multiple times, it will always produce the same sequence of values to achieve reproducibility.
 
-So the let's add some debugging print lines inside a test and see what values are produced:
+So let's add some debugging print lines inside a test and see what values are produced:
 
 ```scala mdoc:compile-only
 import zio.test._
@@ -113,13 +113,13 @@ runSpec
 + example test
 ```
 
-This is due to the fact that the generator uses a pseudo-random number generator which uses a deterministic algorithm.
+This is due to the fact that the generator uses a pseudo-random number generator, which uses a deterministic algorithm.
 
 The generator provides a fixed seed number to its underlying deterministic algorithm to generate random numbers. As the seed number is fixed, the generator will always produce the same sequence of values.
 
-For more information, there is a separate page about this on [TestRandom](../services/random.md) which is the underlying service for generating test values.
+For more information, there is a separate page about this on [TestRandom](../services/random.md), which is the underlying service for generating test values.
 
-This behavior helps us to have reproducible tests. However, if we need non-deterministic tests values, we can use the `TestAspect.nondeterministic` to change the default behavior:
+This behavior helps us to have reproducible tests. However, if we need non-deterministic test values, we can use the `TestAspect.nondeterministic` to change the default behavior:
 
 ```scala mdoc:compile-only
 import zio.test._
@@ -139,16 +139,14 @@ object ExampleSpec extends ZIOSpecDefault {
 
 ## How Samples Are Generated?
 
-When we run the `check` function, the `check` function repeatedly run the underlying stream of generators (using the `forever` combinator), and then it takes `n` samples from the stream, where `n` is by default 200.
+When we run `check`, it creates an infinite stream by repeatedly sampling from the generator (using `forever`), then takes values from that stream—200 samples by default. We can override this using the `TestAspect.samples` test aspect, for example, use`@@ TestAspect.samples(5)` to take only 5 samples. Let's examine how samples are produced for each of the following generators:
 
-We can modify the default sample size by using the `samples` test aspect. So if we the `check` function, with `TestAspect.samples(5)`. Let's see how the samples are produced for each of the following generators:
+- `check(Gen.const(42))(n => ???)` will repeatedly sample from `ZStream.succeed(42)`, producing: 42, 42, 42, ...
+- `check(Gen.int)(n => ???)` will repeatedly sample from `ZStream.fromZIO(Random.nextInt)`, producing e.g.: 2, -3422, 33, 3991334, 98138, ...
+- `check(Gen.elements(1, 2, 3))(n => ???)` will repeatedly sample from `ZStream.fromZIO(Random.nextIntBounded(3).map(Chunk(1, 2, 3)(_)))`, producing e.g.: 3, 1, 1, 3, 2, ...
+- `check(Gen.fromIterable(List(1, 2, 3)))(n => ???)` will repeatedly sample from `ZStream.fromIterable(List(1, 2, 3))`, producing: 1, 2, 3, 1, 2, 3, ...
 
-- `check(Gen.const(42))(n => ???)` it will repeatedly run the `Zstream.succeed(42)` stream, and then take `n` samples from it: 42, 42, 42, 42, 42.
-- `check(Gen.int)(n => ???)` it will repeatedly run the `ZStream.fromZIO(Random.nextInt)` stream, and then take `n` samples from it: e.g. 2, -3422, 33, 3991334, 98138.
-- `check(Gen.elements(1, 2, 3))(n => ???)` it will repeatedly run the `ZStream.fromZIO(Random.nextInt(2).flatMap(Chunk(1, 2, 3)))` stream, and then take `n` samples from it: e.g. 3, 1, 1, 3, 2.
-- `check(Gen.fromIterable(List(1, 2, 3)))(n => ???)` it will repeatedly run the `ZStream.fromIterable(List(1, 2, 3))` stream, and then take `n` samples from it: 1, 2, 3, 1, 2.
-
-When we run the `check` function with multiple generators, the samples will be the cartesian product of their streams. Let's try some examples:
+When we run the `check` function with multiple generators, the samples will be the Cartesian product of their streams. Let's try some examples:
 
 ```scala mdoc:compile-only
 import zio.test._
@@ -186,7 +184,7 @@ import zio.stream._
 }.forever.take(5).runCollect.debug
 ```
 
-Now let's try use one non-deterministic generator and one deterministic generator:
+Now let's try to use one non-deterministic generator and one deterministic generator:
 
 ```scala mdoc:compile-only
 import zio.test._
@@ -211,7 +209,7 @@ Here is one example output:
 1 tests passed. 0 tests failed. 0 tests ignored.
 ```
 
-This is the same as the previous example, it is like we have the following stream:
+This is the same as the previous example; it is like we have the following stream:
 
 ```scala mdoc:compile-only
 import zio._
@@ -225,9 +223,9 @@ import zio.stream._
 }.forever.take(5).runCollect.debug
 ```
 
-## Running a Generator For Debugging Purpose
+## Running a Generator for Debugging Purposes
 
-To run a generator, we can call `runCollect` operation:
+To run a generator, we can call the `runCollect` operation:
 
 ```scala mdoc:silent:nest
 import zio._
@@ -237,9 +235,9 @@ val ints: ZIO[Any, Nothing, List[Int]] = Gen.int.runCollect.debug
 // Output: List(-2090696713)
 ```
 
-This will return a `ZIO` effect containing all its values in a list, which in this example it contains only one element.
+This will return a `ZIO` effect containing all its values in a list, which in this example contains only one element.
 
-To create more samples, we can use `Gen#runCollectN`, which repeatedly runs the generator as much as we need. In this example, it will generate a list of containing 5 integer elements:
+To create more samples, we can use `Gen#runCollectN`, which repeatedly runs the generator as much as we need. In this example, it will generate a list containing 5 integer elements:
 
 ```scala mdoc:compile-only
 Gen.int.runCollectN(5).debug

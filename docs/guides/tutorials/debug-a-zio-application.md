@@ -2,6 +2,14 @@
 id: debug-a-zio-application
 title: "Tutorial: How to Debug a ZIO Application?"
 sidebar_label: "Debugging a ZIO Application"
+description: "Tutorial for debugging ZIO applications using the ZIO.debug effect, print statements, and IDE debuggers for functional effects."
+keywords:
+  - "ZIO Debugging"
+  - "Debug Effect"
+  - "Functional Effects"
+  - "IDE Debuggers"
+  - "Debugging Techniques"
+  - "Print Statements"
 ---
 
 ## Introduction

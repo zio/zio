@@ -12,7 +12,7 @@ trait Sized extends Serializable {
 
 object Sized {
 
-  val tag: Tag[Sized] = Tag[Sized]
+  implicit val tag: Tag[Sized] = Tag(EnvironmentTag.tagFromTagMacro[Sized])
 
   final case class Test(fiberRef: FiberRef[Int]) extends Sized {
     def size(implicit trace: Trace): UIO[Int] =
@@ -34,11 +34,9 @@ object Sized {
 
   def live(size: Int)(implicit trace: Trace): Layer[Nothing, Sized] =
     ZLayer.scoped {
-      for {
-        fiberRef <- FiberRef.make(size)
-        sized     = Test(fiberRef)
-        _        <- withSizedScoped(sized)
-      } yield sized
+      val fiberRef = FiberRef.unsafe.make(size)(Unsafe)
+      val sized    = Test(fiberRef)
+      withSizedScoped(sized).as(sized)
     }
 
   private[test] val initial: Sized =

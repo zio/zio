@@ -88,7 +88,7 @@ class ZIOTestClassDescriptor(parent: TestDescriptor, uniqueId: UniqueId, val tes
       .run(
         scoped
           .provide(
-            Scope.default >>> (liveEnvironment >>> TestEnvironment.live ++ ZLayer.environment[Scope]),
+            Scope.default >>> (liveEnvironment >>> TestEnvironment.live <*> ZLayer.environment[Scope]),
             spec.bootstrap
           )
       )

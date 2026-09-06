@@ -36,7 +36,7 @@ sbt reStart
 :::note
 If you encounter a "port already in use" error, you can use `sbt-revolver` to manage server restarts more effectively. The `reStart` command will start your server and `reStop` will properly stop it, releasing the port.
 
-To enable this feature, we have included `sbt-revolver` in the project. For more details on this, refer to the [ZIO HTTP documentation on hot-reloading](https://zio.dev/zio-http/installation#hot-reload-changes-watch-mode).
+To enable this feature, we have included `sbt-revolver` in the project. For more details on this, refer to the [ZIO HTTP documentation on hot-reloading](https://ziohttp.com/installation#hot-reload-changes-watch-mode).
 :::
 
 ## Creating a Custom Logger
@@ -218,3 +218,8 @@ Then we can configure our logger by adding the `logback.xml` to the resources di
 In this article, we have learned how to create a custom logger for a ZIO application. We also covered how to add SLF4J logging support instead of default ZIO logging.
 
 All the source code associated with this article is available on the [ZIO Quickstart](http://github.com/zio/zio-quickstarts) project.
+
+## See Also
+
+- **[ZLogger](../../reference/observability/logging/zlogger.md)** — Reference documentation for `ZLogger[-Message, +Output]`: construction with `ZLogger.simple`, predefined instances, combinators (`++`, `+>`, `<+`), `contramap`, `filterLogLevel`, and `ZTestLogger` for in-memory test assertions.
+- **[Introduction to Logging in ZIO](../../reference/observability/logging/index.md)** — Overview of ZIO's logging facade, log levels, spans, and annotations.

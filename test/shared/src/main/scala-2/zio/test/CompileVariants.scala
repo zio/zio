@@ -50,7 +50,7 @@ trait CompileVariants {
     trace: Trace,
     sourceLocation: SourceLocation
   ): ZIO[R, E, TestResult] =
-    Assertion.smartAssertZIO(effect)(assertion)
+    Assertion.smartAssertZIO(assertion)(effect)
 
   private[zio] def showExpression[A](expr: => A): String = macro Macros.showExpression_impl
 }

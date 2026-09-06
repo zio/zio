@@ -163,7 +163,7 @@ object TestProvideSpec extends ZIOBaseSpec {
 
           val intService: ULayer[IntService] = ZLayer(Ref.make(0).map(IntService(_)))
           val stringService: ULayer[StringService] =
-            ZLayer(Ref.make("Hello").map(StringService(_)).debug("MAKING"))
+            ZLayer(Ref.make("Hello").map(StringService(_)))
 
           def customTest(int: Int) =
             test(s"test $int") {
@@ -201,7 +201,7 @@ object TestProvideSpec extends ZIOBaseSpec {
           } yield IntService(ref))
 
           val stringService: ULayer[StringService] =
-            ZLayer(Ref.make("Hello").map(StringService(_)).debug("MAKING"))
+            ZLayer(Ref.make("Hello").map(StringService(_)))
 
           def customTest(int: Int) =
             test(s"test $int") {

@@ -27,7 +27,8 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
     Async(
       trace,
       { k =>
-        register(using Unsafe)(k); null.asInstanceOf[ZIO[R, E, A]]
+        register(using Unsafe)(k)
+        null
       },
       () => blockingOn
     )
@@ -51,17 +52,7 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
     register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed {
-      val state = new AtomicReference[URIO[R, Any]](Exit.unit) with ((ZIO[R, E, A] => Unit) => ZIO[R, E, A]) {
-        def apply(k: ZIO[R, E, A] => Unit): ZIO[R, E, A] =
-          register(using Unsafe)(k(_)) match {
-            case Left(canceler) => set(canceler); null.asInstanceOf[ZIO[R, E, A]]
-            case Right(done)    => done
-          }
-      }
-
-      ZIO.Async[R, E, A](trace, state, () => blockingOn).onInterrupt(state.get())
-    }
+    ZIO.Async[R, E, A](trace, register(using Unsafe), () => blockingOn)
 
   /**
    * Converts an asynchronous, callback-style API into a ZIO effect, which will
@@ -82,7 +73,14 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
     register: Unsafe ?=> (ZIO[R, E, A] => Unit) => Option[ZIO[R, E, A]],
     blockingOn: => FiberId = FiberId.None
   )(implicit trace: Trace): ZIO[R, E, A] =
-    Async(trace, k => register(using Unsafe)(k).orNull, () => blockingOn)
+    Async(
+      trace,
+      register(using Unsafe)(_) match {
+        case Some(value) => Right(value)
+        case _           => null
+      },
+      () => blockingOn
+    )
 
   /**
    * Returns an effect that, when executed, will cautiously run the provided
@@ -101,13 +99,7 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
       try {
         Exit.succeed(code(using Unsafe))
       } catch {
-        case t: Throwable =>
-          ZIO.isFatalWith { isFatal =>
-            if (!isFatal(t))
-              ZIO.failCause(Cause.fail(t))
-            else
-              throw t
-          }
+        case t if nonFatal(t) => ZIO.failCause(Cause.fail(t))
       }
     }
 
@@ -161,11 +153,7 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
   inline protected def attemptOrDieZIO[R, E, A](inline effect: ZIO[R, E, A])(using Trace): ZIO[R, E, A] =
     try effect
     catch {
-      case t: Throwable =>
-        ZIO.isFatalWith { isFatal =>
-          if (!isFatal(t)) Exit.die(t)
-          else throw t
-        }
+      case t if nonFatal(t) => Exit.die(t)
     }
 
   /**
@@ -173,19 +161,10 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
    * code, ignoring it success or failure.
    */
   def ignore(code: Unsafe ?=> Any)(implicit trace: Trace): UIO[Unit] =
-    ZIO.suspendSucceed {
-      try {
-        code(using Unsafe)
-
-        Exit.unit
-      } catch {
-        case t: Throwable =>
-          ZIO.isFatalWith { isFatal =>
-            if (!isFatal(t))
-              Exit.unit
-            else
-              throw t
-          }
+    ZIO.succeed {
+      try { code(using Unsafe); () }
+      catch {
+        case t if nonFatal(t) => ()
       }
     }
 

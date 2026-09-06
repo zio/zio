@@ -234,7 +234,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
    * whether or not it completes).
    */
   final def ensuringWith[R1 <: R](
-    finalizer: Exit[E, Z] => URIO[R1, Any]
+    finalizer: Exit[Any, Any] => URIO[R1, Any]
   )(implicit trace: Trace): ZSink[R1, E, In, L, Z] =
     new ZSink[R1, E, In, L, Z](
       channel.ensuringWith(finalizer)
@@ -926,7 +926,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
             ch
         },
         ZChannel.refailCause,
-        _ => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     ch.toSink
@@ -953,7 +953,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
           }
         },
         ZChannel.refailCause,
-        _ => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     ch.toSink
@@ -1399,7 +1399,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       ZChannel.readWithCause(
         in => ZChannel.fromZIO(ZIO.foreachDiscard(in)(f(_))) *> process,
         halt => ZChannel.refailCause(halt),
-        _ => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZSink(process)
@@ -1416,7 +1416,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       ZChannel.readWithCause(
         in => ZChannel.fromZIO(f(in)) *> process,
         halt => ZChannel.refailCause(halt),
-        _ => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZSink(process)
@@ -1447,7 +1447,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       ZChannel.readWithCause(
         in => go(in, 0, in.length, process),
         halt => ZChannel.refailCause(halt),
-        _ => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZSink(process)
@@ -1468,7 +1468,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
             else ZChannel.unit
           },
         (err: Cause[Err]) => ZChannel.refailCause(err),
-        (_: Any) => ZChannel.unit
+        ZChannel.unitChannelFn
       )
 
     new ZSink(reader)
@@ -1894,7 +1894,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       new ZSink(
         channel
           .asInstanceOf[ZChannel[R0 with R1, ZNothing, Chunk[In], Any, E, Chunk[L], Z]]
-          .provideLayer(ZLayer.environment[R0] ++ layer)
+          .provideLayer(ZLayer.environment[R0] <*> layer)
       )
   }
 }

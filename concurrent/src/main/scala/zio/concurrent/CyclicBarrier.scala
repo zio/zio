@@ -1,6 +1,7 @@
 package zio.concurrent
 
 import zio._
+import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A synchronization aid that allows a set of fibers to all wait for each other
@@ -16,26 +17,44 @@ import zio._
  * before any of the parties continue.
  */
 final class CyclicBarrier private (
-  private val _parties: Int,
-  private val _waiting: Ref[Int],
-  private val _lock: Ref[Promise[Unit, Unit]],
-  private val _action: UIO[Any],
-  private val _broken: Ref[Boolean]
-) {
-  private val break: UIO[Unit] =
-    _broken.set(true) *> fail
-
-  private val fail: UIO[Unit] =
-    _lock.get.flatMap(_.fail(()).unit)
-
-  private val succeed: UIO[Unit] =
-    _lock.get.flatMap(_.succeedUnit.unit)
-
   /** The number of parties required to trip this barrier. */
-  def parties: Int = _parties
+  val parties: Int,
+  _action: UIO[Any]
+) {
+  import CyclicBarrier.{newPromise, trace}
 
-  /** The number of parties currently waiting at the barrier. */
-  val waiting: UIO[Int] = _waiting.get
+  @volatile private var _broken: Boolean           = false
+  @volatile private var _lock: Promise[Unit, Unit] = newPromise()
+  @volatile private var _waiting: Int              = 0
+
+  private val semaphore = Semaphore.unsafe.make(1)(Unsafe)
+
+  private def break: UIO[Unit] =
+    semaphore.withPermit(ZIO.succeed {
+      _broken = true
+      _lock.unsafe.done(Exit.failUnit)(Unsafe)
+      ()
+    })
+
+  private val succeedAndReset =
+    semaphore.withPermit(ZIO.succeed {
+      _lock.unsafe.done(Exit.unit)(Unsafe)
+      resetUnsafe()
+    })
+
+  /**
+   * Unsafely resets the barrier to its initial state. Breaks any waiting party.
+   *
+   * '''NOTE''': This method must only be called when holding a permit!
+   */
+  private def resetUnsafe(): Unit = {
+    if (_waiting != 0) {
+      _lock.unsafe.done(Exit.failUnit)(Unsafe)
+      _waiting = 0
+    }
+    _lock = newPromise()
+    _broken = false
+  }
 
   /**
    * Waits until all parties have invoked await on this barrier. Fails if the
@@ -43,32 +62,53 @@ final class CyclicBarrier private (
    */
   val await: IO[Unit, Int] =
     ZIO.uninterruptibleMask { restore =>
-      _broken.get.flatMap(if (_) ZIO.fail(()) else ZIO.unit) *>
-        _waiting.modify {
-          case n if n + 1 == parties => (restore(_action) *> succeed.as(_parties - n - 1) <* reset)                      -> 0
-          case n                     => _lock.get.flatMap(l => restore(l.await).onInterrupt(break)).as(_parties - n - 1) -> (n + 1)
-        }.flatten
+      semaphore.withPermit {
+        ZIO.succeed {
+          if (_broken) Exit.failUnit
+          else {
+            val nParties = parties
+            val waiting = {
+              val waiting0 = _waiting + 1
+              if (waiting0 == nParties) _waiting = 0
+              else _waiting = waiting0
+              waiting0
+            }
+            val f =
+              if (waiting == nParties) restore(_action) *> succeedAndReset
+              else {
+                val lock = _lock
+                restore(lock.await).onInterrupt(break)
+              }
+            val remaining = nParties - waiting
+            f.as(remaining)
+          }
+        }
+      }.flatten
     }
 
-  /** Resets the barrier to its initial state. Breaks any waiting party. */
-  val reset: UIO[Unit] =
-    (fail.whenZIO(waiting.map(_ > 0)) *>
-      Promise.make[Unit, Unit].flatMap(_lock.set) *>
-      _waiting.set(0) *>
-      _broken.set(false)).uninterruptible
-
   /** Queries if this barrier is in a broken state. */
-  val isBroken: UIO[Boolean] = _broken.get
+  def isBroken: UIO[Boolean] =
+    ZIO.succeed(_broken)
+
+  /** The number of parties currently waiting at the barrier. */
+  def waiting: UIO[Int] =
+    ZIO.succeed(_waiting)
+
+  /** Resets the barrier to its initial state. Breaks any waiting party. */
+  def reset: UIO[Unit] =
+    semaphore.withPermit(ZIO.succeed(resetUnsafe()))
+
 }
 
 object CyclicBarrier {
+  private implicit def trace: Trace = Trace.empty
+
   def make(parties: Int): UIO[CyclicBarrier] =
-    make(parties, ZIO.unit)
+    make(parties, Exit.unit)
 
   def make(parties: Int, action: UIO[Any]): UIO[CyclicBarrier] =
-    for {
-      waiting <- Ref.make(0)
-      broken  <- Ref.make(false)
-      lock    <- Promise.make[Unit, Unit].flatMap(Ref.make(_))
-    } yield new CyclicBarrier(parties, waiting, lock, action, broken)
+    ZIO.succeed(new CyclicBarrier(parties, action))
+
+  private def newPromise(): Promise[Unit, Unit] =
+    Promise.unsafe.make(FiberId.None)(Unsafe)
 }

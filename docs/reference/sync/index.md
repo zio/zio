@@ -1,6 +1,15 @@
 ---
 id: index
 title: "Introduction to ZIO's Synchronization Primitives"
+description: "Guide to ZIO's synchronization primitives and concurrent data structures for safely managing shared resources in concurrent environments."
+keywords:
+  - "Synchronization Primitives"
+  - "Concurrent Data Structures"
+  - ReentrantLock
+  - CountDownLatch
+  - CyclicBarrier
+  - "Shared Resource Access"
+  - "ZIO Concurrency"
 ---
 
 When we access shared resources in a concurrent environment, we should choose a proper synchronization mechanism to avoid incorrect results and data inconsistencies. ZIO provides a set of synchronization primitives and concurrent data structures in the `zio-concurrent` module that helps us to achieve the desired synchronization.

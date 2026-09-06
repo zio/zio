@@ -2,6 +2,13 @@
 id: the-three-laws-of-zio-environment
 title: "The Three Laws of ZIO Environment"
 sidebar_label: "Three Laws of ZIO Environment"
+description: "Master three ZIO environment laws: traits exclude dependencies, implementations use constructor injection, and business logic accesses services."
+keywords:
+  - "ZIO Environment Laws"
+  - "Service Interface Design"
+  - "Constructor Injection"
+  - "Service Implementation"
+  - "Dependency Management"
 ---
 
 ```scala mdoc:invisible

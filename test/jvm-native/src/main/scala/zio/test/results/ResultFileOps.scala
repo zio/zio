@@ -9,8 +9,8 @@ private[test] trait ResultFileOps {
 }
 
 private[test] object ResultFileOps {
-  val live: ZLayer[Any, Nothing, ResultFileOps] =
-    ZLayer.scoped(Json.apply)
+  def live(jsonResultPath: String): ZLayer[Any, Nothing, ResultFileOps] =
+    ZLayer.scoped(Json.apply(jsonResultPath))
 
   private[test] final class Json private (resultPath: String) extends ResultFileOps {
     private val queue = new ConcurrentLinkedQueue[String]()
@@ -61,8 +61,5 @@ private[test] object ResultFileOps {
   object Json {
     def apply(filename: String): ZIO[Scope, Nothing, Json] =
       ZIO.acquireRelease(ZIO.succeed(new Json(filename)))(_.close)
-
-    def apply: ZIO[Scope, Nothing, Json] =
-      apply("target/test-reports-zio/output.json")
   }
 }

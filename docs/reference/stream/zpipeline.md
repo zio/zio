@@ -12,9 +12,9 @@ import java.nio.file.Paths
 
 ## Introduction
 
-A `ZPipeline[+LowerEnv, -UpperEnv, +LowerErr, -UpperErr, +LowerElem, -UpperElem]` is a stream transformer. Pipelines accept a stream as input, and return the transformed stream as output.
+A `ZPipeline[-Env, +Err, -In, +Out]` is a stream transformer. Pipelines accept a stream as input and return the transformed stream as output.
 
-ZPipelines can be thought of as a recipe for calling a bunch of methods on a source stream, to yield a new (transformed) stream. A nice mental model is the following type alias:
+ZPipelines can be thought of as a recipe for calling a bunch of methods on a source stream to yield a new (transformed) stream. A nice mental model is the following type alias:
 
 ```scala
 type ZPipeline[Env, Err, In, Out] = ZStream[Env, Err, In] => ZStream[Env, Err, Out]
@@ -36,6 +36,49 @@ val chars =
 
 There is also a `ZPipeline.mapZIO` which is an effectful version of this constructor.
 
+### From Custom Channels
+
+For stateful transformations that can't be expressed with `map` or `mapZIO`, you can build pipelines directly from [`ZChannel`](zchannel/index.md) using `ZChannel.readWithCause`. Here is a pipeline that pairs each element with its predecessor:
+
+```scala mdoc:silent:nest
+import zio.{ZNothing, Cause}
+import zio.stream.ZChannel
+
+def pairwise[A]: ZPipeline[Any, Nothing, A, (A, A)] =
+  ZPipeline.fromChannel(pairwiseGo[A](None))
+
+def pairwiseGo[A](
+  prev: Option[A]
+): ZChannel[Any, ZNothing, Chunk[A], Any, ZNothing, Chunk[(A, A)], Any] =
+  ZChannel.readWithCause(
+    (in: Chunk[A]) => {
+      val buf  = Chunk.newBuilder[(A, A)]
+      var last = prev
+      in.foreach { a =>
+        last.foreach(p => buf += ((p, a)))
+        last = Some(a)
+      }
+      val out = buf.result()
+      (if (out.nonEmpty) ZChannel.write(out) else ZChannel.unit) *> pairwiseGo(last)
+    },
+    (err: Cause[ZNothing]) => ZChannel.refailCause(err),
+    (_: Any) => ZChannel.unit
+  )
+```
+
+The three-case `readWithCause` pattern handles:
+- **Case 1 (in):** Process incoming chunk, emit outputs, recurse to read next chunk
+- **Case 2 (err):** Handle errors from upstream (usually propagate with `refailCause`)
+- **Case 3 (done):** Handle stream completion (finalize any pending state)
+
+:::note
+Use `ZNothing` (not `Nothing`) as the error type in channel signatures. `ZNothing` is ZIO's abstract bottom type that avoids Scala type inference issues when composing channels with `readWithCause`.
+:::
+
+:::info
+**Why channels instead of functions?** Pipelines are channels because they need to compose seamlessly with sinks and other pipelines. A function-based pipeline couldn't be composed with a sink—the channel abstraction provides a unified interface for all streaming components.
+:::
+
 ## Built-in Pipelines
 
 ### Identity
@@ -52,10 +95,14 @@ ZStream(1,2,3).via(ZPipeline.identity[Int])
 **ZPipeline.splitOn** — A pipeline that splits strings on a delimiter:
 
 ```scala mdoc:silent:nest
-ZStream("1-2-3", "4-5", "6", "7-8-9-10")
+ZStream(
+  "5-6-7-8", 
+  "-9-10-1",
+  "1-12-13"
+)
   .via(ZPipeline.splitOn("-"))
   .map(_.toInt)
-// Ouput: 1, 2, 3, 4, 5, 6, 7, 8, 9 10
+// Ouput: 5, 6, 7, 8, 9, 10, 11, 12, 13
 ```
 
 **ZPipeline.splitLines** — A pipeline that splits strings on newlines. Handles both Windows newlines (`\r\n`) and UNIX newlines (`\n`):

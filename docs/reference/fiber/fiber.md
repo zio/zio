@@ -1,7 +1,15 @@
 ---
 id: fiber
 slug: fiber.md
-title: "Fiber"
+title: Fiber
+description: "Lightweight concurrency primitives for non-blocking, structured execution of ZIO effects with automatic supervision and interruption."
+keywords:
+  - "Lightweight Fibers"
+  - "Structured Concurrency"
+  - "Fiber Interruption"
+  - "Fiber Supervision"
+  - "Non-blocking Execution"
+  - "Parallel Operators"
 ---
 
 To perform an effect without blocking the current process, we can use fibers, which are a lightweight concurrency mechanism.
@@ -373,6 +381,39 @@ Still running ...
 ### fork and join
 Whenever we need to start a fiber, we have to `fork` an effect to get a new fiber. This is similar to the `start` method on Java thread or submitting a new thread to the thread pool in Java, it is the same idea. Also, joining is a way of waiting for that fiber to compute its value. We are going to wait until it's done and receive its result.
 
+:::note
+Fibers (including those created with `forkDaemon`) **inherit the interruptibility status of their parent**. In other words, if the parent effect is currently running uninterruptibly then the child fiber will also be uninterruptible even calling `child.interrupt` will have no effect. To ensure a forked fiber is interruptible while preserving the parent’s uninterruptibility, use `ZIO.uninterruptibleMask`.
+
+For example, this code hangs because the child inherited uninterruptibility using `fib.interrupt`:
+
+```scala mdoc:silent
+import zio._
+
+val parent = ZIO.uninterruptible {
+  for {
+    _   <- ZIO.logInfo("Parent is uninterruptible")
+    fib <- ZIO.never.fork
+    _ <- ZIO.logInfo("Attempting to interrupt the child in 5 seconds...")
+    _ <- ZIO.sleep(5.seconds)
+    _ <- fib.interrupt *> ZIO.logInfo("Interrupt invoked!") // <— this will hang: child inherited uninterruptibility
+  } yield ()
+}
+```
+Using `ZIO.uninterruptibleMask` at the top level keeps the parent uninterruptible. Inside the mask, calling `restore(ZIO.never)` runs that effect as interruptible so the forked fiber becomes interruptible even though its parent is not. For example:
+
+```scala mdoc:silent
+val parentInterruptibleChild = ZIO.uninterruptibleMask { restore =>
+  for {
+    _   <- ZIO.logInfo("Parent is uninterruptible")
+    fib <- restore(ZIO.never).fork   // <— child is now interruptible
+    _ <- ZIO.logInfo("Attempting to interrupt the child in 5 seconds...")
+    _ <- ZIO.sleep(5.seconds)
+    _ <- fib.interrupt *> ZIO.logInfo("Interrupt invoked!")
+  } yield ()
+}
+```
+:::
+
 In the following example, we create a separate fiber to output a delayed print message and then wait for that fiber to succeed with a value:
 
 ```scala mdoc:silent
@@ -685,3 +726,9 @@ With ZIO, we do not have to think about callbacks, unless sometimes, when we nee
 Most of the ZIO operations that one would expect to be blocking do actually not block the underlying thread, but they offer blocking semantics managed by ZIO. For example, every time we see something like `ZIO.sleep` or when we take something from a queue (`queue.take`) or offer something to a queue (`queue.offer`) or if we acquire a permit from a semaphore (`semaphore.withPermit`) and so forth, we are just blocking semantically without actually blocking an underlying thread. If we use the corresponding methods in Java, like `Thread.sleep` or any of its `lock` machinery, then those methods are going to block a thread. So this is why we say that ZIO is 100% non-blocking, while Java threads are not.
 
 All of the pieces of machinery that ZIO gives us are 100% asynchronous and non-blocking. As they don't block and monopolize the thread, all of the async work is executed on the primary thread pool in ZIO.
+
+
+## See Also
+
+- **[The Differ Data Type](../../guides/compositional-fiberref-updates-with-differ.md)** — Learn how `Differ[Value, Patch]` enables ZIO's runtime to merge concurrent fiber updates on `FiberRef` in a compositional way; understanding how `combine` is called at fiber join time deepens intuition about the fiber lifecycle.
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — contrasts cats-effect `fiber.cancel` with ZIO `fiber.interrupt` and explains why every ZIO fiber is interruptible by default.

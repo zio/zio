@@ -1,6 +1,5 @@
-package zio.managed
+package zio
 
-import zio._
 import zio.test._
 
 object HasNoScopeSpec extends ZIOSpecDefault {

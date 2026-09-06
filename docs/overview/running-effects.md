@@ -1,6 +1,14 @@
 ---
-id: running-effects
+id: "running-effects"
 title: "Running Effects"
+description: "Guide to executing ZIO effects using ZIOAppDefault, Runtime, and custom environments with error logging integration."
+keywords:
+  - "Effect Execution"
+  - "ZIOAppDefault"
+  - "Runtime Management"
+  - "Custom Environment"
+  - "Error Logging"
+  - "Legacy Code Integration"
 ---
 
 ZIO effects are precise plans that _describe_ a computation or interaction. Ultimately, every effect must be _executed_ by the ZIO runtime.

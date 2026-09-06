@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 packages=(
+  "@zio.dev/interop-cats"
   "@zio.dev/izumi-reflect"
   "@zio.dev/zio-aws"
   "@zio.dev/zio-cache"
@@ -9,7 +10,6 @@ packages=(
   "@zio.dev/zio-direct"
   "@zio.dev/zio-dynamodb"
   "@zio.dev/zio-ftp"
-  "@zio.dev/zio-http"
   "@zio.dev/zio-json"
   "@zio.dev/zio-kafka"
   "@zio.dev/zio-lambda"
@@ -29,8 +29,6 @@ packages=(
   "@zio.dev/zio-sqs"
   "@zio.dev/zio-telemetry"
   "@zio.dev/zio2-interop-cats2"
-  # this seems to be deleted and no longer exists
-  # "@zio.dev/zio2-interop-cats3"
 )
 
 # Construct the package add command by joining the packages with a space

@@ -75,7 +75,7 @@ object TestOutputSpec extends ZIOBaseSpec {
       for {
         _            <- ZIO.foreach(events)(event => TestOutput.print(event))
         outputEvents <- ZIO.serviceWithZIO[ExecutionEventHolder](_.getEvents)
-        _            <- ZIO.service[ExecutionEventPrinter].debug("Printer in test")
+        _            <- ZIO.service[ExecutionEventPrinter]
       } yield assertTrue(
         outputEvents ==
           List(

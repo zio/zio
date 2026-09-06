@@ -1,6 +1,13 @@
 ---
 id: handling-resources
 title: "Handling Resources"
+description: "Learn how to manage resources safely in ZIO with Scope, acquire-release patterns, and ensure no resource leaks even under failure or interruption."
+keywords:
+  - "Resource Management"
+  - "Scope"
+  - "Acquire Release"
+  - "Resource Safety"
+  - "ZIO Resources"
 ---
 
 Ensuring that your applications never leak resources is one of the keys to maximizing application throughput, minimizing latency, and maximizing per-node uptime.

@@ -2,7 +2,7 @@ package zio.internal
 
 import zio.internal.ansi._
 
-object TerminalRendering {
+private[zio] object TerminalRendering {
   def circularityError(circularDependencies: List[(String, String)]): String = {
     val circularDependencyMessage =
       circularDependencies.map { case (a0, b0) =>
@@ -35,10 +35,6 @@ object TerminalRendering {
     transitive: Map[String, List[String]] = Map.empty,
     isUsingProvideSome: Boolean = true
   ) = {
-
-    println(toplevel.mkString("\n"))
-    println(transitive.mkString("\n"))
-
     var index   = 0
     def next    = { index += 1; index }
     var indices = Map.empty[String, String]
@@ -268,33 +264,6 @@ ${line.yellow}
 ${line.yellow}
 """.stripMargin
 
-  def main(args: Array[String]): Unit = {
-    val missing = Map(
-      "UserService.live" -> List("zio.Clock", "example.UserService"),
-      "Database.live"    -> List("java.sql.Connection"),
-      "Logger.live"      -> List("zio.Console")
-    )
-    println(missingLayersError(List("Clock", "Database"), missing))
-    println(unusedLayersError(List("Clock.live", "UserService.live", "Console.test")))
-    println(provideSomeNothingEnvError)
-    println(unusedProvideSomeLayersError(List("java.lang.String", "List[Boolean]")))
-    println(
-      ambiguousLayersError(
-        List(
-          ("java.lang.String", List("aGreatStringLayer", "myStringLayer")),
-          ("List[Boolean]", List("someBooleansLayer", "booleanLayer1", "booleanLayer2"))
-        )
-      )
-    )
-    println(
-      byNameParameterInMacroError(
-        "createLayerByName",
-        "def createLayerByName(i: Int, x: => MyLayer): zio.ULayer[MyLayer]",
-        Seq("x: => MyLayer")
-      )
-    )
-  }
-
   /**
    * Pluralizes a word based on the number of items.
    */
@@ -344,9 +313,9 @@ ${line.yellow}
       self.split("\n").map(line => " " * n + line).mkString("\n")
   }
 
-  sealed trait LayerWiringError
+  private[internal] sealed trait LayerWiringError
 
-  object LayerWiringError {
+  private[internal] object LayerWiringError {
     final case class MissingTopLevel(layer: String) extends LayerWiringError
 
     final case class MissingTransitive(layer: String, deps: List[String]) extends LayerWiringError

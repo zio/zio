@@ -19,7 +19,8 @@ package zio
 import zio.Exit._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.atomic.{AtomicReference, LongAdder}
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.LongAdder
 import scala.collection.immutable.SortedSet
 
 /**
@@ -49,6 +50,14 @@ abstract class Supervisor[+A] { self =>
    */
   final def ++[B](that: Supervisor[B]): Supervisor[(A, B)] =
     Supervisor.Zip(self, that)
+
+  final private[zio] def patchAdd(that: Supervisor[Any]): Supervisor[Any] = {
+    def contains(tree: Supervisor[Any], s: Supervisor[Any]): Boolean = tree match {
+      case Supervisor.Zip(left, right) => contains(left, s) || contains(right, s)
+      case _                           => tree eq s
+    }
+    if (contains(self, that)) self else self ++ that
+  }
 
   def onStart[R, E, A](
     environment: ZEnvironment[R],
@@ -197,7 +206,7 @@ object Supervisor {
 
       def loop(supervisor: Supervisor[Any], patches: List[Patch]): Supervisor[Any] =
         patches match {
-          case AddSupervisor(added) :: patches      => loop(supervisor ++ added, patches)
+          case AddSupervisor(added) :: patches      => loop(supervisor.patchAdd(added), patches)
           case AndThen(first, second) :: patches    => loop(supervisor, first :: second :: patches)
           case Empty :: patches                     => loop(supervisor, patches)
           case RemoveSupervisor(removed) :: patches => loop(removeSupervisor(supervisor, removed), patches)
@@ -295,4 +304,11 @@ object Supervisor {
         case Zip(left, right) => toSet(left) ++ toSet(right)
         case supervisor       => Set(supervisor)
       }
+
+  // for tests
+  private[zio] def allSupervisors(supervisor: Supervisor[Any]): Chunk[Supervisor[Any]] =
+    supervisor match {
+      case Zip(left, right) => allSupervisors(left) ++ allSupervisors(right)
+      case supervisor       => Chunk.single(supervisor)
+    }
 }

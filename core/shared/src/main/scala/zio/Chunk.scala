@@ -24,6 +24,7 @@ import scala.collection.mutable
 import scala.collection.mutable.Builder
 import scala.math.log
 import scala.reflect.{ClassTag, classTag}
+import scala.util.hashing.MurmurHash3
 
 /**
  * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are usually
@@ -569,10 +570,11 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     exists
   }
 
-  override final def hashCode: Int = toArrayOption match {
-    case None        => Seq.empty[A].hashCode
-    case Some(array) => array.toSeq.hashCode
-  }
+  override final def hashCode: Int =
+    toArrayOrNull match {
+      case null  => Vector.empty[AnyRef].hashCode()
+      case array => MurmurHash3.arrayHash(array, MurmurHash3.seqSeed)
+    }
 
   /**
    * Returns the first element of this chunk. Note that this method is partial
@@ -707,9 +709,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    * improve the performance of bulk operations.
    */
   def materialize[A1 >: A]: Chunk[A1] =
-    self.toArrayOption[A1] match {
-      case None        => Chunk.Empty
-      case Some(array) => Chunk.fromArray(array)
+    self.toArrayOrNull[A1] match {
+      case null  => Chunk.Empty
+      case array => Chunk.fromArray(array)
     }
 
   /**
@@ -918,7 +920,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   override final def toString: String =
-    toArrayOption.fold("Chunk()")(_.mkString("Chunk(", ",", ")"))
+    toArrayOrNull match {
+      case null  => "Chunk()"
+      case array => array.mkString("Chunk(", ",", ")")
+    }
 
   /**
    * Zips this chunk with the specified chunk to produce a new chunk with pairs
@@ -1108,11 +1113,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   /**
    * A helper function that converts the chunk into an array if it is not empty.
    */
-  private final def toArrayOption[A1 >: A]: Option[Array[A1]] =
-    self match {
-      case Chunk.Empty => None
-      case chunk       => Some(chunk.toArray(Chunk.classTagOf(self)))
-    }
+  private final def toArrayOrNull[A1 >: A]: Array[A1] =
+    if (self eq Chunk.Empty) null
+    else self.toArray(Chunk.classTagOf(self))
 }
 
 object Chunk extends ChunkFactory with ChunkPlatformSpecific {
@@ -1545,8 +1548,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override val depth: Int =
       chunk.depth + 1
 
-    val length: Int =
-      chunk.length
+    def length: Int = chunk.length
 
     def apply(i: Int): A = {
       var j = used - 1
@@ -1822,8 +1824,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     implicit val classTag: ClassTag[A] =
       Tags.fromValue(a)
 
-    override val length =
-      1
+    override def length = 1
 
     override def apply(n: Int): A =
       if (n == 0) a
@@ -1836,17 +1837,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override protected[zio] def toArray[A1 >: A](srcPos: Int, dest: Array[A1], destPos: Int, length: Int): Unit =
       dest(destPos) = a
 
-    def chunkIterator: ChunkIterator[A] =
+    override def chunkIterator: ChunkIterator[A] =
       self
 
-    def hasNextAt(index: Int): Boolean =
+    override def hasNextAt(index: Int): Boolean =
       index == 0
 
-    def nextAt(index: Int): A =
+    override def nextAt(index: Int): A =
       if (index == 0) a
       else throw new ArrayIndexOutOfBoundsException(s"Singleton chunk access to $index")
 
-    def sliceIterator(offset: Int, length: Int): ChunkIterator[A] =
+    override def sliceIterator(offset: Int, length: Int): ChunkIterator[A] =
       if (offset <= 0 && length >= 1) self
       else ChunkIterator.empty
   }
@@ -1862,8 +1863,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override val depth: Int =
       chunk.depth + 1
 
-    override val length: Int =
-      l
+    override def length: Int = l
 
     override def apply(n: Int): A =
       chunk.apply(offset + n)
@@ -1891,8 +1891,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     implicit val classTag: ClassTag[A] =
       Tags.fromValue(vector(0))
 
-    override val length: Int =
-      vector.length
+    override def length: Int = vector.length
 
     override def apply(n: Int): A =
       vector(n)
@@ -1990,23 +1989,35 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       newBitChunk(chunk.take(toTake), minBitIndex, index)
     }
 
+    // Iterates over bits in 3 phases:
+    // 1. Prefix bits: individual bits before the first full element
+    // 2. Full elements: process entire bytes/ints/longs efficiently via foreachElement
+    // 3. Suffix bits: individual bits after the last full element
     override def foreach[A](f: Boolean => A): Unit = {
-      val minLongIndex    = (minBitIndex + bits - 1) >> bitsLog2
-      val maxLongIndex    = maxBitIndex >> bitsLog2
-      val minFullBitIndex = (minLongIndex << bitsLog2) min maxBitIndex
-      val maxFullBitIndex = (maxLongIndex << bitsLog2) max minFullBitIndex
-      var i               = minBitIndex
-      while (i < minFullBitIndex) {
+      val minElementIndex = (minBitIndex + bits - 1) >> bitsLog2 // first full element index
+      val maxElementIndex = maxBitIndex >> bitsLog2              // last full element index (exclusive)
+      val minFullBitIndex = (minElementIndex << bitsLog2) min maxBitIndex
+      val maxFullBitIndex = (maxElementIndex << bitsLog2) max minFullBitIndex
+      val prefixBits      = minFullBitIndex - minBitIndex        // count of leading bits before first full element
+      val suffixBitsStart = maxFullBitIndex - minBitIndex        // 0-based index where trailing bits start
+
+      // Phase 1: prefix bits (before first full element)
+      var i = 0
+      while (i < prefixBits) {
         f(self.apply(i))
         i += 1
       }
-      i = minLongIndex
-      while (i < maxLongIndex) {
+
+      // Phase 2: full elements (processed efficiently without bit extraction)
+      i = minElementIndex
+      while (i < maxElementIndex) {
         foreachElement(f, elementAt(i))
         i += 1
       }
-      i = maxFullBitIndex
-      while (i < maxBitIndex) {
+
+      // Phase 3: suffix bits (after last full element)
+      i = suffixBitsStart
+      while (i < length) {
         f(self.apply(i))
         i += 1
       }
@@ -2068,8 +2079,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override val length: Int =
       maxBitIndex - minBitIndex
 
-    override def apply(n: Int): Boolean =
-      (bytes(n >> bitsLog2) & (1 << (bits - 1 - (n & bits - 1)))) != 0
+    override def apply(n: Int): Boolean = {
+      val bitIndex = n + minBitIndex
+      (bytes(bitIndex >> bitsLog2) & (1 << (bits - 1 - (bitIndex & bits - 1)))) != 0
+    }
 
     override protected def elementAt(n: Int): Byte = bytes(n)
 
@@ -2135,7 +2148,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         var mask       = 128
         var i          = 0
         while (i < leftovers) {
-          if (g(self.apply(offset + self.minBitIndex + i), that.apply(offset + that.minBitIndex + i)))
+          if (g(self.apply(offset + i), that.apply(offset + i)))
             last = (last | mask).asInstanceOf[Byte]
           i += 1
           mask >>= 1
@@ -2178,7 +2191,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       }
 
       if (leftovers != 0) {
-        val offset     = bytes * 8 + self.minBitIndex
+        val offset     = bytes * 8
         var last: Byte = null.asInstanceOf[Byte]
         var mask       = 128
         var i          = 0
@@ -2209,8 +2222,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override protected def elementAt(n: Int): Int =
       respectEndian(endianness, ints(n))
 
-    override def apply(n: Int): Boolean =
-      (elementAt(n >> bitsLog2) & (1 << (bits - 1 - (n & bits - 1)))) != 0
+    override def apply(n: Int): Boolean = {
+      val bitIndex = n + minBitIndex
+      (elementAt(bitIndex >> bitsLog2) & (1 << (bits - 1 - (bitIndex & bits - 1)))) != 0
+    }
 
     override protected def newBitChunk(chunk: Chunk[Int], min: Int, max: Int): BitChunk[Int] =
       BitChunkInt(chunk, endianness, min, max)
@@ -2283,8 +2298,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override protected def elementAt(n: Int): Long =
       if (endianness == BitChunk.Endianness.BigEndian) longs(n) else java.lang.Long.reverse(longs(n))
 
-    def apply(n: Int): Boolean =
-      (elementAt(n >> bitsLog2) & (1L << (bits - 1 - (n & bits - 1)))) != 0
+    def apply(n: Int): Boolean = {
+      val bitIndex = n + minBitIndex
+      (elementAt(bitIndex >> bitsLog2) & (1L << (bits - 1 - (bitIndex & bits - 1)))) != 0
+    }
 
     override protected def newBitChunk(longs: Chunk[Long], min: Int, max: Int): BitChunk[Long] =
       BitChunkLong(longs, endianness, min, max)
@@ -2441,8 +2458,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def chunkIterator: ChunkIterator[Nothing] =
       ChunkIterator.empty
 
-    override val length: Int =
-      0
+    override def length: Int = 0
 
     override def apply(n: Int): Nothing =
       throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $n")
@@ -3192,14 +3208,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
 
     private case object Empty extends ChunkIterator[Nothing] { self =>
-      def hasNextAt(index: Int): Boolean =
-        false
-      val length: Int =
-        0
-      def nextAt(index: Int): Nothing =
-        throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $index")
-      def sliceIterator(offset: Int, length: Int): ChunkIterator[Nothing] =
-        self
+      def hasNextAt(index: Int): Boolean                                  = false
+      def length: Int                                                     = 0
+      def nextAt(index: Int): Nothing                                     = throw new ArrayIndexOutOfBoundsException(s"Empty chunk access to $index")
+      def sliceIterator(offset: Int, length: Int): ChunkIterator[Nothing] = self
     }
 
     private final case class Iterator[A](iterator: scala.Iterator[A], length: Int) extends ChunkIterator[A] { self =>

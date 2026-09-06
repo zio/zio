@@ -1,0 +1,67 @@
+.ziconContent {
+  padding: 2rem;
+}
+
+.ziconContent ul {
+  margin-bottom: 2rem;
+}
+
+.ziconContent li {
+  margin-bottom: 0.5rem;
+}
+
+.buttonContainer {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.ziconImageContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.ziconImage {
+  max-width: 100%;
+  height: auto;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ziconImage:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 30px var(--brand-shadow);
+  }
+}
+
+[data-theme='dark'] .ziconImage {
+  border-color: var(--ifm-color-emphasis-300);
+}
+
+/* Responsive styles */
+@media (max-width: 996px) {
+  .ziconRow {
+    flex-direction: column-reverse;
+  }
+
+  .ziconContent {
+    padding: 2rem 1rem;
+    text-align: center;
+  }
+
+  .ziconContent ul {
+    display: inline-block;
+    text-align: left;
+  }
+
+  .ziconImageContainer {
+    padding: 2rem 1rem 0.5rem 1rem;
+  }
+}

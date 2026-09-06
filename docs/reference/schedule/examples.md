@@ -1,6 +1,12 @@
 ---
-id: examples
+id: "examples"
 title: "Examples"
+description: "Practical examples of creating and combining ZIO schedules for retrying with exponential backoff and exception handling."
+keywords:
+  - "Schedule"
+  - "Exponential Backoff"
+  - "Retrying"
+  - "Exception handling"
 ---
 
 ```scala mdoc:invisible

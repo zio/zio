@@ -52,16 +52,15 @@ trait TimeoutVariants {
     test: ZTest[R, E],
     duration: Duration
   )(implicit trace: Trace): ZTest[R, E] =
-    test.raceWith(Live.withLive(showWarning(labels, duration))(_.delay(duration)))(
-      (result, fiber) => fiber.interrupt *> result,
-      (_, fiber) => fiber.join
-    )
+    ZIO.suspendSucceed {
+      val cancel =
+        Clock.globalScheduler.schedule(
+          () => logMessageWithTrace(renderWarning(labels, duration)),
+          duration
+        )(Unsafe)
 
-  private def showWarning(
-    labels: List[String],
-    duration: Duration
-  )(implicit trace: Trace): UIO[Unit] =
-    ZIO.logWarning(renderWarning(labels, duration))
+      test.ensuring(ZIO.succeed(cancel()))
+    }
 
   private def renderWarning(labels: List[String], duration: Duration): String =
     "Test " + labels.reverse.mkString(" - ") + " has taken more than " + duration.render +
