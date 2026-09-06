@@ -1196,11 +1196,28 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
               val first = flatmap.first
 
+              // When the sub-effect is already a value there is nothing to
+              // descend into: pushing a frame only to pop it on the very next
+              // iteration is pure bookkeeping. `ZIO.unit` is itself a `Sync`,
+              // so the check below is a special case that also skips the
+              // closure call.
               if (first eq ZIO.unit) cur = flatmap.successK(())
-              else {
-                stackIndex = pushStackFrame(flatmap, stackIndex)
-                cur = first
-              }
+              else
+                first match {
+                  case sync: Sync[Any] =>
+                    // Match the standalone Sync handler: the trace must be
+                    // current before `eval()` so that a non-fatal throw, which
+                    // is reported from `_lastTrace`, is attributed to the Sync
+                    // rather than to the enclosing flatMap. (The
+                    // `InterruptedException` handler below re-reads `cur.trace`
+                    // and so still attributes to the flatMap here.)
+                    updateLastTrace(sync.trace)
+                    cur = flatmap.successK(sync.eval())
+
+                  case _ =>
+                    stackIndex = pushStackFrame(flatmap, stackIndex)
+                    cur = first
+                }
 
             case fold: FoldZIO[Any, Any, Any, Any, Any] =>
               updateLastTrace(fold.trace)
