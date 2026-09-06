@@ -651,7 +651,7 @@ val finalized: IO[String, Unit] =
 // finalized: IO[String, Unit] = DynamicNoBox(
 //   trace = "repl.MdocSession.MdocApp.finalized(handling-resources.md:19)",
 //   update = 1L,
-//   f = zio.ZIO$$$Lambda$19568/0x00007f235aded320@4c893cfe
+//   f = zio.ZIO$$$Lambda$19483/0x00007f538af961c8@235c25ef
 // )
 ```
 
@@ -2380,12 +2380,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20432/0x00007f235af1a320@1d2ff244
+//   eval = zio.Ref$$$Lambda$20347/0x00007f53897074d8@2f987c31
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20432/0x00007f235af1a320@66b8cb3d
+//   eval = zio.Ref$$$Lambda$20347/0x00007f53897074d8@6fe14de1
 // )
 
 sealed trait State
@@ -2396,7 +2396,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20432/0x00007f235af1a320@10dd9196
+//   eval = zio.Ref$$$Lambda$20347/0x00007f53897074d8@455463b8
 // )
 ```
 
@@ -2413,7 +2413,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20432/0x00007f235af1a320@247d5e72
+//   eval = zio.Ref$$$Lambda$20347/0x00007f53897074d8@34ce5a61
 // )
 ```
 
@@ -2425,7 +2425,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20432/0x00007f235af1a320@6a2e917f
+//   eval = zio.Ref$$$Lambda$20347/0x00007f53897074d8@78bdcca1
 // )
 ```
 
@@ -14428,25 +14428,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@26a32a22
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@136a8774
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@6709b985
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@660f0729
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@56708a9c
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@3426196f
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-09-06T11:56:25.077996832Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-09-06T12:28:59.950072426Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@7edab046
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@67b5eca8
 ```
 
 ### Construction / Creating Instances
@@ -15560,7 +15560,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20555/0x00007f235afb7a68@5e287cc0
+//   eval = zio.Supervisor$$$Lambda$20470/0x00007f538a0afa68@14ea095c
 // )
 ```
 
@@ -16389,7 +16389,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19563/0x00007f235add9400@1e3cb1ed
+//     f = zio.ZIO$$$Lambda$19478/0x00007f538af94c80@dbd03cc
 //   ),
 //   successK = <function1>
 // )
@@ -20392,7 +20392,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@740ebfa3
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@fde4252
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -20420,9 +20420,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$20032/0x00007f235ae8adc0@7dd4b432
+//     eval = zio.Scope$$$Lambda$19947/0x00007f538b05e5e8@73ea0136
 //   ),
-//   successK = zio.ZIO$$$Lambda$20033/0x00007f235ae8b078@15530642
+//   successK = zio.ZIO$$$Lambda$19948/0x00007f538b05e8a0@1240a1d5
 // )
 ```
 
@@ -20471,7 +20471,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@33b4849
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@1e1daf2a
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -20501,9 +20501,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$20032/0x00007f235ae8adc0@7dd4b432
+//     eval = zio.Scope$$$Lambda$19947/0x00007f538b05e5e8@73ea0136
 //   ),
-//   successK = zio.ZIO$$$Lambda$20033/0x00007f235ae8b078@2adfea16
+//   successK = zio.ZIO$$$Lambda$19948/0x00007f538b05e8a0@3c632173
 // )
 ```
 
@@ -20534,7 +20534,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@2da137c6
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@775c65c1
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -20549,9 +20549,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$20032/0x00007f235ae8adc0@7dd4b432
+//     eval = zio.Scope$$$Lambda$19947/0x00007f538b05e5e8@73ea0136
 //   ),
-//   successK = zio.ZIO$$$Lambda$20033/0x00007f235ae8b078@11e61f31
+//   successK = zio.ZIO$$$Lambda$19948/0x00007f538b05e8a0@66aaaf21
 // )
 ```
 
@@ -20595,7 +20595,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@3da0ea03
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@273a56fc
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -20612,9 +20612,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$20032/0x00007f235ae8adc0@7dd4b432
+//     eval = zio.Scope$$$Lambda$19947/0x00007f538b05e5e8@73ea0136
 //   ),
-//   successK = zio.ZIO$$$Lambda$20033/0x00007f235ae8b078@116a44f5
+//   successK = zio.ZIO$$$Lambda$19948/0x00007f538b05e8a0@4434713
 // )
 ```
 
@@ -20646,7 +20646,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@28e1bad
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@2c5af073
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -20663,9 +20663,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$20032/0x00007f235ae8adc0@7dd4b432
+//     eval = zio.Scope$$$Lambda$19947/0x00007f538b05e5e8@73ea0136
 //   ),
-//   successK = zio.ZIO$$$Lambda$20033/0x00007f235ae8b078@64088c56
+//   successK = zio.ZIO$$$Lambda$19948/0x00007f538b05e8a0@2aff9200
 // )
 ```
 
@@ -20697,7 +20697,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@7bc495a3
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@46469c86
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -20728,9 +20728,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$20032/0x00007f235ae8adc0@7dd4b432
+//     eval = zio.Scope$$$Lambda$19947/0x00007f538b05e5e8@73ea0136
 //   ),
-//   successK = zio.ZIO$$$Lambda$20033/0x00007f235ae8b078@17abe3a
+//   successK = zio.ZIO$$$Lambda$19948/0x00007f538b05e8a0@2ed05205
 // )
 ```
 
@@ -20763,7 +20763,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@172333c9
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@5b8adad0
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -20779,9 +20779,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$20032/0x00007f235ae8adc0@7dd4b432
+//     eval = zio.Scope$$$Lambda$19947/0x00007f538b05e5e8@73ea0136
 //   ),
-//   successK = zio.ZIO$$$Lambda$20033/0x00007f235ae8b078@5f07f015
+//   successK = zio.ZIO$$$Lambda$19948/0x00007f538b05e8a0@4d982f42
 // )
 ```
 
@@ -20812,7 +20812,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@619b0109
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@130c4e6c
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -20839,9 +20839,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$20032/0x00007f235ae8adc0@7dd4b432
+//     eval = zio.Scope$$$Lambda$19947/0x00007f538b05e5e8@73ea0136
 //   ),
-//   successK = zio.ZIO$$$Lambda$20033/0x00007f235ae8b078@76bb2df0
+//   successK = zio.ZIO$$$Lambda$19948/0x00007f538b05e8a0@1ec5fd5f
 // )
 ```
 
@@ -20861,7 +20861,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@4d6633c8
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@7f133f9f
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -20884,9 +20884,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$20032/0x00007f235ae8adc0@7dd4b432
+//     eval = zio.Scope$$$Lambda$19947/0x00007f538b05e5e8@73ea0136
 //   ),
-//   successK = zio.ZIO$$$Lambda$20033/0x00007f235ae8b078@41514031
+//   successK = zio.ZIO$$$Lambda$19948/0x00007f538b05e8a0@525f77ca
 // )
 ```
 
@@ -20902,7 +20902,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@2de0587b
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@3b822936
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -20924,9 +20924,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$20032/0x00007f235ae8adc0@7dd4b432
+//     eval = zio.Scope$$$Lambda$19947/0x00007f538b05e5e8@73ea0136
 //   ),
-//   successK = zio.ZIO$$$Lambda$20033/0x00007f235ae8b078@edf4305
+//   successK = zio.ZIO$$$Lambda$19948/0x00007f538b05e8a0@6385567b
 // )
 ```
 
@@ -20942,7 +20942,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@6a7e77f3
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@3cd7c98f
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -20962,9 +20962,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$20032/0x00007f235ae8adc0@7dd4b432
+//     eval = zio.Scope$$$Lambda$19947/0x00007f538b05e5e8@73ea0136
 //   ),
-//   successK = zio.ZIO$$$Lambda$20033/0x00007f235ae8b078@71d14954
+//   successK = zio.ZIO$$$Lambda$19948/0x00007f538b05e8a0@65430ee0
 // )
 ```
 
@@ -20982,7 +20982,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@72f62aee
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@4a8610c5
 
 val example = {
   val scoped = ZIO.scoped {
@@ -21004,9 +21004,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$20032/0x00007f235ae8adc0@7dd4b432
+//       eval = zio.Scope$$$Lambda$19947/0x00007f538b05e5e8@73ea0136
 //     ),
-//     successK = zio.ZIO$$$Lambda$20033/0x00007f235ae8b078@67562a5e
+//     successK = zio.ZIO$$$Lambda$19948/0x00007f538b05e8a0@344e0be5
 //   ),
 //   successK = <function1>
 // )
@@ -25016,14 +25016,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@5415c265
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@67c18136
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@6326417
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@6592c316
 ```
 
 ### From ZIO
@@ -31737,9 +31737,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$20042/0x00007f235ae9b160@3911c15f
+//             onState = zio.ZIO$$$Lambda$19957/0x00007f538b0669b0@1d39c811
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$20051/0x00007f235a480aa0@7c135819
+//           successK = zio.test.package$ZTest$$$Lambda$19966/0x00007f538b0705d8@583b55d2
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -34729,7 +34729,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+188-e1548459-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+189-bcceb052-SNAPSHOT"
 ```
 
 ### Example
@@ -46685,9 +46685,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$20032/0x00007f235ae8adc0@7dd4b432
+//     eval = zio.Scope$$$Lambda$19947/0x00007f538b05e5e8@73ea0136
 //   ),
-//   successK = zio.ZIO$$$Lambda$20033/0x00007f235ae8b078@747e254f
+//   successK = zio.ZIO$$$Lambda$19948/0x00007f538b05e8a0@4bf066b8
 // )
 ```
 
@@ -51586,225 +51586,23 @@ List of project starters, bootstrap tools or, templates.
 
 ---
 
-## Articles
+## Resources
 
-:::caution
-These articles reflect the state of ZIO at the time of their publication. The code samples might be outdated, considering ZIO was early in development at the time they were written. However, the concepts are still relevant.
-:::
+Looking for something specific? It's probably already got a home:
 
-### ZIO Core
-- [Wrapping impure code with ZIO](https://medium.com/@ghostdogpr/wrapping-impure-code-with-zio-9265c219e2e) by Pierre Ricadat (July 2019)
-- [Thread shifting in cats-effect and ZIO](https://blog.softwaremill.com/thread-shifting-in-cats-effect-and-zio-9c184708067b) by Adam Warski (June 2019)
-- [Performant Functional Programming to the Max with ZIO](https://cloudmark.github.io/A-Journey-To-Zio/) by Mark Galea (May 2019)
-- [ZIO & Cats Effect: A Match Made in Heaven](http://degoes.net/articles/zio-cats-effect) by John De Goes (April 2019)
-- [Beautiful, Simple, Testable Functional Effects for Scala](http://degoes.net/articles/zio-environment) (introducing ZIO Environment) by John De Goes (February 2019)
-- [Thread Pool Best Practices with ZIO](http://degoes.net/articles/zio-threads) by John De Goes (January 2019)
-- [Bifunctor IO: A Step Away from Dynamically-Typed Error Handling](http://degoes.net/articles/bifunctor-io) by John De Goes (May 2018)
+- **Libraries & tools** → [Ecosystem](../ecosystem/index.mdx) (official + community-maintained, added via PR)
+- **Talks & conference recordings** → [Events](../events/index.md) (Functional Scala, ZIO World, weekly Zymposiums)
+- **API docs** → [Scaladoc](https://javadoc.io/doc/dev.zio/zio_3/latest/index.html)
 
-### Patterns and Best Practices
-- [Idiomatic dependency injection for ZIO applications in Scala](https://blog.pierre-ricadat.com/idiomatic-dependency-injection-for-zio-applications-in-scala) by Pierre Ricadat (Nov 2024)
-- [The Tri-Z Architecture: a Pattern for Layering ZIO Applications in Scala](https://blog.pierre-ricadat.com/the-tri-z-architecture-a-pattern-for-layering-zio-applications-in-scala) by Pierre Ricadat (Aug 2024)
-- [Tuning ZIO for high performance](https://blog.pierre-ricadat.com/tuning-zio-for-high-performance) by Pierre Ricadat (May 2024)
-- [Processing ZIO effects through a pipeline](https://medium.com/@svroonland/processing-zio-effects-through-a-pipeline-c469e28dff62) (September 2020)
-- [5 pitfalls to avoid when starting to work with ZIO](https://medium.com/wix-engineering/5-pitfalls-to-avoid-when-starting-to-work-with-zio-adefdc7d2d5c) by Natan Silnitsky (Jan 2020)
+### Stay in the loop
 
-### ZIO STM
-- [How to write a concurrent LRU cache with ZIO STM](https://scalac.io/how-to-write-a-completely-lock-free-concurrent-lru-cache-with-zio-stm/) by Jorge Vasquez (March 2020)
-- [Exploring the STM functionality in ZIO](https://freskog.github.io/blog/2019/05/30/explore-zio-stm/) by Fredrik Skogberg (May 2019)
+- [Discord](https://discord.gg/2ccFBr4) — the most active place for ZIO discussion, help, and links to new community content as it's published
+- [Twitter/X](https://twitter.com/zioscala)
+- [GitHub Discussions](https://github.com/zio/zio/discussions)
 
-### Testing
-- [Integration Testing](https://blended-zio.github.io/blended-zio/blog/integration-testing) by Andreas Gies (Feb 2021)
-- [Effective testing with ZIO Test (RC18)](https://scala.monster/zio-test/) by Pavels Sisojevs (April 2020)
-- [Testing background process with ZIO](https://www.rudder.io/blog/testing-background-process-zio/) by François Armand (March 2020)
-- [Effective testing with ZIO Test (RC17)](https://scala.monster/zio-test-old/) by Pavels Sisojevs (January 2020)
-- [Speeding up time with ZIO TestClock](https://timpigden.github.io/_pages/zio-streams/SpeedingUpTime.html) by Tim Pigden (October 2019)
-- [Testing Incrementally with ZIO Environment](http://degoes.net/articles/testable-zio) by John De Goes (March 2019)
+### Add your own content
 
-### ZIO Streams
-- [ZIO Streams and JMS](https://blended-zio.github.io/blended-zio/blog/zio-streams-jms) by Andreas Gies (October 2020)
-- [Building the Death Star with ZIO Stream](https://juliano-alves.com/2020/05/04/deathstar-zio-stream/) by Juliano Alves (May 2020)
-- [Simulating IoT Events with ZIO Streams](https://timpigden.github.io/_pages/zio-streams/GeneratingChillEvents.html) by Tim Pigden (November 2019)
-
-### ZIO Service Pattern
-- [Example of ZLayers being used in combination](https://timpigden.github.io/_pages/zlayer/Examples.html) by Tim Pigden (March 2020)
-- [From idea to product with ZLayer](https://scala.monster/welcome-zio/) by Pavels Sisojevs (March 2020)
-- [What are the benefits of the ZIO modules with ZLayers](https://medium.com/@pascal.mengelt/what-are-the-benefits-of-the-zio-modules-with-zlayers-3bf6cc064a9b) by Pascal Mengelt (March 2020)
-- [Decouple the Program from its Implementation with ZIO modules.](https://medium.com/@pascal.mengelt/decouple-the-program-from-its-implementation-with-zio-modules-d9b8713d502e) by Pascal Mengelt (December 2019)
-- [Functional dependency injection in Scala using ZIO environments](https://blog.jdriven.com/2019/10/functional-dependency-injection-in-scala-using-zio-environments/) by Chiel van de Steeg (October 2019)
-
-### ZIO Use Cases
-- [Spring to ZIO 101 - ZIO CRUD](https://adrianfilip.com/2020/03/15/spring-to-zio-101/) by Adrian Filip (March 2020)
-- [Implement your future with ZIO](https://scala.monster/welcome-zio-old/) by Pavels Sisojevs (December 2019)
-- [How to write a command line application with ZIO?](https://scalac.io/write-command-line-application-with-zio/) by Piotr Gołębiewski (November 2019)
-- [Hacker News API Part 5](http://justinhj.github.io/2019/04/07/hacker-news-api-5.html) by Justin Heyes-Jones (April 2019)
-- [Building the Hangman Game using ScalaZ ZIO](https://abhsrivastava.github.io/2018/11/03/Hangman-Game-Using-ZIO/) by Abhishek Srivastava (November 2018)
-- [Elevator Control System using ZIO](https://medium.com/@wiemzin/elevator-control-system-using-zio-c718ae423c58) by Wiem Zine El Abidine (September 2018)
-
-### Integration with Other Libraries
-- [Streaming microservices with ZIO and Kafka](https://scalac.io/streaming-microservices-with-zio-and-kafka/) by Aleksandar Skrbic (February 2021)
-- [uzhttp + sttp for light-weight http and websockets](https://timpigden.github.io/_pages/zio-uzhttp-sttp/uzhttp-sttp.html) updated for 1.0.1 by Tim Pigden (August 2020)
-- [Streaming all the way with ZIO, Doobie, Quill, http4s and fs2](https://juliano-alves.com/2020/06/15/streaming-all-the-way-zio-doobie-quill-http4s-fs2/) by Juliano Alves (June 2020)
-- [Building a cool CLI with Decline for my ZIO App](https://medium.com/@pascal.mengelt/building-a-cool-cli-with-decline-for-my-zio-app-80e095b2899a) by Pascal Mengelt (May 2020)
-- [ZIO with http4s, Auth, Codecs and zio-tests (RC18)](https://timpigden.github.io/_pages/zio-http4s/intro.html) by Tim Pigden (April 2020)
-- [An Introduction to ZIO Kafka](https://www.ziverge.com/post/an-introduction-to-zio-kafka) by Ziverge (April 2020)
-- [ZIO + Http4s: a simple API client](https://juliano-alves.com/2020/04/20/zio-http4s-a-simple-api-client/) by Juliano Alves (April 2020)
-- [What can ZIO do for me? A Long Polling example with sttp.](https://medium.com/@pascal.mengelt/what-can-zio-do-for-me-32281e4e8b16) by Pascal Mengelt (November 2019)
-- [Making ZIO, Akka and Slick play together nicely](https://scalac.io/making-zio-akka-slick-play-together-nicely-part-1-zio-and-slick/) by Jakub Czuchnowski (August 2019)
-- [Combining ZIO and Akka to enable distributed FP in Scala](https://medium.com/@ghostdogpr/combining-zio-and-akka-to-enable-distributed-fp-in-scala-61ffb81e3283) by Pierre Ricadat (July 2019)
-- [tAPIr’s Endpoint meets ZIO’s IO](https://blog.softwaremill.com/tapirs-endpoint-meets-zio-s-io-3278099c5e10) by Adam Warski (July 2019)
-- [ZIO with http4s and doobie](https://medium.com/@wiemzin/zio-with-http4s-and-doobie-952fba51d089) by Wiem Zine El Abidine (June 2019)
-- [Using 47 Degree's Fetch library with ZIO](http://justinhj.github.io/2019/05/05/using-47degs-fetch-with-zio.html) by Justin Heyes-Jones (May 2019)
-
-### Contribution
-- [Lessons Learned From Being a ZIO Contributor](https://www.softinio.com/post/lessons-learned-from-being-a-zio-contributor/) by [Salar Rahmanian](https://www.softinio.com) (September 2020)
-
-### Benchmarking and Comparison
-- [Benchmarking Functional Error Handling in Scala](https://www.iteratorshq.com/blog/benchmarking-functional-error-handling-in-scala/) by Marcin Rzeźnicki (April 2020)
-- [Scalaz 8 IO vs Akka (typed) Actors vs Monix (part 1)](https://blog.softwaremill.com/scalaz-8-io-vs-akka-typed-actors-vs-monix-part-1-5672657169e1) + [part 2](https://blog.softwaremill.com/akka-vs-zio-vs-monix-part-2-communication-9ce7261aa08c) + [part 3](https://blog.softwaremill.com/supervision-error-handling-in-zio-akka-and-monix-part-3-series-summary-abe75f964c2a) by Adam Warski (June 2018)
-
----
-
-## Summary(2)
-
-ZIO has a huge ecosystem of libraries, tools, talks, tutorials, and more. In this section, we are going to introduce some of the most important ones.
-
-:::info
-If you find a new great library, talk, resource, slides, or project, related to ZIO, consider adding it to the list with your PR.
-:::
-
----
-
-## Projects using ZIO
-
-- [Rudder](https://github.com/normation/rudder) — an example about how to manage error ADT in several sub-projects and specialized sub-domains, and how one can gradually contextualize error messages in domain layers. Uses queues, resources, interop with Java, and historical code. See [context and references](https://issues.rudder.io/issues/14870).
-- [ZIO AI Platform Backend](https://github.com/Clover-Group/zio_front) — Clover Group AI Platform backend, which employs ZIO, Doobie, http4s and Kafka .
-- [Polynote](https://github.com/polynote/polynote) — a new, polyglot notebook with first-class Scala support, Apache Spark integration, multi-language interoperability including Scala, Python, and SQL, as-you-type autocomplete, and more.
-- [Blended ZIO](https://blended-zio.github.io/blended-zio/) — A sample project migrating a largely untyped, actor based integration framework to ZIO.
-
----
-
-## Sample Projects
-
-- [GitHub Release Pager with ZIO 2.0](https://github.com/psisoyev/release-pager) by [Pavels Sisojevs](https://github.com/psisoyev)
-- [Redis Streams with ZIO](https://github.com/kensuio-oss/redis-streams-zio) by [Leszek Gruchała](https://github.com/leszekgruchala)
-- [ZIO Production Ready Microservice](https://github.com/saraiva132/zio-cats-backend) by [Rafael Figueiredo](https://github.com/saraiva132)
-- [ZIO Modern Backend giter8 Template - Tapir, sttp, http4s](https://github.com/Anadyne/zio-full-backend.g8) by [Boris V.Kuznetsov](https://github.com/tampler)
-- [ZIO CRUD sample - Code for the 'Spring to ZIO 101' blog post 03/2020](https://github.com/adrianfilip/zio-crud-sample) by [Adrian Filip](https://github.com/adrianfilip)
-- [ZIO modules with different implementations - Code for the 'Decouple the Program from its Implementation...' blog post 12/2019](https://github.com/pme123/zio-comps-module) by [pme123](https://github.com/pme123)
-- [TicTacToe command line game using Service Pattern](https://github.com/ioleo/zio-by-example) by [ioleo](https://github.com/ioleo)
-- [Long Polling with ZIO - Code for the 'What can ZIO do for me?' blog post 11/2019](https://github.com/pme123/zio-http4s-long-polling) by [pme123](https://github.com/pme123)
-- [Hello world with ZIO and http4s](https://gitlab.com/maplambda/zio-http4s) by [maplambda](https://gitlab.com/maplambda)
-- [STM Partitioning - Code for the 'Exploring the STM functionality in ZIO' blog post](https://github.com/freskog/stm-partitioning)
-- [ZIO Todo Backend](https://github.com/mschuwalow/zio-todo-backend) by [mschuwalow](https://github.com/mschuwalow)
-- [Event Driven Messenger](https://github.com/edvmorango/event-driven-messenger) by [edvmorango](https://github.com/edvmorango)
-- [Zorechka Bot](https://github.com/wix-incubator/zorechka-bot) by [wix-incubator](https://github.com/wix-incubator)
-- [A ZIO + http4s + Circe + Quill + Tapir giter8 template](https://github.com/pandaforme/ultron.g8) by [pandaforme](https://github.com/pandaforme)
-- [More ZIO/http4s: with http4s authentication, encoding/decoding + zio tests](https://github.com/TimPigden/zio-http4s-examples) by [Tim Pigden](https://github.com/TimPigden)
-- [Full Scala Stack, a sample project that uses akka-http, slick, zio, scalajs, react, ScalablyTyped and semantic ui](https://github.com/rleibman/full-scala-stack) by Roberto Leibman
-- [A minimal ZIO giter8 template](https://github.com/jchoffmann/zio-seed.g8) by [jchoffmann](https://github.com/jchoffmann)
-- [Lagom CQRS/ES microservices with ZIO, Caliban, zio-grpc, elastic4s and Logstage](https://github.com/sigurdthor/book-shelf) by [Yaroslav Yaremenko](https://github.com/sigurdthor)
-- [ZIO Advanced Template](https://github.com/Neurodyne/zio-top.g8) by [Boris V.Kuznetsov](https://github.com/tampler)
-- [ZIO Quill, H2 Database with FlyWay migrations Explained](https://github.com/Neurodyne/h2db-quill-demo) by [Boris V.Kuznetsov](https://github.com/tampler)
-- [ZIO Tapir Http4s Integration](https://github.com/Neurodyne/zio-tapir) by [Boris V.Kuznetsov](https://github.com/tampler)
-- [Akka Microservice using DDD with ZIO Streams Tapir AkkaHTTP Integration](https://github.com/mvillafuertem/scalcite) by [Miguel Villafuerte](https://github.com/mvillafuertem)
-- [Simple ZIO ScalaJS Skeleton](https://github.com/sb-dev/zio-scalajs) by [Samir Benzenine](https://github.com/sb-dev)
-- [Full ZIO Stack: A sample IM that uses zio, zio-redis, zio-actors, zio-schema, zio-streams, zio-crypto, tapir, akka-http](https://github.com/bitlap/zim) by [bitlap](https://github.com/bitlap/zim) (Notes in Chinese)
-- [JWT Auth based persisent (reactive MongoDB) RESTful API for managing notes with ZIO 2.0, Scala 3 and ZLayers](https://github.com/Ghurtchu/notes-rest-api) by [Anzori (Nika) Ghurtchumelia](https://github.com/Ghurtchu)
-- [ZIO 2.0 Restful webservice example using zio, zio-http, zio-json, quill, H2, twirl, zio-streams, zio-cache, zio-logging](https://github.com/Fancellu/zio-restful-webservice) by [Dino Fancellu](https://github.com/Fancellu)
-- [Simple web project using Scala3, ZIO2 (with tests), Caliban (with ZQuery), Http4s, Cats, Circe, Doobie](https://github.com/lewapek/DontLetExpireApp) by [Paweł Kołodziejczyk](https://github.com/lewapek)
-- [All in one observability: Scala3 + ZIO + Prometheus metrics + OpenTelemetry tracing (Jaeger)](https://github.com/lewapek/observability-demo-apps) by [Paweł Kołodziejczyk](https://github.com/lewapek)
-- [A simple demo application to show zio-cli in action](https://github.com/fancellu/zio-cli-demo) by [Dino Fancellu](https://github.com/Fancellu)
-- [Kafka BigQuery Express](https://github.com/adevinta/kafka-bigquery-express/) A ZIO2 system to copy data from Kafka to BigQuery, safely and cost-effectively.
-
----
-
-## Videos
-
-### Functional Programming
-- [FP to the Max](https://www.youtube.com/watch?v=sxudIMiOo68) by John De Goes (July 2018)
-- [FP to the Min](https://www.youtube.com/watch?v=mrHphQT4RpU) by John De Goes (July 2020)
-
-### Tour of ZIO
-- [The ZIO of the Future](https://www.youtube.com/watch?v=u3pgyEiu9eU) by John De Goes (May 2021)
-- [A Tour of ZIO](https://www.youtube.com/watch?v=TWdC7DhvD8M) by John De Goes (January 2020)
-
-### ZIO Core
-- [The Death of Tagless Final](https://www.youtube.com/watch?v=p98W4bUtbO8) by John De Goes (February 2019)
-- [Upgrade Your Future](https://www.youtube.com/watch?v=USgfku1h7Hw) by John De Goes (September 2019)
-- [One Monad to Rule Them All](https://www.youtube.com/watch?v=POUEz8XHMhE) by John De Goes (August 2019)
-- [Functional Concurrency in Scala with ZIO](https://www.youtube.com/watch?v=m5nas4Hndqo) by Itamar Ravid (June 2019)
-- [Thinking Functionally](https://www.youtube.com/watch?v=-KA3BSdqYug) by John De Goes (March 2019)
-- [ZIO: Next-Generation Effects in Scala](https://www.youtube.com/watch?v=mkSHhsJXjdc&t=6s) by John De Goes (October 2018)
-- [Functional Effects in ZIO](https://www.youtube.com/watch?v=4EeL8-chAR8) by  Wiem Zine El Abidine
-- [ZIO WORLD - Blocking](https://www.youtube.com/watch?v=1g21c8VKeuU&t=320s) by Adam Fraser (March 2021) — Adam Fraser presented his work to make ZIO faster with blocking code, showing the tremendous (unbelievable) performance improvements possible with batch-mode blocking; part of ongoing work to make ZIO better at blocking workloads.
-
-### ZIO Runtime System
-- [ZIO WORLD - ZIO Runtime System](https://www.youtube.com/watch?v=OFFrw5aJzG4&t=313s) by John A. De Goes (March 2021) — John A. De Goes presented his work on the runtime system for ZIO 2.0, which involves a significant rewrite and simplification of the core execution model, resulting in what will be ZIO's best performance to date; benchmarks show nearly universally faster performance compared to CE3.
-
-### Error Management
-- [Error Management: Future vs ZIO](https://www.youtube.com/watch?v=mGxcaQs3JWI) by John De Goes and Kai (May 2019), [slide](https://www.slideshare.net/jdegoes/error-management-future-vs-zio)
-- Systematic error management in application - We ported Rudder to ZIO: [video in French](https://www.youtube.com/watch?v=q0PlcgR5M1Q), [slides in English](https://speakerdeck.com/fanf42/systematic-error-management-we-ported-rudder-to-zio) by François Armand (Scala.io, October 2019)
-
-### ZIO Service Pattern
-- [ZLayers by example](https://www.youtube.com/watch?v=u5IrfkAo6nk) by Wiem Zine El Abidine (December 2020)
-- [ZIO inception: Journey through layers and intersection types](https://www.youtube.com/watch?v=vNQFlq1SvaE) by Vladimir Pavkin (July 2020)
-- [ZIO WORLD - ZLayer](https://www.youtube.com/watch?v=B3bAcU2-TGI) by Kit Langton (March 2021) — In this presentation, Kit Langton demonstrated a significant simplification of the service pattern that makes it familiar to OOP programmers, & showed how ZIO 2.0 will auto-wire ZLayers & guide users with rich & actionable error messages.
-
-### ZIO Schedule
-- [ZIO Schedule: Conquering Flakiness and Recurrence with Pure Functional Programming](https://www.youtube.com/watch?v=onQSHiafAY8&t=1s) by John De Goes (October 2018)
-
-### ZIO Concurrency Primitives
-- [Atomically: Delete Your Actors](https://www.youtube.com/watch?v=d6WWmia0BPM) by John De Goes and Wiem Zine El Abidine (April 2019)
-- [ZIO Queue](https://www.youtube.com/watch?v=lBYkLc-j7Vo) by Wiem Zine El Abidine (January 2019)
-- [ZIO Queue: A new Queue for a new Era](https://www.youtube.com/watch?v=8JLprl34xEw&t=2437s) by John De Goes (September 2018)
-- [ZIO WORLD - Hub](https://www.youtube.com/watch?v=v7Ontn7jZt8) by Adam Fraser (March 2020) — In this presentation, Adam Fraser introduced a hyper-fast async concurrent hub and showed how ZIO Queue and ZIO Hub are radically faster than alternatives.
-
-### ZIO STM
-- [Declarative Concurrency with ZIO STM](https://www.youtube.com/watch?v=MEH7hQmGK5M) by Dejan Mijic (June 2020)
-
-### ZIO Test and Debugging
-- [0 to 100 with ZIO Test](https://www.youtube.com/watch?v=qDFfVinjDPQ) by Adam Fraser
-- [ZIO WORLD - Execution Tracing](https://www.youtube.com/watch?v=1-z06KIde0k) by Rob Walsh (March 2021) — Rob Walsh then presented his work taking ZIO's execution tracing to the next level, which will improve the quality of tracing, as well as make it virtually "cost-free", which is effectively the same as more than doubling the perf of ZIO applications today.
-- [Using Aspects To Transform Your Code With ZIO Environment](https://www.youtube.com/watch?v=gcqWdNwNEPg) by Adam Fraser (September 2020)
-- [Zymposium — Smart Assertions](https://www.youtube.com/watch?v=lgCb4-4M-fw) by Adam Fraser and Kit Langton (August 2021) — This week, Adam and Kit will demo and explore the inner workings of zio-test's new Smart Assertions. This new test syntax allows you to write simple, straightforward, boolean expressions—all without losing the human-readable, debuggable error messages from other assertion DSLs. As we look at the implementation, we'll discuss the delicate fusion of principled combinator DSLs with hacky macros.
-
-### Migration and Interoperability
-- [Functional Legacy - How to Incorporate ZIO In Your Legacy Services](https://www.youtube.com/watch?v=pdgr9bbFQLE) by Natan Silnitsky (March 2020) — You want to introduce ZIO to your existing Scala codebase? Great Idea! It will make your code more efficient, readable, composable, and safe. For the past year, Natan Silnitsky has done this at Wix and has learned a lot about how to do it right. In this talk, Natan will show you how to successfully use ZIO in your legacy service using real-life code examples. You will learn key tips and takeaways including how and when to execute the ZIO runtime; how/when to introduce ZLayers into your codebase; how to make your existing APIs interop with ZIO; and how to have more flexibility on ZManaged resource shutdown. When you're done attending the presentation, you'll be able to introduce ZIO into your existing Scala code base with confidence!
-
-### ZIO Streams
-- [Modern Data Driven Applications with ZIO Streams](https://youtu.be/bbss7elSfxs) by Itamar Ravid (December 2019)
-- [ZIO Stream: Rebirth](https://www.youtube.com/watch?v=mLJYODobz44&t=15s) by John De Goes and Itamar Ravid (November 2018)
-- [The Joys of (Z)Streams](https://www.youtube.com/watch?v=XIIX2YSg7M0) by Itamar Ravid
-- [A Tour of ZIO Streams](https://www.youtube.com/watch?v=OiuKbpMOKsc&t=291s) by Itamar Ravid (June 2020) — Watch this video for a brief tour of ZIO Streams from its author, Itamar Ravid. ZIO Streams is a Scala library for creating concurrent, asynchronous stream processing applications, based on the cutting edge functional effect system ZIO.
-- [ZIO WORLD - ZIO Streams](https://www.youtube.com/watch?v=8b3t65tmMkE) by Itamar Ravid (March 2020) — In this presentation, Itamar Ravid introduces a radical new basis for ZIO 2.0 Streams, inspired by the work of Michael Snoyman, which unifies streams and sinks & offers next-level performance for streaming apps on the JVM.
-
-### ZIO Libraries
-- [What Happens In ZIO Stays in ZIO](https://www.youtube.com/watch?v=gZZazYy0tWM) by Willem Vermeer — ZIO has excellent interoperability with http4s, Cats, Akka libraries, and more, and there are a number of posts and videos that help developers use ZIO with these great libraries. Yet, the question remains: can you develop a web service using ZIO libraries alone? In this talk, we'll explore the answer to this question directly. We'll start by creating an SMTP server using ZIO NIO, and then we'll add a frontend based on ZIO gRPC and Scala.js. Along the way, we'll leverage ZIO Config to externalize the configuration, as well as the ZLayer mechanism for dependency injection. Maybe we'll throw ZIO JSON into the mix, and at the end, we'll take a step back to appreciate how much is really possible gluing those ZIO components together! Finally, we'll conclude by discussing what's still left to be done to make ZIO a full-fledged competitor in the area of full-stack web service development
-
-#### ZIO CLI
-- [10 Minute Command-Line Apps With ZIO CLI](https://www.youtube.com/watch?v=UeR8YUN4Tws) by Aiswarya Prakasan (December 2020) — Command-line applications are pervasive, relied upon by developers,third-parties, and IT staff. While it’s easy to develop a basic command-line application, building one that features rich help, forgiving parsing, bulletproof validation, shell completions, and a clean and beautiful appearance is quite challenging. In this talk, Aiswarya Prakasan, a contributor to ZIO CLI, will lead you on a journey to building powerful command-line applications in Scala. Through the power of composition and strong types, you will discover how to build type-safe command-line applications in just a few simple lines of code, which give you rich features of command-line applications like git.
-
-#### ZIO Flow
-- [ZIO WORLD - ZIO FLOW](https://www.youtube.com/watch?v=H4pMkTAsg48) by Aiswarya Prakasan (March 2020) - Aiswarya Prakasan introducing ZIO Flow the new open-source platform will help developers orchestrate microservices for mission-critical code. With a type-safe and compositional design, ZIO Flow will make it easier for developers to create and test robust workflows, which statefully interact with microservices, databases, and human agents, and which survive flakiness, software updates, and even data center failures.
-- [Zymposium - ZIO Flow](https://www.youtube.com/watch?v=DDZ8HgWOpBk) (August 2021) — This Friday Adam and Kit will be learning about ZIO Flow, a project that aims to do for distributed programming what ZIO has done for concurrent programming, with special guest Ash. Ash will explain how ZIO Flow lets us execute persistent, distributed, fault-tolerant computations. Then we'll be live coding building a small application in ZIO Flow with her. 
-
-#### ZIO SQL
-- [ZIO WORLD - ZIO SQL](https://www.youtube.com/watch?v=cIMA6iT9B-k) by Jakub Czuchnowski (March 2020) — Jakub Czuchnowski summarized the latest work in ZIO SQL, demonstrating type-inferred, type-safe queries with the full-range of SQL features, including database-specific functions, with working SELECT/DELETE/UPDATE for Postgres.
-
-#### ZIO Web
-- [ZIO WORLD - ZIO WEB](https://www.youtube.com/watch?v=UBT-7h8JgU4) by Piotr Golebiewski (March 2020) — Piotr Golebiewski toured ZIO Web, reaching the milestone of "hello world", with working server and client generation for the HTTP protocol.
-
-### Use Cases
-- [Search Hacker News with ZIO with Scala, ZIO, Sttp and magic](https://www.youtube.com/watch?v=3P2Gi--dG9A&list=PL-G8WBFTPSVpCcFq6O7czfx9m9T21Cz24&index=11) — A practical look at building a ZIO program. + [Source Code](https://github.com/justinhj/magic-rate-limiter) by [Justin Heyes-Jones](https://twitter.com/justinhj) (April 2021)
-- [ML Powered Apps with ZIO Scala](https://www.youtube.com/watch?v=nbZCfkGuNIE) by Aris Vlasakakis (August 2020)
-- [Production-grade Microservices with ZIO](https://www.youtube.com/watch?v=oMJ1RMdR7wg) by Itamar Ravid (April 2021) — These days, there are all sorts of boxes to check when deploying production-grade microservices. Our applications must be (reasonably!) performant and correct, but they must also be observable, resilient, and easily extensible. In this talk, Itamar will share from his experience in running microservices based on ZIO in production: resilient, Kubernetes-friendly structuring; cloud-native observability with logs, metrics and telemetry, and modern ways of service communication.
-
-### Others
-- [Redis Streams with ZIO](https://youtu.be/jJnco6sMZQY) by [Leszek Gruchała](https://twitter.com/leszekgruchala) (October 2020)
-- [The Rise Of Loom And The Evolution Of Reactive Programming](https://www.youtube.com/watch?v=SJeAb-XEIe8&t=2938s) by John A. De Goes (October 2020)
-- [Izumi 1.0: Your Next Scala Stack](https://www.youtube.com/watch?v=o65sKWnFyk0) by Pavel Shirshov and Kai (December 2020) — Frameworks are bulky, quirky, and non-compositional, which has led to a rejection of Spring and similar frameworks in the Scala ecosystem. Yet, despite their drawbacks, frameworks have been used to boost team productivity in many large companies. In this presentation, Paul and Kai will introduce Izumi 1.0, a Scala microframework based on compositional functional programming. Designed to help you and your team achieve new levels of productivity, Izumi now includes full compile-time checks for your configurable applications and completely reworked Tagless Final hierarchy for Bifunctors and Trifunctors.
-- [ZIO WORLD - Distage 1.0](https://www.youtube.com/watch?v=WJvno8yZuWU) (March 2020) — Distage 1.0, brings the power of tagless-final to trifunctor/bifunctor effect types, with a robust commercial-ready DI framework capable of working with TF & ZLayers w/compile-time validation.
-- [Demystifying Functional Effect Systems, Or Build Your Own (Toy) ZIO](https://www.youtube.com/watch?v=Q4OCmKRPUf8) by Dmitry Karlinsky (December 2020) — Ever wondered how ZIO and other functional effect systems work under the hood? Sure feels like magic, sometimes! Dmitry Karlinsky is a big believer in learning by doing, and in this talk, the speaker will walk you through building a toy Scala effect system (called 'TIO'), from scratch, starting with a basic IO monad, and gradually adding capabilities such as Failure and Recovery, Asynchronous Effects, Stack Safety, and finally Concurrency with Fibers. Peek behind the curtain and demystify the technology that is becoming the backbone of modern Scala applications!
+Wrote a blog post, gave a talk, built something with ZIO? Don't wait for a docs PR — share it on [Discord](https://discord.gg/2ccFBr4) or [GitHub Discussions](https://github.com/zio/zio/discussions) where the community will actually see it. If it's a library, add it to the [Ecosystem](../ecosystem/index.mdx) page.
 
 ---
 
@@ -160487,7 +160285,7 @@ The profiler output will be written to a file in the directory the JVM has been 
 
 ---
 
-## Resources
+## Resources(Zio-profiling)
 
 ### Talks
 
