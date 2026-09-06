@@ -309,7 +309,6 @@ module.exports = {
       label: "Streaming",
       link: { type: "doc", id: "reference/stream/index" },
       items: [
-        "reference/stream/installation",
         "reference/stream/chunk",
         {
           type: "category",

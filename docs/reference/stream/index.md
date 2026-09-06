@@ -28,8 +28,6 @@ s"""libraryDependencies += "dev.zio" %% "zio-streams" % "${zio.BuildInfo.version
 println(s"""```""")
 ```
 
-For more details, see the [Installation](installation.md) page.
-
 ## Use Cases
 
 There are lots of examples of streaming that people might not recognize, this is a common problem especially for beginners. A beginner might say "I don't need a streaming library. Why should I use that?". It's because they don't see streams. Once we use a streaming library, we start to see streams everywhere but until then we don't understand where they are. 
