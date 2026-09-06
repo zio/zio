@@ -17,7 +17,7 @@ export const ecosystemProjects = [
   },
   {
     name: 'ZIO HTTP',
-    description: 'Type-safe, purely functional HTTP library for building high-performance web applications and APIs',
+    description: 'Type-safe, purely functional HTTP library for high-performance web apps and APIs',
     features: [
       'High-performance server based on Netty',
       'Type-safe and type-driven endpoints',
