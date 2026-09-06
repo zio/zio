@@ -816,7 +816,7 @@ val step8: Task[Unit] = for {
 } yield ()
 ```
 
-See [Schedule](../../reference/schedule/index.md) for the full set of built-in schedules and composition operators.
+See [Schedule](../../reference/schedule.md) for the full set of built-in schedules and composition operators.
 
 ## Runtime Configuration and Thread Model
 
@@ -1092,5 +1092,5 @@ sbt "migrate-cats-effect/runMain migratecatseffect.CompleteExample"
 - [FiberRef](../../reference/state-management/fiberref.md) — the replacement for `IOLocal`, covering fork/join value propagation.
 - [Queue](../../reference/concurrency/queue.md) and [Semaphore](../../reference/concurrency/semaphore.md) — full references for the two most common `cats.effect.std` replacements.
 - [CountdownLatch](../../reference/sync/countdownlatch.md) and [CyclicBarrier](../../reference/sync/cyclicbarrier.md) — from the `zio-concurrent` module.
-- [Schedule](../../reference/schedule/index.md) — the full retry/repetition API that replaces cats-retry.
+- [Schedule](../../reference/schedule.md) — the full retry/repetition API that replaces cats-retry.
 - [ZIO Test](../../reference/test/index.md) — the test framework that replaces munit-cats-effect/weaver-cats-effect.

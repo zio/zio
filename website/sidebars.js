@@ -201,18 +201,7 @@ module.exports = {
           }
         ]
     },
-    {
-      type: "category",
-      label: "Scheduling",
-      link: { type: "doc", id: "reference/schedule/index" },
-      items: [
-        "reference/schedule/repetition",
-        "reference/schedule/retrying",
-        "reference/schedule/built-in-schedules",
-        "reference/schedule/combinators",
-        "reference/schedule/examples",
-      ]
-    },
+    "reference/schedule",
     {
       type: "category",
       label: "State Management",
