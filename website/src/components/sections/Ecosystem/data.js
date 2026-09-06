@@ -21,13 +21,8 @@ export const ecosystemProjects = [
     features: [
       'High-performance server based on Netty',
       'Type-safe and type-driven endpoints',
-      'Support for both imperative and declarative endpoints',
-      'Designed for cloud-native environments',
-      'Support for both server and client applications',
       'WebSocket support for real-time applications',
       'Middleware system for cross-cutting concerns',
-      'Integration with ZIO Schema for automatic codecs',
-      'Built-in support for streaming responses',
     ],
     link: 'https://ziohttp.com',
     icon: '/img/ecosystem/zio-http-logo-tile.png'
