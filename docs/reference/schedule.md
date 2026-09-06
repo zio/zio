@@ -265,7 +265,7 @@ Each of these controls timing in a different way:
 
 - **`spaced(d)`** — the simplest one. After each run *finishes*, wait exactly `d`, then run again. If the effect itself is slow, the gap after it is still always `d`.
 - **`fixed(d)`** — instead of timing from when the run *finishes*, this times from when it *started*, aiming for one run every `d`. If a run happens to take longer than `d`, the next one fires immediately afterward (it never fires twice at once to "catch up").
-- **`windowed(d)`** — imagine the clock divided into fixed-length slices of `d` (e.g. every 10 seconds, on the 0s, 10s, 20s, …). This runs once per slice, always at the slice boundary, no matter when inside the previous slice it actually started.
+- **`windowed(d)`** — divides time into `d`-long slices starting from whenever the schedule is first stepped, and fires once per slice at that slice's boundary — the alignment is relative to the schedule's own start time, not to absolute wall-clock marks like `:00`/`:10`/`:20`. This runs once per slice, no matter when inside the previous slice it actually started.
 - **`linear(base)`** — each delay grows by one more `base` than the last: `base`, `2×base`, `3×base`, and so on. Useful when you want retries to slow down gradually.
 - **`exponential(base, factor)`** — each delay is multiplied by `factor` (default `2.0`), so it grows fast: `base`, `base×2`, `base×4`, `base×8`, … This is the classic "exponential backoff" used when retrying a failing remote call, so you back off quickly instead of hammering it.
 - **`fibonacci(one)`** — delays follow the Fibonacci sequence (each one is the sum of the two before it): `one, one, 2×one, 3×one, 5×one, …`. A middle ground between `Schedule.linear`'s steady growth and `Schedule.exponential`'s fast growth.
@@ -328,7 +328,7 @@ import zio._
 // Recur once after 5 seconds
 val onceAfter5s = Schedule.duration(5.seconds)
 
-// Recur at +4s, +7s, +12s, +19s (four recurrences total)
+// Four recurrences, each delayed from the previous one by 4s, then 7s, then 12s, then 19s (firing at +4s, +11s, +23s, +42s)
 val customSteps = Schedule.fromDurations(4.seconds, 7.seconds, 12.seconds, 19.seconds)
 
 // Repeat for at most 30 seconds, outputting elapsed time
@@ -379,7 +379,7 @@ Each one picks a fixed position inside a repeating unit of time, and fires every
 - **`minuteOfHour(m)`** — fires at minute `m` (0–59) of every hour. `minuteOfHour(0)` fires once at the top of every hour.
 - **`hourOfDay(h)`** — fires at hour `h` (0–23) of every day. `hourOfDay(9)` fires once at 09:00 each day.
 - **`dayOfWeek(d)`** — fires at midnight on ISO-8601 weekday `d` (1 = Monday, …, 7 = Sunday). `dayOfWeek(2)` fires at midnight every Tuesday.
-- **`dayOfMonth(d)`** — fires at midnight on day `d` (1–31) of every month, skipping any month that doesn't have that day (e.g. day `31` is simply skipped in February).
+- **`dayOfMonth(d)`** — fires at midnight on day `d` (1–31) of every month. When the schedule steps on or after day `d` within the current month, it advances to the next month that actually has day `d`, skipping months that don't (e.g. day `31` skips February). But when it steps on a day *earlier* in the month than `d`, it jumps straight to day `d` in the *current* month instead — see the caution below.
 
 Each one outputs how many times it has fired so far, as a `Long` starting at `0` — the same shape as `Schedule.forever`, just triggered on a calendar position instead of a fixed cadence.
 
@@ -395,6 +395,8 @@ val firstOfMonth    = Schedule.dayOfMonth(1)        // first day of each month
 
 :::caution
 Calendar schedules validate their argument **lazily**. A call such as `Schedule.dayOfWeek(9)` compiles without error, but the schedule dies with `IllegalArgumentException` the first time it runs. Valid ranges: `Schedule.secondOfMinute` 0–59, `Schedule.minuteOfHour` 0–59, `Schedule.hourOfDay` 0–23, `Schedule.dayOfWeek` 1–7 (ISO-8601), `Schedule.dayOfMonth` 1–31.
+
+Separately, `Schedule.dayOfMonth`'s "skip a month without this day" behavior only works when the schedule is stepped on or after the target day-of-month within the current month. Stepping on a day *earlier* in the month than the target — in a month that doesn't have that day — currently throws `java.time.DateTimeException` rather than skipping to the next valid month. For example, stepping `Schedule.dayOfMonth(31)` on essentially any day before the 31st in February, April, June, September, or November crashes with `Invalid date '<MONTH> 31'` instead of advancing to the next month that has a 31st.
 :::
 
 ### Conditional (Input-Driven)
@@ -1336,7 +1338,7 @@ val timedBackoff: Schedule[Any, Any, Duration] =
   Schedule.exponential(100.millis).upTo(1.minute)
 ```
 
-#### Auto-Resetting on Inactivity
+#### Auto-Resetting on Elapsed Time
 
 `resetAfter` and `resetWhen` restart a schedule from its initial state under specific conditions:
 
@@ -1350,7 +1352,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 }
 ```
 
-`resetAfter(d)` resets the schedule to its initial state whenever `d` has elapsed since the last step (an inactivity reset). `resetWhen(f)` resets whenever `f(output)` is `true`.
+`resetAfter(d)` resets the schedule to its initial state once cumulative elapsed time since the current cycle's first step (or the last reset) reaches `d` — this is total elapsed wall-clock time, not a gap/inactivity timer, so it will also fire under continuous, back-to-back activity if the cycle simply runs longer than `d`. `resetWhen(f)` resets whenever `f(output)` is `true`.
 
 :::note
 In early ZIO 2, `resetWhen` reset the schedule only once rather than on every trigger, causing a regression from ZIO 1 behaviour. This regression is now fixed: the schedule resets on every step where the predicate returns `true`.
@@ -1359,7 +1361,7 @@ In early ZIO 2, `resetWhen` reset the schedule only once rather than on every tr
 ```scala mdoc:compile-only
 import zio._
 
-// Allow up to 5 retries; reset the counter after 10 seconds of inactivity
+// Allow up to 5 retries; reset the counter once 10 seconds of cumulative elapsed time have passed
 val resilient: Schedule[Any, Any, Long] =
   Schedule.recurs(5).resetAfter(10.seconds)
 
@@ -1429,7 +1431,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 }
 ```
 
-At each step, `f` combines the running accumulator with the current output. The schedule continues according to its own logic; the output emitted at each step is the current accumulated `Z`.
+At each step, `f` combines the running accumulator with the current output — but the output *emitted* at that step is the accumulator's value **before** folding in this step's own output, not after. The freshly-folded value only becomes visible as the output of the *next* step (or, if the schedule ends on this step, as the schedule's final output — since on `Done` the fold from the last `Continue` step has already been applied). In other words, every emitted `Z` lags the outputs it reflects by one step.
 
 ```scala mdoc:compile-only
 import zio._
@@ -1454,7 +1456,7 @@ trait Schedule[-Env, -In, +Out] { self =>
 }
 ```
 
-It is implemented as `fold(0L)((n, _) => n + 1L)`.
+It is implemented as `fold(0L)((n, _) => n + 1L)`, so it inherits the same one-step lag described above: the count emitted at a given step is the count *before* that step's repetition is added.
 
 ```scala mdoc:compile-only
 import zio._
@@ -1829,15 +1831,22 @@ object Schedule {
 }
 ```
 
-`Interval.after(start)` creates an interval with no upper bound — used by schedules that always continue. `Interval.before(end)` creates an interval with no lower bound. `Interval.empty` has `start == end`. The `Interval.apply` constructor canonicalises: if `start > end`, the result is `Interval.empty`. A zero-width interval where `start == end` is valid and is not collapsed to `Interval.empty`.
+`Interval.after(start)` creates an interval with no upper bound — used by schedules that always continue. `Interval.before(end)` creates an interval with no lower bound. `Interval.empty` has `start == end`. The `Interval.apply` constructor canonicalises: if `start > end`, the result is `Interval.empty`. A zero-width interval (`start == end`) is constructed as a distinct object from `Interval.empty`, but `Interval#isEmpty` still reports `true` for it (`isEmpty` is defined as `start.compareTo(end) >= 0`), so it behaves identically to `Interval.empty` in practice.
 
-| Method                 | Description                                                                     |
-|------------------------|-----------------------------------------------------------------------------------|
-| `size: Duration`       | Width of the interval as a nanosecond-precise `Duration`                          |
-| `intersect(that)`      | Overlapping sub-interval; `Interval.empty` if the two intervals do not overlap     |
-| `min(that)`            | The interval whose end comes first                                                |
-| `max(that)`            | The interval whose start comes last                                               |
-| `<(that): Boolean`     | `true` if `self` ends before `that` starts                                        |
+| Method                 | Description                                                                  |
+|------------------------|-------------------------------------------------------------------------------|
+| `size: Duration`       | Width of the interval as a nanosecond-precise `Duration`                     |
+| `intersect(that)`      | Overlapping sub-interval; `Interval.empty` if the two intervals do not overlap |
+| `min(that)`            | The interval `min` selects — see the note below for the exact rule           |
+| `max(that)`            | The other interval — whichever one `min` did not select                      |
+| `<(that): Boolean`     | `true` if `self` would be selected by `min`                                  |
+
+:::note
+`min`/`<` mean "ends first" only for genuinely disjoint intervals. For overlapping intervals, the
+tie-break is by **start**, not end: `Interval(0, 20).min(Interval(5, 10))` returns `Interval(0, 20)`
+even though `Interval(5, 10)` actually ends first, because `0 < 5`. Only when both intervals start at
+the same instant does `min` fall back to comparing ends.
+:::
 
 ### `Intervals`
 
@@ -1884,7 +1893,7 @@ object Schedule {
 Each field serves a distinct role:
 
 - `next(in)` — advance the schedule by one step for the given input. Fails with `None` (type `None.type`) when the schedule is done.
-- `last` — retrieve the most recent output produced by `next`. Fails with `NoSuchElementException` if `next` has never succeeded.
+- `last` — retrieve the most recent output produced by `next`. Fails with `NoSuchElementException` only if `next` has never been called — once `next` has been called at least once, `last` succeeds regardless of whether that call continued or hit `Done`.
 - `reset` — return the schedule to its `initial` state, discarding all accumulated state.
 - `state` — read the current internal state as a `UIO[State]` without advancing the schedule.
 
@@ -1910,10 +1919,6 @@ def customRetryLoop[R, E, A](
     loop
   }
 ```
-
-:::note
-The `state` field was added to `Driver` after the initial ZIO 2.0 release. If you encounter an early ZIO 2 RC build that lacks this field, updating to ZIO 2.1.x will restore it.
-:::
 
 ## Integration
 
@@ -1969,7 +1974,7 @@ import zio._
 
 val tick: ZIO[Any, Nothing, Unit] = ZIO.logInfo("tick")
 
-// Repeat 5 additional times, returning the last count output (4L)
+// Repeat 5 additional times, returning the last count output (5L)
 val fiveTicks: ZIO[Any, Nothing, Long] =
   tick.repeat(Schedule.recurs(5))
 
