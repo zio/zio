@@ -98,5 +98,29 @@ export const ecosystemProjects = [
     ],
     link: '/zio-logging',
     icon: '📝'
+  },
+  {
+    name: 'ZIO JSON',
+    description: 'Fast, secure JSON library with tight ZIO integration',
+    features: [
+      'High-performance parsing and encoding',
+      'Hardened against adversarial JSON payloads',
+      'Automatic derivation, no shapeless required',
+      'Human- and machine-readable error messages'
+    ],
+    link: '/zio-json',
+    icon: '📦'
+  },
+  {
+    name: 'ZIO Kafka',
+    description: 'A purely functional, streams-based client for Apache Kafka',
+    features: [
+      'High-level streaming API on top of the Java Kafka client',
+      'Higher throughput than the Java client in most workloads',
+      'Parallel per-partition consumption',
+      'Custom serialization and deserialization support'
+    ],
+    link: '/zio-kafka',
+    icon: '📨'
   }
 ];
