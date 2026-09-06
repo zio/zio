@@ -13,7 +13,7 @@ export const ecosystemProjects = [
       'Includes Schema, Chunk, Scope, Docs, TypeId, Context, MediaType, and Ring Buffer blocks',
     ],
     link: '/zio-blocks',
-    icon: '🧱'
+    icon: '/img/ecosystem/zio-blocks-mark.svg'
   },
   {
     name: 'ZIO HTTP',
@@ -30,7 +30,7 @@ export const ecosystemProjects = [
       'Built-in support for streaming responses',
     ],
     link: 'https://ziohttp.com',
-    icon: '🌐'
+    icon: '/img/ecosystem/zio-http-logo-tile.png'
   },
   {
     name: 'ZIO Streams',
