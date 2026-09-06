@@ -413,6 +413,7 @@ module.exports = {
             "reference/test/assertions/built-in-assertions",
           ]
         },
+        "reference/test/zio-test-diff",
         "reference/test/test-hierarchies-and-organization",
         "reference/test/sharing-layers-within-the-same-file",
         "reference/test/sharing-layers-between-multiple-files",
@@ -462,6 +463,7 @@ module.exports = {
             "reference/test/property-testing/getting-started",
             "reference/test/property-testing/how-generators-work",
             "reference/test/property-testing/built-in-generators",
+            "reference/test/property-testing/operators",
             "reference/test/property-testing/shrinking",
           ]
         }
