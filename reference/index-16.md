@@ -1,6 +1,21 @@
 # Introduction to ZIO Test
 
-> **ZIO Test** is a zero dependency testing library that makes it easy to test effectual programs. In **ZIO Test**, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones.
+> Learn how ZIO Test makes tests first-class, effectful values that are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones.
+
+**ZIO Test** is a zero dependency testing library that makes it easy to test effectual programs. In **ZIO Test**, all tests are immutable values and tests are tightly integrated with ZIO, so testing effectual programs is as natural as testing pure ones. 
+
+## Installation
+
+In order to use ZIO Test, we need to add the following lines to our `build.sbt` file:
+
+```scala
+libraryDependencies ++= Seq(
+  "dev.zio" %% "zio-test"     % "2.1.26" % Test,
+  "dev.zio" %% "zio-test-sbt" % "2.1.26" % Test
+)
+```
+
+For more details, including support for older sbt versions, the `zio-test-magnolia` module, and testing with live services, see the [Installation](installation.md) page.
 
 ## Motivation
 
