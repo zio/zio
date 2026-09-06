@@ -578,11 +578,5 @@ module.exports = {
     "ecosystem/tools",
     "ecosystem/templates"
   ],
-  "resources-sidebar": [
-    "resources/index",
-    "resources/articles",
-    "resources/videos",
-    "resources/sampleprojects",
-    "resources/poweredbyzio"
-  ]
+  "resources-sidebar": ["resources/index"]
 }
