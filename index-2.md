@@ -31,10 +31,11 @@
 ## Integration Guides
 
 1. [How to Build and Run a ZIO Application on Scala Native](scala-native.md)
-2. [How to Interop with Cats Effect?](interop/with-cats-effect.md)
-3. [How to Interop with Future?](interop/with-future.md)
-4. [How to Interop with Java?](interop/with-java.md)
-5. [How to Interop with JavaScript?](interop/with-javascript.md)
+2. [How to Build and Run a ZIO Application on Scala.js](scala-js.md)
+3. [How to Interop with Cats Effect?](interop/with-cats-effect.md)
+4. [How to Interop with Future?](interop/with-future.md)
+5. [How to Interop with Java?](interop/with-java.md)
+6. [How to Interop with JavaScript?](interop/with-javascript.md)
 
 ## Migration Guides
 
