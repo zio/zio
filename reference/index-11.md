@@ -1,21 +1,35 @@
-# Introduction to Scheduling ZIO Effects
+# Introduction to ZIO's Built-in Services
 
-> Immutable values describing recurring effectful schedules for repeating actions or retrying on failures with configurable delays.
+> Guide to ZIO's built-in services: Console, Clock, Random, and System with automatic environment management.
 
-A `Schedule[Env, In, Out]` is an **immutable value** that **describes** a recurring effectful schedule, which runs in some environment `Env`, after consuming values of type `In` (errors in the case of `retry`, or values in the case of `repeat`) produces values of type `Out`, and in every step based on input values and the internal state decides to halt or continue after some delay **d**.
+ZIO already provides four built-in services:
 
-Schedules are defined as a possibly infinite set of intervals spread out over time. Each interval defines a window in which recurrence is possible.
+1. **[Console](console.md)** — Operations for reading/writing strings from/to the standard input, output, and error console.
+2. **[Clock](clock.md)** — Contains some functionality related to time and scheduling.
+3. **[Random](random.md)** — Provides utilities to generate random numbers.
+4. **[System](system.md)** — Contains several useful functions related to system environments and properties.
 
-[Repetition](repetition.md) and [retrying](retrying.md) are two similar concepts in the domain of scheduling. It is the same concept and idea, only one of them looks for successes and the other one looks for failures. 
+When we use these services we don't need to provide their corresponding environment explicitly. ZIO provides built-in live version of ZIO services to our effects, so we do not need to provide them manually.
 
-When schedules are used to repeat or retry effects, the starting boundary of each interval produced by a schedule is used as the moment when the effect will be executed again. 
+```scala
+import zio._
 
-Schedules allow us to define and compose flexible recurrence schedules, which can be used to **repeat** actions, or **retry** actions in the [event of errors](../error-management/index.md). We will discuss them on the following pages.
+import java.io.IOException
 
-A variety of [combinators](combinators.md) exist for transforming and combining schedules, and the companion object for `Schedule` contains [all common types of schedules](built-in-schedules.md), both for performing retrying and repetition.
+object MainApp extends ZIOAppDefault {
+  val myApp: ZIO[Any, IOException, Unit] = 
+    for {
+      date <- Clock.currentDateTime
+      _    <- ZIO.logInfo(s"Application started at $date")
+      _    <- Console.print("Enter your name: ")
+      name <- Console.readLine
+      _    <- Console.printLine(s"Hello, $name!")
+    } yield ()
+
+  def run = myApp
+}
+```
 
 ## See Also
 
-- [ZStream Scheduling](../stream/zstream/scheduling.md) — ZStream scheduling combinators for controlling emission timing and spacing of stream outputs using configurable schedule policies.
-- [TestAspect: Repetition and Retrying](../test/aspects/repeat-and-retry.md) — Test aspects for repeating or retrying tests according to specified schedules.
-- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — shows how `Schedule` replaces the separate `cats-retry` library, including policy composition with `&&`/`||`.
+- [Writing ZIO Services](../service-pattern/index.md) — Guide to ZIO Service Pattern: define maintainable services using interfaces and ZLayer for automatic dependency injection.

@@ -1,207 +1,234 @@
-# Introduction to Software Transactional Memory
+# Introduction to ZIO Streams
 
-> STM enables composable atomic transactions on memory with atomicity, consistency, and isolation guarantees for concurrent programs.
+> The primary goal of a streaming library is to introduce **a high-level API that abstracts the mechanism of reading and writing operations using data sources and destinations**.
 
-## Overview
+A streaming library helps us to concentrate on the business logic and separates us from low-level implementation details.
 
-ZIO supports Software Transactional Memory (STM) which is a modular composable concurrency data structure. It allows us to combine and compose a group of memory operations and perform all of them in one single atomic operation.
+## Use Cases
 
-Software Transactional Memory is an abstraction for concurrent communications. The main benefits of STM are composability and modularity. We can write concurrent abstractions that can be composed with any other abstraction built using STM, without exposing the details of how our abstraction ensures safety. This is typically not the case with the locking mechanism.
+There are lots of examples of streaming that people might not recognize, this is a common problem especially for beginners. A beginner might say "I don't need a streaming library. Why should I use that?". It's because they don't see streams. Once we use a streaming library, we start to see streams everywhere but until then we don't understand where they are. 
 
-The idea of the transactional operation is not new, they have been the fundamental of distributed systems, and those databases that guarantee us an ACID property. Software transactional memory is just all about memory operations. All operations are performed on memory. It is not related to a remote system or a database. Very similar to the database concept of ACID property, but the _durability_, is missing which doesn't make sense for in-memory operations.
+Before diving into ZIO Streams, let's list some use cases of a streaming solution and see why we would want to program in a streaming fashion:
 
-In transactional memory, we get these aspects of ACID properties:
+- **Files** — Every time an old school API interacting with a file has very low-level operators like "Open a file, get me an InputStream, and a method to read the next chunk from that InputStream, and also another method to close the file". Although that is a very low-level imperative API, there is a way to see files as streams of bytes. 
 
-- **Atomicity** — On write operations, we want _atomic update_, which means the update operation either should run at once or not at all.
-- **Consistency** — On read operations, we want a _consistent view_ of the state of the program that ensures us all references to the state, get the same value whenever they get the state.
-- **Isolated** — If we have multiple updates, we need to perform these updates in isolated transactions. So each transaction doesn't affect other concurrent transactions. No matter how many fibers are running any number of transactions. None of them have to worry about what is happening in the other transactions.
+- **Sockets** — Instead of working with low-level APIs, we can use streams to provide a stream-based implementation of server socket that hides the low-level implementation details of sockets. We could model socket communication as a function from a stream of bytes to a stream of bytes. We can view the input of that socket as being a stream, and its output as being another stream.
 
-The ZIO STM API is inspired by Haskell's [STM library](http://hackage.haskell.org/package/stm-2.5.0.0/docs/Control-Concurrent-STM.html) although the implementation in ZIO is completely different.
+- **Event-Sourcing** — In these days and age, it is common to want to build event-sourced applications which work on events or messages in a queuing system like Kafka or AMQP systems and so forth. The foundation of this architecture is streaming. Also, they are useful when we want to do a lot of data analytics and so forth.  
 
-## The Problem
+- **UI Applications** — Streams are the foundation of almost every single modern UI application. Every time we click on something, under the hood that is an event. We can use low-level APIs like subscribing callbacks to the user events but also we can view those as streams of events. So we can model subscriptions as streams of events in UI applications. 
 
-Let's start from a simple `inc` function, which takes a mutable reference of `Int` and increases it by `amount`:
+- **HTTP Server** —  An HTTP Server can be viewed as a stream. We have a stream of requests that are being transformed to a stream of responses; a function from a stream of bytes that go to a stream of bytes.
 
-```scala
-def inc(counter: Ref[Int], amount: Int) = for {
-  c <- counter.get
-  _ <- counter.set(c + amount)
-} yield c
-```
+So streams are everywhere. We can see all of these different things as being streams. Everywhere we look we can find streams. Basically, all data-driven applications, almost all data-driven applications can benefit from streams. 
 
-If there is only one fiber in the world, it is not a problem. This function sounds correct. But what happens if in between reading the value of the counter and setting a new value, another fiber comes and mutates the value of the counter? Another fiber is just updating the counter just after we read the counter. So this function is subject to a race condition, we can test that with the following program:
+## Motivation
+
+Assume, we would like to take a list of numbers and grab all the prime numbers and then do some more hard work on each of these prime numbers. We can do it using `ZIO.foreachPar` and `ZIO.filterPar` operators like this:
 
 ```scala
+import zio.ZIOAspect._
+
+def isPrime(number: Int): Task[Boolean] = ZIO.succeed(???)
+def moreHardWork(i: Int): Task[Boolean] = ZIO.succeed(???)
+
+val numbers = 1 to 1000
+
 for {
-  counter <- Ref.make(0)
-  _ <- ZIO.collectAllPar(ZIO.replicate(10)(inc(counter, 1)))
-  value <- counter.get
-} yield (value)
-```
-
-The above program runs 10 concurrent fibers to increase the counter value. However, we cannot expect this program to always return 10 as a result. 
-
-To fix this issue, we need to perform the `get` and `set` operations atomically. The `Ref` data type some other API like `update`, `updateAndGet`, and `modify` which perform the reading and writing atomically:
-
-```scala
-def inc(counter: Ref[Int], amount: Int) = counter.updateAndGet(_ + amount)
-```
-
-The most important note about the `modify` operation is that it doesn't use pessimistic locking. It doesn't use any locking primitives for the critical section. It has an optimistic assumption about occurring collisions.
-
-The `modify` function takes these three steps:
-
-1. It assumes that other fibers don't change the shared state and don't interfere in most cases. So it read the shared state without using any locking primitives.
-2. It should prepare itself for the worst-case scenarios. If another fiber is accessing the data at the same time, what would happen? Therefore, when we write a new value, it should check everything. It must ensure that it sees a consistent state of the universe, and if it does, then it can change that value.
-4. If it encounters an inconsistent value, it shouldn't continue. So it aborts updating the shared state with an invalidated assumption. It should retry the `modify` operation with an updated state.
-
-Let's see how the `modify` function of `Ref` is implemented without any locking mechanism:
-
-```scala
-  final case class Ref[A](value: AtomicReference[A]) { self =>
-    def modify[B](f: A => (B, A)): UIO[B] = ZIO.succeed {
-      var loop = true
-      var b: B = null.asInstanceOf[B]
-      while (loop) {
-        val current = value.get
-        val tuple   = f(current)
-        b = tuple._1
-        loop = !value.compareAndSet(current, tuple._2)
-      }
-      b
-    }
- }
-```
-
-As we see, the `modify` operation is implemented in terms of the `compare-and-swap` operation which helps us to perform read and update atomically.
-
-Let's rename the `inc` function to the `deposit` as follows to try the classic problem of transferring money from one account to another:
-
-```scala
-def deposit(accountBalance: Ref[Int], amount: Int) = accountBalance.update(_ + amount)
-```
-
-And the `withdraw` function:
-
-```scala
-def withdraw(accountBalance: Ref[Int], amount: Int) = accountBalance.update(_ - amount) 
-```
-
-It seems pretty good, but we also need to check that there is sufficient balance in the account to withdraw. So let's add an invariant to check that:
-
-```scala
-def withdraw(accountBalance: Ref[Int], amount: Int) = for {
-  balance <- accountBalance.get
-  _ <- if (balance < amount) ZIO.fail("Insufficient funds in you account") else
-    accountBalance.update(_ - amount)
+  primes <- ZIO.filterPar(numbers)(isPrime)
+  _      <- ZIO.foreachPar(primes)(moreHardWork) @@ parallel(20)
 } yield ()
 ```
 
-What if in between checking and updating the balance, another fiber comes and withdraws all money in the account? This solution has a bug. It has the potential to reach a negative balance. 
+This processes the list in parallel and filters all the prime numbers, then takes all the prime numbers and does some more hard work on them.
 
-Suppose we finally reached a solution to do withdraw atomically, the problem remains. We need a way to compose `withdraw` with `deposit` atomically to create a `transfer function:
+There are two problems with this example:
+
+- **High Latency** — We are not getting any pipelining, we are doing batch processing. We need to wait for the entire list to be processed in the first step before we can continue to the next step. This can lead to a pretty severe loss of performance.
+
+- **Limited Memory** — We need to keep the entire list in memory as we process it and this doesn't work if we are working with an infinite data stream.
+
+With ZIO stream we can change this program to the following code:
 
 ```scala
-def transfer(from: Ref[Int], to: Ref[Int], amount: Int) = for {
-  _ <- withdraw(from, amount)
-  _ <- deposit(to, amount)
+def prime(number: Int): Task[(Boolean, Int)] = ZIO.succeed(???)
+
+ZStream.fromIterable(numbers)
+  .mapZIOParUnordered(20)(prime(_))
+  .filter(_._1).map(_._2)
+  .mapZIOParUnordered(20)(moreHardWork(_))
+```
+
+We converted the list of numbers using `ZStream.fromIterable` into a `ZStream`, then we mapped it in parallel, twenty items at a time, and then we performed the hard work problem, twenty items of a time. This is a pipeline, and this easily works for an infinite list.
+
+One might ask, "Okay, I can get the pipelining by using fibers and queues. So why should I use ZIO streams?". It is extremely tempting to write up the pipeline look like this. We can create a bunch of queues and fibers, then we have fibers that copy information between the queues and perform the processing concurrently. It ends up something like this:
+
+```scala
+def writeToInput(q: Queue[Int]): Task[Unit]                            = ZIO.succeed(???)
+def processBetweenQueues(from: Queue[Int], to: Queue[Int]): Task[Unit] = ZIO.succeed(???)
+def printElements(q: Queue[Int]): Task[Unit]                           = ZIO.succeed(???)
+
+for {
+  input  <- Queue.bounded[Int](16)
+  middle <- Queue.bounded[Int](16)
+  output <- Queue.bounded[Int](16)
+  _      <- writeToInput(input).fork
+  _      <- processBetweenQueues(input, middle).fork
+  _      <- processBetweenQueues(middle, output).fork
+  _      <- printElements(output).fork
 } yield ()
 ```
 
-In the above example, even if we assume that the `withdraw` and `deposit` are atomic, we can't compose these two transactions. They produce bugs in a concurrent environment. This code doesn't guarantee us that both `withdraw` and `deposit` are performed in one single atomic operation. Other fibers which are executing this `transfer` method can override the shared state and introduce a race condition.
+We created a bunch of queues for buffering source, destination elements, and intermediate results.
 
-We need a solution to **atomically compose transactions**. This is where software transactional memory comes into play.
+There are some problems with this solution. As fibers are low-level concurrency tools, using them to create a data pipeline is not straightforward. We need to handle interruptions properly. We should care about resources and prevent them to leak. We need to shutdown the pipeline in a right way by waiting for queues to be drained.
 
-## Composable Concurrency
-
-Software transactional memory provides us a way to compose multiple transactions and perform them in one single transaction.
-
-Let's continue our last effort to convert our `withdraw` method to be one atomic operation. To solve the problem using STM, we replace `Ref` with `TRef`. `TRef` stands for _Transactional Reference_; it is a mutable reference contained in the `STM` world. `STM` is a monadic data structure that represents an effect that can be performed transactionally:
+Although fibers are very efficient and more performant than threads. They are advanced concurrency tools. So it is better to avoid using them to do manual pipelining. Instead, we can use ZIO streams:
 
 ```scala
-def withdraw(accountBalance: TRef[Int], amount: Int): STM[String, Unit] =
-  for {
-    balance <- accountBalance.get
-    _ <- if (balance < amount)
-      STM.fail("Insufficient funds in you account")
-    else
-      accountBalance.update(_ - amount)
-  } yield ()
+def generateElement: Task[Int]    = ZIO.succeed(???)
+def process(i: Int): Task[Int]    = ZIO.succeed(???)
+def printElem(i: Int): Task[Unit] = ZIO.succeed(???)
+
+ZStream
+  .repeatZIO(generateElement)
+  .buffer(16)
+  .mapZIO(process(_))
+  .buffer(16)
+  .mapZIO(process(_))
+  .buffer(16)
+  .tap(printElem(_))
 ```
 
-Although the `deposit` operation is atomic, to be able to compose with `withdraw` we need to refactor it to take `TRef` and return `STM`:
+We have a buffer in between each step. We performed our computations in between. This is everything we need to get that pipelining in the same fashion that it looked before.
+
+## Why Streams?
+
+ZIO stream has super compelling advantages of using high-level streams. ZIO solution to streaming solves a lot of common streaming pain points. It shines in the following topics:
+
+### 1. High-level and Declarative
+
+This means in a very short snippet of a fluent code we can solve very outrageously complicated problems with just a few simple lines.
+
+### 2. Asynchronous and Non-blocking
+
+They're reactive streams, they don't block threads. They're super-efficient and very scalable. We can minimize our application latency and increase its performance. We can avoid wasting precious thread resources by using non-blocking and asynchronous ZIO streams. 
+
+### 3. Concurrency and Parallelism
+
+Streams are concurrent. They have a lot of concurrent operators. All the operations on them are safe to use in presence of concurrency. And also just like ZIO gives us parallel operators with everything, there are lots of parallel operators. We can use the parallel version of operators, like `mapZIOPar`, `flatMapPar`.
+
+Parallel operators allow us to fully saturate and utilize all CPU cores of our machine. If we need to do bulk processing on a lot of data and use all the cores on our machine, so we can speed up the process by using these parallel operators. 
+
+### 4. Resource Safety
+
+Resource safety is not a simple thing to guarantee. Assume when we have several streams, some of them are sockets and files, some of them are API calls and database queries. When we have all these streams, and we are transforming and combining them, and we are timing some out, and also some of them are doing concurrent merges; what happens when things go wrong in one part of that stream graph? ZIO streams provides the guarantee that it will never leak resources. 
+
+So when streams have to be terminated for error or timeout or interruption reasons or whatever, ZIO will always safely shutdown and release the resources associated with that stream usage. 
+
+We don't have to worry about resource management anymore. We can work at high-level and just declaratively describe our stream graph and then ZIO will handle the tricky job of executing that and taking care to make sure that no resources are leaked in an event of something bad happens or even just a timeout, or interruption, or just we are done with a result. So resources are always safely released without any leaks. 
+
+### 5. High Performance and Efficiency
+
+When we are doing an I/O job, the granularity of data is not at the level of a single byte. For example, we never read or write a single element from/to a file descriptor. We always use multiple elements. So when we are doing an I/O operation it is a poor practice to read/write element by element and this decreases the performance of our program. 
+
+In order to achieve high efficiency, ZIO stream implicitly chunks everything, but it still presents us with a nice API that is at the level of every single element. So we can always deal with streams of individual elements even though behind-the-scenes ZIO is doing some chunking to make that performant. This is one of the tricks that enables ZIO streams to have such great performance. 
+
+ZIO Streams are working at the level of chunks. Every time we are working with ZIO streams, we are also working with chunks implicitly. So there are no streams with individual elements. Streams always use chunks. Every time we pull an element out of a ZIO stream, we end up pulling a chunk of elements under the hood. 
+
+### 6. Seamless Integration with ZIO
+
+ZIO stream has a powerful seamless integrated support for ZIO. It uses `Scope`, `Schedule`, and any other powerful data types in ZIO. So we can stay within the same ecosystem and get all its significant benefits.
+
+### 7. Back-Pressure
+
+We get back-pressuring for free. With ZIO streams it is actually not a back-pressuring, but it is equivalent. In push-based streams like Akka Streams, streams are push-based; when an element comes in, it is pushed downward in the pipeline. That is what leads to the need for back-pressuring. Back-pressuring makes the push-based stream much more complicated than it needs to be. 
+
+Push-based streams are good at splitting streams because we have one element, and we can push it to two different places. That is nice and elegant, but they're terrible at merging streams and that is because you end up needing to use queues, and then we run into a problem. In the case of using queues, we need back-pressuring, which leads to a complicated architecture. 
+
+In ZIO when we merge streams, ZIO uses pull-based streams. They need minimal computation because we pull elements at the end of our data pipeline when needed. When the sink asks for one element, then that ripples all the way back through the very edges of the system. 
+
+So when we pull one element at the end, no additional computation takes place until we pull the next element or decide that we are done pulling, and we close the stream. It causes the minimum amount of computation necessary to produce the result. 
+
+Using the pull-based mechanism we have no producers, and it prevents producing more events than necessary. So ZIO streams does not need back-pressure even though it provides a form of that because it is lazy and on-demand and uses pull-based streams. 
+
+So ZIO stream gives us the benefits of back-pressuring, but in a cleaner conceptual model that is very efficient and does not require all these levels of buffering.
+
+### 8. Infinite Data using Finite Memory
+
+Streams let us work on infinite data in a finite amount of memory. When we are writing streaming logic, we don't have to worry about how much data we are ultimately going to be processed.
+
+That is because we are just building a workflow, a description of the processing. We are not manually loading up everything into memory, into a list, and then doing our processing on a list. That doesn't work very well because we can only fit a finite amount of memory into our computer at one time. 
+
+ZIO streams enable us just concentrate on our business problem, and not on how much memory this program is going to consume. So we can write these computations that work over streams that are totally infinite but in a finite amount of memory and ZIO handles that for us.
+
+Assume we have the following code. This is a snippet of a code that reads a file into a string and splits the string into new lines, then iterates over lines and prints them out. It is pretty simple and easy to read and also it is simple to understand:
 
 ```scala
-def deposit(accountBalance: TRef[Int], amount: Int): STM[Nothing, Unit] =
-  accountBalance.update(_ + amount)
+for (line <- FileUtils.readFileToString(new File("file.txt")).split('\n'))
+  println(line)
 ```
 
-In the `STM` world we can compose all operations and at the end of the world, we perform all of them in one single operation atomically. To be able to compose `withdraw` with `deposit` we need to stay in the `STM` world. Therefore, we didn't perform `STM.atomically` or `STM#commit` methods on each of them.
-
-Now we can define the `transfer` method by composing these two functions in the `STM` world and converting them into the `IO` atomically:
+The only problem here is that if we run this code with a file that is very large which is bigger than our memory, that is not going to work. Instead, we can reach the same functionality, by using the stream API:
 
 ```scala
-def transfer(from: TRef[Int], to: TRef[Int], amount: Int): IO[String, Unit] =
-  STM.atomically {
-    for {
-      _ <- withdraw(from, amount)
-      _ <- deposit(to, amount)
-    } yield ()
-  }
+ZStream.fromFileName("file.txt")
+  .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
+  .foreach(printLine(_))
 ```
 
-Assume we are in the middle of transferring money from one account to the other. If we withdraw the first account but haven't deposited the second account, that kind of intermediate state is not visible to any external fibers. The transaction is completely successful if there are no conflicting changes. If there are any conflicts or conflicting changes then the whole transaction, the entire STM will be retried.
+By using ZIO streams, we do not care how big is a file, we just concentrate on the logic of our application.
 
-## How Does it Work?
+## Core Abstractions
 
-The `STM` uses the same idea as the `Ref#modify` function but with a composability feature. The main goal of `STM` is to provide a mechanism to compose multiple transactions and perform them in one single atomic operation.
+To define a stream workflow there are three core abstraction in ZIO stream; _Streams_, _Sinks_, and _Pipelines_:
 
-The mechanism behind the compositional part is obvious. The `STM` has its own world. It has lots of useful combinators like `flatMap` and `orElse` to compose multiple `STM`s and create more elegant ones. After we perform a transaction with `STM#commit` or `STM.atomically` the runtime system does the following steps. These steps are not exactly accurate, but they draw an outline of what happens during the transaction:
+1. **[ZStream](zstream/index.md)** — Streams act as _sources_ of values. We get elements from them. They produce values.
 
-1. **Starting a Transaction** — When we start a transaction, the runtime system creates a virtual space to keep track of the transaction logs which is build up by recording the reads and tentative writes that the transaction will perform during the transaction steps.
-2. **Virtual Execution** — The runtime starts speculating the execution of transactions on every read and write operation. It has two internal logs;  the read and the write log. On the read log, it saves the version of all variables it reads during the intermediate steps, and on the write log, it saves the intermediate result of the transaction. It doesn't change the shared state on the main memory. Anything that is inside an atomic block is not executed immediately, it's executed in the virtual world, just by putting stuff in the internal log, not in the main memory. In this particular model, we guarantee that all computations are isolated from one another.
-3. **Commit Phase (Real Execution)** — When it comes to the end of the transaction the runtime system should check everything it has read. It should make sure that it sees a consistent state of the universe and if it has, then it atomically commits. As the STM is optimistic, it assumes that in the middle of a transaction, the chance of interfering with the shared state by other fibers is very rare. But it must ready itself for the worst cases. It should validate its assumption in the final stage. It checks whether the transactional variables involved were modified by any other threads or not. If its assumption got invalidated in the meanwhile of the transaction, it should abandon the transaction and retry it again. It jumps to the start of the transaction with the original and default values and tries again until it succeeds; This is necessary to resolve conflicts. Otherwise, if there is no conflict, it commits the final value atomically to the memory and succeeds. From the point of view of other fibers, all values in memory exchange in one blink of an eye. It's all atomic.
+2. **[ZSink](zsink/index.md)** — Sinks act as _receptacles_ or _sinks_ for values. They consume values.
 
-Everything done within a transaction to other transactions looks like it happens at once or not at all. So no matter how many pieces of memory it touches during the transaction. From the other transaction perspective, all of these changes happen at once.
+3. **[ZPipeline](zpipeline.md)** — Pipelines act as _transformers_ of values. They take individual values, and they transform or decode them. 
 
-## STM Data Types
+### Stream
 
-Like the `ZIO` data type, the `ZSTM` has some type aliases as follows:
+The `ZStream` data type similar to the `ZIO` effect has `R`, `E`, and `A`. It has environment, error, and element type. 
 
-```scala
-type RSTM[-R, +A]  = ZSTM[R, Throwable, A]
-type URSTM[-R, +A] = ZSTM[R, Nothing, A]
-type STM[+E, +A]   = ZSTM[Any, E, A]
-type USTM[+A]      = ZSTM[Any, Nothing, A]
-type TaskSTM[+A]   = ZSTM[Any, Throwable, A]
-```
+The difference between the `ZIO` and `ZStream` is that:
 
-There are a variety of transactional data structures that can take part in an STM transaction:
+- A `ZIO` effect will always succeed or fail. If it succeeds, it will succeed with a single element.
 
-- **[TArray](tarray.md)** - A `TArray[A]` is an array of mutable references that can participate in transactions.
-- **[TRandom](trandom.md)** — `TRandom` is a random service that provides utilities to generate random numbers, which can participate in STM transactions.
-- **[TSet](tset.md)** - A `TSet` is a mutable set that can participate in transactions.
-- **[TMap](tmap.md)** - A `TMap[A]` is a mutable map that can participate in transactions.
-- **[TRef](tref.md)** - A `TRef` is a mutable reference to an immutable value that can participate in transactions.
-- **[TPriorityQueue](tpriorityqueue.md)** - A `TPriorityQueue[A]` is a mutable priority queue that can participate in transactions.
-- **[TPromise](tpromise.md)** - A `TPromise` is a mutable reference that can be set exactly once and can participate in transactions.
-- **[TQueue](tqueue.md)** - A `TQueue` is a mutable queue that can participate in transactions.
-- **[TReentrantLock](treentrantlock.md)** - A `TReentrantLock` is a reentrant read / write lock that can be composed.
-- **[TSemaphore](tsemaphore.md)** - A `TSemaphore` is a semaphore that can participate in transactions.
-- **[THub](thub.md)** - A `THub` is a hub that can participate in STM transactions.
+- A `ZStream` can succeed with zero or more elements. So we can have an _empty stream_. A `ZStream[R, E, A]` doesn't necessarily produce any `A`s, it produces zero or more `A`s. 
 
-Since STM places a great emphasis on compositionality, we can build upon these data structures and define our very own concurrent data structures. For example, we can build a transactional priority queue using `TRef`, `TMap` and `TQueue`.
+So, that is a big difference. There is no such thing as a non-empty `ZStream`. All `ZStreams` are empty, they can produce any number of `A`s, which could be an infinite number of `A`s. 
 
-## Advantage of Using STM
+There is no way to check to see if a stream is empty or not, because that computation hasn't started. Streams are super lazy, so there is no way to say "Oh! does this stream contain anything?" No! We can't figure that out. We have to use it and try to do something with it, and then we are going to figure out whether it had something.
 
-1. **Composable Transaction** — Combining atomic operations using locking-oriented programming is almost impossible. ZIO provides the `STM` data type, which has lots of combinators to compose transactions.
-2. **Declarative** — ZIO STM is completely declarative. It doesn't require us to think about low-level primitives. It doesn't force us to think about the ordering of locks. Reasoning concurrent programs in a declarative fashion is very simple. We can just focus on the logic of our program and run it in a concurrent environment deterministically. The user code is much simpler of course because it doesn't have to deal with the concurrency at all. 
-3. **Optimistic Concurrency** — In most cases, we are allowed to be optimistic unless there is tremendous contention. So if we haven't tremendous contention it really pays to be optimistic. It allows a higher volume of concurrent transactions.
-4. **Lock-Free** — All operations are non-blocking using lock-free algorithms.
-5. **Fine-Grained Locking**— Coarse-grained locking is very simple to implement, but it has a negative impact on performance, while fine-grained locking significantly has better performance, but it is very cumbersome, sophisticated, and error-prone even for experienced programmers. We would like to have the ease of use of coarse-grain locking, but at the same time, we would like to have the efficiency of fine-grain locking. ZIO provides several data types which are a very coarse way of using concurrency, but they are implemented as if every single word were lockable. So the granularity of concurrency is fine-grained. It increases the performance and concurrency. For example, if we have two fibers accessing the same `TArray`, one of them reads and writes on the first index of our array, and another one reads and writes to the second index of that array, they will not conflict. It is just like as if we were locking the indices, not the whole array. 
+### Sink
 
-## Implication of Using STM
+The basic idea behind the `Sink` is that **it consumes values of some type, and then it ends up when it is done. When the sink is done, it produces the value of a different type**. 
 
-1. **Running I/O Inside STM**— There is a strict boundary between the `STM` world and the `ZIO` world. This boundary propagates even deeper because we are not allowed to execute arbitrary effects in the `STM` universe. Performing side effects and I/O operations inside a transaction is problematic. In the `STM` the only effect that exists is the `STM` itself. We cannot print something or launch a missile inside a transaction as it will nondeterministically get printed on every reties that transaction does that.
-2. **Large Allocations** — We should be very careful in choosing the best data structure for using STM operations. For example, if we use a single data structure with `TRef` and that data structure occupies a big chunk of memory. Every time we are updating this data structure during the transaction, the runtime system needs a fresh copy of this chunk of memory.
-3. **Running Expensive Operations**— The beautiful feature of the `retry` combinator is when we decide to retry the transaction, the `retry` avoids the busy loop. It waits until any of the underlying transactional variables have changed. However, we should be careful about running expensive operations multiple times.
+Sinks are a bit like **parsers**; they consume some input, when they're done, they produce a value. Also, they are like **databases**; they read enough from input when they don't want anymore, they can produce some value or return unit.
+
+Some sinks will produce nothing as their return type parameter is `Nothing`, which means that the sink is always going to accept more and more input; it is never ever going to be done. 
+
+Just like Streams, sinks are super compositional. Sink's operators allow us to combine two sinks together or transform them. That allows us to generate a vast variety of sinks.
+
+Streams and Sinks are duals in category theory. One produces values, and the other one consumes them. They are mere images of each other. They both have to exist. A streaming library cannot be complete unless it has streams and sinks. That is why ZIO has a sort of better design than FS2 because FS2 has a stream, but it doesn't have a sink. Its Sink is just faked. It doesn't actually have a real sink. ZIO has a real sink, and we can compose them to generate new sinks.
+
+### Pipeline
+
+With `Pipeline`s, we can transform streams from one type to another, in a **stateful fashion**, which is sometimes necessary when we are doing encoding and decoding. 
+
+Pipeline is a transformer of element types. Pipeline accepts some element of type `A` and produces some element of type `B`, and it may fail along the way or use the environment. It just transforms elements from one type to another type in a stateful way. 
+
+For example, we can write counter with pipelines. We take strings and then split them into lines, and then we take the lines, and we split them into words, and then we count them. 
+
+Another common use case of pipelines is **writing codecs**. We can use them to decode the bytes into strings. We have a bunch of bytes, and we want to end up with a JSON and then once we are in JSON land we want to go from JSON to our user-defined data type. So, by writing a pipeline we can convert that JSON to our user-defined data type.
+
+Pipelines can be thought of as **element transformers**. They transform elements of a stream:
+
+1. We can take a pipeline, and we can stack it onto a stream to change the element type. For example, we have a Stream of `A`s, and a pipeline that goes from `A` to `B`, so we can take that pipeline from `A` to `B` and stack it on the stream to get back a stream of `B`s. 
+
+2. Also, we can stack a pipeline onto the front of a sink to change the input element type. If some sink consumes `B`s, and we have a pipeline from `A` to `B` we can take that pipeline stack it onto the front of the sink and get back a new sink that consumes `A`s. 
+
+Assume we are building the data pipeline, the elements come from the far left, and they end up on the far right. Events come from the stream, they end up on the sink, along the way they're transformed by pipelines. **Pipelines are the middle section of the pipe that keep on transforming those elements in a stateful way**.

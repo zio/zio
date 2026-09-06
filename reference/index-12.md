@@ -1,35 +1,25 @@
-# Introduction to ZIO's Built-in Services
+# Introduction to State Management in ZIO
 
-> Guide to ZIO's built-in services: Console, Clock, Random, and System with automatic environment management.
+> Overview of state management approaches in ZIO, covering recursion, global shared state with Ref, and fiber-local state with FiberRef and ZState.
 
-ZIO already provides four built-in services:
+When we write a program, more often we need to keep track of some sort of state during the execution of the program. If an object has a state, its behavior is influenced by passing the time.
 
-1. **[Console](console.md)** — Operations for reading/writing strings from/to the standard input, output, and error console.
-2. **[Clock](clock.md)** — Contains some functionality related to time and scheduling.
-3. **[Random](random.md)** — Provides utilities to generate random numbers.
-4. **[System](system.md)** — Contains several useful functions related to system environments and properties.
+Here are some examples:
 
-When we use these services we don't need to provide their corresponding environment explicitly. ZIO provides built-in live version of ZIO services to our effects, so we do not need to provide them manually.
+- **Counter**— Assume a RESTful API, which has a set of endpoints, and wants to keep track of how many requests have been made to each endpoint.
+- **Bank Account Balance**— Each bank account has a balance, and it can be deposited or withdrawn. So its value is changing over time.
+- **Temperature**— The temperature of a room is changing over time.
+- **List length**— When we are iterating over a list of items, we might need to keep track of the number of items we have seen so far. So during the calculation of the length of the list, we need an intermediate state that records the number of items we have seen so far.
 
-```scala
-import zio._
+In imperative programming, one common way to store the state is using a variable. So we can update their values in place. But this approach can introduce bugs, especially when the state is shared between multiple components. So it is better to avoid using variables to keep track of the state.
 
-import java.io.IOException
+From the aspect of concurrency, we have two general approaches to maintaining the state in functional programming:
+1. **[Recursion](state-management-using-recursion.md)**— In this approach, we can update the state by passing the new state to the next component. This is a very easy way to maintain the state, but it can't be used in a concurrent environment, because we can't share the state between multiple fibers.
 
-object MainApp extends ZIOAppDefault {
-  val myApp: ZIO[Any, IOException, Unit] = 
-    for {
-      date <- Clock.currentDateTime
-      _    <- ZIO.logInfo(s"Application started at $date")
-      _    <- Console.print("Enter your name: ")
-      name <- Console.readLine
-      _    <- Console.printLine(s"Hello, $name!")
-    } yield ()
+2. Concurrent— The concurrent state management is also has two variant, global and fiber-local state management:
 
-  def run = myApp
-}
-```
+   1. **[Global Shared State](global-shared-state.md)**- ZIO has a powerful data type called `Ref`, which is the description of a mutable reference. We can use `Ref` to share the state between multiple fibers, e.g. producer and consumer components.
 
-## See Also
+   2. **[Fiber-local State](fiber-local-state.md)**— ZIO provides two data types called `FiberRef` and `ZState` that can be used to maintain the state in a concurrent environment, but each fiber has its own state. Their states are not shared between other fibers. This prevents them from clobbering each other's state.
 
-- [Writing ZIO Services](../service-pattern/index.md) — Guide to ZIO Service Pattern: define maintainable services using interfaces and ZLayer for automatic dependency injection.
+In this section, we will talk about these approaches.
