@@ -1,5 +1,21 @@
 export const ecosystemProjects = [
   {
+    name: 'ZIO Blocks',
+    description: 'Modular, zero-dependency building blocks for modern Scala applications',
+    features: [
+      'Type-safe schemas with automatic codec derivation',
+      'Zero lock-in — no dependency on ZIO or any effect system',
+      'Works with any Scala stack: ZIO, Cats Effect, Kyo, Ox, Akka, or plain Scala',
+      'Modular — import only the blocks you need',
+      'Full cross-platform support for JVM and Scala.js',
+      'Full cross-version support for Scala 2.13 and Scala 3.x',
+      'High-performance implementations avoiding boxing and unnecessary allocations',
+      'Includes Schema, Chunk, Scope, Docs, TypeId, Context, MediaType, and Ring Buffer blocks',
+    ],
+    link: '/zio-blocks',
+    icon: '🧱'
+  },
+  {
     name: 'ZIO HTTP',
     description: 'Type-safe, purely functional HTTP library for building high-performance web applications and APIs',
     features: [
