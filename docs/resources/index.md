@@ -14,6 +14,11 @@ Looking for something specific? It's probably already got a home:
 - [Zionomicon](https://www.zionomicon.com/) — the comprehensive book on ZIO, by John A. De Goes, Adam Fraser, and Milad Khajavi
 - [Effect-Oriented Programming](https://effectorientedprogramming.com/) — building complex applications with ZIO, by Bill Frasure, Bruce Eckel, and James Ward
 
+## Courses
+
+- [Alvin Alexander's ZIO video courses](https://www.learnscala.dev/my-courses) — free YouTube courses covering ZIO fundamentals, ZIO Streams, ZIO Kafka, and ZIO HTTP + Caliban
+- [Daniel Ciocîrlan's ZIO courses on Rock the JVM](https://rockthejvm.com/courses/zio) — paid courses covering ZIO fundamentals and the full-stack [ZIO Rite of Passage](https://rockthejvm.com/courses/zio-rite-of-passage)
+
 ## Stay in the loop
 
 - [Discord](https://discord.gg/2ccFBr4) — the most active place for ZIO discussion, help, and links to new community content as it's published
