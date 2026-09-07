@@ -824,7 +824,9 @@ lazy val docs = project.module
       "VERSION"                        -> version.value.split('+').head,
       "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion,
       "ZIO_CONFIG_VERSION"             -> ZioConfigVersion,
-      "ZIO_JSON_VERSION"               -> ZioJsonVersion
+      "ZIO_JSON_VERSION"               -> ZioJsonVersion,
+      "SCALAJS_VERSION"                -> "1.22.0",
+      "SCALAJS_CROSSPROJECT_VERSION"   -> "1.4.0"
     ),
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio-sbt-source" % "0.6.0",

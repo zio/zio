@@ -201,18 +201,7 @@ module.exports = {
           }
         ]
     },
-    {
-      type: "category",
-      label: "Scheduling",
-      link: { type: "doc", id: "reference/schedule/index" },
-      items: [
-        "reference/schedule/repetition",
-        "reference/schedule/retrying",
-        "reference/schedule/built-in-schedules",
-        "reference/schedule/combinators",
-        "reference/schedule/examples",
-      ]
-    },
+    "reference/schedule",
     {
       type: "category",
       label: "State Management",
@@ -424,6 +413,7 @@ module.exports = {
             "reference/test/assertions/built-in-assertions",
           ]
         },
+        "reference/test/zio-test-diff",
         "reference/test/test-hierarchies-and-organization",
         "reference/test/sharing-layers-within-the-same-file",
         "reference/test/sharing-layers-between-multiple-files",
@@ -473,6 +463,7 @@ module.exports = {
             "reference/test/property-testing/getting-started",
             "reference/test/property-testing/how-generators-work",
             "reference/test/property-testing/built-in-generators",
+            "reference/test/property-testing/operators",
             "reference/test/property-testing/shrinking",
           ]
         }
@@ -518,6 +509,7 @@ module.exports = {
       label: "Integration Guides",
       items: [
         { type: "doc", id: "guides/scala-native", label: "Scala Native" },
+        { type: "doc", id: "guides/scala-js", label: "Scala.js" },
         "guides/interop/with-cats-effect",
         "guides/interop/with-future",
         "guides/interop/with-java",
@@ -577,11 +569,5 @@ module.exports = {
     "ecosystem/tools",
     "ecosystem/templates"
   ],
-  "resources-sidebar": [
-    "resources/index",
-    "resources/articles",
-    "resources/videos",
-    "resources/sampleprojects",
-    "resources/poweredbyzio"
-  ]
+  "resources-sidebar": ["resources/index"]
 }
