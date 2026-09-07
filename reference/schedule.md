@@ -156,7 +156,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@5d201d3e
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@5bbf69c9
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -169,12 +169,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18681/0x00007f83e2c79668@433af1d
+//       eval = zio.ZIO$$$Lambda$18807/0x00007f606edc1fc0@40e8f27f
 //     ),
-//     successK = zio.ZIO$$$Lambda$19485/0x00007f83e2e3b388@3f963a80
+//     successK = zio.ZIO$$$Lambda$19531/0x00007f606ef5a458@115e3142
 //   ),
-//   successK = zio.ZIO$$$Lambda$18689/0x00007f83e2c7b8e0@5170ece9,
-//   failureK = zio.ZIO$$Lambda$20283/0x00007f83e2fecc10@53c09bab
+//   successK = zio.ZIO$$$Lambda$18810/0x00007f606edc4238@571b2352,
+//   failureK = zio.ZIO$$Lambda$20329/0x00007f606f10c950@4c5ae1a1
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -186,11 +186,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18681/0x00007f83e2c79668@433af1d
+//       eval = zio.ZIO$$$Lambda$18807/0x00007f606edc1fc0@40e8f27f
 //     ),
-//     successK = zio.ZIO$$$Lambda$19485/0x00007f83e2e3b388@4b7b6f90
+//     successK = zio.ZIO$$$Lambda$19531/0x00007f606ef5a458@8acddba
 //   ),
-//   successK = zio.ZIO$$Lambda$20513/0x00007f83e30ce000@19a3c0d
+//   successK = zio.ZIO$$Lambda$20559/0x00007f606f1ee000@55504d3b
 // )
 ```
 
