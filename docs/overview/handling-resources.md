@@ -28,7 +28,7 @@ ZIO provides a version of this with the `ZIO#ensuring` method, whose guarantees 
 
 As with `try` / `finally`, the `ensuring` method guarantees if the effect it is called on begins executing and terminates (either normally or abnormally), then the finalizer will begin execution.
 
-```scala mdoc
+```scala mdoc:silent
 val finalizer: UIO[Unit] = 
   ZIO.succeed(println("Finalizing!"))
 

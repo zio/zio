@@ -22,7 +22,6 @@ There are two categories of methods on the ZIO data type:
 
 ```scala mdoc:invisible
 import zio._
-import zio.Console._
 import java.io.IOException
 ```
 
