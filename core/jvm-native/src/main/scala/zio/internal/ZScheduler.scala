@@ -30,7 +30,7 @@ import scala.concurrent.{BlockContext, CanAwait}
  * applications. Inspired by "Making the Tokio Scheduler 10X Faster" by Carl
  * Lerche. [[https://tokio.rs/blog/2019-10-scheduler]]
  */
-private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent =>
+private final class ZScheduler(autoBlocking: Boolean) extends Executor with AutoCloseable { parent =>
 
   import Trace.{empty => emptyTrace}
   import ZScheduler.{poolSize, workerOrNull}
@@ -44,6 +44,14 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
   @volatile private[this] var blockingLocations: Set[Trace] = Set.empty
 
+  // Termination is signaled by `closing`, NOT by Thread.interrupt. Workers
+  // ignore the thread interrupt flag for control purposes — user code may set
+  // it (Thread.currentThread().interrupt() inside a fiber, library interop,
+  // sbt task cancellation, etc.) and the scheduler must not confuse that with
+  // its own shutdown signal. See `close()` and `Thread.interrupted()` calls in
+  // the worker run loop.
+  @volatile private[this] var closing: Boolean = false
+
   (0 until poolSize).foreach { workerId =>
     val worker = makeWorker()
     worker.setName(workerId)
@@ -52,12 +60,14 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   }
   workers.foreach(_.start())
 
-  if (autoBlocking) {
-    val supervisor = makeSupervisor()
-    supervisor.setName("ZScheduler-Supervisor")
-    supervisor.setDaemon(true)
-    supervisor.start()
-  }
+  private[this] val supervisor: ZScheduler.Supervisor =
+    if (autoBlocking) {
+      val s = makeSupervisor()
+      s.setName("ZScheduler-Supervisor")
+      s.setDaemon(true)
+      s.start()
+      s
+    } else null
 
   override private[zio] def isCurrentThreadInExecutor: Boolean =
     Thread.currentThread().isInstanceOf[ZScheduler.Worker]
@@ -144,6 +154,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   }
 
   def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
+    if (closing) return false
     val worker = workerOrNull()
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
@@ -160,6 +171,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
   }
 
   override def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean = {
+    if (closing) return false
     val worker = workerOrNull()
     if (isBlocking(worker, runnable)) {
       submitBlocking(runnable)
@@ -238,7 +250,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       override def run(): Unit = {
         val identifiedLocations = makeLocations()
         val previousOpCounts    = Array.fill(poolSize)(-1L)
-        while (!isInterrupted) {
+        while (!closing) {
           var workerId = 0
           while (workerId < poolSize) {
             val currentWorker = workers(workerId)
@@ -272,7 +284,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
           var loop     = true
           while (loop) {
             LockSupport.parkUntil(deadline)
-            loop = java.lang.System.currentTimeMillis() < deadline
+            loop = !closing && java.lang.System.currentTimeMillis() < deadline
           }
         }
       }
@@ -298,7 +310,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
         var runnable        = null.asInstanceOf[Runnable]
         var searching       = false
 
-        while (!isInterrupted) {
+        while (!closing) {
           currentBlocking = blocking
           val currentNextRunnable = nextRunnable
           if (currentBlocking) ()
@@ -390,7 +402,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
                 maybeUnparkWorker(currentState)
               }
             }
-            while (!active && !isInterrupted) {
+            while (!active && !closing) {
               LockSupport.park()
             }
             searching = true
@@ -402,6 +414,14 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
             }
             currentRunnable = runnable
             runnable.run()
+            // Absorb any thread interrupt set by the runnable (user code that
+            // called Thread.currentThread().interrupt(), Java interop, sbt
+            // task cancellation, etc.). Termination is signaled by `closing`,
+            // not by the interrupt flag, so leaving it set would either kill
+            // a parked worker via LockSupport.park returning eagerly, or
+            // cause the next FiberRuntime.shouldInterrupt() at the start of
+            // the next runnable's trampoline to interrupt an unrelated fiber.
+            Thread.interrupted()
             runnable = null
             currentRunnable = runnable
             currentOpCount += 1
@@ -413,7 +433,7 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
       // NOTE: Synchronized block in case the supervisor attempts to mark the worker as blocking at the same time
       // as an external call
       final def markAsBlocking(): Unit = synchronized {
-        if (blocking) ()
+        if (blocking || parent.closing) ()
         else {
           blocking = true
           val idx = workers.indexOf(self)
@@ -459,6 +479,68 @@ private final class ZScheduler(autoBlocking: Boolean) extends Executor { parent 
 
   private[this] def submitBlocking(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
     Blocking.blockingExecutor.submit(runnable)
+
+  /**
+   * Permanently shuts down this scheduler, releasing the worker threads it owns
+   * and dropping any pending work. Idempotent.
+   *
+   * Sets the `closing` flag, drains all task queues (so the runnables they hold
+   * become GC-eligible — important when the `ZScheduler` instance itself is
+   * held by a long-lived singleton like `Runtime.default`), and unparks every
+   * worker plus the auto-blocking supervisor. Workers wake from
+   * `LockSupport.park()`, observe `closing`, and exit their main loop.
+   *
+   * Termination does NOT use `Thread.interrupt`. The worker loop ignores the
+   * thread interrupt flag for control purposes (any flag set by user code, Java
+   * interop, or sbt's task cancellation is absorbed via `Thread.interrupted()`
+   * after each runnable), so close cannot collide with foreign interrupts.
+   *
+   * Any task currently running on a worker runs to completion before the worker
+   * exits — interrupts are not forwarded into user code. After `close()`
+   * returns, `submit` is a no-op that returns `false`. Tasks already on queues
+   * at the moment of close are dropped on the floor; do not call `close()` on a
+   * scheduler that still has work in flight you care about.
+   *
+   * The shared blocking executor (`Blocking.blockingExecutor`) is intentionally
+   * not shut down here — it is a process-wide singleton independent of any
+   * particular `ZScheduler` instance.
+   */
+  override def close(): Unit =
+    if (!closing) {
+      closing = true
+      val sup = supervisor
+      if (sup ne null) LockSupport.unpark(sup)
+      // Drain the global queue first — it can hold runnables from any non-worker
+      // submitter and is the single biggest GC root.
+      while (globalQueue.poll() ne null) ()
+      // Per-worker cleanup: drain localQueue, null nextRunnable, then unpark.
+      // Safe because `closing` is already set, so no new offers can happen
+      // from submit (which short-circuits), and stealWork only polls.
+      var i = 0
+      while (i < poolSize) {
+        val worker = workers(i)
+        if (worker ne null) {
+          while (worker.localQueue.poll(null) ne null) ()
+          worker.nextRunnable = null
+          LockSupport.unpark(worker)
+        }
+        i += 1
+      }
+      // `idle` holds references to workers that are also in `workers[]`, so
+      // draining it doesn't free any new Worker objects, but it does release
+      // the queue's internal linked-list nodes.
+      while (idle.poll() ne null) ()
+      // Workers that became blocking and were replaced sit in `cache`, parked
+      // and waiting to be reused. They're alive threads too, with their own
+      // localQueue / nextRunnable that we should drain.
+      var cached = cache.poll()
+      while (cached ne null) {
+        while (cached.localQueue.poll(null) ne null) ()
+        cached.nextRunnable = null
+        LockSupport.unpark(cached)
+        cached = cache.poll()
+      }
+    }
 }
 
 private object ZScheduler {
