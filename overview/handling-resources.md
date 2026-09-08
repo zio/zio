@@ -19,18 +19,9 @@ As with `try` / `finally`, the `ensuring` method guarantees if the effect it is 
 ```scala
 val finalizer: UIO[Unit] = 
   ZIO.succeed(println("Finalizing!"))
-// finalizer: UIO[Unit] = Sync(
-//   trace = "repl.MdocSession.MdocApp.finalizer(handling-resources.md:15)",
-//   eval = <function0>
-// )
 
 val finalized: IO[String, Unit] = 
   ZIO.fail("Failed!").ensuring(finalizer)
-// finalized: IO[String, Unit] = DynamicNoBox(
-//   trace = "repl.MdocSession.MdocApp.finalized(handling-resources.md:19)",
-//   update = 1L,
-//   f = zio.ZIO$$$Lambda$19609/0x00007f1b47095120@6bd58131
-// )
 ```
 
 In ZIO, finalizers are not allowed to fail in any recoverable way, which means that you must handle all of the errors that your code can produce.
@@ -65,7 +56,9 @@ val groupedFileData: IO[IOException, Unit] =
 
 Like `ensuring`, `acquireReleaseWith` has compositional semantics, so if one `acquireReleaseWith` is nested inside another `acquireReleaseWith`, and the outer resource is acquired, then the outer release will always be called, even if, for example, the inner release fails.
 
-For resources which implement the AutoClosable interface, the convenience method `fromAutoClosable` can be used, which can be seen as the ZIO equivalent of try-with-resource.
+For resources which implement the AutoCloseable interface, the convenience method `fromAutoCloseable` can be used, which can be seen as the ZIO equivalent of try-with-resource.
+
+`ZIO.scoped` runs an effect within a [`Scope`](../reference/resource/scope.md), which manages the lifetime of the resources acquired within it, ensuring they are released once the scope closes:
 
 ```scala
 val bytesInFile: IO[Throwable, Int] =

@@ -40,7 +40,7 @@ Fibers are scheduled onto operating system threads by the ZIO runtime. Because f
 
 #### The Fiber Data Type
 
-The `Fiber` data type in ZIO represents a "handle" on the execution of an effect. The `Fiber` data type is most similar to Scala's `Future` data type, which represents a "handle" on a running asynchronous operation.
+The [`Fiber`](../reference/fiber/fiber.md) data type in ZIO represents a "handle" on the execution of an effect. The `Fiber` data type is most similar to Scala's `Future` data type, which represents a "handle" on a running asynchronous operation.
 
 The `Fiber[E, A]` data type in ZIO has two type parameters:
 
@@ -158,7 +158,6 @@ The following table summarizes some of the sequential operations and their corre
 | -----------------------------: | :---------------: | :------------------: |
 | Zips two effects into one      | `ZIO#zip`         | `ZIO#zipPar`         |
 | Zips two effects into one      | `ZIO#zipWith`     | `ZIO#zipWithPar`     |
-| Zips multiple effects into one | `ZIO#tupled`      | `ZIO#tupledPar`      |
 | Collects from many effects     | `ZIO.collectAll`  | `ZIO.collectAllPar`  |
 | Effectfully loop over values   | `ZIO.foreach`     | `ZIO.foreachPar`     |
 | Reduces many values            | `ZIO.reduceAll`   | `ZIO.reduceAllPar`   |
@@ -609,9 +608,9 @@ val retriedOpenFile: ZIO[Any, IOException, Array[Byte]] =
 The next most powerful function is `ZIO#retryOrElse`, which allows specification of a fallback to use if the effect does not succeed with the specified policy:
 
 ```scala
-val retryOpenFile: ZIO[Any, IOException, DefaultData) = 
+val retryOrElseOpenFile: ZIO[Any, IOException, Array[Byte]] = 
   openFile("primary.data")
-      .retryOrElse(Schedule.recurs(5), (_, _) => ZIO.succeed(DefaultData))
+      .retryOrElse(Schedule.recurs(5), (_: IOException, _: Long) => ZIO.succeed(DefaultData))
 ```
 
 For more information on how to build schedules, see the documentation on [Schedule](../reference/schedule.md).
@@ -641,18 +640,9 @@ As with `try` / `finally`, the `ensuring` method guarantees if the effect it is 
 ```scala
 val finalizer: UIO[Unit] = 
   ZIO.succeed(println("Finalizing!"))
-// finalizer: UIO[Unit] = Sync(
-//   trace = "repl.MdocSession.MdocApp.finalizer(handling-resources.md:15)",
-//   eval = <function0>
-// )
 
 val finalized: IO[String, Unit] = 
   ZIO.fail("Failed!").ensuring(finalizer)
-// finalized: IO[String, Unit] = DynamicNoBox(
-//   trace = "repl.MdocSession.MdocApp.finalized(handling-resources.md:19)",
-//   update = 1L,
-//   f = zio.ZIO$$$Lambda$19609/0x00007f1b47095120@6bd58131
-// )
 ```
 
 In ZIO, finalizers are not allowed to fail in any recoverable way, which means that you must handle all of the errors that your code can produce.
@@ -687,7 +677,9 @@ val groupedFileData: IO[IOException, Unit] =
 
 Like `ensuring`, `acquireReleaseWith` has compositional semantics, so if one `acquireReleaseWith` is nested inside another `acquireReleaseWith`, and the outer resource is acquired, then the outer release will always be called, even if, for example, the inner release fails.
 
-For resources which implement the AutoClosable interface, the convenience method `fromAutoClosable` can be used, which can be seen as the ZIO equivalent of try-with-resource.
+For resources which implement the AutoCloseable interface, the convenience method `fromAutoCloseable` can be used, which can be seen as the ZIO equivalent of try-with-resource.
+
+`ZIO.scoped` runs an effect within a [`Scope`](../reference/resource/scope.md), which manages the lifetime of the resources acquired within it, ensuring they are released once the scope closes:
 
 ```scala
 val bytesInFile: IO[Throwable, Int] =
@@ -767,7 +759,7 @@ Ideally, your application should have a _single_ runtime, because each runtime h
 
 ### Console
 
-ZIO provides a module for interacting with the console. You can import the functions in this module with the following code snippet:
+ZIO provides a [Console](../reference/services/console.md) service for interacting with the console.
 
 If you need to print text to the console, you can use `print` and `printLine`:
 
@@ -788,6 +780,10 @@ import zio._
 
 val echo = Console.readLine.flatMap(line => Console.printLine(line))
 ```
+
+### Next Steps
+
+Now that you've got ZIO installed and running, the next step is to learn about the [`ZIO` data type](summary.md).
 
 ---
 
@@ -855,13 +851,17 @@ Not every artifact supports every platform — see [Platforms](platforms.md#modu
 
 ## Performance
 
-ZIO is a high-performance framework that is powered by non-blocking fibers (which will move to _virtual threads_ under Loom).
+ZIO is a high-performance framework that is powered by non-blocking fibers, with optional virtual-thread (Loom) execution available via `Runtime.enableLoomBasedExecutor`.
 
 ZIO's core execution engine minimizes allocations and automatically cancels all unused computation. All data structures included with ZIO are high-performance and non-blocking, and to the maximum extent possible on the JVM, non-boxing.
 
 The `benchmarks` project has a variety of benchmarks that compare the performance of ZIO with other similar projects in the Scala and Java ecosystems, demonstrating 2-100x faster performance in some cases.
 
 Benchmarks to compare the performance of HTTP, GraphQL, RDMBS, and other ZIO integrations can be found in those respective projects.
+
+### Next Steps
+
+If you are comfortable with ZIO's performance characteristics, the next step is to learn about [platforms](platforms.md).
 
 ---
 
@@ -932,7 +932,6 @@ If you construct a single effect for your whole program, the most natural way to
 This class provides Scala with a JVM-compatible main function, so it can be called from IDEs and launched from the command-line. All you have to do is implement the `run` method by returning the effect to run.
 
 ```scala
-import zio._
 import zio.Console._
 
 object MyApp extends ZIOAppDefault {
@@ -946,9 +945,11 @@ object MyApp extends ZIOAppDefault {
 }
 ```
 
-If you are using a custom environment for your application, you will have to supply your environment to the effect (using `ZIO#provideEnvironment` or, if you are using layers, `ZIO#provide`) before you return it from `run`. 
+If you are using a custom environment for your application, you will have to supply your environment to the effect (using `ZIO#provideEnvironment` or, if you are using [layers](../reference/contextual/zlayer.md), `ZIO#provide`) before you return it from `run`. 
 
 `ZIOAppDefault` does not know how to supply custom environments.
+
+For full details on `ZIOApp` and `ZIOAppDefault`, see the [reference page](../reference/core/zioapp.md).
 
 ### Default Runtime
 
@@ -997,7 +998,7 @@ You can specify a custom logger easily using _ZIO Logging_, which can intercept 
 
 If you are comfortable with running effects, congratulations!
 
-You are now ready to dive into other sections on the ZIO website covering data types, use cases, and interop with other systems. 
+You are now ready to dive into other sections on the ZIO website covering data types, use cases, and interop with other systems. If you'd like to keep learning, the next section covers [performance](performance.md).
 
 Refer to the Scaladoc for detailed documentation on all the core ZIO types and methods.
 
@@ -1011,7 +1012,7 @@ At the heart of ZIO is a powerful data type called `ZIO`, which is the fundament
 
 ### ZIO 
 
-The `ZIO` data type is called a _functional effect_, and represents a unit of computation inside a ZIO application. Similar to a blueprint or a workflow, functional effects are precise plans that _describe_ a computation or interaction. When executed by the ZIO runtime system, a functional effect will either fail with some type of error, or succeed with some type of value.
+The `ZIO` data type describes a _workflow_ (or _plan_), and represents a unit of computation inside a ZIO application. A `ZIO` value is a precise, immutable description of a computation or interaction—similar to a blueprint—that does nothing on its own until it is executed. When executed by the ZIO runtime system, a workflow will either fail with some type of error, or succeed with some type of value. If you're coming from other functional-effect libraries, such as Cats Effect, you may also recognize this kind of value as a _functional effect_.
 
 Like the `List` data type, the `ZIO` data type is a _generic_ data type, and uses type parameters for improved type-safety. The `List` data type has a single type parameter, which represents the type of element that is stored in the `List`. The `ZIO` data type has three type parameters: `ZIO[R, E, A]`.
 
@@ -2456,12 +2457,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20473/0x00007f1b47265248@25adde7d
+//   eval = zio.Ref$$$Lambda$20391/0x00007f186a1474d8@2f649c8c
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20473/0x00007f1b47265248@24ce219d
+//   eval = zio.Ref$$$Lambda$20391/0x00007f186a1474d8@5e4af3e8
 // )
 
 sealed trait State
@@ -2472,7 +2473,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20473/0x00007f1b47265248@259ab756
+//   eval = zio.Ref$$$Lambda$20391/0x00007f186a1474d8@7dbfab55
 // )
 ```
 
@@ -2489,7 +2490,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20473/0x00007f1b47265248@3d8b472
+//   eval = zio.Ref$$$Lambda$20391/0x00007f186a1474d8@6e91ed9a
 // )
 ```
 
@@ -2501,7 +2502,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20473/0x00007f1b47265248@5aeb9489
+//   eval = zio.Ref$$$Lambda$20391/0x00007f186a1474d8@63cbe270
 // )
 ```
 
@@ -14509,25 +14510,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@5a650d1e
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@5e73840e
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@7a36385e
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@39f6f1bd
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@1122672
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@7207204
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-09-08T14:32:09.918088845Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-09-08T15:17:47.441897573Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@24f2bc4a
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@36f35848
 ```
 
 ### Construction / Creating Instances
@@ -15641,7 +15642,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20596/0x00007f1b462433f0@37670f1e
+//   eval = zio.Supervisor$$$Lambda$20512/0x00007f186a0542b8@867dd94
 // )
 ```
 
@@ -16470,7 +16471,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19604/0x00007f1b4708ba20@203ae652
+//     f = zio.ZIO$$$Lambda$19520/0x00007f186afb09c0@7489dc21
 //   ),
 //   successK = <function1>
 // )
@@ -17251,7 +17252,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@65c204e8
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@4df5355e
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -17264,12 +17265,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18842/0x00007f1b46ed8e38@454376ed
+//       eval = zio.ZIO$$$Lambda$18667/0x00007f186adcc7d8@43a71024
 //     ),
-//     successK = zio.ZIO$$$Lambda$19594/0x00007f1b47084b40@4d74c338
+//     successK = zio.ZIO$$$Lambda$19510/0x00007f186afa20b8@7ba6465f
 //   ),
-//   successK = zio.ZIO$$$Lambda$18845/0x00007f1b46edb0b0@64debf10,
-//   failureK = zio.ZIO$$Lambda$20392/0x00007f1b47236280@54c7f76b
+//   successK = zio.ZIO$$$Lambda$18670/0x00007f186adcea50@2ed0fc67,
+//   failureK = zio.ZIO$$Lambda$20308/0x00007f186972eeb0@4fa1a9a0
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -17281,11 +17282,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18842/0x00007f1b46ed8e38@454376ed
+//       eval = zio.ZIO$$$Lambda$18667/0x00007f186adcc7d8@43a71024
 //     ),
-//     successK = zio.ZIO$$$Lambda$19594/0x00007f1b47084b40@6d0696e0
+//     successK = zio.ZIO$$$Lambda$19510/0x00007f186afa20b8@83cdded
 //   ),
-//   successK = zio.ZIO$$Lambda$20622/0x00007f1b4616d498@1d42e4fa
+//   successK = zio.ZIO$$Lambda$20538/0x00007f186b0761f0@3180ac64
 // )
 ```
 
@@ -22251,7 +22252,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@3e70b629
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@bd58699
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -22279,9 +22280,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$20073/0x00007f1b47159ca8@a1118e3
+//     eval = zio.Scope$$$Lambda$19989/0x00007f1869860000@748f64ac
 //   ),
-//   successK = zio.ZIO$$$Lambda$20074/0x00007f1b47159f60@65257a15
+//   successK = zio.ZIO$$$Lambda$19990/0x00007f18698602b8@4cbcdf96
 // )
 ```
 
@@ -22330,7 +22331,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@309ab097
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@7d522126
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -22360,9 +22361,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$20073/0x00007f1b47159ca8@a1118e3
+//     eval = zio.Scope$$$Lambda$19989/0x00007f1869860000@748f64ac
 //   ),
-//   successK = zio.ZIO$$$Lambda$20074/0x00007f1b47159f60@156ed705
+//   successK = zio.ZIO$$$Lambda$19990/0x00007f18698602b8@10ae9e2c
 // )
 ```
 
@@ -22393,7 +22394,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@5714410d
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@2375d0a5
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -22408,9 +22409,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$20073/0x00007f1b47159ca8@a1118e3
+//     eval = zio.Scope$$$Lambda$19989/0x00007f1869860000@748f64ac
 //   ),
-//   successK = zio.ZIO$$$Lambda$20074/0x00007f1b47159f60@f253afb
+//   successK = zio.ZIO$$$Lambda$19990/0x00007f18698602b8@74730078
 // )
 ```
 
@@ -22454,7 +22455,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@37dd64b3
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@13452e6f
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -22471,9 +22472,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$20073/0x00007f1b47159ca8@a1118e3
+//     eval = zio.Scope$$$Lambda$19989/0x00007f1869860000@748f64ac
 //   ),
-//   successK = zio.ZIO$$$Lambda$20074/0x00007f1b47159f60@5def1fd7
+//   successK = zio.ZIO$$$Lambda$19990/0x00007f18698602b8@59898770
 // )
 ```
 
@@ -22505,7 +22506,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@2003eba8
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@79fd821d
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -22522,9 +22523,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$20073/0x00007f1b47159ca8@a1118e3
+//     eval = zio.Scope$$$Lambda$19989/0x00007f1869860000@748f64ac
 //   ),
-//   successK = zio.ZIO$$$Lambda$20074/0x00007f1b47159f60@542bee99
+//   successK = zio.ZIO$$$Lambda$19990/0x00007f18698602b8@213d87f7
 // )
 ```
 
@@ -22556,7 +22557,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@2d8aba76
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@2a4fb873
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -22587,9 +22588,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$20073/0x00007f1b47159ca8@a1118e3
+//     eval = zio.Scope$$$Lambda$19989/0x00007f1869860000@748f64ac
 //   ),
-//   successK = zio.ZIO$$$Lambda$20074/0x00007f1b47159f60@2ef9c392
+//   successK = zio.ZIO$$$Lambda$19990/0x00007f18698602b8@72c2a246
 // )
 ```
 
@@ -22622,7 +22623,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@24aad84c
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@5b98fb52
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -22638,9 +22639,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$20073/0x00007f1b47159ca8@a1118e3
+//     eval = zio.Scope$$$Lambda$19989/0x00007f1869860000@748f64ac
 //   ),
-//   successK = zio.ZIO$$$Lambda$20074/0x00007f1b47159f60@7ba09128
+//   successK = zio.ZIO$$$Lambda$19990/0x00007f18698602b8@7f92da01
 // )
 ```
 
@@ -22671,7 +22672,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@4f133c5
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@39c5c3b1
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -22698,9 +22699,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$20073/0x00007f1b47159ca8@a1118e3
+//     eval = zio.Scope$$$Lambda$19989/0x00007f1869860000@748f64ac
 //   ),
-//   successK = zio.ZIO$$$Lambda$20074/0x00007f1b47159f60@46fed829
+//   successK = zio.ZIO$$$Lambda$19990/0x00007f18698602b8@5cefc7d7
 // )
 ```
 
@@ -22720,7 +22721,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@32879083
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@3b9dd242
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -22743,9 +22744,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$20073/0x00007f1b47159ca8@a1118e3
+//     eval = zio.Scope$$$Lambda$19989/0x00007f1869860000@748f64ac
 //   ),
-//   successK = zio.ZIO$$$Lambda$20074/0x00007f1b47159f60@3ecb3b4a
+//   successK = zio.ZIO$$$Lambda$19990/0x00007f18698602b8@4d599010
 // )
 ```
 
@@ -22761,7 +22762,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@2951d4
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@71f4d633
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -22783,9 +22784,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$20073/0x00007f1b47159ca8@a1118e3
+//     eval = zio.Scope$$$Lambda$19989/0x00007f1869860000@748f64ac
 //   ),
-//   successK = zio.ZIO$$$Lambda$20074/0x00007f1b47159f60@257d3fa0
+//   successK = zio.ZIO$$$Lambda$19990/0x00007f18698602b8@5ecb9a31
 // )
 ```
 
@@ -22801,7 +22802,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@169ea85c
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@a7f0d11
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -22821,9 +22822,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$20073/0x00007f1b47159ca8@a1118e3
+//     eval = zio.Scope$$$Lambda$19989/0x00007f1869860000@748f64ac
 //   ),
-//   successK = zio.ZIO$$$Lambda$20074/0x00007f1b47159f60@35965d45
+//   successK = zio.ZIO$$$Lambda$19990/0x00007f18698602b8@3a83ee3f
 // )
 ```
 
@@ -22841,7 +22842,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@10808ecf
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@485b36a8
 
 val example = {
   val scoped = ZIO.scoped {
@@ -22863,9 +22864,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$20073/0x00007f1b47159ca8@a1118e3
+//       eval = zio.Scope$$$Lambda$19989/0x00007f1869860000@748f64ac
 //     ),
-//     successK = zio.ZIO$$$Lambda$20074/0x00007f1b47159f60@4e4e62bf
+//     successK = zio.ZIO$$$Lambda$19990/0x00007f18698602b8@699ef2e4
 //   ),
 //   successK = <function1>
 // )
@@ -26870,14 +26871,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@6338047a
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@297c3a87
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@40595200
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@25bd1455
 ```
 
 ### From ZIO
@@ -33604,9 +33605,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$20083/0x00007f1b47165fe0@7f9e3c79
+//             onState = zio.ZIO$$$Lambda$19999/0x00007f18698705b0@2fce262d
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$20092/0x00007f1b4716b9a0@3a9cadee
+//           successK = zio.test.package$ZTest$$$Lambda$20008/0x00007f1869721ba8@6accadb0
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -36596,7 +36597,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+198-8ea93656-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+199-48f49287-SNAPSHOT"
 ```
 
 ### Example
@@ -48552,9 +48553,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$20073/0x00007f1b47159ca8@a1118e3
+//     eval = zio.Scope$$$Lambda$19989/0x00007f1869860000@748f64ac
 //   ),
-//   successK = zio.ZIO$$$Lambda$20074/0x00007f1b47159f60@1e38bee2
+//   successK = zio.ZIO$$$Lambda$19990/0x00007f18698602b8@709ca687
 // )
 ```
 

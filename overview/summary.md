@@ -6,7 +6,7 @@ At the heart of ZIO is a powerful data type called `ZIO`, which is the fundament
 
 ## ZIO 
 
-The `ZIO` data type is called a _functional effect_, and represents a unit of computation inside a ZIO application. Similar to a blueprint or a workflow, functional effects are precise plans that _describe_ a computation or interaction. When executed by the ZIO runtime system, a functional effect will either fail with some type of error, or succeed with some type of value.
+The `ZIO` data type describes a _workflow_ (or _plan_), and represents a unit of computation inside a ZIO application. A `ZIO` value is a precise, immutable description of a computation or interaction—similar to a blueprint—that does nothing on its own until it is executed. When executed by the ZIO runtime system, a workflow will either fail with some type of error, or succeed with some type of value. If you're coming from other functional-effect libraries, such as Cats Effect, you may also recognize this kind of value as a _functional effect_.
 
 Like the `List` data type, the `ZIO` data type is a _generic_ data type, and uses type parameters for improved type-safety. The `List` data type has a single type parameter, which represents the type of element that is stored in the `List`. The `ZIO` data type has three type parameters: `ZIO[R, E, A]`.
 
