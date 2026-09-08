@@ -1,6 +1,8 @@
 # Task
 
-> `Task[A]` is a type alias for `ZIO[Any, Throwable, A]`, which represents an effect that has no requirements, and may fail with a `Throwable` value, or succeed with an `A`.
+> Type alias for ZIO[Any, Throwable, A] representing an effect with no environment requirements that may fail with a Throwable or succeed with a value.
+
+`Task[A]` is a type alias for `ZIO[Any, Throwable, A]`, which represents an effect that has no requirements, and may fail with a `Throwable` value, or succeed with an `A`.
 
 :::note
 
@@ -21,9 +23,13 @@ If we want to be less precise and eliminate the need to think about requirements
 
 :::note Principle of Least Power
 
-The `ZIO` data type is the most powerful effect in the ZIO library. It helps us to model various types of workflows. On the other hand, the type aliases are a way of specializing the `ZIO` type for less powerful workflows. 
+[The `ZIO` data type](zio.md) is the most powerful effect in the ZIO library. It helps us to model various types of workflows. On the other hand, the type aliases are a way of specializing the `ZIO` type for less powerful workflows. 
 
 Often, we don't need such a piece of powerful machinery. So as a rule of thumb, whenever we require a less powerful effect, it's better to use the appropriate specialized type alias.
 
 So there is no need to convert type aliases to the `ZIO` data type, and whenever the `ZIO` data type is required, we can use the most precise type alias to fit our workflow requirement.
 :::
+
+## See Also
+
+- [Exceptional and Unexceptional Effects](../../error-management/exceptional-and-unexceptional-effects.md)

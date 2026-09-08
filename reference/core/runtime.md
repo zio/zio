@@ -1,6 +1,8 @@
 # Runtime
 
-> A `Runtime[R]` is capable of executing tasks within an environment `R`.
+> Runtime[R] executes ZIO effects within an environment R, bundling a thread pool, environment, and runtime configuration.
+
+A `Runtime[R]` is capable of executing tasks within an environment `R`.
 
 To run an effect, we need a `Runtime`, which is capable of executing effects. Runtimes bundle a thread pool together with the environment that effects need.
 
@@ -12,7 +14,7 @@ So the most important thing we should keep in mind when we are working with a fu
 
 So how can ZIO run these workflows? This is where the ZIO Runtime System comes into play. Whenever we run an `unsafe.run` function, the Runtime System is responsible for stepping through all the instructions described by the ZIO effect and executing them.
 
-To simplify everything, we can think of a Runtime System like a black box that takes both the ZIO effect (`ZIO[R, E, A]`) and its environment (`R`). It will run this effect and return its result as an `Either[E, A]` value.
+To simplify everything, we can think of a Runtime System like a black box that takes both the ZIO effect (`ZIO[R, E, A]`) and its environment (`R`). It will run this effect and return its result as an [`Exit[E, A]`](exit.md) value.
 
 ![ZIO Runtime System](/img/zio-runtime-system.svg)
 
