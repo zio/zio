@@ -22,14 +22,6 @@ println(s"""libraryDependencies += "dev.zio" %% "zio" % "${zio.BuildInfo.version
 println(s"""```""")
 ```
 
-If you want to use ZIO streams, you should also include the following dependency:
-
-```scala mdoc:passthrough
-println(s"""```""")
-println(s"""libraryDependencies += "dev.zio" %% "zio-streams" % "${zio.BuildInfo.version.split('+').head}"""")
-println(s"""```""")
-```
-
 ## Main
 
 Your application can extend `ZIOAppDefault`, which provides a complete runtime system and allows you to write your whole program using ZIO:
