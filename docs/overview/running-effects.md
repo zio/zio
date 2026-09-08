@@ -17,7 +17,27 @@ In this section, you will learn about the several ways that ZIO provides for you
 
 ## App
 
-If you construct a single effect for your whole program, the most natural way to run the effect is to extend `ZIOAppDefault`; see the [Getting Started](index.md) guide for a worked example.
+If you construct a single effect for your whole program, the most natural way to run the effect is to extend `ZIOAppDefault`. 
+
+This class provides Scala with a JVM-compatible main function, so it can be called from IDEs and launched from the command-line. All you have to do is implement the `run` method by returning the effect to run.
+
+```scala mdoc:invisible
+import zio._
+```
+
+```scala mdoc:silent
+import zio.Console._
+
+object MyApp extends ZIOAppDefault {
+
+  def run =
+    for {
+      _    <- printLine("Hello! What is your name?")
+      name <- readLine
+      _    <- printLine(s"Hello, ${name}, welcome to ZIO!")
+    } yield ()
+}
+```
 
 If you are using a custom environment for your application, you will have to supply your environment to the effect (using `ZIO#provideEnvironment` or, if you are using [layers](../reference/contextual/zlayer.md), `ZIO#provide`) before you return it from `run`. 
 
@@ -34,10 +54,6 @@ In these cases, a better solution for running effects is to create a `Runtime`, 
 ZIO contains a default runtime called `Runtime.default`.
 
 To access it, merely use
-
-```scala mdoc:invisible
-import zio._
-```
 
 ```scala mdoc:silent
 val runtime = Runtime.default
