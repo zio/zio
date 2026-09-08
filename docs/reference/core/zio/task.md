@@ -1,6 +1,12 @@
 ---
-id: task 
+id: "task"
 title: "Task"
+description: "Type alias for ZIO[Any, Throwable, A] representing an effect with no environment requirements that may fail with a Throwable or succeed with a value."
+keywords:
+  - "Task"
+  - "ZIO Type Alias"
+  - "Throwable Effect"
+  - "Effect Type"
 ---
 
 `Task[A]` is a type alias for `ZIO[Any, Throwable, A]`, which represents an effect that has no requirements, and may fail with a `Throwable` value, or succeed with an `A`.

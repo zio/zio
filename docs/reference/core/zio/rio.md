@@ -1,6 +1,12 @@
 ---
-id: rio 
+id: "rio"
 title: "RIO"
+description: "Type alias for ZIO[R, Throwable, A] representing an effect requiring environment R that may fail with a Throwable or succeed with value A."
+keywords:
+  - "RIO"
+  - "ZIO Type Alias"
+  - "Throwable Effect"
+  - "Effect Type"
 ---
 
 `RIO[R, A]` is a type alias for `ZIO[R, Throwable, A]`, which represents an effect that requires an `R`, and may fail with a `Throwable` value, or succeed with an `A`.

@@ -163,7 +163,6 @@ val r3: ZIO[Any, NumberFormatException, Int] =
 4. **`ZIO.noneOrFail`**— It lifts an option into a ZIO value. If the option is empty it succeeds with `Unit` and if the option is defined it fails with a proper error type:
 
 - `ZIO.noneOrFail` fails with the content of the optional value.
-- `ZIO.noneOrFailUnit` fails with the `Unit` error type.
 - `ZIO.noneOrFailWith` fails with custom error type.
 
 ```scala mdoc:compile-only
@@ -219,12 +218,11 @@ The error type of the resulting effect will always be `Throwable`, because `Try`
 
 #### Future
 
-| Function              | Input Type                                       | Output Type        |
-|-----------------------|--------------------------------------------------|--------------------|
-| `fromFuture`          | `ExecutionContext => scala.concurrent.Future[A]` | `Task[A]`          |
-| `fromFutureJava`      | `java.util.concurrent.Future[A]`                 | `RIO[Blocking, A]` |
-| `fromFunctionFuture`  | `R => scala.concurrent.Future[A]`                | `RIO[R, A]`        |
-| `fromFutureInterrupt` | `ExecutionContext => scala.concurrent.Future[A]` | `Task[A]`          |
+| Function              | Input Type                                       | Output Type |
+|-----------------------|--------------------------------------------------|-------------|
+| `fromFuture`          | `ExecutionContext => scala.concurrent.Future[A]` | `Task[A]`   |
+| `fromFutureJava`      | `java.util.concurrent.Future[A]`                 | `Task[A]`   |
+| `fromFutureInterrupt` | `ExecutionContext => scala.concurrent.Future[A]` | `Task[A]`   |
 
 A `Future` can be converted into a ZIO effect using `ZIO.fromFuture`:
 
@@ -336,13 +334,13 @@ val printLine2: IO[IOException, String] =
 
 ##### Blocking Synchronous Side-Effects
 
-| Function                    | Input Type                          | Output Type                     |
-|-----------------------------|-------------------------------------|---------------------------------|
-| `blocking`                  | `ZIO[R, E, A]`                      | `ZIO[R, E, A]`                  |
-| `attemptBlocking`           | `A`                                 | `RIO[Blocking, A]`              |
-| `attemptBlockingCancelable` | `effect: => A`, `cancel: UIO[Unit]` | `RIO[Blocking, A]`              |
-| `attemptBlockingInterrupt`  | `A`                                 | `RIO[Blocking, A]`              |
-| `attemptBlockingIO`         | `A`                                 | `ZIO[Blocking, IOException, A]` |
+| Function                    | Input Type                                | Output Type          |
+|-----------------------------|--------------------------------------------|-----------------------|
+| `blocking`                  | `ZIO[R, E, A]`                            | `ZIO[R, E, A]`        |
+| `attemptBlocking`           | `A`                                       | `Task[A]`             |
+| `attemptBlockingCancelable` | `effect: => A`, `cancel: => URIO[R, Any]` | `RIO[R, A]`           |
+| `attemptBlockingInterrupt`  | `A`                                       | `Task[A]`              |
+| `attemptBlockingIO`         | `A`                                       | `IO[IOException, A]`  |
 
 By default, ZIO is asynchronous and all effects will be executed on a default primary thread pool which is optimized for asynchronous operations. As ZIO uses a fiber-based concurrency model, if we run **Blocking I/O** or **CPU Work** workloads on a primary thread pool, they are going to monopolize all threads of **primary thread pool**.
 

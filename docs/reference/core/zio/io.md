@@ -1,6 +1,11 @@
 ---
-id: io
+id: "io"
 title: "IO"
+description: "Type alias for ZIO[Any, E, A] representing an effect with no environment requirements that may fail with an E or succeed with a value A."
+keywords:
+  - "IO"
+  - "ZIO Type Alias"
+  - "Effect Type"
 ---
 
 `IO[E, A]` is a type alias for `ZIO[Any, E, A]`, which represents an effect that has no requirements, and may fail with an `E`, or succeed with an `A`.

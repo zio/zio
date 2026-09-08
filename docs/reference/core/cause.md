@@ -18,7 +18,7 @@ The following snippet shows how `Cause` is designed as a semiring data structure
 ```scala
 sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause._
-  def trace: Trace = ???
+  def trace: StackTrace = ???
 
   final def ++[E1 >: E](that: Cause[E1]): Cause[E1] = Then(self, that)
   final def &&[E1 >: E](that: Cause[E1]): Cause[E1] = Both(self, that)
@@ -26,9 +26,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
 
 object Cause extends Serializable {
   case object Empty extends Cause[Nothing]
-  final case class Fail[+E](value: E, override val trace: Trace) extends Cause[E]
-  final case class Die(value: Throwable, override val trace: Trace) extends Cause[Nothing]
-  final case class Interrupt(fiberId: FiberId, override val trace: Trace) extends Cause[Nothing]
+  final case class Fail[+E](value: E, override val trace: StackTrace) extends Cause[E]
+  final case class Die(value: Throwable, override val trace: StackTrace) extends Cause[Nothing]
+  final case class Interrupt(fiberId: FiberId, override val trace: StackTrace) extends Cause[Nothing]
   final case class Stackless[+E](cause: Cause[E], stackless: Boolean) extends Cause[E]
   final case class Then[+E](left: Cause[E], right: Cause[E]) extends Cause[E]
   final case class Both[+E](left: Cause[E], right: Cause[E]) extends Cause[E]
