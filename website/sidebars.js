@@ -4,6 +4,7 @@ module.exports = {
   overview_sidebar:
     [
       "overview/getting-started",
+      "overview/modules",
       "overview/summary",
       "overview/creating-effects",
       "overview/basic-operations",
