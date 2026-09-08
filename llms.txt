@@ -12,6 +12,7 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Handling Errors](https://zio.dev/overview/handling-errors.md): Error handling tools for catching, recovering, and retrying ZIO effects with safe fallback strategies and robust error management.
 - [Handling Resources](https://zio.dev/overview/handling-resources.md): Learn how to manage resources safely in ZIO with Scope, acquire-release patterns, and ensure no resource leaks even under failure or interruption.
 - [Getting Started with ZIO](https://zio.dev/zio-aws/getting-started.md): Get started with ZIO, a powerful functional effect system for Scala that enables asynchronous, concurrent, and parallel programming.
+- [Modules](https://zio.dev/overview/modules.md): An overview of all published ZIO artifacts (zio, zio-streams, zio-test, and more) and when to add each one to your build.
 - [Performance](https://zio.dev/overview/performance.md): Optimize your ZIO applications for maximum throughput and minimal latency with batching, caching, and streaming techniques.
 - [Platforms](https://zio.dev/overview/platforms.md): Configure ZIO for different platforms including JVM, JavaScript, and Native with platform-specific services and runtimes.
 - [Running Effects](https://zio.dev/overview/running-effects.md): Guide to executing ZIO effects using ZIOAppDefault, Runtime, and custom environments with error logging integration.
