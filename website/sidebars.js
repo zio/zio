@@ -18,7 +18,8 @@ module.exports = {
     "reference/index",
     {
       type: "category",
-      label: "Core",
+      label: "Core Data Types",
+      link: { type: "doc", id: "reference/core/index" },
       collapsed: false,
       items: [
         "reference/core/zio/zio",
