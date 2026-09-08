@@ -12,6 +12,7 @@ module.exports = {
       "overview/basic-concurrency",
       "overview/running-effects",
       "overview/performance",
+      "overview/modules",
       "overview/platforms"
     ],
   "reference-sidebar": [
