@@ -4,7 +4,6 @@ module.exports = {
   overview_sidebar:
     [
       "overview/getting-started",
-      "overview/modules",
       "overview/summary",
       "overview/creating-effects",
       "overview/basic-operations",
@@ -13,6 +12,7 @@ module.exports = {
       "overview/basic-concurrency",
       "overview/running-effects",
       "overview/performance",
+      "overview/modules",
       "overview/platforms"
     ],
   "reference-sidebar": [

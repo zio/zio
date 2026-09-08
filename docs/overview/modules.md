@@ -1,7 +1,7 @@
 ---
 id: modules
-title: "Summary of ZIO Modules"
-sidebar_label: "Summary of Modules"
+title: "Modules"
+sidebar_label: "Modules"
 slug: "modules"
 description: "An overview of all published ZIO artifacts (zio, zio-streams, zio-test, and more) and when to add each one to your build."
 keywords:
@@ -73,20 +73,4 @@ println(s"""```""")
 
 `zio-internal-macros` is also published but is an internal implementation detail with no stable public API — do not depend on it directly.
 
-## Platform Support
-
-| Artifact | JVM | Scala.js | Scala Native |
-| --- | :---: | :---: | :---: |
-| `zio` | ✅ | ✅ | ✅ |
-| `zio-streams` | ✅ | ✅ | ✅ |
-| `zio-test` | ✅ | ✅ | ✅ |
-| `zio-test-sbt` | ✅ | ✅ | ✅ |
-| `zio-test-magnolia` | ✅ | ✅ | — |
-| `zio-test-refined` | ✅ | ✅ | — |
-| `zio-test-scalacheck` | ✅ | ✅ | ✅ |
-| `zio-test-junit` | ✅ | — | — |
-| `zio-test-junit-engine` | ✅ | — | — |
-| `zio-concurrent` | ✅ | ✅ | ✅ |
-| `zio-managed` | ✅ | ✅ | ✅ |
-| `zio-macros` | ✅ | ✅ | ✅ |
-| `zio-stacktracer` | ✅ | ✅ | ✅ |
+Not every artifact supports every platform — see [Platforms](platforms.md#module-support) for the full breakdown.
