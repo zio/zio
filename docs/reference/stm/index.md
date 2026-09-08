@@ -28,6 +28,14 @@ In transactional memory, we get these aspects of ACID properties:
 
 The ZIO STM API is inspired by Haskell's [STM library](http://hackage.haskell.org/package/stm-2.5.0.0/docs/Control-Concurrent-STM.html) although the implementation in ZIO is completely different.
 
+## Installation
+
+`STM` is part of the core `zio` module; no additional dependency is needed:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio" % "@VERSION@"
+```
+
 ## The Problem
 
 Let's start from a simple `inc` function, which takes a mutable reference of `Int` and increases it by `amount`:
