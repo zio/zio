@@ -252,7 +252,7 @@ class SmartAssertMacros(val c: blackbox.Context) {
 
     q"""
 ..$stats
-$TestResult($ast.withCode($codeString).meta(location = $location))
+$TestResult.cached($ast.withCode($codeString).meta(location = $location))
 """
   }
 
