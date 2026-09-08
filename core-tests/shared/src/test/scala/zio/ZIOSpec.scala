@@ -1603,6 +1603,90 @@ object ZIOSpec extends ZIOBaseSpec {
         )
       }
     ),
+    suite("memoizeSuccess")(
+      test("memoizeSuccess returns the same instance on repeated calls") {
+        val ioMemo = RandomLive.nextString(10).memoizeSuccess
+        ioMemo
+          .flatMap(io => io <*> io)
+          .map(tuple => assert(tuple._1)(equalTo(tuple._2)))
+      },
+      test("ZIO.memoizeSuccess returns the same result on repeated calls") {
+        for {
+          memoized <- ZIO.memoizeSuccess((n: Int) => RandomLive.nextString(n))
+          a        <- memoized(10)
+          b        <- memoized(10)
+          c        <- memoized(11)
+          d        <- memoized(11)
+        } yield assert(a)(equalTo(b)) &&
+          assert(b)(not(equalTo(c))) &&
+          assert(c)(equalTo(d))
+      },
+      test("memoizeSuccess does not memoize errors") {
+        for {
+          ref      <- Ref.make(0)
+          memoized <- (ref.updateAndGet(_ + 1) *> ZIO.fail("error")).memoizeSuccess
+          a        <- memoized.either
+          b        <- memoized.either
+        } yield assertTrue(
+          a == Left("error"),
+          b == Left("error"),
+          a == b
+        ) && assert(a)(equalTo(b))
+      },
+      test("ZIO.memoizeSuccess does not memoize errors") {
+        for {
+          ref      <- Ref.make(0)
+          memoized <- ZIO.memoizeSuccess((_: Int) => ref.updateAndGet(_ + 1) *> ZIO.fail("error"))
+          a        <- memoized(10).either
+          b        <- memoized(10).either
+          c        <- ref.get
+        } yield assertTrue(
+          a == Left("error"),
+          b == Left("error"),
+          c == 2
+        )
+      },
+      test("memoizeSuccess does not memoize interruption") {
+        for {
+          p1 <- Promise.make[Nothing, Unit]
+          p2 <- Promise.make[Nothing, Unit]
+
+          memo <-
+            (p1.succeedUnit *> p2.await *> RandomLive.nextString(10)).memoizeSuccess
+
+          first <- memo.fork
+          _     <- p1.await
+          calls <- memo.fork.replicateZIO(50)
+          res1  <- first.interrupt
+          _     <- p2.succeed(())
+          res2  <- ZIO.foreach(calls)(_.join)
+          res3  <- memo
+        } yield assertTrue(
+          res1.isInterrupted,
+          res2.forall(_ == res3)
+        )
+      },
+      test("ZIO.memoizeSuccess does not memoize interruption") {
+        for {
+          p1 <- Promise.make[Nothing, Unit]
+          p2 <- Promise.make[Nothing, Unit]
+
+          memo <-
+            ZIO.memoizeSuccess((_: Any) => p1.succeedUnit *> p2.await *> RandomLive.nextString(10))
+
+          first <- memo("call").fork
+          _     <- p1.await
+          calls <- memo("call").fork.replicateZIO(50)
+          res1  <- first.interrupt
+          _     <- p2.succeed(())
+          res2  <- ZIO.foreach(calls)(_.join)
+          res3  <- memo("call")
+        } yield assertTrue(
+          res1.isInterrupted,
+          res2.forall(_ == res3)
+        )
+      }
+    ),
     suite("merge")(
       test("on flipped result") {
         val zio: IO[Int, Int] = ZIO.succeed(1)
