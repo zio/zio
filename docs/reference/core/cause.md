@@ -1,6 +1,13 @@
 ---
 id: cause
 title: "Cause"
+description: "Cause[E] losslessly encodes the full story of a fiber failure, including expected errors, defects, interruptions, and their sequential or parallel composition."
+keywords:
+  - "Cause"
+  - "Fiber Failure"
+  - "Error Handling"
+  - "Defects"
+  - "Interruption"
 ---
 
 The `ZIO[R, E, A]` effect is polymorphic in values of type `E` and we can work with any error type that we want, but there is a lot of information that is not inside an arbitrary `E` value. So as a result ZIO needs somewhere to store things like **unexpected errors or defects**, **stack and execution traces**, **cause of fiber interruptions**, and so forth.

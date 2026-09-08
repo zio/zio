@@ -18,7 +18,7 @@ An `Exit[E, A]` value describes [how fibers end life](../fiber/fiber.md). It has
 This is how the `Exit` data type is defined:
 
 ```scala
-sealed abstract class Exit[+E, +A] extends Product with Serializable { self =>
+sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   // Exit operators
 }
 object Exit {

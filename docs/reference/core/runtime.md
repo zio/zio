@@ -1,6 +1,13 @@
 ---
 id: runtime
 title: "Runtime"
+description: "Runtime[R] executes ZIO effects within an environment R, bundling a thread pool, environment, and runtime configuration."
+keywords:
+  - "Runtime"
+  - "Runtime System"
+  - "Executor"
+  - "Fiber"
+  - "ZIO Effect Execution"
 ---
 ```scala mdoc:invisible
 import zio.{FiberRefs, Runtime, RuntimeFlags, Task, UIO, Unsafe, URIO, ZEnvironment, ZIO}

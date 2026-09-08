@@ -40,3 +40,7 @@ Often, we don't need such a piece of powerful machinery. So as a rule of thumb, 
 
 So there is no need to convert type aliases to the `ZIO` data type, and whenever the `ZIO` data type is required, we can use the most precise type alias to fit our workflow requirement.
 :::
+
+## See Also
+
+- [Exceptional and Unexceptional Effects](../../error-management/exceptional-and-unexceptional-effects.md)
