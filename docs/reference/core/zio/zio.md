@@ -465,6 +465,8 @@ val suspendedEffect: RIO[Any, ZIO[Any, IOException, Unit]] =
 
 ## Mapping
 
+ZIO provides several ways to transform the success value of an effect.
+
 ### map
 
 We can change an `IO[E, A]` to an `IO[E, B]` by calling the `map` method with a function `A => B`. This lets us transform values produced by actions into other values.
@@ -629,6 +631,8 @@ ZIO.succeed("Hello").timeout(10.seconds)
 If an effect times out, then instead of continuing to execute in the background, it will be interrupted so no resources will be wasted.
 
 ## Error Management
+
+ZIO provides a rich set of combinators for surfacing, catching, falling back from, folding over, and retrying errors.
 
 ### Either
 
