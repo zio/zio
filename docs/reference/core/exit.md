@@ -12,7 +12,7 @@ keywords:
 ---
 
 An `Exit[E, A]` value describes [how fibers end life](../fiber/fiber.md). It has two possible values:
-- `Exit.Success` contain a success value of type `A`. 
+- `Exit.Success` contains a success value of type `A`. 
 - `Exit.Failure` contains a failure [Cause](cause.md) of type `E`.
 
 This is how the `Exit` data type is defined:
