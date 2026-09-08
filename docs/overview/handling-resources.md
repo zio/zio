@@ -86,6 +86,8 @@ import java.io.FileInputStream
 def openFileInputStream(name: String): IO[Throwable, FileInputStream] = ZIO.attemptBlocking(new FileInputStream(name))
 ```
 
+`ZIO.scoped` runs an effect within a [`Scope`](../reference/resource/scope.md), which manages the lifetime of the resources acquired within it, ensuring they are released once the scope closes:
+
 ```scala mdoc:silent
 val bytesInFile: IO[Throwable, Int] =
   ZIO.scoped {

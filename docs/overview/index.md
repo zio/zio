@@ -71,7 +71,7 @@ Ideally, your application should have a _single_ runtime, because each runtime h
 
 ## Console
 
-ZIO provides a module for interacting with the console. You can import the functions in this module with the following code snippet:
+ZIO provides a [Console](../reference/services/console.md) service for interacting with the console.
 
 If you need to print text to the console, you can use `print` and `printLine`:
 
@@ -92,3 +92,7 @@ import zio._
 
 val echo = Console.readLine.flatMap(line => Console.printLine(line))
 ```
+
+## Next Steps
+
+Now that you've got ZIO installed and running, the next step is to learn about the [`ZIO` data type](summary.md).
