@@ -55,8 +55,7 @@ object TestResult {
   def anySuccesses(asserts: Iterable[TestResult])(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
     anySuccesses(!assertCompletes, asserts.toSeq: _*)
 
-  // Assertions require no environment and fail with a defect. Keep R and E for source compatibility.
-  implicit def liftTestResultToZIO[R, E](result: TestResult)(implicit trace: Trace): ZIO[Any, Nothing, TestResult] =
+  implicit def liftTestResultToZIO(result: TestResult)(implicit trace: Trace): ZIO[Any, Nothing, TestResult] =
     if (result.isSuccess)
       ZIO.succeed(result)
     else
