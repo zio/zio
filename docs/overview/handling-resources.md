@@ -78,7 +78,7 @@ val groupedFileData: IO[IOException, Unit] =
 
 Like `ensuring`, `acquireReleaseWith` has compositional semantics, so if one `acquireReleaseWith` is nested inside another `acquireReleaseWith`, and the outer resource is acquired, then the outer release will always be called, even if, for example, the inner release fails.
 
-For resources which implement the AutoClosable interface, the convenience method `fromAutoClosable` can be used, which can be seen as the ZIO equivalent of try-with-resource.
+For resources which implement the AutoCloseable interface, the convenience method `fromAutoCloseable` can be used, which can be seen as the ZIO equivalent of try-with-resource.
 
 ```scala mdoc:invisible
 import zio._

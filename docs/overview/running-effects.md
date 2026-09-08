@@ -50,6 +50,10 @@ ZIO contains a default runtime called `Runtime.default`.
 
 To access it, merely use
 
+```scala mdoc:invisible
+import zio._
+```
+
 ```scala mdoc:silent
 val runtime = Runtime.default
 ```

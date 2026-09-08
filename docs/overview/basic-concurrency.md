@@ -169,7 +169,6 @@ The following table summarizes some of the sequential operations and their corre
 | -----------------------------: | :---------------: | :------------------: |
 | Zips two effects into one      | `ZIO#zip`         | `ZIO#zipPar`         |
 | Zips two effects into one      | `ZIO#zipWith`     | `ZIO#zipWithPar`     |
-| Zips multiple effects into one | `ZIO#tupled`      | `ZIO#tupledPar`      |
 | Collects from many effects     | `ZIO.collectAll`  | `ZIO.collectAllPar`  |
 | Effectfully loop over values   | `ZIO.foreach`     | `ZIO.foreachPar`     |
 | Reduces many values            | `ZIO.reduceAll`   | `ZIO.reduceAllPar`   |
