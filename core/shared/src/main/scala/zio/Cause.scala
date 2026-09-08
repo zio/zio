@@ -927,6 +927,42 @@ object Cause extends Serializable {
       (causeOption, stackless) => causeOption.map(Stackless(_, stackless))
     )
 
+  private sealed trait CauseToStringStep[+E]
+  private final case class Visit[+E](cause: Cause[E])          extends CauseToStringStep[E]
+  private final case class RenderBinary(name: String)          extends CauseToStringStep[Nothing]
+  private final case class RenderStackless(stackless: Boolean) extends CauseToStringStep[Nothing]
+
+  private def causeToString[E](cause: Cause[E]): String = {
+    val visitStack = new mutable.Stack[CauseToStringStep[E]]()
+    val results    = new mutable.Stack[String]()
+
+    visitStack.push(Visit(cause))
+
+    while (visitStack.nonEmpty) {
+      visitStack.pop() match {
+        case RenderBinary(name) =>
+          val right = results.pop()
+          val left  = results.pop()
+          results.push(s"$name($left,$right)")
+        case RenderStackless(stackless) =>
+          results.push(s"Stackless(${results.pop()},$stackless)")
+        case Visit(current) =>
+          current match {
+            case Both(left, right) =>
+              visitStack.push(RenderBinary("Both"), Visit(right), Visit(left))
+            case Then(left, right) =>
+              visitStack.push(RenderBinary("Then"), Visit(right), Visit(left))
+            case Stackless(cause, stackless) =>
+              visitStack.push(RenderStackless(stackless), Visit(cause))
+            case nonCompositeCause =>
+              results.push(nonCompositeCause.toString)
+          }
+      }
+    }
+
+    results.pop()
+  }
+
   /**
    * A Cause that contains one or more sub-causes
    */
@@ -935,50 +971,7 @@ object Cause extends Serializable {
     /**
      * Stack-safe toString for Cause
      */
-    final private def causeToString: String = {
-      // result modifier function (Function0[Unit]) or cause (Cause[E]) to visit
-      val visitStack = new mutable.Stack[Any]()
-      // calculated string results
-      val results = new mutable.Stack[String]()
-
-      def twoArgStr(name: String) = {
-        val right = results.pop()
-        val left  = results.pop()
-        results.push(s"$name($left,$right)")
-      }
-
-      @tailrec
-      def visitRecursive(): String = {
-        def visitCause(current: Cause[E]) =
-          current match {
-            case Both(left, right) =>
-              visitStack.push(() => twoArgStr("Both"), right, left)
-            case Then(left, right) =>
-              visitStack.push(() => twoArgStr("Then"), right, left)
-            case Stackless(cause, stackless) =>
-              visitStack.push(() => results.push(s"Stackless(${results.pop()},$stackless)"), cause)
-            case nonCompositeCause =>
-              results.push(nonCompositeCause.toString)
-          }
-
-        if (visitStack.isEmpty) {
-          results.pop()
-        } else {
-          visitStack.pop() match {
-            case fn: Function0[Unit] =>
-              fn()
-            case cause: Cause[E] =>
-              visitCause(cause)
-          }
-          visitRecursive()
-        }
-      }
-
-      visitStack.push(self)
-      visitRecursive()
-    }
-
-    final override def toString = causeToString
+    final override def toString = Cause.causeToString(self)
   }
 
   case object Empty extends Cause[Nothing] { self =>
