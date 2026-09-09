@@ -1,6 +1,13 @@
 ---
 id: cause
 title: "Cause"
+description: "Cause[E] losslessly encodes the full story of a fiber failure, including expected errors, defects, interruptions, and their sequential or parallel composition."
+keywords:
+  - "Cause"
+  - "Fiber Failure"
+  - "Error Handling"
+  - "Defects"
+  - "Interruption"
 ---
 
 The `ZIO[R, E, A]` effect is polymorphic in values of type `E` and we can work with any error type that we want, but there is a lot of information that is not inside an arbitrary `E` value. So as a result ZIO needs somewhere to store things like **unexpected errors or defects**, **stack and execution traces**, **cause of fiber interruptions**, and so forth.
@@ -18,7 +25,7 @@ The following snippet shows how `Cause` is designed as a semiring data structure
 ```scala
 sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause._
-  def trace: Trace = ???
+  def trace: StackTrace = ???
 
   final def ++[E1 >: E](that: Cause[E1]): Cause[E1] = Then(self, that)
   final def &&[E1 >: E](that: Cause[E1]): Cause[E1] = Both(self, that)
@@ -26,9 +33,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
 
 object Cause extends Serializable {
   case object Empty extends Cause[Nothing]
-  final case class Fail[+E](value: E, override val trace: Trace) extends Cause[E]
-  final case class Die(value: Throwable, override val trace: Trace) extends Cause[Nothing]
-  final case class Interrupt(fiberId: FiberId, override val trace: Trace) extends Cause[Nothing]
+  final case class Fail[+E](value: E, override val trace: StackTrace) extends Cause[E]
+  final case class Die(value: Throwable, override val trace: StackTrace) extends Cause[Nothing]
+  final case class Interrupt(fiberId: FiberId, override val trace: StackTrace) extends Cause[Nothing]
   final case class Stackless[+E](cause: Cause[E], stackless: Boolean) extends Cause[E]
   final case class Then[+E](left: Cause[E], right: Cause[E]) extends Cause[E]
   final case class Both[+E](left: Cause[E], right: Cause[E]) extends Cause[E]

@@ -4,6 +4,9 @@ title: "URIO"
 description: "Type alias for ZIO[R, Nothing, A] representing an effect requiring environment R that cannot fail but succeeds with value A."
 keywords:
   - "URIO"
+  - "ZIO Type Alias"
+  - "Environment Effect"
+  - "Effect Type"
 ---
 
 `URIO[R, A]` is a type alias for `ZIO[R, Nothing, A]`, which represents an effect that requires an `R`, and cannot fail, but can succeed with an `A`.
