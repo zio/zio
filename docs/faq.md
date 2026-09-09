@@ -103,6 +103,14 @@ No, it doesn't denote that the data type is effectual. Instead, the `Z` prefix i
 
 This convention is true across all ZIO ecosystem. For example, in ZIO Prelude, the `ZValidation` is a more general version of `Validation` that is polymorphic in the log type. `ZSet` is a more polymorphic version of a _Set_ that is polymorphic in the measure type. `ZPure` is more polymorphic than its type aliases in several ways as represented by its different type parameters and also serves to disambiguate it as _Pure_ which is too general.
 
+## What is the relationship between ZIO and Effect (the TypeScript library)?
+
+[Effect](https://effect.website/) is a TypeScript library for building synchronous and asynchronous programs with typed errors, dependency injection, and structured concurrency. It is not a fork or a direct port of ZIO's codebase, but ZIO is its main source of inspiration: Effect's creator, Michael Arnaldi, had used and extended `fp-ts` in production with patterns borrowed from ZIO before starting the library that became Effect. Effect's fiber model, typeclass design, and module naming draw heavily on ZIO and [ZIO Prelude](https://github.com/zio/zio-prelude).
+
+The two libraries target different languages and evolved independently, so there is no shared code or release process between them. In February 2023, `fp-ts` — a popular functional programming library for TypeScript — officially merged into the Effect organization, with its author joining the Effect team; Effect is now considered its spiritual successor.
+
+In short, ZIO and Effect are sister projects: the same core ideas (typed effects, fibers, layers, structured concurrency) implemented independently in Scala and TypeScript.
+
 ## See Also
 
 - [state management](reference/state-management/index.md) — Overview of state management approaches in ZIO, covering recursion, global shared state with Ref, and fiber-local state with FiberRef and ZState.

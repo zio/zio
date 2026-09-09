@@ -12,13 +12,15 @@ module.exports = {
       "overview/basic-concurrency",
       "overview/running-effects",
       "overview/performance",
+      "overview/modules",
       "overview/platforms"
     ],
   "reference-sidebar": [
     "reference/index",
     {
       type: "category",
-      label: "Core",
+      label: "Core Data Types",
+      link: { type: "doc", id: "reference/core/index" },
       collapsed: false,
       items: [
         "reference/core/zio/zio",
@@ -309,7 +311,6 @@ module.exports = {
       label: "Streaming",
       link: { type: "doc", id: "reference/stream/index" },
       items: [
-        "reference/stream/installation",
         "reference/stream/chunk",
         {
           type: "category",

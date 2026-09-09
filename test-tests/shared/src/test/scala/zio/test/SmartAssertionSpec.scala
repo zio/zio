@@ -730,6 +730,20 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           actual.length == 5 && actual == expected
         case _ => false
       }
+    ),
+    suite("Java static method calls")(
+      test("on java.lang.Math") {
+        assertTrue(java.lang.Math.abs(-1) == 1)
+      },
+      test("on java.lang.Integer") {
+        assertTrue(java.lang.Integer.parseInt("42") == 42)
+      },
+      test("nested inside boolean operators") {
+        assertTrue(
+          java.lang.Math.abs(-1) == 1 &&
+            java.lang.Integer.parseInt("42") == 42
+        )
+      }
     )
   )
 
