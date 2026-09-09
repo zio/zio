@@ -13,6 +13,10 @@ keywords:
 ---
 
 
+## When to Use
+
+Use `ZIO#orElse` and the related fallback operators when any failure should trigger a fixed alternative effect or default value and you do not need the error value to choose between alternatives. Use [`ZIO#catchAll`](catching.md) instead when the recovery logic depends on inspecting the specific error — for example, to return a different fallback per error type. For transient failures where the same operation should be re-attempted before falling back, prefer [`ZIO#retry`](retrying.md) or `ZIO#retryOrElse`.
+
 ## `ZIO#orElse`
 
 We can try one effect, or if it fails, try another effect with the `orElse` combinator:

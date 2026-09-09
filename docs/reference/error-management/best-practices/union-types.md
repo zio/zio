@@ -18,6 +18,10 @@ Union types (`FooError | BarError`) are a Scala 3 feature. If you are using Scal
 
 In Scala 3, we have an exciting new feature called union types. By using the union operator, we can encode multiple error types. Using this facility, we can have more precise information on typed errors.
 
+## When to Use
+
+Use union types (`FooError | BarError`) when composing errors from unrelated sources that share no meaningful domain supertype — this keeps each error type independent and eliminates the need for a wrapper hierarchy. Use [algebraic data types (sealed traits)](algebraic-data-types.md) instead when the errors belong to the same domain and you want the compiler to enforce exhaustive pattern-matching across the entire error family. In Scala 2, sealed traits are the only option; union types require Scala 3.
+
 Let's see an example of `Storage` service which have `upload`, `download` and `delete` API:
 
 ```scala

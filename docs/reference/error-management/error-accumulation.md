@@ -65,6 +65,10 @@ object MainApp extends ZIOAppDefault {
 
 There are some situations when we need to collect all potential errors in a computation rather than failing fast. In this section, we will discuss operators that accumulate errors as well as successes.
 
+## When to Use
+
+Use `ZIO.validate` when processing a collection and you want to accumulate all errors, accepting that successes are discarded if any error occurs — the effect fails with the complete error list or succeeds with all results. Use `ZIO.validateFirst` instead when you need only the first success and want errors accumulated solely to report why every element failed. Use `ZIO.partition` when a mix of errors and successes is always a valid combined outcome — `partition` always succeeds, placing errors and successes in separate lists in the success channel rather than failing the overall effect.
+
 ## `ZIO#validate`
 
 It is similar to the `ZIO#zip` operator, it sequentially zips two ZIO effects together, if both effects fail, it combines their causes with `Cause.Then`:

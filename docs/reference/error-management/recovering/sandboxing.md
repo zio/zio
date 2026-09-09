@@ -21,6 +21,10 @@ trait ZIO[-R, +E, +A] {
 }
 ```
 
+## When to Use
+
+Use `ZIO#sandbox` when you need to apply operators other than `catchAllCause` or `catchSomeCause` to the full `Cause` graph — for example, using `ZIO#catchSome` or `ZIO#mapError` against defects and interruptions as well as typed failures. Use [`ZIO#catchAllCause` or `ZIO#catchSomeCause`](catching.md) directly instead when a single pattern-match-and-recover step is all you need; those operators reach the full `Cause` without an explicit sandbox/unsandbox round-trip. `ZIO#sandboxWith` combines the sandbox → operate → unsandbox round-trip in a single call when a more composable form is convenient.
+
 We can use the `ZIO#sandbox` operator to uncover the full causes of an _exceptional effect_. So we can see all the errors that occurred as a type of `Cause[E]` at the error channel of the `ZIO` data type. So then we can use normal error-handling operators such as `ZIO#catchSome` and `ZIO#catchAll` operators:
 
 ```scala mdoc:silent
