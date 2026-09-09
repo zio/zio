@@ -744,7 +744,7 @@ object SmartAssertionSpec extends ZIOBaseSpec {
             java.lang.Integer.parseInt("42") == 42
         )
       }
-    ) @@ scala2Only
+    )
   )
 
   // The implicit trace will be used by assertTrue to report the
