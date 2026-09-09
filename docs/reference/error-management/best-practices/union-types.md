@@ -2,7 +2,19 @@
 id: union-types
 title: "Use Union Types to Be More Specific About Error Types"
 sidebar_label: "Union Types"
+description: "Use Scala 3 union types to compose unrelated error types without a shared supertype, giving precise error signatures in ZIO effects."
+keywords:
+  - "union types"
+  - "Scala 3"
+  - "error types"
+  - "FooError | BarError"
+  - "error composition"
+  - "typed errors"
 ---
+
+:::note[Scala 3 only]
+Union types (`FooError | BarError`) are a Scala 3 feature. If you are using Scala 2, use sealed traits to model domain errors instead — see [Model Domain Errors Using Algebraic Data Types](algebraic-data-types.md).
+:::
 
 In Scala 3, we have an exciting new feature called union types. By using the union operator, we can encode multiple error types. Using this facility, we can have more precise information on typed errors.
 

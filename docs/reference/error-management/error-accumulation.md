@@ -1,6 +1,15 @@
 ---
 id: error-accumulation
 title: "Error Accumulation"
+description: "Collect all errors from a set of effects instead of short-circuiting on the first failure, using ZIO.validate, ZIO.validatePar, ZIO.validateFirst, and related combinators."
+keywords:
+  - "error accumulation"
+  - "validate"
+  - "validatePar"
+  - "validateFirst"
+  - "fail-fast"
+  - "NonEmptyList"
+  - "parallel validation"
 ---
 
 Sequential combinators such as `ZIO#zip` and `ZIO.foreach` stop when they reach the first error and return immediately. So their policy on error management is to fail fast.

@@ -2,6 +2,14 @@
 id: typed-errors-guarantees
 title: "Typed Errors Guarantees"
 sidebar_label: "Typed Errors Guarantees"
+description: "Typed errors in ZIO guarantee that the E parameter covers only typed failures — defects and interruptions remain possible even when E is Nothing."
+keywords:
+  - "typed errors"
+  - "error type parameter"
+  - "defects"
+  - "interruptions"
+  - "Nothing"
+  - "error guarantees"
 ---
 
 **Typed errors don't guarantee the absence of defects and interruptions.** Having an effect of type `ZIO[R, E, A]`, means it can fail because of some failure of type `E`, but it doesn't mean it can't die or be interrupted. So the error channel is only for `failure` errors.

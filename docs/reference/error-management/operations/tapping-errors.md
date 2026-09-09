@@ -1,6 +1,15 @@
 ---
 id: tapping-errors
 title: "Tapping Errors"
+description: "Inspect ZIO failure values, defects, and Cause graphs as a side effect without altering the error channel, using tapError, tapErrorCause, tapDefect, tapBoth, and tapEither."
+keywords:
+  - "tapError"
+  - "tapErrorCause"
+  - "tapErrorTrace"
+  - "tapDefect"
+  - "tapBoth"
+  - "tapEither"
+  - "error inspection"
 ---
 
 Like [tapping for success values](../../core/zio/zio.md#tapping) ZIO has several operators for tapping error values. So we can peek into failures or underlying defects or causes:

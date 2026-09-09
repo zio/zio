@@ -2,6 +2,14 @@
 id: fallback
 title: "Fallback"
 sidebar_label: "2. Fallback"
+description: "Provide alternative effects or values when a ZIO effect fails using orElse, orElseFail, orElseSucceed, and related fallback combinators."
+keywords:
+  - "orElse"
+  - "orElseFail"
+  - "orElseSucceed"
+  - "fallback"
+  - "error recovery"
+  - "alternative effect"
 ---
 
 

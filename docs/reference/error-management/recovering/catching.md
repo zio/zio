@@ -2,6 +2,17 @@
 id: catching
 title: "Catching"
 sidebar_label: "1. Catching"
+description: "Recover from typed failures, defects, interruptions, and full Cause graphs using ZIO's catching operators: catchAll, catchSome, catchAllCause, catchAllDefect, catchAllTrace, and more."
+keywords:
+  - "catchAll"
+  - "catchSome"
+  - "catchAllCause"
+  - "catchSomeCause"
+  - "catchAllDefect"
+  - "catchSomeDefect"
+  - "catchAllTrace"
+  - "catching errors"
+  - "error recovery"
 ---
 
 ## Catching Failures
@@ -278,3 +289,7 @@ In case of occurring any [fatal error](#catching-traces), it will die.
 ```scala
 openFile("data.json").catchAll(_ => openFile("backup.json"))
 ```
+
+:::caution[`catchNonFatalOrDie` is deprecated]
+`ZIO#catchNonFatalOrDie` was deprecated in ZIO 2.1.21. It is an alias for `catchAll` — their behavior is identical because fatal errors (`VirtualMachineError` and its subtypes) are never reachable through ZIO's typed error channel regardless of which operator you use. Replace any use of `catchNonFatalOrDie` with `catchAll`.
+:::

@@ -2,6 +2,14 @@
 id: folding
 title: "Folding"
 sidebar_label: "3. Folding"
+description: "Fold over ZIO effects to handle both success and failure in one step using fold, foldZIO, foldCause, and foldCauseZIO — the primitive all ZIO error operators build on."
+keywords:
+  - "fold"
+  - "foldZIO"
+  - "foldCause"
+  - "foldCauseZIO"
+  - "error handling"
+  - "success and failure"
 ---
 
 Scala's `Option` and `Either` data types have `fold`, which let us handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow us to handle both failure and success.

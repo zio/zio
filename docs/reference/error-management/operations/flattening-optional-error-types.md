@@ -1,6 +1,13 @@
 ---
 id: flattening-optional-error-types
 title: "Flattening Optional Error Types"
+description: "Flatten Option[E] error types into plain E using ZIO#flattenErrorOption, providing a default error value for the None case."
+keywords:
+  - "flattenErrorOption"
+  - "Option error"
+  - "optional error"
+  - "error flattening"
+  - "None error"
 ---
 
 If we have an optional error of type `E` in the error channel, we can flatten it to the `E` type using the `ZIO#flattenErrorOption` operator:

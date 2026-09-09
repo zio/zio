@@ -1,6 +1,14 @@
 ---
 id: exposing-errors-in-the-success-channel
 title: "Exposing Errors in The Success Channel"
+description: "Move typed failures into the success channel as Either values using ZIO#either, and submerge them back with ZIO#absolve or ZIO.absolve."
+keywords:
+  - "either"
+  - "absolve"
+  - "Either"
+  - "success channel"
+  - "error channel"
+  - "error exposure"
 ---
 
 Before taking into `ZIO#either` and `ZIO#absolve`, let's see their signature:
