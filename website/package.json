@@ -76,6 +76,7 @@
     "react-markdown": "10.1.0",
     "remark-kroki-plugin": "0.1.1",
     "tailwindcss": "4.3.3",
+    "tone": "^15.1.22",
     "tslib": "^2.4.0"
   },
   "overrides": {
