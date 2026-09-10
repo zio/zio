@@ -91,12 +91,21 @@ function HeaderViewComponent({
     exampleId,
   ]);
 
+  // Icon-centering fix (not in the source, which never embeds this
+  // component inside a foreign host page): a bare inline <svg> keeps its
+  // default `vertical-align: baseline`, which leaves a few px of descender
+  // gap below the glyph and pushes it visually upward inside its flex
+  // parent. Every icon wrapper below is itself `flex` so the icon centers
+  // on both axes regardless of that baseline quirk.
+  const iconWrapperClassName = 'flex items-center justify-center';
+
   const getIcon = () => {
     // Show checkmark after copying
     if (showCheckmark) {
       return (
         <motion.div
           key="check"
+          className={iconWrapperClassName}
           initial={{ scale: 0, rotate: -180, filter: 'blur(10px)' }}
           animate={{ scale: 1, rotate: 0, filter: 'blur(0px)' }}
           exit={{ scale: 0, rotate: 180, filter: 'blur(10px)' }}
@@ -112,6 +121,7 @@ function HeaderViewComponent({
       return (
         <motion.div
           key="link"
+          className={iconWrapperClassName}
           initial={{ scale: 0, rotate: -180, filter: 'blur(10px)' }}
           animate={{ scale: 1, rotate: 0, filter: 'blur(0px)' }}
           exit={{ scale: 0, rotate: 180, filter: 'blur(10px)' }}
@@ -127,6 +137,7 @@ function HeaderViewComponent({
         return (
           <motion.div
             key="stop"
+            className={iconWrapperClassName}
             initial={{ scale: 0, rotate: -180, filter: 'blur(10px)' }}
             animate={{ scale: 1, rotate: 0, filter: 'blur(0px)' }}
             exit={{ scale: 0, rotate: 180, filter: 'blur(10px)' }}
@@ -139,6 +150,7 @@ function HeaderViewComponent({
         return (
           <motion.div
             key="reset"
+            className={iconWrapperClassName}
             initial={{ scale: 0, rotate: -180, filter: 'blur(10px)' }}
             animate={{ scale: 1, rotate: 0, filter: 'blur(0px)' }}
             exit={{ scale: 0, rotate: 180, filter: 'blur(10px)' }}
@@ -151,12 +163,15 @@ function HeaderViewComponent({
         return (
           <motion.div
             key="play"
+            className={iconWrapperClassName}
             initial={{ scale: 0, rotate: -180, filter: 'blur(10px)' }}
             animate={{ scale: 1, rotate: 0, filter: 'blur(0px)' }}
             exit={{ scale: 0, rotate: 180, filter: 'blur(10px)' }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
           >
-            <PlayIcon size={24} weight="fill" />
+            {/* Play triangle glyph is visually left-heavy; nudge right to
+                sit optically centered rather than geometrically centered. */}
+            <PlayIcon size={24} weight="fill" style={{ marginLeft: 2 }} />
           </motion.div>
         );
       }
@@ -165,6 +180,7 @@ function HeaderViewComponent({
     return (
       <motion.div
         key="star"
+        className={iconWrapperClassName}
         initial={{ scale: 0, filter: 'blur(10px)' }}
         animate={
           isRunning
