@@ -17,7 +17,7 @@ import { examples } from './data';
 // during Docusaurus's Node.js prerender of this page.
 const VISUAL_COMPONENTS = {
   concurrency: React.lazy(
-    () => import('../../visual-effects/scenarios/ConcurrencyVisual'),
+    () => import('../../visual-effects/scenarios/RaceVisual'),
   ),
 };
 

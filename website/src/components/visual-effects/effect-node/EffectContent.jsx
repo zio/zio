@@ -6,20 +6,11 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import { useLayoutEffect, useRef } from 'react';
 import { springs } from '../animations';
+import { isRenderableResult, renderResult } from '../renderers';
 import { theme } from '../theme';
 
 // Ported verbatim (TS types stripped) from the source engine's
-// src/components/effect/EffectContent.tsx, except: the source's
-// isRenderableResult/renderResult come from a generic renderers/ module for
-// custom Renderable result types (EmojiResult, TemperatureResult, ...).
-// Our tasks always resolve to plain values, so that extensibility point
-// isn't needed — this inlines its exact fallback path (String(result)).
-function isRenderableResult() {
-  return false;
-}
-function renderResult(result) {
-  return String(result);
-}
+// src/components/effect/EffectContent.tsx.
 
 function TaskIcon({ size, type }) {
   const iconSize = size * 0.5;
