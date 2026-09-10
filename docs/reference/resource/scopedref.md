@@ -1,10 +1,19 @@
 ---
 id: scopedref
 title: "ScopedRef: Mutable Reference For Resources"
-sidebar_label: "ScopedRef"
+sidebar_label: ScopedRef
+description: "ScopedRef provides a resourceful mutable reference that automatically manages acquisition and release of scoped resources when values change."
+keywords:
+  - ScopedRef
+  - "Resource Management"
+  - "Automatic Resource Release"
+  - "Resource Lifecycle"
+  - "Mutable References"
+  - "Scoped Resources"
+  - "Resourceful Effects"
 ---
 
-`ScopedRef` is a resourceful version of `Ref` data type. So it is a `Ref` for resourceful effects.
+`ScopedRef` is a resourceful version of [`Ref`](../concurrency/ref.md) data type. So it is a `Ref` for resourceful effects.
 
 ## Operations
 
@@ -32,7 +41,7 @@ So we have two options to create a `ScopedRef`:
 - `ScopedRef.fromAcquire` creates a scoped ref from an effect that resourcefully produces a value.
 
 :::note
-`ScopedRef` is resourceful, so its lifetimes is scoped. Whenever we don't need it anymore, we can release it by using `ZIO#scoped` combinator.
+`ScopedRef` is resourceful, so its lifetimes is scoped. Whenever we don't need it anymore, we can release it by using [`ZIO#scoped`](./scope.md) combinator.
 :::
 
 ## Example

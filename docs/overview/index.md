@@ -3,21 +3,22 @@ id: getting-started
 title: "Getting Started with ZIO"
 sidebar_label: "Getting Started"
 slug: "getting-started"
+description: "Get started with ZIO, a powerful functional effect system for Scala that enables asynchronous, concurrent, and parallel programming."
+keywords:
+  - "ZIO Getting Started"
+  - "Scala Functional Programming"
+  - "Effect System"
+  - "Asynchronous Programming"
+  - "Concurrent Programming"
 ---
+
+## Installation
 
 Include ZIO in your project by adding the following to your `build.sbt` file:
 
 ```scala mdoc:passthrough
 println(s"""```""")
 println(s"""libraryDependencies += "dev.zio" %% "zio" % "${zio.BuildInfo.version.split('+').head}"""")
-println(s"""```""")
-```
-
-If you want to use ZIO streams, you should also include the following dependency:
-
-```scala mdoc:passthrough
-println(s"""```""")
-println(s"""libraryDependencies += "dev.zio" %% "zio-streams" % "${zio.BuildInfo.version.split('+').head}"""")
 println(s"""```""")
 ```
 
@@ -73,7 +74,7 @@ Ideally, your application should have a _single_ runtime, because each runtime h
 
 ## Console
 
-ZIO provides a module for interacting with the console. You can import the functions in this module with the following code snippet:
+ZIO provides a [Console](../reference/services/console.md) service for interacting with the console.
 
 If you need to print text to the console, you can use `print` and `printLine`:
 
@@ -94,3 +95,7 @@ import zio._
 
 val echo = Console.readLine.flatMap(line => Console.printLine(line))
 ```
+
+## Next Steps
+
+Now that you've got ZIO installed and running, the next step is to learn about the [`ZIO` data type](summary.md).

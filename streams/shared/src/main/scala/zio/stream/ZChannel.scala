@@ -2125,7 +2125,7 @@ object ZChannel {
               }
             }
 
-          consumer.embedInput(input)
+          consumer.embedInput(input).ensuring(outgoing.shutdown)
         }
       }
     }

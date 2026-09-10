@@ -1,12 +1,20 @@
 ---
-id: zioapp 
+id: "zioapp"
 title: "ZIOApp"
+description: "Entry point trait for ZIO applications supporting custom environments, composable layers, and graceful shutdown handling."
+keywords:
+  - "Application Entry Point"
+  - "Custom Runtime"
+  - "ZIOAppDefault"
+  - "Graceful Shutdown"
+  - "Layer Composition"
+  - "Command-line Arguments"
 ---
 
 The `ZIOApp` trait is an entry point for a ZIO application that allows sharing layers between applications. It also
 provides us the ability to compose multiple ZIO applications.
 
-There is another simpler version of `ZIOApp` called `ZIOAppDefault`. We usually use `ZIOAppDefault` which uses the default ZIO environment (`ZEnv`).
+There is another simpler version of `ZIOApp` called `ZIOAppDefault`. We usually use `ZIOAppDefault`, which requires no environment (`Environment = Any`) beyond the built-in default services ZIO always provides (Clock, Console, Random, System).
 
 ## Running a ZIO effect
 
@@ -172,3 +180,5 @@ At that point, the JVM process exits immediately even though the 20-second final
 :::note
 Currently, `gracefulShutdownTimeout` is implemented for the **JVM** and **Scala Native** only
 :::
+
+**See also:** [How to Build and Run a ZIO Application on Scala Native](../../guides/scala-native.md) — a step-by-step guide to cross-compiling a `ZIOApp` as a Scala Native binary.

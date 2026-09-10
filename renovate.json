@@ -27,7 +27,7 @@
         "documentation"
       ],
       "matchPackageNames": [
-        "^@zio\\.dev\\/.*"
+        "@zio.dev/**"
       ],
       "ignoreUnstable": false,
       "enabled": true

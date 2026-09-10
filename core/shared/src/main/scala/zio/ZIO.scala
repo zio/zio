@@ -23,6 +23,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.IntFunction
 import scala.annotation.implicitNotFound
 import scala.collection.mutable.ListBuffer
@@ -1019,10 +1020,7 @@ sealed trait ZIO[-R, +E, +A]
    * result of this effect.
    */
   final def memoize(implicit trace: Trace): UIO[ZIO[R, E, A]] =
-    for {
-      promise  <- Promise.make[E, (FiberRefs.Patch, A)]
-      complete <- self.diffFiberRefs.intoPromise(promise).once
-    } yield complete *> promise.await.flatMap { case (patch, a) => ZIO.patchFiberRefs(patch).as(a) }
+    ZIO.memoize((_: Unit) => self).map(_.apply(()))
 
   /**
    * Returns a new effect where the error channel has been merged into the
@@ -1052,9 +1050,9 @@ sealed trait ZIO[-R, +E, +A]
    */
   final def once(implicit trace: Trace): UIO[ZIO[R, E, Unit]] =
     ZIO.succeed {
-      val ref = Ref.unsafe.make(true)(Unsafe)
+      val ref = new AtomicBoolean(false)
 
-      ZIO.whenDiscard(ref.unsafe.getAndSet(false)(Unsafe))(self)
+      ZIO.whenDiscard(ref.compareAndSet(false, true))(self)
     }
 
   /**
@@ -3981,7 +3979,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Prefix form of `ZIO#interruptible`.
    */
   def interruptible[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed(zio.interruptible)
+    ZIO.UpdateRuntimeFlagsWithin(trace, RuntimeFlags.enableInterruption, _ => zio)
 
   /**
    * Makes the effect interruptible, but passes it a restore function that can
@@ -4371,20 +4369,43 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Returns a memoized version of the specified effectual function.
    */
   def memoize[R, E, A, B](f: A => ZIO[R, E, B])(implicit trace: Trace): UIO[A => ZIO[R, E, B]] =
-    Ref.Synchronized.make(Map.empty[A, Promise[E, (FiberRefs.Patch, B)]]).map { ref => a =>
-      for {
-        promise <- ref.modifyZIO { map =>
-                     map.get(a) match {
-                       case Some(promise) => Exit.succeed((promise, map))
-                       case _ =>
-                         for {
-                           promise <- Promise.make[E, (FiberRefs.Patch, B)]
-                           _       <- f(a).diffFiberRefs.intoPromise(promise).fork
-                         } yield (promise, map.updated(a, promise))
-                     }
-                   }
-        b <- promise.await.flatMap { case (patch, b) => ZIO.patchFiberRefs(patch).as(b) }
-      } yield b
+    ZIO.succeed {
+      @inline implicit def u: Unsafe = Unsafe
+
+      val ref = Ref.unsafe.make(Map.empty[A, Promise[E, (FiberRefs.Patch, B)]])
+      def loop(a: A): ZIO[R, E, B] =
+        ZIO.fiberIdWith { fiberId =>
+          val isSetter = new AtomicBoolean()
+          for {
+            promise <- ref.modify { map =>
+                         map.getOrElse(a, null) match {
+                           case null =>
+                             val p = Promise.unsafe.make[E, (FiberRefs.Patch, B)](fiberId)
+                             val f2 = ZIO.uninterruptibleMask { restore =>
+                               isSetter.set(true)
+                               restore(f(a).diffFiberRefs).exitWith {
+                                 case ex if ex.isInterruptedOnly =>
+                                   ref.unsafe.update(_ - a)
+                                   p.unsafe.done(ex)
+                                   Exit.unit
+                                 case ex =>
+                                   p.unsafe.done(ex)
+                                   Exit.unit
+                               }.fork
+                             }
+                             (f2.as(p), map.updated(a, p))
+                           case p => (Exit.succeed(p), map)
+                         }
+                       }.flatten
+            b <- promise.await.exitWith {
+                   case Exit.Success((patch, b))                      => ZIO.patchFiberRefs(patch).as(b)
+                   case ex if !isSetter.get() && ex.isInterruptedOnly => loop(a)
+                   case ex                                            => ex.asInstanceOf[Exit[E, Nothing]]
+                 }
+          } yield b
+        }
+
+      loop
     }
 
   /**
@@ -4994,7 +5015,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Prefix form of `ZIO#uninterruptible`.
    */
   def uninterruptible[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-    ZIO.suspendSucceed(zio).uninterruptible
+    ZIO.UpdateRuntimeFlagsWithin(trace, RuntimeFlags.disableInterruption, _ => zio)
 
   /**
    * Makes the effect uninterruptible, but passes it a restore function that can
@@ -6884,6 +6905,8 @@ object Exit extends Serializable {
 
   val unit: Exit[Nothing, Unit] = succeed(())
 
+  val none: Exit[Nothing, Option[Nothing]] = Success(None)
+
   private def zipRightWith[E, E1 >: E, A](left: Exit[E, Any], right: Exit[E1, A])(
     g: (Cause[E], Cause[E1]) => Cause[E1]
   ): Exit[E1, A] =
@@ -6906,7 +6929,6 @@ object Exit extends Serializable {
 
   private[zio] val `true`: Exit[Nothing, Boolean]            = Success(true)
   private[zio] val `false`: Exit[Nothing, Boolean]           = Success(false)
-  private[zio] val none: Exit[Nothing, Option[Nothing]]      = Success(None)
   private[zio] val emptyChunk: Exit[Nothing, Chunk[Nothing]] = Success(Chunk.empty)
   private[zio] val failNone: Exit[Option[Nothing], Nothing]  = Failure(Cause.none)
   private[zio] val failUnit: Exit[Unit, Nothing]             = Failure(Cause.unit)

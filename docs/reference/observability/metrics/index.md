@@ -1,6 +1,15 @@
 ---
 id: index
 title: "Introduction to ZIO Metrics"
+description: "ZIO's built-in metrics system for application observability with counter, gauge, histogram, summary, and frequency metric types."
+keywords:
+  - "ZIO Metrics"
+  - "Metric Counter"
+  - "Metric Gauge"
+  - "Histogram Distribution"
+  - "Metric Backends"
+  - "Application Observability"
+  - "Prometheus Integration"
 ---
 
 In highly concurrent applications, things are interconnected, so maintaining such a setup to run smoothly and without application downtimes is very challenging. 

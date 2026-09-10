@@ -1,6 +1,15 @@
 ---
 id: built-in-generators
 title: "Built-in Generators"
+description: "Comprehensive reference for ZIO Test property-based test generators including primitives, collections, functions, and ZIO effects."
+keywords:
+  - "Built-in Generators"
+  - "Property Testing Generators"
+  - "Primitive Generators"
+  - "Collection Generators"
+  - "Function Generators"
+  - "ZIO Effect Generators"
+  - "Sized Generators"
 ---
 
 In the companion object of the `Gen` data type, there are tons of generators for various data types.

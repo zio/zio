@@ -1,6 +1,13 @@
 ---
-id: uio
+id: "uio"
 title: "UIO"
+description: "Type alias for ZIO[Any, Nothing, A] representing an infallible effect that requires no environment and cannot fail, always succeeding with a value."
+keywords:
+  - "Infallible Effect"
+  - "Unexceptional Effect"
+  - "ZIO Type Alias"
+  - "Error-free Effect"
+  - "Effect Type"
 ---
 
 `UIO[A]` is a type alias for `ZIO[Any, Nothing, A]`, which represents an **Unexceptional** effect that doesn't require any specific environment, and cannot fail, but can succeed with an `A`.
@@ -16,7 +23,7 @@ Let's see how the `UIO` type alias is defined:
 import zio.ZIO
 ```
 
-```scala
+```scala mdoc:silent
 type UIO[+A] = ZIO[Any, Nothing, A]
 ```
 
@@ -44,9 +51,13 @@ def fib(n: Int): UIO[Int] =
 
 :::note Principle of Least Power
 
-The `ZIO` data type is the most powerful effect in the ZIO library. It helps us to model various types of workflows. On the other hand, the type aliases are a way of specializing the `ZIO` type for less powerful workflows. 
+[The `ZIO` data type](zio.md) is the most powerful effect in the ZIO library. It helps us to model various types of workflows. On the other hand, the type aliases are a way of specializing the `ZIO` type for less powerful workflows. 
 
 Often, we don't need such a piece of powerful machinery. So as a rule of thumb, whenever we require a less powerful effect, it's better to use the appropriate specialized type alias.
 
 So there is no need to convert type aliases to the `ZIO` data type, and whenever the `ZIO` data type is required, we can use the most precise type alias to fit our workflow requirement.
 :::
+
+## See Also
+
+- [Exceptional and Unexceptional Effects](../../error-management/exceptional-and-unexceptional-effects.md)

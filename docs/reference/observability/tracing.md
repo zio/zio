@@ -1,7 +1,15 @@
 ---
 id: tracing
 title: "Introduction to Tracing in ZIO"
-sidebar_label: "Tracing"
+sidebar_label: Tracing
+description: "ZIO's distributed tracing support via OpenTelemetry API for tracking requests across multiple services in distributed systems."
+keywords:
+  - "Distributed Tracing"
+  - "OpenTelemetry API"
+  - "Request Tracking"
+  - "Service Tracing"
+  - "Telemetry Integration"
+  - "Request Lifetime"
 ---
 
 Although logs and metrics are useful for understanding the behavior of individual services, they are not enough to provide a complete overview of the lifetime of a request in a distributed system.

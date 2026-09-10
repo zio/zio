@@ -1,6 +1,14 @@
 ---
-id: index
+id: "index"
 title: "Introduction to ZIO's Built-in Services"
+description: "Guide to ZIO's built-in services: Console, Clock, Random, and System with automatic environment management."
+keywords:
+  - "Built-in Services"
+  - "Console Service"
+  - "Clock Service"
+  - "Random Service"
+  - "System Service"
+  - "Automatic Dependency Injection"
 ---
 
 ZIO already provides four built-in services:
@@ -30,3 +38,7 @@ object MainApp extends ZIOAppDefault {
   def run = myApp
 }
 ```
+
+## See Also
+
+- [Writing ZIO Services](../service-pattern/index.md) — Guide to ZIO Service Pattern: define maintainable services using interfaces and ZLayer for automatic dependency injection.

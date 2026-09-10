@@ -12,13 +12,15 @@ module.exports = {
       "overview/basic-concurrency",
       "overview/running-effects",
       "overview/performance",
+      "overview/modules",
       "overview/platforms"
     ],
   "reference-sidebar": [
     "reference/index",
     {
       type: "category",
-      label: "Core",
+      label: "Core Data Types",
+      link: { type: "doc", id: "reference/core/index" },
       collapsed: false,
       items: [
         "reference/core/zio/zio",
@@ -201,18 +203,7 @@ module.exports = {
           }
         ]
     },
-    {
-      type: "category",
-      label: "Scheduling",
-      link: { type: "doc", id: "reference/schedule/index" },
-      items: [
-        "reference/schedule/repetition",
-        "reference/schedule/retrying",
-        "reference/schedule/built-in-schedules",
-        "reference/schedule/combinators",
-        "reference/schedule/examples",
-      ]
-    },
+    "reference/schedule",
     {
       type: "category",
       label: "State Management",
@@ -231,6 +222,7 @@ module.exports = {
               [
                 "reference/state-management/fiberref",
                 "reference/state-management/zstate",
+                "reference/state-management/threadlocal-bridge",
               ]
           }
         ]
@@ -308,6 +300,7 @@ module.exports = {
       link: { type: "doc", id: "reference/resource/index" },
       items: [
         "reference/resource/scope",
+        "reference/resource/cached",
         "reference/resource/zpool",
         "reference/resource/zkeyedpool",
         "reference/resource/scopedref",
@@ -318,7 +311,6 @@ module.exports = {
       label: "Streaming",
       link: { type: "doc", id: "reference/stream/index" },
       items: [
-        "reference/stream/installation",
         "reference/stream/chunk",
         {
           type: "category",
@@ -366,7 +358,12 @@ module.exports = {
       type: "category",
       label: "Observability",
       items: [
-        "reference/observability/logging",
+        {
+          type: "category",
+          label: "Logging",
+          link: { type: "doc", id: "reference/observability/logging/index" },
+          items: ["reference/observability/logging/zlogger"],
+        },
         {
           type: "category",
           label: "Metrics",
@@ -417,6 +414,7 @@ module.exports = {
             "reference/test/assertions/built-in-assertions",
           ]
         },
+        "reference/test/zio-test-diff",
         "reference/test/test-hierarchies-and-organization",
         "reference/test/sharing-layers-within-the-same-file",
         "reference/test/sharing-layers-between-multiple-files",
@@ -466,6 +464,7 @@ module.exports = {
             "reference/test/property-testing/getting-started",
             "reference/test/property-testing/how-generators-work",
             "reference/test/property-testing/built-in-generators",
+            "reference/test/property-testing/operators",
             "reference/test/property-testing/shrinking",
           ]
         }
@@ -488,6 +487,7 @@ module.exports = {
       type: "category",
       label: "Tutorial Guides",
       items: [
+        "guides/tutorials/retry-and-repeat-policies-with-schedule",
         "guides/tutorials/configurable-zio-application",
         "guides/tutorials/encode-and-decode-json-data",
         "guides/tutorials/enable-logging-in-a-zio-application",
@@ -495,18 +495,22 @@ module.exports = {
         "guides/tutorials/run-our-first-zio-project-with-vscode",
         "guides/tutorials/run-our-first-zio-project-with-intellij-idea",
         "guides/tutorials/deploy-a-zio-application-using-docker",
-        "guides/tutorials/producing-consuming-data-from-kafka-topics",
         "guides/tutorials/monitor-a-zio-application-using-zio-built-in-metric-system",
         "guides/tutorials/debug-a-zio-application",
         "guides/tutorials/build-a-restful-webservice",
         "guides/tutorials/build-a-graphql-webservice",
         "guides/tutorials/gracefully-shutdown-zio-application",
+        "guides/tutorials/getting-started-threadlocal-bridge",
+        "guides/tutorials/reloadable-services",
+        "guides/compositional-fiberref-updates-with-differ",
       ]
     },
     {
       type: "category",
       label: "Integration Guides",
       items: [
+        { type: "doc", id: "guides/scala-native", label: "Scala Native" },
+        { type: "doc", id: "guides/scala-js", label: "Scala.js" },
         "guides/interop/with-cats-effect",
         "guides/interop/with-future",
         "guides/interop/with-java",
@@ -566,11 +570,5 @@ module.exports = {
     "ecosystem/tools",
     "ecosystem/templates"
   ],
-  "resources-sidebar": [
-    "resources/index",
-    "resources/articles",
-    "resources/videos",
-    "resources/sampleprojects",
-    "resources/poweredbyzio"
-  ]
+  "resources-sidebar": ["resources/index"]
 }

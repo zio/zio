@@ -1,7 +1,15 @@
 ---
-id: introduction
+id: "introduction"
 title: "Introduction to Writing ZIO Services"
-slug: introduction
+slug: "introduction"
+description: "Guide to ZIO Service Pattern: define maintainable services using interfaces and ZLayer for automatic dependency injection."
+keywords:
+  - "Service Pattern"
+  - "ZLayer"
+  - "Dependency Injection"
+  - "Service Interfaces"
+  - "Service Implementation"
+  - "Functional Services"
 ---
 
 Defining services in ZIO is not very different from object-oriented style, it has the same principle: coding to an interface, not an implementation. Therefore, ZIO encourages us to implement this principle by using _Service Pattern_, which is quite similar to the object-oriented style.

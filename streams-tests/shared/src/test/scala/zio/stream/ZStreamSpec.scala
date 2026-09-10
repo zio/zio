@@ -1665,7 +1665,21 @@ object ZStreamSpec extends ZIOBaseSpec {
                           }
                         }
             } yield assert(result)(equalTo(List(1, 2)))
-          }
+          },
+          test("does not leak memory with long-running flatMap (#10742)") {
+            // Simulates a Kafka consumer pattern: a long stream of records, each flatMapped
+            // into a sub-stream. Without the fix, closeLastSubstream accumulates a chain of
+            // child executor close effects via `prevLastClose *> f`, retaining all child
+            // executors. Each child executor retains its `emitted` field (the last value
+            // the sub-stream produced). With 15k * 1MB this far exceeds a 1GB heap.
+            val n = 15000
+            ZStream
+              .repeatZIO(ZIO.succeed(new Array[Byte](1024 * 1024)))
+              .take(n.toLong)
+              .flatMap(data => ZStream.succeed(data))
+              .runDrain
+              .as(assertCompletes)
+          } @@ TestAspect.jvmOnly
         ),
         suite("flatMapPar")(
           test("guarantee ordering")(check(tinyListOf(Gen.int)) { (m: List[Int]) =>
@@ -1824,7 +1838,27 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               exit <- stream.runDrain.exit
             } yield assertTrue(exit.isInterrupted)
-          }
+          },
+          test("does not deadlock when a partial take interrupts async inner streams") {
+            // Needs a pure Exit canceler, which leaves interruption disabled once delivered (#11115),
+            // so the interrupted producer keeps running and never releases its offer.
+            def asyncForever: ZStream[Any, Nothing, Int] =
+              ZStream.repeatZIOChunk {
+                ZIO.asyncInterrupt[Any, Nothing, Chunk[Int]] { k =>
+                  ExecutionContext.global.execute(() => k(Exit.succeed(Chunk(1, 2, 3, 4))))
+                  Left(Exit.unit)
+                }
+              }
+
+            ZStream
+              .fromIterable(0 until 10)
+              .map(_ => asyncForever)
+              .flatMapPar(256)(identity)
+              .take(6)
+              .runDrain
+              .as(assertCompletes)
+            // nonFlaky is load-bearing: without the fix, a single run only deadlocks ~8% of the time.
+          } @@ TestAspect.timeout(20.seconds) @@ exceptJS(nonFlaky(300))
         ),
         suite("flatMapParSwitch")(
           test("guarantee ordering no parallelism") {

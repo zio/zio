@@ -1,8 +1,16 @@
 ---
-id: faq
-slug: faq
+id: "faq"
+slug: "faq"
 title: "Frequently Answered Questions (FAQ)"
 sidebar_label: "FAQ"
+description: "Guidance on encoding contextual values like UserId and CorrelationId in ZIO applications, covering design patterns and the Z prefix convention."
+keywords:
+  - "Contextual Value Encoding"
+  - "ZIO Environment Pattern"
+  - "FiberRef Pattern"
+  - "Parameter Design Strategies"
+  - "Type Signature Design"
+  - "Z Prefix Convention"
 ---
 
 In this page we are going to answer general questions related to the ZIO project.
@@ -10,7 +18,7 @@ In this page we are going to answer general questions related to the ZIO project
 ## Where should we encode contextual values like `UserId`, `CorrelationId` in my ZIO application?
 
 1. Should we put `CorrelationId` and `UserId` as well into a `FiberLocal`?
-2. Should our effects be something like `val someEffect: ZIO[CorrerlationId & UserId, ErrorType, A]`?
+2. Should our effects be something like `val someEffect: ZIO[CorrelationId & UserId, ErrorType, A]`?
 3. Should we keep writing our effects with explicit params as `def someEffect(c: CorrelationId, u: UserId, params...): ZIO[Any, ErrorType, A]`?
 4. Should we put these context parameters as implicits, like `def someEffect(params..)(implicit c: CorrelationId, u: UserId): ZIO[Any, ErrorType, A]`?
 
@@ -54,7 +62,7 @@ So while there are some cases where there might be different alternatives we wan
 
 ### Solution 3 and 4: Environment and FiberRefs
 
-The final two alternatives are modeling these contextual values as part of the ZIO Environment or as `FiberRef` values.
+The final two alternatives are modeling these contextual values as part of the ZIO Environment or as [`FiberRef`](reference/state-management/fiberref.md) values.
 
 If we model both of these requirements as part of the environment our method signature would look like this:
 
@@ -94,3 +102,15 @@ No, it doesn't denote that the data type is effectual. Instead, the `Z` prefix i
 2. **Term Disambiguation** — There are some cases where the `Z` prefix is used to disambiguate a term that might otherwise be too common and create risk of name conflicts (e.g. `ZPool`).
 
 This convention is true across all ZIO ecosystem. For example, in ZIO Prelude, the `ZValidation` is a more general version of `Validation` that is polymorphic in the log type. `ZSet` is a more polymorphic version of a _Set_ that is polymorphic in the measure type. `ZPure` is more polymorphic than its type aliases in several ways as represented by its different type parameters and also serves to disambiguate it as _Pure_ which is too general.
+
+## What is the relationship between ZIO and Effect (the TypeScript library)?
+
+[Effect](https://effect.website/) is a TypeScript library for building synchronous and asynchronous programs with typed errors, dependency injection, and structured concurrency. It is not a fork or a direct port of ZIO's codebase, but ZIO is its main source of inspiration: Effect's creator, Michael Arnaldi, had used and extended `fp-ts` in production with patterns borrowed from ZIO before starting the library that became Effect. Effect's fiber model, typeclass design, and module naming draw heavily on ZIO and [ZIO Prelude](https://github.com/zio/zio-prelude).
+
+The two libraries target different languages and evolved independently, so there is no shared code or release process between them. In February 2023, `fp-ts` — a popular functional programming library for TypeScript — officially merged into the Effect organization, with its author joining the Effect team; Effect is now considered its spiritual successor.
+
+In short, ZIO and Effect are sister projects: the same core ideas (typed effects, fibers, layers, structured concurrency) implemented independently in Scala and TypeScript.
+
+## See Also
+
+- [state management](reference/state-management/index.md) — Overview of state management approaches in ZIO, covering recursion, global shared state with Ref, and fiber-local state with FiberRef and ZState.

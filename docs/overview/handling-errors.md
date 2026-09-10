@@ -1,6 +1,14 @@
 ---
-id: handling-errors
+id: "handling-errors"
 title: "Handling Errors"
+description: "Error handling tools for catching, recovering, and retrying ZIO effects with safe fallback strategies and robust error management."
+keywords:
+  - "Error Handling"
+  - "Catching"
+  - "Fallback"
+  - "Folding"
+  - "Retrying"
+  - "Recovery"
 ---
 
 ZIO effects may fail due to foreseen or unforeseen problems. In order to help you build robust applications, ZIO tracks foreseen errors at compile-time, letting you know which effects can fail, and how they can fail. For non-recoverable problems, ZIO gives you full insight into the cause of failures (even if unexpected or catastrophic), preserving all information and automatically logging unhandled errors.
@@ -129,13 +137,13 @@ val retriedOpenFile: ZIO[Any, IOException, Array[Byte]] =
 
 The next most powerful function is `ZIO#retryOrElse`, which allows specification of a fallback to use if the effect does not succeed with the specified policy:
 
-```scala
-val retryOpenFile: ZIO[Any, IOException, DefaultData) = 
+```scala mdoc:silent
+val retryOrElseOpenFile: ZIO[Any, IOException, Array[Byte]] = 
   openFile("primary.data")
-      .retryOrElse(Schedule.recurs(5), (_, _) => ZIO.succeed(DefaultData))
+      .retryOrElse(Schedule.recurs(5), (_: IOException, _: Long) => ZIO.succeed(DefaultData))
 ```
 
-For more information on how to build schedules, see the documentation on [Schedule](../reference/schedule/index.md).
+For more information on how to build schedules, see the documentation on [Schedule](../reference/schedule.md).
 
 ## Next Steps
 

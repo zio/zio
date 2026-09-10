@@ -1,11 +1,17 @@
 ---
 id: refsynchronized
-title: "Ref.Synchronized"
+title: Ref.Synchronized
+description: "Mutable reference supporting atomic and effectful updates for managing shared state concurrently."
+keywords:
+  - "Atomic Reference"
+  - "Effectful Updates"
+  - "Concurrent State Management"
+  - "Actor Model Pattern"
+  - "Synchronized Operations"
 ---
 `Ref.Synchronized[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data, and update it atomically **and** effectfully.
 
 :::note
-
 Almost all of `Ref.Synchronized` operations are the same as `Ref`. We suggest reading [`Ref`](ref.md) at first if you are not familiar with `Ref`.
 :::
 
@@ -52,3 +58,8 @@ val meanAge =
     v <- ref.get
   } yield (v / users.length)
 ```
+
+## See Also
+
+- [Ref](ref.md) — Ref is a purely functional description of a mutable reference, which can be used to manage shared state in concurrent applications.
+- [Shared State Management](../state-management/global-shared-state.md) — Manage global shared state in ZIO applications using Ref, enabling safe concurrent state sharing between fibers.

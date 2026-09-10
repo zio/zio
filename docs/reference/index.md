@@ -6,18 +6,20 @@ title: "Introduction"
 ZIO contains a few data types that can help you solve complex problems in asynchronous and concurrent programming. ZIO data types categorize into these sections:
 
 1. [Core Data Types](#core-data-types)
-2. [Contextual Data Types](#contextual-data-types)
-3. [State Management](#state-management)
-4. [Concurrency](#concurrency)
+2. [Scheduling](#scheduling)
+3. [Contextual Data Types](#contextual-data-types)
+4. [State Management](#state-management)
+5. [Concurrency](#concurrency)
     - [Fiber Primitives](#fiber-primitives)
     - [Concurrency Primitives](#concurrency-primitives)
     - [Synchronization Aids](#synchronization-aids)
     - [STM](#stm)
-5. [Resource Management](#resource-management)
-6. [Streaming](#streaming)
-7. [Metrics](#metrics)
-8. [Testing](#testing)
-9. [Miscellaneous](#miscellaneous)
+6. [Resource Management](#resource-management)
+7. [Streaming](#streaming)
+8. [Logging](#logging)
+9. [Metrics](#metrics)
+10. [Testing](#testing)
+11. [Miscellaneous](#miscellaneous)
 
 ## Core Data Types
 - **[ZIO](core/zio/zio.md)** — `ZIO` is a value that models an effectful program, which might fail or succeed.
@@ -30,6 +32,10 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 - **[Runtime](core/runtime.md)** — `Runtime[R]` is capable of executing tasks within an environment `R`.
 - **[Exit](core/exit.md)** — `Exit[E, A]` describes the result of executing an `IO` value.
 - **[Cause](core/cause.md)** — `Cause[E]` is a description of a full story of a fiber failure.
+
+## Scheduling
+
+- **[Schedule](schedule.md)** — `Schedule[-Env, -In, +Out]` is a composable, time-aware state machine for repeating and retrying ZIO effects with full control over timing, delays, and recurrence logic.
 
 ## Contextual Data Types
 
@@ -46,6 +52,7 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 - **[ZState](state-management/zstate.md)**— It models a state that can be read from and written to during the execution of an effect.
 - **[Ref](state-management/global-shared-state.md)**— `Ref[A]` models a mutable reference to a value of type `A`.
 - **[FiberRef](state-management/fiberref.md)**— `FiberRef[A]` models a mutable reference to a value of type `A`. As opposed to `Ref[A]`, a value is bound to an executing `Fiber` only.  You can think of it as Java's `ThreadLocal` on steroids.
+- **[ThreadLocalBridge](state-management/threadlocal-bridge.md)**— A service that synchronizes `FiberRef` values with Java `ThreadLocal` variables for seamless interoperability with legacy code and libraries that rely on thread-local storage.
 
 ## Concurrency
 
@@ -59,10 +66,10 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 - **[Hub](concurrency/hub.md)** — A `Hub` is an asynchronous message hub that allows publishers to efficiently broadcast values to many subscribers.
 - **[Promise](concurrency/promise.md)** — A `Promise` is a model of a variable that may be set a single time, and awaited on by many fibers.
+- **[Queue](concurrency/queue.md)** — A `Queue` is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers.
 - **[Semaphore](concurrency/semaphore.md)** — A `Semaphore` is an asynchronous (non-blocking) semaphore that plays well with ZIO's interruption.
 - **[Ref](concurrency/ref.md)** — `Ref[A]` models a mutable reference to a value of type `A`. The two basic operations are `set`, which fills the `Ref` with a new value, and `get`, which retrieves its current content. All operations on a `Ref` are atomic and thread-safe, providing a reliable foundation for synchronizing concurrent programs.
 - **[Ref.Synchronized](concurrency/refsynchronized.md)** — `Ref.Synchronized[A]` models a **mutable reference** to a value of type `A` in which we can store **immutable** data, and update it atomically **and** effectfully.
-- **[Queue](concurrency/queue.md)** — A `Queue` is an asynchronous queue that never blocks, which is safe for multiple concurrent producers and consumers.
 
 ### Synchronization Aids
 
@@ -87,7 +94,9 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 
 ## Resource Management
 
+- **[Cached](resource/cached.md)** — A container for a possibly resourceful value that is loaded into memory and can be refreshed either manually or automatically according to a schedule.
 - **[Scope](resource/scope.md)** — A scope in which resources can safely be used.
+- **[ScopedRef](resource/scopedref.md)** — A resourceful mutable reference that automatically manages acquisition and release of scoped resources.
 - **[ZPool](resource/zpool.md)** — An asynchronous and concurrent generalized pool of reusable resources.
 
 ## Streaming
@@ -98,6 +107,10 @@ ZIO contains a few data types that can help you solve complex problems in asynch
     + **[Sink](stream/zsink/index.md)** — `Sink[InErr, A, OutErr, L, B]` is a type alias for `ZSink[Any, InErr, A, OutErr, L, B]`.
 - **[ZPipeline](stream/zpipeline.md)** — `ZPipeline` is a polymorphic stream transformer.
 - **[SubscriptionRef](stream/subscriptionref.md)** — `SubscriptionRef[A]` contains a current value of type `A` and a stream that can be consumed to observe all changes to that value.
+
+## Logging
+
+- **[ZLogger](observability/logging/zlogger.md)** — `ZLogger[-Message, +Output]` is ZIO's pure functional logging interface. It can be composed, filtered, and fan-out across multiple destinations without global mutable state.
 
 ## Metrics
 

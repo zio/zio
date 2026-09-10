@@ -1,26 +1,5 @@
-.zionomicon {
-  display: flex;
-  align-items: center;
-  padding: 4rem 0;
-  width: 100%;
-  background-color: var(--ifm-color-emphasis-0);
-}
-
-.wideContainer {
-  margin: 0 auto;
-  padding: 0 var(--ifm-spacing-horizontal);
-  width: 100%;
-  max-width: 1400px;
-}
-
 .ziconContent {
   padding: 2rem;
-}
-
-.ziconSubtitle {
-  font-size: 1.2rem;
-  color: var(--ifm-color-primary);
-  margin-bottom: 1.5rem;
 }
 
 .ziconContent ul {
@@ -46,19 +25,29 @@
 .ziconImage {
   max-width: 100%;
   height: auto;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  transition: transform 0.3s ease;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   cursor: pointer;
 }
 
-.ziconImage:hover {
-  transform: scale(1.05);
+@media (prefers-reduced-motion: no-preference) {
+  .ziconImage:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 30px var(--brand-shadow);
+  }
+}
+
+[data-theme='dark'] .ziconImage {
+  border-color: var(--ifm-color-emphasis-300);
 }
 
 /* Responsive styles */
 @media (max-width: 996px) {
-  .zionomicon .row {
+  .ziconRow {
     flex-direction: column-reverse;
   }
 

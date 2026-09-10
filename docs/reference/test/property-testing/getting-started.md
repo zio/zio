@@ -2,6 +2,14 @@
 id: getting-started
 title: "Getting Started With Property Checking"
 sidebar_label: "Getting Started"
+description: "Learn to test system properties using random input generators and property predicates with ZIO Test's Gen and check functions."
+keywords:
+  - "Property-based Testing"
+  - "Random Input Generation"
+  - "Gen Generators"
+  - "Property Validation"
+  - "Check Function"
+  - "Predicate Testing"
 ---
 
 The fundamental idea behind property checking is to test the properties of the target function using random inputs.

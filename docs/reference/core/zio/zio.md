@@ -1,6 +1,13 @@
 ---
-id: zio
+id: "zio"
 title: "ZIO"
+description: "Immutable lazy value that describes workflows with fiber-based concurrency and typed error and success values."
+keywords:
+  - "ZIO"
+  - "Effects"
+  - "Fibers"
+  - "Concurrency"
+  - "Asynchronous"
 ---
 
 A `ZIO[R, E, A]` value is an immutable value that lazily describes a workflow or job. The workflow requires some environment `R`, and may fail with an error of type `E`, or succeed with a value of type `A`.
@@ -13,7 +20,7 @@ R => Either[E, A]
 
 This function, which requires an `R`, might produce either an `E`, representing failure, or an `A`, representing success. ZIO effects are not actually functions, of course, they can model synchronous, asynchronous, concurrent, parallel, and resourceful computations.
 
-ZIO effects use a fiber-based concurrency model, with built-in support for
+ZIO effects use a [fiber-based concurrency model](../../fiber/index.md), with built-in support for
 scheduling, fine-grained interruption, structured concurrency, and high scalability.
 
 The `ZIO[R, E, A]` data type has three type parameters:
@@ -156,7 +163,6 @@ val r3: ZIO[Any, NumberFormatException, Int] =
 4. **`ZIO.noneOrFail`**— It lifts an option into a ZIO value. If the option is empty it succeeds with `Unit` and if the option is defined it fails with a proper error type:
 
 - `ZIO.noneOrFail` fails with the content of the optional value.
-- `ZIO.noneOrFailUnit` fails with the `Unit` error type.
 - `ZIO.noneOrFailWith` fails with custom error type.
 
 ```scala mdoc:compile-only
@@ -212,12 +218,11 @@ The error type of the resulting effect will always be `Throwable`, because `Try`
 
 #### Future
 
-| Function              | Input Type                                       | Output Type        |
-|-----------------------|--------------------------------------------------|--------------------|
-| `fromFuture`          | `ExecutionContext => scala.concurrent.Future[A]` | `Task[A]`          |
-| `fromFutureJava`      | `java.util.concurrent.Future[A]`                 | `RIO[Blocking, A]` |
-| `fromFunctionFuture`  | `R => scala.concurrent.Future[A]`                | `RIO[R, A]`        |
-| `fromFutureInterrupt` | `ExecutionContext => scala.concurrent.Future[A]` | `Task[A]`          |
+| Function              | Input Type                                       | Output Type |
+|-----------------------|--------------------------------------------------|-------------|
+| `fromFuture`          | `ExecutionContext => scala.concurrent.Future[A]` | `Task[A]`   |
+| `fromFutureJava`      | `java.util.concurrent.Future[A]`                 | `Task[A]`   |
+| `fromFutureInterrupt` | `ExecutionContext => scala.concurrent.Future[A]` | `Task[A]`   |
 
 A `Future` can be converted into a ZIO effect using `ZIO.fromFuture`:
 
@@ -329,13 +334,13 @@ val printLine2: IO[IOException, String] =
 
 ##### Blocking Synchronous Side-Effects
 
-| Function                    | Input Type                          | Output Type                     |
-|-----------------------------|-------------------------------------|---------------------------------|
-| `blocking`                  | `ZIO[R, E, A]`                      | `ZIO[R, E, A]`                  |
-| `attemptBlocking`           | `A`                                 | `RIO[Blocking, A]`              |
-| `attemptBlockingCancelable` | `effect: => A`, `cancel: UIO[Unit]` | `RIO[Blocking, A]`              |
-| `attemptBlockingInterrupt`  | `A`                                 | `RIO[Blocking, A]`              |
-| `attemptBlockingIO`         | `A`                                 | `ZIO[Blocking, IOException, A]` |
+| Function                    | Input Type                                | Output Type          |
+|-----------------------------|--------------------------------------------|-----------------------|
+| `blocking`                  | `ZIO[R, E, A]`                            | `ZIO[R, E, A]`        |
+| `attemptBlocking`           | `A`                                       | `Task[A]`             |
+| `attemptBlockingCancelable` | `effect: => A`, `cancel: => URIO[R, Any]` | `RIO[R, A]`           |
+| `attemptBlockingInterrupt`  | `A`                                       | `Task[A]`              |
+| `attemptBlockingIO`         | `A`                                       | `IO[IOException, A]`  |
 
 By default, ZIO is asynchronous and all effects will be executed on a default primary thread pool which is optimized for asynchronous operations. As ZIO uses a fiber-based concurrency model, if we run **Blocking I/O** or **CPU Work** workloads on a primary thread pool, they are going to monopolize all threads of **primary thread pool**.
 
@@ -459,6 +464,8 @@ val suspendedEffect: RIO[Any, ZIO[Any, IOException, Unit]] =
 ```
 
 ## Mapping
+
+ZIO provides several ways to transform the success value of an effect.
 
 ### map
 
@@ -625,6 +632,8 @@ If an effect times out, then instead of continuing to execute in the background,
 
 ## Error Management
 
+ZIO provides a rich set of combinators for surfacing, catching, falling back from, folding over, and retrying errors.
+
 ### Either
 
 | Function      | Input Type                | Output Type             |
@@ -658,11 +667,11 @@ def sqrt(io: UIO[Double]): IO[String, Double] =
 | `ZIO#catchAll`        | `E => ZIO[R1, E2, A1]`                                      | `ZIO[R1, E2, A1]` |
 | `ZIO#catchAllCause`   | `Cause[E] => ZIO[R1, E2, A1]`                               | `ZIO[R1, E2, A1]` |
 | `ZIO#catchAllDefect`  | `Throwable => ZIO[R1, E1, A1]`                              | `ZIO[R1, E1, A1]` |
-| `ZIO#catchAllTrace`   | `((E, Option[StackTrace])) => ZIO[R1, E2, A1]`              | `ZIO[R1, E2, A1]` |
+| `ZIO#catchAllTrace`   | `((E, StackTrace)) => ZIO[R1, E2, A1]`              | `ZIO[R1, E2, A1]` |
 | `ZIO#catchSome`       | `PartialFunction[E, ZIO[R1, E1, A1]]`                       | `ZIO[R1, E1, A1]` |
 | `ZIO#catchSomeCause`  | `PartialFunction[Cause[E], ZIO[R1, E1, A1]]`                | `ZIO[R1, E1, A1]` |
 | `ZIO#catchSomeDefect` | `PartialFunction[Throwable, ZIO[R1, E1, A1]]`               | `ZIO[R1, E1, A1]` |
-| `ZIO#catchSomeTrace`  | `PartialFunction[(E, Option[StackTrace]), ZIO[R1, E1, A1]]` | `ZIO[R1, E1, A1]` |
+| `ZIO#catchSomeTrace`  | `PartialFunction[(E, StackTrace), ZIO[R1, E1, A1]]` | `ZIO[R1, E1, A1]` |
 
 #### Catching All Errors
 
@@ -721,7 +730,7 @@ val primaryOrBackupData: IO[IOException, Array[Byte]] =
 | `foldCause`    | `failure: Cause[E] => B, success: A => B`                                            | `URIO[R, B]`     |
 | `foldZIO`      | `failure: E => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]`                         | `ZIO[R1, E2, B]` |
 | `foldCauseZIO` | `failure: Cause[E] => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]`                  | `ZIO[R1, E2, B]` |
-| `foldTraceZIO` | `failure: ((E, Option[StackTrace])) => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]` | `ZIO[R1, E2, B]` |
+| `foldTraceZIO` | `failure: ((E, StackTrace)) => ZIO[R1, E2, B], success: A => ZIO[R1, E2, B]` | `ZIO[R1, E2, B]` |
 
 Scala's `Option` and `Either` data types have `fold`, which lets us handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow us to handle both failure and success.
 
@@ -951,6 +960,155 @@ object Main extends ZIOAppDefault {
 
 ```
 
+## Caching and Memoization
+
+Memoization caches the result of an effect or function computation, preventing redundant calculations when the same input is requested multiple times. This section covers indefinite memoization with `ZIO#memoize` and `ZIO.memoize`. For time-limited caching, see the "Time-Limited Caching" subsection below.
+
+### Memoizing Effects
+
+To memoize an effect and cache its result—useful when the same expensive computation may be executed multiple times—call `memoize` on it:
+
+```scala mdoc:compile-only
+import zio._
+
+val expensiveComputation: ZIO[Any, Nothing, Int] = ZIO.succeed(42)
+
+val memoized: ZIO[Any, Nothing, ZIO[Any, Nothing, Int]] =
+  expensiveComputation.memoize
+```
+
+The memoized effect produces a cached effect that runs the original computation only once. Subsequent calls return the cached result:
+
+```scala mdoc:compile-only
+import zio._
+
+def computeValue: ZIO[Any, Nothing, Int] = {
+  ZIO.succeed {
+    println("Computing...")
+    42
+  }
+}
+
+object Example extends ZIOAppDefault {
+  def run =
+    for {
+      memoized <- computeValue.memoize
+      _        <- memoized  // prints "Computing..."
+      _        <- memoized  // returns cached result, no print
+      _        <- memoized  // returns cached result, no print
+    } yield ()
+}
+```
+
+:::info
+When a fiber computing a memoized value is interrupted, the result is discarded and awaiting fibers transparently retry the computation. This ensures that interruption of one fiber does not propagate to others waiting for the same memoized result.
+:::
+
+### Memoizing Functions
+
+To create a memoized version of a function that returns a `ZIO` effect, use the `ZIO.memoize` constructor, which caches results based on input arguments:
+
+```scala mdoc:compile-only
+import zio._
+
+val expensiveLookup: String => ZIO[Any, Nothing, Int] = key => ZIO.succeed(key.length)
+
+for {
+  memoized <- ZIO.memoize(expensiveLookup)
+  result1  <- memoized("hello")   // computes and caches
+  result2  <- memoized("hello")   // returns cached result
+  result3  <- memoized("world")   // different input, computes anew
+} yield (result1, result2, result3)
+```
+
+### Time-Limited Caching
+
+Use `ZIO#cached` to cache the result of an effect with an automatic expiration time. This is useful when results have a limited lifetime and should be refreshed periodically. The cache is thread-safe and supports concurrent access from multiple fibers.
+
+Note: `IO[E, A]` used in this section is a type alias for `ZIO[Any, E, A]`, representing an effect that has no environment requirements.
+
+#### Basic Caching with `cached`
+
+Call `cached` with a time-to-live duration to create a cached version of an effect. The `cached` method returns an effect that produces an `IO` (which is a type alias for `ZIO[Any, E, A]`). When you execute the returned `IO`, it will run the original effect once and cache the result for the specified duration:
+
+```scala mdoc:compile-only
+import zio._
+
+val expensiveData: ZIO[Any, Nothing, String] = ZIO.succeed("data")
+
+for {
+  // cached is of type IO[Nothing, String] (equivalent to ZIO[Any, Nothing, String])
+  cachedIO <- expensiveData.cached(5.minutes)
+  result1  <- cachedIO  // runs computation and caches result
+  result2  <- cachedIO  // returns cached result (within 5 minutes)
+} yield (result1, result2)
+```
+
+The return type is `ZIO[Any, Nothing, IO[Nothing, String]]`, which means `cached` returns an effect that, when executed, produces a cached `IO` effect that you can reuse multiple times.
+
+When the time-to-live duration expires, the cache is invalidated and the effect runs again on the next call:
+
+```scala mdoc:compile-only
+import zio._
+
+def fetchUserData: ZIO[Any, Nothing, String] = ZIO.succeed("user-data")
+
+for {
+  cached <- fetchUserData.cached(5.minutes)
+  _      <- cached                      // runs and caches
+  _      <- ZIO.sleep(6.minutes)
+  result <- cached                      // TTL expired, recomputes
+} yield result
+```
+
+**Comparison with `memoize`**: Unlike `ZIO.memoize` which caches results indefinitely (based on function arguments), `cached` provides time-limited caching with automatic expiration. Use `cached` when you need periodic refresh of results, and `memoize` when you want permanent caching of expensive computations.
+
+#### Caching with Manual Invalidation
+
+Call `cachedInvalidate` to obtain both the cached effect and a separate effect for manually invalidating the cache before its TTL expires (useful when you need to cache-bust based on external events), returning a tuple of the cached effect and an invalidation function:
+
+```scala mdoc:compile-only
+import zio._
+
+def freshData: ZIO[Any, Nothing, String] = ZIO.succeed("data")
+
+for {
+  pair              <- freshData.cachedInvalidate(1.hour)
+  (cached, invalidate) = pair
+  result1 <- cached      // runs and caches
+  result2 <- cached      // returns cached result
+  _       <- invalidate  // manually clear cache before TTL expires
+  result3 <- cached      // recomputes since cache was invalidated
+} yield (result1, result2, result3)
+```
+
+#### Concurrent Access
+
+Multiple fibers can safely await the same cached result. The first fiber triggers computation while others wait for the result. This ensures the underlying effect runs only once even with concurrent access:
+
+```scala mdoc:compile-only
+import zio._
+
+def expensiveComputation: ZIO[Any, Nothing, Int] = ZIO.succeed {
+  println("Computing...")
+  42
+}
+
+for {
+  cached <- expensiveComputation.cached(5.minutes)
+  fiber1 <- cached.fork
+  fiber2 <- cached.fork
+  fiber3 <- cached.fork
+  result1 <- fiber1.join  // one executes the computation
+  result2 <- fiber2.join  // others wait for the same result
+  result3 <- fiber3.join  // all get 42, but computed only once
+} yield (result1, result2, result3)
+```
+
+:::note
+The cache uses a `Ref.Synchronized` internally to manage state safely, ensuring that only one computation runs at a time even when multiple fibers call the cached effect concurrently. This guarantees thread-safe, consistent behavior.
+:::
+
 ## ZIO Aspect
 
 There are two types of concerns in an application, _core concerns_, and _cross-cutting concerns_. Cross-cutting concerns are shared among different parts of our application. We usually find them scattered and duplicated across our application, or they are tangled up with our primary concerns. This reduces the level of modularity of our programs.
@@ -963,7 +1121,7 @@ A cross-cutting concern is more about _how_ we do something than _what_ we are d
 
 So they don't affect the return type of our workflows, but they add some new aspects or change their behavior.
 
-To increase the modularity of our applications, we can separate cross-cutting concerns from the main logic of our programs. ZIO supports this programming paradigm, which is called _ aspect-oriented programming_.
+To increase the modularity of our applications, we can separate cross-cutting concerns from the main logic of our programs. ZIO supports this programming paradigm, which is called _aspect-oriented programming_.
 
 The `ZIO` effect has a data type called `ZIOAspect`, which allows modifying a `ZIO` effect and converting it into a specialized `ZIO` effect. We can add a new aspect to a `ZIO` effect with `@@` syntax like this:
 

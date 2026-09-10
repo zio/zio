@@ -1,10 +1,18 @@
 ---
 id: stm
 slug: stm.md
-title: "STM"
+title: STM
+description: "STM[E, A] is a transactional effect supporting atomic operations with automatic rollback, error handling, and retry-based composition."
+keywords:
+  - "Atomic Transactions"
+  - "Software Transactional Memory"
+  - "Transaction Rollback"
+  - "Retry Semantics"
+  - "STM Composition"
+  - "Transactional Effects"
 ---
 
-An `STM[E, A]` represents an effect that can be performed transactionally resulting in a failure `E` or a success `A`. There is a more powerful variant `ZSTM[R, E, A]` which supports an environment type `R` like `ZIO[R, E, A]`.
+An `STM[E, A]` represents an effect that can be performed transactionally resulting in a failure `E` or a success `A`. There is a more powerful variant `ZSTM[R, E, A]` which supports an environment type `R` like [`ZIO[R, E, A]`](../core/zio/zio.md).
 
 The `STM` (and `ZSTM` variant) data-type is _not_ as powerful as the `ZIO[R, E, A]` datatype as it does not allow you to perform arbitrary effects. These are because actions inside STM actions can be executed an arbitrary amount of times (and rolled-back as well). Only STM actions and pure computation may be performed inside a memory transaction. 
 
@@ -78,3 +86,7 @@ def transferMoneyFailFast(from: TRef[Long], to: TRef[Long], amount: Long): STM[S
 ```
 
 This will cause the transfer to fail immediately if the sender does not have money because of the semantics of `orTry`.
+
+## See Also
+
+- [Introduction to Software Transactional Memory](index.md) — STM enables composable atomic transactions on memory with atomicity, consistency, and isolation guarantees for concurrent programs.
