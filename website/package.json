@@ -67,8 +67,8 @@
     "prism-react-renderer": "2.4.1",
     "prism-themes": "1.9.0",
     "prismjs": "^1.29.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "react-icons": "5.7.0",
     "react-markdown": "10.1.0",
     "remark-kroki-plugin": "0.1.1",
@@ -79,7 +79,7 @@
     "webpackbar": "^7.0.0"
   },
   "resolutions": {
-    "cytoscape": "3.34.2",
+    "cytoscape": "3.34.3",
     "webpackbar": "^7.0.0"
   },
   "browserslist": {
@@ -96,7 +96,7 @@
   },
   "devDependencies": {
     "@tsconfig/docusaurus": "2.0.9",
-    "@types/react": "19.2.18",
+    "@types/react": "19.3.0",
     "@types/react-helmet": "6.1.11",
     "@types/react-router-dom": "5.3.3",
     "prettier": "3.9.6",

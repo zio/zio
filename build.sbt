@@ -548,7 +548,7 @@ lazy val commonJunitTestSettings = Seq(
   ),
   libraryDependencies ++= Seq(
     "junit"                     % "junit"                          % "4.13.2" % Test,
-    "org.scala-lang.modules"   %% "scala-xml"                      % "2.4.0"  % Test,
+    "org.scala-lang.modules"   %% "scala-xml"                      % "2.5.0"  % Test,
     "org.apache.maven"          % "maven-embedder"                 % "3.9.16" % Test,
     "org.apache.maven"          % "maven-compat"                   % "3.9.16" % Test,
     "com.google.inject"         % "guice"                          % "6.0.0"  % Test,
@@ -824,7 +824,9 @@ lazy val docs = project.module
       "VERSION"                        -> version.value.split('+').head,
       "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion,
       "ZIO_CONFIG_VERSION"             -> ZioConfigVersion,
-      "ZIO_JSON_VERSION"               -> ZioJsonVersion
+      "ZIO_JSON_VERSION"               -> ZioJsonVersion,
+      "SCALAJS_VERSION"                -> "1.22.0",
+      "SCALAJS_CROSSPROJECT_VERSION"   -> "1.4.0"
     ),
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio-sbt-source" % "0.6.0",

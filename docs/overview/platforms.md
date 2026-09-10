@@ -39,3 +39,23 @@ Because of the single threaded execution model of Javascript, blocking operation
 ## Scala Native
 
 Support for Scala Native is currently experimental. More details will be added regarding support for the Scala Native platform when they are available.
+
+## Module Support
+
+Not every published artifact (see [Modules](modules.md)) supports every platform:
+
+| Artifact | JVM | Scala.js | Scala Native |
+| --- | :---: | :---: | :---: |
+| `zio` | ✅ | ✅ | ✅ |
+| `zio-streams` | ✅ | ✅ | ✅ |
+| `zio-test` | ✅ | ✅ | ✅ |
+| `zio-test-sbt` | ✅ | ✅ | ✅ |
+| `zio-test-magnolia` | ✅ | ✅ | — |
+| `zio-test-refined` | ✅ | ✅ | — |
+| `zio-test-scalacheck` | ✅ | ✅ | ✅ |
+| `zio-test-junit` | ✅ | — | — |
+| `zio-test-junit-engine` | ✅ | — | — |
+| `zio-concurrent` | ✅ | ✅ | ✅ |
+| `zio-managed` | ✅ | ✅ | ✅ |
+| `zio-macros` | ✅ | ✅ | ✅ |
+| `zio-stacktracer` | ✅ | ✅ | ✅ |

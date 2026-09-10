@@ -21,8 +21,11 @@ If you construct a single effect for your whole program, the most natural way to
 
 This class provides Scala with a JVM-compatible main function, so it can be called from IDEs and launched from the command-line. All you have to do is implement the `run` method by returning the effect to run.
 
-```scala mdoc:silent
+```scala mdoc:invisible
 import zio._
+```
+
+```scala mdoc:silent
 import zio.Console._
 
 object MyApp extends ZIOAppDefault {
@@ -36,9 +39,11 @@ object MyApp extends ZIOAppDefault {
 }
 ```
 
-If you are using a custom environment for your application, you will have to supply your environment to the effect (using `ZIO#provideEnvironment` or, if you are using layers, `ZIO#provide`) before you return it from `run`. 
+If you are using a custom environment for your application, you will have to supply your environment to the effect (using `ZIO#provideEnvironment` or, if you are using [layers](../reference/contextual/zlayer.md), `ZIO#provide`) before you return it from `run`. 
 
 `ZIOAppDefault` does not know how to supply custom environments.
+
+For full details on `ZIOApp` and `ZIOAppDefault`, see the [reference page](../reference/core/zioapp.md).
 
 ## Default Runtime
 
@@ -87,6 +92,6 @@ You can specify a custom logger easily using _ZIO Logging_, which can intercept 
 
 If you are comfortable with running effects, congratulations!
 
-You are now ready to dive into other sections on the ZIO website covering data types, use cases, and interop with other systems. 
+You are now ready to dive into other sections on the ZIO website covering data types, use cases, and interop with other systems. If you'd like to keep learning, the next section covers [performance](performance.md).
 
 Refer to the Scaladoc for detailed documentation on all the core ZIO types and methods.
