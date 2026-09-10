@@ -13,14 +13,10 @@ export const examples = [
       'Work runs in parallel; if one part fails, the rest are interrupted.',
       'The same safety holds for one task or a whole collection.',
     ],
-    code: `val users  = fetchUsers.retry(Schedule.recurs(3))
-val orders = fetchOrders.timeout(2.seconds)
+    code: `val tortoise = runFast("tortoise")
+val achilles = runFast("achilles")
 
-// Run both in parallel; if one fails, the other is interrupted
-val both = users.zipPar(orders)
-
-// Or a whole collection at once
-val profiles = ZIO.foreachPar(userIds)(fetchProfile)`,
+val winner = tortoise.race(achilles)`,
   },
   {
     value: 'errors',

@@ -27,10 +27,7 @@ object Database {
 class Logger { def info(msg: String): UIO[Unit] = ZIO.unit }
 object Logger { val live: ULayer[Logger] = ZLayer.succeed(new Logger) }
 
-def fetchUsers: Task[List[User]]        = ZIO.succeed(Nil)
-def fetchOrders: Task[List[String]]     = ZIO.succeed(Nil)
-def fetchProfile(id: Int): Task[User]   = ZIO.succeed(User(id.toString))
-val userIds: List[Int]                  = List(1, 2, 3)
+def runFast(name: String): Task[String] = ZIO.succeed(name)
 
 val cachedConfig: UIO[Config] = ZIO.succeed(Config())
 
@@ -45,15 +42,14 @@ def enrich(e: Event): Task[Event]          = ZIO.succeed(e)
 def writeBatch(c: Chunk[Event]): Task[Unit] = ZIO.unit
 
 // ── Snippet 1: Concurrency ──────────────────────────────────────────────
+// Matches the "ZIO.race" example mounted in the Concurrency tab's Visual
+// view (website/src/components/visual-effects/scenarios/RaceVisual.jsx) —
+// Visual and Code must show the same example.
 object Snippet1 {
-  val users  = fetchUsers.retry(Schedule.recurs(3))
-  val orders = fetchOrders.timeout(2.seconds)
+  val tortoise = runFast("tortoise")
+  val achilles = runFast("achilles")
 
-  // Run both in parallel; if one fails, the other is interrupted
-  val both = users.zipPar(orders)
-
-  // Or a whole collection at once
-  val profiles = ZIO.foreachPar(userIds)(fetchProfile)
+  val winner = tortoise.race(achilles)
 }
 
 // ── Snippet 2: Error handling ───────────────────────────────────────────
