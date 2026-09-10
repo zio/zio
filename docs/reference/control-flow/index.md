@@ -201,7 +201,7 @@ def withdraw(account: Account, amount: Double): IO[InsufficientFunds, Account] =
   )
 ```
 
-The table below contrasts the three operators for branching on a pure condition:
+The table below contrasts three conditional-branching operators — `ZIO.cond` and `ZIO.when` accept a pure `Boolean` predicate, while `ZIO.ifZIO` accepts an effectful one:
 
 | Operator      | Predicate | On false              | Return type              |
 |---------------|-----------|-----------------------|--------------------------|
