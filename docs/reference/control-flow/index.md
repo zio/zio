@@ -58,7 +58,7 @@ def validateWeightOrFailZIO[R](weight: ZIO[R, Nothing, Double]): ZIO[R, String, 
 
 ZIO provides several conditional combinators that let you branch on a boolean predicate or pattern-match an effectful value — the functional equivalents of Scala's `if` and `match` expressions.
 
-### `when`
+### `ZIO.when` / `ZIO#when`
 
 We can also use ZIO's combinators that are the moral equivalent to these expressions:
 
@@ -122,7 +122,7 @@ def handleRequest(isAdmin: Boolean, event: String): ZIO[Any, Nothing, Unit] =
   recordAuditEvent(event).whenDiscard(isAdmin)
 ```
 
-### `unless`
+### `ZIO.unless` / `ZIO#unless`
 
 `ZIO#unless` runs an effect when a condition is **false** and returns `Option[A]` — the negated dual of `ZIO#when`. Reach for it any time you would write `effect.when(!condition)`, because `unless` expresses the intent as natural prose.
 
@@ -158,7 +158,7 @@ When the result does not matter, prefer the `Discard` variants — they return `
 
 The companion-object forms (`ZIO.unless(p)(effect)` and `ZIO.unlessZIO(p)(effect)`) accept the effect as a second argument instead of as the receiver — useful when the effect is not naturally expressed as a method chain.
 
-### `ifZIO`
+### `ZIO.ifZIO`
 
 This operator takes an _effectful predicate_, if that predicate is evaluated to true, it will run the `onTrue` effect, otherwise it will run the `onFalse` effect.
 
@@ -175,7 +175,7 @@ def flipTheCoin: ZIO[Any, IOException, Unit] =
   )
 ```
 
-### `cond`
+### `ZIO.cond`
 
 `ZIO.cond` lifts a pure predicate into an effect that either succeeds with `result` or fails with `error` — a concise alternative to writing `if (predicate) ZIO.succeed(result) else ZIO.fail(error)`. Use it for validation logic that has a clear success path and a typed failure (see the [Error Management](../error-management/index.md) reference for how typed failures compose). It differs from `ZIO.when`, which returns `Option` rather than failing, and from `ZIO.ifZIO`, which takes an effectful predicate and effectful branches:
 
@@ -286,7 +286,7 @@ object MainApp extends ZIOAppDefault {
 
 After this short introduction to writing loops in functional Scala, now let us go further into ZIO-specific combinators for writing loops:
 
-### `loop`
+### `ZIO.loop`
 
 The `ZIO.loop` operator takes an initial state, then repeatedly changes the state based on the given `inc` function, until the given `cont` function evaluates to true:
 
@@ -366,7 +366,7 @@ val r5: ZIO[Any, IOException, List[String]] =
 // List(John, Jane, Joe)
 ```
 
-### `iterate`
+### `ZIO.iterate`
 
 To iterate with the given effectful operation we can use the `ZIO.iterate` combinator. During each iteration, it uses an effectful `body` operation to change the state, and it will continue the iteration while the `cont` function evaluates to true:
 
@@ -457,7 +457,7 @@ def getNames: ZIO[Any, IOException, List[String]] =
 // List(John, Jane, Joe)
 ```
 
-### `foreach`
+### `ZIO.foreach`
 
 `ZIO.foreach` transforms every element of an existing collection by running an effect on each one in sequence, preserving the collection's shape in the result. Use `ZIO.foreach` when you already have an `Iterable`, `Set`, `Array`, `Map`, or `Option`; reach for `ZIO.loop` or `ZIO.iterate` only when the iteration range is computed at call time rather than given by an existing collection.
 
