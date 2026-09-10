@@ -12,11 +12,14 @@ import EffectNode from '../effect-node/EffectNode';
 
 // Three parallel tasks, one of which fails; the tab's copy already promises
 // "if one fails, the rest are interrupted" — Effect.all with unbounded
-// concurrency gives us that for free (validated headlessly in Task 1).
+// concurrency gives us that for free (validated headlessly in Task 1). The
+// two successful tasks resolve to a short result string ("OK") rather than
+// void so the node's "completed" state has something to render — matching
+// the source engine's examples, which always resolve to a meaningful value.
 export default function ConcurrencyVisual() {
   const tasks = useVisualEffects({
-    fetchUsers: () => Effect.sleep(900),
-    fetchOrders: () => Effect.sleep(1300),
+    fetchUsers: () => Effect.sleep(900).pipe(Effect.as('OK')),
+    fetchOrders: () => Effect.sleep(1300).pipe(Effect.as('OK')),
     fetchProfile: () =>
       Effect.gen(function* () {
         yield* Effect.sleep(600);
@@ -41,16 +44,7 @@ export default function ConcurrencyVisual() {
     [taskList],
   );
 
-  const usersState = useVisualEffectState(tasks.fetchUsers);
-  const ordersState = useVisualEffectState(tasks.fetchOrders);
-  const profileState = useVisualEffectState(tasks.fetchProfile);
   const groupState = useVisualEffectState(group);
-
-  const nodes = [
-    { name: tasks.fetchUsers.name, state: usersState },
-    { name: tasks.fetchOrders.name, state: ordersState },
-    { name: tasks.fetchProfile.name, state: profileState },
-  ];
 
   const isRunning = groupState.type === 'running';
   const isDone =
@@ -73,8 +67,8 @@ export default function ConcurrencyVisual() {
   return (
     <div className="flex h-full w-full flex-1 flex-col items-center justify-center gap-8 p-8">
       <div className="flex flex-wrap items-center justify-center gap-8">
-        {nodes.map((node) => (
-          <EffectNode key={node.name} name={node.name} state={node.state} />
+        {taskList.map((task) => (
+          <EffectNode key={task.name} effect={task} />
         ))}
       </div>
       <button

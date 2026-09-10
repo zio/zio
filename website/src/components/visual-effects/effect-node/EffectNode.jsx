@@ -1,69 +1,99 @@
-import React from 'react';
-import { motion } from 'motion/react';
-import { TASK_COLORS } from '../colors';
+import { AnimatePresence, motion } from 'motion/react';
+import { memo, useCallback, useState } from 'react';
+import {
+  useVisualEffectNotification,
+  useVisualEffectState,
+} from '../VisualEffect';
+import { DeathBubble } from '../feedback/DeathBubble';
+import { FailureBubble } from '../feedback/FailureBubble';
+import { NotificationBubble } from '../feedback/NotificationBubble';
+import { EffectContainer } from './EffectContainer';
+import { EffectContent } from './EffectContent';
+import { EffectLabel } from './EffectLabel';
+import { EffectOverlay } from './EffectOverlay';
+import {
+  useEffectAnimations,
+  useEffectMotion,
+  useRunningAnimation,
+  useStateAnimations,
+} from './useEffectMotion';
 
-// Static per-state properties (color/scale/opacity), matching state.type
-// exactly so no remapping is needed. Complex per-property timing (the
-// running pulse, the failure shake) is overridden per-variant, same
-// "hybrid" approach as the source engine's nodeVariants.
-const nodeVariants = {
-  idle: { backgroundColor: TASK_COLORS.idle, scale: 1, opacity: 0.6, x: 0 },
-  running: {
-    backgroundColor: TASK_COLORS.running,
-    scale: [0.95, 1.03, 0.95],
-    opacity: 1,
-    x: 0,
-    transition: {
-      scale: { duration: 0.9, repeat: Infinity, ease: 'easeInOut' },
-    },
-  },
-  completed: {
-    backgroundColor: TASK_COLORS.completed,
-    scale: [1.2, 1],
-    opacity: 1,
-    x: 0,
-  },
-  failed: {
-    backgroundColor: TASK_COLORS.failed,
-    scale: 1,
-    opacity: 1,
-    x: [0, -6, 6, -4, 4, 0],
-    transition: { x: { duration: 0.4, ease: 'easeInOut' } },
-  },
-  interrupted: {
-    backgroundColor: TASK_COLORS.interrupted,
-    scale: 1,
-    opacity: 1,
-    x: 0,
-  },
-};
+// Ported verbatim (TS types stripped) from the source engine's
+// src/components/effect/EffectNode.tsx. Takes the VisualEffect instance
+// directly (not a precomputed state prop) and subscribes to it itself, same
+// as the source — each node manages its own re-render.
+function EffectNodeComponent({ style = {}, effect, labelEffect }) {
+  const notification = useVisualEffectNotification(effect);
+  const state = useVisualEffectState(effect);
+  const effectMotion = useEffectMotion();
+  const isRunning = state.type === 'running';
+  const isFailedOrDeath = state.type === 'failed' || state.type === 'death';
 
-const STATE_LABEL = {
-  idle: 'idle',
-  running: 'running…',
-  completed: 'done',
-  failed: 'failed',
-  interrupted: 'interrupted',
-};
+  // State for error bubble visibility
+  const [showErrorBubble, setShowErrorBubble] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
 
-export default function EffectNode({ name, state }) {
+  // Apply all animations
+  useRunningAnimation(isRunning, effectMotion);
+  useStateAnimations(state, effectMotion);
+  useEffectAnimations(state, effectMotion, isHovering, setShowErrorBubble);
+
+  // Stable mouse handlers to avoid creating new functions on every render
+  const handleMouseEnter = useCallback(() => {
+    setIsHovering(true);
+    if (isFailedOrDeath) setShowErrorBubble(true);
+  }, [isFailedOrDeath]);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsHovering(false);
+  }, []);
+
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div style={{ ...style, position: 'relative' }}>
+      {/* Error bubble positioned outside container */}
+      <AnimatePresence>
+        {isFailedOrDeath &&
+          showErrorBubble &&
+          (state.type === 'failed' ? (
+            <FailureBubble error={state.error} />
+          ) : (
+            <DeathBubble error={state.error} />
+          ))}
+      </AnimatePresence>
+
+      {/* Notification bubbles - hidden when error bubbles are shown */}
+      <AnimatePresence>
+        {!isFailedOrDeath && notification && (
+          <NotificationBubble
+            key={notification.id}
+            notification={notification}
+          />
+        )}
+      </AnimatePresence>
+
       <motion.div
-        className="h-14 w-14 rounded-2xl"
-        variants={nodeVariants}
-        animate={state.type}
-        initial="idle"
-        transition={{ type: 'spring', stiffness: 200, damping: 28 }}
-      />
-      <div className="text-center text-xs">
-        <div className="font-semibold text-[var(--ifm-font-color-base)]">
-          {name}
-        </div>
-        <div className="text-[var(--ifm-color-emphasis-600)]">
-          {STATE_LABEL[state.type]}
-        </div>
-      </div>
+        style={{
+          width: effectMotion.nodeWidth,
+          height: 64,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+        }}
+      >
+        <EffectContainer
+          state={state}
+          motionValues={effectMotion}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <EffectOverlay isRunning={isRunning} motionValues={effectMotion} />
+          <EffectContent state={state} motionValues={effectMotion} />
+        </EffectContainer>
+      </motion.div>
+      <EffectLabel effect={labelEffect ?? effect} />
     </div>
   );
 }
+
+export default memo(EffectNodeComponent);
