@@ -72,22 +72,26 @@ object EnvironmentSpec extends ZIOBaseSpec {
       val layer = liveEnvironment >>> TestEnvironment.live
       val acquire =
         (for {
-          environment     <- ZIO.environment[TestEnvironment]
-          testServices    <- TestServices.currentServices.get
-          defaultServices <- DefaultServices.currentServices.get
+          environment      <- ZIO.environment[TestEnvironment]
+          testServices     <- TestServices.currentServices.get
+          defaultServices  <- DefaultServices.currentServices.get
+          fiberIdGenerator <- FiberRef.currentFiberIdGenerator.get
         } yield (
           environment,
           testServices,
-          defaultServices
+          defaultServices,
+          fiberIdGenerator
         )).provideLayer(layer)
 
       for {
-        testServicesBefore    <- TestServices.currentServices.get
-        defaultServicesBefore <- DefaultServices.currentServices.get
-        first                 <- acquire
-        second                <- acquire
-        testServicesAfter     <- TestServices.currentServices.get
-        defaultServicesAfter  <- DefaultServices.currentServices.get
+        testServicesBefore     <- TestServices.currentServices.get
+        defaultServicesBefore  <- DefaultServices.currentServices.get
+        fiberIdGeneratorBefore <- FiberRef.currentFiberIdGenerator.get
+        first                  <- acquire
+        second                 <- acquire
+        testServicesAfter      <- TestServices.currentServices.get
+        defaultServicesAfter   <- DefaultServices.currentServices.get
+        fiberIdGeneratorAfter  <- FiberRef.currentFiberIdGenerator.get
       } yield assertTrue(
         first._1.get[Annotations] eq first._2.get[Annotations],
         first._1.get[Live] eq first._2.get[Live],
@@ -101,8 +105,23 @@ object EnvironmentSpec extends ZIOBaseSpec {
         first._3.get[Clock] ne second._3.get[Clock],
         first._1.get[TestConfig] eq second._1.get[TestConfig],
         testServicesBefore eq testServicesAfter,
-        defaultServicesBefore eq defaultServicesAfter
+        defaultServicesBefore eq defaultServicesAfter,
+        fiberIdGeneratorBefore eq first._4,
+        fiberIdGeneratorBefore eq fiberIdGeneratorAfter
       )
+    },
+    test("testEnvironment installs and restores the monotonic FiberId generator") {
+      FiberRef.currentFiberIdGenerator.locally(FiberId.Gen.Live) {
+        for {
+          before <- FiberRef.currentFiberIdGenerator.get
+          inside <- FiberRef.currentFiberIdGenerator.get.provideLayer(testEnvironment)
+          after  <- FiberRef.currentFiberIdGenerator.get
+        } yield assertTrue(
+          before eq FiberId.Gen.Live,
+          inside eq FiberId.Gen.Monotonic,
+          after eq FiberId.Gen.Live
+        )
+      }
     }
   )
 }
