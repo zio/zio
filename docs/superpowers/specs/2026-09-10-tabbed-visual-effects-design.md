@@ -38,28 +38,45 @@ the existing Docusaurus site.
 
 ## Architecture (applies to every round)
 
-- New tree: `website/src/components/visual-effects/`, containing ported
-  (copied and adapted, not npm-linked) files from the source repo:
-  - `VisualEffect.ts` — state-machine wrapper around an `effect` Effect
-    (idle/running/completed/failed/interrupted/death), unchanged in
-    behavior.
-  - `hooks/useVisualEffects.ts` — creates a map of `VisualEffect`s via
-    `useMemo`.
-  - `effect/` — `EffectNode`, `EffectContainer`, `EffectLabel`,
-    `nodeVariants.ts`, `taskUtils.ts`, `useEffectMotion.ts`: the animated
-    node representing one running/completed/failed task.
-  - `animations.ts` — shared Motion spring config (`defaultSpring`).
+- New tree: `website/src/components/visual-effects/`, adapted (not
+  npm-linked, not a literal byte-for-byte copy) from the source repo. The
+  source's engine is spread across ~15 entangled files (`EffectNode` alone
+  pulls in `EffectContainer`, `EffectContent`, `EffectOverlay`, `EffectLabel`,
+  `nodeVariants.ts`, `taskUtils.ts`, `useEffectMotion.ts`, a `Timer`
+  component, `theme.ts`, `dimensions.ts`, plus failure/death/notification
+  "bubble" components and a `useStateTransition` hook). Porting all of that
+  for one tab violates YAGNI. Round 1 instead consolidates the same
+  *behavior* (a box whose color/motion reflects live effect state) into two
+  small files:
+  - `VisualEffect.ts` — trimmed state-machine wrapper around an `effect`
+    Effect. Same observable-subscribe pattern as the source, but drops what
+    round 1's scenario doesn't use: no parent/child notification service, no
+    sound hooks, no `showTimer`, no `death` state (nothing in round 1's
+    scenario calls `Effect.die`). States: `idle | running | completed
+    | failed | interrupted`.
+  - `hooks/useVisualEffects.ts` — same shape as the source: builds a map of
+    `VisualEffect`s via `useMemo`.
+  - `effect-node/EffectNode.tsx` — one file: a `motion.div` box driven by a
+    Motion `variants` object per state (color + scale, a looping pulse while
+    running, a brief shake on failure via keyframes in the `failed` variant)
+    plus a text label underneath. No separate container/content/overlay
+    layering, no physics-based jitter/glitch system, no bubbles, no timer.
   - `colors.ts` — state colors (idle/running/success/error/interrupted).
     These are semantic (blue=running, green=success, red=error,
-    orange=interrupted), not brand colors, so they're ported as-is; no
+    orange=interrupted), not brand colors, so they're carried over as-is; no
     purple/indigo Effect branding exists in this subset to remap.
-- Left out of the port (all optional, add only if/when a later round needs
-  them): `TaskSounds` (audio cues + mute toggle), `Notification` /
+  - `animations.ts` — just the one shared Motion spring config
+    (`defaultSpring`) that round 1 needs; the source's `springs`/`shake`/
+    `timing`/`effects` tables are not carried over since nothing in round 1
+    reads them.
+- Left out entirely (add only if/when a later round's scenario actually
+  needs one): `TaskSounds` (audio cues + mute toggle), `Notification` /
   floating-snooze-pill UI, `FloatingHighlight` code-hover-sync, `ScopeStack`,
-  `ScheduleTimeline`, `QuickOpen`, `NavigationSidebar`. None of these are
-  needed to demonstrate a parallel-fail-interrupt scenario, and skipping them
-  keeps round 1 small. YAGNI — add in a later round only for a tab that
-  actually needs one.
+  `ScheduleTimeline`, `QuickOpen`, `NavigationSidebar`, the glitch/jitter
+  physics system, `death` state. YAGNI — a later round may need to widen
+  `EffectNode`/`VisualEffect` back out (e.g. add `death` for a Streaming
+  scenario that dies), but that's this architecture evolving under real
+  requirements, not speculative upfront work.
 - `website/src/components/sections/CodeShowcase/data.js`: each example
   gains an optional `visual` field — a component reference. Only the
   `concurrency` entry sets one in round 1; the other four stay `visual:
@@ -85,16 +102,18 @@ strongly than a plain two-way race would.
 **New file**: `website/src/components/visual-effects/scenarios/ConcurrencyVisual.tsx`
 - Builds 3 `VisualEffect`s via `useVisualEffects` wrapping `effect`
   `Effect`s: two that `Effect.sleep` then succeed, one that fails after a
-  shorter delay.
-- A minimal header: a single Play/Reset button (reuse the icon-swap pattern
-  from the source's `HeaderView.tsx`, trimmed to drop the option-key /
-  link-copy / mute-aware branches — those depend on ported-out features).
-  No sound, no notifications, per the "left out" list above.
-- Renders the 3 `EffectNode`s in a row (matches `EffectExample`'s "Multiple
-  effects" layout, but without its own nested code block/border chrome or
-  hover-highlight wiring — the Scala snippet is already shown by
-  `CodeShowcase` itself via the Code/Visual toggle, so this component does
-  not duplicate it).
+  shorter delay. On failure, explicitly interrupts the other two fibers
+  (mirrors what `ZIO.foreachPar` does automatically) so their `EffectNode`s
+  animate to the `interrupted` state.
+- A minimal header: a single Play/Reset button — a small button that swaps
+  icon by state (Play when idle/done, Stop while running), not a port of the
+  source's `HeaderView.tsx` (which is entangled with the option-key /
+  link-copy / mute features round 1 doesn't have). No sound, no
+  notifications, per the "left out" list above.
+- Renders the 3 `EffectNode`s in a row with a label under each (task name).
+  No nested code block/border chrome and no hover-highlight wiring — the
+  Scala snippet is already shown by `CodeShowcase` itself via the Code/Visual
+  toggle, so this component does not duplicate it.
 - Colors: reuse `colors.ts` as-is (state-based, not brand-based).
 
 **Deps added to `website/package.json`**: `effect`, `motion`,
