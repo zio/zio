@@ -235,8 +235,7 @@ jobs:
   testPlatforms:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    if: ${{ ((github.event_name != 'repository_dispatch'
-    ) && (github.event.action != 'update-docs')) }}
+    if: ${{ ((github.event_name != 'repository_dispatch') && (github.event.action != 'update-docs')) }}
     strategy:
       fail-fast: false
       matrix:
