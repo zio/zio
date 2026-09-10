@@ -13,9 +13,16 @@ const nodeVariants = {
     scale: [0.95, 1.03, 0.95],
     opacity: 1,
     x: 0,
-    transition: { scale: { duration: 0.9, repeat: Infinity, ease: 'easeInOut' } },
+    transition: {
+      scale: { duration: 0.9, repeat: Infinity, ease: 'easeInOut' },
+    },
   },
-  completed: { backgroundColor: TASK_COLORS.completed, scale: [1.2, 1], opacity: 1, x: 0 },
+  completed: {
+    backgroundColor: TASK_COLORS.completed,
+    scale: [1.2, 1],
+    opacity: 1,
+    x: 0,
+  },
   failed: {
     backgroundColor: TASK_COLORS.failed,
     scale: 1,
@@ -23,7 +30,12 @@ const nodeVariants = {
     x: [0, -6, 6, -4, 4, 0],
     transition: { x: { duration: 0.4, ease: 'easeInOut' } },
   },
-  interrupted: { backgroundColor: TASK_COLORS.interrupted, scale: 1, opacity: 1, x: 0 },
+  interrupted: {
+    backgroundColor: TASK_COLORS.interrupted,
+    scale: 1,
+    opacity: 1,
+    x: 0,
+  },
 };
 
 const STATE_LABEL = {
@@ -45,8 +57,12 @@ export default function EffectNode({ name, state }) {
         transition={{ type: 'spring', stiffness: 200, damping: 28 }}
       />
       <div className="text-center text-xs">
-        <div className="font-semibold text-[var(--ifm-font-color-base)]">{name}</div>
-        <div className="text-[var(--ifm-color-emphasis-600)]">{STATE_LABEL[state.type]}</div>
+        <div className="font-semibold text-[var(--ifm-font-color-base)]">
+          {name}
+        </div>
+        <div className="text-[var(--ifm-color-emphasis-600)]">
+          {STATE_LABEL[state.type]}
+        </div>
       </div>
     </div>
   );

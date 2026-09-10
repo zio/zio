@@ -24,7 +24,8 @@ export class VisualEffect {
 
   // Returns an Effect that updates this instance's state as it runs.
   get effect() {
-    if (this.state.type === 'completed') return Effect.succeed(this.state.result);
+    if (this.state.type === 'completed')
+      return Effect.succeed(this.state.result);
     if (this.state.type === 'failed') return Effect.fail(this.state.error);
 
     const self = this;

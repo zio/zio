@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Highlight, Prism } from 'prism-react-renderer';
 import { usePrismTheme } from '@docusaurus/theme-common';
 import useIsBrowser from '@docusaurus/useIsBrowser';
@@ -10,11 +10,15 @@ import styles from './styles.module.css';
 
 import { examples } from './data';
 
-// Lazily require()'d only inside <BrowserOnly>'s render function below, so
-// this (and everything it pulls in — `motion`, `effect`) never executes
+// Code-split via React.lazy so `motion`, `effect`, and the rest of the
+// animation engine only load into a separate chunk when a visitor actually
+// opens the Visual tab, instead of shipping in the main homepage bundle.
+// Still only ever rendered inside <BrowserOnly> below, so it never executes
 // during Docusaurus's Node.js prerender of this page.
 const VISUAL_COMPONENTS = {
-  concurrency: () => require('../../visual-effects/scenarios/ConcurrencyVisual').default,
+  concurrency: React.lazy(
+    () => import('../../visual-effects/scenarios/ConcurrencyVisual'),
+  ),
 };
 
 // prism-react-renderer v2 highlights against the shared prismjs instance.
@@ -137,44 +141,29 @@ export default function CodeShowcase() {
               ))}
             </div>
 
-            {/* Code/Visual view toggle — only for tabs with a registered visual */}
-            {active.visual && (
-              <div className={styles.viewToggle}>
-                <button
-                  type="button"
-                  className={clsx(
-                    styles.viewToggleButton,
-                    viewMode === 'visual' && styles.viewToggleButtonActive,
-                  )}
-                  onClick={() => setViewMode('visual')}
-                >
-                  Visual
-                </button>
-                <button
-                  type="button"
-                  className={clsx(
-                    styles.viewToggleButton,
-                    viewMode === 'code' && styles.viewToggleButtonActive,
-                  )}
-                  onClick={() => setViewMode('code')}
-                >
-                  Code
-                </button>
-              </div>
-            )}
-
             {/* Code Area */}
             <div
               id={`tabpanel-${activeTab}`}
-              className={active.visual && viewMode === 'visual' ? styles.visualArea : styles.codeArea}
+              className={
+                active.visual && viewMode === 'visual'
+                  ? styles.visualArea
+                  : styles.codeArea
+              }
               role="tabpanel"
               aria-labelledby={`tab-${activeTab}`}
             >
               {active.visual && viewMode === 'visual' ? (
                 <BrowserOnly fallback={<div className={styles.visualArea} />}>
                   {() => {
-                    const VisualComponent = VISUAL_COMPONENTS[active.visual]();
-                    return <VisualComponent />;
+                    const VisualComponent = VISUAL_COMPONENTS[active.visual];
+                    if (!VisualComponent) return null;
+                    return (
+                      <Suspense
+                        fallback={<div className={styles.visualArea} />}
+                      >
+                        <VisualComponent />
+                      </Suspense>
+                    );
                   }}
                 </BrowserOnly>
               ) : (
@@ -219,7 +208,33 @@ export default function CodeShowcase() {
 
             {/* Toolbar */}
             <div className={styles.toolbar}>
-              <span className={styles.langBadge}>Scala</span>
+              <div className={styles.toolbarLeft}>
+                <span className={styles.langBadge}>Scala</span>
+                {active.visual && (
+                  <div className={styles.viewToggle}>
+                    <button
+                      type="button"
+                      className={clsx(
+                        styles.viewToggleButton,
+                        viewMode === 'visual' && styles.viewToggleButtonActive,
+                      )}
+                      onClick={() => setViewMode('visual')}
+                    >
+                      Visual
+                    </button>
+                    <button
+                      type="button"
+                      className={clsx(
+                        styles.viewToggleButton,
+                        viewMode === 'code' && styles.viewToggleButtonActive,
+                      )}
+                      onClick={() => setViewMode('code')}
+                    >
+                      Code
+                    </button>
+                  </div>
+                )}
+              </div>
               {isBrowser && (
                 <button
                   type="button"

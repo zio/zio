@@ -1,7 +1,11 @@
 // website/src/components/visual-effects/scenarios/ConcurrencyVisual.jsx
 import React, { useCallback, useMemo } from 'react';
 import { Effect } from 'effect';
-import { ArrowCounterClockwiseIcon, PlayIcon, StopIcon } from '@phosphor-icons/react';
+import {
+  ArrowCounterClockwiseIcon,
+  PlayIcon,
+  StopIcon,
+} from '@phosphor-icons/react';
 import { useVisualEffectState, visualEffect } from '../VisualEffect';
 import { useVisualEffects } from '../hooks/useVisualEffects';
 import EffectNode from '../effect-node/EffectNode';
@@ -67,7 +71,7 @@ export default function ConcurrencyVisual() {
   }, [group, taskList, isRunning, isDone]);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-8 p-8">
+    <div className="flex h-full w-full flex-1 flex-col items-center justify-center gap-8 p-8">
       <div className="flex flex-wrap items-center justify-center gap-8">
         {nodes.map((node) => (
           <EffectNode key={node.name} name={node.name} state={node.state} />
@@ -76,7 +80,7 @@ export default function ConcurrencyVisual() {
       <button
         type="button"
         onClick={handleClick}
-        className="flex items-center gap-2 rounded-full bg-[var(--ifm-color-primary)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--ifm-color-primary-light)]"
+        className="flex items-center gap-2 rounded-full border-0 bg-[var(--ifm-color-primary)] px-4 py-2 font-[inherit] text-sm font-semibold text-white transition-colors hover:bg-[var(--ifm-color-primary-light)]"
       >
         {isRunning ? (
           <StopIcon size={16} weight="bold" />
