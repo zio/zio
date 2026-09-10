@@ -222,6 +222,44 @@
   box-shadow: inset 0 -2px 0 var(--ifm-color-primary);
 }
 
+.viewToggle {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem 0;
+  background-color: var(--ifm-color-emphasis-100);
+}
+
+.viewToggleButton {
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--ifm-color-emphasis-600);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.viewToggleButton:hover {
+  color: var(--ifm-color-emphasis-900);
+}
+
+.viewToggleButtonActive {
+  background-color: var(--ifm-color-emphasis-200);
+  color: var(--ifm-color-primary);
+}
+
+.visualArea {
+  flex: 1;
+  display: flex;
+  min-height: 24rem;
+  max-height: 500px;
+}
+
 .codeArea {
   flex: 1;
   display: flex;

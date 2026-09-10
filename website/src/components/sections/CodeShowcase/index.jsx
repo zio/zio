@@ -2,12 +2,20 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Highlight, Prism } from 'prism-react-renderer';
 import { usePrismTheme } from '@docusaurus/theme-common';
 import useIsBrowser from '@docusaurus/useIsBrowser';
+import BrowserOnly from '@docusaurus/BrowserOnly';
 import Link from '@docusaurus/Link';
 import clsx from 'clsx';
 import { FaCopy, FaCheck, FaArrowRight } from 'react-icons/fa6';
 import styles from './styles.module.css';
 
 import { examples } from './data';
+
+// Lazily require()'d only inside <BrowserOnly>'s render function below, so
+// this (and everything it pulls in — `motion`, `effect`) never executes
+// during Docusaurus's Node.js prerender of this page.
+const VISUAL_COMPONENTS = {
+  concurrency: () => require('../../visual-effects/scenarios/ConcurrencyVisual').default,
+};
 
 // prism-react-renderer v2 highlights against the shared prismjs instance.
 // The homepage has no @theme/CodeBlock to trigger Docusaurus's language
@@ -23,6 +31,7 @@ delete globalThis.Prism;
 // theme-aware editor panel with a tab bar, line numbers, and a copy toolbar.
 export default function CodeShowcase() {
   const [activeTab, setActiveTab] = useState(0);
+  const [viewMode, setViewMode] = useState('visual');
   const [copied, setCopied] = useState(false);
   const isBrowser = useIsBrowser();
   const prismTheme = usePrismTheme();
@@ -38,6 +47,7 @@ export default function CodeShowcase() {
 
   const handleTabClick = (idx) => {
     setActiveTab(idx);
+    setViewMode('visual');
     setCopied(false);
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -127,49 +137,84 @@ export default function CodeShowcase() {
               ))}
             </div>
 
+            {/* Code/Visual view toggle — only for tabs with a registered visual */}
+            {active.visual && (
+              <div className={styles.viewToggle}>
+                <button
+                  type="button"
+                  className={clsx(
+                    styles.viewToggleButton,
+                    viewMode === 'visual' && styles.viewToggleButtonActive,
+                  )}
+                  onClick={() => setViewMode('visual')}
+                >
+                  Visual
+                </button>
+                <button
+                  type="button"
+                  className={clsx(
+                    styles.viewToggleButton,
+                    viewMode === 'code' && styles.viewToggleButtonActive,
+                  )}
+                  onClick={() => setViewMode('code')}
+                >
+                  Code
+                </button>
+              </div>
+            )}
+
             {/* Code Area */}
             <div
               id={`tabpanel-${activeTab}`}
-              className={styles.codeArea}
+              className={active.visual && viewMode === 'visual' ? styles.visualArea : styles.codeArea}
               role="tabpanel"
               aria-labelledby={`tab-${activeTab}`}
             >
-              <Highlight
-                key={activeTab}
-                theme={prismTheme}
-                code={active.code.trim()}
-                language="scala"
-              >
-                {({
-                  className,
-                  style,
-                  tokens,
-                  getLineProps,
-                  getTokenProps,
-                }) => (
-                  <pre className={`${className} ${styles.pre}`} style={style}>
-                    <code>
-                      {tokens.map((line, i) => (
-                        <div
-                          key={i}
-                          {...getLineProps({ line, key: i })}
-                          className={styles.codeLine}
-                        >
-                          <span className={styles.lineNumber}>{i + 1}</span>
-                          <span className={styles.lineContent}>
-                            {line.map((token, key) => (
-                              <span
-                                key={key}
-                                {...getTokenProps({ token, key })}
-                              />
-                            ))}
-                          </span>
-                        </div>
-                      ))}
-                    </code>
-                  </pre>
-                )}
-              </Highlight>
+              {active.visual && viewMode === 'visual' ? (
+                <BrowserOnly fallback={<div className={styles.visualArea} />}>
+                  {() => {
+                    const VisualComponent = VISUAL_COMPONENTS[active.visual]();
+                    return <VisualComponent />;
+                  }}
+                </BrowserOnly>
+              ) : (
+                <Highlight
+                  key={activeTab}
+                  theme={prismTheme}
+                  code={active.code.trim()}
+                  language="scala"
+                >
+                  {({
+                    className,
+                    style,
+                    tokens,
+                    getLineProps,
+                    getTokenProps,
+                  }) => (
+                    <pre className={`${className} ${styles.pre}`} style={style}>
+                      <code>
+                        {tokens.map((line, i) => (
+                          <div
+                            key={i}
+                            {...getLineProps({ line, key: i })}
+                            className={styles.codeLine}
+                          >
+                            <span className={styles.lineNumber}>{i + 1}</span>
+                            <span className={styles.lineContent}>
+                              {line.map((token, key) => (
+                                <span
+                                  key={key}
+                                  {...getTokenProps({ token, key })}
+                                />
+                              ))}
+                            </span>
+                          </div>
+                        ))}
+                      </code>
+                    </pre>
+                  )}
+                </Highlight>
+              )}
             </div>
 
             {/* Toolbar */}

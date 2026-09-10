@@ -5,6 +5,7 @@ export const examples = [
   {
     value: 'concurrency',
     label: 'Concurrency',
+    visual: 'concurrency',
     takeaway:
       'Fibers, not threads — parallelism is one combinator, and interruption is handled for you.',
     points: [
