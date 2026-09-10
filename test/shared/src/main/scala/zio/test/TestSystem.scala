@@ -16,7 +16,7 @@
 
 package zio.test
 
-import zio.{IO, Layer, Ref, System, Trace, UIO, URIO, Unsafe, ZIO, ZLayer}
+import zio.{EnvironmentTag, IO, Layer, Ref, System, Tag, Trace, UIO, URIO, Unsafe, ZIO, ZLayer}
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
@@ -46,6 +46,13 @@ trait TestSystem extends System with Restorable {
 }
 
 object TestSystem extends Serializable {
+
+  implicit val tag: Tag[TestSystem] = Tag(EnvironmentTag.tagFromTagMacro[TestSystem])
+
+  private[test] object unsafe {
+    def make(data: Data)(implicit unsafe: Unsafe): TestSystem =
+      Test(Ref.unsafe.make(data))
+  }
 
   final case class Test(systemState: Ref.Atomic[TestSystem.Data]) extends TestSystem {
 
@@ -195,8 +202,7 @@ object TestSystem extends Serializable {
   def live(data: Data): Layer[Nothing, TestSystem] = {
     implicit val trace: Trace = Tracer.newTrace
     ZLayer.scoped {
-      val ref  = Ref.unsafe.make(data)(Unsafe)
-      val test = Test(ref)
+      val test = unsafe.make(data)(Unsafe)
       ZIO.withSystemScoped(test).as(test)
     }
   }

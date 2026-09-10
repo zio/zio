@@ -99,6 +99,20 @@ trait TestClock extends Clock with Restorable {
 
 object TestClock extends Serializable {
 
+  implicit val tag: Tag[TestClock] = Tag(EnvironmentTag.tagFromTagMacro[TestClock])
+
+  private[test] object unsafe {
+    def make(data: Data, live: Live, annotations: Annotations)(implicit unsafe: Unsafe): Test = {
+      val warningState          = Ref.Synchronized.unsafe.make(WarningData.start)
+      val suspendedWarningState = Ref.Synchronized.unsafe.make(SuspendedWarningData.start)
+      val clockState            = Ref.unsafe.make(data)
+      Test(clockState, live, annotations, warningState, suspendedWarningState)
+    }
+
+    def close(test: Test)(implicit trace: Trace): UIO[Unit] =
+      test.warningDone *> test.suspendedWarningDone
+  }
+
   final case class Test(
     clockState: Ref.Atomic[TestClock.Data],
     live: Live,
@@ -438,22 +452,20 @@ object TestClock extends Serializable {
   ): ZLayer[Annotations with Live, Nothing, TestClock] =
     ZLayer.scoped {
       ZIO.environmentWithZIO { env =>
-        val live                  = env.get[Live]
-        val annotations           = env.get[Annotations]
-        val scope                 = env.getScope
-        val warningState          = Ref.Synchronized.unsafe.make(WarningData.start)(Unsafe)
-        val suspendedWarningState = Ref.Synchronized.unsafe.make(SuspendedWarningData.start)(Unsafe)
-        val clockState            = Ref.unsafe.make(data)(Unsafe)
-        val test                  = Test(clockState, live, annotations, warningState, suspendedWarningState)
-        ZIO.withClockScoped(test) *> scope.addFinalizer(test.warningDone *> test.suspendedWarningDone).as(test)
+        val scope = env.getScope
+        val test  = unsafe.make(data, env.get[Live], env.get[Annotations])(Unsafe)
+        ZIO.withClockScoped(test) *> scope.addFinalizer(unsafe.close(test)).as(test)
       }
     }
 
   val any: ZLayer[TestClock, Nothing, TestClock] =
     ZLayer.environment[TestClock](Tracer.newTrace)
 
+  private[test] val DefaultData: Data =
+    Data(Instant.EPOCH, Nil, ZoneId.of("UTC"))
+
   val default: ZLayer[Live with Annotations, Nothing, TestClock] =
-    live(Data(Instant.EPOCH, Nil, ZoneId.of("UTC")))(Tracer.newTrace)
+    live(DefaultData)(Tracer.newTrace)
 
   /**
    * Accesses a `TestClock` instance in the environment and increments the time

@@ -14,6 +14,11 @@ object Sized {
 
   implicit val tag: Tag[Sized] = Tag(EnvironmentTag.tagFromTagMacro[Sized])
 
+  private[test] object unsafe {
+    def make(size: Int)(implicit unsafe: Unsafe): Sized =
+      Test(FiberRef.unsafe.make(size))
+  }
+
   final case class Test(fiberRef: FiberRef[Int]) extends Sized {
     def size(implicit trace: Trace): UIO[Int] =
       fiberRef.get
@@ -34,13 +39,12 @@ object Sized {
 
   def live(size: Int)(implicit trace: Trace): Layer[Nothing, Sized] =
     ZLayer.scoped {
-      val fiberRef = FiberRef.unsafe.make(size)(Unsafe)
-      val sized    = Test(fiberRef)
+      val sized = unsafe.make(size)(Unsafe)
       withSizedScoped(sized).as(sized)
     }
 
   private[test] val initial: Sized =
-    Test(FiberRef.unsafe.make(100)(Unsafe.unsafe))
+    unsafe.make(100)(Unsafe.unsafe)
 
   def size(implicit trace: Trace): UIO[Int] =
     sizedWith(_.size)
