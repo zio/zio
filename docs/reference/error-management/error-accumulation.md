@@ -30,7 +30,7 @@ object MainApp extends ZIOAppDefault {
 //	at <empty>.MainApp.run(MainApp.scala:12)"
 ```
 
-There is also the `ZIO.foreach` operator that takes a collection and an effectful operation, then tries to apply the transformation to all elements of the collection. This operator also has the same error management behavior. It fails when it encounters the first error:
+There is also the [`ZIO.foreach`](../control-flow/index.md) operator that takes a collection and an effectful operation, then tries to apply the transformation to all elements of the collection. This operator also has the same error management behavior. It fails when it encounters the first error:
 
 ```scala mdoc:compile-only
 import zio._
