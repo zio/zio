@@ -194,8 +194,10 @@ object Config {
         encoded.get(result)
         Chunk.fromArray(result)
       } finally
-        // `encode` sizes its buffer from the charset's maximum bytes-per-char, so
-        // it generally holds more than `result`. Wipe all of it, slack included.
+        // `encoded` holds the secret in plaintext; clear it rather than leave it
+        // on the heap until the GC happens to collect it. `encode` sizes the
+        // buffer from the charset's maximum bytes-per-char, so it is usually
+        // longer than the secret: zero all of it, not just the encoded region.
         if (encoded.hasArray) java.util.Arrays.fill(encoded.array(), 0.toByte)
     }
   }

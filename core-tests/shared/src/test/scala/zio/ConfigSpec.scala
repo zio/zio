@@ -5,7 +5,21 @@ import zio.test.Assertion._
 
 import zio.Config.Secret
 
+import java.nio.charset.{Charset, StandardCharsets}
+
 object ConfigSpec extends ZIOBaseSpec {
+
+  private val anyCharset: Gen[Any, Charset] =
+    Gen.fromIterable(
+      Chunk(
+        StandardCharsets.US_ASCII,
+        StandardCharsets.ISO_8859_1,
+        StandardCharsets.UTF_8,
+        StandardCharsets.UTF_16,
+        StandardCharsets.UTF_16BE,
+        StandardCharsets.UTF_16LE
+      )
+    )
 
   def boxTest[A](
     slow: ZIO[Any, Throwable, A],
@@ -66,36 +80,10 @@ object ConfigSpec extends ZIOBaseSpec {
           Secret("abc": CharSequence)
           assertCompletes
         } +
-        test("getBytes") {
-          val secret = Secret("secret")
-
-          val charsets = Chunk(
-            java.nio.charset.StandardCharsets.US_ASCII,
-            java.nio.charset.StandardCharsets.ISO_8859_1,
-            java.nio.charset.StandardCharsets.UTF_8,
-            java.nio.charset.StandardCharsets.UTF_16,
-            java.nio.charset.StandardCharsets.UTF_16BE,
-            java.nio.charset.StandardCharsets.UTF_16LE,
-          )
-
-          assertTrue(
-            charsets.forall(charset => secret.getBytes(charset) == Chunk.fromArray("secret".getBytes(charset)))
-          )
-        } +
-        test("getBytes with non-ASCII characters") {
-          val secret = Secret("sécrét€")
-
-          val charsets = Chunk(
-            java.nio.charset.StandardCharsets.ISO_8859_1,
-            java.nio.charset.StandardCharsets.UTF_8,
-            java.nio.charset.StandardCharsets.UTF_16,
-            java.nio.charset.StandardCharsets.UTF_16BE,
-            java.nio.charset.StandardCharsets.UTF_16LE,
-          )
-
-          assertTrue(
-            charsets.forall(charset => secret.getBytes(charset) == Chunk.fromArray("sécrét€".getBytes(charset)))
-          )
+        test("getBytes encodes like String#getBytes, for any content and charset") {
+          check(Gen.string, anyCharset) { (value, charset) =>
+            assertTrue(Secret(value).getBytes(charset) == Chunk.fromArray(value.getBytes(charset)))
+          }
         } +
         test("toString") {
           assertTrue(Secret("secret").toString() == "Secret(<redacted>)")
