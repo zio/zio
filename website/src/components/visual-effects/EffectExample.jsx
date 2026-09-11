@@ -5,6 +5,7 @@ import { CodeBlock } from './CodeBlock';
 import EffectNode from './effect-node/EffectNode';
 import { FloatingHighlight } from './feedback/FloatingHighlight';
 import { HeaderView } from './HeaderView';
+import { ScheduleTimeline } from './ScheduleTimeline';
 
 // Ported (TS types stripped) from the source engine's
 // src/components/display/EffectExample.tsx. The source also supports a
@@ -24,6 +25,7 @@ function EffectExampleComponent({
   resultEffect,
   effectHighlightMap,
   effects,
+  showScheduleTimeline,
   variant,
 }) {
   const [hoveredEffect, setHoveredEffect] = useState(null);
@@ -213,6 +215,18 @@ function EffectExampleComponent({
           </div>
         )}
       </motion.div>
+
+      {/* Schedule timeline (if provided) */}
+      {showScheduleTimeline && effects[0] && resultEffect && (
+        <motion.div
+          initial={{ borderColor: borderColorValue }}
+          animate={{ borderColor: borderColorValue }}
+          transition={standardTransition}
+          className="border-b"
+        >
+          <ScheduleTimeline baseEffect={effects[0]} repeatEffect={resultEffect} />
+        </motion.div>
+      )}
 
       {/* Code block. Fixed dark background, independent of the card's
           theme-reactive background above: CodeBlock renders with
