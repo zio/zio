@@ -40,7 +40,7 @@ export function ScopeStack({ scope }) {
     return (
       <div
         ref={containerRef}
-        className="relative flex h-[88px] items-center justify-between rounded-xl border border-dashed border-neutral-700 m-4"
+        className="relative flex h-[88px] items-center justify-between rounded-xl border-1 border-dashed border-neutral-700 m-4"
       >
         <div className="absolute inset-0 flex items-center justify-center text-neutral-700">
           <div className="flex items-center gap-2">
