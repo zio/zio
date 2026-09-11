@@ -43,7 +43,7 @@ val result = park.retry(Schedule.exponential(700.millis))`,
       'Many resources compose and close in reverse order.',
       'Guaranteed on success, failure, or interruption alike.',
     ],
-    code: `val result: ZIO[Any, Throwable, Stats] =
+    code: `val result: ZIO[Any, Throwable, Report] =
   ZIO.scoped:
     for
       db     <- ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))

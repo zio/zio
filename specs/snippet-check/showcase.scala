@@ -12,7 +12,7 @@ import java.io.IOException
 
 // ── Stubs standing in for "your code" in the homepage snippets ──────────
 case class User(name: String)
-case class Stats()
+case class Report()
 case class Event(isValid: Boolean)
 class File { def close(): Unit = () }
 
@@ -36,7 +36,7 @@ class CacheConn { def flush(): Unit = () }
 def connectDatabase(): Task[DbConn] = ZIO.succeed(new DbConn)
 def connectCache(): Task[CacheConn] = ZIO.succeed(new CacheConn)
 def openLogFile(): IO[IOException, File] = ZIO.succeed(new File)
-def doWork(db: DbConn, cache: CacheConn, logger: File): Task[Stats] = ZIO.succeed(Stats())
+def doWork(db: DbConn, cache: CacheConn, logger: File): Task[Report] = ZIO.succeed(Report())
 
 val events: List[Event]                    = List(Event(true))
 def enrich(e: Event): Task[Event]          = ZIO.succeed(e)
@@ -67,7 +67,7 @@ object Snippet2 {
 // tab's Visual view (website/src/components/visual-effects/scenarios/AcquireReleaseVisual.jsx)
 // — Visual and Code must show the same example.
 object Snippet3 {
-  val result: ZIO[Any, Throwable, Stats] =
+  val result: ZIO[Any, Throwable, Report] =
     ZIO.scoped:
       for
         db     <- ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))

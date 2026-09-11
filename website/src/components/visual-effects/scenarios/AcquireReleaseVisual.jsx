@@ -141,7 +141,7 @@ export default function AcquireReleaseVisual() {
     };
   }, [mainTask, scope]);
 
-  const codeSnippet = `val result: ZIO[Any, Throwable, Stats] =
+  const codeSnippet = `val result: ZIO[Any, Throwable, Report] =
   ZIO.scoped:
     for
       db     <- ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))
