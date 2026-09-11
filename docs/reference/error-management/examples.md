@@ -1,6 +1,13 @@
 ---
 id: examples
 title: "Examples"
+description: "End-to-end ZIO error management examples illustrating typed failures, defects, and the distinction between expected and unexpected errors in a practical application."
+keywords:
+  - "error management examples"
+  - "ZIO examples"
+  - "typed errors"
+  - "defects"
+  - "divide by zero"
 ---
 
 Let's write an application that takes numerator and denominator from the user and then print the result back to the user:

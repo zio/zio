@@ -69,6 +69,7 @@ module.exports = {
           {
             type: "category",
             label: "Recovering From Errors",
+            link: { type: "doc", id: "reference/error-management/recovering/index" },
             items:
               [
                 "reference/error-management/recovering/catching",
@@ -83,6 +84,7 @@ module.exports = {
           {
             type: "category",
             label: "Error Channel Operations",
+            link: { type: "doc", id: "reference/error-management/operations/index" },
             items:
               [
                 "reference/error-management/operations/map-operations",
@@ -103,6 +105,7 @@ module.exports = {
           {
             type: "category",
             label: "Best Practices",
+            link: { type: "doc", id: "reference/error-management/best-practices/index" },
             items:
               [
                 "reference/error-management/best-practices/algebraic-data-types",

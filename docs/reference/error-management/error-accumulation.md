@@ -1,6 +1,15 @@
 ---
 id: error-accumulation
 title: "Error Accumulation"
+description: "Collect all errors from a set of effects instead of short-circuiting on the first failure, using ZIO.validate, ZIO.validatePar, ZIO.validateFirst, and related combinators."
+keywords:
+  - "error accumulation"
+  - "validate"
+  - "validatePar"
+  - "validateFirst"
+  - "fail-fast"
+  - "NonEmptyList"
+  - "parallel validation"
 ---
 
 Sequential combinators such as `ZIO#zip` and `ZIO.foreach` stop when they reach the first error and return immediately. So their policy on error management is to fail fast.
@@ -55,6 +64,10 @@ object MainApp extends ZIOAppDefault {
 ```
 
 There are some situations when we need to collect all potential errors in a computation rather than failing fast. In this section, we will discuss operators that accumulate errors as well as successes.
+
+## When to Use
+
+Use `ZIO.validate` when processing a collection and you want to accumulate all errors, accepting that successes are discarded if any error occurs — the effect fails with the complete error list or succeeds with all results. Use `ZIO.validateFirst` instead when you need only the first success and want errors accumulated solely to report why every element failed. Use `ZIO.partition` when a mix of errors and successes is always a valid combined outcome — `partition` always succeeds, placing errors and successes in separate lists in the success channel rather than failing the overall effect.
 
 ## `ZIO#validate`
 

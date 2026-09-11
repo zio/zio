@@ -15,8 +15,8 @@ keywords:
 When writing ZIO application, we can model a failure, using the `ZIO.fail` constructor:
 
 ```scala
-trait ZIO {
-  def fail[E](error: => E): ZIO[Any, E, Nothing]
+object ZIO {
+  def fail[E](error: => E): IO[E, Nothing]
 }
 ```
 

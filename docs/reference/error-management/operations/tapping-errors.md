@@ -1,6 +1,15 @@
 ---
 id: tapping-errors
 title: "Tapping Errors"
+description: "Inspect ZIO failure values, defects, and Cause graphs as a side effect without altering the error channel, using tapError, tapErrorCause, tapDefect, tapBoth, and tapEither."
+keywords:
+  - "tapError"
+  - "tapErrorCause"
+  - "tapErrorTrace"
+  - "tapDefect"
+  - "tapBoth"
+  - "tapEither"
+  - "error inspection"
 ---
 
 Like [tapping for success values](../../core/zio/zio.md#tapping) ZIO has several operators for tapping error values. So we can peek into failures or underlying defects or causes:
@@ -9,7 +18,7 @@ Like [tapping for success values](../../core/zio/zio.md#tapping) ZIO has several
 trait ZIO[-R, +E, +A] {
   def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
   def tapErrorCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
-  def tapErrorTrace[R1 <: R, E1 >: E](f: ((E, Trace)) => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
+  def tapErrorTrace[R1 <: R, E1 >: E](f: ((E, StackTrace)) => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
   def tapDefect[R1 <: R, E1 >: E](f: Cause[Nothing] => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
   def tapBoth[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any], g: A => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
   def tapEither[R1 <: R, E1 >: E](f: Either[E, A] => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
