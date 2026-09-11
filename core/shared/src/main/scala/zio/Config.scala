@@ -188,11 +188,15 @@ object Config {
      * materializing an intermediate `String`.
      */
     def getBytes(charset: java.nio.charset.Charset): Chunk[Byte] = {
-      val charBuffer = java.nio.CharBuffer.wrap(raw)
-      val byteBuffer = charset.encode(charBuffer)
-      val bytes      = Chunk.fromByteBuffer(byteBuffer)
-      if (byteBuffer.hasArray) java.util.Arrays.fill(byteBuffer.array(), 0.toByte)
-      bytes
+      val encoded = charset.encode(java.nio.CharBuffer.wrap(raw))
+      try {
+        val result = new Array[Byte](encoded.remaining())
+        encoded.get(result)
+        Chunk.fromArray(result)
+      } finally
+        // `encode` sizes its buffer from the charset's maximum bytes-per-char, so
+        // it generally holds more than `result`. Wipe all of it, slack included.
+        if (encoded.hasArray) java.util.Arrays.fill(encoded.array(), 0.toByte)
     }
   }
   object Secret extends (Chunk[Char] => Secret) {
