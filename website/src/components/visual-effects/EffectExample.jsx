@@ -6,6 +6,7 @@ import EffectNode from './effect-node/EffectNode';
 import { FloatingHighlight } from './feedback/FloatingHighlight';
 import { HeaderView } from './HeaderView';
 import { ScheduleTimeline } from './ScheduleTimeline';
+import { ScopeStack } from './scope/ScopeStack';
 
 // Ported (TS types stripped) from the source engine's
 // src/components/display/EffectExample.tsx. The source also supports a
@@ -25,6 +26,7 @@ function EffectExampleComponent({
   resultEffect,
   effectHighlightMap,
   effects,
+  scope,
   showScheduleTimeline,
   variant,
 }) {
@@ -250,6 +252,18 @@ function EffectExampleComponent({
             repeatEffect={resultEffect}
             pixelsPerSecond={50}
           />
+        </motion.div>
+      )}
+
+      {/* Scope visualization (if provided) */}
+      {scope && (
+        <motion.div
+          initial={{ borderColor: borderColorValue }}
+          animate={{ borderColor: borderColorValue }}
+          transition={standardTransition}
+          className="border-b"
+        >
+          <ScopeStack scope={scope} />
         </motion.div>
       )}
 
