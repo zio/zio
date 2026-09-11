@@ -14,7 +14,7 @@ import java.io.IOException
 case class User(name: String)
 case class Stats()
 case class Event(isValid: Boolean)
-class File
+class File { def close(): Unit = () }
 
 class Database { def insert(name: String): Task[User] = ZIO.succeed(User(name)) }
 object Database {
@@ -28,11 +28,15 @@ object Logger { val live: ULayer[Logger] = ZLayer.succeed(new Logger) }
 def runFast(name: String): Task[String] = ZIO.succeed(name)
 def attemptParallelPark(): IO[String, String] = ZIO.succeed("parked")
 
-def openFile(path: String): IO[IOException, File]  = ZIO.succeed(new File)
-def closeFile(f: File): UIO[Unit]                  = ZIO.unit
-def computeStats(f: File): IO[IOException, Stats]  = ZIO.succeed(Stats())
 def logFile(path: String): ZIO[Scope, Throwable, File] = ZIO.succeed(new File)
 def runMigrations(db: Database, f: File): Task[Unit]   = ZIO.unit
+
+class DbConn { def close(): Unit = () }
+class CacheConn { def flush(): Unit = () }
+def connectDatabase(): Task[DbConn] = ZIO.succeed(new DbConn)
+def connectCache(): Task[CacheConn] = ZIO.succeed(new CacheConn)
+def openLogFile(): IO[IOException, File] = ZIO.succeed(new File)
+def doWork(db: DbConn, cache: CacheConn, logger: File): Task[Stats] = ZIO.succeed(Stats())
 
 val events: List[Event]                    = List(Event(true))
 def enrich(e: Event): Task[Event]          = ZIO.succeed(e)
@@ -59,19 +63,22 @@ object Snippet2 {
 }
 
 // ── Snippet 3: Resource safety ──────────────────────────────────────────
+// Matches the "ZIO.acquireRelease" example mounted in the Resource safety
+// tab's Visual view (website/src/components/visual-effects/scenarios/AcquireReleaseVisual.jsx)
+// — Visual and Code must show the same example.
 object Snippet3 {
-  def analyze(path: String): ZIO[Any, IOException, Stats] =
-    ZIO.acquireReleaseWith(openFile(path))(closeFile): file =>
-      computeStats(file)
+  val makeDatabase = ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))
+  val makeCache     = ZIO.acquireRelease(connectCache())(cache => ZIO.succeed(cache.flush()))
+  val makeLogger    = ZIO.acquireRelease(openLogFile())(file => ZIO.succeed(file.close()))
 
-  // Or compose many resources with Scope
-  val app: ZIO[Any, Throwable, Unit] =
+  val result: ZIO[Any, Throwable, Stats] =
     ZIO.scoped:
       for
-        db   <- Database.connect
-        file <- logFile("app.log")
-        _    <- runMigrations(db, file)
-      yield () // released in reverse order — even on failure or interruption
+        db     <- makeDatabase
+        cache  <- makeCache
+        logger <- makeLogger
+        r      <- doWork(db, cache, logger)
+      yield r
 }
 
 // ── Snippet 4: Streaming ────────────────────────────────────────────────

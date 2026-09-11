@@ -35,6 +35,7 @@ val result = park.retry(Schedule.exponential(700.millis))`,
   {
     value: 'resources',
     label: 'Resource safety',
+    visual: 'resources',
     takeaway:
       'Acquire and release are paired at the type level — leaks are impossible, even under interruption.',
     points: [
@@ -42,18 +43,18 @@ val result = park.retry(Schedule.exponential(700.millis))`,
       'Many resources compose and close in reverse order.',
       'Guaranteed on success, failure, or interruption alike.',
     ],
-    code: `def analyze(path: String): ZIO[Any, IOException, Stats] =
-  ZIO.acquireReleaseWith(openFile(path))(closeFile): file =>
-    computeStats(file)
+    code: `val makeDatabase = ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))
+val makeCache = ZIO.acquireRelease(connectCache())(cache => ZIO.succeed(cache.flush()))
+val makeLogger = ZIO.acquireRelease(openLogFile())(file => ZIO.succeed(file.close()))
 
-// Or compose many resources with Scope
-val app: ZIO[Any, Throwable, Unit] =
-  ZIO.scoped:
-    for
-      db   <- Database.connect
-      file <- logFile("app.log")
-      _    <- runMigrations(db, file)
-    yield () // released in reverse order — even on failure or interruption`,
+val result = ZIO.scoped {
+  for {
+    db     <- makeDatabase
+    cache  <- makeCache
+    logger <- makeLogger
+    r      <- doWork(db, cache, logger)
+  } yield r
+}`,
   },
   {
     value: 'streaming',

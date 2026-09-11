@@ -22,6 +22,9 @@ const VISUAL_COMPONENTS = {
   errors: React.lazy(
     () => import('../../visual-effects/scenarios/RetryExponentialVisual'),
   ),
+  resources: React.lazy(
+    () => import('../../visual-effects/scenarios/AcquireReleaseVisual'),
+  ),
 };
 
 // prism-react-renderer v2 highlights against the shared prismjs instance.
