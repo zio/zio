@@ -128,6 +128,59 @@ site is verified via `yarn build`/manual review, not vitest). Round 1 is
 verified by running `yarn start` locally, checking both themes and mobile
 width, per the standard for this section.
 
+## Post-round-1 amendment
+
+Round 1 shipped with more fidelity than this document originally scoped, in
+response to direct user feedback after seeing the consolidated version
+render: the "consolidated single-file EffectNode" and "bespoke
+ConcurrencyVisual scenario" described above were replaced with a verbatim
+port of the source engine's actual node-rendering chain (`EffectContainer`/
+`EffectContent`/`EffectOverlay`/`EffectLabel`/`nodeVariants`/`taskUtils`/
+`useEffectMotion`, `Timer`, `feedback/` bubbles, `renderers/`) and the actual
+`src/examples/effect-race.tsx` example (via `EffectExample`/`HeaderView`/
+`CodeBlock`/`FloatingHighlight`), not an invented scenario. `VisualEffect.js`
+was restored to its full source behavior (notify/children/`death` state),
+with sound routed through a real ported `TaskSoundSystem` (Tone.js), not a
+silent stub. The standing rule going forward (see also
+`docs/superpowers/plans/2026-09-10-tabbed-visual-effects-round1.md`'s
+ledger): **port the actual source file and its real dependency chain**,
+adapting only what's structurally necessary (TS types stripped, dead
+sound/theme mismatches fixed for this being a light/dark-toggling host page
+instead of the source's permanently-dark one) — not a simplified rewrite.
+
+One more standing rule earned the same way: **a tab's outer "Code" snippet
+in `data.js` and its Visual view's embedded example must show the same
+example** — when a round ports a new example, update `data.js`'s `code`
+field (and the compile-checked `specs/snippet-check/showcase.scala`) to
+match, don't leave the old snippet in place.
+
+## Round 2: Error handling tab
+
+**Example**: `src/examples/effect-retry-exponential.tsx` — "ZIO.retry",
+variant "exponential" (section "schedule" in the source's own manifest, not
+"error handling" — chosen for this tab anyway because its content,
+`park.retry(Schedule.exponential(700.millis))`, directly matches what's
+already on this tab today: `fetchConfig.retry(Schedule.exponential(100.millis)
+&& Schedule.recurs(5))`). Per the parity rule above and the user's explicit
+ask to relate the ported example to the current one, content fit won out
+over the source's own section tag.
+
+**New capability needed**: this example passes `showScheduleTimeline={true}`
+to `EffectExample`, which round 1 dropped as unused. Restore that prop and
+port `src/components/ScheduleTimeline.tsx` (a ~580-line scrolling
+attempt-timeline showing running/gap segments with duration labels) verbatim
+— the first real test of "later rounds may need to widen `EffectNode`/
+`EffectExample` back out" from round 1's YAGNI notes.
+
+**Other additions**: `useVisualEffect` (singular — round 1 only ported the
+plural `useVisualEffects`) and `createCounter` (from the source's
+`examples/helpers.ts`, round 1 skipped it as unused).
+
+**Wiring**: `data.js`'s `errors` entry gets `visual: 'error-handling'` (or
+similar key) and its `code` field updated to match the ported example's own
+snippet; `specs/snippet-check/showcase.scala`'s Snippet2 updated and
+recompiled to match, same as round 1 did for Snippet1.
+
 ## Later rounds
 
 Each subsequent round repeats the same pattern for one more tab: add a
