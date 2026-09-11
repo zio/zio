@@ -145,7 +145,7 @@ remoteService.retryUntil(_ == DataCorrupted)
 
 To provide an effectful predicate we use the `ZIO#retryUntilZIO` operator.
 
-## `ZIO#retryUntilEqual`
+## `ZIO#retryUntilEquals`
 
 Like the previous operator, it tries until its error is equal to the specified error:
 
