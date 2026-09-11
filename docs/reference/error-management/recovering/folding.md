@@ -205,7 +205,7 @@ This version of fold, provide us the facility to access the trace info of the fa
 ```scala
 trait ZIO[-R, +E, +A] {
   def foldTraceZIO[R1 <: R, E2, B](
-    failure: ((E, Trace)) => ZIO[R1, E2, B],
+    failure: ((E, StackTrace)) => ZIO[R1, E2, B],
     success: A => ZIO[R1, E2, B]
   )(implicit ev: CanFail[E]): ZIO[R1, E2, B]
 }
