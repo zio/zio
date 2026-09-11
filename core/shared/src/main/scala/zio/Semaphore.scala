@@ -17,10 +17,8 @@
 package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.internal.SemaphorePlatform
 import zio.stm.TSemaphore
-
-import scala.annotation.tailrec
-import scala.collection.immutable.{Queue => ScalaQueue}
 
 /**
  * An asynchronous semaphore, which is a generalization of a mutex. Semaphores
@@ -35,7 +33,12 @@ import scala.collection.immutable.{Queue => ScalaQueue}
 sealed trait Semaphore extends Serializable {
 
   /**
-   * Returns the number of available permits.
+   * Returns the number of permits that are available to be acquired.
+   *
+   * For a fair semaphore this is `0` whenever another fiber is already waiting
+   * for permits, since a waiting fiber must be served first and no other fiber
+   * may acquire ahead of it, even if the semaphore is holding permits that the
+   * waiting fiber is not yet able to use.
    */
   def available(implicit trace: Trace): UIO[Long]
 
@@ -92,116 +95,142 @@ object Semaphore {
 
   /**
    * Creates a new `Semaphore` with the specified number of permits.
+   *
+   * The returned semaphore is fair: permits are granted to fibers in the order
+   * in which they were requested, and a fiber will not acquire a permit while
+   * another fiber is already waiting for one.
    */
   def make(permits: => Long)(implicit trace: Trace): UIO[Semaphore] =
     ZIO.succeed(unsafe.make(permits)(Unsafe.unsafe))
 
+  /**
+   * Creates a new unfair `Semaphore` with the specified number of permits.
+   *
+   * An unfair semaphore allows a fiber to acquire an available permit even when
+   * other fibers are already waiting, a policy commonly known as "barging",
+   * trading the FIFO ordering guarantee of [[make]] for the chance to skip a
+   * suspend/reschedule round trip.
+   *
+   * Note that with an unfair semaphore a waiting fiber is not guaranteed to
+   * make progress if permits are continuously acquired by other fibers.
+   *
+   * Be aware that unfairness buys much less here than it does for a semaphore
+   * that parks threads: under `withPermit` the cost of contention is dominated
+   * by suspending and rescheduling fibers through the runtime rather than by
+   * the queueing policy. Benchmarks show this within noise of [[make]]
+   * uncontended, and ahead of it in only one measured contended configuration,
+   * ten fibers over five permits. For comparison, barging is worth nearly 2x to
+   * `java.util.concurrent.Semaphore` at ten threads over one permit. Reach for
+   * this when you specifically do not need ordering, and measure before
+   * assuming it is faster for your workload.
+   */
+  def makeUnfair(permits: => Long)(implicit trace: Trace): UIO[Semaphore] =
+    ZIO.succeed(unsafe.makeUnfair(permits)(Unsafe.unsafe))
+
   object unsafe {
     def make(permits: Long)(implicit unsafe: Unsafe): Semaphore =
-      new Semaphore {
-        val ref = Ref.unsafe.make[Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]](Right(permits))
+      new ConcurrentSemaphore(permits, fair = true)
 
-        def available(implicit trace: Trace): UIO[Long] =
-          ref.get.map {
-            case Left(_)        => 0L
-            case Right(permits) => permits
-          }
+    def makeUnfair(permits: Long)(implicit unsafe: Unsafe): Semaphore =
+      new ConcurrentSemaphore(permits, fair = false)
+  }
 
-        override def awaiting(implicit trace: Trace): UIO[Long] =
-          ref.get.map {
-            case Left(queue) => queue.size.toLong
-            case Right(_)    => 0L
-          }
+  private final class ConcurrentSemaphore(permits: Long, fair: Boolean) extends Semaphore {
+    private[this] val state = new SemaphorePlatform(permits, fair)
 
-        def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-          withPermits(1L)(zio)
+    def available(implicit trace: Trace): UIO[Long] =
+      ZIO.succeed(state.available())
 
-        def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-          withPermitsScoped(1L)
+    override def awaiting(implicit trace: Trace): UIO[Long] =
+      ZIO.succeed(state.awaiting())
 
-        def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-          ZIO.acquireReleaseWith(reserve(n))(_.release)(_.acquire *> zio)
+    def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+      withPermits(1L)(zio)
 
-        def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
-          ZIO.acquireRelease(reserve(n))(_.release).flatMap(_.acquire)
+    def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+      withPermitsScoped(1L)
 
-        override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-          ZIO.acquireReleaseWith(tryReserve(n)) {
-            case Some(reservation) => reservation.release
-            case _                 => Exit.unit
-          } {
-            case _: Some[?] => zio.asSome
-            case _          => Exit.none
-          }
+    def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
+      if (n < 0L) die(n)
+      else if (n == 0L) zio
+      else
+        ZIO.AcquireReleaseInline(
+          trace,
+          () => state.tryAcquire(n),
+          zio,
+          () => state.release(n),
+          // Only the queueing path needs the uninterruptible region. The fast
+          // path takes its permits and installs their release inside a single
+          // dispatch of the run loop, which cannot be interrupted partway, so it
+          // pays for no flag changes at all. Queueing has to suspend, and a
+          // suspension is interruptible by construction, so the waiter has to be
+          // enqueued and awaited under a mask that `enqueueAndAwait` restores
+          // around the suspension itself.
+          //
+          // By name: on the path this exists to make cheap, it is never built.
+          () =>
+            ZIO.uninterruptibleMask { restore =>
+              val body = ZIO.OnExitEffect(trace, restore(zio), () => state.release(n))
 
-        case class Reservation(acquire: UIO[Unit], release: UIO[Any])
-        object Reservation {
-          private[zio] val zero = Reservation(ZIO.unit, ZIO.unit)
+              if (state.tryAcquire(n)) body
+              else enqueueAndAwait(n, restore).flatMap(_ => body)
+            }
+        )
+
+    def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
+      if (n < 0L) die(n)
+      else if (n == 0L) Exit.unit
+      else
+        ZIO.uninterruptibleMask { restore =>
+          def register = ZIO.addFinalizer(ZIO.succeed(state.release(n))).unit
+
+          if (state.tryAcquire(n)) register
+          else enqueueAndAwait(n, restore).flatMap(_ => register)
         }
 
-        def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
-          if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
-          else if (n == 0L) ZIO.succeed(Some(Reservation.zero))
+    override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
+      if (n < 0L) die(n)
+      else if (n == 0L) zio.asSome
+      else
+        ZIO.uninterruptibleMask { restore =>
+          if (!state.tryAcquire(n)) Exit.none
           else
-            ref.modify {
-              case Right(permits) if permits >= n =>
-                Some(Reservation(ZIO.unit, releaseN(n))) -> Right(permits - n)
-              case other => None -> other
+            restore(zio).asSome.exitWith { exit =>
+              state.release(n)
+              exit
             }
-
-        def reserve(n: Long)(implicit trace: Trace): UIO[Reservation] =
-          if (n < 0)
-            ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
-          else if (n == 0L)
-            ZIO.succeed(Reservation.zero)
-          else
-            Promise.make[Nothing, Unit].flatMap { promise =>
-              ref.modify {
-                case Right(permits) if permits >= n =>
-                  Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
-                case Right(permits) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
-                case Left(queue) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
-              }
-            }
-
-        def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
-          ref.modify {
-            case Left(queue) =>
-              queue
-                .find(_._1 == promise)
-                .fold(releaseN(n) -> Left(queue)) { case (_, permits) =>
-                  releaseN(n - permits) -> Left(queue.filter(_._1 != promise))
-                }
-            case Right(permits) => ZIO.unit -> Right(permits + n)
-          }.flatten
-
-        def releaseN(n: Long)(implicit trace: Trace): UIO[Any] = {
-
-          @tailrec
-          def loop(
-            n: Long,
-            state: Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long],
-            acc: UIO[Any]
-          ): (UIO[Any], Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]) =
-            state match {
-              case Right(permits) => acc -> Right(permits + n)
-              case Left(queue) =>
-                queue.dequeueOption match {
-                  case None => acc -> Right(n)
-                  case Some(((promise, permits), queue)) =>
-                    if (n > permits)
-                      loop(n - permits, Left(queue), acc *> promise.succeedUnit)
-                    else if (n == permits)
-                      (acc *> promise.succeedUnit) -> Left(queue)
-                    else
-                      acc -> Left((promise -> (permits - n)) +: queue)
-                }
-            }
-
-          ref.modify(loop(n, _, ZIO.unit)).flatten
         }
-      }
+
+    /**
+     * Enqueues a waiter for `n` permits and suspends until it is granted them.
+     *
+     * The two are one method because a waiter that is enqueued and then not
+     * awaited strands its permits: nothing else will ever claim them, and the
+     * fiber that queued it never learns it was granted.
+     *
+     * Both halves run while this is being built, in the same block of
+     * interpreter work as the `tryAcquire` that failed. Splitting them across
+     * effect nodes would put a yield point between them, and two fibers
+     * arriving in order could then be queued out of order, breaking the FIFO
+     * guarantee of a fair semaphore.
+     *
+     * The suspension itself runs interruptibly, since a fiber blocked on a
+     * semaphore has to remain interruptible, and must return its permits if it
+     * is interrupted after having been granted them.
+     */
+    private def enqueueAndAwait(n: Long, restore: ZIO.InterruptibilityRestorer)(implicit
+      trace: Trace
+    ): ZIO[Any, Nothing, Unit] = {
+      val waiter = state.enqueue(n)
+      restore {
+        ZIO.async[Any, Nothing, Unit](
+          cb => if (!waiter.register(cb)) cb(Exit.unit),
+          FiberId.None
+        )
+      }.onInterrupt(ZIO.succeed(state.cancel(waiter)))
+    }
+
+    private def die(n: Long)(implicit trace: Trace): UIO[Nothing] =
+      ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
   }
 }
