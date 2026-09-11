@@ -144,10 +144,13 @@ export default function AcquireReleaseVisual() {
   const codeSnippet = `val result: ZIO[Any, Throwable, Report] =
   ZIO.scoped:
     for
-      db     <- ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))
-      cache  <- ZIO.acquireRelease(connectCache())(cache => ZIO.succeed(cache.flush()))
-      logger <- ZIO.acquireRelease(openLogFile())(file => ZIO.succeed(file.close()))
-      r      <- doWork(db, cache, logger)
+      db <- ZIO.acquireRelease(connectDatabase()): db =>
+        ZIO.succeed(db.close())
+      cache <- ZIO.acquireRelease(connectCache()): cache =>
+        ZIO.succeed(cache.flush())
+      logger <- ZIO.acquireRelease(openLogFile()): file =>
+        ZIO.succeed(file.close())
+      r <- doWork(db, cache, logger)
     yield r`;
 
   const taskHighlightMap = useMemo(

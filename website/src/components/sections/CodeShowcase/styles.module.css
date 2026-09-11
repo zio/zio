@@ -272,6 +272,11 @@
      panel does not jump when switching between short and long examples. */
   min-height: 24rem;
   max-height: 500px;
+  /* Prism's theme sets an inline white-space: pre-wrap; override it so long
+     lines never break mid-line — any line too long for the panel scrolls
+     horizontally instead (overflow: auto above), which reads far better
+     than a broken mid-expression wrap. */
+  white-space: pre !important;
   font-size: 0.875rem;
   line-height: 1.6;
 }
