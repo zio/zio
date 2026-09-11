@@ -19,7 +19,7 @@
   margin: 0 auto;
   padding: 0 2rem;
   display: grid;
-  grid-template-columns: 2fr 3fr;
+  grid-template-columns: 2fr 5fr;
   gap: 4rem;
   align-items: stretch;
 }
@@ -252,14 +252,24 @@
 }
 
 .visualArea {
-  flex: 1;
+  /* flex: 0 0 <height>, not flex: 1 — flex: 1 sets flex-basis: 0%, which
+     overrides the explicit height below and lets the box grow to fit
+     whichever visual example is tallest (e.g. Resource safety's finalizer
+     stack) instead of staying fixed. flex-shrink: 0 keeps it from being
+     compressed either. */
+  flex: 0 0 500px;
   display: flex;
-  min-height: 24rem;
-  max-height: 500px;
+  height: 500px;
+  overflow-y: auto;
 }
 
 .codeArea {
-  flex: 1;
+  /* flex: 0 0 auto, not flex: 1 — see .visualArea for why: flex: 1's
+     flex-basis: 0% would override the fixed height that .pre sets below. */
+  flex: 0 0 auto;
+  /* Without this, a flex item's default min-width:auto lets a long code
+     line force the box past its column instead of scrolling inside it. */
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -268,10 +278,10 @@
   margin: 0;
   padding: 1.25rem 1rem;
   overflow: auto;
-  /* Hold a stable height across tabs (tallest snippet is ~15 lines) so the
-     panel does not jump when switching between short and long examples. */
-  min-height: 24rem;
-  max-height: 500px;
+  min-width: 0;
+  /* Fixed (not min/max) so the panel is the exact same height on every
+     tab, regardless of how many lines that tab's snippet has. */
+  height: 500px;
   /* Prism's theme sets an inline white-space: pre-wrap; override it so long
      lines never break mid-line — any line too long for the panel scrolls
      horizontally instead (overflow: auto above), which reads far better
@@ -360,6 +370,10 @@
 
   .pre {
     overflow: auto;
-    max-height: 450px;
+    height: 450px;
+  }
+
+  .visualArea {
+    height: 450px;
   }
 }
