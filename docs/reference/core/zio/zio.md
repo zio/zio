@@ -446,6 +446,8 @@ val login: IO[AuthError, User] =
 
 Asynchronous ZIO effects are much easier to use than callback-based APIs, and they benefit from ZIO features like interruption, resource-safety, and superior error handling.
 
+A fiber parked in `ZIO.async` is interruptible, but nothing tells the underlying API to stop. To make the wrapped operation itself cancellable, use `ZIO.asyncInterrupt` and return the cancellation action in the `Left` of the `Either`. See [Interrupting Asynchronous Effects](../../interruption/interruption-and-finalizers.md#interrupting-asynchronous-effects) for a worked example and the guidance on which shape of canceler to return.
+
 ### Creating Suspended Effects
 
 | Function         | Input Type     | Output Type    |

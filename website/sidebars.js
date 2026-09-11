@@ -114,7 +114,18 @@ module.exports = {
           "reference/error-management/examples"
         ]
     },
-    "reference/interruption/index",
+    {
+      type: "category",
+      label: "Interruption Model",
+      link: { type: "doc", id: "reference/interruption/index" },
+      items: [
+        "reference/interruption/interruptible-regions",
+        "reference/interruption/triggering-interruption",
+        "reference/interruption/interruption-and-finalizers",
+        "reference/interruption/blocking-operations",
+        "reference/interruption/common-pitfalls"
+      ]
+    },
     {
       type: "category",
       label: "Built-in Services",
