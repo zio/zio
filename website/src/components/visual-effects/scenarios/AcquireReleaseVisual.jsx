@@ -142,17 +142,17 @@ export default function AcquireReleaseVisual() {
   }, [mainTask, scope]);
 
   const codeSnippet = `val makeDatabase = ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))
-val makeCache = ZIO.acquireRelease(connectCache())(cache => ZIO.succeed(cache.flush()))
-val makeLogger = ZIO.acquireRelease(openLogFile())(file => ZIO.succeed(file.close()))
+val makeCache    = ZIO.acquireRelease(connectCache())(cache => ZIO.succeed(cache.flush()))
+val makeLogger   = ZIO.acquireRelease(openLogFile())(file => ZIO.succeed(file.close()))
 
-val result = ZIO.scoped {
-  for {
-    db     <- makeDatabase
-    cache  <- makeCache
-    logger <- makeLogger
-    r      <- doWork(db, cache, logger)
-  } yield r
-}`;
+val result: ZIO[Any, Throwable, Stats] =
+  ZIO.scoped:
+    for
+      db     <- makeDatabase
+      cache  <- makeCache
+      logger <- makeLogger
+      r      <- doWork(db, cache, logger)
+    yield r`;
 
   const taskHighlightMap = useMemo(
     () => ({
@@ -169,7 +169,10 @@ val result = ZIO.scoped {
       name="ZIO.acquireRelease"
       description="Acquire resources with guaranteed cleanup"
       code={codeSnippet}
-      effects={useMemo(() => [dbTask, cacheTask, loggerTask], [dbTask, cacheTask, loggerTask])}
+      effects={useMemo(
+        () => [dbTask, cacheTask, loggerTask],
+        [dbTask, cacheTask, loggerTask],
+      )}
       resultEffect={mainTask}
       effectHighlightMap={taskHighlightMap}
       scope={scope}

@@ -44,17 +44,17 @@ val result = park.retry(Schedule.exponential(700.millis))`,
       'Guaranteed on success, failure, or interruption alike.',
     ],
     code: `val makeDatabase = ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))
-val makeCache = ZIO.acquireRelease(connectCache())(cache => ZIO.succeed(cache.flush()))
-val makeLogger = ZIO.acquireRelease(openLogFile())(file => ZIO.succeed(file.close()))
+val makeCache    = ZIO.acquireRelease(connectCache())(cache => ZIO.succeed(cache.flush()))
+val makeLogger   = ZIO.acquireRelease(openLogFile())(file => ZIO.succeed(file.close()))
 
-val result = ZIO.scoped {
-  for {
-    db     <- makeDatabase
-    cache  <- makeCache
-    logger <- makeLogger
-    r      <- doWork(db, cache, logger)
-  } yield r
-}`,
+val result: ZIO[Any, Throwable, Stats] =
+  ZIO.scoped:
+    for
+      db     <- makeDatabase
+      cache  <- makeCache
+      logger <- makeLogger
+      r      <- doWork(db, cache, logger)
+    yield r`,
   },
   {
     value: 'streaming',
