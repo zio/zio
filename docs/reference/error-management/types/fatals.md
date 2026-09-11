@@ -52,4 +52,4 @@ at zio.Runtime.unsafeRunWithRefs(Runtime.scala:400)
 Catastrophic error encountered. Application not safely interrupted. Resources may be leaked. Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context.
 ```
 
-Note that we can change the default way to report fatal errors using `Runtime#reportFatal` or the `Runtime.setReportFatal` layer.
+Note that we can change the default way to report fatal errors using the `Runtime.setReportFatal` layer.
