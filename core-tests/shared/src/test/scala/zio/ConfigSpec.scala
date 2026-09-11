@@ -66,6 +66,22 @@ object ConfigSpec extends ZIOBaseSpec {
           Secret("abc": CharSequence)
           assertCompletes
         } +
+        test("getBytes") {
+          val secret = Secret("secret")
+
+          assertTrue(
+            secret.getBytes(java.nio.charset.StandardCharsets.UTF_8) ==
+              Chunk.fromArray("secret".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+          )
+        } +
+        test("getBytes with non-ASCII characters") {
+          val secret = Secret("sécrét€")
+
+          assertTrue(
+            secret.getBytes(java.nio.charset.StandardCharsets.UTF_8) ==
+              Chunk.fromArray("sécrét€".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+          )
+        } +
         test("toString") {
           assertTrue(Secret("secret").toString() == "Secret(<redacted>)")
         } +
