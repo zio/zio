@@ -21,13 +21,13 @@ So when we compose different effects together, at any point of the codebase we c
 For example, the `ZIO.acquireReleaseWith` API asks us to provide three different inputs: _acquire_, _release_, and _use_. The `release` parameter requires a function from `A` to `URIO[R, Any]`. So, if we put an exceptional effect, it will not compile:
 
 ```scala
-object ZIO {
-  def acquireReleaseWith[R, E, A, B](
-    acquire: => ZIO[R, E, A],
-    release: A => URIO[R, Any],
-    use: A => ZIO[R, E, B]
-  ): ZIO[R, E, B]
-}
+// ZIO.acquireReleaseWith uses a curried builder — each argument group is a separate call:
+ZIO.acquireReleaseWith(acquire)(release)(use)
+
+// ZIO.Acquire (the object returned by the first call) has:
+//   def apply[R1](release: A => URIO[R1, Any]): ZIO.Release[R with R1, E, A]
+// ZIO.Release (the object returned by the second call) has:
+//   def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B]
 ```
 
 ## Why Unexceptional Effects Matter
