@@ -75,7 +75,7 @@ There is another version of sandbox called `ZIO#sandboxWith`. This operator help
 
 ```scala
 trait ZIO[-R, +E, +A] {
-  def sandboxWith[R1 <: R, E2, B](f: ZIO[R1, Cause[E], A] => ZIO[R1, Cause[E2], B])
+  def sandboxWith[R1 <: R, E2, B](f: ZIO[R1, Cause[E], A] => ZIO[R1, Cause[E2], B]): ZIO[R1, E2, B]
 }
 ```
 
