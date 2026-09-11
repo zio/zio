@@ -75,7 +75,7 @@ val result: ZIO[Any, Throwable, Either[LocalConfig, RemoteConfig]] =
 These two operators convert the original failure with constant succeed or failure values:
 
 ```scala
-trait ZIO[-R, +R, +E] {
+trait ZIO[-R, +E, +A] {
   def orElseFail[E1](e1: => E1): ZIO[R, E1, A]
 
   def orElseSucceed[A1 >: A](a1: => A1): ZIO[R, Nothing, A1]
