@@ -323,14 +323,22 @@ function HeaderViewComponent({
       </motion.div>
 
       <div className="flex flex-1 flex-col">
-        <h2 className="flex items-baseline gap-2 text-xl font-semibold text-white">
+        {/* text-white/text-neutral-* below were sized for the source's
+            permanently-dark host page; use theme-aware tokens instead so
+            the name/description stay legible once the card itself follows
+            zio.dev's light/dark toggle (see EffectExample.jsx). */}
+        <h2 className="flex items-baseline gap-2 text-xl font-semibold text-[var(--ifm-font-color-base)]">
           <span>{name}</span>
           {variant && (
-            <span className="font-medium text-neutral-500">{variant}</span>
+            <span className="font-medium text-[var(--ifm-color-emphasis-600)]">
+              {variant}
+            </span>
           )}
         </h2>
         {description && (
-          <p className="text-sm text-neutral-400">{description}</p>
+          <p className="text-sm text-[var(--ifm-color-emphasis-700)]">
+            {description}
+          </p>
         )}
       </div>
     </motion.div>

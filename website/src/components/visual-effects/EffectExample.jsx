@@ -19,7 +19,6 @@ function EffectExampleComponent({
   configurationPanel,
   description,
   exampleId,
-  isDarkMode = false,
   name,
   refs = EMPTY_REFS_ARRAY,
   resultEffect,
@@ -75,16 +74,17 @@ function EffectExampleComponent({
     throw new Error('EffectExample requires at least one effect');
   }
 
-  // Shared UI values
-  const borderColorValue = isDarkMode
-    ? 'rgba(127, 29, 29, 0.5)'
-    : 'rgba(64, 64, 64, 0.5)';
-  const backgroundGradient = isDarkMode
-    ? 'linear-gradient(to bottom right, black, rgba(127, 29, 29, 0.2))'
-    : 'linear-gradient(to bottom right, rgba(23, 23, 23, 0.8), rgba(23, 23, 23, 0.4))';
-  const headerBackground = isDarkMode
-    ? 'rgba(0, 0, 0, 0.5)'
-    : 'rgba(38, 38, 38, 0.5)';
+  // Shared UI values. The source hardcodes two *permanently dark* variants
+  // here (its host app is always-dark) — that looked fine on this site's
+  // dark theme but sat as a jarring dark island inside the light theme's
+  // white panel. Use the same Infima tokens the surrounding CodeShowcase
+  // panel already uses (see styles.module.css's .codePanel/.tabBar), so
+  // this card is light in light mode and dark in dark mode automatically,
+  // with no JS theme detection needed — the browser resolves the CSS
+  // variables live.
+  const borderColorValue = 'var(--ifm-color-emphasis-300)';
+  const backgroundGradient = 'var(--ifm-background-color)';
+  const headerBackground = 'var(--ifm-color-emphasis-100)';
   const standardTransition = { duration: 0.2, ease: 'easeInOut' };
 
   const highlightTarget = delayedHoveredEffect
@@ -101,16 +101,12 @@ function EffectExampleComponent({
     <motion.div
       className="relative flex w-full flex-col rounded-2xl border shadow-2xl"
       initial={{
-        boxShadow: isDarkMode
-          ? '0 0 40px rgba(220, 38, 38, 0.3)'
-          : '0 0 0 0 rgba(59, 130, 250, 0)',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
         borderColor: borderColorValue,
         background: backgroundGradient,
       }}
       animate={{
-        boxShadow: isDarkMode
-          ? '0 0 40px rgba(220, 38, 38, 0.3)'
-          : '0 0 0 0 rgba(59, 130, 250, 0)',
+        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
         borderColor: borderColorValue,
         background: backgroundGradient,
       }}
@@ -218,11 +214,21 @@ function EffectExampleComponent({
         )}
       </motion.div>
 
-      {/* Code block */}
+      {/* Code block. Fixed dark background, independent of the card's
+          theme-reactive background above: CodeBlock renders with
+          prism-react-renderer's oneDark theme (not theme-reactive, see
+          CodeBlock.jsx) and its own <pre> is `background: transparent`,
+          so it needs an opaque dark backdrop of its own here in light
+          mode — otherwise oneDark's dark-optimized syntax colors wash out
+          against the light card behind it. */}
       <div
-        className="relative p-4 text-base"
+        className="relative rounded-b-2xl border-t p-4 text-base"
         ref={codeContainerRef}
-        style={{ position: 'relative' }}
+        style={{
+          position: 'relative',
+          background: '#1e1e1e',
+          borderColor: borderColorValue,
+        }}
       >
         <CodeBlock code={code} activeLines={[]} />
         <FloatingHighlight
@@ -251,7 +257,6 @@ export const EffectExample = memo(
       prevProps.variant === nextProps.variant &&
       prevProps.code === nextProps.code &&
       prevProps.index === nextProps.index &&
-      prevProps.isDarkMode === nextProps.isDarkMode &&
       areArraysEqual(prevProps.effects, nextProps.effects) &&
       prevProps.resultEffect === nextProps.resultEffect &&
       areArraysEqual(prevProps.refs, nextProps.refs) &&
