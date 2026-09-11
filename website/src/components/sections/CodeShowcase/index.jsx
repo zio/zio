@@ -19,6 +19,9 @@ const VISUAL_COMPONENTS = {
   concurrency: React.lazy(
     () => import('../../visual-effects/scenarios/RaceVisual'),
   ),
+  errors: React.lazy(
+    () => import('../../visual-effects/scenarios/RetryExponentialVisual'),
+  ),
 };
 
 // prism-react-renderer v2 highlights against the shared prismjs instance.

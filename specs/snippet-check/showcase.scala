@@ -12,8 +12,6 @@ import java.io.IOException
 
 // ── Stubs standing in for "your code" in the homepage snippets ──────────
 case class User(name: String)
-case class Config()
-object Config { val fallback: Config = Config() }
 case class Stats()
 case class Event(isValid: Boolean)
 class File
@@ -28,8 +26,7 @@ class Logger { def info(msg: String): UIO[Unit] = ZIO.unit }
 object Logger { val live: ULayer[Logger] = ZLayer.succeed(new Logger) }
 
 def runFast(name: String): Task[String] = ZIO.succeed(name)
-
-val cachedConfig: UIO[Config] = ZIO.succeed(Config())
+def attemptParallelPark(): IO[String, String] = ZIO.succeed("parked")
 
 def openFile(path: String): IO[IOException, File]  = ZIO.succeed(new File)
 def closeFile(f: File): UIO[Unit]                  = ZIO.unit
@@ -53,19 +50,12 @@ object Snippet1 {
 }
 
 // ── Snippet 2: Error handling ───────────────────────────────────────────
+// Matches the "ZIO.retry" example mounted in the Error handling tab's
+// Visual view (website/src/components/visual-effects/scenarios/RetryExponentialVisual.jsx)
+// — Visual and Code must show the same example.
 object Snippet2 {
-  enum AppError:
-    case NetworkError(msg: String)
-    case ParseError(line: Int)
-
-  def fetchConfig: ZIO[Any, AppError, Config] = ???
-
-  val program: ZIO[Any, Nothing, Config] =
-    fetchConfig
-      .retry(Schedule.exponential(100.millis) && Schedule.recurs(5))
-      .catchAll:
-        case AppError.NetworkError(_) => cachedConfig
-        case AppError.ParseError(_)   => ZIO.succeed(Config.fallback)
+  val park   = attemptParallelPark()
+  val result = park.retry(Schedule.exponential(700.millis))
 }
 
 // ── Snippet 3: Resource safety ──────────────────────────────────────────

@@ -21,6 +21,7 @@ val winner = tortoise.race(achilles)`,
   {
     value: 'errors',
     label: 'Error handling',
+    visual: 'errors',
     takeaway:
       'Errors are typed — the compiler knows what can fail, and when you have handled it all.',
     points: [
@@ -28,18 +29,8 @@ val winner = tortoise.race(achilles)`,
       'Built-in retry policies recover from transient failures with backoff.',
       'The compiler proves when every error has been handled.',
     ],
-    code: `enum AppError:
-  case NetworkError(msg: String)
-  case ParseError(line: Int)
-
-def fetchConfig: ZIO[Any, AppError, Config] = ???
-
-val program: ZIO[Any, Nothing, Config] =
-  fetchConfig
-    .retry(Schedule.exponential(100.millis) && Schedule.recurs(5))
-    .catchAll:
-      case AppError.NetworkError(_) => cachedConfig
-      case AppError.ParseError(_)   => ZIO.succeed(Config.fallback)`,
+    code: `val park = attemptParallelPark()
+val result = park.retry(Schedule.exponential(700.millis))`,
   },
   {
     value: 'resources',
