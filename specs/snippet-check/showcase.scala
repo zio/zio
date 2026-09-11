@@ -67,16 +67,12 @@ object Snippet2 {
 // tab's Visual view (website/src/components/visual-effects/scenarios/AcquireReleaseVisual.jsx)
 // — Visual and Code must show the same example.
 object Snippet3 {
-  val makeDatabase = ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))
-  val makeCache     = ZIO.acquireRelease(connectCache())(cache => ZIO.succeed(cache.flush()))
-  val makeLogger    = ZIO.acquireRelease(openLogFile())(file => ZIO.succeed(file.close()))
-
   val result: ZIO[Any, Throwable, Stats] =
     ZIO.scoped:
       for
-        db     <- makeDatabase
-        cache  <- makeCache
-        logger <- makeLogger
+        db     <- ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))
+        cache  <- ZIO.acquireRelease(connectCache())(cache => ZIO.succeed(cache.flush()))
+        logger <- ZIO.acquireRelease(openLogFile())(file => ZIO.succeed(file.close()))
         r      <- doWork(db, cache, logger)
       yield r
 }

@@ -141,24 +141,20 @@ export default function AcquireReleaseVisual() {
     };
   }, [mainTask, scope]);
 
-  const codeSnippet = `val makeDatabase = ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))
-val makeCache    = ZIO.acquireRelease(connectCache())(cache => ZIO.succeed(cache.flush()))
-val makeLogger   = ZIO.acquireRelease(openLogFile())(file => ZIO.succeed(file.close()))
-
-val result: ZIO[Any, Throwable, Stats] =
+  const codeSnippet = `val result: ZIO[Any, Throwable, Stats] =
   ZIO.scoped:
     for
-      db     <- makeDatabase
-      cache  <- makeCache
-      logger <- makeLogger
+      db     <- ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))
+      cache  <- ZIO.acquireRelease(connectCache())(cache => ZIO.succeed(cache.flush()))
+      logger <- ZIO.acquireRelease(openLogFile())(file => ZIO.succeed(file.close()))
       r      <- doWork(db, cache, logger)
     yield r`;
 
   const taskHighlightMap = useMemo(
     () => ({
-      database: { text: 'makeDatabase' },
-      cache: { text: 'makeCache' },
-      logger: { text: 'makeLogger' },
+      database: { text: 'connectDatabase' },
+      cache: { text: 'connectCache' },
+      logger: { text: 'openLogFile' },
       result: { text: 'result' },
     }),
     [],

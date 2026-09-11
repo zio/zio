@@ -43,16 +43,12 @@ val result = park.retry(Schedule.exponential(700.millis))`,
       'Many resources compose and close in reverse order.',
       'Guaranteed on success, failure, or interruption alike.',
     ],
-    code: `val makeDatabase = ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))
-val makeCache    = ZIO.acquireRelease(connectCache())(cache => ZIO.succeed(cache.flush()))
-val makeLogger   = ZIO.acquireRelease(openLogFile())(file => ZIO.succeed(file.close()))
-
-val result: ZIO[Any, Throwable, Stats] =
+    code: `val result: ZIO[Any, Throwable, Stats] =
   ZIO.scoped:
     for
-      db     <- makeDatabase
-      cache  <- makeCache
-      logger <- makeLogger
+      db     <- ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))
+      cache  <- ZIO.acquireRelease(connectCache())(cache => ZIO.succeed(cache.flush()))
+      logger <- ZIO.acquireRelease(openLogFile())(file => ZIO.succeed(file.close()))
       r      <- doWork(db, cache, logger)
     yield r`,
   },
