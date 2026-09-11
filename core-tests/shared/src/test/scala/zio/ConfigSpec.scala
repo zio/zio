@@ -69,17 +69,32 @@ object ConfigSpec extends ZIOBaseSpec {
         test("getBytes") {
           val secret = Secret("secret")
 
+          val charsets = Chunk(
+            java.nio.charset.StandardCharsets.US_ASCII,
+            java.nio.charset.StandardCharsets.ISO_8859_1,
+            java.nio.charset.StandardCharsets.UTF_8,
+            java.nio.charset.StandardCharsets.UTF_16,
+            java.nio.charset.StandardCharsets.UTF_16BE,
+            java.nio.charset.StandardCharsets.UTF_16LE,
+          )
+
           assertTrue(
-            secret.getBytes(java.nio.charset.StandardCharsets.UTF_8) ==
-              Chunk.fromArray("secret".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+            charsets.forall(charset => secret.getBytes(charset) == Chunk.fromArray("secret".getBytes(charset)))
           )
         } +
         test("getBytes with non-ASCII characters") {
           val secret = Secret("sécrét€")
 
+          val charsets = Chunk(
+            java.nio.charset.StandardCharsets.ISO_8859_1,
+            java.nio.charset.StandardCharsets.UTF_8,
+            java.nio.charset.StandardCharsets.UTF_16,
+            java.nio.charset.StandardCharsets.UTF_16BE,
+            java.nio.charset.StandardCharsets.UTF_16LE,
+          )
+
           assertTrue(
-            secret.getBytes(java.nio.charset.StandardCharsets.UTF_8) ==
-              Chunk.fromArray("sécrét€".getBytes(java.nio.charset.StandardCharsets.UTF_8))
+            charsets.forall(charset => secret.getBytes(charset) == Chunk.fromArray("sécrét€".getBytes(charset)))
           )
         } +
         test("toString") {
