@@ -124,6 +124,7 @@ export default function AcquireReleaseVisual() {
           mainTask.state.type === 'interrupted' ||
           mainTask.state.type === 'failed' ||
           mainTask.state.type === 'death') &&
+        scope.state !== 'releasing' &&
         scope.state !== 'released'
       ) {
         // Run finalizers (guaranteed cleanup!)
@@ -134,7 +135,10 @@ export default function AcquireReleaseVisual() {
       }
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      scope.reset();
+    };
   }, [mainTask, scope]);
 
   const codeSnippet = `val makeDatabase = ZIO.acquireRelease(connectDatabase())(db => ZIO.succeed(db.close()))
