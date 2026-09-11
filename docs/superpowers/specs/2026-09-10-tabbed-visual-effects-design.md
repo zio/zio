@@ -181,6 +181,41 @@ similar key) and its `code` field updated to match the ported example's own
 snippet; `specs/snippet-check/showcase.scala`'s Snippet2 updated and
 recompiled to match, same as round 1 did for Snippet1.
 
+## Round 3: Resource safety tab
+
+**Example**: `src/examples/effect-acquire-release.tsx` — "ZIO.acquireRelease",
+section "scope" in the source's own manifest. Three resources (database,
+cache, logger) acquired then released in reverse order via a `VisualScope`
+finalizer stack; the main task cycles through success/failure/defect each
+run, demonstrating that cleanup runs regardless of how the effect exits.
+Matches this tab's existing copy almost exactly already ("Many resources
+compose and close in reverse order" / "Guaranteed on success, failure, or
+interruption alike") — no copy rewrite expected, unlike round 2.
+
+**New capability needed**: the `scope` prop on `EffectExample` (dropped in
+round 1 as unused, same pattern as round 2's `showScheduleTimeline`).
+Restoring it requires porting `VisualScope.ts` (a small state-machine class:
+`idle → acquiring → active → releasing → released`, holding a LIFO
+finalizer stack), `hooks/useVisualScope.ts` (a one-line force-update hook),
+and `components/scope/{ScopeStack,FinalizerCard}.tsx` (the stack
+visualization and its individual finalizer cards).
+
+**Known deviation, ruled on before implementation**: the source example
+sets `isDarkMode={mainTaskState.type === "death"}` on `EffectExample` — a
+dark-red "something died" visual accent, achieved by swapping the card's
+whole background/border. Round 1 already removed `isDarkMode` entirely and
+replaced it with fixed `var(--ifm-*)` theme tokens (see the "Post-round-1
+amendment" above) specifically because two permanently-dark variants don't
+work on a light/dark-toggling host page. Reintroducing a death-triggered
+background swap would reintroduce exactly that bug a third time. Ruling:
+**drop the death-triggered visual accent entirely** for this round — the
+functional demonstration (finalizers run LIFO regardless of success,
+failure, or defect) is fully preserved without it; only the cosmetic "flash
+dark red" flourish is cut. `FinalizerCard.tsx`'s own colors (small,
+saturated per-state chips — gray/blue/green) are left as-is, same reasoning
+as round 1 leaving `TASK_COLORS` alone: they're semantic state colors that
+read fine on either theme, not a dark-host assumption.
+
 ## Later rounds
 
 Each subsequent round repeats the same pattern for one more tab: add a
