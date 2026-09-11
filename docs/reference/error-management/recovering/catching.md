@@ -244,11 +244,11 @@ The two `ZIO#catchAllTrace` and `ZIO#catchSomeTrace` operators are useful to cat
 ```scala
 trait ZIO[-R, +E, +A] {
   def catchAllTrace[R1 <: R, E2, A1 >: A](
-    h: ((E, Trace)) => ZIO[R1, E2, A1]
+    h: ((E, StackTrace)) => ZIO[R1, E2, A1]
   ): ZIO[R1, E2, A1]
 
   def catchSomeTrace[R1 <: R, E1 >: E, A1 >: A](
-    pf: PartialFunction[(E, Trace), ZIO[R1, E1, A1]]
+    pf: PartialFunction[(E, StackTrace), ZIO[R1, E1, A1]]
   ): ZIO[R1, E1, A1]
 }
 ```
