@@ -197,6 +197,30 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     )
 
   /**
+   * Creates a cause representing the firstCause followed by this cause. The
+   * error value from the firstCause is discarded.
+   */
+  private[zio] final def inherit(
+    firstCause: Cause[?]
+  ): Cause[E] = {
+    val trace       = firstCause.trace
+    val spans       = firstCause.spans
+    val annotations = firstCause.annotations
+
+    val isEmptyTrace = trace.isEmpty
+    val isEmptySpans = spans.isEmpty
+    val isEmptyAnns  = annotations.isEmpty
+
+    if (isEmptyTrace && isEmptySpans && isEmptyAnns) self
+    else
+      mapAll(
+        if (isEmptyTrace) ZIO.identityFn else trace ++ _,
+        if (isEmptySpans) ZIO.identityFn else spans ::: _,
+        if (isEmptyAnns) ZIO.identityFn else annotations ++ _
+      )
+  }
+
+  /**
    * Flattens a nested cause.
    */
   final def flatten[E1](implicit ev: E <:< Cause[E1]): Cause[E1] =
