@@ -29,9 +29,17 @@ const TIMELINE_CONFIG = {
     runningInactive: 'var(--color-blue-500)',
     gapActive: 'var(--color-neutral-400)',
     gapInactive: 'var(--color-neutral-600)',
-    backgroundLine: 'var(--color-neutral-800)',
-    tickMark: 'var(--color-neutral-800)',
-    cursorActive: 'var(--color-white)',
+    // backgroundLine/tickMark/cursorActive below were the source's
+    // permanently-dark values ('very dark gray, subtle' / white), which
+    // read fine against the source's always-dark host but invert into
+    // the loudest elements on zio.dev's light theme (a black barcode-like
+    // strip, an invisible white cursor). Same class of fix as round 1's
+    // EffectExample.jsx card-chrome tokens (borderColorValue/
+    // backgroundGradient/headerBackground): swap to theme-reactive
+    // --ifm-* tokens so both light and dark mode stay legible.
+    backgroundLine: 'var(--ifm-color-emphasis-300)',
+    tickMark: 'var(--ifm-color-emphasis-200)',
+    cursorActive: 'var(--ifm-font-color-base)',
     cursorInactive: 'var(--color-neutral-500)',
   },
 

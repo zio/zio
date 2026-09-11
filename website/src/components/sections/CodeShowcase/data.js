@@ -23,11 +23,11 @@ val winner = tortoise.race(achilles)`,
     label: 'Error handling',
     visual: 'errors',
     takeaway:
-      'Errors are typed — the compiler knows what can fail, and when you have handled it all.',
+      'Failures are transient by default — retry policies recover without hand-written retry loops.',
     points: [
-      'Every possible failure is visible in the type, not hidden in exceptions.',
-      'Built-in retry policies recover from transient failures with backoff.',
-      'The compiler proves when every error has been handled.',
+      'Retry with backoff is one combinator, not a hand-rolled loop with counters and sleeps.',
+      'Schedules compose — exponential backoff, jitter, and limits combine declaratively.',
+      'The same retry logic works for any effect, from a single call to a whole pipeline.',
     ],
     code: `val park = attemptParallelPark()
 val result = park.retry(Schedule.exponential(700.millis))`,

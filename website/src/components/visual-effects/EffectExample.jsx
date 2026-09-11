@@ -67,6 +67,27 @@ function EffectExampleComponent({
     };
   }, [hoveredEffect]);
 
+  // Reset every effect this component displays on unmount. Without this,
+  // Effect.runFork'd fibers (see VisualEffect.js's run()) keep running in
+  // the background after the visitor navigates away mid-cycle: sounds keep
+  // firing with nothing on screen, and any module-level state a scenario's
+  // Effect.ensuring finalizer touches (e.g. RetryExponentialVisual.jsx's
+  // parkingAttempt counter) only gets cleaned up whenever that orphaned
+  // fiber happens to finish, not when the component actually unmounts.
+  // VisualEffect.reset() interrupts the fiber, which runs Effect.ensuring's
+  // finalizer synchronously as part of interruption, and reset() is
+  // idempotent, so resetting the same effect twice (resultEffect can be
+  // effects[0] when isSingleEffect is true) is harmless.
+  useEffect(() => {
+    return () => {
+      effects.forEach((effect) => effect.reset());
+      if (resultEffect && !effects.includes(resultEffect)) {
+        resultEffect.reset();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Determine if this is a single effect example
   const isSingleEffect =
     !resultEffect || (effects.length === 1 && effects[0] === resultEffect);
@@ -224,7 +245,11 @@ function EffectExampleComponent({
           transition={standardTransition}
           className="border-b"
         >
-          <ScheduleTimeline baseEffect={effects[0]} repeatEffect={resultEffect} />
+          <ScheduleTimeline
+            baseEffect={effects[0]}
+            repeatEffect={resultEffect}
+            pixelsPerSecond={50}
+          />
         </motion.div>
       )}
 
