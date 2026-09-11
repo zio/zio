@@ -99,6 +99,19 @@ object TestSpec extends ZIOBaseSpec {
             not(containsString("3 == 4"))
         )
     },
+    test("fail-fast assertion by automatic lifting inside flatMap") {
+      for {
+        ref <- Ref.make(false)
+        spec = test("test") {
+                 ZIO.succeed(1).flatMap(value => assertTrue(value == 2, value > 0)) *>
+                   ref.set(true).as(assertCompletes)
+               }
+        summary   <- execute(spec)
+        continued <- ref.get
+      } yield assertTrue(!continued) &&
+        assert(summary.fail)(equalTo(1)) &&
+        assert(summary.failureDetails.unstyled)(containsString("value == 2"))
+    },
     test("composed assertions are lifted to ZIO and fully evaluated") {
       for {
         ref <- Ref.make(0)
