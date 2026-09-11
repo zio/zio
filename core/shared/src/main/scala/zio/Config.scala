@@ -181,6 +181,25 @@ object Config {
     def value: Chunk[Char] = Chunk.fromArray(raw)
 
     def stringValue = new String(raw)
+
+    /**
+     * Returns the bytes of this secret, encoded using the specified charset.
+     * The underlying characters are encoded directly, without ever
+     * materializing an intermediate `String`.
+     */
+    def getBytes(charset: java.nio.charset.Charset): Chunk[Byte] = {
+      val encoded = charset.encode(java.nio.CharBuffer.wrap(raw))
+      try {
+        val result = new Array[Byte](encoded.remaining())
+        encoded.get(result)
+        Chunk.fromArray(result)
+      } finally
+        // `encoded` holds the secret in plaintext; clear it rather than leave it
+        // on the heap until the GC happens to collect it. `encode` sizes the
+        // buffer from the charset's maximum bytes-per-char, so it is usually
+        // longer than the secret: zero all of it, not just the encoded region.
+        if (encoded.hasArray) java.util.Arrays.fill(encoded.array(), 0.toByte)
+    }
   }
   object Secret extends (Chunk[Char] => Secret) {
     def apply(chunk: Chunk[Char]): Secret = new Secret(chunk.toArray)
