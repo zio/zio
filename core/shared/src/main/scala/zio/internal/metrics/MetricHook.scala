@@ -16,11 +16,23 @@
 
 package zio.internal.metrics
 
-private[zio] final case class MetricHook[-In, +Out](
+private[zio] sealed abstract class MetricHook[-In, +Out] {
+  def update: In => Unit
+  def get: () => Out
+  def modify: In => Unit
+}
+
+private[zio] final case class MetricHookDouble[+Out](
+  update: Double => Unit,
+  get: () => Out,
+  modify: Double => Unit
+) extends MetricHook[Double, Out]
+
+private[zio] final case class MetricHookAnyRef[-In, +Out](
   update: In => Unit,
   get: () => Out,
   modify: In => Unit
-)
+) extends MetricHook[In, Out]
 
 private[zio] object MetricHook {
   import zio.metrics.MetricState
@@ -28,9 +40,9 @@ private[zio] object MetricHook {
   type Root    = MetricHook[_, MetricState.Untyped]
   type Untyped = MetricHook[_, _]
 
-  type Counter   = MetricHook[Double, MetricState.Counter]
-  type Gauge     = MetricHook[Double, MetricState.Gauge]
-  type Histogram = MetricHook[Double, MetricState.Histogram]
-  type Summary   = MetricHook[(Double, java.time.Instant), MetricState.Summary]
-  type Frequency = MetricHook[String, MetricState.Frequency]
+  type Counter   = MetricHookDouble[MetricState.Counter]
+  type Gauge     = MetricHookDouble[MetricState.Gauge]
+  type Histogram = MetricHookDouble[MetricState.Histogram]
+  type Summary   = MetricHookAnyRef[(Double, java.time.Instant), MetricState.Summary]
+  type Frequency = MetricHookAnyRef[String, MetricState.Frequency]
 }
