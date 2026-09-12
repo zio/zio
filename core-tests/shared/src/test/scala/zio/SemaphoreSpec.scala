@@ -78,6 +78,54 @@ object SemaphoreSpec extends ZIOBaseSpec {
         result == Exit.fail("exception")
       )
     },
+    test("make succeeds with 0 permits and available reports 0") {
+      for {
+        semaphore <- Semaphore.make(0L)
+        permits   <- semaphore.available
+      } yield assertTrue(permits == 0L)
+    },
+    test("withPermits acquires 0 permits from a semaphore created with 0 permits") {
+      for {
+        semaphore <- Semaphore.make(0L)
+        ans       <- semaphore.withPermits(0L)(ZIO.succeed("I got executed"))
+      } yield assertTrue(ans == "I got executed")
+    },
+    test("withPermit dies acquiring from a semaphore created with 0 permits") {
+      for {
+        semaphore <- Semaphore.make(0L)
+        ans       <- semaphore.withPermit(ZIO.unit).exit
+      } yield assert(ans)(dies(isSubtype[IllegalArgumentException](anything)))
+    },
+    test("tryWithPermit returns None acquiring from a semaphore created with 0 permits") {
+      for {
+        semaphore <- Semaphore.make(0L)
+        ans       <- semaphore.tryWithPermit(ZIO.succeed("Shouldn't get executed"))
+      } yield assertTrue(ans.isEmpty)
+    },
+    test("make succeeds with a negative number of permits and available reports it unchanged") {
+      for {
+        semaphore <- Semaphore.make(-1L)
+        permits   <- semaphore.available
+      } yield assertTrue(permits == -1L)
+    },
+    test("withPermits acquires 0 permits from a semaphore created with negative permits") {
+      for {
+        semaphore <- Semaphore.make(-1L)
+        ans       <- semaphore.withPermits(0L)(ZIO.succeed("I got executed"))
+      } yield assertTrue(ans == "I got executed")
+    },
+    test("withPermit dies acquiring from a semaphore created with negative permits") {
+      for {
+        semaphore <- Semaphore.make(-1L)
+        ans       <- semaphore.withPermit(ZIO.unit).exit
+      } yield assert(ans)(dies(isSubtype[IllegalArgumentException](anything)))
+    },
+    test("tryWithPermit returns None acquiring from a semaphore created with negative permits") {
+      for {
+        semaphore <- Semaphore.make(-1L)
+        ans       <- semaphore.tryWithPermit(ZIO.succeed("Shouldn't get executed"))
+      } yield assertTrue(ans.isEmpty)
+    },
     test("awaiting returns the count of waiting fibers") {
       for {
         semaphore    <- Semaphore.make(1)
