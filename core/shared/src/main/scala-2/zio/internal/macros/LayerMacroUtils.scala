@@ -65,7 +65,21 @@ private[zio] trait LayerMacroUtils {
         q"val ${TermName(memoizedNode.tree.toString)} = $expr"
       }
 
-      val layerExpr = tree.fold[LayerExpr](
+      // Names for shared sub-graphs. Each name denotes a single ZLayer
+      // *instance*, so ZLayer's MemoMap (which is keyed on identity) sees one
+      // entry per shared sub-graph instead of one per path through the
+      // dependency graph.
+      //
+      // `foldShared` emits these in dependency order, where a sub-graph is
+      // always preceded by every sub-graph it references, so a plain `val`
+      // suffices and each name is defined before its first use.
+      val sharedNames = collection.mutable.Map.empty[Int, TermName]
+      val sharedDefs  = collection.mutable.LinkedHashMap.empty[Int, Tree]
+
+      def sharedName(id: Int): TermName =
+        sharedNames.getOrElseUpdate(id, c.freshName(TermName("shared")))
+
+      val layerExpr = tree.foldShared[LayerExpr](
         z = reify(ZLayer.unit),
         value = memoList.toMap,
         composeH = {
@@ -75,7 +89,16 @@ private[zio] trait LayerMacroUtils {
         composeV = (lhs, rhs) => {
           usesCompose = true
           c.Expr(q"$compose($lhs, $rhs)")
-        }
+        },
+        // Recorded idempotently per id: the same sub-graph can be reached more
+        // than once, but must only be defined once. `foldShared` visits them in
+        // dependency order, which `sharedDefs` preserves.
+        shared = (id, layer) => {
+          val name: TermName = sharedName(id)
+          if (!sharedDefs.contains(id)) sharedDefs += (id -> q"val $name = $layer")
+          c.Expr(q"$name")
+        },
+        ref = id => c.Expr(q"${sharedName(id)}")
       )
 
       val traceVal = if (usesEnvironment || usesCompose) {
@@ -100,10 +123,14 @@ private[zio] trait LayerMacroUtils {
         Nil
       }
 
+      // `sharedDefs` is populated by the fold above, so it must be read after
+      // `layerExpr` has been forced. It is emitted in dependency order, after
+      // `definitions` (the individual layers), which its bodies refer to.
       c.Expr(q"""
         ..$traceVal
         ..$composeDef
         ..$definitions
+        ..${sharedDefs.values.toList}
         $layerExpr
       """)
     }
