@@ -5,7 +5,7 @@ import sbt.testing.{Fingerprint, Framework}
 trait TestFramework extends Framework {
   final override def name(): String = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
 
-  final override def fingerprints(): Array[Fingerprint] = Array(ZioSpecFingerprint)
+  final override def fingerprints(): Array[Fingerprint] = Array(ZioSpecFingerprint, ZioSpecClassFingerprint)
 
   override def runner(
     args: Array[String],
