@@ -24,11 +24,14 @@ const EVENTS = Array.from({ length: 9 }, (_, i) => {
 const BATCH_SIZE = 3;
 const CONCURRENCY = 4;
 
-// Long enough that four overlapping enrichments are actually watchable —
-// at 400-700ms the whole enrich phase was over in ~1.8s and the parallelism
-// flashed by before a viewer could register it.
-const ENRICH_MIN_MS = 900;
-const ENRICH_MAX_MS = 1500;
+// Paced for watching, not for realism: the whole point of this tab is that
+// a viewer can follow an item from source to written and see four of them
+// overlapping on the way. At 400-700ms the enrich phase was over in ~1.8s;
+// even at 900-1500ms it was still brisk enough to be hard to track.
+const ENRICH_MIN_MS = 1600;
+const ENRICH_MAX_MS = 2400;
+const WRITE_MIN_MS = 1000;
+const WRITE_MAX_MS = 1400;
 
 function enrichItem(item, durationMs) {
   return Effect.gen(function* () {
@@ -39,7 +42,7 @@ function enrichItem(item, durationMs) {
 
 function writeBatch(batch) {
   return Effect.gen(function* () {
-    yield* Effect.sleep(getDelay(500, 800));
+    yield* Effect.sleep(getDelay(WRITE_MIN_MS, WRITE_MAX_MS));
     return batch;
   });
 }
