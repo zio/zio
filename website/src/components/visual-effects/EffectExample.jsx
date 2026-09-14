@@ -5,6 +5,7 @@ import { CodeBlock } from './CodeBlock';
 import EffectNode from './effect-node/EffectNode';
 import { FloatingHighlight } from './feedback/FloatingHighlight';
 import { HeaderView } from './HeaderView';
+import { PipelineStages } from './pipeline/PipelineStages';
 import { ScheduleTimeline } from './ScheduleTimeline';
 import { ScopeStack } from './scope/ScopeStack';
 
@@ -28,6 +29,7 @@ function EffectExampleComponent({
   effects,
   scope,
   showScheduleTimeline,
+  streamPipeline,
   variant,
 }) {
   const [hoveredEffect, setHoveredEffect] = useState(null);
@@ -264,6 +266,19 @@ function EffectExampleComponent({
           className="border-b"
         >
           <ScopeStack scope={scope} />
+        </motion.div>
+      )}
+
+      {/* Stream pipeline visualization (if provided). Bespoke — no source
+          equivalent, same extension-point shape as the scope slot above. */}
+      {streamPipeline && (
+        <motion.div
+          initial={{ borderColor: borderColorValue }}
+          animate={{ borderColor: borderColorValue }}
+          transition={standardTransition}
+          className="border-b"
+        >
+          <PipelineStages pipeline={streamPipeline} />
         </motion.div>
       )}
 

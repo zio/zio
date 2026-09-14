@@ -25,6 +25,9 @@ const VISUAL_COMPONENTS = {
   resources: React.lazy(
     () => import('../../visual-effects/scenarios/AcquireReleaseVisual'),
   ),
+  streaming: React.lazy(
+    () => import('../../visual-effects/scenarios/StreamingVisual'),
+  ),
 };
 
 // prism-react-renderer v2 highlights against the shared prismjs instance.

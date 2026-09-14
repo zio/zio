@@ -55,6 +55,7 @@ val result = park.retry(Schedule.exponential(700.millis))`,
   {
     value: 'streaming',
     label: 'Streaming',
+    visual: 'streaming',
     takeaway:
       'Infinite data, finite memory — backpressure and concurrency built into every stage.',
     points: [
