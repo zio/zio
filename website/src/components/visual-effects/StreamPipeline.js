@@ -16,10 +16,11 @@ export class StreamPipeline {
   // see the parallelism directly (4 slots filled at once) instead of having
   // to infer it from chips appearing in a box. `capacity` is the Stream's
   // buffer size, shown next to the buffer lane so "bounded" is explicit.
-  constructor(id, events, concurrency, capacity) {
+  constructor(id, events, concurrency, capacity, writeConcurrency) {
     this.id = id;
     this.concurrency = concurrency;
     this.capacity = capacity;
+    this.writeConcurrency = writeConcurrency;
     this.items = events.map((event) => ({ ...event, stage: 'queued' }));
     this.subscribers = new Set();
   }

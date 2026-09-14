@@ -16,7 +16,10 @@ const CHIP_STYLES = {
   written: 'border-green-500 bg-green-900 text-green-300',
 };
 
-function ItemChip({ item }) {
+// styleKey lets a lane colour its chips by the lane's meaning rather than the
+// item's raw stage — items still tagged 'enriching' that have finished their
+// work are shown in the waiting lane and should look like the rest of it.
+function ItemChip({ item, styleKey }) {
   return (
     <motion.div
       layoutId={`pipeline-item-${item.id}`}
@@ -28,7 +31,7 @@ function ItemChip({ item }) {
       // reads as chips overlapping each other.
       exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.15 } }}
       transition={{ type: 'spring', visualDuration: 1, bounce: 0.2 }}
-      className={`relative flex h-7 w-11 items-center justify-center rounded-md border font-mono text-xs font-medium ${CHIP_STYLES[item.stage]}`}
+      className={`relative flex h-7 w-11 items-center justify-center rounded-md border font-mono text-xs font-medium ${CHIP_STYLES[styleKey ?? item.stage]}`}
       style={{ willChange: 'transform, opacity' }}
     >
       <span className="relative z-10">#{item.id}</span>
@@ -71,13 +74,7 @@ function WorkSlot({ item, tone }) {
 
   const elapsed = Date.now() - item.startedAt;
   const progress = Math.min(1, elapsed / item.durationMs);
-
-  // The item's own work is done but it is still holding this slot: the only
-  // thing keeping it here is that the bounded buffer downstream has no room.
-  // That is the backpressure moment, per item, so say so rather than leaving
-  // a finished bar sitting under an "enriching" label.
-  const blocked = progress >= 1;
-  const shown = blocked ? BLOCKED_TONE : tone;
+  const shown = tone;
 
   return (
     <motion.div
@@ -91,7 +88,7 @@ function WorkSlot({ item, tone }) {
       >
         <span>#{item.id}</span>
         <span className={`text-[9px] ${shown.duration}`}>
-          {blocked ? 'blocked' : `${item.durationMs}ms`}
+          {item.durationMs}ms
         </span>
       </div>
       <div className={`h-1 overflow-hidden rounded-full ${shown.track}`}>
@@ -103,14 +100,6 @@ function WorkSlot({ item, tone }) {
     </motion.div>
   );
 }
-
-const BLOCKED_TONE = {
-  container: 'border-amber-600 bg-amber-950',
-  label: 'text-amber-300',
-  duration: 'text-amber-400',
-  track: 'bg-amber-950',
-  bar: 'bg-amber-500',
-};
 
 const ENRICH_TONE = {
   container: 'border-blue-500 bg-blue-900',
@@ -133,28 +122,39 @@ export function PipelineStages({ pipeline }) {
 
   const byStage = (stage) => pipeline.items.filter((i) => i.stage === stage);
   const queued = byStage('queued');
-  const enriching = byStage('enriching');
+  // An item whose enrich work has finished no longer holds a concurrency
+  // permit — Effect releases it the moment the effect completes, and starts
+  // the next item, while the finished one waits to be handed downstream.
+  // Keeping those in the enrich slots overflowed the lane (5 items, 4 slots,
+  // one silently not rendered) and misrepresented what they're doing: they
+  // are waiting on the writer, so that's the lane they belong in.
+  const enrichingAll = byStage('enriching');
+  const isFinished = (i) => Date.now() - i.startedAt >= i.durationMs;
+  const enriching = enrichingAll.filter((i) => !isFinished(i));
+  const handingOff = enrichingAll.filter(isFinished);
   const buffered = byStage('buffered');
+  const waiting = [...handingOff, ...buffered];
   const writing = byStage('writing');
   const written = byStage('written');
 
-  useAnimationTick(enriching.length > 0 || writing.length > 0);
+  useAnimationTick(enrichingAll.length > 0 || writing.length > 0);
 
   // Two tells, both meaning the bounded buffer is refusing more work and the
-  // Stream is propagating the slow writer's pace upstream: an enrich slot has
-  // finished but can't hand its item off, or work is waiting upstream while
+  // Stream is propagating the slow writer's pace upstream: an item has
+  // finished enriching but can't hand off, or work is waiting upstream while
   // enrich slots sit free.
   const backpressured =
-    enriching.some((i) => Date.now() - i.startedAt >= i.durationMs) ||
+    handingOff.length > 0 ||
     (queued.length > 0 && enriching.length < pipeline.concurrency);
 
-  const enrichSlots = Array.from(
-    { length: pipeline.concurrency },
-    (_, index) => {
-      const item = enriching[index];
+  const slotsFor = (items, count) =>
+    Array.from({ length: count }, (_, index) => {
+      const item = items[index];
       return { key: item ? `item-${item.id}` : `empty-${index}`, item };
-    },
-  );
+    });
+
+  const enrichSlots = slotsFor(enriching, pipeline.concurrency);
+  const writeSlots = slotsFor(writing, pipeline.writeConcurrency);
 
   return (
     <div className="flex flex-col gap-2 p-4">
@@ -185,15 +185,20 @@ export function PipelineStages({ pipeline }) {
             here is genuinely waiting on the writer, whichever side of the
             queue boundary it sits on. */}
         <Lane
-          label={`Waiting for writer · ${buffered.length}`}
-          items={buffered}
-          full={buffered.length >= pipeline.capacity}
+          label={`Waiting for writer · ${waiting.length}`}
+          items={waiting}
+          styleKey="buffered"
+          full={waiting.length >= pipeline.capacity}
         />
 
         <div className="flex flex-col gap-2">
-          <LaneLabel>Write · 1 at a time</LaneLabel>
+          <LaneLabel>
+            Write · {writing.length} of {pipeline.writeConcurrency}
+          </LaneLabel>
           <div className="flex min-h-[88px] flex-col content-start gap-1.5 rounded-lg border border-dashed border-purple-900/60 p-2">
-            <WorkSlot item={writing[0]} tone={WRITE_TONE} />
+            {writeSlots.map(({ key, item }) => (
+              <WorkSlot key={key} item={item} tone={WRITE_TONE} />
+            ))}
           </div>
         </div>
 
@@ -224,7 +229,7 @@ function LaneLabel({ children }) {
   );
 }
 
-function Lane({ label, items, full }) {
+function Lane({ label, items, full, styleKey }) {
   return (
     <div className="flex flex-col gap-2">
       <LaneLabel>{label}</LaneLabel>
@@ -235,7 +240,7 @@ function Lane({ label, items, full }) {
       >
         <AnimatePresence mode="popLayout">
           {items.map((item) => (
-            <ItemChip key={item.id} item={item} />
+            <ItemChip key={item.id} item={item} styleKey={styleKey} />
           ))}
         </AnimatePresence>
       </div>

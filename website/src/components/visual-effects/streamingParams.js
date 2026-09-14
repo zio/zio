@@ -13,6 +13,9 @@
 // else that belongs in the lazy-loaded visual chunk.
 export const STREAM_CONCURRENCY = 4;
 export const STREAM_BUFFER_CAPACITY = 2;
+// Still below the enrich stage's throughput, which is what keeps the buffer
+// filling and the backpressure visible.
+export const STREAM_WRITE_CONCURRENCY = 2;
 
 const line = (code, comment) => `    ${code.padEnd(21)} // ${comment}`;
 
@@ -28,6 +31,9 @@ export const STREAMING_SNIPPET = [
     `.buffer(${STREAM_BUFFER_CAPACITY})`,
     'bounded — fills when the sink lags',
   ),
-  line('.mapZIO(write)', 'slow consumer sets the pace'),
+  line(
+    `.mapZIOPar(${STREAM_WRITE_CONCURRENCY})(write)`,
+    `${STREAM_WRITE_CONCURRENCY} writers — still the bottleneck`,
+  ),
   '    .runDrain',
 ].join('\n');

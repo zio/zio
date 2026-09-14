@@ -9,6 +9,7 @@ import { StreamPipeline } from '../StreamPipeline';
 import {
   STREAM_BUFFER_CAPACITY,
   STREAM_CONCURRENCY,
+  STREAM_WRITE_CONCURRENCY,
   STREAMING_SNIPPET,
 } from '../streamingParams';
 
@@ -34,6 +35,7 @@ const EVENTS = Array.from({ length: 10 }, (_, i) => ({ id: i + 1 }));
 // from — so what the code says and what the pipeline runs cannot drift.
 const CONCURRENCY = STREAM_CONCURRENCY;
 const BUFFER_CAPACITY = STREAM_BUFFER_CAPACITY;
+const WRITE_CONCURRENCY = STREAM_WRITE_CONCURRENCY;
 
 // Paced for watching, not for realism: the whole point of this tab is that
 // a viewer can follow an item from source to written, see four of them
@@ -74,14 +76,16 @@ function buildPipelineEffect(pipeline) {
         Effect.sync(() => pipeline.setStage(item.id, 'buffered')),
       ),
       Stream.buffer({ capacity: BUFFER_CAPACITY }),
-      Stream.mapEffect((item) =>
-        Effect.gen(function* () {
-          const durationMs = getDelay(WRITE_MIN_MS, WRITE_MAX_MS);
-          pipeline.startTimed(item.id, 'writing', durationMs);
-          yield* Effect.sleep(durationMs);
-          pipeline.setStage(item.id, 'written');
-          return item;
-        }),
+      Stream.mapEffect(
+        (item) =>
+          Effect.gen(function* () {
+            const durationMs = getDelay(WRITE_MIN_MS, WRITE_MAX_MS);
+            pipeline.startTimed(item.id, 'writing', durationMs);
+            yield* Effect.sleep(durationMs);
+            pipeline.setStage(item.id, 'written');
+            return item;
+          }),
+        { concurrency: WRITE_CONCURRENCY },
       ),
       Stream.runDrain,
     );
@@ -92,7 +96,14 @@ function buildPipelineEffect(pipeline) {
 
 export default function StreamingVisual() {
   const pipeline = useMemo(
-    () => new StreamPipeline('events', EVENTS, CONCURRENCY, BUFFER_CAPACITY),
+    () =>
+      new StreamPipeline(
+        'events',
+        EVENTS,
+        CONCURRENCY,
+        BUFFER_CAPACITY,
+        WRITE_CONCURRENCY,
+      ),
     [],
   );
 
