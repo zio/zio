@@ -175,14 +175,17 @@ export function PipelineStages({ pipeline }) {
           </div>
         </div>
 
-        {/* Count only, no "n/capacity" denominator: this counts everything
-            past the enrich stage that hasn't started writing, which is the
-            queue plus the one element already handed downstream — so it can
-            read one above the Stream's nominal capacity. The amber "full"
-            treatment and the backpressure caption carry the bounded story
-            without printing a number that looks wrong. */}
+        {/* Named for what it measures, not for the buffer: the marking tap
+            has to sit before Stream.buffer (after it, the writer consumes
+            each element immediately and the lane would always read empty),
+            so an item is counted the moment enrich produces it — including
+            the one blocked at a full queue's door. That makes the peak
+            exactly capacity + 1, which looked like a bug when the lane was
+            labelled "Buffer" next to a .buffer(2) in the snippet. Every item
+            here is genuinely waiting on the writer, whichever side of the
+            queue boundary it sits on. */}
         <Lane
-          label={`Buffer · ${buffered.length} waiting`}
+          label={`Waiting for writer · ${buffered.length}`}
           items={buffered}
           full={buffered.length >= pipeline.capacity}
         />
