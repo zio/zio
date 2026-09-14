@@ -10,20 +10,20 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { useStreamPipeline } from '../hooks/useStreamPipeline';
 
-// 'valid' is a real intermediate stage (an item that passed .filter but
-// hasn't been swept into a full grouped(3) batch yet) — it shares the
+// 'enriched' is a real intermediate stage (an item that finished enriching
+// but hasn't been swept into a full grouped(3) batch yet) — it shares the
 // Group lane with 'batching' rather than getting its own column, since
 // without this an item sits in neither lane (invisible) for however long
 // it takes the remaining items in its group to finish enriching.
 const LANES = [
   { stages: ['queued'], label: 'Source' },
-  { stages: ['valid', 'batching'], label: 'Group' },
+  { stages: ['enriched', 'batching'], label: 'Group' },
   { stages: ['written'], label: 'Written' },
 ];
 
 const CHIP_STYLES = {
   queued: 'border-neutral-700 bg-neutral-800 text-neutral-400',
-  valid: 'border-amber-700 bg-amber-950 text-amber-400',
+  enriched: 'border-amber-700 bg-amber-950 text-amber-400',
   enriching: 'border-blue-500 bg-blue-900 text-blue-300',
   batching: 'border-amber-500 bg-amber-900 text-amber-300',
   written: 'border-green-500 bg-green-900 text-green-300',
@@ -40,7 +40,7 @@ function ItemChip({ item }) {
       // at its old coordinates while its siblings reflow, so a slow fade
       // reads as chips overlapping each other.
       exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.15 } }}
-      transition={{ type: 'spring', visualDuration: 0.8, bounce: 0.2 }}
+      transition={{ type: 'spring', visualDuration: 1, bounce: 0.2 }}
       className={`relative flex h-7 w-11 items-center justify-center rounded-md border font-mono text-xs font-medium ${CHIP_STYLES[item.stage]}`}
       style={{ willChange: 'transform, opacity' }}
     >
@@ -111,10 +111,6 @@ export function PipelineStages({ pipeline }) {
   const enriching = pipeline.items.filter((item) => item.stage === 'enriching');
   useAnimationTick(enriching.length > 0);
 
-  const filteredCount = pipeline.items.filter(
-    (item) => item.stage === 'filteredOut',
-  ).length;
-
   // One slot per unit of the Stream's actual concurrency limit. Empty slots
   // stay visible so the lane reads as "N workers, this many busy right now"
   // rather than just a box that happens to contain some chips.
@@ -145,16 +141,6 @@ export function PipelineStages({ pipeline }) {
         <Lane label={LANES[1].label} pipeline={pipeline} lane={LANES[1]} />
         <Lane label={LANES[2].label} pipeline={pipeline} lane={LANES[2]} />
       </div>
-
-      {filteredCount > 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center text-xs text-neutral-500"
-        >
-          {filteredCount} filtered out by <code>_.isValid</code>
-        </motion.div>
-      )}
     </div>
   );
 }

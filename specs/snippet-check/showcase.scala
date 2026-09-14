@@ -13,7 +13,7 @@ import java.io.IOException
 // ── Stubs standing in for "your code" in the homepage snippets ──────────
 case class User(name: String)
 case class Report()
-case class Event(isValid: Boolean)
+case class Event(id: Int)
 class File { def close(): Unit = () }
 
 class Database { def insert(name: String): Task[User] = ZIO.succeed(User(name)) }
@@ -38,7 +38,7 @@ def connectCache(): Task[CacheConn] = ZIO.succeed(new CacheConn)
 def openLogFile(): IO[IOException, File] = ZIO.succeed(new File)
 def doWork(db: DbConn, cache: CacheConn, logger: File): Task[Report] = ZIO.succeed(Report())
 
-val events: List[Event]                    = List(Event(true))
+val events: List[Event]                    = List(Event(1))
 def enrich(e: Event): Task[Event]          = ZIO.succeed(e)
 def writeBatch(c: Chunk[Event]): Task[Unit] = ZIO.unit
 
@@ -83,7 +83,6 @@ object Snippet4 {
     ZStream
       .fromIterable(events)          // or Kafka, files, sockets…
       .mapZIOPar(20)(enrich)         // 20 concurrent enrichments
-      .filter(_.isValid)
       .grouped(100)                  // batch for the database
       .mapZIO(writeBatch)
       .runDrain

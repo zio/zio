@@ -16,10 +16,7 @@ import { StreamPipeline } from '../StreamPipeline';
 // every other tab drives its visual off a real Effect/fiber rather than a
 // canned animation.
 
-const EVENTS = Array.from({ length: 9 }, (_, i) => {
-  const id = i + 1;
-  return { id, isValid: id % 3 !== 0 };
-});
+const EVENTS = Array.from({ length: 9 }, (_, i) => ({ id: i + 1 }));
 
 const BATCH_SIZE = 3;
 const CONCURRENCY = 4;
@@ -28,10 +25,10 @@ const CONCURRENCY = 4;
 // a viewer can follow an item from source to written and see four of them
 // overlapping on the way. At 400-700ms the enrich phase was over in ~1.8s;
 // even at 900-1500ms it was still brisk enough to be hard to track.
-const ENRICH_MIN_MS = 3000;
-const ENRICH_MAX_MS = 4200;
-const WRITE_MIN_MS = 1800;
-const WRITE_MAX_MS = 2400;
+const ENRICH_MIN_MS = 4200;
+const ENRICH_MAX_MS = 5600;
+const WRITE_MIN_MS = 2400;
+const WRITE_MAX_MS = 3200;
 
 function enrichItem(item, durationMs) {
   return Effect.gen(function* () {
@@ -61,15 +58,11 @@ function buildPipelineEffect(pipeline) {
             const durationMs = getDelay(ENRICH_MIN_MS, ENRICH_MAX_MS);
             pipeline.startEnrich(item.id, durationMs);
             const enriched = yield* enrichItem(item, durationMs);
-            pipeline.setStage(
-              enriched.id,
-              enriched.isValid ? 'valid' : 'filteredOut',
-            );
+            pipeline.setStage(enriched.id, 'enriched');
             return enriched;
           }),
         { concurrency: CONCURRENCY },
       ),
-      Stream.filter((item) => item.isValid),
       Stream.grouped(BATCH_SIZE),
       Stream.tap((batch) =>
         Effect.sync(() =>
@@ -91,10 +84,9 @@ function buildPipelineEffect(pipeline) {
       Stream.runDrain,
     );
 
-    const filteredCount = EVENTS.filter((event) => !event.isValid).length;
-    const writtenCount = EVENTS.length - filteredCount;
+    const batchCount = Math.ceil(EVENTS.length / BATCH_SIZE);
     return new StringResult(
-      `${writtenCount} written, ${filteredCount} filtered`,
+      `${EVENTS.length} written in ${batchCount} batches`,
     );
   });
 }
@@ -133,7 +125,6 @@ export default function StreamingVisual() {
   ZStream
     .fromIterable(events)          // or Kafka, files, sockets…
     .mapZIOPar(20)(enrich)         // 20 concurrent enrichments
-    .filter(_.isValid)
     .grouped(100)                  // batch for the database
     .mapZIO(writeBatch)
     .runDrain`;
