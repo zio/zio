@@ -11,8 +11,13 @@
 // while a real `effect` Stream (see scenarios/StreamingVisual.jsx) is what
 // actually drives the stage transitions via Effect.sync calls.
 export class StreamPipeline {
-  constructor(id, events) {
+  // `concurrency` is the same number the Stream's mapEffect is gated on —
+  // the visual layer renders exactly this many enrich slots so a viewer can
+  // see the parallelism directly (4 slots filled at once) instead of having
+  // to infer it from chips appearing in a box.
+  constructor(id, events, concurrency) {
     this.id = id;
+    this.concurrency = concurrency;
     this.items = events.map((event) => ({ ...event, stage: 'queued' }));
     this.subscribers = new Set();
   }
@@ -33,6 +38,21 @@ export class StreamPipeline {
     if (!item || item.stage === stage) return;
 
     item.stage = stage;
+    this.notify();
+  }
+
+  // Records when this item's concurrency-gated enrich slot actually opened
+  // and how long its work will take, so the chip can render a progress bar
+  // driven by that item's real duration rather than a generic spinner —
+  // several bars filling at once, each at its own rate, is what makes the
+  // parallelism legible.
+  startEnrich(id, durationMs) {
+    const item = this.items.find((item) => item.id === id);
+    if (!item) return;
+
+    item.stage = 'enriching';
+    item.startedAt = Date.now();
+    item.durationMs = durationMs;
     this.notify();
   }
 

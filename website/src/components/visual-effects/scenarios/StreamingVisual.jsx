@@ -24,9 +24,15 @@ const EVENTS = Array.from({ length: 9 }, (_, i) => {
 const BATCH_SIZE = 3;
 const CONCURRENCY = 4;
 
-function enrichItem(item) {
+// Long enough that four overlapping enrichments are actually watchable —
+// at 400-700ms the whole enrich phase was over in ~1.8s and the parallelism
+// flashed by before a viewer could register it.
+const ENRICH_MIN_MS = 900;
+const ENRICH_MAX_MS = 1500;
+
+function enrichItem(item, durationMs) {
   return Effect.gen(function* () {
-    yield* Effect.sleep(getDelay(400, 700));
+    yield* Effect.sleep(durationMs);
     return item;
   });
 }
@@ -46,9 +52,12 @@ function buildPipelineEffect(pipeline) {
           Effect.gen(function* () {
             // Marked here, not before mapEffect, so "enriching" lights up
             // exactly when this item's concurrency-gated slot starts —
-            // matching mapZIOPar(20)'s actual concurrent window.
-            pipeline.setStage(item.id, 'enriching');
-            const enriched = yield* enrichItem(item);
+            // matching mapZIOPar(20)'s actual concurrent window. The
+            // duration is handed to the pipeline so the chip's progress bar
+            // tracks this item's real work, not an approximation.
+            const durationMs = getDelay(ENRICH_MIN_MS, ENRICH_MAX_MS);
+            pipeline.startEnrich(item.id, durationMs);
+            const enriched = yield* enrichItem(item, durationMs);
             pipeline.setStage(
               enriched.id,
               enriched.isValid ? 'valid' : 'filteredOut',
@@ -88,7 +97,10 @@ function buildPipelineEffect(pipeline) {
 }
 
 export default function StreamingVisual() {
-  const pipeline = useMemo(() => new StreamPipeline('events', EVENTS), []);
+  const pipeline = useMemo(
+    () => new StreamPipeline('events', EVENTS, CONCURRENCY),
+    [],
+  );
 
   const pipelineTask = useVisualEffect(
     'pipeline',
