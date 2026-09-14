@@ -2457,12 +2457,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20418/0x00007ff35e085678@5cd39bf7
+//   eval = zio.Ref$$$Lambda$20426/0x00007f2375856aa8@6e543b44
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20418/0x00007ff35e085678@4cced35f
+//   eval = zio.Ref$$$Lambda$20426/0x00007f2375856aa8@7da63fc8
 // )
 
 sealed trait State
@@ -2473,7 +2473,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20418/0x00007ff35e085678@4b577498
+//   eval = zio.Ref$$$Lambda$20426/0x00007f2375856aa8@15d41b1d
 // )
 ```
 
@@ -2490,7 +2490,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20418/0x00007ff35e085678@764b8ad3
+//   eval = zio.Ref$$$Lambda$20426/0x00007f2375856aa8@3b2546bc
 // )
 ```
 
@@ -2502,7 +2502,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20418/0x00007ff35e085678@7c2e7608
+//   eval = zio.Ref$$$Lambda$20426/0x00007f2375856aa8@10918bd2
 // )
 ```
 
@@ -15611,25 +15611,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@36560c45
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@645efa2c
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@ccbcb82
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@10919716
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@6167656c
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@37b39949
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-09-14T12:16:32.926698842Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-09-14T16:43:24.843369756Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@3479def7
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@653c
 ```
 
 ### Construction / Creating Instances
@@ -16743,7 +16743,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20539/0x00007ff35d85ec50@7e8c5da1
+//   eval = zio.Supervisor$$$Lambda$20547/0x00007f237607e650@2fc37c1e
 // )
 ```
 
@@ -17572,7 +17572,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19547/0x00007ff35f0109c0@1ac616b6
+//     f = zio.ZIO$$$Lambda$19555/0x00007f237733d7d8@2e39fb23
 //   ),
 //   successK = <function1>
 // )
@@ -18353,7 +18353,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@1918b748
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@25eeb945
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -18366,12 +18366,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18770/0x00007ff35ee4b0c0@433a3a60
+//       eval = zio.ZIO$$$Lambda$18704/0x00007f2377158000@5967eff0
 //     ),
-//     successK = zio.ZIO$$$Lambda$19537/0x00007ff35f0020b8@4f210348
+//     successK = zio.ZIO$$$Lambda$19545/0x00007f237732f7f8@670dad6a
 //   ),
-//   successK = zio.ZIO$$$Lambda$18773/0x00007ff35ee4bb28@147e486f,
-//   failureK = zio.ZIO$$Lambda$20335/0x00007ff35e1260d0@63dcdcf
+//   successK = zio.ZIO$$$Lambda$18709/0x00007f237715a278@7bcb3f98,
+//   failureK = zio.ZIO$$Lambda$20343/0x00007f2374a04580@7ac96e5d
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -18383,11 +18383,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18770/0x00007ff35ee4b0c0@433a3a60
+//       eval = zio.ZIO$$$Lambda$18704/0x00007f2377158000@5967eff0
 //     ),
-//     successK = zio.ZIO$$$Lambda$19537/0x00007ff35f0020b8@2dd565e8
+//     successK = zio.ZIO$$$Lambda$19545/0x00007f237732f7f8@270cfc6d
 //   ),
-//   successK = zio.ZIO$$Lambda$20565/0x00007ff35e1f8b58@3d8e0360
+//   successK = zio.ZIO$$Lambda$20573/0x00007f2376108868@58c66ea5
 // )
 ```
 
@@ -21799,13 +21799,118 @@ So while it's better to err on the side of "don't put things into the environmen
 
 ---
 
+## Anatomy of a Built-in Service
+
+Clock, Console, Random, and System are ZIO's four built-in services. Despite covering unrelated concerns — time, console I/O, randomness, and system access — all four are built from the same handful of pieces: a service trait, a companion object exposing a `Tag` and accessor methods, a `Live` implementation, and a synchronous `UnsafeAPI`. This page explains that shared design once; the [Clock](clock.md), [Console](console.md), [Random](random.md), and [System](system.md) pages each build on it for their own APIs.
+
+### The Service Trait and Its Accessors
+
+Each service starts as a plain trait describing its operations. Every method returns `UIO[A]` when it cannot fail, or an `IO[E, A]`/`Task[A]` when it can — `Console#printLine`, for example, returns `IO[IOException, Unit]` because writing to the console can fail. The trait itself is otherwise a normal Scala interface:
+
+```scala
+trait Clock extends Serializable {
+  def currentTime(unit: TimeUnit): UIO[Long]
+  def currentDateTime: UIO[OffsetDateTime]
+  def sleep(duration: Duration): UIO[Unit]
+}
+```
+
+The companion object identifies the trait to ZIO's environment with an implicit `Tag`, then republishes each trait method as a top-level accessor built from a shared helper — `ZIO.clockWith` for `Clock`, `ZIO.consoleWith` for `Console`, `ZIO.randomWith` for `Random`, and `ZIO.systemWith` for `System`. Each accessor is a one-line delegation:
+
+- `Clock.currentTime(unit) = ZIO.clockWith(_.currentTime(unit))`
+- `Console.printLine(line) = ZIO.consoleWith(_.printLine(line))`
+- `Random.nextInt = ZIO.randomWith(_.nextInt)`
+- `System.env(variable) = ZIO.systemWith(_.env(variable))`
+
+`ZIO.clockWith` (and its three siblings) read the current `Clock` out of ZIO's environment and pass it to the given function, so we never fetch the service ourselves before calling `Clock.currentTime`:
+
+```scala
+import zio._
+import java.util.concurrent.TimeUnit
+
+val millisSinceEpoch: UIO[Long] =
+  ZIO.clockWith(_.currentTime(TimeUnit.MILLISECONDS))
+```
+
+### The `Live` Implementation
+
+Each service ships one singleton implementation of its trait — `Clock.ClockLive`, `Console.ConsoleLive`, `Random.RandomLive`, `System.SystemLive` — that performs the real work. A `Live` implementation wraps the underlying platform call in `ZIO.succeed` when it cannot fail, or in a blocking constructor such as `ZIO.attemptBlockingIO` when it wraps a real blocking system call; the [Console](console.md) and [System](system.md) pages cover which of their methods fall into each category.
+
+### Synchronous Access: The `UnsafeAPI`
+
+Every service trait also nests a `UnsafeAPI` trait, exposed through a `def unsafe: UnsafeAPI` member, offering a synchronous counterpart to each asynchronous method:
+
+```scala
+trait Clock {
+  trait UnsafeAPI extends Serializable {
+    def currentTime(unit: TimeUnit)(implicit unsafe: Unsafe): Long
+  }
+  def unsafe: UnsafeAPI
+}
+```
+
+The default `unsafe` falls back to `Runtime.default.unsafe.run(...).getOrThrowFiberFailure()`, but each `Live` implementation overrides it to call straight through to the underlying platform API instead of round-tripping through the ZIO runtime. You rarely call `unsafe` directly — it exists for synchronous interop with non-ZIO code that cannot await an effect; prefer the ordinary accessor (`Clock.currentTime`, `Console.printLine`, and so on) everywhere else.
+
+### Composing Multiple Services in the Environment
+
+Because each service is just a plain trait, an effect that needs more than one of them lists all of them in its environment type using an intersection type. Scala 2 spells this with the `with` keyword; Scala 3 spells the identical type with `&`:
+
+```scala
+// Scala 2
+def effect: ZIO[Clock with Console, Nothing, Unit] = ???
+
+// Scala 3
+def effect: ZIO[Clock & Console, Nothing, Unit] = ???
+```
+
+Both forms describe the same requirement — an environment providing both `Clock` and `Console` — and ZIO's own source keeps using `with` even in its Scala 3 build, since the two are binary compatible. The [combined example](index.md) on the services overview page composes `Clock` and `Console` this way. Aside from that spelling difference, ZIO's Scala 2 and Scala 3 builds of these four services are functionally identical.
+
+### How These Services Reach Your Program
+
+A ZIO effect never has to provide `Clock`, `Console`, `Random`, or `System` explicitly. ZIO seeds a `FiberRef` of default services, `DefaultServices.live`, with `Live` implementations of the four services (alongside a default `ConfigProvider`) before a program ever runs, and every `ZIO.clockWith`-style accessor reads from that `FiberRef` unless something upstream provides a different implementation. The same four `Live` instances are also packaged as a `ZLayer` named `liveEnvironment`:
+
+```scala
+import zio._
+
+val liveEnvironment: Layer[Nothing, Clock with Console with System with Random] =
+  ZLayer.succeedEnvironment(
+    ZEnvironment[Clock, Console, System, Random](
+      Clock.ClockLive,
+      Console.ConsoleLive,
+      System.SystemLive,
+      Random.RandomLive
+    )
+  )
+```
+
+ZIO Test builds `TestEnvironment` on top of this exact layer, replacing each `Live` service with its deterministic counterpart — `TestClock`, `TestConsole`, `TestRandom`, and `TestSystem` — while still layering in `Live` access for tests that need it. Because the replacement happens entirely behind the same trait, code written against `Clock`, `Console`, `Random`, and `System` needs no changes to become testable — only its environment changes. See [Testing These Services](../test/services/index.md) for how each test double behaves.
+
+### See Also
+
+- [Testing These Services](../test/services/index.md) — the `TestClock`, `TestConsole`, `TestRandom`, and `TestSystem` doubles that replace `Live` in tests.
+- [Writing ZIO Services](../service-pattern/index.md) — the general trait/companion/`ZLayer` pattern this design follows, for services you write yourself.
+
+---
+
 ## Clock
 
-Clock service contains some functionality related to time and scheduling. 
+Clock service contains some functionality related to time and scheduling. It follows the shared [service pattern](./anatomy.md) common to all of ZIO's built-in services: a `Clock` trait, a `Live` implementation, and a synchronous `UnsafeAPI` for interop.
+
+| Function          | Input Type            | Output Type                     |
+|-------------------|------------------------|----------------------------------|
+| `currentTime`     | `unit: TimeUnit`       | `UIO[Long]`                       |
+| `currentTime`     | `unit: ChronoUnit`     | `UIO[Long]`                       |
+| `currentDateTime` |                        | `UIO[OffsetDateTime]`             |
+| `instant`         |                        | `UIO[java.time.Instant]`          |
+| `javaClock`       |                        | `UIO[java.time.Clock]`            |
+| `localDateTime`   |                        | `UIO[java.time.LocalDateTime]`    |
+| `nanoTime`        |                        | `UIO[Long]`                       |
+| `scheduler`       |                        | `UIO[Scheduler]`                  |
+| `sleep`           | `duration: Duration`   | `UIO[Unit]`                       |
 
 To get the current time in a specific time unit, the `currentTime` function takes a unit as `TimeUnit` and returns `UIO[Long]`:
 
-```scala compile-only
+```scala
 import zio._
 import java.util.concurrent.TimeUnit
 
@@ -21813,13 +21918,40 @@ val inMilliseconds: UIO[Long] = Clock.currentTime(TimeUnit.MILLISECONDS)
 val inDays        : UIO[Long] = Clock.currentTime(TimeUnit.DAYS)
 ```
 
-To get current date time in the current timezone the `currentDateTime` function returns a ZIO effect containing `OffsetDateTime`.
+`currentTime` also has an overload accepting a `java.time.temporal.ChronoUnit` instead of a `TimeUnit`; the two overloads compile side by side because the `ChronoUnit` version carries an extra `DummyImplicit` parameter:
+
+```scala
+import zio._
+import java.time.temporal.ChronoUnit
+
+val inSeconds: UIO[Long] = Clock.currentTime(ChronoUnit.SECONDS)
+```
+
+To get current date time in the current timezone the `currentDateTime` function returns a ZIO effect containing `OffsetDateTime`. `instant` and `localDateTime` return the equivalent `java.time.Instant` and `java.time.LocalDateTime` values, and `javaClock` returns a `java.time.Clock` backed by the same source of time, for interop with Java APIs that expect one:
+
+```scala
+import zio._
+
+val program: UIO[Unit] =
+  for {
+    instant   <- Clock.instant
+    localDT   <- Clock.localDateTime
+    javaClock <- Clock.javaClock
+    _         <- ZIO.succeed(javaClock.instant())
+  } yield ()
+```
+
+`scheduler` exposes the underlying `Scheduler` that `sleep` and time-based combinators such as `Schedule` use to register delayed callbacks.
+
+### How `sleep` Works
 
 Also, the Clock service has a very useful functionality for sleeping and creating a delay between jobs. The `sleep` takes a `Duration` and sleeps for the specified duration. It is analogous to `java.lang.Thread.sleep` function, but it doesn't block any underlying thread. It's completely non-blocking.
 
+`ClockLive` implements `sleep` with `ZIO.asyncInterrupt`, registering a callback with a single-threaded, JVM-global `ScheduledThreadPoolExecutor` rather than parking a fiber's thread. When the scheduled duration elapses, the scheduler invokes the callback, which resumes the fiber; if the fiber is interrupted first, the scheduled task is cancelled. This is why an arbitrary number of sleeping fibers costs one scheduler thread, not one thread per fiber, unlike `Thread.sleep`.
+
 In the following example we are going to print the current time periodically by placing a one second `sleep` between each print call:
 
-```scala compile-only
+```scala
 import zio._
 
 def printTimeForever: ZIO[Any, Throwable, Nothing] =
@@ -21827,21 +21959,57 @@ def printTimeForever: ZIO[Any, Throwable, Nothing] =
     ZIO.sleep(1.seconds) *> printTimeForever
 ```
 
-For scheduling purposes like retry and repeats, ZIO has a great data type called [Schedule](../schedule/index.md).
+:::caution
+`nanoTime` does not return wall-clock time. Like `System.nanoTime` on the JVM, it returns nanoseconds measured from an arbitrary, unspecified origin, so it's only meaningful for measuring elapsed durations between two calls — never for deriving an actual date or timestamp.
+:::
+
+### Synchronous Access (`unsafe`)
+
+`Clock` also exposes a synchronous `UnsafeAPI`, following the pattern described in [Anatomy of a Built-in Service](./anatomy.md#synchronous-access-the-unsafeapi). `ClockLive`'s `unsafe` implementation calls straight through to `System.nanoTime`, `Instant.now()`, `LocalDateTime.now()`, and `OffsetDateTime.now()` instead of running an effect, which is useful when interoperating with non-ZIO code that cannot await a `ZIO` value:
+
+```scala
+import zio._
+
+Unsafe.unsafe { implicit unsafe =>
+  val now: Long = Clock.ClockLive.unsafe.currentTime(java.util.concurrent.TimeUnit.MILLISECONDS)
+}
+```
+
+Prefer the ordinary `Clock.currentTime` accessor everywhere else.
+
+### Testing Time-Dependent Code
+
+`TestClock` lets tests advance time deterministically instead of waiting on real sleeps. See [Testing Clock](../test/services/clock.md) for its `adjust`, `setTime`, and `sleeps` API.
+
+For scheduling purposes like retry and repeats, ZIO has a great data type called [Schedule](../schedule.md).
+
+Scala 2 and Scala 3 expose an identical `Clock` API; the `currentTime(ChronoUnit)` overload's `DummyImplicit` disambiguation trick works the same way in both versions.
 
 ---
 
 ## Console
 
-The Console service contains simple I/O operations for reading/writing strings from/to the standard input, output, and error console.
+The Console service contains simple I/O operations for reading/writing strings from/to the standard input, output, and error console. It follows the shared [service pattern](./anatomy.md) common to all of ZIO's built-in services: a `Console` trait, a `Live` implementation, and a synchronous `UnsafeAPI` for interop.
 
-| Function         | Input Type        | Output Type                     |
-|------------------|-------------------|---------------------------------|
-| `print`          | `line: => String` | `ZIO[Any, IOException, Unit]`   |
-| `printError`     | `line: => String` | `ZIO[Any, IOException, Unit]`   |
-| `printLine`      | `line: => String` | `ZIO[Any, IOException, Unit]`   |
-| `printLineError` | `line: => String` | `ZIO[Any, IOException, Unit]`   |
-| `readLine`       |                   | `ZIO[Any, IOException, String]` |
+| Function         | Input Type          | Output Type                     |
+|------------------|----------------------|---------------------------------|
+| `print`          | `line: => Any`       | `ZIO[Any, IOException, Unit]`   |
+| `printError`     | `line: => Any`       | `ZIO[Any, IOException, Unit]`   |
+| `printLine`      | `line: => Any`       | `ZIO[Any, IOException, Unit]`   |
+| `printLineError` | `line: => Any`       | `ZIO[Any, IOException, Unit]`   |
+| `readLine`       |                       | `ZIO[Any, IOException, String]` |
+| `readLine`       | `prompt: String`      | `ZIO[Any, IOException, String]` |
+
+Unlike Clock and Random, whose methods mostly return `UIO` and cannot fail, every Console operation can fail with `IOException`, since reading from or writing to the console is a real I/O operation that can go wrong.
+
+`readLine(prompt)` is a convenience overload defined as a default method on the `Console` trait itself, combining `print` and `readLine`:
+
+```scala
+trait Console {
+  def readLine(prompt: String): IO[IOException, String] =
+    print(prompt) *> readLine
+}
+```
 
 All functions of the Console service are effectful, this means they are just descriptions of reading/writing from/to the console. 
 
@@ -21866,6 +22034,40 @@ object MyHelloApp extends ZIOAppDefault {
 
 Note again, every line of our `program` are descriptions, not statements. As we can see the type of our `program` is `ZIO[Any, IOException, Unit]`, it means to run `program` we do not need any environment, it may fail due to failure of `readLine` and it will produce `Unit` value.
 
+### Blocking I/O
+
+`ConsoleLive` implements `print` and `printLine` with `ZIO.attemptBlockingIO`, and `readLine` with `ZIO.attemptBlockingInterrupt` — both run the underlying, genuinely blocking system call on ZIO's blocking thread pool rather than on the fiber's regular executor. This keeps a slow console write or a read waiting on user input from starving other fibers, but the operation itself is still blocking work, not a lightweight async one — avoid calling these in a tight loop where throughput matters.
+
+`readLine` fails with `EOFException` (a subtype of `IOException`) when standard input is exhausted — for example, when a program's stdin is piped from a file or another process that has finished producing input. Handle it explicitly when a missing line is expected rather than a bug:
+
+```scala
+import zio._
+import java.io.EOFException
+
+val nextLineOrDefault: ZIO[Any, java.io.IOException, String] =
+  Console.readLine.catchSome { case _: EOFException =>
+    ZIO.succeed("<no input>")
+  }
+```
+
+### Synchronous Access (`unsafe`)
+
+`Console` also exposes a synchronous `UnsafeAPI`, following the pattern described in [Anatomy of a Built-in Service](./anatomy.md#synchronous-access-the-unsafeapi). `ConsoleLive`'s `unsafe` implementation calls `scala.io.StdIn.readLine()` directly for input (throwing `EOFException` on a `null` result) and writes through `scala.Console`, without running an effect:
+
+```scala
+import zio._
+
+Unsafe.unsafe { implicit unsafe =>
+  Console.ConsoleLive.unsafe.printLine("hello")
+}
+```
+
+Prefer the ordinary `Console.printLine`/`Console.readLine` accessors everywhere else.
+
+### Testing Console I/O
+
+`TestConsole` lets tests feed predetermined input and capture output instead of touching the real console. See [Testing Console](../test/services/console.md) for its `feedLines`, `output`, and `debug`/`silent` API.
+
 ### See Also
 
 - [Built-in Services](index.md) — Guide to ZIO's built-in services: Console, Clock, Random, and System with automatic environment management.
@@ -21881,7 +22083,9 @@ ZIO already provides four built-in services:
 3. **[Random](random.md)** — Provides utilities to generate random numbers.
 4. **[System](system.md)** — Contains several useful functions related to system environments and properties.
 
-When we use these services we don't need to provide their corresponding environment explicitly. ZIO provides built-in live version of ZIO services to our effects, so we do not need to provide them manually.
+All four follow the same design: a service trait, a companion object with a `Tag` and accessor methods, a `Live` implementation, and a synchronous `UnsafeAPI`. See [Anatomy of a Built-in Service](anatomy.md) for how that shared design works.
+
+When we use these services we don't need to provide their corresponding environment explicitly. ZIO provides built-in live version of ZIO services to our effects, so we do not need to provide them manually. This works because ZIO seeds a `FiberRef` of default services, `DefaultServices.live`, with `Live` implementations of all four services before a program ever runs, so every accessor reads from that `FiberRef` unless something upstream overrides it — see [Anatomy of a Built-in Service](anatomy.md) for the details.
 
 ```scala
 import zio._
@@ -21902,15 +22106,43 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
+`myApp` above needs both `Clock` and `Console`, so its environment type composes them with an intersection type — `Clock with Console` in Scala 2, `Clock & Console` in Scala 3. [Anatomy of a Built-in Service](anatomy.md) covers this environment composition in detail.
+
+### Testing These Services
+
+Each of these four services has a deterministic test double — `TestClock`, `TestConsole`, `TestRandom`, and `TestSystem` — that ZIO Test swaps in for `Live` behind the same trait, so code written against `Clock`, `Console`, `Random`, and `System` is testable without any changes. See [Testing These Services](../test/services/index.md) for how each test double works.
+
 ### See Also
 
+- [Anatomy of a Built-in Service](anatomy.md) — The shared trait/companion/`Live`/`UnsafeAPI` design behind all four services.
 - [Writing ZIO Services](../service-pattern/index.md) — Guide to ZIO Service Pattern: define maintainable services using interfaces and ZLayer for automatic dependency injection.
 
 ---
 
 ## Random
 
-Random service provides utilities to generate random numbers. It's a functional wrapper of `scala.util.Random`. This service contains various different pseudo-random generators like `nextInt`, `nextBoolean` and `nextDouble`. Each random number generator functions return a `[URIO](../core/zio/urio.md)[Random, T]` value.
+Random service provides utilities to generate random numbers. It's a functional wrapper of `scala.util.Random`. It follows the shared [service pattern](./anatomy.md) common to all of ZIO's built-in services: a `Random` trait, a `Live` implementation, and a synchronous `UnsafeAPI` for interop. Every method returns `UIO[A]` and cannot fail.
+
+| Function            | Input Type                                     | Output Type            |
+|---------------------|-------------------------------------------------|-------------------------|
+| `nextBoolean`       |                                                  | `UIO[Boolean]`           |
+| `nextBytes`         | `length: Int`                                   | `UIO[Chunk[Byte]]`       |
+| `nextDouble`        |                                                  | `UIO[Double]`            |
+| `nextDoubleBetween` | `minInclusive: Double, maxExclusive: Double`    | `UIO[Double]`            |
+| `nextFloat`         |                                                  | `UIO[Float]`             |
+| `nextFloatBetween`  | `minInclusive: Float, maxExclusive: Float`      | `UIO[Float]`             |
+| `nextGaussian`      |                                                  | `UIO[Double]`            |
+| `nextInt`           |                                                  | `UIO[Int]`               |
+| `nextIntBetween`    | `minInclusive: Int, maxExclusive: Int`          | `UIO[Int]`               |
+| `nextIntBounded`    | `n: Int`                                        | `UIO[Int]`               |
+| `nextLong`          |                                                  | `UIO[Long]`              |
+| `nextLongBetween`   | `minInclusive: Long, maxExclusive: Long`        | `UIO[Long]`              |
+| `nextLongBounded`   | `n: Long`                                       | `UIO[Long]`              |
+| `nextPrintableChar` |                                                  | `UIO[Char]`              |
+| `nextString`        | `length: Int`                                   | `UIO[String]`            |
+| `nextUUID`          |                                                  | `UIO[UUID]`              |
+| `setSeed`           | `seed: Long`                                    | `UIO[Unit]`              |
+| `shuffle`           | `collection: Collection[A]`                     | `UIO[Collection[A]]`     |
 
 ```scala
 import zio._
@@ -21936,14 +22168,47 @@ for {
 } yield assert(nextInts == (-1155484576,-723955400))
 ```
 
-Also, it has a utility to shuffle a list and to generate random samples from Gaussian distribution:
+The bounded and "between" variants (`nextIntBounded`, `nextIntBetween`, and their `Long`/`Float`/`Double` counterparts) exclude their upper bound — `nextIntBetween(0, 6)` never returns `6`, the same convention as `nextInt(6)` on `scala.util.Random`. `nextBytes` returns a `Chunk[Byte]` rather than an `Array[Byte]`, keeping the result immutable and consistent with the rest of ZIO's collection types.
 
-* **shuffle** - Takes a list as an input and shuffles it.
-* **nextGaussian** — Returns the next pseudorandom, Gaussian ("normally") distributed double value with mean 0.0 and standard deviation 1.0.
+On the `Random` trait, `shuffle` is generic over any `Collection[A] <: Iterable[A]`, rebuilding the same collection type using an implicit `BuildFrom`, and runs a Fisher-Yates shuffle internally; the top-level `Random.shuffle` accessor specializes this to `List[A]`. `nextGaussian` returns the next pseudorandom, Gaussian ("normally") distributed double value with mean 0.0 and standard deviation 1.0:
+
+```scala
+import zio._
+
+val shuffledList: UIO[List[Int]] = Random.shuffle(List(1, 2, 3, 4, 5))
+```
 
 > **Note**:
 >
 > Random numbers that are generated via Random service are not cryptographically strong. Therefore it's not safe to use the ZIO Random service for security domains where a high level of security and randomness is required, such as password generation.
+
+### `RandomScala`
+
+Besides the default `RandomLive` implementation, which delegates to Scala's global `scala.util.Random`, `Random.RandomScala` wraps a caller-supplied `scala.util.Random` instance instead. It implements the same `Random` trait, so it's useful when you need a specific, seeded `scala.util.Random` instance — for example to obtain a reproducible sequence outside of tests, without going through `TestRandom`:
+
+```scala
+import zio._
+
+val customRandom: Random = Random.RandomScala(new scala.util.Random(42L))
+```
+
+### Synchronous Access (`unsafe`)
+
+`Random` also exposes a synchronous `UnsafeAPI`, following the pattern described in [Anatomy of a Built-in Service](./anatomy.md#synchronous-access-the-unsafeapi). `RandomLive`'s `unsafe` implementation delegates directly to the corresponding method on `scala.util.Random` (`nextBoolean()`, `nextInt()`, `nextGaussian()`, and so on), without running an effect:
+
+```scala
+import zio._
+
+Unsafe.unsafe { implicit unsafe =>
+  val n: Int = Random.RandomLive.unsafe.nextInt()
+}
+```
+
+Prefer the ordinary `Random.nextInt`-style accessors everywhere else.
+
+### Testing Randomness
+
+`TestRandom` lets tests either feed predetermined sequences of values or use a deterministic pseudo-random generator instead of the live, unseeded generator. See [Testing Random](../test/services/random.md) for its `feed*`/`clear*` API.
 
 ### See Also
 
@@ -21953,9 +22218,9 @@ Also, it has a utility to shuffle a list and to generate random samples from Gau
 
 ## System
 
-System service contains several useful functions related to system environments and properties. Both of **system environments** and **system properties** are key/value pairs. They are used to pass user-defined information to our application.
+System service contains several useful functions related to system environments and properties. Both of **system environments** and **system properties** are key/value pairs. They are used to pass user-defined information to our application. It follows the shared [service pattern](./anatomy.md) common to all of ZIO's built-in services: a `System` trait, a `Live` implementation, and a synchronous `UnsafeAPI` for interop.
 
-Environment variables are global operating system level variables available to all applications running on the same machine, while properties are application-level variables provided to our application.
+Environment variables are global operating system level variables available to all applications running on the same machine, while properties are application-level variables provided to our application. The two kinds of access fail differently: environment variable methods fail with `SecurityException` if a security manager denies access, while system property methods fail with the broader, unrefined `Throwable`. `lineSeparator` cannot fail at all (`UIO`).
 
 ### System Environment
 The `env` function retrieves the value of an environment variable:
@@ -21971,6 +22236,18 @@ for {
             case None        => 
               Console.printLine("Oops! The USER env is not set")
           }
+} yield ()
+```
+
+`envOrElse` and `envOrOption` provide a fallback instead of an `Option`, and `envs` reads every environment variable as a `Map`:
+
+```scala
+import zio._
+
+for {
+  logLevel   <- System.envOrElse("LOG_LEVEL", "INFO")
+  logLevelOp <- System.envOrOption("LOG_LEVEL", Some("INFO"))
+  all        <- System.envs
 } yield ()
 ```
 
@@ -21991,15 +22268,74 @@ for {
 } yield ()
 ```
 
+`propertyOrElse` and `propertyOrOption` provide a fallback instead of an `Option`, and `properties` reads every system property as a `Map`:
+
+```scala
+import zio._
+
+for {
+  logLevel   <- System.propertyOrElse("log.level", "INFO")
+  logLevelOp <- System.propertyOrOption("log.level", Some("INFO"))
+  all        <- System.properties
+} yield ()
+```
+
+### Operating System Detection
+
+`System.os` reports which operating system the JVM is running on as a lazily-evaluated, cached `OS` value, derived from the `os.name` system property:
+
+```scala
+sealed trait OS {
+  def isWindows: Boolean
+  def isMac: Boolean
+  def isUnix: Boolean
+  def isSolaris: Boolean
+  def isUnknown: Boolean
+}
+```
+
+`OS` is a sealed trait with cases `OS.Windows`, `OS.Mac`, `OS.Unix`, `OS.Solaris`, and `OS.Unknown`, and each `is*` predicate simply checks equality against the corresponding case:
+
+```scala
+import zio._
+
+val describeOS: UIO[String] =
+  ZIO.succeed(System.os).map {
+    case os if os.isWindows => "Windows"
+    case os if os.isMac     => "Mac"
+    case os if os.isUnix    => "Unix"
+    case os if os.isSolaris => "Solaris"
+    case _                  => "Unknown"
+  }
+```
+
 ### Miscellaneous
 
 With the `lineSeparator` method, we can determine the line separator for the underlying platform:
 
 ```scala
 System.lineSeparator
-// res2: String = """
+// res5: String = """
 // """
 ```
+
+### Synchronous Access (`unsafe`)
+
+`System` also exposes a synchronous `UnsafeAPI`, following the pattern described in [Anatomy of a Built-in Service](./anatomy.md#synchronous-access-the-unsafeapi). `SystemLive`'s `unsafe` implementation delegates directly to `java.lang.System.getenv`/`getenv()` for `env`/`envs`, `java.lang.System.getProperty`/`getProperties()` for `property`/`properties`, and `java.lang.System.lineSeparator` for `lineSeparator`, without running an effect:
+
+```scala
+import zio._
+
+Unsafe.unsafe { implicit unsafe =>
+  val user: Option[String] = System.SystemLive.unsafe.env("USER")
+}
+```
+
+Prefer the ordinary `System.env`/`System.property`-style accessors everywhere else.
+
+### Testing Environment/System Access
+
+`TestSystem` lets tests set and clear in-memory environment variables and properties instead of touching the real process environment. See [Testing System](../test/services/system.md) for its `putEnv`/`putProperty`/`clearEnv`/`clearProperty`/`setLineSeparator` API.
 
 ### See Also
 
@@ -23353,7 +23689,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@477e490c
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@9d5336a
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -23381,9 +23717,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
+//     eval = zio.Scope$$$Lambda$20024/0x00007f2376504950@44db7cbd
 //   ),
-//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@12d2ab3c
+//   successK = zio.ZIO$$$Lambda$20025/0x00007f2376504c08@4994e81e
 // )
 ```
 
@@ -23432,7 +23768,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@edaf0d8
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@3caa7f6e
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -23462,9 +23798,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
+//     eval = zio.Scope$$$Lambda$20024/0x00007f2376504950@44db7cbd
 //   ),
-//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@36797313
+//   successK = zio.ZIO$$$Lambda$20025/0x00007f2376504c08@5f6e572f
 // )
 ```
 
@@ -23495,7 +23831,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@fb3551b
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@2cc47d31
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -23510,9 +23846,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
+//     eval = zio.Scope$$$Lambda$20024/0x00007f2376504950@44db7cbd
 //   ),
-//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@60d02369
+//   successK = zio.ZIO$$$Lambda$20025/0x00007f2376504c08@51e33ea9
 // )
 ```
 
@@ -23556,7 +23892,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@2aadd6f5
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@4056c459
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -23573,9 +23909,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
+//     eval = zio.Scope$$$Lambda$20024/0x00007f2376504950@44db7cbd
 //   ),
-//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@7edff90f
+//   successK = zio.ZIO$$$Lambda$20025/0x00007f2376504c08@a811d2b
 // )
 ```
 
@@ -23607,7 +23943,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@32506c6f
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@3f835858
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -23624,9 +23960,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
+//     eval = zio.Scope$$$Lambda$20024/0x00007f2376504950@44db7cbd
 //   ),
-//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@14ff8288
+//   successK = zio.ZIO$$$Lambda$20025/0x00007f2376504c08@79f29ec1
 // )
 ```
 
@@ -23658,7 +23994,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@3cbb7f32
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@12118660
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -23689,9 +24025,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
+//     eval = zio.Scope$$$Lambda$20024/0x00007f2376504950@44db7cbd
 //   ),
-//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@6c3a61cd
+//   successK = zio.ZIO$$$Lambda$20025/0x00007f2376504c08@44faa4a2
 // )
 ```
 
@@ -23724,7 +24060,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@33f07f84
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@7b1d8d3d
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -23740,9 +24076,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
+//     eval = zio.Scope$$$Lambda$20024/0x00007f2376504950@44db7cbd
 //   ),
-//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@1239b190
+//   successK = zio.ZIO$$$Lambda$20025/0x00007f2376504c08@72cb0260
 // )
 ```
 
@@ -23773,7 +24109,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@647e24cf
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@59145648
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -23800,9 +24136,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
+//     eval = zio.Scope$$$Lambda$20024/0x00007f2376504950@44db7cbd
 //   ),
-//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@e7bcd30
+//   successK = zio.ZIO$$$Lambda$20025/0x00007f2376504c08@63f8116c
 // )
 ```
 
@@ -23822,7 +24158,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@526026bd
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@b909b2e
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -23845,9 +24181,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
+//     eval = zio.Scope$$$Lambda$20024/0x00007f2376504950@44db7cbd
 //   ),
-//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@761a66c8
+//   successK = zio.ZIO$$$Lambda$20025/0x00007f2376504c08@270093e7
 // )
 ```
 
@@ -23863,7 +24199,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@4a470800
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@4d25b9d8
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -23885,9 +24221,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
+//     eval = zio.Scope$$$Lambda$20024/0x00007f2376504950@44db7cbd
 //   ),
-//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@7c02c1b
+//   successK = zio.ZIO$$$Lambda$20025/0x00007f2376504c08@3255d888
 // )
 ```
 
@@ -23903,7 +24239,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@1ed68101
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@413dc8e4
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -23923,9 +24259,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
+//     eval = zio.Scope$$$Lambda$20024/0x00007f2376504950@44db7cbd
 //   ),
-//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@62b70e6f
+//   successK = zio.ZIO$$$Lambda$20025/0x00007f2376504c08@2e6a3af1
 // )
 ```
 
@@ -23943,7 +24279,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@224b96c6
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@4afd452f
 
 val example = {
   val scoped = ZIO.scoped {
@@ -23965,9 +24301,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
+//       eval = zio.Scope$$$Lambda$20024/0x00007f2376504950@44db7cbd
 //     ),
-//     successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@6598b1f6
+//     successK = zio.ZIO$$$Lambda$20025/0x00007f2376504c08@6365f264
 //   ),
 //   successK = <function1>
 // )
@@ -27972,14 +28308,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@3bcecdac
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@6e499fa8
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@54131f8b
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@6a4f8440
 ```
 
 ### From ZIO
@@ -34706,9 +35042,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$20026/0x00007ff35d789240@605f04c5
+//             onState = zio.ZIO$$$Lambda$20034/0x00007f2376520eb8@5a6b1f15
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$20035/0x00007ff35d756b18@255d96aa
+//           successK = zio.test.package$ZTest$$$Lambda$20043/0x00007f237652e6c8@1f698a3c
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -37698,7 +38034,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+215-3fab24d7-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+216-ae1a3b22-SNAPSHOT"
 ```
 
 ### Example
@@ -49654,9 +49990,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
+//     eval = zio.Scope$$$Lambda$20024/0x00007f2376504950@44db7cbd
 //   ),
-//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@53931403
+//   successK = zio.ZIO$$$Lambda$20025/0x00007f2376504c08@418fe191
 // )
 ```
 
