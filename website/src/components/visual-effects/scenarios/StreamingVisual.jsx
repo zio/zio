@@ -39,10 +39,10 @@ const BUFFER_CAPACITY = STREAM_BUFFER_CAPACITY;
 // a viewer can follow an item from source to written, see four of them
 // overlapping in enrich, and watch the writer set the pace for everything
 // upstream of it.
-const ENRICH_MIN_MS = 1800;
-const ENRICH_MAX_MS = 2600;
-const WRITE_MIN_MS = 1800;
-const WRITE_MAX_MS = 2400;
+const ENRICH_MIN_MS = 2200;
+const ENRICH_MAX_MS = 3000;
+const WRITE_MIN_MS = 2100;
+const WRITE_MAX_MS = 2800;
 
 function enrichItem(item, durationMs) {
   return Effect.gen(function* () {
