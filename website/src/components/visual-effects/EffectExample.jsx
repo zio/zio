@@ -273,9 +273,14 @@ function EffectExampleComponent({
           CodeBlock.jsx) and its own <pre> is `background: transparent`,
           so it needs an opaque dark backdrop of its own here in light
           mode — otherwise oneDark's dark-optimized syntax colors wash out
-          against the light card behind it. */}
+          against the light card behind it. flex: 1 grows this div to
+          absorb whatever vertical space the card has left (the outer
+          panel is a fixed height across every tab, but each example's
+          own content — header/nodes/finalizers — is a different height),
+          so the dark background always reaches the card's bottom edge
+          instead of leaving a gap of the card's own light background. */}
       <div
-        className="relative rounded-b-2xl border-t p-4 text-base"
+        className="relative flex-1 rounded-b-2xl border-t p-4 text-base"
         ref={codeContainerRef}
         style={{
           position: 'relative',
