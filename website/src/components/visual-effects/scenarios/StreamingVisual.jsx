@@ -28,10 +28,10 @@ const CONCURRENCY = 4;
 // a viewer can follow an item from source to written and see four of them
 // overlapping on the way. At 400-700ms the enrich phase was over in ~1.8s;
 // even at 900-1500ms it was still brisk enough to be hard to track.
-const ENRICH_MIN_MS = 1600;
-const ENRICH_MAX_MS = 2400;
-const WRITE_MIN_MS = 1000;
-const WRITE_MAX_MS = 1400;
+const ENRICH_MIN_MS = 3000;
+const ENRICH_MAX_MS = 4200;
+const WRITE_MIN_MS = 1800;
+const WRITE_MAX_MS = 2400;
 
 function enrichItem(item, durationMs) {
   return Effect.gen(function* () {

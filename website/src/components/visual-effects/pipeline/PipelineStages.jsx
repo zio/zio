@@ -40,7 +40,7 @@ function ItemChip({ item }) {
       // at its old coordinates while its siblings reflow, so a slow fade
       // reads as chips overlapping each other.
       exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.15 } }}
-      transition={{ type: 'spring', visualDuration: 0.6, bounce: 0.2 }}
+      transition={{ type: 'spring', visualDuration: 0.8, bounce: 0.2 }}
       className={`relative flex h-7 w-11 items-center justify-center rounded-md border font-mono text-xs font-medium ${CHIP_STYLES[item.stage]}`}
       style={{ willChange: 'transform, opacity' }}
     >
