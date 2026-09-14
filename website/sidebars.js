@@ -134,6 +134,7 @@ module.exports = {
       label: "Built-in Services",
       link: { type: "doc", id: "reference/services/index" },
       items: [
+        "reference/services/anatomy",
         "reference/services/console",
         "reference/services/clock",
         "reference/services/random",
