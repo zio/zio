@@ -2457,12 +2457,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20367/0x00007fcecb0929e0@6b35d058
+//   eval = zio.Ref$$$Lambda$20415/0x00007f6bb71762a8@19a622da
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20367/0x00007fcecb0929e0@68e02bb2
+//   eval = zio.Ref$$$Lambda$20415/0x00007f6bb71762a8@447480ba
 // )
 
 sealed trait State
@@ -2473,7 +2473,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20367/0x00007fcecb0929e0@6ac8964b
+//   eval = zio.Ref$$$Lambda$20415/0x00007f6bb71762a8@6047a181
 // )
 ```
 
@@ -2490,7 +2490,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20367/0x00007fcecb0929e0@12de8d5a
+//   eval = zio.Ref$$$Lambda$20415/0x00007f6bb71762a8@13e36216
 // )
 ```
 
@@ -2502,7 +2502,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20367/0x00007fcecb0929e0@709c8576
+//   eval = zio.Ref$$$Lambda$20415/0x00007f6bb71762a8@4bc58e45
 // )
 ```
 
@@ -4573,7 +4573,9 @@ def validateWeightOrFailZIO[R](weight: ZIO[R, Nothing, Double]): ZIO[R, String, 
 
 ### Conditional Operators
 
-#### `when`
+ZIO provides several conditional combinators that let you branch on a boolean predicate or pattern-match an effectful value — the functional equivalents of Scala's `if` and `match` expressions.
+
+#### `ZIO.when` / `ZIO#when`
 
 We can also use ZIO's combinators that are the moral equivalent to these expressions:
 
@@ -4626,11 +4628,54 @@ def myApp =
   }
 ```
 
-#### `unless`
+When the result of the conditional effect is not needed, use `ZIO#whenDiscard` or `ZIO.whenDiscard` — they return `Unit` instead of `Option[A]`, skipping the allocation. The effectful-predicate counterpart is `ZIO#whenZIODiscard`. The following example records an audit event only when the acting user is an administrator:
 
-The `ZIO.unless` and `ZIO#unless` operators are like `when` operators, but they are moral equivalent for the `if (!p) expression` construct.
+```scala
+import zio._
 
-#### `ifZIO`
+def recordAuditEvent(event: String): ZIO[Any, Nothing, Unit] = ZIO.unit // placeholder
+
+def handleRequest(isAdmin: Boolean, event: String): ZIO[Any, Nothing, Unit] =
+  recordAuditEvent(event).whenDiscard(isAdmin)
+```
+
+#### `ZIO.unless` / `ZIO#unless`
+
+`ZIO#unless` runs an effect when a condition is **false** and returns `Option[A]` — the negated dual of `ZIO#when`. Reach for it any time you would write `effect.when(!condition)`, because `unless` expresses the intent as natural prose.
+
+A common pattern is a guard that skips side-effectful work when a condition is already satisfied. For example, sending a welcome notification only when the user has not opted out of emails reads clearly with `ZIO#unlessZIODiscard`:
+
+```scala
+import zio._
+
+trait NotificationService {
+  def sendWelcome(userId: Long): ZIO[Any, Nothing, Unit]
+}
+
+trait UserRepository {
+  def hasOptedOut(userId: Long): ZIO[Any, Nothing, Boolean]
+}
+
+def onboardUser(
+  notifications: NotificationService,
+  users: UserRepository,
+  userId: Long
+): ZIO[Any, Nothing, Unit] =
+  notifications.sendWelcome(userId).unlessZIODiscard(users.hasOptedOut(userId))
+```
+
+When the result does not matter, prefer the `Discard` variants — they return `Unit` and skip the `Option` allocation:
+
+| Predicate type | Result needed | Right choice |
+|----------------|---------------|--------------|
+| Pure           | Yes           | `ZIO#unless` |
+| Pure           | No            | `ZIO#unlessDiscard` |
+| Effectful      | Yes           | `ZIO#unlessZIO` |
+| Effectful      | No            | `ZIO#unlessZIODiscard` |
+
+The companion-object forms (`ZIO.unless(p)(effect)` and `ZIO.unlessZIO(p)(effect)`) accept the effect as a second argument instead of as the receiver — useful when the effect is not naturally expressed as a method chain.
+
+#### `ZIO.ifZIO`
 
 This operator takes an _effectful predicate_, if that predicate is evaluated to true, it will run the `onTrue` effect, otherwise it will run the `onFalse` effect.
 
@@ -4646,6 +4691,40 @@ def flipTheCoin: ZIO[Any, IOException, Unit] =
     onFalse = Console.printLine("Tail")
   )
 ```
+
+#### `ZIO.cond`
+
+`ZIO.cond` lifts a pure predicate into an effect that either succeeds with `result` or fails with `error` — a concise alternative to writing `if (predicate) ZIO.succeed(result) else ZIO.fail(error)`. Use it for validation logic that has a clear success path and a typed failure (see the [Error Management](../error-management/index.md) reference for how typed failures compose). It differs from `ZIO.when`, which returns `Option` rather than failing, and from `ZIO.ifZIO`, which takes an effectful predicate and effectful branches:
+
+```scala
+object ZIO {
+  def cond[E, A](predicate: => Boolean, result: => A, error: => E): IO[E, A]
+}
+```
+
+A typical use case is input validation before calling a downstream service. The following example rejects a withdrawal when the account balance is insufficient:
+
+```scala
+import zio._
+
+case class Account(id: Long, balance: Double)
+case class InsufficientFunds(requested: Double, available: Double)
+
+def withdraw(account: Account, amount: Double): IO[InsufficientFunds, Account] =
+  ZIO.cond(
+    account.balance >= amount,
+    account.copy(balance = account.balance - amount),
+    InsufficientFunds(requested = amount, available = account.balance)
+  )
+```
+
+The table below contrasts three conditional-branching operators — `ZIO.cond` and `ZIO.when` accept a pure `Boolean` predicate, while `ZIO.ifZIO` accepts an effectful one:
+
+| Operator      | Predicate | On false              | Return type              |
+|---------------|-----------|-----------------------|--------------------------|
+| `ZIO.cond`    | pure      | fail with typed error | `IO[E, A]`               |
+| `ZIO.when`    | pure      | return `None`         | `ZIO[R, E, Option[A]]`   |
+| `ZIO.ifZIO`   | effectful | run `onFalse` effect  | `ZIO[R, E, A]`           |
 
 ### Loop Operators
 
@@ -4686,7 +4765,7 @@ object MainApp extends scala.App {
 // 3
 ```
 
-In this example, we wrote a recursive function that prints numbers from 1 to 3. While the last effort doesn't use a mutable variable, it's not a pure solution. We have a `println` statement inside our solution, calling this function is not pure so the whole solution is not pure. We know that we can model effectful functions using the ZIO effect system. So let's try rewrite that using ZIO:
+In this example, we wrote a recursive function that prints numbers from 1 to 3. While the last effort doesn't use a mutable variable, it's not a pure solution. We have a `println` statement inside our solution, calling this function is not pure so the whole solution is not pure. We know that we can model effectful functions using the ZIO effect system. So let's rewrite that using ZIO:
 
 ```scala
 import zio._
@@ -4708,7 +4787,6 @@ ZIO provides some loop combinators that help us avoid the need to write explicit
 
 ```scala
 import zio._
-
 import java.io.IOException
 
 object MainApp extends ZIOAppDefault {
@@ -4722,7 +4800,7 @@ object MainApp extends ZIOAppDefault {
 
 After this short introduction to writing loops in functional Scala, now let us go further into ZIO-specific combinators for writing loops:
 
-#### `loop`
+#### `ZIO.loop`
 
 The `ZIO.loop` operator takes an initial state, then repeatedly changes the state based on the given `inc` function, until the given `cont` function evaluates to true:
 
@@ -4735,6 +4813,7 @@ object ZIO {
   def loopDiscard[R, E, S](
     initial: => S
   )(cont: S => Boolean, inc: S => S)(body: S => ZIO[R, E, Any]): ZIO[R, E, Unit]
+}
 ```
 
 `ZIO.loop` collects all intermediate states in a list and returns it finally, while the `ZIO.loopDiscard` discards all results.
@@ -4801,7 +4880,7 @@ val r5: ZIO[Any, IOException, List[String]] =
 // List(John, Jane, Joe)
 ```
 
-#### `iterate`
+#### `ZIO.iterate`
 
 To iterate with the given effectful operation we can use the `ZIO.iterate` combinator. During each iteration, it uses an effectful `body` operation to change the state, and it will continue the iteration while the `cont` function evaluates to true:
 
@@ -4892,9 +4971,22 @@ def getNames: ZIO[Any, IOException, List[String]] =
 // List(John, Jane, Joe)
 ```
 
-#### `foreach`
+#### `ZIO.foreach`
 
-Note that, in several cases, we can avoid these low-level operators and instead use high-level ones. For example, let's try to rewrite the `r5` with `ZIO.foreach`:
+`ZIO.foreach` transforms every element of an existing collection by running an effect on each one in sequence, preserving the collection's shape in the result. Use `ZIO.foreach` when you already have an `Iterable`, `Set`, `Array`, `Map`, or `Option`; reach for `ZIO.loop` or `ZIO.iterate` only when the iteration range is computed at call time rather than given by an existing collection.
+
+The most commonly used variants are:
+
+```scala
+object ZIO {
+  def foreach[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]]
+  def foreachDiscard[R, E, A](in: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit]
+  def foreachPar[R, E, A, B](in: Iterable[A])(f: A => ZIO[R, E, B]): ZIO[R, E, List[B]]
+  def foreachParDiscard[R, E, A](in: Iterable[A])(f: A => ZIO[R, E, Any]): ZIO[R, E, Unit]
+}
+```
+
+For example, collecting three user-entered names reads more naturally with `ZIO.foreach` than with a `loop` that manually tracks an index state:
 
 ```scala
 import zio._
@@ -4903,14 +4995,28 @@ Console.printLine("Please enter three names:") *>
   ZIO.foreach(1 to 3) { index =>
     Console.print(s"$index. ") *> Console.readLine
   }.debug
-// Please enter three names:
-// 1. John
-// 2. Jane
-// 3. Joe
-// Vector(John, Jane, Joe)
 ```
 
-### try/catch/finally
+When the individual effects are independent and can proceed concurrently, use `ZIO.foreachPar`. It runs each element on its own [fiber](../fiber/index.md) and returns results in the same order as the input, regardless of completion order. If any fiber fails, all remaining fibers are interrupted:
+
+```scala
+import zio._
+
+case class UserId(value: Long)
+case class UserProfile(id: UserId, name: String)
+
+def fetchProfile(id: UserId): ZIO[Any, String, UserProfile] =
+  ZIO.succeed(UserProfile(id, s"User ${id.value}"))
+
+val userIds = List(UserId(1L), UserId(2L), UserId(3L))
+
+val profiles: ZIO[Any, String, List[UserProfile]] =
+  ZIO.foreachPar(userIds)(fetchProfile)
+```
+
+When only side effects matter and results are not needed, `ZIO.foreachDiscard` and `ZIO.foreachParDiscard` skip building the result collection and return `Unit` directly, avoiding the allocation cost.
+
+### `try`/`catch`/`finally`
 
 When working with resources, just like Scala's `try`/`catch`/`finally` construct, in ZIO we have a similar operator called `acquireRelease` and also `ensuring`. We discussed them in more detail in the [resource management section](../resource/index.md). But, for now, we want to focus on their control flow behaviors.
 
@@ -9837,6 +9943,34 @@ val myApp: IO[Exception, Receipt] =
 
 In this example, the flatMap operations auto widens the error type to the most specific error type possible. As a result, the inferred error type of this for-comprehension will be `Exception` which gives us the best information we could hope to get out of this. We have lost information about the particulars of this. We no longer know which of these error types it is. We know it is some type of `Exception` which is more information than nothing.
 
+#### Keeping Error Specificity
+
+When every error type in a workflow extends the same sealed supertype, the for-comprehension widens to that sealed type rather than to `Exception` — and the exhaustive match on the sealed type is enforced by the compiler:
+
+```scala
+import zio._
+
+sealed trait AppError extends Exception
+case class InvalidUserId(id: String)       extends AppError
+case class ExpiredAuth(id: String)         extends AppError
+case class EmailDeliveryError(msg: String) extends AppError
+
+def userAuth(token: String): IO[ExpiredAuth, String]                  = ZIO.succeed("user-id")
+def userProfile(id: String): IO[InvalidUserId, String]                = ZIO.succeed("profile")
+def sendEmail(body: String, to: String): IO[EmailDeliveryError, Unit] = ZIO.unit
+
+val myApp: IO[AppError, Unit] =
+  for {
+    id      <- userAuth("token")          // IO[ExpiredAuth, String]
+    profile <- userProfile(id)            // IO[InvalidUserId, String]
+    _       <- sendEmail("body", profile) // IO[EmailDeliveryError, Unit]
+  } yield ()
+```
+
+Now `myApp` has type `IO[AppError, Unit]` instead of `IO[Exception, Unit]`. The sealed hierarchy preserves specificity: any caller that handles `AppError` must exhaustively match `InvalidUserId`, `ExpiredAuth`, and `EmailDeliveryError` — the compiler warns on any missing case (or treats it as an error with `-Xfatal-warnings`).
+
+For Scala 3 workflows where the error types do not share a meaningful domain supertype, see [Model Errors with Union Types](union-types.md) as a lightweight alternative.
+
 ---
 
 ## Don't Type Unexpected Errors
@@ -9880,6 +10014,17 @@ In this example, we are importing the `fetchUrl` which is a blocking operation i
 Also, this operation may throw unexpected errors like `OutOfMemoryError`, `StackOverflowError`, and so forth. Therefore, we don't include these errors since we won't be handling them at runtime. They are defects, and in case of unexpected errors, we should let the application crash.
 
 Therefore, it is quite common to import a code that may throw exceptions, whether that uses expected errors for error handling or can fail for a wide variety of unexpected errors like disk unavailable, service unavailable, and so on. Generally, importing these operations end up represented as a `Task` (`ZIO[Any, Throwable, A]`). So in order to make recoverable errors typed, we use the `ZIO#refineOrDie` method.
+
+---
+
+## Best Practices
+
+These pages collect the design principles that make ZIO's typed error channel pay off in real applications. Following them keeps error signatures precise, prevents unexpected errors from leaking into the type system, and avoids logging patterns that hide errors rather than surface them.
+
+- **[Algebraic Data Types](algebraic-data-types.md)** — model domain errors as sealed traits and case classes so the compiler enforces exhaustive handling.
+- **[Union Types](union-types.md)** — use Scala 3 union types to compose unrelated error types without a shared supertype, keeping error signatures precise.
+- **[Don't Type Unexpected Errors](dont-type-unexpected-errors.md)** — use `orDie` and `refineOrDie` to separate recoverable errors from application-killing defects rather than widening the error type.
+- **[Don't Reflexively Log Errors](logging-errors.md)** — rely on ZIO's typed error propagation instead of logging errors at every call site.
 
 ---
 
@@ -9952,7 +10097,15 @@ When we type errors, we know that they can't be lost. So typed errors give us th
 
 ## Use Union Types to Be More Specific About Error Types
 
+:::note[Scala 3 only]
+Union types (`FooError | BarError`) are a Scala 3 feature. If you are using Scala 2, use sealed traits to model domain errors instead — see [Model Domain Errors Using Algebraic Data Types](algebraic-data-types.md).
+:::
+
 In Scala 3, we have an exciting new feature called union types. By using the union operator, we can encode multiple error types. Using this facility, we can have more precise information on typed errors.
+
+### When to Use
+
+Use union types (`FooError | BarError`) when composing errors from unrelated sources that share no meaningful domain supertype — this keeps each error type independent and eliminates the need for a wrapper hierarchy. Use [algebraic data types (sealed traits)](algebraic-data-types.md) instead when the errors belong to the same domain and you want the compiler to enforce exhaustive pattern-matching across the entire error family. In Scala 2, sealed traits are the only option; union types require Scala 3.
 
 Let's see an example of `Storage` service which have `upload`, `download` and `delete` API:
 
@@ -10210,7 +10363,7 @@ object MainApp extends ZIOAppDefault {
 //	at <empty>.MainApp.run(MainApp.scala:12)"
 ```
 
-There is also the `ZIO.foreach` operator that takes a collection and an effectful operation, then tries to apply the transformation to all elements of the collection. This operator also has the same error management behavior. It fails when it encounters the first error:
+There is also the [`ZIO.foreach`](../control-flow/index.md) operator that takes a collection and an effectful operation, then tries to apply the transformation to all elements of the collection. This operator also has the same error management behavior. It fails when it encounters the first error:
 
 ```scala
 import zio._
@@ -10235,6 +10388,10 @@ object MainApp extends ZIOAppDefault {
 ```
 
 There are some situations when we need to collect all potential errors in a computation rather than failing fast. In this section, we will discuss operators that accumulate errors as well as successes.
+
+### When to Use
+
+Use `ZIO.validate` when processing a collection and you want to accumulate all errors, accepting that successes are discarded if any error occurs — the effect fails with the complete error list or succeeds with all results. Use `ZIO.validateFirst` instead when you need only the first success and want errors accumulated solely to report why every element failed. Use `ZIO.partition` when a mix of errors and successes is always a valid combined outcome — `partition` always succeeds, placing errors and successes in separate lists in the success channel rather than failing the overall effect.
 
 ### `ZIO#validate`
 
@@ -10619,14 +10776,59 @@ So when we compose different effects together, at any point of the codebase we c
 For example, the `ZIO.acquireReleaseWith` API asks us to provide three different inputs: _acquire_, _release_, and _use_. The `release` parameter requires a function from `A` to `URIO[R, Any]`. So, if we put an exceptional effect, it will not compile:
 
 ```scala
-object ZIO {
-  def acquireReleaseWith[R, E, A, B](
-    acquire: => ZIO[R, E, A],
-    release: A => URIO[R, Any],
-    use: A => ZIO[R, E, B]
-  ): ZIO[R, E, B]
-}
+// ZIO.acquireReleaseWith uses a curried builder — each argument group is a separate call:
+ZIO.acquireReleaseWith(acquire)(release)(use)
+
+// ZIO.Acquire (the object returned by the first call) has:
+//   def apply[R1](release: A => URIO[R1, Any]): ZIO.Release[R with R1, E, A]
+// ZIO.Release (the object returned by the second call) has:
+//   def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B]): ZIO[R1, E1, B]
 ```
+
+### Why Unexceptional Effects Matter
+
+`UIO` and `URIO` carry a compiler-enforced guarantee: the effect cannot fail. No hidden exception can escape through the typed error channel, and the compiler rejects any code that would introduce one. This guarantee is most valuable in three situations.
+
+Cleanup actions and finalizers are the clearest case. The `release` arm of `ZIO.acquireReleaseWith` must be `URIO[R, Any]` precisely because a failing cleanup would otherwise silently swallow the original error. By forcing `release` to be unexceptional, ZIO ensures cleanup always runs to completion and never hides the real cause of a problem.
+
+Logging and diagnostics are a second common use. A log action that can fail would contaminate every workflow it instruments with an unwanted error path; modeling it as `UIO` keeps the observability concern separate from the business logic.
+
+Configuration reads that have already been validated are a third example: once a value is confirmed valid, the ongoing read is safely modeled as `UIO[Config]` — the possibility of failure has already been handled at the boundary.
+
+The boundary between exceptional and unexceptional is an explicit, one-way conversion. When we call `ZIO.attempt` on code that may throw, the result is `Task[A]` — that is, `ZIO[Any, Throwable, A]`, an exceptional effect. After calling `ZIO#orDie` on that result, we obtain a `UIO[A]`: the compiler now knows the value is always produced, and the failure has been promoted to a defect, which crashes the fiber rather than propagating through the typed error channel.
+
+The following example models a release arm as `URIO` to show how the type system enforces the cleanup guarantee:
+
+```scala
+import zio._
+
+def openConnection(): ZIO[Any, Throwable, String] =
+  ZIO.succeed("connection")
+
+// The release arm is URIO — the compiler guarantees cleanup cannot fail.
+val program: ZIO[Any, Throwable, String] =
+  ZIO.acquireReleaseWith(
+    acquire = openConnection()
+  )(
+    release = conn => ZIO.attempt(s"closed $conn").orDie  // URIO[Any, Unit]
+  )(
+    use = conn => ZIO.succeed(s"used $conn")
+  )
+```
+
+Because `release` is `URIO[Any, Unit]`, any caller of `program` can be certain that resource cleanup never introduces a new failure channel — the overall effect's error type remains `Throwable`, sourced only from `acquire` or `use`.
+
+### Type Alias Quick Reference
+
+The five main type aliases cover the most common combinations of environment and error type:
+
+| Alias        | Full form                | Error type              | Typical use                            |
+|--------------|--------------------------|-------------------------|----------------------------------------|
+| `UIO[A]`     | `ZIO[Any, Nothing, A]`   | `Nothing` — cannot fail | Infallible computations, cleanup       |
+| `URIO[R, A]` | `ZIO[R, Nothing, A]`     | `Nothing` — cannot fail | Infallible effects needing environment |
+| `Task[A]`    | `ZIO[Any, Throwable, A]` | `Throwable`             | Wrapping JVM code that may throw       |
+| `RIO[R, A]`  | `ZIO[R, Throwable, A]`   | `Throwable`             | JVM-code effects needing environment   |
+| `IO[E, A]`   | `ZIO[Any, E, A]`         | Custom `` `E` ``        | Domain-typed errors, no environment    |
 
 ---
 
@@ -10695,7 +10897,104 @@ That is the best practice. It helps us write better code. The code that we can r
 
 ## Introduction to Error Management in ZIO
 
-As well as providing first-class support for typed errors, ZIO has a variety of facilities for catching, propagating, and transforming errors in a typesafe manner. In this section, we will learn about different types of errors in ZIO and how we can manage them.
+ZIO's error management model is built around three interlocking types: `Cause[E]`, `Exit[E, A]`, and the error channel of `ZIO[R, E, A]`. Together they give every ZIO program a precise, type-safe account of every failure, unhandled exception, and fiber interruption that can occur — and a rich set of operators for recovering from each. Most readers encounter `Cause[E]` through recovery operators such as `ZIO#catchAllCause` and `ZIO#sandbox` rather than by constructing it directly; it is the runtime representation that the ZIO fiber runtime manages internally. Their structural shapes are:
+
+```scala
+sealed abstract class Cause[+E]     // runtime error graph: failures, defects, interruptions
+sealed trait Exit[+E, +A]           // completed fiber result: Success or Failure(cause)
+sealed trait ZIO[-R, +E, +A]        // effect with a typed error channel E
+```
+
+### Overview
+
+The error management area is organized into six topics, each covering a distinct concern:
+
+- **[Three Types of Errors](types/index.md)** — the taxonomy of typed failures (`Failure`), untyped runtime exceptions (`Defect`), and catastrophic JVM errors (`Fatal`) that ZIO distinguishes at both the type-system and runtime levels.
+- **[Core Concepts](expected-and-unexpected-errors.md)** — the typed-error guarantee, what it means for an effect to be "unexceptional", and how sequential versus parallel composition affects the error structure.
+- **[Error Channel Operations](operations/map-operations.md)** — mapping, filtering, refining, flipping, and otherwise transforming the error channel without necessarily recovering from it.
+- **[Recovering From Errors](recovering/catching.md)** — catching typed failures, folding over results, retrying with a policy, sandboxing defects, timing out, and falling back to alternative effects.
+- **[Error Accumulation](error-accumulation.md)** — collecting all failures from a collection of effects without short-circuiting, using `ZIO.validate` and related combinators.
+- **[Best Practices](best-practices/algebraic-data-types.md)** — modelling domain errors as sealed ADTs, keeping defects out of the typed channel, avoiding reflexive logging, and using union types (Scala 3) for lightweight error composition.
+
+### How They Work Together
+
+The three core types interact through a single data flow: constructors create `Cause` leaf nodes, composition combines them into a `Cause` graph, the fiber runtime records the graph in an `Exit` value, and recovery operators intercept the graph at different granularities. Here is the step-by-step workflow:
+
+1. `ZIO.fail(e)` produces a `Cause.Fail(e, trace)` node; `ZIO.die(t)` produces `Cause.Die(t, trace)`; `ZIO.interrupt` produces `Cause.Interrupt(fiberId, trace)`.
+2. When two sequential effects both fail, their causes are joined with `++`, producing `Cause.Then(left, right)` — a node that preserves temporal ordering.
+3. When two parallel effects both fail, their causes are joined with `&&`, producing `Cause.Both(left, right)` — a node that records concurrent failures without imposing an order.
+4. When a fiber finishes, the runtime wraps the outcome in an `Exit`: either `Exit.Success(value)` for a successful result or `Exit.Failure(cause)` carrying the full `Cause[E]` graph.
+5. Recovery operators such as `ZIO#catchAll` and `ZIO#catchSome` intercept only the typed `E` channel — they match `Cause.Fail` nodes but leave `Cause.Die` and `Cause.Interrupt` untouched.
+6. `sandbox` promotes the full `Cause[E]` into the typed error channel, producing `ZIO[R, Cause[E], A]`, so any `catch*` operator can then pattern-match against `Cause.Die`, `Cause.Interrupt`, `Cause.Then`, or `Cause.Both`.
+7. `ZIO#unsandbox` (or the companion-object form `ZIO.unsandbox(v)`) reverts the sandbox, moving `Cause[E]` back out of the typed channel and restoring the effect's original `E` type.
+
+The diagram below maps this data flow from construction through composition, fiber exit, and recovery:
+
+```
+  ┌────────────┐   ┌────────────┐   ┌────────────────┐
+  │  ZIO.fail  │   │  ZIO.die   │   │ ZIO.interrupt  │
+  └─────┬──────┘   └─────┬──────┘   └───────┬────────┘
+        │                │                  │
+        ▼                ▼                  ▼
+  ┌────────────┐   ┌────────────┐   ┌────────────────┐
+  │ Cause.Fail │   │ Cause.Die  │   │Cause.Interrupt │
+  └─────┬──────┘   └─────┬──────┘   └───────┬────────┘
+        │ (++)           │ (&&)             │
+        └────────────────┘                  │
+                 │        ┌─────────────────┘
+                 ▼        ▼
+         ┌──────────────────────────────┐
+         │  Cause.Then  /  Cause.Both   │
+         │  (sequential/parallel graph) │
+         └──────────────┬───────────────┘
+                        │
+         ┌──────────────┴───────────────┐
+         ▼                              ▼
+  ┌─────────────────────┐  ┌─────────────────────┐
+  │ Exit.Failure(cause) │  │  Exit.Success(value) │
+  └──────────┬──────────┘  └──────────────────────┘
+             │
+             ▼
+  ┌──────────────────────────────────────────────────┐
+  │  catchAll      (typed E only)                    │
+  │  catchAllCause (full Cause[E] graph)             │
+  │  sandbox       → promotes Cause[E] to E channel  │
+  └──────────────────────────────────────────────────┘
+             │
+             ▼
+  ┌──────────────────────────────────────────────────┐
+  │       recovered ZIO[R, E2, A]  effect            │
+  └──────────────────────────────────────────────────┘
+```
+
+`foldCauseZIO` is the primitive from which all `catch*` and `fold*` operators are derived — every recovery method in ZIO is ultimately expressed in terms of it.
+
+**Type Relationships:**
+
+- `Cause[E]` is the runtime representation of all three error channels; the type parameter `E` covers only the typed-failure dimension, while `Cause.Die` and `Cause.Interrupt` nodes are always untyped.
+- `Exit[E, A]` is a sealed subtype of `ZIO[Any, E, A]` — an `Exit` value can be used anywhere a `ZIO` is expected without explicit lifting.
+- `Exit.Failure(cause)` wraps the full `Cause[E]` graph; `Exit.Success(a)` carries the result value of a successfully completed fiber.
+- `Cause.Then` preserves temporal ordering (sequential failures); `Cause.Both` preserves concurrency (parallel failures); `Cause.Stackless` suppresses stack-trace rendering for its sub-cause.
+- `foldCauseZIO` is the primitive from which all other `catch*` and `fold*` operators are derived; every other recovery combinator calls it internally.
+
+To see these types working together, consider the sandbox/unsandbox pattern — the standard approach when you need to recover from a defect or inspect the full `Cause` structure:
+
+```scala
+import zio._
+
+val effect: ZIO[Any, String, String] =
+  ZIO.succeed("primary result") *> ZIO.fail("Oh uh!")
+
+val recovered: ZIO[Any, String, String] =
+  effect
+    .sandbox                                              // ZIO[Any, Cause[String], String]
+    .catchSome { case Cause.Fail(_, _) =>
+      ZIO.succeed("fallback result")                      // matches typed failure only
+    }
+    .unsandbox                                            // ZIO[Any, String, String]
+```
+
+After `sandbox` promotes the entire `Cause[String]` into the error channel, `catchSome` can pattern-match on `Cause.Fail` specifically — leaving any `Cause.Die` or `Cause.Interrupt` nodes untouched. Calling `unsandbox` at the end restores the effect's `String` error type.
 
 ---
 
@@ -10763,6 +11062,10 @@ trait ZIO[-R, +E, +A] {
   def resurrect(implicit ev1: E IsSubtypeOfError Throwable): ZIO[R, Throwable, A]
 }
 ```
+
+### When to Use
+
+Use `ZIO#absorb` or `ZIO#resurrect` when you need to treat all defects uniformly as `Throwable` failures — for example, to pipe a defect-prone effect into code that handles `Throwable` through the typed error channel. Use [`ZIO#unrefine` or `ZIO#unrefineWith`](error-refinement.md) instead when you want to promote only specific defects to typed domain errors while leaving all other defects untyped. Prefer `resurrect` over `absorb` when fiber interruption should remain an interruption rather than being collapsed into a typed `Throwable` failure.
 
 Below are examples of the `ZIO#absorb` and `ZIO#resurrect` operators:
 
@@ -11277,6 +11580,26 @@ val r3: ZIO[Any, List[String], List[Int]] = evens.flipWith(_.map(_.reverse))
 
 ---
 
+## Error Channel Operations
+
+ZIO's error channel supports a rich set of transformations beyond simple recovery. These operators let us reshape, inspect, and restructure errors and successes without necessarily resolving the failure — useful when threading error values through a larger computation.
+
+- **[Map Operations](map-operations.md)** — transform error values with `mapError`, `mapErrorCause`, and `mapAttempt` without recovering from the failure.
+- **[Chaining Effects Based on Errors](chaining-effects-based-on-errors.md)** — sequence a second effect that depends on the first effect's typed error using `flatMapError`.
+- **[Filtering the Success Channel](filtering-the-success-channel.md)** — convert success values that fail a predicate into typed errors using `filterOrFail`, `filterOrDie`, and `filterOrElse`.
+- **[Tapping Errors](tapping-errors.md)** — inspect failure values, defects, and `Cause` graphs as a side effect without altering the error channel, using `tapError`, `tapErrorCause`, and `tapDefect`.
+- **[Exposing Errors in the Success Channel](exposing-errors-in-the-success-channel.md)** — move typed failures into the success channel as `Either` values using `ZIO#either`, then submerge them back with `ZIO#absolve`.
+- **[Exposing the Cause in the Success Channel](exposing-the-cause-in-the-success-channel.md)** — surface the full `Cause[E]` graph in the success channel using `ZIO#cause`, then submerge it with `ZIO#uncause`.
+- **[Converting Defects to Failures](converting-defects-to-failures.md)** — turn defects back into typed failures using `absorb` and `resurrect`.
+- **[Error Refinement](error-refinement.md)** — narrow or widen the typed error channel using `refineOrDie`, `refineToOrDie`, `unrefine`, and `unrefineTo`.
+- **[Flattening Optional Error Types](flattening-optional-error-types.md)** — collapse `Option[E]` error types into plain `E` using `ZIO#flattenErrorOption`, providing a default error for the `None` case.
+- **[Merging the Error Channel into the Success Channel](merging-the-error-channel-into-the-success-channel.md)** — collapse the error channel into the success channel using `ZIO#merge` when both types are compatible, producing an infallible effect.
+- **[Flipping Error and Success Channels](flipping-the-error-and-success-channel.md)** — swap the error and success channels using `flip` and `flipWith` to apply success-channel operators to errors.
+- **[Rejecting Some Success Values](rejecting-some-success-values.md)** — convert select success values into typed failures using `ZIO#reject` and `ZIO#rejectZIO` with a partial function.
+- **[Zooming In on Nested Values](zooming-in-on-nested-values.md)** — navigate `Option` and `Either` values nested inside ZIO effects using `some`, `unsome`, `left`, `right`, and related operators.
+
+---
+
 ## Map Operations
 
 Other than `ZIO#map` and `ZIO#flatMap`, ZIO has several other operators to manage errors while mapping:
@@ -11442,7 +11765,17 @@ val result: ZIO[Any, String, Int] =
 
 ## Merging the Error Channel into the Success Channel
 
-With `ZIO#merge` we can merge the error channel into the success channel:
+`ZIO#merge` collapses the error channel into the success channel, producing an infallible `URIO` whose value is drawn from whichever channel fired. Its signature includes implicit evidence that constrains when the operation is legal:
+
+```scala
+trait ZIO[-R, +E, +A] {
+  def merge[A1 >: A](implicit ev1: E IsSubtypeOfError A1, ev2: CanFail[E]): URIO[R, A1]
+}
+```
+
+`merge` is only available when `E` is a subtype of `A1`, the common supertype of both channels. The implicit evidence `E IsSubtypeOfError A1` enforces this at compile time, so the compiler rejects a call to `merge` when the two types share no common supertype other than `Any`. At runtime, if the effect succeeds it returns the success value; if it fails, it returns the error value — both surfaced through the success channel. The result is always an infallible effect (`URIO[R, A1]`), meaning the typed error channel is eliminated entirely.
+
+The most common scenario is when `E =:= A` — the error and success types are identical. The following example uses `ZIO.fail` to produce a value whose error type and success type are both `String`, then merges the channels into one:
 
 ```scala
 import zio._
@@ -11452,7 +11785,23 @@ val merged : ZIO[Any, Nothing, String] =
     .merge           // ZIO[Any, Nothing, String]
 ```
 
-If the error and success channels were of different types, it would choose the supertype of both.
+`merge` also handles the case where `E` and `A` are different types that share a common supertype — the result type becomes that supertype. The following example uses an `AppStatus` sealed trait whose variants represent both success and failure outcomes, so `merge` produces a `URIO[Any, AppStatus]` regardless of which channel fires:
+
+```scala
+import zio._
+
+sealed trait AppStatus
+case object Ok    extends AppStatus
+case object Error extends AppStatus
+
+// E = Error.type, A = Ok.type — both are subtypes of AppStatus
+val status: URIO[Any, AppStatus] =
+  ZIO.fail(Error: AppStatus).merge
+```
+
+### When to Use
+
+`merge` is useful when the typed error and success represent the same domain type — for example, an enumeration whose variants include both success and failure states — and you want to eliminate the error channel without losing the value. For cases where `E` is a `Throwable`, prefer `ZIO#orDie` (which converts the error to a defect) over `merge`: `orDie` signals that the failure is unrecoverable and crashes the fiber, while `merge` would surface the exception as a plain value in the success channel, which is rarely the right semantic for a `Throwable`.
 
 ---
 
@@ -11495,7 +11844,7 @@ Like [tapping for success values](../../core/zio/zio.md#tapping) ZIO has several
 trait ZIO[-R, +E, +A] {
   def tapError[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
   def tapErrorCause[R1 <: R, E1 >: E](f: Cause[E] => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
-  def tapErrorTrace[R1 <: R, E1 >: E](f: ((E, Trace)) => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
+  def tapErrorTrace[R1 <: R, E1 >: E](f: ((E, StackTrace)) => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
   def tapDefect[R1 <: R, E1 >: E](f: Cause[Nothing] => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
   def tapBoth[R1 <: R, E1 >: E](f: E => ZIO[R1, E1, Any], g: A => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
   def tapEither[R1 <: R, E1 >: E](f: Either[E, A] => ZIO[R1, E1, Any]): ZIO[R1, E1, A]
@@ -11769,11 +12118,11 @@ The two `ZIO#catchAllTrace` and `ZIO#catchSomeTrace` operators are useful to cat
 ```scala
 trait ZIO[-R, +E, +A] {
   def catchAllTrace[R1 <: R, E2, A1 >: A](
-    h: ((E, Trace)) => ZIO[R1, E2, A1]
+    h: ((E, StackTrace)) => ZIO[R1, E2, A1]
   ): ZIO[R1, E2, A1]
 
   def catchSomeTrace[R1 <: R, E1 >: E, A1 >: A](
-    pf: PartialFunction[(E, Trace), ZIO[R1, E1, A1]]
+    pf: PartialFunction[(E, StackTrace), ZIO[R1, E1, A1]]
   ): ZIO[R1, E1, A1]
 }
 ```
@@ -11815,9 +12164,17 @@ In case of occurring any [fatal error](#catching-traces), it will die.
 openFile("data.json").catchAll(_ => openFile("backup.json"))
 ```
 
+:::caution[`catchNonFatalOrDie` is deprecated]
+`ZIO#catchNonFatalOrDie` was deprecated in ZIO 2.1.21. It is an alias for `catchAll` — their behavior is identical because fatal errors (`VirtualMachineError` and its subtypes) are never reachable through ZIO's typed error channel regardless of which operator you use. Replace any use of `catchNonFatalOrDie` with `catchAll`.
+:::
+
 ---
 
 ## Fallback
+
+### When to Use
+
+Use `ZIO#orElse` and the related fallback operators when any failure should trigger a fixed alternative effect or default value and you do not need the error value to choose between alternatives. Use [`ZIO#catchAll`](catching.md) instead when the recovery logic depends on inspecting the specific error — for example, to return a different fallback per error type. For transient failures where the same operation should be re-attempted before falling back, prefer [`ZIO#retry`](retrying.md) or `ZIO#retryOrElse`.
 
 ### `ZIO#orElse`
 
@@ -11869,7 +12226,7 @@ val result: ZIO[Any, Throwable, Either[LocalConfig, RemoteConfig]] =
 These two operators convert the original failure with constant succeed or failure values:
 
 ```scala
-trait ZIO[-R, +R, +E] {
+trait ZIO[-R, +E, +A] {
   def orElseFail[E1](e1: => E1): ZIO[R, E1, A]
 
   def orElseSucceed[A1 >: A](a1: => A1): ZIO[R, Nothing, A1]
@@ -11980,6 +12337,10 @@ val config: ZIO[Any, Throwable, Config] =
 ## Folding
 
 Scala's `Option` and `Either` data types have `fold`, which let us handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow us to handle both failure and success.
+
+### When to Use
+
+Use `ZIO#fold` or `ZIO#foldZIO` when you need to produce a single result type from both the success and failure paths in one expression — for example, when converting a fallible effect to a `UIO[String]` by mapping both outcomes to a string. Use [`ZIO#catchAll`](catching.md) instead when you only need to handle the error path and want the success value to flow through unchanged. Choose `ZIO#foldCauseZIO` over `foldZIO` when the failure handler must also distinguish defects and fiber interruptions from typed failures.
 
 ### `ZIO#fold`/`ZIO#foldZIO`
 
@@ -12152,7 +12513,7 @@ This version of fold, provide us the facility to access the trace info of the fa
 ```scala
 trait ZIO[-R, +E, +A] {
   def foldTraceZIO[R1 <: R, E2, B](
-    failure: ((E, Trace)) => ZIO[R1, E2, B],
+    failure: ((E, StackTrace)) => ZIO[R1, E2, B],
     success: A => ZIO[R1, E2, B]
   )(implicit ev: CanFail[E]): ZIO[R1, E2, B]
 }
@@ -12180,6 +12541,19 @@ val result: ZIO[Any, Nothing, Int] =
 ```
 
 Note that similar to `ZIO#fold` and `ZIO#foldZIO` this operator cannot recover from fiber interruptions.
+
+---
+
+## Recovering From Errors
+
+When a ZIO effect fails, we have several strategies for bringing it back to a successful result. Some operators work on the typed error channel; others reach into the full `Cause` graph to handle defects and interruptions as well.
+
+1. **[Catching](catching.md)** recovers from typed failures, defects, interruptions, and the full `Cause` graph using operators such as `catchAll`, `catchSome`, `catchAllCause`, and `catchAllDefect`.
+2. **[Fallback](fallback.md)** provides an alternative effect or value when an effect fails, using `orElse`, `orElseFail`, `orElseSucceed`, and related combinators.
+3. **[Folding](folding.md)** handles both success and failure in one step with `fold`, `foldZIO`, `foldCause`, and `foldCauseZIO` — the primitive all other ZIO error operators build on.
+4. **[Retrying](retrying.md)** re-runs a failing effect according to a `Schedule` policy, with configurable delays, attempt limits, and fallback strategies.
+5. **[Timing Out](timing-out.md)** bounds effect execution time with timeout combinators that safely interrupt the effect and optionally convert the result to a typed failure.
+6. **[Sandboxing](sandboxing.md)** exposes the full `Cause` graph — including defects and interruptions — using `sandbox`, `unsandbox`, and `sandboxWith`, so any recovery operator can reach them.
 
 ---
 
@@ -12311,7 +12685,7 @@ remoteService.retryUntil(_ == DataCorrupted)
 
 To provide an effectful predicate we use the `ZIO#retryUntilZIO` operator.
 
-### `ZIO#retryUntilEqual`
+### `ZIO#retryUntilEquals`
 
 Like the previous operator, it tries until its error is equal to the specified error:
 
@@ -12357,6 +12731,10 @@ trait ZIO[-R, +E, +A] {
   def sandbox: ZIO[R, Cause[E], A]
 }
 ```
+
+### When to Use
+
+Use `ZIO#sandbox` when you need to apply operators other than `catchAllCause` or `catchSomeCause` to the full `Cause` graph — for example, using `ZIO#catchSome` or `ZIO#mapError` against defects and interruptions as well as typed failures. Use [`ZIO#catchAllCause` or `ZIO#catchSomeCause`](catching.md) directly instead when a single pattern-match-and-recover step is all you need; those operators reach the full `Cause` without an explicit sandbox/unsandbox round-trip. `ZIO#sandboxWith` combines the sandbox → operate → unsandbox round-trip in a single call when a more composable form is convenient.
 
 We can use the `ZIO#sandbox` operator to uncover the full causes of an _exceptional effect_. So we can see all the errors that occurred as a type of `Cause[E]` at the error channel of the `ZIO` data type. So then we can use normal error-handling operators such as `ZIO#catchSome` and `ZIO#catchAll` operators:
 
@@ -12408,7 +12786,7 @@ There is another version of sandbox called `ZIO#sandboxWith`. This operator help
 
 ```scala
 trait ZIO[-R, +E, +A] {
-  def sandboxWith[R1 <: R, E2, B](f: ZIO[R1, Cause[E], A] => ZIO[R1, Cause[E2], B])
+  def sandboxWith[R1 <: R, E2, B](f: ZIO[R1, Cause[E], A] => ZIO[R1, Cause[E2], B]): ZIO[R1, E2, B]
 }
 ```
 
@@ -12442,6 +12820,27 @@ object MainApp extends ZIOAppDefault {
 // Caught a failure: Oh uh!
 // fallback result on failure
 ```
+
+There is also a companion-object form, `ZIO.unsandbox`, which accepts the sandboxed effect as a parameter rather than being called as an instance method. Its signature is:
+
+```scala
+object ZIO {
+  def unsandbox[R, E, A](v: => ZIO[R, Cause[E], A])(implicit trace: Trace): ZIO[R, E, A]
+}
+```
+
+This is useful when passing a sandboxed effect to a helper function or when you want to build a pipeline:
+
+```scala
+import zio._
+
+def recoverFromCause[R, A](
+  sandboxedEffect: ZIO[R, Cause[String], A]
+): ZIO[R, String, A] =
+  ZIO.unsandbox(sandboxedEffect)
+```
+
+Both `ZIO#unsandbox` (the instance method) and `ZIO.unsandbox(v)` (the companion form) produce the same result — choose whichever reads more naturally in context.
 
 ---
 
@@ -12642,7 +13041,7 @@ val result: ZIO[Any, ::[String], Nothing] =
 
 Note that this operator is only for failures, not defects or interruptions.
 
-Also, when we work with resource-safety operators like `ZIO#ensuring` we can have multiple sequential errors. Why? because regardless of the original effect has any errors or not, the finalizer is uninterruptible. So the finalizer will be run. Unless the finalizer should be an unexceptional effect (`URIO`), it may die because of a defect. Therefore, it creates multiple sequential errors:
+Resource-safety operators like `ZIO#ensuring` can also produce multiple sequential errors. Regardless of whether the original effect succeeds or fails, the finalizer always runs and is uninterruptible. If the finalizer is not an unexceptional effect (`URIO`) and it encounters a defect, both the original error and the finalizer's defect are recorded — creating multiple sequential errors:
 
 ```scala
 import zio._
@@ -12840,8 +13239,8 @@ val defect5 = ZIO.attempt(???).map(_ => throw new Exception("Boom!"))
 When writing ZIO application, we can model a failure, using the `ZIO.fail` constructor:
 
 ```scala
-trait ZIO {
-  def fail[E](error: => E): ZIO[Any, E, Nothing]
+object ZIO {
+  def fail[E](error: => E): IO[E, Nothing]
 }
 ```
 
@@ -12902,6 +13301,10 @@ The `ZIO.fail` constructor is somehow the moral equivalent of `throw` for pure c
 
 In ZIO on the JVM platform, the `VirtualMachineError` and all its subtypes are the only errors considered fatal by the ZIO runtime. So if during the running application, the JVM throws any of these errors like `StackOverflowError`, the ZIO runtime considers it as a catastrophic fatal error. So it will interrupt the whole application immediately without safe resource interruption. None of the `ZIO#catchAll` and `ZIO#catchAllDefects` can catch these fatal errors. At most, if we set the `Runtime.setReportFatal`, the application will log the stack trace before interrupting the entire application.
 
+:::note[Scala.js]
+On Scala.js, the JavaScript engine never throws `VirtualMachineError` instances at runtime, so in practice no error is ever classified as fatal by the ZIO runtime on Scala.js. The fatal-error category exists in ZIO's shared code (the `isFatal` check runs on every platform), but it is never triggered by the JS engine.
+:::
+
 Here is an example of manually creating a fatal error. Although we are ignoring all expected and unexpected errors, the fatal error interrupts the whole application:
 
 ```scala
@@ -12936,7 +13339,7 @@ at zio.Runtime.unsafeRunWithRefs(Runtime.scala:400)
 Catastrophic error encountered. Application not safely interrupted. Resources may be leaked. Check the logs for more details and consider overriding `Runtime.reportFatal` to capture context.
 ```
 
-Note that we can change the default way to report fatal errors using `Runtime#reportFatal` or the `Runtime.setReportFatal` layer.
+Note that we can change the default way to report fatal errors using the `Runtime.setReportFatal` layer.
 
 ---
 
@@ -12945,12 +13348,9 @@ Note that we can change the default way to report fatal errors using `Runtime#re
 We should consider three types of errors when writing ZIO applications:
 
 1. **[Failures](failures.md)** are expected errors. We use `ZIO.fail` to model failures. As they are expected, we know how to handle them. We should handle these errors and prevent them from propagating throughout the call stack.
-
 2. **[Defects](defects.md)** are unexpected errors. We use `ZIO.die` to model a defect. As they are not expected, we need to propagate them through the application stack, until in the upper layers one of the following situations happens:
-
     - In one of the upper layers, it makes sense to expect these errors. So we will convert them to failure, and then they can be handled.
     - None of the upper layers will catch these errors, so it will finally crash the whole application.
-
 3. **[Fatals](fatals.md)** are catastrophic unexpected errors. When they occur we should kill the application immediately without propagating the error furthermore. At most, we might need to log the error and print its call stack.
 
 ---
@@ -13793,20 +14193,21 @@ ZIO fiber contains a few data types that can help us to solve complex problems:
 ZIO contains a few data types that can help you solve complex problems in asynchronous and concurrent programming. ZIO data types categorize into these sections:
 
 1. [Core Data Types](#core-data-types)
-2. [Scheduling](#scheduling)
-3. [Contextual Data Types](#contextual-data-types)
-4. [State Management](#state-management)
-5. [Concurrency](#concurrency)
+2. [Control Flow](#control-flow)
+3. [Scheduling](#scheduling)
+4. [Contextual Data Types](#contextual-data-types)
+5. [State Management](#state-management)
+6. [Concurrency](#concurrency)
     - [Fiber Primitives](#fiber-primitives)
     - [Concurrency Primitives](#concurrency-primitives)
     - [Synchronization Aids](#synchronization-aids)
     - [STM](#stm)
-6. [Resource Management](#resource-management)
-7. [Streaming](#streaming)
-8. [Logging](#logging)
-9. [Metrics](#metrics)
-10. [Testing](#testing)
-11. [Miscellaneous](#miscellaneous)
+7. [Resource Management](#resource-management)
+8. [Streaming](#streaming)
+9. [Logging](#logging)
+10. [Metrics](#metrics)
+11. [Testing](#testing)
+12. [Miscellaneous](#miscellaneous)
 
 ### Core Data Types
 - **[ZIO](core/zio/zio.md)** — `ZIO` is a value that models an effectful program, which might fail or succeed.
@@ -13819,6 +14220,10 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 - **[Runtime](core/runtime.md)** — `Runtime[R]` is capable of executing tasks within an environment `R`.
 - **[Exit](core/exit.md)** — `Exit[E, A]` describes the result of executing an `IO` value.
 - **[Cause](core/cause.md)** — `Cause[E]` is a description of a full story of a fiber failure.
+
+### Control Flow
+
+- **[Control Flow](control-flow/index.md)** — ZIO's built-in conditional and looping combinators: `when`, `unless`, `cond`, `ifZIO`, `loop`, `iterate`, `foreach`, and `foreachPar`.
 
 ### Scheduling
 
@@ -14528,25 +14933,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@1f7d6aa0
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@59e785f0
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@84eefdb
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@4b76ff11
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@733d2d52
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@20a001cb
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-09-10T15:48:36.023222743Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-09-14T10:43:44.512151202Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@7d194f01
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@5c4f53c4
 ```
 
 ### Construction / Creating Instances
@@ -15660,7 +16065,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20488/0x00007fcecb127b90@73ec8558
+//   eval = zio.Supervisor$$$Lambda$20536/0x00007f6bb7216c50@61aaca79
 // )
 ```
 
@@ -16489,7 +16894,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19492/0x00007fcecaec4410@15470585
+//     f = zio.ZIO$$$Lambda$19544/0x00007f6bb6fa3a58@31782371
 //   ),
 //   successK = <function1>
 // )
@@ -17270,7 +17675,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@329bbb48
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@c1ee548
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -17283,12 +17688,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18758/0x00007fcecad136f0@1c35b360
+//       eval = zio.ZIO$$$Lambda$18810/0x00007f6bb6dfa1c0@77e6af0f
 //     ),
-//     successK = zio.ZIO$$$Lambda$19482/0x00007fcecaeb62c0@1f183570
+//     successK = zio.ZIO$$$Lambda$19534/0x00007f6bb6f9e000@3d6a4a56
 //   ),
-//   successK = zio.ZIO$$$Lambda$18761/0x00007fcecad15968@3bec862a,
-//   failureK = zio.ZIO$$Lambda$20284/0x00007fcecb0651c0@641a7d9f
+//   successK = zio.ZIO$$$Lambda$18813/0x00007f6bb6dfc438@22ec8b14,
+//   failureK = zio.ZIO$$Lambda$20332/0x00007f6bb714cc10@4a11f25b
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -17300,11 +17705,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18758/0x00007fcecad136f0@1c35b360
+//       eval = zio.ZIO$$$Lambda$18810/0x00007f6bb6dfa1c0@77e6af0f
 //     ),
-//     successK = zio.ZIO$$$Lambda$19482/0x00007fcecaeb62c0@34869e20
+//     successK = zio.ZIO$$$Lambda$19534/0x00007f6bb6f9e000@119840f3
 //   ),
-//   successK = zio.ZIO$$Lambda$20514/0x00007fcecb145ef0@52277590
+//   successK = zio.ZIO$$Lambda$20562/0x00007f6bb722fb58@2bdddf96
 // )
 ```
 
@@ -22270,7 +22675,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@1ccf7619
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@27fbee0c
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -22298,9 +22703,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$19965/0x00007fcecaf8b4f0@59d6ee13
+//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
 //   ),
-//   successK = zio.ZIO$$$Lambda$19966/0x00007fcecaf8b7a8@1b785b9e
+//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@3f271325
 // )
 ```
 
@@ -22349,7 +22754,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@5981066a
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@239af885
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -22379,9 +22784,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$19965/0x00007fcecaf8b4f0@59d6ee13
+//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
 //   ),
-//   successK = zio.ZIO$$$Lambda$19966/0x00007fcecaf8b7a8@1050b73a
+//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@67a6f19a
 // )
 ```
 
@@ -22412,7 +22817,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@2d1607fe
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@3e06702c
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -22427,9 +22832,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$19965/0x00007fcecaf8b4f0@59d6ee13
+//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
 //   ),
-//   successK = zio.ZIO$$$Lambda$19966/0x00007fcecaf8b7a8@2410f4cb
+//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@4f33dbac
 // )
 ```
 
@@ -22473,7 +22878,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@62762761
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@1b9fe050
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -22490,9 +22895,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$19965/0x00007fcecaf8b4f0@59d6ee13
+//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
 //   ),
-//   successK = zio.ZIO$$$Lambda$19966/0x00007fcecaf8b7a8@199088f1
+//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@59b6c001
 // )
 ```
 
@@ -22524,7 +22929,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@25ad4e39
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@62fc856d
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -22541,9 +22946,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$19965/0x00007fcecaf8b4f0@59d6ee13
+//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
 //   ),
-//   successK = zio.ZIO$$$Lambda$19966/0x00007fcecaf8b7a8@680de16b
+//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@32c07d3f
 // )
 ```
 
@@ -22575,7 +22980,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@6006bd90
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@2b307385
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -22606,9 +23011,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$19965/0x00007fcecaf8b4f0@59d6ee13
+//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
 //   ),
-//   successK = zio.ZIO$$$Lambda$19966/0x00007fcecaf8b7a8@20a7c643
+//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@79e9ecc8
 // )
 ```
 
@@ -22641,7 +23046,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@72b4c7d6
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@6cd625d8
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -22657,9 +23062,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$19965/0x00007fcecaf8b4f0@59d6ee13
+//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
 //   ),
-//   successK = zio.ZIO$$$Lambda$19966/0x00007fcecaf8b7a8@60368ccf
+//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@35b57bbc
 // )
 ```
 
@@ -22690,7 +23095,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@16b5aff8
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@7da99394
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -22717,9 +23122,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$19965/0x00007fcecaf8b4f0@59d6ee13
+//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
 //   ),
-//   successK = zio.ZIO$$$Lambda$19966/0x00007fcecaf8b7a8@2cffb412
+//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@61490e0e
 // )
 ```
 
@@ -22739,7 +23144,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@411ce7f1
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@69a22476
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -22762,9 +23167,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$19965/0x00007fcecaf8b4f0@59d6ee13
+//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
 //   ),
-//   successK = zio.ZIO$$$Lambda$19966/0x00007fcecaf8b7a8@40a31b2a
+//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@2778360a
 // )
 ```
 
@@ -22780,7 +23185,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@4a05c8e2
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@68cb3582
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -22802,9 +23207,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$19965/0x00007fcecaf8b4f0@59d6ee13
+//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
 //   ),
-//   successK = zio.ZIO$$$Lambda$19966/0x00007fcecaf8b7a8@1a728afb
+//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@5892fb50
 // )
 ```
 
@@ -22820,7 +23225,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@56c6f2cb
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@463a7078
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -22840,9 +23245,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$19965/0x00007fcecaf8b4f0@59d6ee13
+//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
 //   ),
-//   successK = zio.ZIO$$$Lambda$19966/0x00007fcecaf8b7a8@1799e1c7
+//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@28e3548f
 // )
 ```
 
@@ -22860,7 +23265,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@1d12aec8
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@b24817b
 
 val example = {
   val scoped = ZIO.scoped {
@@ -22882,9 +23287,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$19965/0x00007fcecaf8b4f0@59d6ee13
+//       eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
 //     ),
-//     successK = zio.ZIO$$$Lambda$19966/0x00007fcecaf8b7a8@5b8a8915
+//     successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@654e5dd5
 //   ),
 //   successK = <function1>
 // )
@@ -26889,14 +27294,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@6de0e68b
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@48f9a960
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@1a57062c
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@2987b122
 ```
 
 ### From ZIO
@@ -33623,9 +34028,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$19975/0x00007fcecaf9b7d0@541d315e
+//             onState = zio.ZIO$$$Lambda$20023/0x00007f6bb7080000@738666ee
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$19984/0x00007fcecafa11d0@111fa5b9
+//           successK = zio.test.package$ZTest$$$Lambda$20032/0x00007f6bb7089720@3684f6fa
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -36615,7 +37020,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+208-b5afa8af-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+214-d0b9d23f-SNAPSHOT"
 ```
 
 ### Example
@@ -48571,9 +48976,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$19965/0x00007fcecaf8b4f0@59d6ee13
+//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
 //   ),
-//   successK = zio.ZIO$$$Lambda$19966/0x00007fcecaf8b7a8@8dbf2b8
+//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@71f11e77
 // )
 ```
 
@@ -141356,7 +141761,7 @@ If multiple concurrent processes get the value at the same time the value will o
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-cache" % "0.2.8"
+libraryDependencies += "dev.zio" %% "zio-cache" % "0.3.0"
 ```
 
 ### Example
@@ -149801,7 +150206,7 @@ keeping it turned off avoids all bookkeeping and potential broker overhead.
 client and integrates effortlessly with ZIO and zio-streams. Often zio-kafka programs have a _higher_ throughput than
 programs that use the Java Kafka client directly (see section [Performance](#performance) below).
 
-[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-kafka/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-kafka_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-kafka_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-kafka_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-kafka_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-kafka-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-kafka-docs_2.13) [![ZIO Kafka](https://img.shields.io/github/stars/zio/zio-kafka?style=social)](https://github.com/zio/zio-kafka) [![Scala Steward badge](https://img.shields.io/badge/Scala_Steward-helping-blue.svg?style=flat&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAQCAMAAAARSr4IAAAAVFBMVEUAAACHjojlOy5NWlrKzcYRKjGFjIbp293YycuLa3pYY2LSqql4f3pCUFTgSjNodYRmcXUsPD/NTTbjRS+2jomhgnzNc223cGvZS0HaSD0XLjbaSjElhIr+AAAAAXRSTlMAQObYZgAAAHlJREFUCNdNyosOwyAIhWHAQS1Vt7a77/3fcxxdmv0xwmckutAR1nkm4ggbyEcg/wWmlGLDAA3oL50xi6fk5ffZ3E2E3QfZDCcCN2YtbEWZt+Drc6u6rlqv7Uk0LdKqqr5rk2UCRXOk0vmQKGfc94nOJyQjouF9H/wCc9gECEYfONoAAAAASUVORK5CYII=)](https://scala-steward.org)
+[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-kafka/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-kafka_2.13.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-kafka_2.13) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-kafka_2.13%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-kafka_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-kafka_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-kafka_2.13) [![ZIO Kafka](https://img.shields.io/github/stars/zio/zio-kafka?style=social)](https://github.com/zio/zio-kafka) [![Scala Steward badge](https://img.shields.io/badge/Scala_Steward-helping-blue.svg?style=flat&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAQCAMAAAARSr4IAAAAVFBMVEUAAACHjojlOy5NWlrKzcYRKjGFjIbp293YycuLa3pYY2LSqql4f3pCUFTgSjNodYRmcXUsPD/NTTbjRS+2jomhgnzNc223cGvZS0HaSD0XLjbaSjElhIr+AAAAAXRSTlMAQObYZgAAAHlJREFUCNdNyosOwyAIhWHAQS1Vt7a77/3fcxxdmv0xwmckutAR1nkm4ggbyEcg/wWmlGLDAA3oL50xi6fk5ffZ3E2E3QfZDCcCN2YtbEWZt+Drc6u6rlqv7Uk0LdKqqr5rk2UCRXOk0vmQKGfc94nOJyQjouF9H/wCc9gECEYfONoAAAAASUVORK5CYII=)](https://scala-steward.org)
 
 ### Introduction
 
@@ -149849,8 +150254,8 @@ See the [zio-kafka tutorial](tutorial.md) for a grand tour of the different ways
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.7.1"
-libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.7.1" % Test
+libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.8.0"
+libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.8.0" % Test
 ```
 
 Snapshots are available on Sonatype's snapshot repository https://oss.sonatype.org/content/repositories/snapshots.
@@ -150432,6 +150837,8 @@ If you find a change that is not documented here then please let us know via a
 
 ## Partition Assignment And Offset Retrieval
 
+## Consumer partition assignment
+
 `zio-kafka` offers several ways to control which Kafka topics and partitions are assigned to your application.
 
 | Use case                                           | Method                                                  |
@@ -150440,15 +150847,39 @@ If you find a change that is not documented here then please let us know via a
 | Topics matching a pattern                          | `Subscription.pattern("topic.*")`                       |
 | Manual partition assignment                        | `Subscription.manual("my_topic" -> 1, "my_topic" -> 2)` |
 
-By default `zio-kafka` starts streaming a partition from the last committed offset for the consumer group, or the latest message on the topic if no offset has yet been committed. You can also choose to store offsets outside of Kafka. This can be useful in cases where consistency between data stores and consumer offset is required.
+The example `Subscription.manual("my_topic" -> 1, "my_topic" -> 2)` subscribes to partitions `1` and `2` of topic `my_topic`.
 
-| Use case                                                           | Method                                                                       |
-|--------------------------------------------------------------------|------------------------------------------------------------------------------|
-| Offsets in Kafka, start at latest message if no offset committed   | `OffsetRetrieval.Auto()`                                                     |
-| Offsets in Kafka, start at earliest message if no offset committed | `OffsetRetrieval.Auto(AutoOffsetStrategy.Earliest)`                          |
-| Manual/external offset storage                                     | `Manual(getOffsets: Set[TopicPartition] => Task[Map[TopicPartition, Long]])` |
+## Consumer starting offsets / offset retrieval
 
-For manual offset retrieval, the `getOffsets` function is called for each topic-partition that is assigned to the consumer, either via Kafka's rebalancing or via a manual assignment.
+By default `zio-kafka` starts streaming a partition from the last committed offset for the active consumer group, or
+else the latest offset on the partition in case no offset has yet been committed.
+
+You can also choose to store offsets externally, outside of Kafka. This is useful when consistency between external
+data and the consumer offset is required. For example, you can store the offset in a transactional database together
+with the data that is derived from the record of that offset. Although it is optional, Kafka recommends you store a
+`leaderEpoch` together with the offset as it prevents consuming from a broker that is unaware it is no longer a leader.
+For more details about why leaderEpoch is important
+see https://www.confluent.io/blog/guide-to-consumer-offsets/#part-ii-in-depth-analysis-and-insights.
+
+| Use case                                                          | `OffsetRetrieval` method                                                              |
+|-------------------------------------------------------------------|---------------------------------------------------------------------------------------|
+| Offsets in Kafka, start at latest record if no offset committed   | `Auto()`                                                                              |
+| Offsets in Kafka, start at earliest record if no offset committed | `Auto(AutoOffsetStrategy.Earliest)`                                                   |
+| Offsets in Kafka, fail if no offset committed                     | `Auto(AutoOffsetStrategy.None)`                                                       |
+| External offset storage                                           | `External(getOffsets: Set[TopicPartition] => Task[Map[TopicPartition, OffsetEpoch]])` |
+
+For external offset retrieval, the `getOffsets` function is called for each topic-partition that is assigned to the
+consumer, either via Kafka's rebalancing or via a manual assignment.
+
+Offset retrieval is configured via `ConsumerSettings.withOffsetRetrieval()`. You can find more details in the scaladocs
+of that method.
+
+:::caution
+To prevent off-by-one bugs you should clearly decide to store either the consumed offset, or the next-offset. Read more
+about this on
+the [preventing duplicates](preventing-duplicates.md#be-clear-about-what-offset-you-persist-to-prevent-off-by-one-bugs)
+page.
+:::
 
 ---
 
@@ -150502,6 +150933,35 @@ consumer.plainStream(Subscription.topics("topic2000"), Serde.string, Serde.strin
   }
   .runDrain
 ```
+
+See [starting offsets](partition-assignment-and-offset-retrieval.md#consumer-starting-offsets--offset-retrieval)
+for letting a consumer start consuming a partition from the offset you persisted after a rebalance.
+
+##### Be clear about what offset you persist to prevent off-by-one bugs!
+
+In the example above `record.offset` represents the offset of the consumed record. However, in Kafka you always commit
+the _next offset_. It represents the record's offset another consumer should continue from after a rebalance.
+Normally the _next offset_ is the offset of the consumed record `+ 1`. The difference can be a bit larger when Kafka
+placed some 'control records' on the partition. Since it is fine to consume control records multiple times (they are
+invisible), adding `1` to get the next offset is fine.
+
+:::caution
+You should decide on what offset you want to persist per partition, either the _consumed offset_, or the _next offset_.
+:::
+
+Unless there are good reasons to do otherwise, we recommend you persist the 'next offset'.
+
+**Persisting the consumed offset**
+
+- Per partition, persist the offset `record.offset.offset` (ideally persist `record.leaderEpoch` as well).
+- From your `OffsetRetrieval.External` implementation, return the persisted offset + 1 (ideally, also include the
+  persisted leader-epoch).
+
+**Persisting the next offset**
+
+- Per partition, persist the offset `record.offset.offset + 1` (ideally persist `record.leaderEpoch` as well).
+- From your `OffsetRetrieval.External` implementation, return the persisted offset (ideally, also include the persisted
+  leader-epoch).
 
 #### Commit with a transactional producer
 
@@ -169772,9 +170232,9 @@ _ZIO SBT_ contains multiple sbt plugins that are useful for ZIO projects. It pro
 Add the following lines to your `project/plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.7.2")
-addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.7.2")
-addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.7.2")
+addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.8.0")
+addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.8.0")
+addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.8.0")
 ```
 
 Then you can enable them by using the following code in your `build.sbt` file:
@@ -169819,6 +170279,21 @@ There are also some other settings that are useful for configuring the projects:
   - java target platform
 - `enableZIO`- a set of ZIO related settings such as enabling zio streams and ZIO test framework.
 - `jsSettings`, `nativeSettings`- common platform specific settings for Scala.js and Scala Native.
+
+`enableZIO` adds ZIO as a dependency using the `zioVersion` setting, which the plugin gives a
+default value to. Always override it explicitly in your own `build.sbt`:
+
+```scala
+ThisBuild / zioVersion := "2.1.22"
+```
+
+:::note
+Don't rely on `zioVersion`'s default. It's baked into whichever version of zio-sbt-ecosystem you
+depend on, so upgrading the plugin—including via an automated dependency-update PR—can silently
+change your project's own ZIO version along with it. Setting `zioVersion` explicitly keeps that a
+deliberate decision you make, not a side effect of a plugin bump. Every ZIO ecosystem project
+(zio-logging, zio-kafka, zio-cache, and others) already follows this practice.
+:::
 
 It also provides some helper methods that are useful for configuring a compiler option for a specific Scala version:
 
@@ -169875,7 +170350,7 @@ ZIO SBT CI plugin generates a default GitHub workflow that includes common CI ta
 To use ZIO SBT CI plugin, add the following lines to your `plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.7.2")
+addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.8.0")
 
 resolvers ++= Resolver.sonatypeOssRepos("public")
 ```
@@ -169941,6 +170416,31 @@ The default value mirrors the bots used by the `zio/zio` repository: `Seq(Depend
 >
 > For `gh pr merge --auto` to actually merge a PR (rather than just queue it), the target repository needs "Allow auto-merge" enabled under **Settings → General**, and branch protection with required status checks configured on the target branch.
 
+> **Note:**
+>
+> `GITHUB_TOKEN` can never be granted the "workflows" scope needed to auto-merge a bot PR that touches `.github/workflows/**`, so `auto-merge.yml` mints a GitHub App token for that case instead, falling back to `GITHUB_TOKEN` when no app is configured (which still auto-merges ordinary, non-workflow-touching PRs fine). This needs the same `APP_ID`/`APP_PRIVATE_KEY` secrets as `update-readme`, and the [ZIO Assistant](https://github.com/apps/zio-assistant) app installation must additionally have the **Workflows** repository permission granted and accepted — without it, workflow-touching PRs still fail to auto-merge and need a manual merge.
+
+#### Netlify Deploy Previews
+
+Setting `ciEnableDeployPreview := true` makes `ciGenerateGithubWorkflow` also generate `deploy-preview.yml`, which deploys the built Docusaurus site to Netlify for every pull request that touches `docs/` or `website/`.
+
+```scala
+ThisBuild / ciEnableDeployPreview := true
+```
+
+The feature is split across two workflows, decoupled by artifacts rather than triggering the deploy directly from a pull request event:
+
+- The `build` job gains a few extra steps. `Check website is installed` runs first, checking that `website/package.json` and `website/docusaurus.config.js` both exist — the same signal [`installWebsite`](#zio-sbt-website) itself uses to tell a real Docusaurus scaffold apart from a `website/` directory holding only `mdocOut`'s generated output. Only when the website is installed does the job go on to detect whether the pull request touched `docs/` or `website/`, and if so upload `website/build` as a `website-artifact`, plus the PR number as a `pr-metadata` artifact.
+- `deploy-preview.yml` triggers on `workflow_run` once the CI workflow completes, downloads those two artifacts, deploys `website-artifact` to Netlify with [`nwtgck/actions-netlify`](https://github.com/nwtgck/actions-netlify) under a deterministic `pr-<number>` alias — so the preview URL for a given PR is stable across redeploys, of the shape `pr-<number>--<your-netlify-site-name>.netlify.app` — then posts a fresh comment with the preview URL via [`peter-evans/create-or-update-comment`](https://github.com/peter-evans/create-or-update-comment) — each deploy gets its own comment rather than editing one in place, so pushing a follow-up commit doesn't erase the record of the previous deploy. Earlier preview comments (tagged with an `<!-- netlify-preview-comment -->` marker) are collapsed as outdated first, via [`actions/github-script`](https://github.com/actions/github-script), so the thread doesn't accumulate clutter — the whole comment history is paginated through, not just the first page, so this still works on pull requests with a long comment history.
+
+Using `workflow_run` instead of triggering directly on `pull_request` means the deploy step only ever runs after CI has actually succeeded, and it runs with read/write access to secrets even for pull requests from forks (where a plain `pull_request` trigger would not have that access).
+
+`deploy-preview.yml` triggers on *every* successful pull-request CI run, not only the ones where `build` actually uploaded artifacts — a PR that doesn't touch `docs/`/`website/`, or a repo with no website installed yet, never produces `website-artifact`/`pr-metadata` at all. To handle that, the two `actions/download-artifact` steps set `continue-on-error: true`, since a missing artifact there is an expected outcome, not a failure worth stopping the job over; every step after them then checks `steps.download-website.outcome == 'success' && steps.download-pr-metadata.outcome == 'success'` before running. So a run with nothing to deploy ends with two soft-failed downloads and nothing else — no deploy call, no PR comment — instead of a hard job failure.
+
+Put together, this makes `ciEnableDeployPreview` safe to turn on before the Docusaurus site exists: neither workflow does any real work until `website/` is a genuine installation and a pull request actually changes it.
+
+This requires two repository secrets: `NETLIFY_AUTH_TOKEN`, a [personal access token](https://docs.netlify.com/api/get-started/#authentication) generated from the Netlify user account that owns the site, and `NETLIFY_SITE_ID`, found under the site's **Site configuration → General → Site details** in the Netlify dashboard. The default value of `ciEnableDeployPreview` is `false`, so existing builds see no change until they opt in.
+
 #### Keeping the Workflow in Sync
 
 The generated files are meant to be committed and never edited by hand. To stop them drifting from the build, run the check in CI — the default `lint` job already does:
@@ -169967,6 +170467,7 @@ All settings are `ThisBuild`-scoped.
 | `ciConcurrency` | `Option[Concurrency]` | one run per branch, cancelling in progress | Concurrency group, or `None` to omit the block |
 | `ciSwapSizeGB` | `Int` | `0` | Adds a swap-space step to every job when greater than zero |
 | `ciBackgroundJobs` | `Seq[String]` | `Seq.empty` | Commands prefixed to each `run`, for daemons a job needs |
+| `ciEnableDeployPreview` | `Boolean` | `false` | Adds website-artifact upload steps to `build` and generates `deploy-preview.yml`. Requires `NETLIFY_AUTH_TOKEN`/`NETLIFY_SITE_ID` secrets |
 
 **Test matrix**
 
@@ -170009,7 +170510,7 @@ All settings are `ThisBuild`-scoped.
 
 | Task | Description |
 | --- | --- |
-| `ciGenerateGithubWorkflow` | Writes `ci.yml`, `auto-approve.yml` and `auto-merge.yml` |
+| `ciGenerateGithubWorkflow` | Writes `ci.yml`, `auto-approve.yml` and `auto-merge.yml`, plus `deploy-preview.yml` when `ciEnableDeployPreview` is `true` |
 | `ciCheckGithubWorkflow` | Regenerates and fails if the committed files are stale |
 | `ciGenerateAutoApproveWorkflow` | Writes `auto-approve.yml` only |
 | `ciGenerateAutoMergeWorkflow` | Writes `auto-merge.yml` only |
@@ -170154,7 +170655,7 @@ ZIO SBT Source is a Scala 2.13 + Scala 3 cross-compiled library that provides ut
 Add the following line to your `libraryDependencies` in `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.7.2"
+libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.8.0"
 ```
 
 #### Features

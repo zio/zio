@@ -1,6 +1,8 @@
 # Flipping Error and Success Channels
 
-> Sometimes, we would like to apply some methods on the error channel which are specific for the success channel, or we want to apply some methods on the success channel which are specific for the error channel. Therefore, we can flip the error and success channel and before flipping back, we can perform the right operator on flipped channels:
+> Swap a ZIO effect's error and success channels using flip and flipWith to apply success-channel operators to errors or vice versa.
+
+Sometimes, we would like to apply some methods on the error channel which are specific for the success channel, or we want to apply some methods on the success channel which are specific for the error channel. Therefore, we can flip the error and success channel and before flipping back, we can perform the right operator on flipped channels:
 
 ```scala
 trait ZIO[-R, +E, +A] {

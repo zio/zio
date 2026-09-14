@@ -1,6 +1,8 @@
 # Imperative vs. Declarative Error Handling
 
-> To figure out the benefit of typed errors in declarative error handling, we need to understand the drawbacks of the imperative approach and then see how the declarative approach can be used to solve the same problem.
+> Compare imperative exception-based error handling with ZIO's declarative typed-error approach and learn why referential transparency matters for error management.
+
+To figure out the benefit of typed errors in declarative error handling, we need to understand the drawbacks of the imperative approach and then see how the declarative approach can be used to solve the same problem.
 
 ## Imperative Error Handling
 

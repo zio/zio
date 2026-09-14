@@ -1,6 +1,8 @@
 # Examples
 
-> Let's write an application that takes numerator and denominator from the user and then print the result back to the user:
+> End-to-end ZIO error management examples illustrating typed failures, defects, and the distinction between expected and unexpected errors in a practical application.
+
+Let's write an application that takes numerator and denominator from the user and then print the result back to the user:
 
 ```scala
 import zio._

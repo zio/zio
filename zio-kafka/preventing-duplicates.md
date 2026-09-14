@@ -49,6 +49,35 @@ consumer.plainStream(Subscription.topics("topic2000"), Serde.string, Serde.strin
   .runDrain
 ```
 
+See [starting offsets](partition-assignment-and-offset-retrieval.md#consumer-starting-offsets--offset-retrieval)
+for letting a consumer start consuming a partition from the offset you persisted after a rebalance.
+
+#### Be clear about what offset you persist to prevent off-by-one bugs!
+
+In the example above `record.offset` represents the offset of the consumed record. However, in Kafka you always commit
+the _next offset_. It represents the record's offset another consumer should continue from after a rebalance.
+Normally the _next offset_ is the offset of the consumed record `+ 1`. The difference can be a bit larger when Kafka
+placed some 'control records' on the partition. Since it is fine to consume control records multiple times (they are
+invisible), adding `1` to get the next offset is fine.
+
+:::caution
+You should decide on what offset you want to persist per partition, either the _consumed offset_, or the _next offset_.
+:::
+
+Unless there are good reasons to do otherwise, we recommend you persist the 'next offset'.
+
+**Persisting the consumed offset**
+
+- Per partition, persist the offset `record.offset.offset` (ideally persist `record.leaderEpoch` as well).
+- From your `OffsetRetrieval.External` implementation, return the persisted offset + 1 (ideally, also include the
+  persisted leader-epoch).
+
+**Persisting the next offset**
+
+- Per partition, persist the offset `record.offset.offset + 1` (ideally persist `record.leaderEpoch` as well).
+- From your `OffsetRetrieval.External` implementation, return the persisted offset (ideally, also include the persisted
+  leader-epoch).
+
 ### Commit with a transactional producer
 
 Transactional producing is described in [transactions](transactions.md).

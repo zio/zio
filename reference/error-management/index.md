@@ -1,14 +1,10 @@
-# Three Types of Errors
+# Best Practices
 
-> Understand ZIO's three error types: failures (expected), defects (unexpected), and fatals (catastrophic), and how to handle each appropriately.
+> Recommended patterns for ZIO's typed error channel: model domain errors as ADTs, use union types for precision, keep defects untyped, and avoid reflexive logging.
 
-We should consider three types of errors when writing ZIO applications:
+These pages collect the design principles that make ZIO's typed error channel pay off in real applications. Following them keeps error signatures precise, prevents unexpected errors from leaking into the type system, and avoids logging patterns that hide errors rather than surface them.
 
-1. **[Failures](failures.md)** are expected errors. We use `ZIO.fail` to model failures. As they are expected, we know how to handle them. We should handle these errors and prevent them from propagating throughout the call stack.
-
-2. **[Defects](defects.md)** are unexpected errors. We use `ZIO.die` to model a defect. As they are not expected, we need to propagate them through the application stack, until in the upper layers one of the following situations happens:
-
-    - In one of the upper layers, it makes sense to expect these errors. So we will convert them to failure, and then they can be handled.
-    - None of the upper layers will catch these errors, so it will finally crash the whole application.
-
-3. **[Fatals](fatals.md)** are catastrophic unexpected errors. When they occur we should kill the application immediately without propagating the error furthermore. At most, we might need to log the error and print its call stack.
+- **[Algebraic Data Types](algebraic-data-types.md)** — model domain errors as sealed traits and case classes so the compiler enforces exhaustive handling.
+- **[Union Types](union-types.md)** — use Scala 3 union types to compose unrelated error types without a shared supertype, keeping error signatures precise.
+- **[Don't Type Unexpected Errors](dont-type-unexpected-errors.md)** — use `orDie` and `refineOrDie` to separate recoverable errors from application-killing defects rather than widening the error type.
+- **[Don't Reflexively Log Errors](logging-errors.md)** — rely on ZIO's typed error propagation instead of logging errors at every call site.

@@ -1,6 +1,8 @@
 # Flattening Optional Error Types
 
-> If we have an optional error of type `E` in the error channel, we can flatten it to the `E` type using the `ZIO#flattenErrorOption` operator:
+> Flatten Option[E] error types into plain E using ZIO#flattenErrorOption, providing a default error value for the None case.
+
+If we have an optional error of type `E` in the error channel, we can flatten it to the `E` type using the `ZIO#flattenErrorOption` operator:
 
 ```scala
 import zio._

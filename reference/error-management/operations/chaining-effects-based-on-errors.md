@@ -1,6 +1,8 @@
 # Chaining Effects Based on Errors
 
-> Unlike `ZIO#flatMap` the `ZIO#flatMapError` combinator chains two effects, where the second effect is dependent on the error channel of the first effect:
+> Chain ZIO effects based on error values using flatMapError, which sequences a second effect dependent on the first effect's typed error.
+
+Unlike `ZIO#flatMap` the `ZIO#flatMapError` combinator chains two effects, where the second effect is dependent on the error channel of the first effect:
 
 ```scala
 trait ZIO[-R, +E, +A] {

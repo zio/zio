@@ -1,6 +1,8 @@
 # Filtering the Success Channel
 
-> ZIO has a variety of operators that can filter values on the success channel based on a given predicate, and if the predicate fails, we can use different strategies:
+> Filter ZIO success values against a predicate using filterOrFail, filterOrDie, filterOrElse, and filterOrElseWith to handle values that don't meet requirements.
+
+ZIO has a variety of operators that can filter values on the success channel based on a given predicate, and if the predicate fails, we can use different strategies:
 
 - Failing the original effect (`ZIO#filterOrFail`)
 - Dying the original effect (`ZIO#filterOrDie` and `ZIO#filterOrDieMessage`)

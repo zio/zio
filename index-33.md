@@ -9,9 +9,9 @@
 Add the following lines to your `project/plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.7.2")
-addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.7.2")
-addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.7.2")
+addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.8.0")
+addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.8.0")
+addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.8.0")
 ```
 
 Then you can enable them by using the following code in your `build.sbt` file:
@@ -56,6 +56,21 @@ There are also some other settings that are useful for configuring the projects:
   - java target platform
 - `enableZIO`- a set of ZIO related settings such as enabling zio streams and ZIO test framework.
 - `jsSettings`, `nativeSettings`- common platform specific settings for Scala.js and Scala Native.
+
+`enableZIO` adds ZIO as a dependency using the `zioVersion` setting, which the plugin gives a
+default value to. Always override it explicitly in your own `build.sbt`:
+
+```scala
+ThisBuild / zioVersion := "2.1.22"
+```
+
+:::note
+Don't rely on `zioVersion`'s default. It's baked into whichever version of zio-sbt-ecosystem you
+depend on, so upgrading the plugin—including via an automated dependency-update PR—can silently
+change your project's own ZIO version along with it. Setting `zioVersion` explicitly keeps that a
+deliberate decision you make, not a side effect of a plugin bump. Every ZIO ecosystem project
+(zio-logging, zio-kafka, zio-cache, and others) already follows this practice.
+:::
 
 It also provides some helper methods that are useful for configuring a compiler option for a specific Scala version:
 
@@ -112,7 +127,7 @@ ZIO SBT CI plugin generates a default GitHub workflow that includes common CI ta
 To use ZIO SBT CI plugin, add the following lines to your `plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.7.2")
+addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.8.0")
 
 resolvers ++= Resolver.sonatypeOssRepos("public")
 ```
@@ -178,6 +193,31 @@ The default value mirrors the bots used by the `zio/zio` repository: `Seq(Depend
 >
 > For `gh pr merge --auto` to actually merge a PR (rather than just queue it), the target repository needs "Allow auto-merge" enabled under **Settings → General**, and branch protection with required status checks configured on the target branch.
 
+> **Note:**
+>
+> `GITHUB_TOKEN` can never be granted the "workflows" scope needed to auto-merge a bot PR that touches `.github/workflows/**`, so `auto-merge.yml` mints a GitHub App token for that case instead, falling back to `GITHUB_TOKEN` when no app is configured (which still auto-merges ordinary, non-workflow-touching PRs fine). This needs the same `APP_ID`/`APP_PRIVATE_KEY` secrets as `update-readme`, and the [ZIO Assistant](https://github.com/apps/zio-assistant) app installation must additionally have the **Workflows** repository permission granted and accepted — without it, workflow-touching PRs still fail to auto-merge and need a manual merge.
+
+### Netlify Deploy Previews
+
+Setting `ciEnableDeployPreview := true` makes `ciGenerateGithubWorkflow` also generate `deploy-preview.yml`, which deploys the built Docusaurus site to Netlify for every pull request that touches `docs/` or `website/`.
+
+```scala
+ThisBuild / ciEnableDeployPreview := true
+```
+
+The feature is split across two workflows, decoupled by artifacts rather than triggering the deploy directly from a pull request event:
+
+- The `build` job gains a few extra steps. `Check website is installed` runs first, checking that `website/package.json` and `website/docusaurus.config.js` both exist — the same signal [`installWebsite`](#zio-sbt-website) itself uses to tell a real Docusaurus scaffold apart from a `website/` directory holding only `mdocOut`'s generated output. Only when the website is installed does the job go on to detect whether the pull request touched `docs/` or `website/`, and if so upload `website/build` as a `website-artifact`, plus the PR number as a `pr-metadata` artifact.
+- `deploy-preview.yml` triggers on `workflow_run` once the CI workflow completes, downloads those two artifacts, deploys `website-artifact` to Netlify with [`nwtgck/actions-netlify`](https://github.com/nwtgck/actions-netlify) under a deterministic `pr-<number>` alias — so the preview URL for a given PR is stable across redeploys, of the shape `pr-<number>--<your-netlify-site-name>.netlify.app` — then posts a fresh comment with the preview URL via [`peter-evans/create-or-update-comment`](https://github.com/peter-evans/create-or-update-comment) — each deploy gets its own comment rather than editing one in place, so pushing a follow-up commit doesn't erase the record of the previous deploy. Earlier preview comments (tagged with an `<!-- netlify-preview-comment -->` marker) are collapsed as outdated first, via [`actions/github-script`](https://github.com/actions/github-script), so the thread doesn't accumulate clutter — the whole comment history is paginated through, not just the first page, so this still works on pull requests with a long comment history.
+
+Using `workflow_run` instead of triggering directly on `pull_request` means the deploy step only ever runs after CI has actually succeeded, and it runs with read/write access to secrets even for pull requests from forks (where a plain `pull_request` trigger would not have that access).
+
+`deploy-preview.yml` triggers on *every* successful pull-request CI run, not only the ones where `build` actually uploaded artifacts — a PR that doesn't touch `docs/`/`website/`, or a repo with no website installed yet, never produces `website-artifact`/`pr-metadata` at all. To handle that, the two `actions/download-artifact` steps set `continue-on-error: true`, since a missing artifact there is an expected outcome, not a failure worth stopping the job over; every step after them then checks `steps.download-website.outcome == 'success' && steps.download-pr-metadata.outcome == 'success'` before running. So a run with nothing to deploy ends with two soft-failed downloads and nothing else — no deploy call, no PR comment — instead of a hard job failure.
+
+Put together, this makes `ciEnableDeployPreview` safe to turn on before the Docusaurus site exists: neither workflow does any real work until `website/` is a genuine installation and a pull request actually changes it.
+
+This requires two repository secrets: `NETLIFY_AUTH_TOKEN`, a [personal access token](https://docs.netlify.com/api/get-started/#authentication) generated from the Netlify user account that owns the site, and `NETLIFY_SITE_ID`, found under the site's **Site configuration → General → Site details** in the Netlify dashboard. The default value of `ciEnableDeployPreview` is `false`, so existing builds see no change until they opt in.
+
 ### Keeping the Workflow in Sync
 
 The generated files are meant to be committed and never edited by hand. To stop them drifting from the build, run the check in CI — the default `lint` job already does:
@@ -204,6 +244,7 @@ All settings are `ThisBuild`-scoped.
 | `ciConcurrency` | `Option[Concurrency]` | one run per branch, cancelling in progress | Concurrency group, or `None` to omit the block |
 | `ciSwapSizeGB` | `Int` | `0` | Adds a swap-space step to every job when greater than zero |
 | `ciBackgroundJobs` | `Seq[String]` | `Seq.empty` | Commands prefixed to each `run`, for daemons a job needs |
+| `ciEnableDeployPreview` | `Boolean` | `false` | Adds website-artifact upload steps to `build` and generates `deploy-preview.yml`. Requires `NETLIFY_AUTH_TOKEN`/`NETLIFY_SITE_ID` secrets |
 
 **Test matrix**
 
@@ -246,7 +287,7 @@ All settings are `ThisBuild`-scoped.
 
 | Task | Description |
 | --- | --- |
-| `ciGenerateGithubWorkflow` | Writes `ci.yml`, `auto-approve.yml` and `auto-merge.yml` |
+| `ciGenerateGithubWorkflow` | Writes `ci.yml`, `auto-approve.yml` and `auto-merge.yml`, plus `deploy-preview.yml` when `ciEnableDeployPreview` is `true` |
 | `ciCheckGithubWorkflow` | Regenerates and fails if the committed files are stale |
 | `ciGenerateAutoApproveWorkflow` | Writes `auto-approve.yml` only |
 | `ciGenerateAutoMergeWorkflow` | Writes `auto-merge.yml` only |
@@ -391,7 +432,7 @@ ZIO SBT Source is a Scala 2.13 + Scala 3 cross-compiled library that provides ut
 Add the following line to your `libraryDependencies` in `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.7.2"
+libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.8.0"
 ```
 
 ### Features

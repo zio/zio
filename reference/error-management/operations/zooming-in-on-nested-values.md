@@ -1,8 +1,10 @@
 # Zooming In on Nested Values
 
-> We can extract a value from a Some using `ZIO#some` and then we can unsome it again using `ZIO#unsome`:
+> Navigate into Option and Either values nested in ZIO effects using some, unsome, left, unleft, right, and unright operators.
 
 ## Option
+
+We can extract a value from a Some using `ZIO#some` and then we can unsome it again using `ZIO#unsome`:
 
 ```scala
 ZIO.attempt(Option("something")) // ZIO[Any, Throwable, Option[String]]

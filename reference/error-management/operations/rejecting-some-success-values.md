@@ -1,6 +1,8 @@
 # Rejecting Some Success Values
 
-> We can reject some success values using the `ZIO#reject` operator:
+> Convert select success values into typed failures using ZIO#reject and ZIO#rejectZIO with a partial function, turning unwanted successes into errors.
+
+We can reject some success values using the `ZIO#reject` operator:
 
 ```scala
 trait ZIO[-R, +E, +A] {

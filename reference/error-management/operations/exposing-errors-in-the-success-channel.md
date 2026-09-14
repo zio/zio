@@ -1,6 +1,8 @@
 # Exposing Errors in The Success Channel
 
-> Before taking into `ZIO#either` and `ZIO#absolve`, let's see their signature:
+> Move typed failures into the success channel as Either values using ZIO#either, and submerge them back with ZIO#absolve or ZIO.absolve.
+
+Before taking into `ZIO#either` and `ZIO#absolve`, let's see their signature:
 
 ```scala
 trait ZIO[-R, +E, +A] {

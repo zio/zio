@@ -1,6 +1,8 @@
 # Map Operations
 
-> Other than `ZIO#map` and `ZIO#flatMap`, ZIO has several other operators to manage errors while mapping:
+> Transform ZIO error values with mapError, mapErrorCause, and mapAttempt — operators that change the shape of the error channel without recovering from failures.
+
+Other than `ZIO#map` and `ZIO#flatMap`, ZIO has several other operators to manage errors while mapping:
 
 ## `ZIO#mapError`/`ZIO#mapErrorCause`
 

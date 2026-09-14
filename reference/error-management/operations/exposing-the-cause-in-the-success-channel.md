@@ -1,6 +1,8 @@
 # Exposing the Cause in The Success Channel
 
-> Using the `ZIO#cause` operation we can expose the cause, and then by using `ZIO#uncause` we can reverse this operation:
+> Expose the full Cause[E] graph in the success channel using ZIO#cause, then submerge it back with ZIO#uncause for structured cause inspection.
+
+Using the `ZIO#cause` operation we can expose the cause, and then by using `ZIO#uncause` we can reverse this operation:
 
 ```scala
 trait ZIO[-R, +E, +A] {

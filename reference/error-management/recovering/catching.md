@@ -1,8 +1,10 @@
 # Catching
 
-> If we want to catch and recover from all _typed error_ and effectfully attempt recovery, we can use the `ZIO#catchAll` operator:
+> Recover from typed failures, defects, interruptions, and full Cause graphs using ZIO's catching operators: catchAll, catchSome, catchAllCause, catchAllDefect, catchAllTrace, and more.
 
 ## Catching Failures
+
+If we want to catch and recover from all _typed error_ and effectfully attempt recovery, we can use the `ZIO#catchAll` operator:
 
 ```scala
 trait ZIO[-R, +E, +A] {
@@ -213,11 +215,11 @@ The two `ZIO#catchAllTrace` and `ZIO#catchSomeTrace` operators are useful to cat
 ```scala
 trait ZIO[-R, +E, +A] {
   def catchAllTrace[R1 <: R, E2, A1 >: A](
-    h: ((E, Trace)) => ZIO[R1, E2, A1]
+    h: ((E, StackTrace)) => ZIO[R1, E2, A1]
   ): ZIO[R1, E2, A1]
 
   def catchSomeTrace[R1 <: R, E1 >: E, A1 >: A](
-    pf: PartialFunction[(E, Trace), ZIO[R1, E1, A1]]
+    pf: PartialFunction[(E, StackTrace), ZIO[R1, E1, A1]]
   ): ZIO[R1, E1, A1]
 }
 ```
@@ -258,3 +260,7 @@ In case of occurring any [fatal error](#catching-traces), it will die.
 ```scala
 openFile("data.json").catchAll(_ => openFile("backup.json"))
 ```
+
+:::caution[`catchNonFatalOrDie` is deprecated]
+`ZIO#catchNonFatalOrDie` was deprecated in ZIO 2.1.21. It is an alias for `catchAll` — their behavior is identical because fatal errors (`VirtualMachineError` and its subtypes) are never reachable through ZIO's typed error channel regardless of which operator you use. Replace any use of `catchNonFatalOrDie` with `catchAll`.
+:::
