@@ -6,6 +6,11 @@ import { useVisualEffect } from '../hooks/useVisualEffects';
 import { PipelineStages } from '../pipeline/PipelineStages';
 import { StringResult } from '../renderers';
 import { StreamPipeline } from '../StreamPipeline';
+import {
+  STREAM_BUFFER_CAPACITY,
+  STREAM_CONCURRENCY,
+  STREAMING_SNIPPET,
+} from '../streamingParams';
 
 // Bespoke — the source visual-effect project has no ZStream/streaming
 // example to port, so this scenario is built by hand rather than ported
@@ -17,8 +22,10 @@ import { StreamPipeline } from '../StreamPipeline';
 
 const EVENTS = Array.from({ length: 10 }, (_, i) => ({ id: i + 1 }));
 
-const CONCURRENCY = 4;
-const BUFFER_CAPACITY = 2;
+// From streamingParams.js, the same module the displayed snippet is built
+// from — so what the code says and what the pipeline runs cannot drift.
+const CONCURRENCY = STREAM_CONCURRENCY;
+const BUFFER_CAPACITY = STREAM_BUFFER_CAPACITY;
 
 // Paced for watching, not for realism: the whole point of this tab is that
 // a viewer can follow an item from source to done and see four of them
@@ -96,18 +103,11 @@ export default function StreamingVisual() {
     };
   }, [pipelineTask, pipeline]);
 
-  const codeSnippet = `val pipeline: ZIO[Any, Throwable, Unit] =
-  ZStream
-    .fromIterable(events)          // or Kafka, files, sockets…
-    .mapZIOPar(20)(enrich)         // 20 concurrent enrichments
-    .buffer(16)                    // bounded — fills when the sink lags
-    .runDrain`;
-
   return (
     <EffectExample
       name="ZStream.mapZIOPar"
       description="Process a stream concurrently, with backpressure built in"
-      code={codeSnippet}
+      code={STREAMING_SNIPPET}
       effects={[pipelineTask]}
       effectHighlightMap={{ pipeline: { text: 'runDrain' } }}
       streamPipeline={pipeline}

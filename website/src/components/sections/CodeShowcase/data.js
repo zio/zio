@@ -1,6 +1,8 @@
 // Each snippet is compile-checked by specs/snippet-check/showcase.scala.
 // If you edit a snippet here, update that file and re-run:
 //   scala-cli compile specs/snippet-check/showcase.scala
+import { STREAMING_SNIPPET } from '../../visual-effects/streamingParams';
+
 export const examples = [
   {
     value: 'concurrency',
@@ -63,12 +65,9 @@ val result = park.retry(Schedule.exponential(700.millis))`,
       'Stages run concurrently while preserving order.',
       'Backpressure flows through the pipeline automatically.',
     ],
-    code: `val pipeline: ZIO[Any, Throwable, Unit] =
-  ZStream
-    .fromIterable(events)          // or Kafka, files, sockets…
-    .mapZIOPar(20)(enrich)         // 20 concurrent enrichments
-    .buffer(16)                    // bounded — fills when the sink lags
-    .runDrain`,
+    // Shared with the Visual view's embedded example so the two can never
+    // disagree — including on the parameter values.
+    code: STREAMING_SNIPPET,
   },
   {
     value: 'di',

@@ -80,9 +80,9 @@ object Snippet3 {
 object Snippet4 {
   val pipeline: ZIO[Any, Throwable, Unit] =
     ZStream
-      .fromIterable(events)          // or Kafka, files, sockets…
-      .mapZIOPar(20)(enrich)         // 20 concurrent enrichments
-      .buffer(16)                    // bounded — fills when the sink lags
+      .fromIterable(events) // or Kafka, files, sockets…
+      .mapZIOPar(4)(enrich) // 4 concurrent enrichments
+      .buffer(2)            // bounded queue
       .runDrain
 }
 
