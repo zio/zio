@@ -24,6 +24,10 @@ export const STREAMING_SNIPPET = [
     `.mapZIOPar(${STREAM_CONCURRENCY})(enrich)`,
     `${STREAM_CONCURRENCY} concurrent enrichments`,
   ),
-  line(`.buffer(${STREAM_BUFFER_CAPACITY})`, 'bounded queue'),
+  line(
+    `.buffer(${STREAM_BUFFER_CAPACITY})`,
+    'bounded — fills when the sink lags',
+  ),
+  line('.mapZIO(write)', 'slow consumer sets the pace'),
   '    .runDrain',
 ].join('\n');

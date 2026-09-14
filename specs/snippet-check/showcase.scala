@@ -40,6 +40,7 @@ def doWork(db: DbConn, cache: CacheConn, logger: File): Task[Report] = ZIO.succe
 
 val events: List[Event]                    = List(Event(1))
 def enrich(e: Event): Task[Event]          = ZIO.succeed(e)
+def write(e: Event): Task[Unit]            = ZIO.unit
 
 // ── Snippet 1: Concurrency ──────────────────────────────────────────────
 // Matches the "ZIO.race" example mounted in the Concurrency tab's Visual
@@ -82,7 +83,8 @@ object Snippet4 {
     ZStream
       .fromIterable(events) // or Kafka, files, sockets…
       .mapZIOPar(4)(enrich) // 4 concurrent enrichments
-      .buffer(2)            // bounded queue
+      .buffer(2)            // bounded — fills when the sink lags
+      .mapZIO(write)        // slow consumer sets the pace
       .runDrain
 }
 
