@@ -216,11 +216,57 @@ saturated per-state chips — gray/blue/green) are left as-is, same reasoning
 as round 1 leaving `TASK_COLORS` alone: they're semantic state colors that
 read fine on either theme, not a dark-host assumption.
 
+## Round 4: Streaming tab
+
+**No source example exists.** Unlike every prior round, the source
+visual-effect project has no `ZStream`/streaming example under
+`src/examples/` — checked directly (`grep -rli stream src/`, empty), and
+`src/lib/examples-manifest.ts` confirms it. The verbatim-port rule
+([[feedback_port_exact_source_files]]) has nothing to apply to here.
+
+**Ruling (user-approved exception)**: presented three options — leave the
+tab Code-only (matching Dependency Injection's current state), port
+`effect-foreach.tsx` and relabel the tab's copy to match its actual
+semantics, or build a new bespoke visual depicting a real `ZStream`
+pipeline. User chose the third. This is the one tab where "port verbatim"
+does not apply by necessity, not by preference — record this explicitly so
+a future session doesn't read the bespoke `StreamPipeline.js`/
+`pipeline/PipelineStages.jsx` as a violation of the standing rule.
+
+**What was built, and why it still matches the project's fidelity bar**:
+even with no file to port, the visual is still driven by a **real** `effect`
+`Stream` pipeline (`Stream.fromIterable` → `Stream.mapEffect` with
+`concurrency` → `Stream.filter` → `Stream.grouped` → `Stream.mapEffect` →
+`Stream.runDrain`) — actual fibers, actual concurrency-gating, actual
+ordering — not a canned/scripted animation. This mirrors every other tab's
+principle (real `Effect.race`, real `Effect.retry`+`Schedule`, real
+`Effect.acquireRelease`) even though there was no source file dictating the
+exact shape.
+
+**New files** (bespoke, not ported — headers say so): `StreamPipeline.js`
+(observer-pattern state class, same subscribe/notify shape as
+`VisualScope.js`, tracking each event's current stage), `hooks/
+useStreamPipeline.js` (mirrors `useVisualScope.js`), `pipeline/
+PipelineStages.jsx` (renders four lanes — Source/Enrich/Group/Written —
+using `motion`'s `layoutId` so a chip animates between lanes as its stage
+changes; a simpler technique than `ScopeStack`'s manual absolute-positioning
++ `ResizeObserver`, chosen because this layout doesn't need it),
+`scenarios/StreamingVisual.jsx` (wires the real Stream pipeline to the
+lanes).
+
+**New `EffectExample` prop**: `streamPipeline`, following the exact same
+optional-slot pattern as `scope` and `showScheduleTimeline` — a small,
+additive change, not a rework of the shared component.
+
+**Real bug caught in testing, fixed before commit**: an item that passed
+`.filter` but hadn't yet been swept into a full `grouped(3)` batch was
+tagged stage `'valid'`, which matched no lane — it was invisible for
+however long its groupmates took to finish. Fixed by having the "Group"
+lane match both `'valid'` and `'batching'`.
+
 ## Later rounds
 
 Each subsequent round repeats the same pattern for one more tab: add a
 `scenarios/<Tab>Visual.tsx`, wire it into that tab's `data.js` entry, verify
-locally. No architectural changes expected unless a tab's scenario needs one
-of the left-out features above (e.g. Streaming might want a timeline-style
-visualization rather than a static node row — evaluate when that round
-starts, not now).
+locally. Dependency Injection remains the one tab without a Visual view —
+same "no source example" situation as Streaming had, still unresolved.
