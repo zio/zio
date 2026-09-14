@@ -67,8 +67,8 @@ val result = park.retry(Schedule.exponential(700.millis))`,
   ZStream
     .fromIterable(events)          // or Kafka, files, sockets…
     .mapZIOPar(20)(enrich)         // 20 concurrent enrichments
-    .grouped(100)                  // batch for the database
-    .mapZIO(writeBatch)
+    .buffer(16)                    // bounded — fills when the sink lags
+    .mapZIO(write)                 // slow consumer sets the pace
     .runDrain`,
   },
   {

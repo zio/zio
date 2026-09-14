@@ -14,10 +14,12 @@ export class StreamPipeline {
   // `concurrency` is the same number the Stream's mapEffect is gated on —
   // the visual layer renders exactly this many enrich slots so a viewer can
   // see the parallelism directly (4 slots filled at once) instead of having
-  // to infer it from chips appearing in a box.
-  constructor(id, events, concurrency) {
+  // to infer it from chips appearing in a box. `capacity` is the Stream's
+  // buffer size, shown next to the buffer lane so "bounded" is explicit.
+  constructor(id, events, concurrency, capacity) {
     this.id = id;
     this.concurrency = concurrency;
+    this.capacity = capacity;
     this.items = events.map((event) => ({ ...event, stage: 'queued' }));
     this.subscribers = new Set();
   }
@@ -41,16 +43,17 @@ export class StreamPipeline {
     this.notify();
   }
 
-  // Records when this item's concurrency-gated enrich slot actually opened
-  // and how long its work will take, so the chip can render a progress bar
-  // driven by that item's real duration rather than a generic spinner —
-  // several bars filling at once, each at its own rate, is what makes the
-  // parallelism legible.
-  startEnrich(id, durationMs) {
+  // Records when a timed stage actually began for this item and how long its
+  // work will take, so the chip can render a progress bar driven by that
+  // item's real duration rather than a generic spinner — several enrich bars
+  // filling at once, each at its own rate, is what makes the parallelism
+  // legible, and the single write bar is what makes the slow consumer's
+  // pacing legible.
+  startTimed(id, stage, durationMs) {
     const item = this.items.find((item) => item.id === id);
     if (!item) return;
 
-    item.stage = 'enriching';
+    item.stage = stage;
     item.startedAt = Date.now();
     item.durationMs = durationMs;
     this.notify();

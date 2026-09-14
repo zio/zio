@@ -1,4 +1,4 @@
-import { Chunk, Effect, Stream } from 'effect';
+import { Effect, Stream } from 'effect';
 import { useEffect, useMemo } from 'react';
 import { EffectExample } from '../EffectExample';
 import { getDelay } from '../examples/helpers';
@@ -11,36 +11,36 @@ import { StreamPipeline } from '../StreamPipeline';
 // example to port, so this scenario is built by hand rather than ported
 // verbatim (an explicit exception the user approved for this tab only).
 // It still runs a REAL `effect` Stream pipeline (fromIterable -> mapEffect
-// with concurrency -> filter -> grouped -> mapEffect -> runDrain), mirroring
-// the ZStream snippet shown in the Code toggle line for line, exactly like
+// with concurrency -> buffer -> mapEffect -> runDrain), mirroring the
+// ZStream snippet shown in the Code toggle line for line, exactly like
 // every other tab drives its visual off a real Effect/fiber rather than a
 // canned animation.
+//
+// The writer is deliberately the bottleneck: it handles one item at a time,
+// slower than four enrichments complete, so the bounded buffer fills and
+// upstream enrichment visibly stalls waiting on it. That stall is real
+// backpressure from the Stream itself — verified in the engine, where an
+// item's enrich start lands milliseconds after a write completes and frees
+// buffer space — not something this visual fakes.
 
-const EVENTS = Array.from({ length: 9 }, (_, i) => ({ id: i + 1 }));
+const EVENTS = Array.from({ length: 10 }, (_, i) => ({ id: i + 1 }));
 
-const BATCH_SIZE = 3;
 const CONCURRENCY = 4;
+const BUFFER_CAPACITY = 2;
 
 // Paced for watching, not for realism: the whole point of this tab is that
-// a viewer can follow an item from source to written and see four of them
-// overlapping on the way. At 400-700ms the enrich phase was over in ~1.8s;
-// even at 900-1500ms it was still brisk enough to be hard to track.
-const ENRICH_MIN_MS = 4200;
-const ENRICH_MAX_MS = 5600;
-const WRITE_MIN_MS = 2400;
-const WRITE_MAX_MS = 3200;
+// a viewer can follow an item from source to written, see four of them
+// overlapping in enrich, and watch the writer set the pace for everything
+// upstream of it.
+const ENRICH_MIN_MS = 1200;
+const ENRICH_MAX_MS = 1800;
+const WRITE_MIN_MS = 1200;
+const WRITE_MAX_MS = 1600;
 
 function enrichItem(item, durationMs) {
   return Effect.gen(function* () {
     yield* Effect.sleep(durationMs);
     return item;
-  });
-}
-
-function writeBatch(batch) {
-  return Effect.gen(function* () {
-    yield* Effect.sleep(getDelay(WRITE_MIN_MS, WRITE_MAX_MS));
-    return batch;
   });
 }
 
@@ -56,44 +56,36 @@ function buildPipelineEffect(pipeline) {
             // duration is handed to the pipeline so the chip's progress bar
             // tracks this item's real work, not an approximation.
             const durationMs = getDelay(ENRICH_MIN_MS, ENRICH_MAX_MS);
-            pipeline.startEnrich(item.id, durationMs);
-            const enriched = yield* enrichItem(item, durationMs);
-            pipeline.setStage(enriched.id, 'enriched');
-            return enriched;
+            pipeline.startTimed(item.id, 'enriching', durationMs);
+            return yield* enrichItem(item, durationMs);
           }),
         { concurrency: CONCURRENCY },
       ),
-      Stream.grouped(BATCH_SIZE),
-      Stream.tap((batch) =>
-        Effect.sync(() =>
-          pipeline.setStageForIds(
-            Chunk.toReadonlyArray(batch).map((item) => item.id),
-            'batching',
-          ),
-        ),
+      // Runs when the buffer actually accepts the element, so the buffer
+      // lane's occupancy tracks the real queue rather than an estimate.
+      Stream.tap((item) =>
+        Effect.sync(() => pipeline.setStage(item.id, 'buffered')),
       ),
-      Stream.mapEffect((batch) => writeBatch(batch)),
-      Stream.tap((batch) =>
-        Effect.sync(() =>
-          pipeline.setStageForIds(
-            Chunk.toReadonlyArray(batch).map((item) => item.id),
-            'written',
-          ),
-        ),
+      Stream.buffer({ capacity: BUFFER_CAPACITY }),
+      Stream.mapEffect((item) =>
+        Effect.gen(function* () {
+          const durationMs = getDelay(WRITE_MIN_MS, WRITE_MAX_MS);
+          pipeline.startTimed(item.id, 'writing', durationMs);
+          yield* Effect.sleep(durationMs);
+          pipeline.setStage(item.id, 'written');
+          return item;
+        }),
       ),
       Stream.runDrain,
     );
 
-    const batchCount = Math.ceil(EVENTS.length / BATCH_SIZE);
-    return new StringResult(
-      `${EVENTS.length} written in ${batchCount} batches`,
-    );
+    return new StringResult(`${EVENTS.length} written`);
   });
 }
 
 export default function StreamingVisual() {
   const pipeline = useMemo(
-    () => new StreamPipeline('events', EVENTS, CONCURRENCY),
+    () => new StreamPipeline('events', EVENTS, CONCURRENCY, BUFFER_CAPACITY),
     [],
   );
 
@@ -125,8 +117,8 @@ export default function StreamingVisual() {
   ZStream
     .fromIterable(events)          // or Kafka, files, sockets…
     .mapZIOPar(20)(enrich)         // 20 concurrent enrichments
-    .grouped(100)                  // batch for the database
-    .mapZIO(writeBatch)
+    .buffer(16)                    // bounded — fills when the sink lags
+    .mapZIO(write)                 // slow consumer sets the pace
     .runDrain`;
 
   return (
