@@ -1,6 +1,15 @@
 ---
 id: error-refinement
 title: "Error Refinement"
+description: "Narrow or widen ZIO's typed error channel using refineOrDie, refineToOrDie, unrefine, unrefineTo, and unrefineWith to separate recoverable errors from defects."
+keywords:
+  - "refineOrDie"
+  - "refineToOrDie"
+  - "unrefine"
+  - "unrefineTo"
+  - "error refinement"
+  - "defects"
+  - "Throwable"
 ---
 
 ZIO has some operators useful for converting defects into failures. So we can take part in non-recoverable errors and convert them into the typed error channel and vice versa.

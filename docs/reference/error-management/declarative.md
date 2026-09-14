@@ -2,6 +2,14 @@
 id: imperative-vs-declarative
 title: "Imperative vs. Declarative Error Handling"
 sidebar_label: "Imperative vs. Declarative"
+description: "Compare imperative exception-based error handling with ZIO's declarative typed-error approach and learn why referential transparency matters for error management."
+keywords:
+  - "declarative error handling"
+  - "imperative error handling"
+  - "try catch"
+  - "referential transparency"
+  - "typed errors"
+  - "ZIO.fail"
 ---
 
 To figure out the benefit of typed errors in declarative error handling, we need to understand the drawbacks of the imperative approach and then see how the declarative approach can be used to solve the same problem.

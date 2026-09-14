@@ -1,6 +1,13 @@
 ---
 id: exposing-the-cause-in-the-success-channel
 title: "Exposing the Cause in The Success Channel"
+description: "Expose the full Cause[E] graph in the success channel using ZIO#cause, then submerge it back with ZIO#uncause for structured cause inspection."
+keywords:
+  - "cause"
+  - "uncause"
+  - "Cause"
+  - "success channel"
+  - "error inspection"
 ---
 
 Using the `ZIO#cause` operation we can expose the cause, and then by using `ZIO#uncause` we can reverse this operation:
