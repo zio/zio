@@ -2457,12 +2457,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20415/0x00007f6bb71762a8@19a622da
+//   eval = zio.Ref$$$Lambda$20418/0x00007ff35e085678@5cd39bf7
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20415/0x00007f6bb71762a8@447480ba
+//   eval = zio.Ref$$$Lambda$20418/0x00007ff35e085678@4cced35f
 // )
 
 sealed trait State
@@ -2473,7 +2473,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20415/0x00007f6bb71762a8@6047a181
+//   eval = zio.Ref$$$Lambda$20418/0x00007ff35e085678@4b577498
 // )
 ```
 
@@ -2490,7 +2490,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20415/0x00007f6bb71762a8@13e36216
+//   eval = zio.Ref$$$Lambda$20418/0x00007ff35e085678@764b8ad3
 // )
 ```
 
@@ -2502,7 +2502,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20415/0x00007f6bb71762a8@4bc58e45
+//   eval = zio.Ref$$$Lambda$20418/0x00007ff35e085678@7c2e7608
 // )
 ```
 
@@ -6417,6 +6417,8 @@ val login: IO[AuthError, User] =
 ```
 
 Asynchronous ZIO effects are much easier to use than callback-based APIs, and they benefit from ZIO features like interruption, resource-safety, and superior error handling.
+
+A fiber parked in `ZIO.async` is interruptible, but nothing tells the underlying API to stop. To make the wrapped operation itself cancellable, use `ZIO.asyncInterrupt` and return the cancellation action in the `Left` of the `Either`. See [Interrupting Asynchronous Effects](../../interruption/interruption-and-finalizers.md#interrupting-asynchronous-effects) for a worked example and the guidance on which shape of canceler to return.
 
 #### Creating Suspended Effects
 
@@ -13873,7 +13875,7 @@ for {
 } yield ()
 ```
 
-Note that there is no way to stop interruption. We can only delay it, by making an effect uninterruptible.
+Note that there is no way to stop interruption. We can only delay it, by making an effect uninterruptible. An interrupt that arrives while a fiber is inside an uninterruptible region is recorded rather than discarded, and it is delivered at the moment the region ends — which also means that an uninterruptible region around an effect that never completes defers the interrupt forever, as in the example above. See [Interruptible and Uninterruptible Regions](../interruption/interruptible-regions.md) for how to bound such a region with `ZIO.uninterruptibleMask` and `restore`.
 
 #### Fiber Finalization on Interruption
 
@@ -13923,7 +13925,7 @@ for {
 
 #### Interrupting Blocking Operations
 
-The `ZIO#attemptBlocking` is interruptible by default, but its interruption will not translate to JVM thread interruption. Instead, we can use `ZIO#attemptBlockingInterrupt` to translate the ZIO interruption of that effect into JVM thread interruption. For details and examples on interrupting blocking operations see [here](../core/zio/zio.md#blocking-synchronous-side-effects).
+The `ZIO#attemptBlocking` is interruptible by default, but its interruption will not translate to JVM thread interruption. Instead, we can use `ZIO#attemptBlockingInterrupt` to translate the ZIO interruption of that effect into JVM thread interruption. For details and examples on interrupting blocking operations see [Interrupting Blocking Operations](../interruption/blocking-operations.md); the [ZIO data type](../core/zio/zio.md#blocking-synchronous-side-effects) page documents the blocking constructors themselves.
 
 #### Automatic Interruption
 
@@ -14338,6 +14340,249 @@ To learn more about these data types, please explore the pages above, or check o
 
 ---
 
+## Interrupting Blocking Operations
+
+ZIO's interruption model works by unwinding a fiber at a safe point, but a thread sitting inside a blocking call is not at a safe point and does not reach one on its own. Interrupting the fiber tears down everything ZIO knows about, while the blocking call keeps the thread. Bridging that gap requires telling the blocking code, in its own terms, to stop.
+
+### Interruption of Blocking Operations
+
+By default, when we convert a blocking operation into a ZIO effect using `ZIO.attemptBlocking`, there is no guarantee that if that effect is interrupted the underlying effect will be interrupted.
+
+Let's create a blocking effect from an endless loop:
+
+```scala
+import zio._
+
+for {
+  _ <- Console.printLine("Starting a blocking operation")
+  fiber <- ZIO.attemptBlocking {
+    while (true) {
+      Thread.sleep(1000)
+      println("Doing some blocking operation")
+    }
+  }.ensuring(
+    Console.printLine("End of a blocking operation").orDie
+  ).fork
+  _ <- fiber.interrupt.schedule(
+    Schedule.delayed(
+      Schedule.duration(1.seconds)
+    )
+  )
+} yield ()
+```
+
+When we interrupt this loop after one second it will still not stop. It will only stop when the entire JVM stops. The `ZIO.attemptBlocking` operator doesn't translate the ZIO interruption into thread interruption (`Thread#interrupt`).
+
+Instead, we should use `ZIO.attemptBlockingInterrupt` to create interruptible blocking effects:
+
+```scala
+import zio._
+
+for {
+  _ <- Console.printLine("Starting a blocking operation")
+  fiber <- ZIO.attemptBlockingInterrupt {
+    while(true) {
+      Thread.sleep(1000)
+      println("Doing some blocking operation")
+    }
+  }.ensuring(
+     Console.printLine("End of the blocking operation").orDie
+   ).fork
+  _ <- fiber.interrupt.schedule(
+    Schedule.delayed(
+      Schedule.duration(3.seconds)
+    )
+  )
+} yield ()
+```
+
+Two notes on choosing between the blocking constructors:
+
+1. If we are converting a blocking I/O to a ZIO effect, it would be better to use `ZIO.attemptBlockingIO` which refines the error type to `java.io.IOException`.
+2. The `ZIO.attemptBlockingInterrupt` method adds significant overhead. So for performance-sensitive applications, it is better to handle interruptions manually using `ZIO.attemptBlockingCancelable`.
+
+### Cancellation of Blocking Operation
+
+Some blocking operations do not respect `Thread#interrupt` by swallowing `InterruptedException`. So they will not be interrupted via `ZIO.attemptBlockingInterrupt`. Instead, they may provide us an API to signal them to _cancel_ their operation.
+
+The following `BlockingService` will not be interrupted in case of a `Thread#interrupt` call, but it checks the `released` flag constantly. If this flag becomes true, the blocking service will finish its job:
+
+```scala
+import zio._
+import java.util.concurrent.atomic.AtomicReference
+
+final case class BlockingService() {
+  private val released = new AtomicReference(false)
+
+  def start(): Unit = {
+    while (!released.get()) {
+      println("Doing some blocking operation")
+      try Thread.sleep(1000)
+      catch {
+        case _: InterruptedException => () // Swallowing InterruptedException
+      }
+    }
+    println("Blocking operation closed.")
+  }
+
+  def close(): Unit = {
+    println("Releasing resources and ready to be closed.")
+    released.getAndSet(true)
+  }
+}
+```
+
+So to translate ZIO interruption into cancellation of these types of blocking operations we should use `ZIO.attemptBlockingCancelable`. This method takes a `cancel` effect which is responsible for signalling the blocking code to close itself when ZIO interruption occurs:
+
+```scala
+import zio._
+
+val myApp =
+  for {
+    service <- ZIO.attempt(BlockingService())
+    fiber   <- ZIO.attemptBlockingCancelable(
+      effect = service.start()
+    )(
+      cancel = ZIO.succeed(service.close())
+    ).fork
+    _       <- fiber.interrupt.schedule(
+      Schedule.delayed(
+        Schedule.duration(3.seconds)
+      )
+    )
+  } yield ()
+```
+
+Here is another example of the cancellation of a blocking operation. When we `accept` a server socket, this blocking operation will never be interrupted until we close it using the `ServerSocket#close` method:
+
+```scala
+import java.net.{Socket, ServerSocket}
+import zio._
+
+def accept(ss: ServerSocket): Task[Socket] =
+  ZIO.attemptBlockingCancelable(ss.accept())(ZIO.succeed(ss.close()))
+```
+
+The `cancel` effect plays the same role for blocking code that the `Left` canceler of `ZIO.asyncInterrupt` plays for callback-based code, and it is subject to the same guarantee: it runs when the fiber is interrupted, and the fiber's own finalizers run afterwards. See [Interrupting Asynchronous Effects](interruption-and-finalizers.md#interrupting-asynchronous-effects) for the asynchronous counterpart, and the [ZIO data type](../core/zio/zio.md#blocking-synchronous-side-effects) page for the full set of blocking constructors.
+
+---
+
+## Common Pitfalls and Known Limitations
+
+Each of the behaviours on this page is intended and supported: they follow from rules that are individually reasonable, and they surprise people only where two features meet. The last section is different in kind — it records a defect that is open at the time of writing, so that a reader who hits it does not spend a day suspecting their own code.
+
+### Timeouts and Races Do Not Work Inside Uninterruptible Regions
+
+`ZIO#timeout`, `ZIO#race` and `ZIO#raceFirst` all work the same way: run two workflows, take the first result, interrupt the other one, and do not complete until the interrupted one has finished executing. None of them changes the interruptibility of the workflows they run — racing a workflow is not a request to make it cancellable.
+
+So when the race itself sits inside an uninterruptible region, the losing side inherits that region, the interrupt cannot be delivered to it, and the operator waits forever for a workflow that will never stop:
+
+```scala
+import zio._
+
+// Never completes: the sleep wins after one second and tries to interrupt
+// `ZIO.never`, but `ZIO.never` inherited the enclosing uninterruptible region,
+// so the interrupt is only recorded and `ZIO#timeout` waits for a workflow that
+// never finishes.
+val neverTimesOut: UIO[Option[Nothing]] =
+  ZIO.uninterruptible(ZIO.never.timeout(1.second))
+```
+
+`ZIO#disconnect` does not rescue this. It changes fiber supervision — who has to wait for whose finalizers — not the interruptibility of the region the raced effects run in, so the losing side still never receives the signal.
+
+The fix is to make the raced workflow interruptible on purpose, while keeping whatever else the region was protecting uninterruptible:
+
+```scala
+import zio._
+
+// Completes after one second: `restore` makes the raced workflow interruptible
+// again, so the loser can actually be torn down.
+val timesOutProperly: UIO[Option[Nothing]] =
+  ZIO.uninterruptibleMask(restore => restore(ZIO.never).timeout(1.second))
+```
+
+`ZIO#interruptible` on the raced workflow achieves the same thing when we know the workflow should always be cancellable, regardless of where it is composed.
+
+### `onInterrupt` Can Fire When Your Effect Was Not the One Interrupted
+
+When one branch of `ZIO.foreachPar`, `ZIO.collectAllPar` or `ZIO#zipPar` dies, the healthy branches are interrupted as part of normal parallel-failure semantics. That interruption is real, so the healthy branch's `ZIO#onInterrupt` finalizer fires, and the combined `Cause` contains both the defect and the interruption.
+
+The consequence is that `ZIO#onInterrupt` answers "was this effect's cause an interruption?", not "did somebody deliberately cancel this effect?":
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      exit <- ZIO
+                .foreachPar(List(1, 2)) {
+                  case 1 => ZIO.die(new RuntimeException("boom"))
+                  case _ => ZIO.never.onInterrupt(ZIO.debug("healthy branch: onInterrupt fired"))
+                }
+                .exit
+      _ <- exit.foldExit(
+             cause =>
+               ZIO.debug(s"isInterrupted:     ${cause.isInterrupted}") *>
+                 ZIO.debug(s"isInterruptedOnly: ${cause.isInterruptedOnly}") *>
+                 ZIO.debug(s"defects:           ${cause.defects.map(_.getMessage)}"),
+             _ => ZIO.unit
+           )
+    } yield ()
+}
+```
+
+The healthy branch's finalizer runs, and the overall cause reports interruption even though the workflow actually failed with a defect:
+
+```
+healthy branch: onInterrupt fired
+isInterrupted:     true
+isInterruptedOnly: false
+defects:           List(boom)
+```
+
+Two practical rules follow. First, distinguish the cases with `Cause#isInterruptedOnly` rather than `Cause#isInterrupted` when we need "this workflow was cancelled and nothing else went wrong". Second, do not use `Cause#squash` to report the failure of a parallel operator: `Cause#squash` reduces a whole `Cause` to a single `Throwable` and treats interruption as more important than a defect, so it turns the example above into a bare `InterruptedException` and throws away the real `RuntimeException`. Inspect the full `Cause` instead.
+
+A finalizer installed in several branches of a parallel operator can therefore run concurrently on several fibers. Data structures that are not safe for concurrent access need their own protection inside such a finalizer.
+
+### Interruption Propagates Instantly Down the Fiber Tree
+
+In ZIO 2, transitive fiber interruption is instantaneous: interrupting a fiber signals every descendant immediately, without waiting for any ancestor's wind-down to finish. A grandchild can therefore be interrupted before the parent's own `ZIO#onInterrupt` handler has finished running. This is a deliberate change from ZIO 1, which unwound the tree in a more coordinated order, and it is a better default — cancellation is prompt, and nothing waits on a slow ancestor. It does mean that code migrated from ZIO 1 may carry an ordering assumption that no longer holds.
+
+There is no operator that restores the old ordering. What we can control is the scope a child is forked into, and each forking operator gives a different guarantee:
+
+- `ZIO#fork` issues interrupt signals to children before interrupting the parent, but gives no guarantee that the children are interrupted *before* the parent is.
+- `ZIO#forkScoped` ties the child to the enclosing `Scope`, and a scope releases in reverse order of what was added to it.
+- `ZIO#forkDaemon` detaches the child entirely, so it is not interrupted when the parent is.
+
+When cleanup really must happen in a specific order, create the child scope explicitly and fork into it, rather than relying on the implicit ordering of `ZIO#fork`:
+
+```scala
+import zio._
+
+def orderedTeardown(work: UIO[Unit]): ZIO[Scope, Nothing, Unit] =
+  for {
+    childScope <- ZIO.scope.flatMap(_.fork)
+    _          <- work.forkIn(childScope)
+  } yield ()
+```
+
+Closing `childScope` interrupts the fiber and runs its finalizers, and the outer scope closes each of its children in reverse order of creation, so the teardown order is under our control rather than the runtime's.
+
+### Known Limitations
+
+This section records defects that are open at the time of writing. They are **not** documented behaviour: each one is expected to be fixed, and this entry should be deleted rather than rewritten when its issue closes.
+
+:::warning[Open defect — a pure `Exit` canceler can leave a fiber uninterruptible (issue #11115, current as of ZIO 2.1.x)]
+When a fiber parked in `ZIO.asyncInterrupt` is interrupted and its `Left` canceler is a **pure `Exit` value** such as `Left(Exit.unit)` rather than an effect, the runtime disables interruption in order to run the canceler and never re-enables it. The interrupt is delivered once — a surrounding `ZIO#catchAllCause` sees it — but interruption stays switched off afterwards, so the fiber can survive its own interrupt and can no longer be interrupted if it parks again.
+
+This is reachable from ordinary code, not only from direct `ZIO.asyncInterrupt` use: `ZIO.fromFuture` over a not-yet-completed, non-cancelable `scala.concurrent.Future` registers exactly this kind of canceler.
+
+Until it is fixed, prefer an effectful canceler (`Left(ZIO.succeed(...))`) whenever we write `ZIO.asyncInterrupt` ourselves, since the extra run-loop step it introduces avoids the leak. See [zio/zio#11115](https://github.com/zio/zio/issues/11115).
+:::
+
+---
+
 ## Introduction to ZIO's Interruption Model
 
 While developing concurrent applications, there are several cases that we need to _interrupt_ the execution of other fibers, for example:
@@ -14364,13 +14609,25 @@ Other than the very simple kill solution, there are two popular valid solutions 
 
   This mechanism doesn't have the drawback of forgetting to poll regularly and also it's fully compatible with the functional paradigm because in a purely-functional computation, we can abort the computation at any point, except for critical sections.
 
+ZIO deliberately has no notion of _pausing_ a fiber. Stopping a fiber always means unwinding it: the fiber's finalizers run and the fiber dies. A "freeze and resume later" operation was considered and rejected, because a paused fiber holds resources whose finalizers might never run if nobody resumes it. Conflating "stop this fiber" with "run this fiber's finalizers and let it die" is what makes resource safety under interruption mechanical rather than a matter of discipline.
+
+### The Interruption Model in One Page
+
+The rest of this documentation builds on five invariants. If you only remember one section, remember this one.
+
+- **Interruption is delivered asynchronously, at safe points.** A fiber does not poll. The runtime delivers a pending interrupt when the fiber reaches a suspension point, a region boundary, or a yield point.
+- **Inside an uninterruptible region an interrupt is recorded and deferred, never discarded.** It fires the moment the region ends. If the region never ends, the interrupt never fires — see [Interruptible and Uninterruptible Regions](interruptible-regions.md).
+- **Finalizers always run, and they run uninterruptibly.** `ZIO#ensuring`, `ZIO#onExit`, `ZIO#onInterrupt` and `ZIO.acquireReleaseWith` cannot themselves be interrupted away — see [Interruption, Finalizers, and Resource Safety](interruption-and-finalizers.md).
+- **Interruption is not a typed error.** `ZIO#catchAll` never sees it; only `ZIO#catchAllCause`, `ZIO#sandbox` and the resulting `Exit` expose it.
+- **`Fiber#interrupt` does not return until the target has finished running all of its finalizers.** That is what makes interruption safe, and it is also why an interrupt can appear to hang — see [Interrupting Fibers](triggering-interruption.md).
+
 ### When Does a Fiber Get Interrupted?
 
-There are several ways and situations that fibers can be interrupted. In this section we will introduce each one with an example of how to reproduce these situations:
+A fiber is interrupted either because some other fiber explicitly asked for it, or because ZIO's structured concurrency decided the fiber's work is no longer needed. Four situations account for every interruption in a ZIO application, and each of them is shown below.
 
-#### Calling `Fiber#interrupt` Operator
+#### Calling `Fiber#interrupt` Explicitly
 
-A fiber can be interrupted by calling [`Fiber#interrupt`](../fiber/fiber.md) on that fiber.
+A fiber can be interrupted by calling [`Fiber#interrupt`](../fiber/fiber.md#fiber-interruption) on that fiber.
 
 Let's try to make a fiber and then interrupt it:
 
@@ -14404,85 +14661,50 @@ Here is the output of running this piece of code, which denotes that the task wa
 Task interrupted while running
 ```
 
+`Fiber#interrupt` returns the target fiber's `Exit` value, and it does not return until the target has finished running every one of its finalizers. When the target's cleanup is slow, the caller waits with it. [Interrupting Fibers](triggering-interruption.md) covers the fire-and-forget alternatives, `Fiber#interruptFork` and `ZIO#disconnect`.
+
 #### Interruption of Parallel Effects
 
-When composing multiple parallel effects, when one of them is interrupted the other fibers will be interrupted also. So if we have two parallel tasks, if one of them fails or gets interrupted, the other will be interrupted:
+When we compose effects in parallel, the combinator is responsible for all of the fibers it started. If either side fails or is interrupted, the other side is interrupted too, so that no fiber outlives the operation that forked it:
 
 ```scala
 import zio._
 
 object MainApp extends ZIOAppDefault {
-
-  def debugInterruption(taskName: String) = (fibers: Set[FiberId]) =>
-    for {
-      fn <- ZIO.fiberId.map(_.threadName)
-      _ <- ZIO.debug(
-        s"The $fn fiber which is the underlying fiber of the $taskName task " +
-          s"interrupted by ${fibers.map(_.threadName).mkString(", ")}"
-      )
-    } yield ()
-
   def task[R, E, A](name: String)(zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    zio.onInterrupt(debugInterruption(name))
-
-  def debugMainFiber =
-    for {
-      fn <- ZIO.fiberId.map(_.threadName)
-      _ <- ZIO.debug(s"Main fiber ($fn) starts executing the whole application.")
-    } yield ()
+    zio.onInterrupt(ZIO.debug(s"the $name task was interrupted"))
 
   def run = {
-    // self interrupting fiber 
+    // A fiber that interrupts itself as soon as it starts
     val first = task("first")(ZIO.interrupt)
 
-    // never ending fiber
+    // A fiber that never completes on its own
     val second = task("second")(ZIO.never)
 
-    debugMainFiber *> {
-      // uncomment each line and run the code to see the result
-
-      // first fiber will be interrupted 
-      first *> second
-
-      // never ending application
-      // second *> first
-
-      // first fiber will be interrupted
-      // first <*> second
-
-      // never ending application
-      // second <*> first
-
-      // first and second will be interrupted
-      // first <&> second
-
-      // first and second will be interrupted 
-      // second <&> first
-    }
+    first <&> second
   }
-
 }
 ```
 
-In the above code the `first <&> second` is a parallel composition of the `first` and `second` tasks. When we run them together, the `zipWithPar`/`<&>` operator will run these two tasks in two parallel fibers. If either side of this operator fails or is interrupted the other side will be interrupted.
+Running this program prints two lines, in an order that depends on scheduling:
+
+```
+the first task was interrupted
+the second task was interrupted
+```
+
+The `ZIO#zipPar`/`<&>` operator runs both tasks in two parallel fibers. The `first` task interrupts itself, `ZIO#zipPar` interrupts the loser, and `second` — which would otherwise run forever — is torn down. The combinator does not complete until the interrupted side has finished finalizing, which is why the loser's `ZIO#onInterrupt` handler is guaranteed to have run by the time the program exits.
+
+The same rule applies to `ZIO.foreachPar`, `ZIO.collectAllPar`, `ZIO#race` and every other parallel operator. One consequence surprises almost everyone the first time: a healthy branch's `ZIO#onInterrupt` fires when a *sibling* branch dies, because the healthy branch really was interrupted. [Common Pitfalls](common-pitfalls.md#oninterrupt-can-fire-when-your-effect-was-not-the-one-interrupted) explains how to tell the two cases apart.
 
 #### Child Fibers Are Scoped to Their Parents
 
-1. If a child fiber does not complete its job or does not join its parent before the parent has completed its job, the child fiber will be interrupted:
+A fiber forked with `ZIO#fork` belongs to the scope of the fiber that forked it. If the parent finishes — normally or by being interrupted — its children are interrupted:
 
 ```scala
 import zio._
 
 object MainApp extends ZIOAppDefault {
-  def debugInterruption(taskName: String) = (fibers: Set[FiberId]) =>
-    for {
-      fn <- ZIO.fiberId.map(_.threadName)
-      _  <- ZIO.debug(
-              s"the $fn fiber which is the underlying fiber of the $taskName task " +
-              s"interrupted by ${fibers.map(_.threadName).mkString(", ")}"
-            )
-    } yield ()
-
   def run =
     for {
       fn <- ZIO.fiberId.map(_.threadName)
@@ -14493,11 +14715,10 @@ object MainApp extends ZIOAppDefault {
           _   <- ZIO.debug(s"$cfn starts working by forking from its parent ($fn)")
           _   <- ZIO.never
         } yield ()
-      _  <- child.onInterrupt(debugInterruption("child")).fork
+      _  <- child.onInterrupt(ZIO.debug("the child task was interrupted")).fork
       _  <- ZIO.sleep(1.second)
-      _  <- ZIO.debug(s"$fn finishes its job and is going go exit.")
+      _  <- ZIO.debug(s"$fn finishes its job and is going to exit.")
     } yield ()
-    
 }
 ```
 
@@ -14507,201 +14728,658 @@ Here is the result of one of the executions of this sample code:
 zio-fiber-2 starts working.
 zio-fiber-7 starts working by forking from its parent (zio-fiber-2)
 zio-fiber-2 finishes its job and is going to exit.
-the zio-fiber-7 fiber which is the underlying fiber of the child task interrupted by zio-fiber-2
+the child task was interrupted
 ```
 
-2. If a parent fiber is interrupted, all its children will be interrupted:
+If the parent has *already* been interrupted at the moment it forks, the child is interrupted at birth and its body may never run at all. That is the usual explanation for "my forked fiber printed nothing".
+
+`ZIO#forkDaemon`, `ZIO#forkScoped` and `ZIO#forkIn` attach the child to a different scope and therefore change this lifetime. The [Lifetime of Child Fibers](../fiber/fiber.md#lifetime-of-child-fibers) section documents each of them in depth. Note that changing a child's *scope* does not change its *interruptibility*: a fiber forked inside `ZIO.uninterruptible` is born uninterruptible even when it is a daemon.
+
+#### Timeouts and Races
+
+`ZIO#timeout` is a race between the effect and a sleep, so it is interruption in disguise. When the sleep wins, the effect's fiber is interrupted and the result is `None` rather than a failure:
 
 ```scala
 import zio._
 
 object MainApp extends ZIOAppDefault {
-
-  def debugInterruption(taskName: String) = (fibers: Set[FiberId]) =>
+  def run =
     for {
-      fn <- ZIO.fiberId.map(_.threadName)
-      _ <- ZIO.debug(
-        s"The $fn fiber which is the underlying fiber of the $taskName task " +
-          s"interrupted by ${fibers.map(_.threadName).mkString(", ")}"
-      )
+      result <- ZIO.sleep(5.seconds).as("finished").timeout(1.second)
+      _      <- ZIO.debug(s"result: $result")
     } yield ()
+}
+```
 
-  def task =
+The program prints the timed-out result after one second:
+
+```
+result: None
+```
+
+Because the loser is interrupted and interruption waits for finalizers, `ZIO#timeout` returns only after the timed-out effect has finished cleaning up. An effect with a slow finalizer therefore overruns its own time bound. Use `ZIO#disconnect` to hand the cleanup to a separate fiber and get a prompt bound:
+
+```scala
+import zio._
+
+val promptlyBounded: ZIO[Any, Nothing, Option[Nothing]] =
+  ZIO.never
+    .ensuring(ZIO.sleep(10.seconds))
+    .disconnect
+    .timeout(1.second)
+```
+
+An effect that is *uninterruptible* cannot be timed out at all, and `ZIO#disconnect` does not change that. This is intended behaviour rather than a bug, and it is covered in [Common Pitfalls](common-pitfalls.md#timeouts-and-races-do-not-work-inside-uninterruptible-regions).
+
+### Interruption Operators at a Glance
+
+The operators below are the complete interruption-related surface of `ZIO` and `Fiber`. Follow the link in the last column for the section that explains each group.
+
+| Operator                        | Signature (abbreviated)                                             | What It Does                                                                          | Details                                                                  |
+| ------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `Fiber#interrupt`               | `UIO[Exit[E, A]]`                                                    | Interrupts the fiber as the current fiber, waits for all of its finalizers, returns its `Exit`. | [Interrupting Fibers](triggering-interruption.md#fiberinterrupt)          |
+| `Fiber#interruptAs`             | `FiberId => UIO[Exit[E, A]]`                                         | Same, but attributes the interruption to the given `FiberId`.                          | [Interrupting Fibers](triggering-interruption.md#choosing-an-interruption-operator) |
+| `Fiber#interruptFork`           | `UIO[Unit]`                                                          | Sends the interrupt signal and returns immediately without waiting.                     | [Interrupting Fibers](triggering-interruption.md#choosing-an-interruption-operator) |
+| `Fiber#interruptAsFork`         | `FiberId => UIO[Unit]`                                               | Fire-and-forget interruption attributed to the given `FiberId`.                         | [Interrupting Fibers](triggering-interruption.md#choosing-an-interruption-operator) |
+| `ZIO.interrupt`                 | `UIO[Nothing]`                                                       | Interrupts the current fiber, attributed to the current fiber.                          | [Interrupting Fibers](triggering-interruption.md#self-interruption)       |
+| `ZIO.interruptAs`               | `FiberId => UIO[Nothing]`                                            | Interrupts the current fiber, attributed to the given `FiberId`.                        | [Interrupting Fibers](triggering-interruption.md#self-interruption)       |
+| `ZIO.allowInterrupt`            | `UIO[Unit]`                                                          | Checks for a pending interrupt and self-interrupts if there is one.                      | [Interrupting Fibers](triggering-interruption.md#self-interruption)       |
+| `ZIO#uninterruptible`           | `ZIO[R, E, A]`                                                       | Runs the effect in a region where interruption is deferred.                             | [Regions](interruptible-regions.md#making-a-region-uninterruptible)       |
+| `ZIO#interruptible`             | `ZIO[R, E, A]`                                                       | Runs the effect in an interruptible region, whatever the enclosing region is.            | [Regions](interruptible-regions.md#making-a-region-uninterruptible)       |
+| `ZIO#interruptStatus`           | `InterruptStatus => ZIO[R, E, A]`                                    | Runs the effect with the given interruptibility, chosen at runtime.                     | [Regions](interruptible-regions.md#every-fiber-is-interruptible-by-default) |
+| `ZIO.uninterruptibleMask`       | `(InterruptibilityRestorer => ZIO[R, E, A]) => ZIO[R, E, A]`         | Uninterruptible region plus a `restore` that returns to the *enclosing* status.          | [Regions](interruptible-regions.md#uninterruptiblemask-and-restore)       |
+| `ZIO.interruptibleMask`         | `(InterruptibilityRestorer => ZIO[R, E, A]) => ZIO[R, E, A]`         | The mirror image: interruptible region plus a `restore` to the enclosing status.         | [Regions](interruptible-regions.md#uninterruptiblemask-and-restore)       |
+| `ZIO.checkInterruptible`        | `(InterruptStatus => ZIO[R, E, A]) => ZIO[R, E, A]`                  | Reads the current region's interruptibility.                                            | [Regions](interruptible-regions.md#every-fiber-is-interruptible-by-default) |
+| `ZIO#ensuring`                  | `URIO[R, Any] => ZIO[R, E, A]`                                       | Runs a finalizer on every exit, uninterruptibly.                                         | [Finalizers](interruption-and-finalizers.md#finalizers-always-run-and-run-uninterruptibly) |
+| `ZIO#onExit`                    | `(Exit[E, A] => URIO[R, Any]) => ZIO[R, E, A]`                       | Like `ZIO#ensuring`, but the finalizer sees the `Exit`.                                  | [Finalizers](interruption-and-finalizers.md#finalizers-always-run-and-run-uninterruptibly) |
+| `ZIO#onInterrupt`               | `URIO[R, Any] => ZIO[R, E, A]`                                       | Runs a finalizer only when the cause involves interruption.                              | [Finalizers](interruption-and-finalizers.md#oninterrupt)                  |
+| `ZIO.acquireReleaseWith`        | `acquire => release => use`                                          | Acquire uninterruptibly, use interruptibly, release uninterruptibly.                     | [Finalizers](interruption-and-finalizers.md#acquirereleasewith-and-scope) |
+| `ZIO#disconnect`                | `ZIO[R, E, A]`                                                       | Severs the supervision link so the caller need not wait for the effect's finalizers.     | [Interrupting Fibers](triggering-interruption.md#disconnecting-a-fiber)   |
+| `ZIO#timeout`                   | `Duration => ZIO[R, E, Option[A]]`                                   | Races against a sleep; interrupts the effect and yields `None` on timeout.               | [Timeouts and Races](#timeouts-and-races)                                 |
+| `ZIO.async`                     | `((ZIO[R, E, A] => Unit) => Unit) => ZIO[R, E, A]`                   | Parks the fiber on a callback. The fiber is interruptible; the operation is not cancelled. | [Async Effects](interruption-and-finalizers.md#interrupting-asynchronous-effects) |
+| `ZIO.asyncInterrupt`            | `((ZIO[R, E, A] => Unit) => Either[URIO[R, Any], ZIO[R, E, A]]) => ZIO[R, E, A]` | Parks the fiber on a callback and registers a canceler in the `Left`.        | [Async Effects](interruption-and-finalizers.md#interrupting-asynchronous-effects) |
+| `ZIO.never`                     | `UIO[Nothing]`                                                       | An async suspension that never completes; promptly interruptible.                        | [Async Effects](interruption-and-finalizers.md#interrupting-asynchronous-effects) |
+| `ZIO.attemptBlockingInterrupt`  | `(=> A) => Task[A]`                                                  | Translates ZIO interruption into `Thread#interrupt`.                                     | [Blocking Operations](blocking-operations.md)                            |
+| `ZIO.attemptBlockingCancelable` | `(=> A) => (=> URIO[R, Any]) => RIO[R, A]`                           | Translates ZIO interruption into a custom cancel action.                                 | [Blocking Operations](blocking-operations.md)                            |
+| `Cause#isInterrupted`           | `Boolean`                                                            | Whether the cause contains interruption anywhere.                                        | [Who Interrupted This Fiber?](triggering-interruption.md#who-interrupted-this-fiber) |
+| `Cause#isInterruptedOnly`       | `Boolean`                                                            | Whether interruption is the *only* thing in the cause.                                   | [Who Interrupted This Fiber?](triggering-interruption.md#who-interrupted-this-fiber) |
+| `Cause#interruptors`            | `Set[FiberId]`                                                       | Every fiber that signalled an interrupt to this workflow.                                | [Who Interrupted This Fiber?](triggering-interruption.md#who-interrupted-this-fiber) |
+
+### See Also
+
+The rest of this section goes into depth on each part of the model:
+
+- [Interruptible and Uninterruptible Regions](interruptible-regions.md) — `ZIO#uninterruptible`, `ZIO.uninterruptibleMask` and what `restore` really restores.
+- [Interrupting Fibers](triggering-interruption.md) — `Fiber#interrupt` and its variants, self-interruption, reading the interruptor out of a `Cause`, and `ZIO#disconnect`.
+- [Interruption, Finalizers, and Resource Safety](interruption-and-finalizers.md) — `ZIO#ensuring`, `ZIO#onInterrupt`, `ZIO.acquireReleaseWith`, and interrupting asynchronous effects.
+- [Interrupting Blocking Operations](blocking-operations.md) — `ZIO.attemptBlockingInterrupt` and `ZIO.attemptBlockingCancelable`.
+- [Common Pitfalls and Known Limitations](common-pitfalls.md) — the interactions that surprise people, and the one open defect worth knowing about.
+
+Related pages elsewhere in the documentation:
+
+- [Fiber](../fiber/fiber.md) — fiber lifetimes, forking strategies, and the `Fiber` API.
+- [Resource Management](../resource/index.md#acquire-release) — `ZIO.acquireRelease` and `Scope` from the resource-safety side.
+- [Typed Errors Guarantees](../error-management/typed-errors-guarantees.md) — why the typed error channel does not model interruption.
+
+---
+
+## Interruptible and Uninterruptible Regions
+
+Interruption is asynchronous: another fiber can ask for our fiber to stop at any moment, and we never poll for that request. That is exactly what we want almost all of the time, and exactly what we do not want while we are halfway through updating shared state or acquiring a resource. ZIO's answer is the *region*: a lexically scoped block of an effect that declares whether interruption may be delivered inside it.
+
+### Every Fiber Is Interruptible by Default
+
+A fiber starts life interruptible, and every effect it runs is interruptible unless some enclosing region says otherwise. The current region's status is a value of type `InterruptStatus`, which has exactly two cases, `InterruptStatus.Interruptible` and `InterruptStatus.Uninterruptible`.
+
+To read the status of the region we are currently in, use `ZIO.checkInterruptible`:
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    ZIO.checkInterruptible(status => ZIO.debug(s"current status: $status"))
+}
+```
+
+Since a fresh fiber is interruptible, this prints:
+
+```
+current status: Interruptible
+```
+
+When the status is not known until runtime — for example, when a caller passes it in — `ZIO#interruptStatus` takes an `InterruptStatus` value instead of hard-coding the choice:
+
+```scala
+import zio._
+
+def runWith[R, E, A](status: InterruptStatus)(effect: ZIO[R, E, A]): ZIO[R, E, A] =
+  effect.interruptStatus(status)
+```
+
+`ZIO#uninterruptible` and `ZIO#interruptible` are the two fixed choices, and they are the operators to reach for in practice.
+
+### Making a Region Uninterruptible
+
+`ZIO#uninterruptible` marks a region in which interruption is not *delivered*. It does not make the fiber immune to interruption: a fiber interrupted while it is inside an uninterruptible region records the interrupt and keeps going, and the interrupt is delivered at the first moment the fiber becomes interruptible again. Interruption is deferred, never discarded.
+
+The following program makes that visible. The `started` promise guarantees that the child fiber is already inside the uninterruptible region when the parent interrupts it:
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
     for {
-      fn <- ZIO.fiberId.map(_.threadName)
-      _ <- ZIO.debug(s"$fn starts running that will print random numbers and booleans")
-      f1 <- Random.nextIntBounded(100)
-        .debug("random number ")
-        .schedule(Schedule.spaced(1.second).forever)
-        .onInterrupt(debugInterruption("random number"))
-        .fork
-      f2 <- Random.nextBoolean
-        .debug("random boolean ")
-        .schedule(Schedule.spaced(2.second).forever)
-        .onInterrupt(debugInterruption("random boolean"))
-        .fork
-        _ <- f1.join
-        _ <- f2.join
+      started <- Promise.make[Nothing, Unit]
+      fiber <- ZIO
+                 .uninterruptible {
+                   started.succeed(()) *>
+                     ZIO.debug("critical section: start") *>
+                     ZIO.sleep(1.second) *>
+                     ZIO.debug("critical section: end")
+                 }
+                 .flatMap(_ => ZIO.debug("this line never runs"))
+                 .fork
+      _    <- started.await
+      exit <- fiber.interrupt
+      _    <- ZIO.debug(s"interrupted: ${exit.isInterrupted}")
     } yield ()
+}
+```
+
+The critical section runs to completion even though the interrupt arrived in the middle of it, and the interrupt takes effect the instant the region ends, so the `ZIO#flatMap` continuation is never reached:
+
+```
+critical section: start
+critical section: end
+interrupted: true
+```
+
+The flip side of "deferred, never discarded" is that a region which never ends defers the interrupt forever. An uninterruptible region wrapped around an effect that never completes produces a fiber that nothing can stop, and whose finalizers therefore never run:
+
+```scala
+import zio._
+
+// Interrupting a fiber running this effect never completes: the region has no
+// end, so the recorded interrupt has no boundary at which to fire, and the
+// finalizer installed by `ZIO#ensuring` never runs.
+val unstoppable: UIO[Nothing] =
+  ZIO.never.ensuring(ZIO.debug("cleanup")).uninterruptible
+```
+
+This is the single most important reason to keep uninterruptible regions small and bounded. An uninterruptible region should cover a critical section, not a whole workflow.
+
+### `uninterruptibleMask` and `restore`
+
+Wrapping a whole workflow in `ZIO#uninterruptible` is almost never what we want, because the workflow usually contains one part that must be atomic and another part that should stay cancellable. `ZIO.uninterruptibleMask` expresses exactly that: it makes the region uninterruptible and hands us a `restore` function we can wrap around the parts that should remain interruptible.
+
+The rule that makes this compose — and the one that is most often misread — is that **`restore` returns the region to the interruptibility status of the enclosing region, not unconditionally to interruptible**. If `ZIO.uninterruptibleMask` was invoked from an interruptible region, `restore` makes its argument interruptible. If it was invoked from a region that was already uninterruptible, `restore` leaves its argument uninterruptible.
+
+Running the same masked effect from both kinds of enclosing region shows the difference:
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def report(label: String): UIO[Unit] =
+    ZIO.checkInterruptible(status => ZIO.debug(s"$label: $status"))
+
+  val masked: UIO[Unit] =
+    ZIO.uninterruptibleMask { restore =>
+      report("inside the mask") *> restore(report("inside restore"))
+    }
+
+  def run =
+    masked *> ZIO.uninterruptible(masked)
+}
+```
+
+The first run is made from the fiber's default interruptible region, the second from an enclosing uninterruptible one:
+
+```
+inside the mask: Uninterruptible
+inside restore: Interruptible
+inside the mask: Uninterruptible
+inside restore: Uninterruptible
+```
+
+This is what makes masks nest safely. A combinator that builds on `ZIO.uninterruptibleMask` composes into any region and never widens the interruptibility of its caller's region, so a library function cannot accidentally make a caller's critical section cancellable. The restorer also exposes the enclosing status directly, through `InterruptibilityRestorer#isParentRegionInterruptible` and `InterruptibilityRestorer#parentInterruptStatus`, for the rare combinator that needs to branch on it.
+
+`ZIO.interruptibleMask` is the mirror image: it makes the region interruptible and gives a `restore` that returns to the enclosing status in the same way.
+
+:::note[Known limitations]
+`ZIO.uninterruptibleMask` interacts with asynchronous effects in ways that have historically hidden defects. Before building a data structure on top of `ZIO.uninterruptibleMask` plus `ZIO.asyncInterrupt`, read [Known Limitations](common-pitfalls.md#known-limitations), which tracks the open defects in this area.
+:::
+
+### Choosing Between Them
+
+Reach for the highest-level tool that solves the problem, and treat the region operators as the last resort:
+
+- For "this resource must be released no matter what", use `ZIO.acquireReleaseWith` or a `Scope`, which already apply the right regions internally. See [Interruption, Finalizers, and Resource Safety](interruption-and-finalizers.md#acquirereleasewith-and-scope).
+- For "run this cleanup on the way out", use `ZIO#ensuring`, `ZIO#onExit` or `ZIO#onInterrupt`. Finalizers registered this way already run uninterruptibly.
+- For "this small block must not be torn down halfway", use `ZIO#uninterruptible` around that block only.
+- For "this combinator must be atomic except for the part the caller supplied", use `ZIO.uninterruptibleMask` with `restore` around the caller's effect. This is the pattern `ZIO#onExit`, `ZIO#disconnect` and `ZIO.acquireReleaseWith` themselves are built from.
+
+If we find ourselves writing `ZIO#uninterruptible` or `ZIO.uninterruptibleMask` in application code rather than in a combinator, it is usually a sign that a higher-level operator — `ZIO.acquireRelease*`, `ZIO#ensuring`, `ZIO#onInterrupt`, `ZIO#race`, `ZIO.foreachPar` — already expresses what we want, with the regions placed correctly.
+
+### Interruptibility Is Inherited by Forked Fibers
+
+A forked fiber inherits the interruptibility status of the region it was forked from, and this includes fibers forked with `ZIO#forkDaemon`. Forking inside `ZIO.uninterruptible` therefore produces a child that starts life uninterruptible, so calling `Fiber#interrupt` on it hangs. This is intended behaviour, and the fix is to make the forked effect interruptible explicitly, either with `ZIO#interruptible` or with `restore` from a surrounding `ZIO.uninterruptibleMask`. Both forms are documented, with runnable examples, in [fork and join](../fiber/fiber.md#fork-and-join).
+
+:::warning[Do not manipulate the interruption runtime flags directly]
+`RuntimeFlag.Interruption` and `RuntimeFlag.WindDown` are the runtime's internal representation of the current region, and they are the only runtime flags that are not propagated back to a parent fiber after a fork. Setting them through a `Runtime.enableFlags` layer produces results that depend on whether layers were composed sequentially or in parallel, and almost always breaks interruption somewhere else in the application. Use `ZIO#uninterruptible`, `ZIO#interruptible` and the mask operators instead.
+:::
+
+---
+
+## Interruption, Finalizers, and Resource Safety
+
+Interruption is only safe because of what happens on the way out. A fiber that is interrupted does not vanish: it unwinds, running every finalizer that was installed along the way, and it runs them in a region where interruption cannot be delivered. This page covers the operators that install those finalizers, the contract `ZIO.acquireReleaseWith` builds from them, and the two places where interruption interacts with the error channel and with callback-based APIs.
+
+### Finalizers Always Run, and Run Uninterruptibly
+
+`ZIO#ensuring` attaches a finalizer that runs on every exit — success, typed failure, defect, or interruption. `ZIO#onExit` is the same operator, except that it hands the `Exit` value to the finalizer, so the cleanup can branch on how the effect ends.
+
+Both are built on `ZIO.uninterruptibleMask`: the effect itself is `restore`d so that it stays as interruptible as its caller made it, while the finalizer runs in the surrounding uninterruptible region. A finalizer therefore cannot be interrupted away, which is what allows ZIO to promise that cleanup happens even when the interrupt arrives in the middle of the work:
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      started <- Promise.make[Nothing, Unit]
+      fiber <- (started.succeed(()) *> ZIO.never)
+                 .onExit(exit => ZIO.debug(s"finalizer sees: $exit"))
+                 .fork
+      _ <- started.await
+      _ <- fiber.interrupt
+    } yield ()
+}
+```
+
+The finalizer receives the interrupted `Exit` and runs to completion before `Fiber#interrupt` returns:
+
+```
+finalizer sees: Failure(Interrupt(Runtime(2,...),Stack trace for thread "zio-fiber-2":...))
+```
+
+A finalizer that itself takes a long time therefore delays the fiber's death, and with it every caller waiting on `Fiber#interrupt`. Keep finalizers short, and use `ZIO#disconnect` when a slow cleanup must not hold up a race or a timeout.
+
+### `onInterrupt`
+
+`ZIO#onInterrupt` installs a finalizer that runs only when the effect ends because of interruption. It builds on `ZIO#onExit`, and its condition is `Cause#isInterruptedOnly` — the finalizer fires when the cause consists of interruption and nothing else.
+
+Comparing it with `ZIO#ensuring` on both paths makes the difference concrete:
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def instrument[A](label: String)(effect: UIO[A]): UIO[A] =
+    effect
+      .onInterrupt(ZIO.debug(s"$label: onInterrupt"))
+      .ensuring(ZIO.debug(s"$label: ensuring"))
 
   def run =
     for {
-      f <- task.fork
-      _ <- ZIO.sleep(5.second)
-      _ <- f.interrupt
+      _       <- instrument("completed")(ZIO.unit)
+      started <- Promise.make[Nothing, Unit]
+      fiber   <- instrument("interrupted")(started.succeed(()) *> ZIO.never).fork
+      _       <- started.await
+      _       <- fiber.interrupt
     } yield ()
 }
 ```
 
-Here is one sample output for this program:
+The `ZIO#ensuring` finalizer fires on both paths; the `ZIO#onInterrupt` finalizer fires only on the interrupted one:
 
 ```
-zio-fiber-7 starts running that will print random numbers and booleans
-random number : 65
-random boolean : true
-random number : 51
-random number : 46
-random boolean : true
-random number : 30
-The zio-fiber-9 fiber which is the underlying fiber of the random boolean task interrupted by zio-fiber-7
-The zio-fiber-8 fiber which is the underlying fiber of the random number task interrupted by zio-fiber-7
+completed: ensuring
+interrupted: onInterrupt
+interrupted: ensuring
 ```
 
-### Blocking Operations
+`ZIO#onInterrupt` also has an overload whose finalizer receives the `Set[FiberId]` of the fibers that requested the interruption, which is useful for logging who tore the workflow down.
 
-#### Interruption of Blocking Operations
+:::warning[`onInterrupt` is about the cause, not about the interruptor]
+`ZIO#onInterrupt` fires whenever the effect's cause is interruption, including when the effect was interrupted as collateral damage from a sibling failing in a parallel operator. It does not mean "somebody deliberately cancelled *this* effect". See [Common Pitfalls](common-pitfalls.md#oninterrupt-can-fire-when-your-effect-was-not-the-one-interrupted).
+:::
 
-By default, when we convert a blocking operation into a ZIO effect using `attemptBlocking`, there is no guarantee that if that effect is interrupted the underlying effect will be interrupted.
+### `acquireReleaseWith` and `Scope`
 
-Let's create a blocking effect from an endless loop:
+`ZIO.acquireReleaseWith` is the operator that makes resource acquisition safe under interruption, and it does so by placing three regions for us:
+
+1. **`acquire` runs uninterruptibly.** An interrupt cannot land between "the resource was opened" and "the release finalizer was registered", which is the window in which a resource would leak.
+2. **`use` runs interruptibly** — more precisely, it is `restore`d to whatever interruptibility the caller had. This is the part we want to be able to cancel.
+3. **`release` runs uninterruptibly.** It runs whether `use` succeeded, failed, died, or was interrupted, and it cannot itself be interrupted away.
+
+Interrupting a fiber in the middle of `use` therefore still releases the resource:
 
 ```scala
 import zio._
 
-for {
-  _ <- Console.printLine("Starting a blocking operation")
-  fiber <- ZIO.attemptBlocking {
-    while (true) {
-      Thread.sleep(1000)
-      println("Doing some blocking operation")
-    }
-  }.ensuring(
-    Console.printLine("End of a blocking operation").orDie
-  ).fork
-  _ <- fiber.interrupt.schedule(
-    Schedule.delayed(
-      Schedule.duration(1.seconds)
-    )
-  )
-} yield ()
-```
-
-When we interrupt this loop after one second it will still not stop. It will only stop when the entire JVM stops. The `attemptBlocking` doesn't translate the ZIO interruption into thread interruption (`Thread.interrupt`).
-
-Instead, we should use `attemptBlockingInterrupt` to create interruptible blocking effects:
-
-```scala
-import zio._
-
-for {
-  _ <- Console.printLine("Starting a blocking operation")
-  fiber <- ZIO.attemptBlockingInterrupt {
-    while(true) {
-      Thread.sleep(1000)
-      println("Doing some blocking operation")
-    }
-  }.ensuring(
-     Console.printLine("End of the blocking operation").orDie
-   ).fork
-  _ <- fiber.interrupt.schedule(
-    Schedule.delayed(
-      Schedule.duration(3.seconds)
-    )
-  )
-} yield ()
-```
-
-Notes:
-
-1. If we are converting a blocking I/O to a ZIO effect, it would be better to use `attemptBlockingIO` which refines the error type to `java.io.IOException`.
-
-2. The `attemptBlockingInterrupt` method adds significant overhead. So for performance-sensitive applications, it is better to handle interruptions manually using `attemptBlockingCancelable`.
-
-#### Cancellation of Blocking Operation
-
-Some blocking operations do not respect `Thread#interrupt` by swallowing `InterruptedException`. So they will not be interrupted via `attemptBlockingInterrupt`. Instead, they may provide us an API to signal them to _cancel_ their operation.
-
-The following `BlockingService` will not be interrupted in case of a `Thread#interrupt` call, but it checks the `released` flag constantly. If this flag becomes true, the blocking service will finish its job:
-
-```scala
-import zio._
-import java.util.concurrent.atomic.AtomicReference
-
-final case class BlockingService() {
-  private val released = new AtomicReference(false)
-
-  def start(): Unit = {
-    while (!released.get()) {
-      println("Doing some blocking operation")
-      try Thread.sleep(1000)
-      catch {
-        case _: InterruptedException => () // Swallowing InterruptedException
-      }
-    }
-    println("Blocking operation closed.")
-  }
-
-  def close(): Unit = {
-    println("Releasing resources and ready to be closed.")
-    released.getAndSet(true)
-  }
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      started <- Promise.make[Nothing, Unit]
+      fiber <- ZIO
+                 .acquireReleaseWith(ZIO.debug("acquire").as("resource"))(_ => ZIO.debug("release")) { _ =>
+                   started.succeed(()) *> ZIO.debug("use") *> ZIO.never
+                 }
+                 .fork
+      _ <- started.await
+      _ <- fiber.interrupt
+      _ <- ZIO.debug("interrupt returned")
+    } yield ()
 }
 ```
 
-So to translate ZIO interruption into cancellation of these types of blocking operations we should use `attemptBlockingCancelable`. This method takes a `cancel` effect which is responsible for signalling the blocking code to close itself when ZIO interruption occurs:
+The release action runs before the interrupt is reported to the caller:
+
+```
+acquire
+use
+release
+interrupt returned
+```
+
+`ZIO.acquireRelease` and `Scope` give the same three-part contract with the lifetime detached from a single `use` block, and finalizers added to a `Scope` are released in reverse order when the scope closes. The [Resource Management](../resource/index.md#acquire-release) page documents those APIs from the resource-safety side; what matters here is that every one of them is already correct with respect to interruption, so hand-written `ZIO.uninterruptibleMask` code is rarely needed in application code.
+
+### Interruption Is Not a Typed Error
+
+The error channel `E` of `ZIO[R, E, A]` models expected failures. Interruption is not one of them, so `ZIO#catchAll` and `ZIO#catchSome` never see it — they operate on `E`, and an interrupted effect does not fail with an `E` at all. Only the operators that expose the full `Cause` can observe interruption:
 
 ```scala
 import zio._
 
-val myApp =
-  for {
-    service <- ZIO.attempt(BlockingService())
-    fiber   <- ZIO.attemptBlockingCancelable(
-      effect = service.start()
-    )(
-      cancel = ZIO.succeed(service.close())
-    ).fork
-    _       <- fiber.interrupt.schedule(
-      Schedule.delayed(
-        Schedule.duration(3.seconds)
-      )
+val request: IO[String, Int] = ZIO.fail("boom")
+
+// `ZIO#catchAll` only ever sees the typed error channel.
+val recovered: UIO[Int] =
+  request.catchAll(message => ZIO.debug(s"recovered from $message").as(0))
+
+// `ZIO#catchAllCause` sees the full `Cause`, including interruption.
+val inspected: UIO[Int] =
+  request.catchAllCause(cause => ZIO.debug(s"interrupted: ${cause.isInterrupted}").as(0))
+```
+
+Observing interruption is not the same as recovering from it. A fiber that another fiber interrupts stays interrupted: the runtime re-asserts the interruption at the next interruptible point, so a recovery effect installed with `ZIO#catchAllCause` does not get to run to completion:
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      started   <- Promise.make[Nothing, Unit]
+      recovered <- Ref.make(false)
+      fiber <- (started.succeed(()) *> ZIO.never)
+                 .catchAllCause(_ => recovered.set(true))
+                 .fork
+      _    <- started.await
+      _    <- fiber.interrupt
+      seen <- recovered.get
+      _    <- ZIO.debug(s"handler completed: $seen")
+    } yield ()
+}
+```
+
+The handler is entered, but the fiber is interrupted again before the handler's effect takes hold:
+
+```
+handler completed: false
+```
+
+The practical rule follows from this: use `ZIO#catchAllCause` and `ZIO#sandbox` to *inspect* and *log* interruption, use finalizers to *act* on it, and read `Cause#isInterrupted` off an `Exit` — from `ZIO#exit` or from `Fiber#await` — when a caller needs to distinguish "cancelled" from "failed". The [Typed Errors Guarantees](../error-management/typed-errors-guarantees.md) page covers the same boundary from the error-management side.
+
+### Interrupting Asynchronous Effects
+
+A fiber that is parked on a callback-based API is suspended, which makes it a natural place to deliver an interrupt. What the runtime can do about the *underlying* operation depends on the constructor we choose. `ZIO.async`, `ZIO.asyncMaybe`, `ZIO.asyncZIO` and `ZIO.asyncInterrupt` all appear with their signatures on the [ZIO data type](../core/zio/zio.md#asynchronous) page; the difference that matters for interruption is whether the registration function can hand the runtime a canceler.
+
+With `ZIO.async`, it cannot. Interrupting a fiber parked in `ZIO.async` unparks the fiber and unwinds it promptly, but nothing tells the third-party API to stop, so its callback may still fire later into a fiber that no longer exists. `ZIO.never` is exactly this: an async suspension with no canceler, which is why a fiber blocked on `ZIO.never` is interrupted immediately and cleanly.
+
+`ZIO.asyncInterrupt` closes that gap. Its registration function returns an `Either`: a `Right` carries a result that was available synchronously, while a `Left` carries a canceler effect that the runtime runs when the fiber is interrupted while parked. Wrapping a subscription-style API therefore looks like this:
+
+```scala
+import zio._
+
+trait Subscription {
+  def cancel(): Unit
+}
+
+trait Feed {
+  def subscribe(onEvent: String => Unit): Subscription
+}
+```
+
+The canceler in the `Left` unsubscribes, so an interrupted fiber leaves no dangling registration behind:
+
+```scala
+import zio._
+
+def nextEvent(feed: Feed): UIO[String] =
+  ZIO.asyncInterrupt[Any, Nothing, String] { callback =>
+    val subscription = feed.subscribe(event => callback(ZIO.succeed(event)))
+    Left(ZIO.succeed(subscription.cancel()))
+  }
+```
+
+Prefer an effect for the canceler, as above, over a pure `Exit` value such as `Left(Exit.unit)`. The two are not equivalent to the runtime, and the pure form is currently affected by an open defect — see [Known Limitations](common-pitfalls.md#known-limitations).
+
+---
+
+## Interrupting Fibers
+
+Most interruption in a ZIO application happens automatically, as a consequence of structured concurrency. This page is about the cases where we ask for it ourselves: which operator to call, what each one waits for, and how to find out afterwards who interrupted whom.
+
+### `Fiber#interrupt`
+
+`Fiber#interrupt` interrupts a fiber on behalf of the calling fiber and returns the target's `Exit` value. It does not return as soon as the signal has been sent. It returns only after the target fiber has finished running every one of its finalizers.
+
+That guarantee is the whole point — when `Fiber#interrupt` returns, the target's resources are released and its cleanup is done — but it also means a slow finalizer slows down the caller:
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val slowToClose: UIO[Nothing] =
+    ZIO.never.ensuring(
+      ZIO.debug("closing the resource...") *> ZIO.sleep(3.seconds) *> ZIO.debug("closed")
     )
-  } yield ()
+
+  def run =
+    for {
+      fiber <- slowToClose.fork
+      _     <- ZIO.sleep(1.second)
+      _     <- ZIO.debug("interrupting")
+      _     <- fiber.interrupt
+      _     <- ZIO.debug("interrupt returned")
+    } yield ()
+}
 ```
 
-Here is another example of the cancellation of a blocking operation. When we `accept` a server socket, this blocking operation will never be interrupted until we close it using the `ServerSocket#close` method:
+Four seconds pass in total: one before the interrupt, then three more while the caller waits for the finalizer:
+
+```
+interrupting
+closing the resource...
+closed
+interrupt returned
+```
+
+### Choosing an Interruption Operator
+
+Four operators send an interrupt signal, and they differ along two axes: whether the caller waits for the target's finalizers, and which `FiberId` the interruption is attributed to.
+
+| Operator                            | Returns                | Waits for the Target's Finalizers? | Attributed To         | Use It When                                                             |
+| ----------------------------------- | ---------------------- | ---------------------------------- | --------------------- | ----------------------------------------------------------------------- |
+| `Fiber#interrupt`                   | `UIO[Exit[E, A]]`      | Yes                                | The calling fiber      | We need the target's result, or need its cleanup finished before moving on. |
+| `Fiber#interruptAs(fiberId)`        | `UIO[Exit[E, A]]`      | Yes                                | The given `FiberId`    | A combinator interrupts on behalf of another fiber and wants the `Cause` to say so. |
+| `Fiber#interruptFork`               | `UIO[Unit]`            | No                                 | The calling fiber      | We want the fiber gone but must not block on its cleanup.                |
+| `Fiber#interruptAsFork(fiberId)`    | `UIO[Unit]`            | No                                 | The given `FiberId`    | Fire-and-forget interruption attributed to another fiber.               |
+
+The fire-and-forget variants do not weaken any guarantee about the target: its finalizers still run, and they still run uninterruptibly. The only thing that changes is that the caller stops waiting for them. Rewriting the previous example with `Fiber#interruptFork` lets the parent continue immediately:
 
 ```scala
-import java.net.{Socket, ServerSocket}
 import zio._
 
-def accept(ss: ServerSocket): Task[Socket] =
-  ZIO.attemptBlockingCancelable(ss.accept())(ZIO.succeed(ss.close()))
+object MainApp extends ZIOAppDefault {
+  val slowToClose: UIO[Nothing] =
+    ZIO.never.ensuring(
+      ZIO.debug("closing the resource...") *> ZIO.sleep(3.seconds) *> ZIO.debug("closed")
+    )
+
+  def run =
+    for {
+      fiber <- slowToClose.fork
+      _     <- ZIO.sleep(1.second)
+      _     <- fiber.interruptFork
+      _     <- ZIO.debug("carrying on without waiting")
+      _     <- ZIO.sleep(5.seconds)
+    } yield ()
+}
 ```
 
-### Disabling Interruption of Fibers
+Now the parent prints its message before the target's finalizer has even started:
 
-As we discussed earlier, it is dangerous for fibers to interrupt others. The danger with such an interruption is that:
+```
+carrying on without waiting
+closing the resource...
+closed
+```
 
-- If the interruption occurs during the execution of an operation that must be _finalized_, the finalization will not be executed.
+### Self-Interruption
 
-- If this interruption occurs in the middle of a _critical section_, it will cause an application state to become inconsistent.
+A fiber can interrupt itself. `ZIO.interrupt` fails the current fiber with an interruption cause attributed to the current fiber, and `ZIO.interruptAs` does the same but attributes it to a `FiberId` we supply. Self-interruption behaves like any other interruption, running finalizers and reporting interruption in the fiber's `Exit`:
 
-- It is also a threat to _resource safety_. If the fiber is in the middle of acquiring a resource and is interrupted, the application will leak resources.
+```scala
+import zio._
 
-ZIO introduces the `uninterruptible` and `uninterruptibleMask` operations for this purpose. The former creates a region of code uninterruptible and the latter has the same functionality but gives us a `restore` function that can be applied to any region of code to restore the interruptibility of that region.
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      exit <- ZIO.interrupt.onInterrupt(ZIO.debug("cleanup ran")).exit
+      _    <- ZIO.debug(s"interrupted: ${exit.isInterrupted}")
+    } yield ()
+}
+```
 
-These operators are advanced and very low-level so we don't use them in regularly in application development unless we know what we are doing as library designers. If you find yourself using these operators, think again about refactoring your code using high-level operators like `ZIO#onInterrupt`, `ZIO#onDone`, `ZIO#ensuring`, `ZIO.acquireRelease*` and many other concurrent operators like `race`, `foreachPar`, etc.
+Both the finalizer and the exit inspection run, because `ZIO#exit` converts the interruption into a value rather than letting it propagate:
+
+```
+cleanup ran
+interrupted: true
+```
+
+`ZIO.allowInterrupt` is the cooperative version of the same idea. It checks whether anybody has signalled an interrupt to this fiber and, if so, self-interrupts; otherwise it does nothing. It is useful in the middle of a long uninterruptible stretch, at a point where stopping is safe.
+
+### Who Interrupted This Fiber?
+
+An interrupted fiber does not simply fail with "interrupted". It fails with a `Cause` containing `Cause.Interrupt(fiberId, trace)`, where `fiberId` identifies the fiber that *asked* for the interruption. `Cause#interruptors` collects those ids, and `Cause#isInterrupted` and `Cause#isInterruptedOnly` answer whether interruption was involved at all and whether it was the only thing that went wrong.
+
+Reading the interruptor out of an interrupted fiber's `Exit` confirms who is responsible:
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      selfId  <- ZIO.fiberId
+      started <- Promise.make[Nothing, Unit]
+      fiber   <- (started.succeed(()) *> ZIO.never).fork
+      _       <- started.await
+      exit    <- fiber.interrupt
+      _ <- exit.foldExit(
+             cause =>
+               ZIO.debug(s"interruptors: ${cause.interruptors}") *>
+                 ZIO.debug(s"that includes us: ${cause.interruptors.contains(selfId)}"),
+             _ => ZIO.debug("the fiber completed normally")
+           )
+    } yield ()
+}
+```
+
+The interruptor is whichever fiber invokes `Fiber#interrupt`, which here is the main fiber:
+
+```
+interruptors: Set(Runtime(2,...))
+that includes us: true
+```
+
+More than one fiber can interrupt the same workflow, and ZIO never drops an interruptor: every fiber that signalled an interrupt appears in the final `Cause`, because new interruption causes are accumulated onto the existing ones rather than replacing them. Structured operators also combine the ids of several participating fibers into a `FiberId.Composite`, which is why a single `Cause.Interrupt` can name more than one fiber. Both cases show up in `Cause#interruptors` as a set:
+
+```scala
+import zio._
+
+val alice: FiberId = FiberId(1, 0, Trace.empty)
+val bob: FiberId   = FiberId(2, 0, Trace.empty)
+
+val cause: Cause[Nothing]  = Cause.interrupt(alice) ++ Cause.interrupt(bob)
+val interruptors: Set[FiberId] = cause.interruptors
+```
+
+When reading a fiber dump or a failure log, this is the field that answers "who killed this fiber". A `Cause` that contains both a defect and an interruption almost always means the interruption was collateral damage from a parallel operator, which is covered in [Common Pitfalls](common-pitfalls.md#oninterrupt-can-fire-when-your-effect-was-not-the-one-interrupted).
+
+### Interrupting a Fiber That Has Already Finished
+
+Interrupting a fiber that has already completed is a no-op, not an error. The fiber already holds its `Exit` value, so `Fiber#interrupt` returns that value immediately and does not turn a success into an interruption:
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  def run =
+    for {
+      fiber <- ZIO.succeed(42).fork
+      _     <- fiber.await
+      exit  <- fiber.interrupt
+      _     <- ZIO.debug(s"exit: $exit")
+    } yield ()
+}
+```
+
+The already-finished fiber reports its original success:
+
+```
+exit: Success(42)
+```
+
+The same holds for a fiber that is currently winding down. Once a fiber has begun running its finalizers, it cannot be interrupted again, so a second `Fiber#interrupt` does not shorten or abort the cleanup — it simply waits for it like the first one.
+
+### Disconnecting a Fiber
+
+`ZIO#disconnect` runs an effect in its own daemon fiber and waits for that fiber's result, forwarding interruption to it in the background rather than waiting for it. The effect's finalizers still run in full; what changes is that whoever interrupts the *caller* no longer has to wait for them.
+
+That makes it the right tool when a slow finalizer must not stall a race or a timeout:
+
+```scala
+import zio._
+
+object MainApp extends ZIOAppDefault {
+  val slowToClose: UIO[Nothing] =
+    ZIO.never.ensuring(ZIO.debug("closing...") *> ZIO.sleep(5.seconds) *> ZIO.debug("closed"))
+
+  def run =
+    for {
+      result <- slowToClose.disconnect.timeout(1.second)
+      _      <- ZIO.debug(s"timed out promptly: ${result.isEmpty}")
+      _      <- ZIO.sleep(6.seconds)
+    } yield ()
+}
+```
+
+The timeout is honoured after one second, while the finalizer keeps running on its own fiber:
+
+```
+timed out promptly: true
+closing...
+closed
+```
+
+What `ZIO#disconnect` does *not* do is change the interruptibility of the effect it wraps. If the effect is uninterruptible, disconnecting it does not make the interrupt land any sooner, because the interrupt still cannot be delivered. See [Timeouts and Races Do Not Work Inside Uninterruptible Regions](common-pitfalls.md#timeouts-and-races-do-not-work-inside-uninterruptible-regions).
 
 ---
 
@@ -14933,25 +15611,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@59e785f0
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@36560c45
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@4b76ff11
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@ccbcb82
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@20a001cb
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@6167656c
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-09-14T10:43:44.512151202Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-09-14T12:16:32.926698842Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@5c4f53c4
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@3479def7
 ```
 
 ### Construction / Creating Instances
@@ -16065,7 +16743,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20536/0x00007f6bb7216c50@61aaca79
+//   eval = zio.Supervisor$$$Lambda$20539/0x00007ff35d85ec50@7e8c5da1
 // )
 ```
 
@@ -16894,7 +17572,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19544/0x00007f6bb6fa3a58@31782371
+//     f = zio.ZIO$$$Lambda$19547/0x00007ff35f0109c0@1ac616b6
 //   ),
 //   successK = <function1>
 // )
@@ -17675,7 +18353,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@c1ee548
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@1918b748
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -17688,12 +18366,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18810/0x00007f6bb6dfa1c0@77e6af0f
+//       eval = zio.ZIO$$$Lambda$18770/0x00007ff35ee4b0c0@433a3a60
 //     ),
-//     successK = zio.ZIO$$$Lambda$19534/0x00007f6bb6f9e000@3d6a4a56
+//     successK = zio.ZIO$$$Lambda$19537/0x00007ff35f0020b8@4f210348
 //   ),
-//   successK = zio.ZIO$$$Lambda$18813/0x00007f6bb6dfc438@22ec8b14,
-//   failureK = zio.ZIO$$Lambda$20332/0x00007f6bb714cc10@4a11f25b
+//   successK = zio.ZIO$$$Lambda$18773/0x00007ff35ee4bb28@147e486f,
+//   failureK = zio.ZIO$$Lambda$20335/0x00007ff35e1260d0@63dcdcf
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -17705,11 +18383,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18810/0x00007f6bb6dfa1c0@77e6af0f
+//       eval = zio.ZIO$$$Lambda$18770/0x00007ff35ee4b0c0@433a3a60
 //     ),
-//     successK = zio.ZIO$$$Lambda$19534/0x00007f6bb6f9e000@119840f3
+//     successK = zio.ZIO$$$Lambda$19537/0x00007ff35f0020b8@2dd565e8
 //   ),
-//   successK = zio.ZIO$$Lambda$20562/0x00007f6bb722fb58@2bdddf96
+//   successK = zio.ZIO$$Lambda$20565/0x00007ff35e1f8b58@3d8e0360
 // )
 ```
 
@@ -22675,7 +23353,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@27fbee0c
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@477e490c
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -22703,9 +23381,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
+//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
 //   ),
-//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@3f271325
+//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@12d2ab3c
 // )
 ```
 
@@ -22754,7 +23432,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@239af885
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@edaf0d8
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -22784,9 +23462,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
+//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
 //   ),
-//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@67a6f19a
+//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@36797313
 // )
 ```
 
@@ -22817,7 +23495,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@3e06702c
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@fb3551b
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -22832,9 +23510,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
+//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
 //   ),
-//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@4f33dbac
+//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@60d02369
 // )
 ```
 
@@ -22878,7 +23556,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@1b9fe050
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@2aadd6f5
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -22895,9 +23573,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
+//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
 //   ),
-//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@59b6c001
+//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@7edff90f
 // )
 ```
 
@@ -22929,7 +23607,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@62fc856d
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@32506c6f
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -22946,9 +23624,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
+//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
 //   ),
-//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@32c07d3f
+//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@14ff8288
 // )
 ```
 
@@ -22980,7 +23658,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@2b307385
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@3cbb7f32
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -23011,9 +23689,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
+//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
 //   ),
-//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@79e9ecc8
+//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@6c3a61cd
 // )
 ```
 
@@ -23046,7 +23724,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@6cd625d8
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@33f07f84
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -23062,9 +23740,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
+//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
 //   ),
-//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@35b57bbc
+//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@1239b190
 // )
 ```
 
@@ -23095,7 +23773,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@7da99394
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@647e24cf
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -23122,9 +23800,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
+//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
 //   ),
-//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@61490e0e
+//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@e7bcd30
 // )
 ```
 
@@ -23144,7 +23822,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@69a22476
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@526026bd
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -23167,9 +23845,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
+//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
 //   ),
-//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@2778360a
+//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@761a66c8
 // )
 ```
 
@@ -23185,7 +23863,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@68cb3582
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@4a470800
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -23207,9 +23885,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
+//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
 //   ),
-//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@5892fb50
+//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@7c02c1b
 // )
 ```
 
@@ -23225,7 +23903,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@463a7078
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@1ed68101
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -23245,9 +23923,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
+//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
 //   ),
-//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@28e3548f
+//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@62b70e6f
 // )
 ```
 
@@ -23265,7 +23943,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@b24817b
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@224b96c6
 
 val example = {
   val scoped = ZIO.scoped {
@@ -23287,9 +23965,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
+//       eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
 //     ),
-//     successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@654e5dd5
+//     successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@6598b1f6
 //   ),
 //   successK = <function1>
 // )
@@ -27294,14 +27972,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@48f9a960
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@3bcecdac
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@2987b122
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@54131f8b
 ```
 
 ### From ZIO
@@ -34028,9 +34706,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$20023/0x00007f6bb7080000@738666ee
+//             onState = zio.ZIO$$$Lambda$20026/0x00007ff35d789240@605f04c5
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$20032/0x00007f6bb7089720@3684f6fa
+//           successK = zio.test.package$ZTest$$$Lambda$20035/0x00007ff35d756b18@255d96aa
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -37020,7 +37698,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+214-d0b9d23f-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.26+215-3fab24d7-SNAPSHOT"
 ```
 
 ### Example
@@ -48976,9 +49654,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$20013/0x00007f6bb7077ab0@5f338059
+//     eval = zio.Scope$$$Lambda$20016/0x00007ff35d880d20@258afee1
 //   ),
-//   successK = zio.ZIO$$$Lambda$20014/0x00007f6bb7078000@71f11e77
+//   successK = zio.ZIO$$$Lambda$20017/0x00007ff35d880fd8@53931403
 // )
 ```
 
