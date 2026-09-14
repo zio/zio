@@ -13,7 +13,7 @@ import { useStreamPipeline } from '../hooks/useStreamPipeline';
 const CHIP_STYLES = {
   queued: 'border-neutral-700 bg-neutral-800 text-neutral-400',
   buffered: 'border-amber-500 bg-amber-900 text-amber-300',
-  written: 'border-green-500 bg-green-900 text-green-300',
+  done: 'border-green-500 bg-green-900 text-green-300',
 };
 
 function ItemChip({ item }) {
@@ -38,8 +38,7 @@ function ItemChip({ item }) {
 
 // Ticks while any timed stage is in flight so each bar advances against its
 // own real start time / duration — several enrich bars filling at once at
-// visibly different rates is what makes the parallelism legible, and the
-// single write bar is what makes the slow consumer's pacing legible.
+// visibly different rates is what makes the parallelism legible.
 function useAnimationTick(active) {
   const [, setTick] = useState(0);
 
@@ -72,45 +71,30 @@ function WorkSlot({ item, tone }) {
   const elapsed = Date.now() - item.startedAt;
   const progress = Math.min(1, elapsed / item.durationMs);
 
-  // The item's own work is done but it is still holding this slot: the only
-  // thing keeping it here is that the bounded buffer downstream has no room.
-  // That is the backpressure moment, per item, so say so rather than leaving
-  // a finished bar sitting under an "enriching" label.
-  const blocked = progress >= 1;
-  const shown = blocked ? BLOCKED_TONE : tone;
-
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', visualDuration: 0.25, bounce: 0.2 }}
-      className={`flex h-10 flex-col justify-center gap-1 rounded-md border px-1.5 ${shown.container}`}
+      className={`flex h-10 flex-col justify-center gap-1 rounded-md border px-1.5 ${tone.container}`}
     >
       <div
-        className={`flex items-baseline justify-between font-mono text-[11px] leading-none ${shown.label}`}
+        className={`flex items-baseline justify-between font-mono text-[11px] leading-none ${tone.label}`}
       >
         <span>#{item.id}</span>
-        <span className={`text-[9px] ${shown.duration}`}>
-          {blocked ? 'blocked' : `${item.durationMs}ms`}
+        <span className={`text-[9px] ${tone.duration}`}>
+          {item.durationMs}ms
         </span>
       </div>
-      <div className={`h-1 overflow-hidden rounded-full ${shown.track}`}>
+      <div className={`h-1 overflow-hidden rounded-full ${tone.track}`}>
         <div
-          className={`h-full rounded-full ${shown.bar}`}
+          className={`h-full rounded-full ${tone.bar}`}
           style={{ width: `${progress * 100}%` }}
         />
       </div>
     </motion.div>
   );
 }
-
-const BLOCKED_TONE = {
-  container: 'border-amber-600 bg-amber-950',
-  label: 'text-amber-300',
-  duration: 'text-amber-400',
-  track: 'bg-amber-950',
-  bar: 'bg-amber-500',
-};
 
 const ENRICH_TONE = {
   container: 'border-blue-500 bg-blue-900',
@@ -120,14 +104,6 @@ const ENRICH_TONE = {
   bar: 'bg-blue-400',
 };
 
-const WRITE_TONE = {
-  container: 'border-purple-500 bg-purple-900',
-  label: 'text-purple-300',
-  duration: 'text-purple-400/80',
-  track: 'bg-purple-950',
-  bar: 'bg-purple-400',
-};
-
 export function PipelineStages({ pipeline }) {
   useStreamPipeline(pipeline);
 
@@ -135,18 +111,9 @@ export function PipelineStages({ pipeline }) {
   const queued = byStage('queued');
   const enriching = byStage('enriching');
   const buffered = byStage('buffered');
-  const writing = byStage('writing');
-  const written = byStage('written');
+  const done = byStage('done');
 
-  useAnimationTick(enriching.length > 0 || writing.length > 0);
-
-  // Two tells, both meaning the bounded buffer is refusing more work and the
-  // Stream is propagating the slow writer's pace upstream: an enrich slot has
-  // finished but can't hand its item off, or work is waiting upstream while
-  // enrich slots sit free.
-  const backpressured =
-    enriching.some((i) => Date.now() - i.startedAt >= i.durationMs) ||
-    (queued.length > 0 && enriching.length < pipeline.concurrency);
+  useAnimationTick(enriching.length > 0);
 
   const enrichSlots = Array.from(
     { length: pipeline.concurrency },
@@ -158,7 +125,7 @@ export function PipelineStages({ pipeline }) {
 
   return (
     <div className="flex flex-col gap-2 p-4">
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-4 gap-3">
         <Lane label="Source" items={queued} />
 
         <div className="flex flex-col gap-2">
@@ -176,38 +143,18 @@ export function PipelineStages({ pipeline }) {
         </div>
 
         {/* Count only, no "n/capacity" denominator: this counts everything
-            past the enrich stage that hasn't started writing, which is the
+            past the enrich stage that hasn't been drained yet, which is the
             queue plus the one element already handed downstream — so it can
             read one above the Stream's nominal capacity. The amber "full"
-            treatment and the backpressure caption carry the bounded story
-            without printing a number that looks wrong. */}
+            treatment carries the bounded story without printing a number
+            that looks wrong. */}
         <Lane
           label={`Buffer · ${buffered.length} waiting`}
           items={buffered}
           full={buffered.length >= pipeline.capacity}
         />
 
-        <div className="flex flex-col gap-2">
-          <LaneLabel>Write · 1 at a time</LaneLabel>
-          <div className="flex min-h-[88px] flex-col content-start gap-1.5 rounded-lg border border-dashed border-purple-900/60 p-2">
-            <WorkSlot item={writing[0]} tone={WRITE_TONE} />
-          </div>
-        </div>
-
-        <Lane label="Written" items={written} />
-      </div>
-
-      <div className="h-4 text-center text-xs">
-        {backpressured && (
-          <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-amber-600"
-          >
-            backpressure — buffer full, enrichment paused until the writer
-            catches up
-          </motion.span>
-        )}
+        <Lane label="Done" items={done} />
       </div>
     </div>
   );

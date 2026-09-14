@@ -47,8 +47,7 @@ export class StreamPipeline {
   // work will take, so the chip can render a progress bar driven by that
   // item's real duration rather than a generic spinner — several enrich bars
   // filling at once, each at its own rate, is what makes the parallelism
-  // legible, and the single write bar is what makes the slow consumer's
-  // pacing legible.
+  // legible.
   startTimed(id, stage, durationMs) {
     const item = this.items.find((item) => item.id === id);
     if (!item) return;

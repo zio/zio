@@ -11,17 +11,9 @@ import { StreamPipeline } from '../StreamPipeline';
 // example to port, so this scenario is built by hand rather than ported
 // verbatim (an explicit exception the user approved for this tab only).
 // It still runs a REAL `effect` Stream pipeline (fromIterable -> mapEffect
-// with concurrency -> buffer -> mapEffect -> runDrain), mirroring the
-// ZStream snippet shown in the Code toggle line for line, exactly like
-// every other tab drives its visual off a real Effect/fiber rather than a
-// canned animation.
-//
-// The writer is deliberately the bottleneck: it handles one item at a time,
-// slower than four enrichments complete, so the bounded buffer fills and
-// upstream enrichment visibly stalls waiting on it. That stall is real
-// backpressure from the Stream itself — verified in the engine, where an
-// item's enrich start lands milliseconds after a write completes and frees
-// buffer space — not something this visual fakes.
+// with concurrency -> buffer -> runDrain), mirroring the ZStream snippet
+// shown in the Code toggle line for line, exactly like every other tab
+// drives its visual off a real Effect/fiber rather than a canned animation.
 
 const EVENTS = Array.from({ length: 10 }, (_, i) => ({ id: i + 1 }));
 
@@ -29,13 +21,10 @@ const CONCURRENCY = 4;
 const BUFFER_CAPACITY = 2;
 
 // Paced for watching, not for realism: the whole point of this tab is that
-// a viewer can follow an item from source to written, see four of them
-// overlapping in enrich, and watch the writer set the pace for everything
-// upstream of it.
+// a viewer can follow an item from source to done and see four of them
+// overlapping in enrich on the way.
 const ENRICH_MIN_MS = 1200;
 const ENRICH_MAX_MS = 1800;
-const WRITE_MIN_MS = 1200;
-const WRITE_MAX_MS = 1600;
 
 function enrichItem(item, durationMs) {
   return Effect.gen(function* () {
@@ -67,19 +56,13 @@ function buildPipelineEffect(pipeline) {
         Effect.sync(() => pipeline.setStage(item.id, 'buffered')),
       ),
       Stream.buffer({ capacity: BUFFER_CAPACITY }),
-      Stream.mapEffect((item) =>
-        Effect.gen(function* () {
-          const durationMs = getDelay(WRITE_MIN_MS, WRITE_MAX_MS);
-          pipeline.startTimed(item.id, 'writing', durationMs);
-          yield* Effect.sleep(durationMs);
-          pipeline.setStage(item.id, 'written');
-          return item;
-        }),
+      Stream.tap((item) =>
+        Effect.sync(() => pipeline.setStage(item.id, 'done')),
       ),
       Stream.runDrain,
     );
 
-    return new StringResult(`${EVENTS.length} written`);
+    return new StringResult(`${EVENTS.length} processed`);
   });
 }
 
@@ -118,7 +101,6 @@ export default function StreamingVisual() {
     .fromIterable(events)          // or Kafka, files, sockets…
     .mapZIOPar(20)(enrich)         // 20 concurrent enrichments
     .buffer(16)                    // bounded — fills when the sink lags
-    .mapZIO(write)                 // slow consumer sets the pace
     .runDrain`;
 
   return (
