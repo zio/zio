@@ -470,6 +470,7 @@ lazy val testMagnoliaTests = crossProject(JVMPlatform, JSPlatform)
   .dependsOn(testMagnolia, testTests % "test->test;compile->compile", testRunner)
   .settings(stdSettings("test-magnolia-tests"))
   .settings(crossProjectSettings)
+  .settings(lowerJdkReleaseOn212)
   .settings(
     publish / skip := true
   )

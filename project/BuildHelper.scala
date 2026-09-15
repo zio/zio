@@ -14,7 +14,41 @@ object BuildHelper {
   val Scala213: String = "2.13.18"
   val Scala3: String   = "3.3.8"
 
-  val JdkReleaseVersion: String = "11"
+  val JdkReleaseVersion: String = "17"
+
+  /**
+   * Scala 2.12 cannot derive over a value-based JDK class under `-release` 16
+   * or above, so the modules that do need their release level lowered.
+   *
+   * `-release` makes scalac read the JDK signatures from `ct.sym`, which omits
+   * `jdk.internal`. From JDK 16 the value-based classes - `java.time.Instant`,
+   * `UUID`, the boxed primitives - carry `@jdk.internal.ValueBased` (JEP 390),
+   * so 2.12 can only read that annotation as a stub. Expanding Magnolia for
+   * such a class forces the stub, and forcing it is a hard error rather than a
+   * warning, so `-Wconf` cannot silence it. Putting the annotation on the
+   * compile classpath does not help either: under `-release`, annotation
+   * references in JDK class files resolve against `ct.sym` alone.
+   *
+   * Merely referring to those classes is fine, and so is deriving for a case
+   * class that merely holds one. Scala 2.13 and Scala 3 are unaffected.
+   */
+  val scala212MagnoliaJdkReleaseVersion: String = "15"
+
+  /**
+   * Lowers `-release` on Scala 2.12 only. For `test-magnolia-tests`, which is
+   * not published - see [[scala212MagnoliaJdkReleaseVersion]].
+   */
+  lazy val lowerJdkReleaseOn212: Seq[Setting[_]] = Seq(
+    scalacOptions := {
+      val options = scalacOptions.value
+      if (!CrossVersion.partialVersion(scalaVersion.value).contains((2L, 12L))) options
+      else
+        options.indexOf("-release") match {
+          case -1 => options
+          case i  => options.patch(i + 1, Seq(scala212MagnoliaJdkReleaseVersion), 1)
+        }
+    }
+  )
 
   lazy val isRelease = {
     val value = sys.env.contains("CI_RELEASE_MODE")
