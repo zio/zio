@@ -10,6 +10,12 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { useStreamPipeline } from '../hooks/useStreamPipeline';
 
+// One fixed height for every lane box so the five columns line up top and
+// bottom instead of each sizing to its own content (the Written lane grows
+// to four rows of chips once everything lands, which left the others short).
+// Sized for that worst case: 4 rows x h-7 chips + 3 gaps + p-2 padding.
+const LANE_BOX_HEIGHT = 'h-[146px]';
+
 const CHIP_STYLES = {
   queued: 'border-neutral-700 bg-neutral-800 text-neutral-400',
   buffered: 'border-amber-500 bg-amber-900 text-amber-300',
@@ -142,10 +148,18 @@ export function PipelineStages({ pipeline }) {
   // Two tells, both meaning the bounded buffer is refusing more work and the
   // Stream is propagating the slow writer's pace upstream: an item has
   // finished enriching but can't hand off, or work is waiting upstream while
-  // enrich slots sit free.
+  // enrich slots sit free *and* the buffer is at capacity.
+  //
+  // Both are gated on the pipeline actually running — at rest every item is
+  // queued and no slot is busy, which satisfied the second tell and left the
+  // caption showing before the visitor had even pressed run.
+  const inFlight = enrichingAll.length + waiting.length + writing.length > 0;
   const backpressured =
-    handingOff.length > 0 ||
-    (queued.length > 0 && enriching.length < pipeline.concurrency);
+    inFlight &&
+    (handingOff.length > 0 ||
+      (queued.length > 0 &&
+        enriching.length < pipeline.concurrency &&
+        waiting.length >= pipeline.capacity));
 
   const slotsFor = (items, count) =>
     Array.from({ length: count }, (_, index) => {
@@ -168,7 +182,9 @@ export function PipelineStages({ pipeline }) {
           {/* 2x2 rather than a 4-row column: four stacked slots made the
               card taller than the panel's fixed height and pushed the code
               block out of view entirely. */}
-          <div className="grid min-h-[88px] grid-cols-2 content-start gap-1.5 rounded-lg border border-dashed border-blue-900/60 p-2">
+          <div
+            className={`grid ${LANE_BOX_HEIGHT} grid-cols-2 content-start gap-1.5 rounded-lg border border-dashed border-blue-900/60 p-2`}
+          >
             {enrichSlots.map(({ key, item }) => (
               <WorkSlot key={key} item={item} tone={ENRICH_TONE} />
             ))}
@@ -195,7 +211,9 @@ export function PipelineStages({ pipeline }) {
           <LaneLabel>
             Write · {writing.length} of {pipeline.writeConcurrency}
           </LaneLabel>
-          <div className="flex min-h-[88px] flex-col content-start gap-1.5 rounded-lg border border-dashed border-purple-900/60 p-2">
+          <div
+            className={`flex ${LANE_BOX_HEIGHT} flex-col content-start gap-1.5 rounded-lg border border-dashed border-purple-900/60 p-2`}
+          >
             {writeSlots.map(({ key, item }) => (
               <WorkSlot key={key} item={item} tone={WRITE_TONE} />
             ))}
@@ -234,7 +252,7 @@ function Lane({ label, items, full, styleKey }) {
     <div className="flex flex-col gap-2">
       <LaneLabel>{label}</LaneLabel>
       <div
-        className={`flex min-h-[88px] flex-wrap content-start justify-center gap-1.5 rounded-lg border border-dashed p-2 ${
+        className={`flex ${LANE_BOX_HEIGHT} flex-wrap content-start justify-center gap-1.5 rounded-lg border border-dashed p-2 ${
           full ? 'border-amber-600/70 bg-amber-950/20' : 'border-neutral-800'
         }`}
       >
