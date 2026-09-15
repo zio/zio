@@ -11,16 +11,12 @@ import { useEffect, useState } from 'react';
 import { useStreamPipeline } from '../hooks/useStreamPipeline';
 
 // One fixed height for every lane box so the five columns line up top and
-// bottom instead of each sizing to its own content (the Written lane grows
-// as items land, which otherwise left the others short).
-//
-// Chips are sized so four fit per row even in the narrowest lane the layout
-// produces (measured: 150px of usable width at >=1440, but only 113px at
-// 1100), which keeps ten items to three rows rather than four. That's why
-// they're w-6 with a tight gap and no "#" prefix — at 1100px a wider chip
-// wraps to three per row, needing a fourth row that this fixed box would
-// then clip.
-const LANE_BOX_HEIGHT = 'h-[108px]';
+// bottom instead of each sizing to its own content (the Written lane fills
+// up once everything lands, which left the others short). Sized for that
+// worst case: 3 rows x h-7 chips + 2 gaps + p-2 padding — the event count is
+// 9 precisely so 3 chips per row fill exactly three rows. Also clears the
+// enrich lane's 2 rows of h-10 slots.
+const LANE_BOX_HEIGHT = 'h-[112px]';
 
 const CHIP_STYLES = {
   queued: 'border-neutral-700 bg-neutral-800 text-neutral-400',
@@ -43,10 +39,10 @@ function ItemChip({ item, styleKey }) {
       // reads as chips overlapping each other.
       exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.15 } }}
       transition={{ type: 'spring', visualDuration: 1, bounce: 0.2 }}
-      className={`relative flex h-7 w-6 items-center justify-center rounded-md border font-mono text-xs font-medium ${CHIP_STYLES[styleKey ?? item.stage]}`}
+      className={`relative flex h-7 w-11 items-center justify-center rounded-md border font-mono text-xs font-medium ${CHIP_STYLES[styleKey ?? item.stage]}`}
       style={{ willChange: 'transform, opacity' }}
     >
-      <span className="relative z-10">{item.id}</span>
+      <span className="relative z-10">#{item.id}</span>
     </motion.div>
   );
 }
@@ -189,7 +185,7 @@ export function PipelineStages({ pipeline }) {
               card taller than the panel's fixed height and pushed the code
               block out of view entirely. */}
           <div
-            className={`grid ${LANE_BOX_HEIGHT} grid-cols-2 content-start gap-1 rounded-lg border border-dashed border-blue-900/60 p-2`}
+            className={`grid ${LANE_BOX_HEIGHT} grid-cols-2 content-start gap-1.5 rounded-lg border border-dashed border-blue-900/60 p-2`}
           >
             {enrichSlots.map(({ key, item }) => (
               <WorkSlot key={key} item={item} tone={ENRICH_TONE} />
@@ -218,7 +214,7 @@ export function PipelineStages({ pipeline }) {
             Write · {writing.length} of {pipeline.writeConcurrency}
           </LaneLabel>
           <div
-            className={`flex ${LANE_BOX_HEIGHT} flex-col content-start gap-1 rounded-lg border border-dashed border-purple-900/60 p-2`}
+            className={`flex ${LANE_BOX_HEIGHT} flex-col content-start gap-1.5 rounded-lg border border-dashed border-purple-900/60 p-2`}
           >
             {writeSlots.map(({ key, item }) => (
               <WorkSlot key={key} item={item} tone={WRITE_TONE} />
@@ -258,7 +254,7 @@ function Lane({ label, items, full, styleKey }) {
     <div className="flex flex-col gap-2">
       <LaneLabel>{label}</LaneLabel>
       <div
-        className={`flex ${LANE_BOX_HEIGHT} flex-wrap content-start justify-center gap-1 rounded-lg border border-dashed p-2 ${
+        className={`flex ${LANE_BOX_HEIGHT} flex-wrap content-start justify-center gap-1.5 rounded-lg border border-dashed p-2 ${
           full ? 'border-amber-600/70 bg-amber-950/20' : 'border-neutral-800'
         }`}
       >

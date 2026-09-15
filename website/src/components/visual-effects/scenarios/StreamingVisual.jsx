@@ -29,7 +29,10 @@ import {
 // item's enrich start lands milliseconds after a write completes and frees
 // buffer space — not something this visual fakes.
 
-const EVENTS = Array.from({ length: 10 }, (_, i) => ({ id: i + 1 }));
+// 9, not 10: the Written lane fits 3 chips per row, so 9 fills exactly three
+// rows and lets every lane box be one row shorter (see LANE_BOX_HEIGHT in
+// pipeline/PipelineStages.jsx), giving the code block back the space.
+const EVENTS = Array.from({ length: 9 }, (_, i) => ({ id: i + 1 }));
 
 // From streamingParams.js, the same module the displayed snippet is built
 // from — so what the code says and what the pipeline runs cannot drift.
