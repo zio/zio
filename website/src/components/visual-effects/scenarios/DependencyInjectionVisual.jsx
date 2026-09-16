@@ -105,10 +105,19 @@ function buildProgram(graph) {
     }),
   );
 
+  // `app` itself is a node in the graph rather than a separate result box:
+  // it can only run once every requirement in its R has been provided, which
+  // is the last step of the story the graph is telling.
   const app = Effect.gen(function* () {
     const userService = yield* UserServiceTag;
     yield* AuditServiceTag;
+
+    const durationMs = getDelay(BUILD_MIN_MS, BUILD_MAX_MS);
+    graph.startBuild('runnable', durationMs);
+    yield* Effect.sleep(durationMs);
+
     const name = yield* userService.signup('John');
+    graph.setReady('runnable', `signed up ${name}`);
     return new StringResult(`signed up ${name}`);
   });
 
@@ -159,6 +168,10 @@ export default function DependencyInjectionVisual() {
       effects={[appTask]}
       effectHighlightMap={{ app: { text: 'runnable' } }}
       layerGraph={graph}
+      // The graph already shows this effect's progress and its result on the
+      // app.provide(...) node, so the standard node row would just repeat the
+      // header's run state.
+      showEffectNodes={false}
       exampleId="zlayer-wiring"
     />
   );

@@ -51,7 +51,9 @@ export class LayerGraph {
 
     layer.state = 'ready';
     layer.instance = instance;
-    this.environment.push(id);
+    // `app` is not a service anyone can require, so it never joins the
+    // environment — it is the thing the environment exists to satisfy.
+    if (!layer.isApp) this.environment.push(id);
     this.notify();
   }
 

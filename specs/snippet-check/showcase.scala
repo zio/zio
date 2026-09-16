@@ -37,9 +37,6 @@ class AuditService(db: Database) {
   def record(name: String): UIO[Unit] = ZIO.unit
 }
 
-val app: ZIO[UserService & AuditService, Throwable, User] =
-  ZIO.serviceWithZIO[UserService](_.signup("John"))
-
 def runFast(name: String): Task[String] = ZIO.succeed(name)
 def attemptParallelPark(): IO[String, String] = ZIO.succeed("parked")
 
@@ -113,9 +110,13 @@ object Snippet5 {
     val live: ZLayer[Database, Nothing, AuditService] =
       ZLayer.fromFunction(new AuditService(_))
 
+  val app: ZIO[UserService & AuditService, Throwable, User] =
+    ZIO.serviceWithZIO[UserService](_.signup("John"))
+
   // Database.live is written once and built once — both services share it
   val runnable =
     app.provide(UserService.live, AuditService.live, Database.live, Logger.live)
 }
+
 
 

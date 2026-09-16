@@ -34,6 +34,13 @@ const STATE_TEXT = {
   ready: 'ready',
 };
 
+// `app` is run, not constructed, so it gets its own wording.
+const APP_STATE_TEXT = {
+  pending: 'needs its environment',
+  building: 'running',
+  ready: 'done',
+};
+
 // Ticks while any layer is under construction so each bar advances against
 // its own real start time and duration.
 function useAnimationTick(active) {
@@ -79,7 +86,8 @@ function LayerCard({ layer, receivedInstances }) {
       >
         <span className="truncate">{layer.label}</span>
         <span className="shrink-0 text-[9px] opacity-80">
-          {layer.instance ?? STATE_TEXT[layer.state]}
+          {layer.instance ??
+            (layer.isApp ? APP_STATE_TEXT : STATE_TEXT)[layer.state]}
         </span>
       </div>
 

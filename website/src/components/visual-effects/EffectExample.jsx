@@ -30,6 +30,7 @@ function EffectExampleComponent({
   effects,
   layerGraph,
   scope,
+  showEffectNodes = true,
   showScheduleTimeline,
   streamPipeline,
   variant,
@@ -183,65 +184,69 @@ function EffectExampleComponent({
         </motion.div>
       )}
 
-      {/* Main visualization */}
-      <motion.div
-        className="border-b px-4 py-5"
-        initial={{
-          borderColor: borderColorValue,
-        }}
-        animate={{
-          borderColor: borderColorValue,
-        }}
-        transition={standardTransition}
-      >
-        {isSingleEffect ? (
-          // Single effect - just show the effect
-          <div className="flex justify-start">
-            <div
-              onMouseEnter={() => handleMouseEnter(headerEffect.name)}
-              onMouseLeave={handleMouseLeave}
-            >
-              <EffectNode effect={headerEffect} />
-            </div>
-          </div>
-        ) : (
-          // Multiple effects with arrow and result
-          <div className="flex flex-row items-center justify-start gap-6">
-            {/* Input effects - wrap on mobile */}
-            <div className="flex flex-wrap justify-center gap-6">
-              {effects.map((effect) => (
-                <div
-                  key={effect.name}
-                  onMouseEnter={() => handleMouseEnter(effect.name)}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  <EffectNode effect={effect} />
-                </div>
-              ))}
-            </div>
-
-            {/* Arrow - rotate on mobile */}
-            <div className="relative top-[-13px] flex rotate-0 items-center text-neutral-500">
-              <ArrowRightIcon size={24} weight="fill" />
-            </div>
-
-            {/* Result */}
-            {resultEffect && (
+      {/* Main visualization. Opt-out for examples whose own visualization
+          already shows the effect's progress and result, where this row is
+          just a second copy of the header's run state. */}
+      {showEffectNodes && (
+        <motion.div
+          className="border-b px-4 py-5"
+          initial={{
+            borderColor: borderColorValue,
+          }}
+          animate={{
+            borderColor: borderColorValue,
+          }}
+          transition={standardTransition}
+        >
+          {isSingleEffect ? (
+            // Single effect - just show the effect
+            <div className="flex justify-start">
               <div
-                onMouseEnter={() => handleMouseEnter(resultEffect.name)}
+                onMouseEnter={() => handleMouseEnter(headerEffect.name)}
                 onMouseLeave={handleMouseLeave}
               >
-                <EffectNode
-                  effect={resultEffect}
-                  {...(labelEffectForResult && {
-                    labelEffect: labelEffectForResult,
-                  })}
-                />
+                <EffectNode effect={headerEffect} />
               </div>
-            )}
-          </div>
-        )}
-      </motion.div>
+            </div>
+          ) : (
+            // Multiple effects with arrow and result
+            <div className="flex flex-row items-center justify-start gap-6">
+              {/* Input effects - wrap on mobile */}
+              <div className="flex flex-wrap justify-center gap-6">
+                {effects.map((effect) => (
+                  <div
+                    key={effect.name}
+                    onMouseEnter={() => handleMouseEnter(effect.name)}
+                    onMouseLeave={handleMouseLeave}
+                  >
+                    <EffectNode effect={effect} />
+                  </div>
+                ))}
+              </div>
+
+              {/* Arrow - rotate on mobile */}
+              <div className="relative top-[-13px] flex rotate-0 items-center text-neutral-500">
+                <ArrowRightIcon size={24} weight="fill" />
+              </div>
+
+              {/* Result */}
+              {resultEffect && (
+                <div
+                  onMouseEnter={() => handleMouseEnter(resultEffect.name)}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  <EffectNode
+                    effect={resultEffect}
+                    {...(labelEffectForResult && {
+                      labelEffect: labelEffectForResult,
+                    })}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {/* Schedule timeline (if provided) */}
       {showScheduleTimeline && effects[0] && resultEffect && (

@@ -22,6 +22,9 @@ object AuditService:
   val live: ZLayer[Database, Nothing, AuditService] =
     ZLayer.fromFunction(new AuditService(_))
 
+val app: ZIO[UserService & AuditService, Throwable, User] =
+  ZIO.serviceWithZIO[UserService](_.signup("John"))
+
 // Database.live is written once and built once — both services share it
 val runnable =
   app.provide(UserService.live, AuditService.live, Database.live, Logger.live)`;
@@ -39,4 +42,13 @@ export const DI_LAYERS = [
     dependsOn: ['Database', 'Logger'],
   },
   { id: 'AuditService', label: 'AuditService.live', dependsOn: ['Database'] },
+  // Not a layer: `app` itself, which can only run once every requirement in
+  // its R is satisfied. Modelled as a node so the graph ends where the
+  // snippet does, rather than the result appearing somewhere unrelated.
+  {
+    id: 'runnable',
+    label: 'app.provide(...)',
+    dependsOn: ['UserService', 'AuditService'],
+    isApp: true,
+  },
 ];
