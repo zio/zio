@@ -9,21 +9,27 @@
 // prerender and must not pull the visual chunk's `effect`/`motion` imports
 // into the main bundle.
 //
-// Trimmed to the wiring itself (the UserService class body is implied) so the
-// snippet leaves room for the layer graph inside the panel's fixed height.
+// Two services deliberately require Database: that is what makes the sharing
+// visible — it is written once in `provide`, built once at runtime, and the
+// same instance is handed to both. The UserService/AuditService class bodies are
+// implied (they live in the compile-check stubs) to keep the snippet short
+// enough to sit beside the graph in the panel's fixed height.
 export const DI_SNIPPET = `object UserService:
   val live: ZLayer[Database & Logger, Nothing, UserService] =
     ZLayer.fromFunction(new UserService(_, _))
 
-val app: ZIO[UserService, Throwable, User] =
-  ZIO.serviceWithZIO[UserService](_.signup("John"))
+object AuditService:
+  val live: ZLayer[Database, Nothing, AuditService] =
+    ZLayer.fromFunction(new AuditService(_))
 
-// forget a layer and this is a compile error, not a 3am page
-val runnable = app.provide(UserService.live, Database.live, Logger.live)`;
+// Database.live is written once and built once — both services share it
+val runnable =
+  app.provide(UserService.live, AuditService.live, Database.live, Logger.live)`;
 
-// The layers the visual builds, and what each one waits on. Mirrors the
-// `provide` call above: Database and Logger have no dependencies so they are
-// constructed in parallel, and UserService waits for both.
+// The layers the visual builds and what each one requires. Mirrors the
+// `provide` call above: Database and Logger require nothing so the runtime
+// constructs them concurrently; UserService and AuditService each pull
+// Database out of the environment and therefore wait for it.
 export const DI_LAYERS = [
   { id: 'Database', label: 'Database.live', dependsOn: [] },
   { id: 'Logger', label: 'Logger.live', dependsOn: [] },
@@ -32,4 +38,5 @@ export const DI_LAYERS = [
     label: 'UserService.live',
     dependsOn: ['Database', 'Logger'],
   },
+  { id: 'AuditService', label: 'AuditService.live', dependsOn: ['Database'] },
 ];

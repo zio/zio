@@ -257,9 +257,9 @@
      whichever visual example is tallest (e.g. Resource safety's finalizer
      stack) instead of staying fixed. flex-shrink: 0 keeps it from being
      compressed either. */
-  flex: 0 0 640px;
+  flex: 0 0 680px;
   display: flex;
-  height: 640px;
+  height: 680px;
   overflow-y: auto;
 }
 
@@ -281,7 +281,7 @@
   min-width: 0;
   /* Fixed (not min/max) so the panel is the exact same height on every
      tab, regardless of how many lines that tab's snippet has. */
-  height: 640px;
+  height: 680px;
   /* Prism's theme sets an inline white-space: pre-wrap; override it so long
      lines never break mid-line — any line too long for the panel scrolls
      horizontally instead (overflow: auto above), which reads far better
@@ -370,10 +370,10 @@
 
   .pre {
     overflow: auto;
-    height: 580px;
+    height: 620px;
   }
 
   .visualArea {
-    height: 580px;
+    height: 620px;
   }
 }

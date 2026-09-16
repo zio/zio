@@ -25,6 +25,12 @@ const BUILD_MAX_MS = 1800;
 const DatabaseTag = Context.GenericTag('Database');
 const LoggerTag = Context.GenericTag('Logger');
 const UserServiceTag = Context.GenericTag('UserService');
+const AuditServiceTag = Context.GenericTag('AuditService');
+
+// Stamped onto each constructed Database so the visual can show that both
+// consumers received the very same one, rather than asserting it. Reset with
+// the graph so a second run starts from #1 rather than counting up forever.
+let databaseInstances = 0;
 
 // Layer.effect, not Layer.succeed, so construction is an effect we can time —
 // and so the runtime genuinely decides when each one runs.
@@ -35,18 +41,24 @@ function buildLayer(graph, tag, id, make) {
       const durationMs = getDelay(BUILD_MIN_MS, BUILD_MAX_MS);
       graph.startBuild(id, durationMs);
       yield* Effect.sleep(durationMs);
-      graph.setReady(id);
-      return make();
+      const service = make();
+      graph.setReady(id, service.instance);
+      return service;
     }),
   );
 }
 
 function buildProgram(graph) {
-  const databaseLive = buildLayer(graph, DatabaseTag, 'Database', () => ({
-    insert: (name) => Effect.succeed(name),
-  }));
+  const databaseLive = buildLayer(graph, DatabaseTag, 'Database', () => {
+    databaseInstances += 1;
+    return {
+      instance: `Database#${databaseInstances}`,
+      insert: (name) => Effect.succeed(name),
+    };
+  });
 
   const loggerLive = buildLayer(graph, LoggerTag, 'Logger', () => ({
+    instance: 'Logger#1',
     info: () => Effect.void,
   }));
 
@@ -57,11 +69,14 @@ function buildProgram(graph) {
       // runtime wait for them — nothing here sequences the build by hand.
       const db = yield* DatabaseTag;
       const logger = yield* LoggerTag;
+      // The moment a second copy would have been constructed if layers were
+      // not shared — record which instance actually came back.
+      graph.recordUse('Database', 'UserService', db.instance);
 
       const durationMs = getDelay(BUILD_MIN_MS, BUILD_MAX_MS);
       graph.startBuild('UserService', durationMs);
       yield* Effect.sleep(durationMs);
-      graph.setReady('UserService');
+      graph.setReady('UserService', 'UserService#1');
 
       return {
         signup: (name) =>
@@ -73,8 +88,24 @@ function buildProgram(graph) {
     }),
   );
 
+  const auditServiceLive = Layer.effect(
+    AuditServiceTag,
+    Effect.gen(function* () {
+      const db = yield* DatabaseTag;
+      graph.recordUse('Database', 'AuditService', db.instance);
+
+      const durationMs = getDelay(BUILD_MIN_MS, BUILD_MAX_MS);
+      graph.startBuild('AuditService', durationMs);
+      yield* Effect.sleep(durationMs);
+      graph.setReady('AuditService', 'AuditService#1');
+
+      return { record: () => Effect.void };
+    }),
+  );
+
   const app = Effect.gen(function* () {
     const userService = yield* UserServiceTag;
+    yield* AuditServiceTag;
     const name = yield* userService.signup('John');
     return new StringResult(`signed up ${name}`);
   });
@@ -82,9 +113,11 @@ function buildProgram(graph) {
   // Database and Logger have nothing to wait on, so the runtime constructs
   // them concurrently; UserService is provided them and therefore starts only
   // once both are ready.
+  // Database.live is supplied once here, to both services at once — which is
+  // exactly why the runtime constructs it once and shares the result.
   return app.pipe(
     Effect.provide(
-      userServiceLive.pipe(
+      Layer.mergeAll(userServiceLive, auditServiceLive).pipe(
         Layer.provide(Layer.merge(databaseLive, loggerLive)),
       ),
     ),
@@ -104,12 +137,14 @@ export default function DependencyInjectionVisual() {
   useEffect(() => {
     const unsubscribe = appTask.subscribe(() => {
       if (appTask.state.type === 'idle') {
+        databaseInstances = 0;
         graph.reset();
       }
     });
 
     return () => {
       unsubscribe();
+      databaseInstances = 0;
       graph.reset();
     };
   }, [appTask, graph]);

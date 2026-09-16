@@ -25,12 +25,20 @@ object Database {
 class Logger { def info(msg: String): UIO[Unit] = ZIO.unit }
 object Logger { val live: ULayer[Logger] = ZLayer.succeed(new Logger) }
 
-// The Snippet 5 example trims the UserService class body (it is implied), so
-// the class it wires up lives here with the rest of "your code".
+// The Snippet 5 example trims the service class bodies (they are implied), so
+// the classes it wires up live here with the rest of "your code". Both take a
+// Database, which is what makes the sharing in that snippet meaningful.
 class UserService(db: Database, logger: Logger) {
   def signup(name: String): Task[User] =
     logger.info(s"signing up $name") *> db.insert(name)
 }
+
+class AuditService(db: Database) {
+  def record(name: String): UIO[Unit] = ZIO.unit
+}
+
+val app: ZIO[UserService & AuditService, Throwable, User] =
+  ZIO.serviceWithZIO[UserService](_.signup("John"))
 
 def runFast(name: String): Task[String] = ZIO.succeed(name)
 def attemptParallelPark(): IO[String, String] = ZIO.succeed("parked")
@@ -101,10 +109,13 @@ object Snippet5 {
     val live: ZLayer[Database & Logger, Nothing, UserService] =
       ZLayer.fromFunction(new UserService(_, _))
 
-  val app: ZIO[UserService, Throwable, User] =
-    ZIO.serviceWithZIO[UserService](_.signup("John"))
+  object AuditService:
+    val live: ZLayer[Database, Nothing, AuditService] =
+      ZLayer.fromFunction(new AuditService(_))
 
-  // forget a layer and this is a compile error, not a 3am page
-  val runnable = app.provide(UserService.live, Database.live, Logger.live)
+  // Database.live is written once and built once — both services share it
+  val runnable =
+    app.provide(UserService.live, AuditService.live, Database.live, Logger.live)
 }
+
 
