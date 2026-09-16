@@ -53,7 +53,7 @@ function useAnimationTick(active) {
   }, [active]);
 }
 
-function LayerCard({ layer, receivedInstance }) {
+function LayerCard({ layer, receivedInstances }) {
   const progress =
     layer.state === 'building'
       ? Math.min(1, (Date.now() - layer.startedAt) / layer.durationMs)
@@ -61,8 +61,9 @@ function LayerCard({ layer, receivedInstance }) {
         ? 1
         : 0;
 
-  // Only worth calling out where it is surprising: a layer more than one
-  // service asked for, which was still constructed exactly once.
+  // Highlighted only where it is surprising — one construction serving more
+  // than one consumer. Shown unhighlighted otherwise so the contrast between
+  // "used by 1" and "used by 2" is visible rather than implied.
   const shared = layer.usedBy.length > 1;
 
   return (
@@ -71,14 +72,14 @@ function LayerCard({ layer, receivedInstance }) {
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', visualDuration: 0.3, bounce: 0.2 }}
-      className={`flex w-[200px] flex-col justify-center gap-1 rounded-md border px-2 py-1.5 ${CARD_STYLES[layer.state]}`}
+      className={`flex w-[232px] flex-col justify-center gap-1 rounded-md border px-2 py-1.5 ${CARD_STYLES[layer.state]}`}
     >
       <div
         className={`flex items-baseline justify-between gap-2 font-mono text-[11px] leading-none ${LABEL_STYLES[layer.state]}`}
       >
         <span className="truncate">{layer.label}</span>
         <span className="shrink-0 text-[9px] opacity-80">
-          {receivedInstance ?? STATE_TEXT[layer.state]}
+          {layer.instance ?? STATE_TEXT[layer.state]}
         </span>
       </div>
 
@@ -91,13 +92,25 @@ function LayerCard({ layer, receivedInstance }) {
         />
       </div>
 
-      {shared && (
+      {layer.usedBy.length > 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="font-mono text-[9px] leading-none text-amber-400"
+          className={`font-mono text-[9px] leading-none ${
+            shared ? 'text-amber-400' : 'text-neutral-400'
+          }`}
         >
           built {layer.buildCount}× · used by {layer.usedBy.length}
+        </motion.div>
+      )}
+
+      {receivedInstances.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="font-mono text-[9px] leading-none text-neutral-400"
+        >
+          uses {receivedInstances.join(' · ')}
         </motion.div>
       )}
     </motion.div>
@@ -118,12 +131,13 @@ export function LayerGraphView({ graph }) {
     (columns[depthOf(layer)] ??= []).push(layer);
   }
 
-  // What each consumer was handed, so the shared instance shows on the
-  // consumer side too — the same id appearing twice is the whole point.
+  // Every instance each consumer was handed — a list, not one value, since a
+  // service can require several (UserService takes Database & Logger). The
+  // same Database id appearing under two consumers is the whole point.
   const receivedBy = {};
   for (const layer of graph.layers) {
     for (const use of layer.usedBy) {
-      receivedBy[use.consumerId] = use.instance;
+      (receivedBy[use.consumerId] ??= []).push(use.instance);
     }
   }
 
@@ -142,7 +156,7 @@ export function LayerGraphView({ graph }) {
                 <LayerCard
                   key={layer.id}
                   layer={layer}
-                  receivedInstance={receivedBy[layer.id]}
+                  receivedInstances={receivedBy[layer.id] ?? []}
                 />
               ))}
             </div>

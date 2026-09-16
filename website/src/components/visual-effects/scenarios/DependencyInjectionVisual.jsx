@@ -70,8 +70,10 @@ function buildProgram(graph) {
       const db = yield* DatabaseTag;
       const logger = yield* LoggerTag;
       // The moment a second copy would have been constructed if layers were
-      // not shared — record which instance actually came back.
+      // not shared — record which instance actually came back. UserService
+      // requires Database & Logger, so both pulls are recorded.
       graph.recordUse('Database', 'UserService', db.instance);
+      graph.recordUse('Logger', 'UserService', logger.instance);
 
       const durationMs = getDelay(BUILD_MIN_MS, BUILD_MAX_MS);
       graph.startBuild('UserService', durationMs);
