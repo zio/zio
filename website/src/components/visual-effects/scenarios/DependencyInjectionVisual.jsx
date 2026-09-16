@@ -27,10 +27,12 @@ const LoggerTag = Context.GenericTag('Logger');
 const UserServiceTag = Context.GenericTag('UserService');
 const AuditServiceTag = Context.GenericTag('AuditService');
 
-// Stamped onto each constructed Database so the visual can show that both
-// consumers received the very same one, rather than asserting it. Reset with
-// the graph so a second run starts from #1 rather than counting up forever.
-let databaseInstances = 0;
+// One counter across every construction, so each instance gets an id nothing
+// else shares — the point of the graph is that Database@1 turns up under two
+// consumers, and that only means something if every other instance has a
+// different number. Reset with the graph so a second run starts from @1.
+let instanceCount = 0;
+const nextInstance = (name) => `${name}@${++instanceCount}`;
 
 // Layer.effect, not Layer.succeed, so construction is an effect we can time —
 // and so the runtime genuinely decides when each one runs.
@@ -49,16 +51,13 @@ function buildLayer(graph, tag, id, make) {
 }
 
 function buildProgram(graph) {
-  const databaseLive = buildLayer(graph, DatabaseTag, 'Database', () => {
-    databaseInstances += 1;
-    return {
-      instance: `Database#${databaseInstances}`,
-      insert: (name) => Effect.succeed(name),
-    };
-  });
+  const databaseLive = buildLayer(graph, DatabaseTag, 'Database', () => ({
+    instance: nextInstance('Database'),
+    insert: (name) => Effect.succeed(name),
+  }));
 
   const loggerLive = buildLayer(graph, LoggerTag, 'Logger', () => ({
-    instance: 'Logger#1',
+    instance: nextInstance('Logger'),
     info: () => Effect.void,
   }));
 
@@ -78,7 +77,7 @@ function buildProgram(graph) {
       const durationMs = getDelay(BUILD_MIN_MS, BUILD_MAX_MS);
       graph.startBuild('UserService', durationMs);
       yield* Effect.sleep(durationMs);
-      graph.setReady('UserService', 'UserService#1');
+      graph.setReady('UserService', nextInstance('UserService'));
 
       return {
         signup: (name) =>
@@ -99,7 +98,7 @@ function buildProgram(graph) {
       const durationMs = getDelay(BUILD_MIN_MS, BUILD_MAX_MS);
       graph.startBuild('AuditService', durationMs);
       yield* Effect.sleep(durationMs);
-      graph.setReady('AuditService', 'AuditService#1');
+      graph.setReady('AuditService', nextInstance('AuditService'));
 
       return { record: () => Effect.void };
     }),
@@ -148,14 +147,14 @@ export default function DependencyInjectionVisual() {
   useEffect(() => {
     const unsubscribe = appTask.subscribe(() => {
       if (appTask.state.type === 'idle') {
-        databaseInstances = 0;
+        instanceCount = 0;
         graph.reset();
       }
     });
 
     return () => {
       unsubscribe();
-      databaseInstances = 0;
+      instanceCount = 0;
       graph.reset();
     };
   }, [appTask, graph]);
