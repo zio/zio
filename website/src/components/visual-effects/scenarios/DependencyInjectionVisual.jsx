@@ -19,8 +19,20 @@ import { StringResult } from '../renderers';
 // effect can demonstrate that. Faking a compile error would be the one kind
 // of animation this project doesn't do. The snippet carries that half.
 
-const BUILD_MIN_MS = 1200;
-const BUILD_MAX_MS = 1800;
+// A range per layer rather than one shared range: with everything taking
+// roughly the same time the two independent layers finished together, so
+// "UserService waits for its dependencies" flashed past. Spreading them makes
+// the fast one land well before the slow one, and the dependent visibly waits
+// on whichever is slowest — which is the actual rule.
+const BUILD_MS = {
+  Database: [2600, 3400],
+  Logger: [700, 1100],
+  UserService: [1200, 1600],
+  AuditService: [900, 1300],
+  runnable: [800, 1200],
+};
+
+const buildDelay = (id) => getDelay(...BUILD_MS[id]);
 
 const DatabaseTag = Context.GenericTag('Database');
 const LoggerTag = Context.GenericTag('Logger');
@@ -53,7 +65,7 @@ function buildLayer(graph, tag, id, make) {
   return Layer.effect(
     tag,
     Effect.gen(function* () {
-      const durationMs = getDelay(BUILD_MIN_MS, BUILD_MAX_MS);
+      const durationMs = buildDelay(id);
       graph.startBuild(id, durationMs);
       yield* Effect.sleep(durationMs);
       const service = make();
@@ -87,7 +99,7 @@ function buildProgram(graph) {
       graph.recordUse('Database', 'UserService', db.instance);
       graph.recordUse('Logger', 'UserService', logger.instance);
 
-      const durationMs = getDelay(BUILD_MIN_MS, BUILD_MAX_MS);
+      const durationMs = buildDelay('UserService');
       graph.startBuild('UserService', durationMs);
       yield* Effect.sleep(durationMs);
       graph.setReady('UserService', nextInstance('UserService'));
@@ -108,7 +120,7 @@ function buildProgram(graph) {
       const db = yield* DatabaseTag;
       graph.recordUse('Database', 'AuditService', db.instance);
 
-      const durationMs = getDelay(BUILD_MIN_MS, BUILD_MAX_MS);
+      const durationMs = buildDelay('AuditService');
       graph.startBuild('AuditService', durationMs);
       yield* Effect.sleep(durationMs);
       graph.setReady('AuditService', nextInstance('AuditService'));
@@ -124,7 +136,7 @@ function buildProgram(graph) {
     const userService = yield* UserServiceTag;
     yield* AuditServiceTag;
 
-    const durationMs = getDelay(BUILD_MIN_MS, BUILD_MAX_MS);
+    const durationMs = buildDelay('runnable');
     graph.startBuild('runnable', durationMs);
     yield* Effect.sleep(durationMs);
 
