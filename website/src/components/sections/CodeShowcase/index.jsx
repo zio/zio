@@ -28,6 +28,9 @@ const VISUAL_COMPONENTS = {
   streaming: React.lazy(
     () => import('../../visual-effects/scenarios/StreamingVisual'),
   ),
+  di: React.lazy(
+    () => import('../../visual-effects/scenarios/DependencyInjectionVisual'),
+  ),
 };
 
 // prism-react-renderer v2 highlights against the shared prismjs instance.

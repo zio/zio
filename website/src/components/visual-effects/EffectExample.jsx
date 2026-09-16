@@ -5,6 +5,7 @@ import { CodeBlock } from './CodeBlock';
 import EffectNode from './effect-node/EffectNode';
 import { FloatingHighlight } from './feedback/FloatingHighlight';
 import { HeaderView } from './HeaderView';
+import { LayerGraphView } from './layers/LayerGraphView';
 import { PipelineStages } from './pipeline/PipelineStages';
 import { ScheduleTimeline } from './ScheduleTimeline';
 import { ScopeStack } from './scope/ScopeStack';
@@ -27,6 +28,7 @@ function EffectExampleComponent({
   resultEffect,
   effectHighlightMap,
   effects,
+  layerGraph,
   scope,
   showScheduleTimeline,
   streamPipeline,
@@ -266,6 +268,19 @@ function EffectExampleComponent({
           className="border-b"
         >
           <ScopeStack scope={scope} />
+        </motion.div>
+      )}
+
+      {/* Layer graph visualization (if provided). Bespoke — no source
+          equivalent, same extension-point shape as the scope slot above. */}
+      {layerGraph && (
+        <motion.div
+          initial={{ borderColor: borderColorValue }}
+          animate={{ borderColor: borderColorValue }}
+          transition={standardTransition}
+          className="border-b"
+        >
+          <LayerGraphView graph={layerGraph} />
         </motion.div>
       )}
 

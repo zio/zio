@@ -1,6 +1,7 @@
 // Each snippet is compile-checked by specs/snippet-check/showcase.scala.
 // If you edit a snippet here, update that file and re-run:
 //   scala-cli compile specs/snippet-check/showcase.scala
+import { DI_SNIPPET } from '../../visual-effects/diParams';
 import { STREAMING_SNIPPET } from '../../visual-effects/streamingParams';
 
 export const examples = [
@@ -72,6 +73,7 @@ val result = park.retry(Schedule.exponential(700.millis))`,
   {
     value: 'di',
     label: 'Dependency Injection',
+    visual: 'di',
     takeaway:
       'Wiring is checked at compile time — forget a dependency and the build fails, not production.',
     points: [
@@ -79,18 +81,8 @@ val result = park.retry(Schedule.exponential(700.millis))`,
       'Services are accessed from the environment with no manual wiring.',
       'A missing dependency is a compile error, not a runtime failure.',
     ],
-    code: `class UserService(db: Database, logger: Logger):
-  def signup(name: String): Task[User] =
-    logger.info(s"signing up $name") *> db.insert(name)
-
-object UserService:
-  val live: ZLayer[Database & Logger, Nothing, UserService] =
-    ZLayer.fromFunction(new UserService(_, _))
-
-val app: ZIO[UserService, Throwable, User] =
-  ZIO.serviceWithZIO[UserService](_.signup("John"))
-
-// Compile-time-checked wiring: forget a layer and the build fails
-val runnable = app.provide(UserService.live, Database.live, Logger.live)`,
+    // Shared with the Visual view's embedded example so the two can never
+    // disagree.
+    code: DI_SNIPPET,
   },
 ];

@@ -25,6 +25,13 @@ object Database {
 class Logger { def info(msg: String): UIO[Unit] = ZIO.unit }
 object Logger { val live: ULayer[Logger] = ZLayer.succeed(new Logger) }
 
+// The Snippet 5 example trims the UserService class body (it is implied), so
+// the class it wires up lives here with the rest of "your code".
+class UserService(db: Database, logger: Logger) {
+  def signup(name: String): Task[User] =
+    logger.info(s"signing up $name") *> db.insert(name)
+}
+
 def runFast(name: String): Task[String] = ZIO.succeed(name)
 def attemptParallelPark(): IO[String, String] = ZIO.succeed("parked")
 
@@ -90,10 +97,6 @@ object Snippet4 {
 
 // ── Snippet 5: Dependency Injection ─────────────────────────────────────
 object Snippet5 {
-  class UserService(db: Database, logger: Logger):
-    def signup(name: String): Task[User] =
-      logger.info(s"signing up $name") *> db.insert(name)
-
   object UserService:
     val live: ZLayer[Database & Logger, Nothing, UserService] =
       ZLayer.fromFunction(new UserService(_, _))
@@ -101,6 +104,7 @@ object Snippet5 {
   val app: ZIO[UserService, Throwable, User] =
     ZIO.serviceWithZIO[UserService](_.signup("John"))
 
-  // Compile-time-checked wiring: forget a layer and the build fails
+  // forget a layer and this is a compile error, not a 3am page
   val runnable = app.provide(UserService.live, Database.live, Logger.live)
 }
+
