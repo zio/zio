@@ -27,12 +27,25 @@ const LoggerTag = Context.GenericTag('Logger');
 const UserServiceTag = Context.GenericTag('UserService');
 const AuditServiceTag = Context.GenericTag('AuditService');
 
-// One counter across every construction, so each instance gets an id nothing
-// else shares — the point of the graph is that Database@1 turns up under two
-// consumers, and that only means something if every other instance has a
-// different number. Reset with the graph so a second run starts from @1.
-let instanceCount = 0;
-const nextInstance = (name) => `${name}@${++instanceCount}`;
+// Hash-style identities rather than @1/@2/@3: sequential ordinals still read
+// as generic labels, and two of them sitting side by side are easy to mistake
+// for each other. The point of the graph is that one id turns up under two
+// consumers, so the ids have to be unmistakably distinct. Uniqueness is
+// enforced rather than assumed — a collision would quietly claim two separate
+// instances were the same one, which is the exact thing being demonstrated.
+const usedInstanceIds = new Set();
+
+function nextInstance(name) {
+  let id;
+  do {
+    // padStart because a small enough random value yields a short (or empty)
+    // hex fragment, which would render as "Database@".
+    id = Math.random().toString(16).slice(2, 6).padStart(4, '0');
+  } while (usedInstanceIds.has(id));
+
+  usedInstanceIds.add(id);
+  return `${name}@${id}`;
+}
 
 // Layer.effect, not Layer.succeed, so construction is an effect we can time —
 // and so the runtime genuinely decides when each one runs.
@@ -147,14 +160,14 @@ export default function DependencyInjectionVisual() {
   useEffect(() => {
     const unsubscribe = appTask.subscribe(() => {
       if (appTask.state.type === 'idle') {
-        instanceCount = 0;
+        usedInstanceIds.clear();
         graph.reset();
       }
     });
 
     return () => {
       unsubscribe();
-      instanceCount = 0;
+      usedInstanceIds.clear();
       graph.reset();
     };
   }, [appTask, graph]);
