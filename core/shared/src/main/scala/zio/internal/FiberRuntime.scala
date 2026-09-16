@@ -985,17 +985,31 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
       // Can't shortcut, handle onInterrupt in runloop
       case onInterrupt =>
-        val f = onInterrupt.foldCauseZIO(
-          c => {
-            addInterruptedCause(c.asInstanceOf[Cause[Nothing]])
-            FiberRuntime.enableInterruptionAfterAsync
-          },
-          _ => FiberRuntime.enableInterruptionAfterAsync
-        )(Trace.empty)
+        // The canceler must run uninterruptibly, and interruption must be
+        // restored afterwards. Disabling the flag here and restoring it with a
+        // separate `enableInterruption` effect does not do the second half: that
+        // effect is short-circuited by the run loop whenever the fiber is
+        // already interrupted (`UpdateRuntimeFlagsWithin`, "one more chance to
+        // short circuit"), which delivers the interrupt but leaves the flag
+        // disabled. A canceler that resolves in the same resumption - a pure
+        // `Exit`, as `ZIO.fromFuture` arms - hits exactly that. So the region is
+        // handed to the run loop instead, which patches the flag AND pushes the
+        // matching revert frame; that frame restores interruption and reasserts
+        // the pending interrupt on both the success and the failure unwind.
+        val f = ZIO.UpdateRuntimeFlagsWithin.DynamicNoBox[Any, Any, Any](
+          Trace.empty,
+          RuntimeFlags.disableInterruption,
+          _ =>
+            onInterrupt.foldCauseZIO(
+              c => {
+                addInterruptedCause(c.asInstanceOf[Cause[Nothing]])
+                Exit.unit
+              },
+              _ => Exit.unit
+            )(Trace.empty)
+        )
 
-        // We need to disable interruption otherwise `onInterrupt` will be interrupted before it is evaluated
-        if (callback.completeZIO(f))
-          patchRuntimeFlagsOnly(RuntimeFlags.disableInterruption)
+        callback.completeZIO(f)
     }
   }
 
@@ -1659,13 +1673,6 @@ object FiberRuntime {
     RuntimeFlags.Patch.both(
       RuntimeFlags.disable(RuntimeFlag.Interruption),
       RuntimeFlags.disable(RuntimeFlag.WindDown)
-    )
-
-  private val enableInterruptionAfterAsync: ZIO.Erased =
-    ZIO.UpdateRuntimeFlagsWithin.DynamicNoBox[Any, Any, Any](
-      Trace.empty,
-      RuntimeFlags.enableInterruption,
-      _ => Exit.unit
     )
 
   private val notBlockingOn: () => FiberId = () => FiberId.None
