@@ -2,9 +2,21 @@
 id: folding
 title: "Folding"
 sidebar_label: "3. Folding"
+description: "Fold over ZIO effects to handle both success and failure in one step using fold, foldZIO, foldCause, and foldCauseZIO — the primitive all ZIO error operators build on."
+keywords:
+  - "fold"
+  - "foldZIO"
+  - "foldCause"
+  - "foldCauseZIO"
+  - "error handling"
+  - "success and failure"
 ---
 
 Scala's `Option` and `Either` data types have `fold`, which let us handle both failure and success at the same time. In a similar fashion, `ZIO` effects also have several methods that allow us to handle both failure and success.
+
+## When to Use
+
+Use `ZIO#fold` or `ZIO#foldZIO` when you need to produce a single result type from both the success and failure paths in one expression — for example, when converting a fallible effect to a `UIO[String]` by mapping both outcomes to a string. Use [`ZIO#catchAll`](catching.md) instead when you only need to handle the error path and want the success value to flow through unchanged. Choose `ZIO#foldCauseZIO` over `foldZIO` when the failure handler must also distinguish defects and fiber interruptions from typed failures.
 
 ## `ZIO#fold`/`ZIO#foldZIO`
 
@@ -193,7 +205,7 @@ This version of fold, provide us the facility to access the trace info of the fa
 ```scala
 trait ZIO[-R, +E, +A] {
   def foldTraceZIO[R1 <: R, E2, B](
-    failure: ((E, Trace)) => ZIO[R1, E2, B],
+    failure: ((E, StackTrace)) => ZIO[R1, E2, B],
     success: A => ZIO[R1, E2, B]
   )(implicit ev: CanFail[E]): ZIO[R1, E2, B]
 }

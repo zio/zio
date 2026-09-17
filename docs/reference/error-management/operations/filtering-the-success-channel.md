@@ -1,6 +1,15 @@
 ---
 id: filtering-the-success-channel
 title: "Filtering the Success Channel"
+description: "Filter ZIO success values against a predicate using filterOrFail, filterOrDie, filterOrElse, and filterOrElseWith to handle values that don't meet requirements."
+keywords:
+  - "filterOrFail"
+  - "filterOrDie"
+  - "filterOrDieMessage"
+  - "filterOrElse"
+  - "filtering"
+  - "predicate"
+  - "success channel"
 ---
 
 ZIO has a variety of operators that can filter values on the success channel based on a given predicate, and if the predicate fails, we can use different strategies:

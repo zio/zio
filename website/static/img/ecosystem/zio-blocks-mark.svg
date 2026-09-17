@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 612 612" width="612" height="612" role="img" aria-label="ZIO Blocks symbol">
+  <rect x="0" y="0" width="612" height="612" fill="#2D3F8F"/>
+  <rect x="100" y="100" width="100" height="100" fill="#FFFFFF"/>
+  <rect x="204" y="100" width="100" height="100" fill="#FFFFFF"/>
+  <rect x="308" y="100" width="100" height="100" fill="#FFFFFF"/>
+  <rect x="412" y="100" width="100" height="100" fill="#FFFFFF"/>
+  <rect x="308" y="204" width="100" height="100" fill="#FFFFFF"/>
+  <rect x="204" y="308" width="100" height="100" fill="#FFFFFF"/>
+  <rect x="100" y="412" width="100" height="100" fill="#FFFFFF"/>
+  <rect x="204" y="412" width="100" height="100" fill="#FFFFFF"/>
+  <rect x="308" y="412" width="100" height="100" fill="#FFFFFF"/>
+  <rect x="412" y="412" width="100" height="100" fill="#FFFFFF"/>
+</svg>

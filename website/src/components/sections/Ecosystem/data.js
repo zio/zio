@@ -1,20 +1,31 @@
 export const ecosystemProjects = [
   {
+    name: 'ZIO Blocks',
+    description: 'Modular, zero-dependency building blocks for modern Scala applications',
+    features: [
+      'Type-safe schemas with automatic codec derivation',
+      'Zero lock-in — no dependency on ZIO or any effect system',
+      'Works with any Scala stack: ZIO, Cats Effect, Kyo, Ox, Akka, or plain Scala',
+      'Modular — import only the blocks you need',
+      'Full cross-platform support for JVM and Scala.js',
+      'Full cross-version support for Scala 2.13 and Scala 3.x',
+      'High-performance implementations avoiding boxing and unnecessary allocations',
+      'Includes Schema, Chunk, Scope, Docs, TypeId, Context, MediaType, and Ring Buffer blocks',
+    ],
+    link: '/zio-blocks',
+    icon: '/img/ecosystem/zio-blocks-mark.svg'
+  },
+  {
     name: 'ZIO HTTP',
-    description: 'Type-safe, purely functional HTTP library for building high-performance web applications and APIs',
+    description: 'Type-safe, purely functional HTTP library for high-performance web apps and APIs',
     features: [
       'High-performance server based on Netty',
       'Type-safe and type-driven endpoints',
-      'Support for both imperative and declarative endpoints',
-      'Designed for cloud-native environments',
-      'Support for both server and client applications',
       'WebSocket support for real-time applications',
       'Middleware system for cross-cutting concerns',
-      'Integration with ZIO Schema for automatic codecs',
-      'Built-in support for streaming responses',
     ],
     link: 'https://ziohttp.com',
-    icon: '🌐'
+    icon: '/img/ecosystem/zio-http-logo-mark.png'
   },
   {
     name: 'ZIO Streams',
@@ -87,5 +98,29 @@ export const ecosystemProjects = [
     ],
     link: '/zio-logging',
     icon: '📝'
+  },
+  {
+    name: 'ZIO JSON',
+    description: 'Fast, secure JSON library with tight ZIO integration',
+    features: [
+      'High-performance parsing and encoding',
+      'Hardened against adversarial JSON payloads',
+      'Automatic derivation, no shapeless required',
+      'Human- and machine-readable error messages'
+    ],
+    link: '/zio-json',
+    icon: '📦'
+  },
+  {
+    name: 'ZIO Kafka',
+    description: 'A purely functional, streams-based client for Apache Kafka',
+    features: [
+      'High-level streaming API on top of the Java Kafka client',
+      'Higher throughput than the Java client in most workloads',
+      'Parallel per-partition consumption',
+      'Custom serialization and deserialization support'
+    ],
+    link: '/zio-kafka',
+    icon: '📨'
   }
 ];

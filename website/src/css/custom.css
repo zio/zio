@@ -686,3 +686,11 @@ html.homepage-snap .fp-section {
     scroll-behavior: auto;
   }
 }
+
+/* ── Docs content: center markdown tables ─────────────────────────────── */
+/* Tables default to left-aligned within the content column when narrower
+   than it (e.g. artifact/platform-support matrices). Center them like images. */
+.markdown table {
+  margin-left: auto;
+  margin-right: auto;
+}
