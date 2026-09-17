@@ -48,6 +48,55 @@ ZIO has a strong focus on testability which supports:
   7. Test Aspects (AOP)
   8. Non-flaky Tests
 
+The `ZLayer`-based dependency model that Onion Architecture relies on (see the [Architectural Patterns][20] section) is what makes this testable in practice: a service is used through its interface, and a test swaps the `live` layer for a `test` layer without changing any of the code under test.
+
+```scala mdoc:silent
+import zio._
+
+trait NotificationService {
+  def notify(userId: String, message: String): UIO[Unit]
+}
+
+object NotificationService {
+  def notify(userId: String, message: String): URIO[NotificationService, Unit] =
+    ZIO.serviceWithZIO(_.notify(userId, message))
+
+  // the real implementation, calling out to an email/SMS provider
+  val live: ZLayer[Any, Nothing, NotificationService] =
+    ZLayer.succeed(new NotificationService {
+      def notify(userId: String, message: String): UIO[Unit] =
+        ZIO.succeed(println(s"Sending '$message' to $userId"))
+    })
+
+  // a test double that records every call instead of sending anything
+  val test: ZLayer[Any, Nothing, NotificationService] =
+    ZLayer.fromZIO {
+      Ref.make(List.empty[(String, String)]).map { calls =>
+        new NotificationService {
+          def notify(userId: String, message: String): UIO[Unit] =
+            calls.update(_ :+ (userId -> message))
+        }
+      }
+    }
+}
+```
+
+```scala mdoc:compile-only
+import zio._
+import zio.test._
+
+object NotificationSpec extends ZIOSpecDefault {
+  def spec =
+    test("notifies the given user") {
+      for {
+        _ <- NotificationService.notify("user-1", "Welcome!")
+      } yield assertTrue(true) // in a real test, inspect the test layer's recorded calls
+    }.provide(NotificationService.test)
+}
+```
+
+Because `NotificationService.live` and `NotificationService.test` share the same interface, production code never imports the test double, and the spec never depends on the real implementation — the two are wired together only at the `provide` call site.
+
 To learn more about testing in ZIO, please refer to the [testing][14] section.
 
 ## 3. Maintainability
@@ -257,3 +306,5 @@ Developer experience and productivity are very important for choosing a technolo
 [17]: ../stream/zstream/operations.md#buffering
 [18]: ../stream/index.md
 [19]: ../schedule.md
+[20]: architectural-patterns.md
+[21]: ../concurrency/semaphore.md
