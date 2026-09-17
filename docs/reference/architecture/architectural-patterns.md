@@ -17,6 +17,38 @@ Onion architecture is based on the _inversion of control_ principle. So each lay
 
 In ZIO by taking advantage of both functional and object-oriented programming, we can implement onion architecture in a very simple and elegant way. To implement this architecture, please refer to the [Writing ZIO Services](../service-pattern/index.md) section which empowers you to create layers (services) in the onion architecture. In order to assemble all layers and make the whole application work, please refer to the [Dependency Injection In ZIO](../di/index.md) section.
 
+### Assembling Layers: Composition Operators
+
+Once each onion ring is expressed as a `ZLayer`, we need a way to wire the rings together into one application. `ZLayer` gives us a small set of composition operators for exactly this, and choosing the right one is an architectural decision, not just a syntactic one:
+
+- **`++`** — combines two layers in parallel, producing a layer that requires the union of their inputs and produces the union of their outputs. Use it to combine independent rings (or independent services on the same ring) that don't depend on each other.
+- **`<*>`** — combines two layers sequentially, also producing the union of their inputs and outputs. Use it when combining two layers that don't feed into one another, but where you want to be explicit that they are wired one after the other rather than concurrently.
+- **`>>>`** — feeds the output of one layer into the input of the next, producing a layer with the first layer's inputs and the second layer's outputs. This is how one onion ring is stacked directly on top of the ring beneath it.
+- **`>+>`** — like `>>>`, but keeps the first layer's outputs around as well, so both rings' services remain in the environment. Use it when an outer ring needs direct access to an inner ring's service, not just the ring built on top of it.
+
+For anything beyond a couple of layers, hand-composing with these operators becomes tedious and error-prone. `ZLayer.make[T]` builds the whole dependency graph for a target service `T` automatically from the layers you give it, in any order, failing at compile time if a dependency is missing or ambiguous:
+
+```scala mdoc:invisible
+import zio._
+
+trait OldLady
+trait Fly
+trait Spider
+trait Bear
+
+object OldLady { val live: ZLayer[Fly, Nothing, OldLady] = ZLayer.succeed(new OldLady {}) }
+object Fly     { val live: ZLayer[Spider, Nothing, Fly]  = ZLayer.succeed(new Fly {}) }
+object Spider  { val live: ZLayer[Bear, Nothing, Spider] = ZLayer.succeed(new Spider {}) }
+object Bear    { val live: ZLayer[Any, Nothing, Bear]    = ZLayer.succeed(new Bear {}) }
+```
+
+```scala mdoc:compile-only
+val application: ZLayer[Any, Nothing, OldLady] =
+  ZLayer.make[OldLady](OldLady.live, Fly.live, Spider.live, Bear.live)
+```
+
+`ZLayer.make` figures out that `OldLady` needs `Fly`, `Fly` needs `Spider`, and `Spider` needs `Bear`, and assembles `>>>` and `>+>` chains for you. For the full construction API, including partial and automatic wiring, refer to the [Dependency Injection In ZIO](../di/index.md) section.
+
 ## Streaming Architecture
 
 Many reasons make streaming architecture a good choice for building applications:
