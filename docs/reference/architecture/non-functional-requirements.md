@@ -238,8 +238,8 @@ Developer experience and productivity are very important for choosing a technolo
       - [ZIO Official libraries][9]
       - [ZIO community libraries][10]
 
-[1]: ../../zio-logging/index.md
-[2]: ../../zio-telemetry/index.md
+[1]: https://zio.dev/zio-logging
+[2]: https://zio.dev/zio-telemetry
 [3]: ../observability/metrics/index.md
 [4]: ../../guides/migrate/migration-guide.md#debugging
 [5]: ../../guides/migrate/migration-guide.md#compile-time-execution-tracing
@@ -256,4 +256,4 @@ Developer experience and productivity are very important for choosing a technolo
 [16]: ../concurrency/queue.md
 [17]: ../stream/zstream/operations.md#buffering
 [18]: ../stream/index.md
-[19]: ../schedule/index.md
+[19]: ../schedule.md
