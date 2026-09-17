@@ -81,6 +81,10 @@ object MainApp extends ZIOAppDefault {
 }
 ```
 
+:::note
+This example forks unbounded parallelism for demonstration. In real-world applications, prefer controlling the level of parallelism, as shown below.
+:::
+
 Other than low-level concurrency tools like `Fiber`, `Promise`, `Ref`, etc., ZIO Streams is a high-level abstraction for processing high-throughput data streams:
 
 ```scala mdoc:compile-only
