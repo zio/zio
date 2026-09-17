@@ -173,12 +173,16 @@ export function LayerGraphView({ graph }) {
       </div>
 
       {/* The R of ZIO[R, E, A] being satisfied one layer at a time. */}
-      <div className="flex flex-wrap items-center justify-center gap-1.5 font-mono text-[10px] text-neutral-500">
+      {/* Infima token rather than a fixed neutral: this text sits on the
+          card's theme-reactive background, so a shade dark enough to read in
+          light mode goes faint in dark mode and vice versa. */}
+      <div
+        className="flex flex-wrap items-center justify-center gap-1.5 font-mono text-[10px]"
+        style={{ color: 'var(--ifm-color-emphasis-600)' }}
+      >
         <span className="shrink-0">environment:</span>
-        <span className="text-neutral-600">{'{'}</span>
-        {graph.environment.length === 0 && (
-          <span className="text-neutral-600">nothing provided yet</span>
-        )}
+        <span>{'{'}</span>
+        {graph.environment.length === 0 && <span>nothing provided yet</span>}
         <AnimatePresence mode="popLayout">
           {graph.environment.map((id) => (
             <motion.span
@@ -188,13 +192,17 @@ export function LayerGraphView({ graph }) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.7 }}
               transition={{ type: 'spring', visualDuration: 0.3, bounce: 0.2 }}
-              className="rounded border border-green-600/60 bg-green-900/40 px-1.5 py-0.5 text-green-400"
+              // Solid, matching the ready cards rather than a translucent
+              // tint: bg-green-900/40 over this panel's light background
+              // washed out to near the text colour and was unreadable in
+              // light mode.
+              className="rounded border border-green-500 bg-green-900 px-1.5 py-0.5 text-green-300"
             >
               {id}
             </motion.span>
           ))}
         </AnimatePresence>
-        <span className="text-neutral-600">{'}'}</span>
+        <span>{'}'}</span>
       </div>
     </div>
   );
