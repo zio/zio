@@ -31,23 +31,23 @@ For anything beyond a couple of layers, hand-composing with these operators beco
 ```scala mdoc:invisible
 import zio._
 
-trait OldLady
-trait Fly
-trait Spider
-trait Bear
+trait UserRepository
+trait Database
+trait ConnectionPool
+trait Config
 
-object OldLady { val live: ZLayer[Fly, Nothing, OldLady] = ZLayer.succeed(new OldLady {}) }
-object Fly     { val live: ZLayer[Spider, Nothing, Fly]  = ZLayer.succeed(new Fly {}) }
-object Spider  { val live: ZLayer[Bear, Nothing, Spider] = ZLayer.succeed(new Spider {}) }
-object Bear    { val live: ZLayer[Any, Nothing, Bear]    = ZLayer.succeed(new Bear {}) }
+object UserRepository { val live: ZLayer[Database, Nothing, UserRepository] = ZLayer.succeed(new UserRepository {}) }
+object Database       { val live: ZLayer[ConnectionPool, Nothing, Database] = ZLayer.succeed(new Database {}) }
+object ConnectionPool { val live: ZLayer[Config, Nothing, ConnectionPool]   = ZLayer.succeed(new ConnectionPool {}) }
+object Config         { val live: ZLayer[Any, Nothing, Config]             = ZLayer.succeed(new Config {}) }
 ```
 
 ```scala mdoc:compile-only
-val application: ZLayer[Any, Nothing, OldLady] =
-  ZLayer.make[OldLady](OldLady.live, Fly.live, Spider.live, Bear.live)
+val application: ZLayer[Any, Nothing, UserRepository] =
+  ZLayer.make[UserRepository](UserRepository.live, Database.live, ConnectionPool.live, Config.live)
 ```
 
-`ZLayer.make` figures out that `OldLady` needs `Fly`, `Fly` needs `Spider`, and `Spider` needs `Bear`, and assembles `>>>` and `>+>` chains for you. For the full construction API, including partial and automatic wiring, refer to the [Dependency Injection In ZIO](../di/index.md) section.
+`ZLayer.make` figures out that `UserRepository` needs `Database`, `Database` needs `ConnectionPool`, and `ConnectionPool` needs `Config`, and assembles `>>>` and `>+>` chains for you. For the full construction API, including partial and automatic wiring, refer to the [Dependency Injection In ZIO](../di/index.md) section.
 
 ## Streaming Architecture
 
