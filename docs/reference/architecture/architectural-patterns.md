@@ -117,7 +117,7 @@ object MetricsService {
 
 }
 
-object UserAoo extends ZIOAppDefault {
+object UserApp extends ZIOAppDefault {
   override val bootstrap = MetricsService.layer
 
   def run = Server.serve(userHttpApp).provideSome(Server.defaultWithPort(8080))
