@@ -155,3 +155,14 @@ object UserApp extends ZIOAppDefault {
   def run = Server.serve(userHttpApp).provideSome(Server.defaultWithPort(8080))
 }
 ```
+
+Both examples above generalize beyond metrics: the same sidecar shape — a self-contained `ZLayer` exposing its own HTTP route, wired in either as a composed app or via `bootstrap` — is how you'd add logging or tracing sidecars too, not just a Prometheus exporter. See the [Developer Productivity](../non-functional-requirements.md#9-developer-productivity) section for the broader observability picture (logging, tracing, and metrics together), and [ZIO Logging](https://zio.dev/zio-logging) for a sidecar-ready logging library built the same way.
+
+## Module Boundaries and Scaling
+
+The composable-apps example above (`UserApp <> DocumentApp <> Metrics`) raises a natural question: when should a growing application stay a single `ZIOAppDefault` with more layers, and when should it split into multiple, independently composed apps?
+
+- **One app, more layers** — while the application shares a single lifecycle (it starts, runs, and shuts down together) and its services are used across most of the codebase, keep it as one `ZIOAppDefault` and grow its `ZLayer` graph. The Onion Architecture layering already gives you separation of concerns; you don't need separate apps to get separate modules.
+- **Multiple composed apps** — once a part of the system has its own independent lifecycle (it can be deployed, scaled, or restarted separately, like the `Metrics` app above), or serves a distinct bounded context with little shared code, model it as its own `ZIOAppDefault` and compose it with the others via `<>`, as the Sidecar Pattern section does.
+
+Either way, module boundaries in a ZIO application are `ZLayer` boundaries: a module is a service (or a small family of services) exposed as a layer, with its own `live` implementation and its own dependencies declared through the constructor pattern from the [Writing ZIO Services](../service-pattern/index.md) section. Whether you organize the codebase by bounded context (one package per module, each owning its layers end-to-end) or by architectural layer (one package per onion ring, shared across modules) is a project-structure decision independent of this — both compose the same way through `ZLayer`.
