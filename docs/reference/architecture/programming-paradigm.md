@@ -121,6 +121,21 @@ A structured control flow makes nested blocks of code with clear boundaries. Eac
 
 ZIO embraces the structured programming into the next level by using this paradigm in other areas of programming such as [structured concurrency](../fiber/index.md#structured-concurrency), [scope based resource management](../resource/scope.md), and also regional interruption model.
 
+The same block-scoping idea applies to concurrency: a fiber forked inside a block is a child of the fiber that forked it, and its lifetime is bound to that block, just as a local variable's lifetime is bound to the block it's declared in. Interrupting the parent interrupts every child it forked, without having to track and cancel them individually:
+
+```scala mdoc:compile-only
+import zio._
+
+val program =
+  for {
+    parent <- ZIO.foreach(1 to 3)(n => ZIO.debug(s"child $n running").forever.fork).fork
+    _      <- ZIO.sleep(1.second)
+    _      <- parent.interrupt // interrupts the parent AND all three children it forked
+  } yield ()
+```
+
+This is structured concurrency: the concurrency structure (which fibers exist, and for how long) mirrors the program's own block structure, instead of being a separate, untracked set of running threads.
+
 ## Aspect Oriented Programming
 
 Aspect Oriented Programming (AOP) is a programming paradigm that allows us to separate cross-cutting concerns from the main program logic. Cross-cutting concerns are those that are not directly related to the main program logic but are still important to the program. Examples of cross-cutting concerns are logging, tracing, metrics, and security.
