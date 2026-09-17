@@ -80,7 +80,24 @@ We use FP to achieve **code maintainability** and OOP to achieve **code organiza
     - **Constructors** which help us to create a new instance of a data type
     - **Modules** which allows us to bundle together related operations into a single unit
 
-So, we leverage the power of both FP and OOP to build a better software system in ZIO.
+So, we leverage the power of both FP and OOP to build a better software system in ZIO. A ZIO service shows both at once: an OOP-style interface for **code organization**, constructed through a `ZLayer` rather than a constructor, paired with FP-style **composability** once you're inside its methods:
+
+```scala mdoc:silent
+import zio._
+
+trait FooService {
+  def bar(baz: String): UIO[Unit]
+}
+
+object FooService {
+  val live: ZLayer[Any, Nothing, FooService] =
+    ZLayer.succeed(new FooService {
+      def bar(baz: String): UIO[Unit] = ZIO.succeed(println(baz))
+    })
+}
+```
+
+`FooService` is the interface — the object-oriented half, giving callers something to program against without knowing which implementation they'll get. `FooService.live` is how that implementation is constructed and wired in, using `ZLayer` in place of `new`. See the [Writing ZIO Services](../service-pattern/index.md) section for the full pattern, including how multiple services compose.
 
 ## Imperative and Declarative Programming
 
