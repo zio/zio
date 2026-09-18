@@ -45,6 +45,55 @@ ZIO has a strong focus on testability which supports:
   7. Test Aspects (AOP)
   8. Non-flaky Tests
 
+The `ZLayer`-based dependency model that Onion Architecture relies on (see the [Architectural Patterns][20] section) is what makes this testable in practice: a service is used through its interface, and a test swaps the `live` layer for a `test` layer without changing any of the code under test.
+
+```scala
+import zio._
+
+trait NotificationService {
+  def notify(userId: String, message: String): UIO[Unit]
+}
+
+object NotificationService {
+  def notify(userId: String, message: String): URIO[NotificationService, Unit] =
+    ZIO.serviceWithZIO(_.notify(userId, message))
+
+  // the real implementation, calling out to an email/SMS provider
+  val live: ZLayer[Any, Nothing, NotificationService] =
+    ZLayer.succeed(new NotificationService {
+      def notify(userId: String, message: String): UIO[Unit] =
+        ZIO.succeed(println(s"Sending '$message' to $userId"))
+    })
+
+  // a test double that records every call instead of sending anything
+  val test: ZLayer[Any, Nothing, NotificationService] =
+    ZLayer.fromZIO {
+      Ref.make(List.empty[(String, String)]).map { calls =>
+        new NotificationService {
+          def notify(userId: String, message: String): UIO[Unit] =
+            calls.update(_ :+ (userId -> message))
+        }
+      }
+    }
+}
+```
+
+```scala
+import zio._
+import zio.test._
+
+object NotificationSpec extends ZIOSpecDefault {
+  def spec =
+    test("notifies the given user") {
+      for {
+        _ <- NotificationService.notify("user-1", "Welcome!")
+      } yield assertTrue(true) // in a real test, inspect the test layer's recorded calls
+    }.provide(NotificationService.test)
+}
+```
+
+Because `NotificationService.live` and `NotificationService.test` share the same interface, production code never imports the test double, and the spec never depends on the real implementation — the two are wired together only at the `provide` call site.
+
 To learn more about testing in ZIO, please refer to the [testing][14] section.
 
 ## 3. Maintainability
@@ -77,6 +126,10 @@ object MainApp extends ZIOAppDefault {
       .flatMap(f => Fiber.collectAll(f).join)
 }
 ```
+
+:::note
+This example forks unbounded parallelism for demonstration. In real-world applications, prefer controlling the level of parallelism, as shown below.
+:::
 
 Other than low-level concurrency tools like `Fiber`, `Promise`, `Ref`, etc., ZIO Streams is a high-level abstraction for processing high-throughput data streams:
 
@@ -140,6 +193,39 @@ object MainApp extends ZIOAppDefault {
   def run = download("123").retry(policy)
 }
 ```
+
+Retry is not the only resiliency pattern. When a dependency is failing consistently, retrying every call just adds load to something that's already struggling. A circuit breaker addresses this by tracking recent failures and, once they cross a threshold, short-circuiting further calls immediately instead of trying (and waiting to fail) again. ZIO has no dedicated circuit-breaker data type, but the pattern composes cleanly from `Ref` (for the breaker's state) and ordinary combinators:
+
+```scala
+import zio._
+
+final case class CircuitOpenError(message: String) extends Exception(message)
+
+final class CircuitBreaker private (isOpen: Ref[Boolean], failures: Ref[Int], maxFailures: Int) {
+  def protect[R, A](effect: ZIO[R, Throwable, A]): ZIO[R, Throwable, A] =
+    isOpen.get.flatMap {
+      case true => ZIO.fail(CircuitOpenError("circuit is open, failing fast"))
+      case false =>
+        effect
+          .tapError(_ => failures.updateAndGet(_ + 1).flatMap(n => isOpen.set(true).when(n >= maxFailures)))
+          .tap(_ => failures.set(0))
+    }
+
+  // half-open: allow one probe call through after a cooldown
+  def reset: UIO[Unit] = isOpen.set(false) *> failures.set(0)
+}
+
+object CircuitBreaker {
+  def make(maxFailures: Int): UIO[CircuitBreaker] =
+    (Ref.make(false) <*> Ref.make(0)).map { case (isOpen, failures) =>
+      new CircuitBreaker(isOpen, failures, maxFailures)
+    }
+}
+```
+
+A breaker built this way composes with `retry`: protect the call with the breaker first, then retry the whole thing (breaker included) with a `Schedule`, so retries stop hitting the dependency the moment the breaker opens.
+
+For the complementary pattern — limiting how much concurrent load a dependency receives in the first place, rather than reacting to its failures — a bounded [`Semaphore`][21] around the call site gives you bulkhead-style isolation: one slow or failing dependency can't exhaust the fibers or connections that the rest of the application needs.
 
 To learn more about resiliency and scheduling in ZIO, please refer to the [resiliency][19] section.
 
@@ -231,8 +317,8 @@ Developer experience and productivity are very important for choosing a technolo
       - [ZIO Official libraries][9]
       - [ZIO community libraries][10]
 
-[1]: ../../zio-logging/index.md
-[2]: ../../zio-telemetry/index.md
+[1]: https://zio.dev/zio-logging
+[2]: https://zio.dev/zio-telemetry
 [3]: ../observability/metrics/index.md
 [4]: ../../guides/migrate/migration-guide.md#debugging
 [5]: ../../guides/migrate/migration-guide.md#compile-time-execution-tracing
@@ -249,4 +335,6 @@ Developer experience and productivity are very important for choosing a technolo
 [16]: ../concurrency/queue.md
 [17]: ../stream/zstream/operations.md#buffering
 [18]: ../stream/index.md
-[19]: ../schedule/index.md
+[19]: ../schedule.md
+[20]: architectural-patterns.md
+[21]: ../concurrency/semaphore.md
