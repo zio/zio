@@ -25,7 +25,7 @@ import java.io.IOException
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.IntFunction
-import scala.annotation.implicitNotFound
+import scala.annotation.{implicitNotFound, tailrec}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
@@ -5663,26 +5663,104 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       ZIO.suspendSucceed(b()).flatMap(b => if (b) zio.unit else Exit.unit)
   }
 
+  private[zio] object TimeoutTo {
+    sealed abstract class State                        extends Product with Serializable
+    case object Registering                            extends State
+    case object Suspended                              extends State
+    case object TimedOut                               extends State
+    final case class ChildDone[E, A](exit: Exit[E, A]) extends State
+  }
+
   final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: () => B) {
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
     ): ZIO[R, E, B1] =
       ZIO.fiberIdWith { parentFiberId =>
-        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
-          (winner, loser) =>
-            winner.await.flatMap { exit =>
-              loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
-            },
-          (winner, loser) =>
-            winner.await.flatMap {
-              case e: Exit.Failure[Nothing] =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
-              case _ =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
-            },
-          null,
-          FiberScope.global
-        )
+        ZIO.clock.flatMap { clock =>
+          if (clock eq Clock.ClockLive) {
+            // With the live clock the timeout is registered directly on the
+            // global scheduler, which avoids forking a second fiber for the
+            // sleep and lets an already-completed effect resume synchronously.
+            ZIO.withFiberRuntime[R, E, B1] { (parentFiber, parentStatus) =>
+              import TimeoutTo._
+              import java.util.concurrent.atomic.AtomicReference
+
+              val graft    = ZIO.Grafter(parentFiber)
+              val childEff = graft.applyOnExit(self)
+              val childFiber = ZIO.unsafe
+                .makeChildFiber(trace, childEff, parentFiber, parentStatus.runtimeFlags, null)(Unsafe)
+              val start = childFiber.startSuspended()(Unsafe)
+
+              ZIO.asyncInterrupt[R, E, B1](
+                { cb =>
+                  val state         = new AtomicReference[State](Registering)
+                  val cancelTimeout = new AtomicReference[Scheduler.CancelToken]()
+
+                  childFiber.addObserver { exit =>
+                    var done = false
+                    while (!done)
+                      state.get() match {
+                        case Registering =>
+                          done = state.compareAndSet(Registering, ChildDone(exit))
+                        case Suspended =>
+                          if (state.compareAndSet(Suspended, ChildDone(exit))) {
+                            val cancel = cancelTimeout.get()
+                            if (cancel ne null) cancel()
+                            cb(childFiber.inheritAll *> exit.mapExit(f))
+                            done = true
+                          }
+                        case _ => done = true
+                      }
+                  }(Unsafe)
+
+                  start(childEff)
+
+                  @tailrec
+                  def complete(): Either[URIO[R, Any], ZIO[R, E, B1]] =
+                    state.get() match {
+                      case done: ChildDone[?, ?] =>
+                        // The effect finished before the timeout was scheduled
+                        Right(childFiber.inheritAll *> done.exit.asInstanceOf[Exit[E, A]].mapExit(f))
+                      case Registering =>
+                        if (state.compareAndSet(Registering, Suspended)) {
+                          val cancel = Clock.globalScheduler.schedule(
+                            () =>
+                              if (state.compareAndSet(Suspended, TimedOut))
+                                cb(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b())),
+                            duration
+                          )(Unsafe)
+
+                          cancelTimeout.set(cancel)
+                          if (state.get() ne Suspended) cancel()
+
+                          Left(ZIO.succeed(cancel()))
+                        } else complete()
+                      case _ => Left(ZIO.unit)
+                    }
+
+                  complete()
+                },
+                childFiber.id
+              )
+            }
+          } else {
+            self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
+              (winner, loser) =>
+                winner.await.flatMap { exit =>
+                  loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
+                },
+              (winner, loser) =>
+                winner.await.flatMap {
+                  case e: Exit.Failure[Nothing] =>
+                    loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
+                  case _ =>
+                    loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
+                },
+              null,
+              FiberScope.global
+            )
+          }
+        }
       }
   }
 
