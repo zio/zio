@@ -1661,12 +1661,12 @@ object FiberRuntime {
       RuntimeFlags.disable(RuntimeFlag.WindDown)
     )
 
+  // Interruption is disabled with a bare flag patch before the canceler runs, so
+  // it must be re-enabled with a bare patch too. A scoped update would "peek
+  // ahead" at the pending interrupt and skip applying the patch, leaving the
+  // fiber uninterruptible once the interrupt has been caught (#11115).
   private val enableInterruptionAfterAsync: ZIO.Erased =
-    ZIO.UpdateRuntimeFlagsWithin.DynamicNoBox[Any, Any, Any](
-      Trace.empty,
-      RuntimeFlags.enableInterruption,
-      _ => Exit.unit
-    )
+    ZIO.UpdateRuntimeFlags(Trace.empty, RuntimeFlags.enableInterruption)
 
   private val notBlockingOn: () => FiberId = () => FiberId.None
 
