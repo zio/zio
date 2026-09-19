@@ -2,6 +2,7 @@ package zio
 
 import zio.QueueSpecUtil._
 import zio.concurrent.CountdownLatch
+import zio.internal.MutableConcurrentQueue
 import zio.test.Assertion._
 import zio.test.TestAspect.{exceptJS, jvm, nonFlaky, samples, sequential}
 import zio.test._
@@ -933,11 +934,152 @@ object QueueSpec extends ZIOBaseSpec {
           } yield assertTrue(total == 5)
         )
         .map(_.foldLeft(assertTrue(true))(_ && _))
-    } @@ exceptJS(nonFlaky)
+    } @@ exceptJS(nonFlaky),
+    suite("sliding strategy loses the offer race (i10885)")(
+      test("retries the unplaced values rather than dropping them") {
+        // Simulates a competing producer that claims the space freed by the
+        // drop inside `unsafeSlidingOffer`: the first `failures` bulk offers
+        // come back entirely unplaced. The loop must retry with exactly those
+        // values, or they are silently dropped.
+        val failures = 1000
+        val queue    = new FlakyOfferQueue[Int](failures)
+        Queue.Strategy.Sliding[Int]().unsafeSlidingOffer(Chunk(1, 2, 3), queue)
+        assertTrue(
+          // capacity is 2, so 1 cannot survive the slide
+          queue.accepted == List(2, 3),
+          queue.offerAllCalls == failures + 1,
+          // the queue reports one free slot and two values are in hand, so
+          // each round drops exactly the one slot it is short
+          queue.pollCalls == failures + 1
+        )
+      },
+      test("terminates when the first bulk offer succeeds") {
+        val queue = new FlakyOfferQueue[Int](0)
+        Queue.Strategy.Sliding[Int]().unsafeSlidingOffer(Chunk(1, 2, 3), queue)
+        assertTrue(
+          queue.accepted == List(2, 3),
+          queue.offerAllCalls == 1
+        )
+      },
+      test("places every value against a producer that keeps stealing the space") {
+        // The queue starts full of another producer's values and refills every
+        // slot we free, for the first two rounds. `Enqueue.offerAll` documents
+        // that the sliding strategy "removes the old elements and enqueues the
+        // new ones" and "always returns no leftovers", so the loop must keep
+        // displacing until our values are in -- it may not give up, and the
+        // number of values it displaces to get there is not bounded.
+        var next  = 0
+        val queue = new EvictionWitnessQueue[Int](4, () => { next -= 1; next })
+        Queue.Strategy.Sliding[Int]().unsafeSlidingOffer(Chunk(1, 2, 3, 4), queue)
+        assertTrue(queue.contents == List(1, 2, 3, 4))
+      }
+    ) @@ TestAspect.timeout(30.seconds)
   )
 }
 
 object QueueSpecUtil {
+
+  /**
+   * A queue whose bulk `offerAll` rejects its first `failures` attempts,
+   * returning every value unplaced, simulating a competing producer that claims
+   * the space freed by a concurrent drop.
+   *
+   * It reports one free slot, so a drop sized by the shortfall and one sized by
+   * the whole batch differ, and `pollCalls` tells them apart.
+   *
+   * Only the members `unsafeSlidingOffer` calls are implemented.
+   */
+  final class FlakyOfferQueue[A](failures: Int) extends MutableConcurrentQueue[A] {
+    private[this] var remaining: Int   = failures
+    private[this] var acceptedReversed = List.empty[A]
+
+    var offerAllCalls: Int = 0
+    var pollCalls: Int     = 0
+
+    def accepted: List[A] = acceptedReversed.reverse
+
+    override val capacity: Int = 2
+
+    override def offerAll[A1 <: A](as: Iterable[A1]): Chunk[A1] = {
+      offerAllCalls += 1
+      if (remaining > 0) {
+        remaining -= 1
+        Chunk.fromIterable(as)
+      } else {
+        acceptedReversed = as.toList.reverse ::: acceptedReversed
+        Chunk.empty
+      }
+    }
+
+    override def poll(default: A): A = {
+      pollCalls += 1
+      default
+    }
+
+    // one slot free, so the shortfall for the two values in hand is one, not
+    // two: a drop sized by `remaining.length` instead would poll twice
+    override def size(): Int = capacity - 1
+
+    override def offer(a: A): Boolean       = ???
+    override def pollUpTo(n: Int): Chunk[A] = ???
+    override def enqueuedCount(): Long      = ???
+    override def dequeuedCount(): Long      = ???
+    override def isEmpty(): Boolean         = ???
+    override def isFull(): Boolean          = ???
+  }
+
+  /**
+   * A full queue that hands every slot to a concurrent producer the moment we
+   * free one, so each round sees a queue that is full again of values we did
+   * not place.
+   *
+   * `evicted` records the values destroyed by our drops, for debugging a
+   * failure here; the contract this pins is that every value is placed, which
+   * `contents` shows.
+   */
+  final class EvictionWitnessQueue[A](override val capacity: Int, stolen: () => A) extends MutableConcurrentQueue[A] {
+    private[this] var rounds = 0
+
+    var contents: List[A] = Nil
+    var evicted: List[A]  = Nil
+
+    // start full of values belonging to someone else
+    contents = List.fill(capacity)(stolen())
+
+    override def poll(default: A): A =
+      contents match {
+        case Nil => default
+        case head :: rest =>
+          contents = rest
+          evicted = evicted :+ head
+          head
+      }
+
+    override def offerAll[A1 <: A](as: Iterable[A1]): Chunk[A1] = {
+      rounds += 1
+      val room = capacity - contents.length
+      // a competing producer refills every slot we freed before we can use it,
+      // for the first two rounds
+      if (rounds <= 2) {
+        contents = contents ::: List.fill(room)(stolen())
+        Chunk.fromIterable(as)
+      } else {
+        val (placed, unplaced) = as.toList.splitAt(room)
+        contents = contents ::: placed
+        Chunk.fromIterable(unplaced)
+      }
+    }
+
+    override def size(): Int = contents.length
+
+    override def offer(a: A): Boolean       = ???
+    override def pollUpTo(n: Int): Chunk[A] = ???
+    override def enqueuedCount(): Long      = ???
+    override def dequeuedCount(): Long      = ???
+    override def isEmpty(): Boolean         = ???
+    override def isFull(): Boolean          = ???
+  }
+
   def waitForValue[T](ref: UIO[T], value: T): UIO[T] =
     Live.live((ref <* Clock.sleep(10.millis)).repeatUntil(_ == value))
 
