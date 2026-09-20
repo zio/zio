@@ -2576,6 +2576,9 @@ object ZIOSpec extends ZIOBaseSpec {
       test("timeout under the live clock propagates failure") {
         assertZIO(Live.live(ZIO.fail("fail").timeout(1.hour)).exit)(fails(equalTo("fail")))
       },
+      test("timeout with zero duration under the live clock") {
+        assertZIO(Live.live(ZIO.succeed(42).timeout(Duration.Zero)).exit)(succeeds(anything))
+      },
       test("timeout respects TestClock") {
         for {
           fiber  <- ZIO.never.timeout(5.minutes).fork

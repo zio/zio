@@ -5723,17 +5723,26 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                         Right(childFiber.inheritAll *> done.exit.asInstanceOf[Exit[E, A]].mapExit(f))
                       case Registering =>
                         if (state.compareAndSet(Registering, Suspended)) {
-                          val cancel = Clock.globalScheduler.schedule(
-                            () =>
-                              if (state.compareAndSet(Suspended, TimedOut))
-                                cb(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b())),
-                            duration
-                          )(Unsafe)
+                          if (duration <= Duration.Zero) {
+                            // Non-positive durations elapse immediately; the
+                            // scheduler would defer them on some platforms
+                            if (state.compareAndSet(Suspended, TimedOut))
+                              cb(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b()))
 
-                          cancelTimeout.set(cancel)
-                          if (state.get() ne Suspended) cancel()
+                            Left(ZIO.unit)
+                          } else {
+                            val cancel = Clock.globalScheduler.schedule(
+                              () =>
+                                if (state.compareAndSet(Suspended, TimedOut))
+                                  cb(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b())),
+                              duration
+                            )(Unsafe)
 
-                          Left(ZIO.succeed(cancel()))
+                            cancelTimeout.set(cancel)
+                            if (state.get() ne Suspended) cancel()
+
+                            Left(ZIO.succeed(cancel()))
+                          }
                         } else complete()
                       case _ => Left(ZIO.unit)
                     }
