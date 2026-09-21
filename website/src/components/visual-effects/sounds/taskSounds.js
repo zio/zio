@@ -11,6 +11,29 @@ const BASE_OCTAVE = 3;
 // "chord" and will be voiced as adjacent scale degrees in the *same* octave.
 const CHORD_WINDOW_MS = 100;
 
+// Bespoke additions for the Streaming tab (no source equivalent).
+//
+// One distinct voice per event rather than one voice at five pitches: the
+// point is to hear *what happened*, not to play a tune. Each is chosen to
+// match the change on screen —
+//   enriching  a light tick as a chip is picked up into a worker slot
+//   buffered   a dull thud as it drops into the waiting queue
+//   writing    a low motor pulse as a writer takes it
+//   written    a bright bell as it lands, done, in the Written lane
+//   backpressure  a low strained tone as the buffer fills and work stalls
+// They stay inside C major pentatonic so overlapping events don't clash,
+// but the timbres are what carry the meaning.
+const STREAM_STAGE_VOICES = {
+  enriching: { voice: 'tick', note: 'E5', duration: '32n', velocity: 0.1 },
+  buffered: { voice: 'thud', note: 'C2', duration: '16n', velocity: 0.28 },
+  writing: { voice: 'motor', note: 'C3', duration: '16n', velocity: 0.18 },
+  written: { voice: 'bell', note: 'C5', duration: '4n', velocity: 0.32 },
+  backpressure: { voice: 'strain', note: 'A1', duration: '2n', velocity: 0.3 },
+};
+
+// Minimum spacing between two pipeline notes, in seconds.
+const STREAM_NOTE_GAP = 0.16;
+
 class TaskSoundSystem {
   constructor() {
     // Poly synths for overlapping notes
@@ -157,6 +180,43 @@ class TaskSoundSystem {
         oscillator: { type: 'triangle' },
         envelope: { attack: 0.005, decay: 0.25, sustain: 0.1, release: 0.4 },
       }).connect(this.reverb);
+
+      // Bespoke, not part of the ported set: a small kit for the Streaming
+      // pipeline, one timbre per kind of event so they are told apart by
+      // character rather than by pitch.
+      this.streamVoices = {
+        // Light, dry click — an item being picked up into a worker slot.
+        tick: new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'sine' },
+          envelope: { attack: 0.001, decay: 0.04, sustain: 0, release: 0.04 },
+        }).connect(this.volume),
+
+        // Percussive drop — an item landing in the queue.
+        thud: new Tone.MembraneSynth({
+          pitchDecay: 0.03,
+          octaves: 3,
+          envelope: { attack: 0.001, decay: 0.22, sustain: 0, release: 0.2 },
+        }).connect(this.volume),
+
+        // Short low pulse — a writer engaging.
+        motor: new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'square' },
+          envelope: { attack: 0.005, decay: 0.1, sustain: 0.02, release: 0.1 },
+        }).connect(this.volume),
+
+        // Bell, with the reverb tail the other voices skip, so completion is
+        // the one event that rings out.
+        bell: new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'triangle' },
+          envelope: { attack: 0.004, decay: 0.5, sustain: 0.03, release: 1.1 },
+        }).connect(this.reverb),
+
+        // Detuned and slow — the pipeline straining, not progressing.
+        strain: new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'sawtooth', detune: -18 },
+          envelope: { attack: 0.12, decay: 0.5, sustain: 0.15, release: 0.7 },
+        }).connect(this.reverb),
+      };
 
       // Transport: ensure scheduleOnce works reliably
       this.transport = Tone.getTransport();
@@ -341,6 +401,39 @@ class TaskSoundSystem {
     if (!(await this.ready())) return;
     const note = this.getNextNote(1); // One octave up
     this.synthFinalizer?.triggerAttackRelease(note, '8n', undefined, 0.35);
+  }
+
+  // --- Streaming pipeline (bespoke, no source equivalent) ------------------
+
+  /**
+   * Voices one pipeline event, each with its own timbre so the sound says
+   * which change just happened on screen (see STREAM_STAGE_VOICES).
+   *
+   * Note the ported helpers ask for `getNextNote(0.5)` intending half an
+   * octave up; that builds a note string like "C3.5", which Tone parses as
+   * plain C3, so those offsets are silently inert. These use explicit
+   * integer octaves instead.
+   *
+   * Simultaneous events are spread rather than stacked: four enrichments
+   * starting at once fired four sounds in the same millisecond, which read as
+   * one blur. Each is scheduled at least STREAM_NOTE_GAP after the previous.
+   */
+  async playStreamStage(stage) {
+    if (!(await this.ready())) return;
+
+    const voice = STREAM_STAGE_VOICES[stage];
+    if (!voice) return;
+
+    const now = Tone.now();
+    const at = Math.max(now, this.streamNextNoteAt ?? 0);
+    this.streamNextNoteAt = at + STREAM_NOTE_GAP;
+
+    this.streamVoices?.[voice.voice]?.triggerAttackRelease(
+      voice.note,
+      voice.duration,
+      at,
+      voice.velocity,
+    );
   }
 
   /** Ultra-subtle sound when hovering over link option. */

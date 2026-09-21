@@ -44,10 +44,14 @@ const WRITE_CONCURRENCY = STREAM_WRITE_CONCURRENCY;
 // a viewer can follow an item from source to written, see four of them
 // overlapping in enrich, and watch the writer set the pace for everything
 // upstream of it.
-const ENRICH_MIN_MS = 2200;
-const ENRICH_MAX_MS = 3000;
-const WRITE_MIN_MS = 2100;
-const WRITE_MAX_MS = 2800;
+// Slower again, so stage events land further apart and their notes do not
+// pile onto each other. The audio layer spaces simultaneous notes into an
+// arpeggio, but spacing the underlying work is what keeps the run from
+// sounding busy in the first place.
+const ENRICH_MIN_MS = 3000;
+const ENRICH_MAX_MS = 4200;
+const WRITE_MIN_MS = 2800;
+const WRITE_MAX_MS = 3600;
 
 function enrichItem(item, durationMs) {
   return Effect.gen(function* () {

@@ -14,7 +14,7 @@ import { taskSounds } from './sounds/taskSounds';
 
 // Fire-and-forget: every play* is async and a rejected audio promise (an
 // autoplay-blocked context, say) must never break the visual.
-const play = (sound) => sound?.call(taskSounds).catch(() => {});
+const playStage = (stage) => taskSounds.playStreamStage(stage).catch(() => {});
 
 export class StreamPipeline {
   // `concurrency` is the same number the Stream's mapEffect is gated on —
@@ -48,11 +48,9 @@ export class StreamPipeline {
 
     item.stage = stage;
 
-    // Stages are voiced in ascending pitch, so an item is audibly climbing
-    // the pipeline: a soft tick when it lands in the buffer, a brighter one
-    // an octave up when it is finally written.
-    if (stage === 'buffered') play(taskSounds.playFinalizerCreated);
-    if (stage === 'written') play(taskSounds.playFinalizerCompleted);
+    // One voice for the whole pipeline, rising through a pentatonic chord as
+    // an item advances — see STREAM_STAGE_VOICES in sounds/taskSounds.js.
+    if (stage === 'buffered' || stage === 'written') playStage(stage);
 
     this.announceBackpressure();
     this.notify();
@@ -71,8 +69,7 @@ export class StreamPipeline {
     item.startedAt = Date.now();
     item.durationMs = durationMs;
 
-    if (stage === 'enriching') play(taskSounds.playRunning);
-    if (stage === 'writing') play(taskSounds.playFinalizerRunning);
+    if (stage === 'enriching' || stage === 'writing') playStage(stage);
 
     this.notify();
   }
@@ -87,7 +84,7 @@ export class StreamPipeline {
 
     if (waiting >= this.capacity && !this.backpressureAnnounced) {
       this.backpressureAnnounced = true;
-      play(taskSounds.playNotificationChime);
+      playStage('backpressure');
     } else if (waiting < this.capacity) {
       this.backpressureAnnounced = false;
     }
