@@ -142,6 +142,10 @@ export default function StreamingVisual() {
       effects={[pipelineTask]}
       effectHighlightMap={{ pipeline: { text: 'runDrain' } }}
       streamPipeline={pipeline}
+      // The lanes below already show every item's progress and where it
+      // ended up, so the standard node row was one box repeating the
+      // header's run state.
+      showEffectNodes={false}
       exampleId="stream-pipeline"
     />
   );
