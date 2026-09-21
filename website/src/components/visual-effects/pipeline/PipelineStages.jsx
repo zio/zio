@@ -18,6 +18,19 @@ import { useStreamPipeline } from '../hooks/useStreamPipeline';
 // enrich lane's 2 rows of h-10 slots.
 const LANE_BOX_HEIGHT = 'h-[112px]';
 
+// Lane chrome, theme-reactive on purpose. Fixed dark Tailwind shades
+// (neutral-800, blue-900/60) vanished on the dark panel, and emphasis-300
+// then vanished on the light one — it resolves to #dadde1 against a #f6f6f6
+// background. Infima's emphasis scale inverts between themes, so the token
+// to pick is the one that lands mid-grey in both: emphasis-600 is #8d949e in
+// light and #ccd0d5 in dark. The tinted lanes use their mid-tone hue at high
+// enough alpha to hold up on either background.
+const LANE_BORDER = 'var(--ifm-color-emphasis-600)';
+const SLOT_BORDER = 'var(--ifm-color-emphasis-500)';
+const ENRICH_BORDER = 'rgba(59, 130, 246, 0.75)';
+const WRITE_BORDER = 'rgba(168, 85, 247, 0.75)';
+const FULL_BORDER = 'rgba(217, 119, 6, 0.85)';
+
 const CHIP_STYLES = {
   queued: 'border-neutral-700 bg-neutral-800 text-neutral-400',
   buffered: 'border-amber-500 bg-amber-900 text-amber-300',
@@ -74,8 +87,16 @@ function useAnimationTick(active) {
 function WorkSlot({ item, tone }) {
   if (!item) {
     return (
-      <div className="flex h-10 items-center justify-center rounded-md border border-dashed border-neutral-700/70">
-        <span className="font-mono text-[10px] text-neutral-500">idle</span>
+      <div
+        className="flex h-10 items-center justify-center rounded-md border border-dashed"
+        style={{ borderColor: SLOT_BORDER }}
+      >
+        <span
+          className="font-mono text-[10px]"
+          style={{ color: 'var(--ifm-color-emphasis-600)' }}
+        >
+          idle
+        </span>
       </div>
     );
   }
@@ -185,7 +206,8 @@ export function PipelineStages({ pipeline }) {
               card taller than the panel's fixed height and pushed the code
               block out of view entirely. */}
           <div
-            className={`grid ${LANE_BOX_HEIGHT} grid-cols-2 content-start gap-1.5 rounded-lg border border-dashed border-blue-900/60 p-2`}
+            className={`grid ${LANE_BOX_HEIGHT} grid-cols-2 content-start gap-1.5 rounded-lg border border-dashed p-2`}
+            style={{ borderColor: ENRICH_BORDER }}
           >
             {enrichSlots.map(({ key, item }) => (
               <WorkSlot key={key} item={item} tone={ENRICH_TONE} />
@@ -214,7 +236,8 @@ export function PipelineStages({ pipeline }) {
             Write · {writing.length} of {pipeline.writeConcurrency}
           </LaneLabel>
           <div
-            className={`flex ${LANE_BOX_HEIGHT} flex-col content-start gap-1.5 rounded-lg border border-dashed border-purple-900/60 p-2`}
+            className={`flex ${LANE_BOX_HEIGHT} flex-col content-start gap-1.5 rounded-lg border border-dashed p-2`}
+            style={{ borderColor: WRITE_BORDER }}
           >
             {writeSlots.map(({ key, item }) => (
               <WorkSlot key={key} item={item} tone={WRITE_TONE} />
@@ -243,7 +266,10 @@ export function PipelineStages({ pipeline }) {
 
 function LaneLabel({ children }) {
   return (
-    <span className="text-center text-xs tracking-wide text-neutral-500 uppercase">
+    <span
+      className="text-center text-xs tracking-wide uppercase"
+      style={{ color: 'var(--ifm-color-emphasis-600)' }}
+    >
       {children}
     </span>
   );
@@ -255,8 +281,9 @@ function Lane({ label, items, full, styleKey }) {
       <LaneLabel>{label}</LaneLabel>
       <div
         className={`flex ${LANE_BOX_HEIGHT} flex-wrap content-start justify-center gap-1.5 rounded-lg border border-dashed p-2 ${
-          full ? 'border-amber-600/70 bg-amber-950/20' : 'border-neutral-800'
+          full ? 'bg-amber-950/20' : ''
         }`}
+        style={{ borderColor: full ? FULL_BORDER : LANE_BORDER }}
       >
         <AnimatePresence mode="popLayout">
           {items.map((item) => (
