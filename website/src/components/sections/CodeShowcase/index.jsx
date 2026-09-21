@@ -1,6 +1,4 @@
 import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { Highlight, Prism } from 'prism-react-renderer';
-import { usePrismTheme } from '@docusaurus/theme-common';
 import useIsBrowser from '@docusaurus/useIsBrowser';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 import Link from '@docusaurus/Link';
@@ -33,24 +31,13 @@ const VISUAL_COMPONENTS = {
   ),
 };
 
-// prism-react-renderer v2 highlights against the shared prismjs instance.
-// The homepage has no @theme/CodeBlock to trigger Docusaurus's language
-// loader, so register Scala (extends Java) here against that same instance.
-// Idempotent if Docusaurus already loaded it elsewhere.
-globalThis.Prism = Prism;
-require('prismjs/components/prism-java');
-require('prismjs/components/prism-scala');
-delete globalThis.Prism;
-
 // Editor-style code panel ported from zio-http's HomepageCodeSnippet
 // (website/src/components/HomepageCodeSnippet in the zio/zio-http repo):
 // theme-aware editor panel with a tab bar, line numbers, and a copy toolbar.
 export default function CodeShowcase() {
   const [activeTab, setActiveTab] = useState(0);
-  const [viewMode, setViewMode] = useState('visual');
   const [copied, setCopied] = useState(false);
   const isBrowser = useIsBrowser();
-  const prismTheme = usePrismTheme();
   const timeoutRef = useRef(null);
 
   useEffect(() => {
@@ -63,7 +50,6 @@ export default function CodeShowcase() {
 
   const handleTabClick = (idx) => {
     setActiveTab(idx);
-    setViewMode('visual');
     setCopied(false);
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -153,99 +139,34 @@ export default function CodeShowcase() {
               ))}
             </div>
 
-            {/* Code Area */}
+            {/* Visual area. There is no Code view any more: every tab has a
+                visual, and each one already shows its own snippet inside the
+                card, so a second copy behind a toggle was one control and one
+                rendering path for nothing. The Copy button still copies the
+                snippet. */}
             <div
               id={`tabpanel-${activeTab}`}
-              className={
-                active.visual && viewMode === 'visual'
-                  ? styles.visualArea
-                  : styles.codeArea
-              }
+              className={styles.visualArea}
               role="tabpanel"
               aria-labelledby={`tab-${activeTab}`}
             >
-              {active.visual && viewMode === 'visual' ? (
-                <BrowserOnly fallback={<div className={styles.visualArea} />}>
-                  {() => {
-                    const VisualComponent = VISUAL_COMPONENTS[active.visual];
-                    if (!VisualComponent) return null;
-                    return (
-                      <Suspense
-                        fallback={<div className={styles.visualArea} />}
-                      >
-                        <VisualComponent />
-                      </Suspense>
-                    );
-                  }}
-                </BrowserOnly>
-              ) : (
-                <Highlight
-                  key={activeTab}
-                  theme={prismTheme}
-                  code={active.code.trim()}
-                  language="scala"
-                >
-                  {({
-                    className,
-                    style,
-                    tokens,
-                    getLineProps,
-                    getTokenProps,
-                  }) => (
-                    <pre className={`${className} ${styles.pre}`} style={style}>
-                      <code>
-                        {tokens.map((line, i) => (
-                          <div
-                            key={i}
-                            {...getLineProps({ line, key: i })}
-                            className={styles.codeLine}
-                          >
-                            <span className={styles.lineNumber}>{i + 1}</span>
-                            <span className={styles.lineContent}>
-                              {line.map((token, key) => (
-                                <span
-                                  key={key}
-                                  {...getTokenProps({ token, key })}
-                                />
-                              ))}
-                            </span>
-                          </div>
-                        ))}
-                      </code>
-                    </pre>
-                  )}
-                </Highlight>
-              )}
+              <BrowserOnly fallback={<div className={styles.visualArea} />}>
+                {() => {
+                  const VisualComponent = VISUAL_COMPONENTS[active.visual];
+                  if (!VisualComponent) return null;
+                  return (
+                    <Suspense fallback={<div className={styles.visualArea} />}>
+                      <VisualComponent />
+                    </Suspense>
+                  );
+                }}
+              </BrowserOnly>
             </div>
 
             {/* Toolbar */}
             <div className={styles.toolbar}>
               <div className={styles.toolbarLeft}>
                 <span className={styles.langBadge}>Scala</span>
-                {active.visual && (
-                  <div className={styles.viewToggle}>
-                    <button
-                      type="button"
-                      className={clsx(
-                        styles.viewToggleButton,
-                        viewMode === 'visual' && styles.viewToggleButtonActive,
-                      )}
-                      onClick={() => setViewMode('visual')}
-                    >
-                      Visual
-                    </button>
-                    <button
-                      type="button"
-                      className={clsx(
-                        styles.viewToggleButton,
-                        viewMode === 'code' && styles.viewToggleButtonActive,
-                      )}
-                      onClick={() => setViewMode('code')}
-                    >
-                      Code
-                    </button>
-                  </div>
-                )}
               </div>
               {isBrowser && (
                 <button
