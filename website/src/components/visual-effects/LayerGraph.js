@@ -12,6 +12,11 @@
 //     the other way)
 //   - what is in the environment so far, i.e. the R of ZIO[R, E, A] being
 //     satisfied one layer at a time
+import { taskSounds } from './sounds/taskSounds';
+// Fire-and-forget: play* is async, and a rejected or unavailable audio
+// context must never break the visual.
+const play = (event) => taskSounds.playLayerEvent(event).catch(() => {});
+
 export class LayerGraph {
   constructor(layers) {
     this.initial = layers;
@@ -54,6 +59,11 @@ export class LayerGraph {
     // `app` is not a service anyone can require, so it never joins the
     // environment — it is the thing the environment exists to satisfy.
     if (!layer.isApp) this.environment.push(id);
+
+    // A layer turning green gets a quiet tick; the app finishing gets the
+    // one brighter note in the run.
+    play(layer.isApp ? 'done' : 'ready');
+
     this.notify();
   }
 
@@ -64,6 +74,11 @@ export class LayerGraph {
     if (!layer) return;
 
     layer.usedBy.push({ consumerId, instance });
+
+    // Only the second consumer onward is worth hearing: that is the instance
+    // being shared rather than rebuilt, which is what the graph is arguing.
+    if (layer.usedBy.length > 1) play('shared');
+
     this.notify();
   }
 

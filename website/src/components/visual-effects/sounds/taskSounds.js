@@ -27,6 +27,18 @@ const STREAM_STAGE_VOICES = {
   backpressure: { voice: 'stall', note: 'C3', duration: '4n', velocity: 0.1 },
 };
 
+// Dependency Injection tab (no source equivalent either). Same restraint as
+// above: only the moments that change something on screen, all quiet.
+//   ready   a layer turns green and joins the environment
+//   shared  a second service is handed the instance that already exists —
+//           the "built 1x / used by 2" moment, and the point of the graph
+//   done    app.provide(...) finishes, once per run
+const LAYER_EVENT_VOICES = {
+  ready: { voice: 'click', note: 'E5', duration: '16n', velocity: 0.07 },
+  shared: { voice: 'done', note: 'C5', duration: '8n', velocity: 0.09 },
+  done: { voice: 'done', note: 'G5', duration: '4n', velocity: 0.12 },
+};
+
 // Minimum spacing between two pipeline notes, in seconds.
 const STREAM_NOTE_GAP = 0.16;
 
@@ -397,20 +409,32 @@ class TaskSoundSystem {
    * one blur. Each is scheduled at least STREAM_NOTE_GAP after the previous.
    */
   async playStreamStage(stage) {
+    await this.playBespokeVoice(STREAM_STAGE_VOICES[stage]);
+  }
+
+  /** Voices one layer-graph event on the Dependency Injection tab. */
+  async playLayerEvent(event) {
+    await this.playBespokeVoice(LAYER_EVENT_VOICES[event]);
+  }
+
+  /**
+   * Shared by both bespoke tabs: schedules one note on its plain voice, at
+   * least STREAM_NOTE_GAP after the previous one so simultaneous events (four
+   * enrichments starting together, two layers finishing together) are spread
+   * instead of landing in the same millisecond.
+   */
+  async playBespokeVoice(spec) {
+    if (!spec) return;
     if (!(await this.ready())) return;
 
-    const voice = STREAM_STAGE_VOICES[stage];
-    if (!voice) return;
-
-    const now = Tone.now();
-    const at = Math.max(now, this.streamNextNoteAt ?? 0);
+    const at = Math.max(Tone.now(), this.streamNextNoteAt ?? 0);
     this.streamNextNoteAt = at + STREAM_NOTE_GAP;
 
-    this.streamVoices?.[voice.voice]?.triggerAttackRelease(
-      voice.note,
-      voice.duration,
+    this.streamVoices?.[spec.voice]?.triggerAttackRelease(
+      spec.note,
+      spec.duration,
       at,
-      voice.velocity,
+      spec.velocity,
     );
   }
 
