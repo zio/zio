@@ -12,20 +12,18 @@
 import { ArrowRightIcon } from '@phosphor-icons/react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
+import { TASK_COLORS } from '../colors';
 import { useLayerGraph } from '../hooks/useLayerGraph';
 
-const CARD_STYLES = {
-  // Dashed and unfilled, matching the "idle" slots in the Streaming lanes —
-  // a filled grey card rendered its label at near-zero contrast.
-  pending: 'border-dashed border-neutral-500 bg-transparent',
-  building: 'border-blue-500 bg-blue-900',
-  ready: 'border-green-500 bg-green-900',
-};
-
-const LABEL_STYLES = {
-  pending: 'text-neutral-500',
-  building: 'text-blue-300',
-  ready: 'text-green-300',
+// The same state palette every other example uses (see ../colors.js and
+// effect-node/nodeVariants.js): slate while idle, blue while running, green
+// once done — including the idle card's 0.6 opacity. This view previously
+// invented its own bg-green-900/bg-blue-900 shades, which read as a
+// different component from the nodes on the other tabs.
+const CARD_FILL = {
+  pending: TASK_COLORS.idle,
+  building: TASK_COLORS.running,
+  ready: TASK_COLORS.success,
 };
 
 const STATE_TEXT = {
@@ -79,23 +77,25 @@ function LayerCard({ layer, receivedInstances }) {
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: 'spring', visualDuration: 0.3, bounce: 0.2 }}
-      className={`flex w-[232px] flex-col justify-center gap-1 rounded-md border px-2 py-1.5 ${CARD_STYLES[layer.state]}`}
+      className="flex w-[232px] flex-col justify-center gap-1 rounded-md px-2 py-1.5 text-white"
+      style={{
+        backgroundColor: CARD_FILL[layer.state],
+        opacity: layer.state === 'pending' ? 0.6 : 1,
+      }}
     >
-      <div
-        className={`flex items-baseline justify-between gap-2 font-mono text-[11px] leading-none ${LABEL_STYLES[layer.state]}`}
-      >
+      <div className="flex items-baseline justify-between gap-2 font-mono text-[11px] leading-none">
         <span className="truncate">{layer.label}</span>
-        <span className="shrink-0 text-[9px] opacity-80">
+        <span className="shrink-0 text-[9px] opacity-75">
           {layer.instance ??
             (layer.isApp ? APP_STATE_TEXT : STATE_TEXT)[layer.state]}
         </span>
       </div>
 
-      <div className="h-1 overflow-hidden rounded-full bg-black/30">
+      {/* White over the state fill, so one bar style works on slate, blue
+          and green alike. */}
+      <div className="h-1 overflow-hidden rounded-full bg-black/25">
         <div
-          className={`h-full rounded-full ${
-            layer.state === 'ready' ? 'bg-green-400' : 'bg-blue-400'
-          }`}
+          className="h-full rounded-full bg-white/80"
           style={{ width: `${progress * 100}%` }}
         />
       </div>
@@ -104,9 +104,10 @@ function LayerCard({ layer, receivedInstances }) {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className={`font-mono text-[9px] leading-none ${
-            shared ? 'text-amber-400' : 'text-neutral-400'
-          }`}
+          className="font-mono text-[9px] leading-none"
+          style={{
+            color: shared ? 'var(--color-amber-300)' : 'rgba(255,255,255,0.7)',
+          }}
         >
           built {layer.buildCount}× · used by {layer.usedBy.length}
         </motion.div>
@@ -116,7 +117,8 @@ function LayerCard({ layer, receivedInstances }) {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="font-mono text-[9px] leading-none text-neutral-400"
+          className="font-mono text-[9px] leading-none"
+          style={{ color: 'rgba(255,255,255,0.7)' }}
         >
           uses {receivedInstances.join(' · ')}
         </motion.div>
@@ -196,7 +198,8 @@ export function LayerGraphView({ graph }) {
               // tint: bg-green-900/40 over this panel's light background
               // washed out to near the text colour and was unreadable in
               // light mode.
-              className="rounded border border-green-500 bg-green-900 px-1.5 py-0.5 text-green-300"
+              className="rounded px-1.5 py-0.5 text-white"
+              style={{ backgroundColor: TASK_COLORS.success }}
             >
               {id}
             </motion.span>
