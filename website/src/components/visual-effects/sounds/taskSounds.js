@@ -17,10 +17,14 @@ const CHORD_WINDOW_MS = 100;
 // up, a clear note when one is finished, and a low note when the pipeline
 // stalls. Earlier passes voiced every stage with its own timbre, which was
 // busier than the visual and harder to read, not easier.
+//
+// Velocities are deliberately low — these sit under the animation as
+// background texture rather than competing with it. Roughly half what they
+// started at; quieter still is better than louder here.
 const STREAM_STAGE_VOICES = {
-  enriching: { voice: 'click', note: 'C5', duration: '32n', velocity: 0.12 },
-  written: { voice: 'done', note: 'G5', duration: '8n', velocity: 0.25 },
-  backpressure: { voice: 'stall', note: 'C3', duration: '4n', velocity: 0.22 },
+  enriching: { voice: 'click', note: 'C5', duration: '32n', velocity: 0.05 },
+  written: { voice: 'done', note: 'G5', duration: '8n', velocity: 0.1 },
+  backpressure: { voice: 'stall', note: 'C3', duration: '4n', velocity: 0.1 },
 };
 
 // Minimum spacing between two pipeline notes, in seconds.
