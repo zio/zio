@@ -13,22 +13,14 @@ const CHORD_WINDOW_MS = 100;
 
 // Bespoke additions for the Streaming tab (no source equivalent).
 //
-// One distinct voice per event rather than one voice at five pitches: the
-// point is to hear *what happened*, not to play a tune. Each is chosen to
-// match the change on screen —
-//   enriching  a light tick as a chip is picked up into a worker slot
-//   buffered   a dull thud as it drops into the waiting queue
-//   writing    a low motor pulse as a writer takes it
-//   written    a bright bell as it lands, done, in the Written lane
-//   backpressure  a low strained tone as the buffer fills and work stalls
-// They stay inside C major pentatonic so overlapping events don't clash,
-// but the timbres are what carry the meaning.
+// Three plain sounds, not a kit: a soft click when a worker picks an item
+// up, a clear note when one is finished, and a low note when the pipeline
+// stalls. Earlier passes voiced every stage with its own timbre, which was
+// busier than the visual and harder to read, not easier.
 const STREAM_STAGE_VOICES = {
-  enriching: { voice: 'tick', note: 'E5', duration: '32n', velocity: 0.1 },
-  buffered: { voice: 'thud', note: 'C2', duration: '16n', velocity: 0.28 },
-  writing: { voice: 'motor', note: 'C3', duration: '16n', velocity: 0.18 },
-  written: { voice: 'bell', note: 'C5', duration: '4n', velocity: 0.32 },
-  backpressure: { voice: 'strain', note: 'A1', duration: '2n', velocity: 0.3 },
+  enriching: { voice: 'click', note: 'C5', duration: '32n', velocity: 0.12 },
+  written: { voice: 'done', note: 'G5', duration: '8n', velocity: 0.25 },
+  backpressure: { voice: 'stall', note: 'C3', duration: '4n', velocity: 0.22 },
 };
 
 // Minimum spacing between two pipeline notes, in seconds.
@@ -181,40 +173,22 @@ class TaskSoundSystem {
         envelope: { attack: 0.005, decay: 0.25, sustain: 0.1, release: 0.4 },
       }).connect(this.reverb);
 
-      // Bespoke, not part of the ported set: a small kit for the Streaming
-      // pipeline, one timbre per kind of event so they are told apart by
-      // character rather than by pitch.
+      // Bespoke, not part of the ported set: three plain voices for the
+      // Streaming pipeline, deliberately simple.
       this.streamVoices = {
-        // Light, dry click — an item being picked up into a worker slot.
-        tick: new Tone.PolySynth(Tone.Synth, {
+        click: new Tone.PolySynth(Tone.Synth, {
           oscillator: { type: 'sine' },
-          envelope: { attack: 0.001, decay: 0.04, sustain: 0, release: 0.04 },
+          envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 },
         }).connect(this.volume),
 
-        // Percussive drop — an item landing in the queue.
-        thud: new Tone.MembraneSynth({
-          pitchDecay: 0.03,
-          octaves: 3,
-          envelope: { attack: 0.001, decay: 0.22, sustain: 0, release: 0.2 },
-        }).connect(this.volume),
-
-        // Short low pulse — a writer engaging.
-        motor: new Tone.PolySynth(Tone.Synth, {
-          oscillator: { type: 'square' },
-          envelope: { attack: 0.005, decay: 0.1, sustain: 0.02, release: 0.1 },
-        }).connect(this.volume),
-
-        // Bell, with the reverb tail the other voices skip, so completion is
-        // the one event that rings out.
-        bell: new Tone.PolySynth(Tone.Synth, {
+        done: new Tone.PolySynth(Tone.Synth, {
           oscillator: { type: 'triangle' },
-          envelope: { attack: 0.004, decay: 0.5, sustain: 0.03, release: 1.1 },
+          envelope: { attack: 0.003, decay: 0.25, sustain: 0, release: 0.4 },
         }).connect(this.reverb),
 
-        // Detuned and slow — the pipeline straining, not progressing.
-        strain: new Tone.PolySynth(Tone.Synth, {
-          oscillator: { type: 'sawtooth', detune: -18 },
-          envelope: { attack: 0.12, decay: 0.5, sustain: 0.15, release: 0.7 },
+        stall: new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'sine' },
+          envelope: { attack: 0.02, decay: 0.35, sustain: 0, release: 0.4 },
         }).connect(this.reverb),
       };
 
@@ -406,8 +380,8 @@ class TaskSoundSystem {
   // --- Streaming pipeline (bespoke, no source equivalent) ------------------
 
   /**
-   * Voices one pipeline event, each with its own timbre so the sound says
-   * which change just happened on screen (see STREAM_STAGE_VOICES).
+   * Voices one pipeline event (see STREAM_STAGE_VOICES). Only three events
+   * make a sound; the rest are left silent on purpose.
    *
    * Note the ported helpers ask for `getNextNote(0.5)` intending half an
    * octave up; that builds a note string like "C3.5", which Tone parses as

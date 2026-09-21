@@ -48,9 +48,9 @@ export class StreamPipeline {
 
     item.stage = stage;
 
-    // One voice for the whole pipeline, rising through a pentatonic chord as
-    // an item advances — see STREAM_STAGE_VOICES in sounds/taskSounds.js.
-    if (stage === 'buffered' || stage === 'written') playStage(stage);
+    // Only completion is voiced here; landing in the buffer is silent, so a
+    // run is a handful of clear sounds rather than one per transition.
+    if (stage === 'written') playStage(stage);
 
     this.announceBackpressure();
     this.notify();
@@ -69,7 +69,7 @@ export class StreamPipeline {
     item.startedAt = Date.now();
     item.durationMs = durationMs;
 
-    if (stage === 'enriching' || stage === 'writing') playStage(stage);
+    if (stage === 'enriching') playStage(stage);
 
     this.notify();
   }
