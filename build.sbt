@@ -548,7 +548,7 @@ lazy val commonJunitTestSettings = Seq(
   ),
   libraryDependencies ++= Seq(
     "junit"                     % "junit"                          % "4.13.2" % Test,
-    "org.scala-lang.modules"   %% "scala-xml"                      % "2.4.0"  % Test,
+    "org.scala-lang.modules"   %% "scala-xml"                      % "2.5.0"  % Test,
     "org.apache.maven"          % "maven-embedder"                 % "3.9.16" % Test,
     "org.apache.maven"          % "maven-compat"                   % "3.9.16" % Test,
     "com.google.inject"         % "guice"                          % "6.0.0"  % Test,
@@ -556,7 +556,7 @@ lazy val commonJunitTestSettings = Seq(
     "org.apache.maven.resolver" % "maven-resolver-connector-basic" % "1.9.27" % Test,
     "org.apache.maven.resolver" % "maven-resolver-transport-http"  % "1.9.27" % Test,
     "org.codehaus.plexus"       % "plexus-component-annotations"   % "2.2.0"  % Test,
-    "org.slf4j"                 % "slf4j-simple"                   % "2.0.18" % Test
+    "org.slf4j"                 % "slf4j-simple"                   % "2.0.19" % Test
   )
 )
 
@@ -781,13 +781,14 @@ lazy val docs_make_zio_app_configurable =
         `zio-config-magnolia`,
         "io.getquill"   %% "quill-zio"      % QuillVersion,
         "io.getquill"   %% "quill-jdbc-zio" % QuillVersion,
-        "com.h2database" % "h2"             % "2.3.232"
+        "com.h2database" % "h2"             % "2.3.232",
+        "dev.zio"       %% "zio-sbt-source" % "0.6.0"
       ),
       dependencyOverrides ++= Seq(
         `zio-json`
       )
     )
-    .dependsOn(core.jvm, streams.jvm)
+    .dependsOn(core.jvm, streams.jvm, tests.jvm)
     .enablePlugins(MdocPlugin)
 
 lazy val docs = project.module
@@ -823,7 +824,9 @@ lazy val docs = project.module
       "VERSION"                        -> version.value.split('+').head,
       "ZIO_METRICS_CONNECTORS_VERSION" -> ZioMetricsConnectorsVersion,
       "ZIO_CONFIG_VERSION"             -> ZioConfigVersion,
-      "ZIO_JSON_VERSION"               -> ZioJsonVersion
+      "ZIO_JSON_VERSION"               -> ZioJsonVersion,
+      "SCALAJS_VERSION"                -> "1.22.0",
+      "SCALAJS_CROSSPROJECT_VERSION"   -> "1.4.0"
     ),
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio-sbt-source" % "0.6.0",

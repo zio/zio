@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ZIO • TodoMVC</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/todomvc-common@1.0.5/base.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/todomvc-app-css@2.4.3/index.css">
+</head>
+<body>
+  <section class="todoapp">
+    <header class="header">
+      <h1>todos</h1>
+      <input class="new-todo" id="new-todo" placeholder="What needs to be done?" autofocus>
+    </header>
+    <main class="main">
+      <div class="toggle-all-container">
+        <input class="toggle-all" id="toggle-all" type="checkbox">
+        <label for="toggle-all">Mark all as complete</label>
+      </div>
+      <ul class="todo-list" id="todo-list"></ul>
+    </main>
+    <footer class="footer" id="footer">
+      <span class="todo-count" id="todo-count"></span>
+      <ul class="filters" id="filters">
+        <li><a href="#/">All</a></li>
+        <li><a href="#/active">Active</a></li>
+        <li><a href="#/completed">Completed</a></li>
+      </ul>
+      <button class="clear-completed" id="clear-completed">Clear completed</button>
+    </footer>
+  </section>
+  <footer class="info">
+    <p>Double-click to edit a todo</p>
+    <p>Built with ZIO + Scala.js</p>
+    <p>Part of <a href="https://todomvc.com">TodoMVC</a></p>
+  </footer>
+  <script src="app/main.js"></script>
+</body>
+</html>

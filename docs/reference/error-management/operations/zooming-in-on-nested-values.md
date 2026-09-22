@@ -1,6 +1,17 @@
 ---
 id: zooming-in-on-nested-values
 title: "Zooming In on Nested Values"
+description: "Navigate into Option and Either values nested in ZIO effects using some, unsome, left, unleft, right, and unright operators."
+keywords:
+  - "some"
+  - "unsome"
+  - "left"
+  - "unleft"
+  - "right"
+  - "unright"
+  - "Option"
+  - "Either"
+  - "nested values"
 ---
 
 ## Option

@@ -1,6 +1,11 @@
 ---
-id: io
+id: "io"
 title: "IO"
+description: "Type alias for ZIO[Any, E, A] representing an effect with no environment requirements that may fail with an E or succeed with a value A."
+keywords:
+  - "IO"
+  - "ZIO Type Alias"
+  - "Effect Type"
 ---
 
 `IO[E, A]` is a type alias for `ZIO[Any, E, A]`, which represents an effect that has no requirements, and may fail with an `E`, or succeed with an `A`.
@@ -25,9 +30,13 @@ So `IO` is equal to a `ZIO` that doesn't need any requirement.
 
 :::note Principle of Least Power
 
-The `ZIO` data type is the most powerful effect in the ZIO library. It helps us to model various types of workflows. On the other hand, the type aliases are a way of specializing the `ZIO` type for less powerful workflows. 
+[The `ZIO` data type](zio.md) is the most powerful effect in the ZIO library. It helps us to model various types of workflows. On the other hand, the type aliases are a way of specializing the `ZIO` type for less powerful workflows. 
 
 Often, we don't need such a piece of powerful machinery. So as a rule of thumb, whenever we require a less powerful effect, it's better to use the appropriate specialized type alias.
 
 So there is no need to convert type aliases to the `ZIO` data type, and whenever the `ZIO` data type is required, we can use the most precise type alias to fit our workflow requirement.
 :::
+
+## See Also
+
+- [Exceptional and Unexceptional Effects](../../error-management/exceptional-and-unexceptional-effects.md)
