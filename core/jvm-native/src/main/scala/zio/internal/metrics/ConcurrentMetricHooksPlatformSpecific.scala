@@ -24,9 +24,10 @@ import java.util.concurrent.atomic.{AtomicLong, AtomicLongArray, AtomicReference
 
 private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetricHooks with AddersVersionSpecific {
   def counter(key: MetricKey.Counter): MetricHook.Counter = {
-    val adder = new DoubleAdder
+    val adder                 = new DoubleAdder
+    val addFn: Double => Unit = v => adder.add(v)
 
-    MetricHook(v => adder.add(v), () => MetricState.Counter(adder.sum()), v => adder.add(v))
+    MetricHookDouble(addFn, () => MetricState.Counter(adder.sum()), addFn)
   }
 
   private def incrementBy(atomic: AtomicDouble, value: Double): Unit = {
@@ -41,7 +42,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
   def gauge(key: MetricKey.Gauge, startAt: Double): MetricHook.Gauge = {
     val ref: AtomicDouble = AtomicDouble.make(startAt)
 
-    MetricHook(v => ref.set(v), () => MetricState.Gauge(ref.get()), v => incrementBy(ref, v))
+    MetricHookDouble(v => ref.set(v), () => MetricState.Gauge(ref.get()), v => incrementBy(ref, v))
   }
 
   private def updateMin(atomic: AtomicDouble, value: Double): Unit = {
@@ -76,10 +77,15 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
     val min        = AtomicDouble.make(Double.MaxValue)
     val max        = AtomicDouble.make(Double.MinValue)
 
-    bounds.sorted.zipWithIndex.foreach { case (n, i) => boundaries(i) = n }
+    val sorted = bounds.sorted.chunkIterator
+    var i      = 0
+    while (i < size) {
+      boundaries(i) = sorted.nextAt(i)
+      i += 1
+    }
 
     // Insert the value into the right bucket with a binary search
-    val update = (value: Double) => {
+    val update: Double => Unit = (value: Double) => {
       var from = 0
       var to   = size
       while (from != to) {
@@ -114,7 +120,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
       builder.result()
     }
 
-    MetricHook(
+    MetricHookDouble(
       update,
       () => MetricState.Histogram(getBuckets(), count.longValue(), min.get(), max.get(), sum.sum()),
       update
@@ -156,15 +162,20 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
       // them by timestamp to get a valid view of a time window.
       // The order does not matter because it gets sorted before passing to calculateQuantiles.
 
-      for (idx <- 0 until maxSize) {
+      // Precompute cutoff once to avoid allocating a Duration per item
+      val cutoff = now.minus(maxAge)
+      var idx    = 0
+      while (idx < maxSize) {
         val item = values.get(idx)
         if (item ne null) {
-          val (v, t) = item
-          val age    = Duration.fromInterval(t, now)
-          if (!age.isNegative && age.compareTo(maxAge) <= 0) {
-            builder += v
+          val ts          = item._2
+          val notTooOld   = !ts.isBefore(cutoff)
+          val notInFuture = !ts.isAfter(now)
+          if (notTooOld && notInFuture) {
+            builder += item._1
           }
         }
+        idx += 1
       }
 
       zio.internal.metrics.calculateQuantiles(sortedQuantiles, builder.result().sorted(DoubleOrdering))
@@ -172,7 +183,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
 
     // Assuming that the instant of observed values is continuously increasing
     // While Observing we cut off the first sample if we have already maxSize samples
-    def observe(tuple: (Double, java.time.Instant)): Unit = {
+    val observe: ((Double, java.time.Instant)) => Unit = (tuple: (Double, java.time.Instant)) => {
       if (maxSize > 0) {
         val target = (head.incrementAndGet() % maxSize).toInt
         values.set(target, tuple)
@@ -186,18 +197,18 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
       ()
     }
 
-    MetricHook(
-      observe(_),
+    MetricHookAnyRef(
+      observe,
       () =>
         MetricState.Summary(
-          error,
-          snapshot(java.time.Instant.now()),
-          getCount(),
-          getMin(),
-          getMax(),
-          getSum()
+          error = error,
+          quantiles = snapshot(java.time.Instant.now()),
+          count = getCount(),
+          min = getMin(),
+          max = getMax(),
+          sum = getSum()
         ),
-      observe(_)
+      observe
     )
   }
 
@@ -205,7 +216,7 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
     val count  = new LongAdder
     val values = new ConcurrentHashMap[String, LongAdder]
 
-    val update = (word: String) => {
+    val update: String => Unit = (word: String) => {
       count.increment()
       var slot = values.get(word)
       if (slot eq null) {
@@ -217,17 +228,17 @@ private[zio] class ConcurrentMetricHooksPlatformSpecific extends ConcurrentMetri
     }
 
     def snapshot(): Map[String, Long] = {
-      val builder = scala.collection.mutable.Map[String, Long]()
-      val it      = values.entrySet().iterator()
-      while (it.hasNext()) {
+      val builder = Map.newBuilder[String, Long]
+      builder.sizeHint(values.size())
+      val it = values.entrySet().iterator()
+      while (it.hasNext) {
         val e = it.next()
-        builder.update(e.getKey(), e.getValue().longValue())
+        builder += (e.getKey -> e.getValue.longValue())
       }
-
-      builder.toMap
+      builder.result()
     }
 
-    MetricHook(update, () => MetricState.Frequency(snapshot()), update)
+    MetricHookAnyRef(update, () => MetricState.Frequency(snapshot()), update)
   }
 
 }
