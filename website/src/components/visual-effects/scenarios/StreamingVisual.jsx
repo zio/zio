@@ -140,7 +140,7 @@ export default function StreamingVisual() {
 
   return (
     <EffectExample
-      name="ZStream.mapZIOPar"
+      name="ZStream#mapZIOPar"
       description="Process a stream concurrently, with backpressure built in"
       code={STREAMING_SNIPPET}
       effects={[pipelineTask]}
