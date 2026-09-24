@@ -167,6 +167,17 @@ export default function CodeShowcase() {
             <div className={styles.toolbar}>
               <div className={styles.toolbarLeft}>
                 <span className={styles.langBadge}>Scala</span>
+                {/* Credit for the engine these visuals are ported from. */}
+                <span className={styles.attribution}>
+                  Originally developed as Kit Langton's{' '}
+                  <a
+                    href="https://effect.kitlangton.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Visual Effect
+                  </a>
+                </span>
               </div>
               {isBrowser && (
                 <button
@@ -185,19 +196,6 @@ export default function CodeShowcase() {
               )}
             </div>
           </div>
-
-          {/* Credit for the engine these visuals are ported from. */}
-          <p className={styles.attribution}>
-            Originally developed as Kit Langton's{' '}
-            <a
-              href="https://effect.kitlangton.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Visual Effect
-            </a>
-            .
-          </p>
         </div>
       </div>
     </section>

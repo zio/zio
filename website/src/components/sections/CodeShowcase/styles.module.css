@@ -235,9 +235,7 @@
 }
 
 .attribution {
-  margin: 0.75rem 0 0;
-  text-align: right;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--ifm-color-emphasis-600);
 }
 
@@ -307,6 +305,11 @@
 
   .tabBar {
     overflow-x: auto;
+  }
+
+  /* Secondary credit, first thing to go when the toolbar gets tight. */
+  .attribution {
+    display: none;
   }
 
   .visualArea {
