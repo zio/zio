@@ -235,8 +235,12 @@
 }
 
 .attribution {
-  font-size: 0.75rem;
-  color: var(--ifm-color-emphasis-600);
+  /* emphasis-700, not -600: at 0.75rem/-600 this resolved to #8d949e on a
+     near-white toolbar, which lands under the WCAG AA 4.5:1 floor for small
+     text. -700 is #606770 in light and #dadde1 in dark, both comfortably
+     above it. */
+  font-size: 0.8125rem;
+  color: var(--ifm-color-emphasis-700);
 }
 
 .attribution a {
