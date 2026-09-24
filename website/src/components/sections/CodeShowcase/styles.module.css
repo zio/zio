@@ -234,6 +234,23 @@
   overflow-y: auto;
 }
 
+.attribution {
+  margin: 0.75rem 0 0;
+  text-align: right;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.attribution a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.attribution a:hover {
+  color: var(--ifm-color-primary);
+}
+
 .toolbar {
   display: flex;
   align-items: center;

@@ -185,6 +185,19 @@ export default function CodeShowcase() {
               )}
             </div>
           </div>
+
+          {/* Credit for the engine these visuals are ported from. */}
+          <p className={styles.attribution}>
+            Originally developed as Kit Langton's{' '}
+            <a
+              href="https://effect.kitlangton.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Visual Effect
+            </a>
+            .
+          </p>
         </div>
       </div>
     </section>
