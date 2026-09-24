@@ -60,7 +60,7 @@ val result = park.retry(Schedule.exponential(700.millis))`;
 
   return (
     <EffectExample
-      name="ZIO.retry"
+      name="ZIO#retry"
       variant="exponential"
       description="Retry with exponential backoff"
       code={codeSnippet}

@@ -51,7 +51,7 @@ val winner = tortoise.race(achilles)`;
 
   return (
     <EffectExample
-      name="ZIO.race"
+      name="ZIO#race"
       description="Race two effects and return the result of the first successful one"
       code={codeSnippet}
       effects={tasks}
