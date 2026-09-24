@@ -166,7 +166,6 @@ export default function CodeShowcase() {
             {/* Toolbar */}
             <div className={styles.toolbar}>
               <div className={styles.toolbarLeft}>
-                <span className={styles.langBadge}>Scala</span>
                 {/* Credit for the engine these visuals are ported from. */}
                 <span className={styles.attribution}>
                   Originally developed as Kit Langton's{' '}
