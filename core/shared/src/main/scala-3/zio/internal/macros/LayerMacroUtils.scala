@@ -111,7 +111,42 @@ private[zio] object LayerMacroUtils {
           ValDef
             .let(Symbol.spliceOwner, layerExprs.map(_.asTerm)) { idents =>
               val exprMap = layerExprs.zip(idents.map(_.asExprOf[ZLayer[_, E, _]])).toMap
-              tree.fold('{ ZLayer.unit }, exprMap, composeH, composeV).asTerm
+
+              // Bind every shared sub-graph to its own val, so that a sub-graph
+              // reachable by many paths through the dependency graph is built as
+              // a single ZLayer *instance*. ZLayer's MemoMap is keyed on
+              // identity, so this collapses what would otherwise be one copy of
+              // the sub-graph per path (see issue #11053).
+              val sharedRefs = collection.mutable.Map.empty[Int, Expr[ZLayer[_, E, _]]]
+
+              def fold(t: LayerTree[LayerExpr[E]]): LayerExpr[E] =
+                t.foldShared[LayerExpr[E]](
+                  '{ ZLayer.unit },
+                  exprMap,
+                  composeH,
+                  composeV,
+                  // Sub-trees are pre-bound by `bindAll` below, so by the time
+                  // the outer tree is folded every id already has an `Ident`.
+                  (id, _) => sharedRefs(id),
+                  id => sharedRefs(id)
+                )
+
+              // `sharedDefs` lists the sub-graphs in the order they were built,
+              // so each body only references ids bound before it. They become
+              // nested `ValDef.let`s, so every `Ident` exists before its first
+              // use. This is the same dependency ordering the Scala 2 emitter
+              // relies on for its `val` definitions.
+              def bindAll(ids: List[(Int, LayerTree[LayerExpr[E]])]): Term =
+                ids match {
+                  case Nil => fold(tree).asTerm
+                  case (id, body) :: rest =>
+                    ValDef.let(Symbol.spliceOwner, fold(body).asTerm) { ident =>
+                      sharedRefs(id) = ident.asExprOf[ZLayer[_, E, _]]
+                      bindAll(rest)
+                    }
+                }
+
+              bindAll(tree.sharedDefs)
             }
             .asExprOf[ZLayer[_, E, _]]
         }
