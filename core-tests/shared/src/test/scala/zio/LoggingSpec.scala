@@ -14,6 +14,9 @@ object LoggingSpec extends ZIOBaseSpec {
           assertTrue(output(0).message() == "It's alive!") &&
           assertTrue(output(0).logLevel == LogLevel.Info)
       },
+      test("log output is isolated between tests") {
+        ZTestLogger.logOutput.map(output => assertTrue(output.isEmpty))
+      },
       test("change log level in region") {
         for {
           _      <- LogLevel.Warning(ZIO.log("It's alive!"))
@@ -81,6 +84,14 @@ object LoggingSpec extends ZIOBaseSpec {
           } yield assertTrue(output.length == 1) &&
             assertTrue(output(0).context.get(ref).contains(value))
         )
+      },
+      test("concurrent log messages are retained") {
+        val messages = 0 until 1000
+        for {
+          _      <- ZIO.foreachParDiscard(messages)(message => ZIO.log(message.toString))
+          output <- ZTestLogger.logOutput
+        } yield assertTrue(output.length == messages.length) &&
+          assertTrue(output.map(_.message()).toSet == messages.map(_.toString).toSet)
       }
     ) @@ TestAspect.silentLogging
 }
