@@ -59,7 +59,17 @@ package object test extends CompileVariants {
 
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
       ZLayer.environment[TestEnvironment](Tracer.newTrace)
-    val live: ZLayer[Clock with Console with System with Random, Nothing, TestEnvironment] = {
+
+    val live: ZLayer[Clock with Console with System with Random, Nothing, TestEnvironment] =
+      make(installMonotonicFiberIds = false)
+
+    private[test] val liveWithMonotonicFiberIds
+      : ZLayer[Clock with Console with System with Random, Nothing, TestEnvironment] =
+      make(installMonotonicFiberIds = true)
+
+    private def make(
+      installMonotonicFiberIds: Boolean
+    ): ZLayer[Clock with Console with System with Random, Nothing, TestEnvironment] = {
       implicit val trace = Tracer.newTrace
       ZLayer.scopedEnvironment {
         ZIO.environmentWithZIO[Scope with Clock with Console with System with Random] { liveEnvironment =>
@@ -72,26 +82,42 @@ package object test extends CompileVariants {
             TestConsole.unsafe.make(TestConsole.DefaultData, true, live, annotations)(Unsafe)
           val testRandom = TestRandom.unsafe.make(TestRandom.DefaultData)(Unsafe)
           val testSystem = TestSystem.unsafe.make(TestSystem.DefaultData)(Unsafe)
+          val environment =
+            ZEnvironment[Annotations, Live, Sized, TestConfig](annotations, live, sized, defaultTestConfig)
 
-          for {
-            testServices    <- TestServices.currentServices.get
-            defaultServices <- DefaultServices.currentServices.get
-            _               <- scope.addFinalizer(TestClock.unsafe.close(testClock))
-            _ <- TestServices.currentServices.locallyScoped(
-                   testServices
-                     .add[Annotations](annotations)
-                     .add[Live](live)
-                     .add[Sized](sized)
-                     .add[TestConfig](defaultTestConfig)
-                 )
-            _ <- DefaultServices.currentServices.locallyScoped(
-                   defaultServices
-                     .add[TestClock](testClock)
-                     .add[TestConsole](testConsole)
-                     .add[TestRandom](testRandom)
-                     .add[TestSystem](testSystem)
-                 )
-          } yield ZEnvironment[Annotations, Live, Sized, TestConfig](annotations, live, sized, defaultTestConfig)
+          ZIO.withFiberRuntime[Any, Nothing, ZEnvironment[TestEnvironment]] { (fiber, _) =>
+            val testServices     = fiber.getFiberRef(TestServices.currentServices)
+            val defaultServices  = fiber.getFiberRef(DefaultServices.currentServices)
+            val fiberIdGenerator = fiber.getFiberRef(FiberRef.currentFiberIdGenerator)
+            val testServices1 =
+              testServices
+                .add[Annotations](annotations)
+                .add[Live](live)
+                .add[Sized](sized)
+                .add[TestConfig](defaultTestConfig)
+            val defaultServices1 =
+              defaultServices
+                .add[TestClock](testClock)
+                .add[TestConsole](testConsole)
+                .add[TestRandom](testRandom)
+                .add[TestSystem](testSystem)
+
+            val finalizer = ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiber, _) =>
+              if (installMonotonicFiberIds)
+                fiber.setFiberRef(FiberRef.currentFiberIdGenerator, fiberIdGenerator)
+              fiber.setFiberRef(DefaultServices.currentServices, defaultServices)
+              fiber.setFiberRef(TestServices.currentServices, testServices)
+              TestClock.unsafe.close(testClock)
+            }
+
+            scope.addFinalizer(finalizer).map { _ =>
+              fiber.setFiberRef(TestServices.currentServices, testServices1)
+              fiber.setFiberRef(DefaultServices.currentServices, defaultServices1)
+              if (installMonotonicFiberIds)
+                fiber.setFiberRef(FiberRef.currentFiberIdGenerator, FiberId.Gen.Monotonic)
+              environment
+            }
+          }
         }
       }
     }
@@ -109,14 +135,9 @@ package object test extends CompileVariants {
     )
   }
 
-  private val testFiberRefGen: ULayer[Unit] = {
-    implicit val trace = Trace.empty
-    ZLayer.scoped(FiberRef.currentFiberIdGenerator.locallyScoped(FiberId.Gen.Monotonic))
-  }
-
   val testEnvironment: ZLayer[Any, Nothing, TestEnvironment] = {
     implicit val trace = Tracer.newTrace
-    liveEnvironment >>> (TestEnvironment.live <*> testFiberRefGen)
+    liveEnvironment >>> TestEnvironment.liveWithMonotonicFiberIds
   }
 
   /**
