@@ -64,7 +64,7 @@
     "docusaurus-plugin-llms": "0.6.0",
     "effect": "^3.19.14",
     "highlight.js": "11.12.0",
-    "motion": "^12.27.1",
+    "motion": "^13.0.0",
     "node-fetch": "^3.3.2",
     "postcss": "8.5.28",
     "prism-react-renderer": "2.4.1",
