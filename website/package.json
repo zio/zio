@@ -22,6 +22,7 @@
     "@docusaurus/theme-mermaid": "^3.5.2",
     "@docusaurus/theme-search-algolia": "^3.5.2",
     "@mdx-js/react": "^3.0.1",
+    "@phosphor-icons/react": "^2.1.10",
     "@tailwindcss/postcss": "4.3.3",
     "@zio.dev/izumi-reflect": "2025.12.9-933f52d81e0c",
     "@zio.dev/zio-amqp": "1.0.0-alpha.3",
@@ -61,7 +62,9 @@
     "clsx": "2.1.1",
     "docusaurus-plugin-copy-page-button": "^0.8.0",
     "docusaurus-plugin-llms": "0.6.0",
+    "effect": "^3.19.14",
     "highlight.js": "11.12.0",
+    "motion": "^12.27.1",
     "node-fetch": "^3.3.2",
     "postcss": "8.5.28",
     "prism-react-renderer": "2.4.1",
@@ -73,6 +76,7 @@
     "react-markdown": "10.1.0",
     "remark-kroki-plugin": "0.1.1",
     "tailwindcss": "4.3.3",
+    "tone": "^15.1.22",
     "tslib": "^2.4.0"
   },
   "overrides": {

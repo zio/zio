@@ -1,0 +1,212 @@
+// website/src/components/visual-effects/layers/LayerGraphView.jsx
+//
+// Bespoke — no source equivalent (see ../LayerGraph.js). Laid out by
+// dependency depth rather than hardcoded positions: layers requiring nothing
+// sit in the first column, whatever depends on them in the next, so the
+// columns read left-to-right in construction order — and a column is also the
+// set the runtime builds concurrently.
+//
+// The two DI-specific things it surfaces, which a plain dependency graph does
+// not: a shared layer's "built 1x / used by 2" count plus the instance each
+// consumer received, and the environment filling up underneath.
+import { ArrowRightIcon } from '@phosphor-icons/react';
+import { AnimatePresence, motion } from 'motion/react';
+import { useEffect, useState } from 'react';
+import { TASK_COLORS } from '../colors';
+import { useLayerGraph } from '../hooks/useLayerGraph';
+
+// The same state palette every other example uses (see ../colors.js and
+// effect-node/nodeVariants.js): slate while idle, blue while running, green
+// once done — including the idle card's 0.6 opacity. This view previously
+// invented its own bg-green-900/bg-blue-900 shades, which read as a
+// different component from the nodes on the other tabs.
+const CARD_FILL = {
+  pending: TASK_COLORS.idle,
+  building: TASK_COLORS.running,
+  ready: TASK_COLORS.success,
+};
+
+const STATE_TEXT = {
+  pending: 'waiting',
+  building: 'building',
+  ready: 'ready',
+};
+
+// `app` is run, not constructed, so it gets its own wording.
+const APP_STATE_TEXT = {
+  pending: 'needs its environment',
+  building: 'running',
+  ready: 'done',
+};
+
+// Ticks while any layer is under construction so each bar advances against
+// its own real start time and duration.
+function useAnimationTick(active) {
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!active) return;
+
+    let frame;
+    const loop = () => {
+      setTick((tick) => tick + 1);
+      frame = requestAnimationFrame(loop);
+    };
+    frame = requestAnimationFrame(loop);
+
+    return () => cancelAnimationFrame(frame);
+  }, [active]);
+}
+
+function LayerCard({ layer, receivedInstances }) {
+  const progress =
+    layer.state === 'building'
+      ? Math.min(1, (Date.now() - layer.startedAt) / layer.durationMs)
+      : layer.state === 'ready'
+        ? 1
+        : 0;
+
+  // Highlighted only where it is surprising — one construction serving more
+  // than one consumer. Shown unhighlighted otherwise so the contrast between
+  // "used by 1" and "used by 2" is visible rather than implied.
+  const shared = layer.usedBy.length > 1;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', visualDuration: 0.3, bounce: 0.2 }}
+      className="flex w-[232px] flex-col justify-center gap-1 rounded-md px-2 py-1.5 text-white"
+      style={{
+        backgroundColor: CARD_FILL[layer.state],
+        opacity: layer.state === 'pending' ? 0.6 : 1,
+      }}
+    >
+      <div className="flex items-baseline justify-between gap-2 font-mono text-[11px] leading-none">
+        <span className="truncate">{layer.label}</span>
+        <span className="shrink-0 text-[9px] opacity-75">
+          {layer.instance ??
+            (layer.isApp ? APP_STATE_TEXT : STATE_TEXT)[layer.state]}
+        </span>
+      </div>
+
+      {/* White over the state fill, so one bar style works on slate, blue
+          and green alike. */}
+      <div className="h-1 overflow-hidden rounded-full bg-black/25">
+        <div
+          className="h-full rounded-full bg-white/80"
+          style={{ width: `${progress * 100}%` }}
+        />
+      </div>
+
+      {layer.usedBy.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="font-mono text-[9px] leading-none"
+          style={{
+            color: shared ? 'var(--color-amber-300)' : 'rgba(255,255,255,0.7)',
+          }}
+        >
+          built {layer.buildCount}× · used by {layer.usedBy.length}
+        </motion.div>
+      )}
+
+      {receivedInstances.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="font-mono text-[9px] leading-none"
+          style={{ color: 'rgba(255,255,255,0.7)' }}
+        >
+          uses {receivedInstances.join(' · ')}
+        </motion.div>
+      )}
+    </motion.div>
+  );
+}
+
+export function LayerGraphView({ graph }) {
+  useLayerGraph(graph);
+  useAnimationTick(graph.layers.some((layer) => layer.state === 'building'));
+
+  const depthOf = (layer) =>
+    layer.dependsOn.length === 0
+      ? 0
+      : 1 + Math.max(...layer.dependsOn.map((id) => depthOf(graph.find(id))));
+
+  const columns = [];
+  for (const layer of graph.layers) {
+    (columns[depthOf(layer)] ??= []).push(layer);
+  }
+
+  // Every instance each consumer was handed — a list, not one value, since a
+  // service can require several (UserService takes Database & Logger). The
+  // same Database id appearing under two consumers is the whole point.
+  const receivedBy = {};
+  for (const layer of graph.layers) {
+    for (const use of layer.usedBy) {
+      (receivedBy[use.consumerId] ??= []).push(use.instance);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 px-4 pt-3 pb-2">
+      <div className="flex items-center justify-center gap-3">
+        {columns.map((column, index) => (
+          <div key={index} className="flex items-center gap-3">
+            {index > 0 && (
+              <div className="text-neutral-500">
+                <ArrowRightIcon size={18} weight="fill" />
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              {column.map((layer) => (
+                <LayerCard
+                  key={layer.id}
+                  layer={layer}
+                  receivedInstances={receivedBy[layer.id] ?? []}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* The R of ZIO[R, E, A] being satisfied one layer at a time. */}
+      {/* Infima token rather than a fixed neutral: this text sits on the
+          card's theme-reactive background, so a shade dark enough to read in
+          light mode goes faint in dark mode and vice versa. */}
+      <div
+        className="flex flex-wrap items-center justify-center gap-1.5 font-mono text-[10px]"
+        style={{ color: 'var(--ifm-color-emphasis-600)' }}
+      >
+        <span className="shrink-0">environment:</span>
+        <span>{'{'}</span>
+        {graph.environment.length === 0 && <span>nothing provided yet</span>}
+        <AnimatePresence mode="popLayout">
+          {graph.environment.map((id) => (
+            <motion.span
+              key={id}
+              layout
+              initial={{ opacity: 0, scale: 0.7 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.7 }}
+              transition={{ type: 'spring', visualDuration: 0.3, bounce: 0.2 }}
+              // Solid, matching the ready cards rather than a translucent
+              // tint: bg-green-900/40 over this panel's light background
+              // washed out to near the text colour and was unreadable in
+              // light mode.
+              className="rounded px-1.5 py-0.5 text-white"
+              style={{ backgroundColor: TASK_COLORS.success }}
+            >
+              {id}
+            </motion.span>
+          ))}
+        </AnimatePresence>
+        <span>{'}'}</span>
+      </div>
+    </div>
+  );
+}

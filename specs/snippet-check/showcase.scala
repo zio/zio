@@ -12,11 +12,9 @@ import java.io.IOException
 
 // ── Stubs standing in for "your code" in the homepage snippets ──────────
 case class User(name: String)
-case class Config()
-object Config { val fallback: Config = Config() }
-case class Stats()
-case class Event(isValid: Boolean)
-class File
+case class Report()
+case class Event(id: Int)
+class File { def close(): Unit = () }
 
 class Database { def insert(name: String): Task[User] = ZIO.succeed(User(name)) }
 object Database {
@@ -27,92 +25,98 @@ object Database {
 class Logger { def info(msg: String): UIO[Unit] = ZIO.unit }
 object Logger { val live: ULayer[Logger] = ZLayer.succeed(new Logger) }
 
-def fetchUsers: Task[List[User]]        = ZIO.succeed(Nil)
-def fetchOrders: Task[List[String]]     = ZIO.succeed(Nil)
-def fetchProfile(id: Int): Task[User]   = ZIO.succeed(User(id.toString))
-val userIds: List[Int]                  = List(1, 2, 3)
+// The Snippet 5 example trims the service class bodies (they are implied), so
+// the classes it wires up live here with the rest of "your code". Both take a
+// Database, which is what makes the sharing in that snippet meaningful.
+class UserService(db: Database, logger: Logger) {
+  def signup(name: String): Task[User] =
+    logger.info(s"signing up $name") *> db.insert(name)
+}
 
-val cachedConfig: UIO[Config] = ZIO.succeed(Config())
+class AuditService(db: Database) {
+  def record(name: String): UIO[Unit] = ZIO.unit
+}
 
-def openFile(path: String): IO[IOException, File]  = ZIO.succeed(new File)
-def closeFile(f: File): UIO[Unit]                  = ZIO.unit
-def computeStats(f: File): IO[IOException, Stats]  = ZIO.succeed(Stats())
+def runFast(name: String): Task[String] = ZIO.succeed(name)
+def attemptParallelPark(): IO[String, String] = ZIO.succeed("parked")
+
 def logFile(path: String): ZIO[Scope, Throwable, File] = ZIO.succeed(new File)
 def runMigrations(db: Database, f: File): Task[Unit]   = ZIO.unit
 
-val events: List[Event]                    = List(Event(true))
+class DbConn { def close(): Unit = () }
+class CacheConn { def flush(): Unit = () }
+def connectDatabase(): Task[DbConn] = ZIO.succeed(new DbConn)
+def connectCache(): Task[CacheConn] = ZIO.succeed(new CacheConn)
+def openLogFile(): IO[IOException, File] = ZIO.succeed(new File)
+def doWork(db: DbConn, cache: CacheConn, logger: File): Task[Report] = ZIO.succeed(Report())
+
+val events: List[Event]                    = List(Event(1))
 def enrich(e: Event): Task[Event]          = ZIO.succeed(e)
-def writeBatch(c: Chunk[Event]): Task[Unit] = ZIO.unit
+def write(e: Event): Task[Unit]            = ZIO.unit
 
 // ── Snippet 1: Concurrency ──────────────────────────────────────────────
+// Matches the "ZIO.race" example mounted in the Concurrency tab's Visual
+// view (website/src/components/visual-effects/scenarios/RaceVisual.jsx) —
+// Visual and Code must show the same example.
 object Snippet1 {
-  val users  = fetchUsers.retry(Schedule.recurs(3))
-  val orders = fetchOrders.timeout(2.seconds)
+  val tortoise = runFast("tortoise")
+  val achilles = runFast("achilles")
 
-  // Run both in parallel; if one fails, the other is interrupted
-  val both = users.zipPar(orders)
-
-  // Or a whole collection at once
-  val profiles = ZIO.foreachPar(userIds)(fetchProfile)
+  val winner = tortoise.race(achilles)
 }
 
 // ── Snippet 2: Error handling ───────────────────────────────────────────
+// Matches the "ZIO.retry" example mounted in the Error handling tab's
+// Visual view (website/src/components/visual-effects/scenarios/RetryExponentialVisual.jsx)
+// — Visual and Code must show the same example.
 object Snippet2 {
-  enum AppError:
-    case NetworkError(msg: String)
-    case ParseError(line: Int)
-
-  def fetchConfig: ZIO[Any, AppError, Config] = ???
-
-  val program: ZIO[Any, Nothing, Config] =
-    fetchConfig
-      .retry(Schedule.exponential(100.millis) && Schedule.recurs(5))
-      .catchAll:
-        case AppError.NetworkError(_) => cachedConfig
-        case AppError.ParseError(_)   => ZIO.succeed(Config.fallback)
+  val park   = attemptParallelPark()
+  val result = park.retry(Schedule.exponential(700.millis))
 }
 
 // ── Snippet 3: Resource safety ──────────────────────────────────────────
+// Matches the "ZIO.acquireRelease" example mounted in the Resource safety
+// tab's Visual view (website/src/components/visual-effects/scenarios/AcquireReleaseVisual.jsx)
+// — Visual and Code must show the same example.
 object Snippet3 {
-  def analyze(path: String): ZIO[Any, IOException, Stats] =
-    ZIO.acquireReleaseWith(openFile(path))(closeFile): file =>
-      computeStats(file)
-
-  // Or compose many resources with Scope
-  val app: ZIO[Any, Throwable, Unit] =
+  val result: ZIO[Any, Throwable, Report] =
     ZIO.scoped:
       for
-        db   <- Database.connect
-        file <- logFile("app.log")
-        _    <- runMigrations(db, file)
-      yield () // released in reverse order — even on failure or interruption
+        db     <- ZIO.acquireRelease(connectDatabase())(db => ZIO.succeedBlocking(db.close()))
+        cache  <- ZIO.acquireRelease(connectCache())(cache => ZIO.succeedBlocking(cache.flush()))
+        logger <- ZIO.acquireRelease(openLogFile())(file => ZIO.succeedBlocking(file.close()))
+        r      <- doWork(db, cache, logger)
+      yield r
 }
 
 // ── Snippet 4: Streaming ────────────────────────────────────────────────
 object Snippet4 {
   val pipeline: ZIO[Any, Throwable, Unit] =
     ZStream
-      .fromIterable(events)          // or Kafka, files, sockets…
-      .mapZIOPar(20)(enrich)         // 20 concurrent enrichments
-      .filter(_.isValid)
-      .grouped(100)                  // batch for the database
-      .mapZIO(writeBatch)
+      .fromIterable(events) // or Kafka, files, sockets…
+      .mapZIOPar(4)(enrich) // 4 concurrent enrichments
+      .buffer(2)            // bounded — fills when the sink lags
+      .mapZIOPar(2)(write)  // 2 writers — still the bottleneck
       .runDrain
 }
 
 // ── Snippet 5: Dependency Injection ─────────────────────────────────────
 object Snippet5 {
-  class UserService(db: Database, logger: Logger):
-    def signup(name: String): Task[User] =
-      logger.info(s"signing up $name") *> db.insert(name)
-
   object UserService:
     val live: ZLayer[Database & Logger, Nothing, UserService] =
       ZLayer.fromFunction(new UserService(_, _))
 
-  val app: ZIO[UserService, Throwable, User] =
+  object AuditService:
+    val live: ZLayer[Database, Nothing, AuditService] =
+      ZLayer.fromFunction(new AuditService(_))
+
+  val app: ZIO[UserService & AuditService, Throwable, User] =
     ZIO.serviceWithZIO[UserService](_.signup("John"))
 
-  // Compile-time-checked wiring: forget a layer and the build fails
-  val runnable = app.provide(UserService.live, Database.live, Logger.live)
+  // Database.live is written once and built once — both services share it
+  val runnable =
+    app.provide(UserService.live, AuditService.live, Database.live, Logger.live)
 }
+
+
+
