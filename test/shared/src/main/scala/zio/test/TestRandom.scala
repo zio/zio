@@ -93,6 +93,13 @@ trait TestRandom extends Random with Restorable {
 
 object TestRandom extends Serializable {
 
+  implicit val tag: Tag[TestRandom] = Tag(EnvironmentTag.tagFromTagMacro[TestRandom])
+
+  private[test] object unsafe {
+    def make(data: Data)(implicit unsafe: Unsafe): Test =
+      Test(Ref.unsafe.make(data), Ref.unsafe.make(Buffer()))
+  }
+
   /**
    * Adapted from @gzmo work in Scala.js
    * (https://github.com/scala-js/scala-js/pull/780)
@@ -790,9 +797,7 @@ object TestRandom extends Serializable {
   def make(data: Data): Layer[Nothing, TestRandom] = {
     implicit val trace = Tracer.newTrace
     ZLayer.scoped {
-      val data0  = Ref.unsafe.make(data)(Unsafe)
-      val buffer = Ref.unsafe.make(Buffer())(Unsafe)
-      val test   = Test(data0, buffer)
+      val test = unsafe.make(data)(Unsafe)
       ZIO.withRandomScoped(test).as(test)
     }
   }
@@ -820,9 +825,7 @@ object TestRandom extends Serializable {
    * This can be useful for mixing in with implementations of other interfaces.
    */
   def makeTest(data: Data)(implicit trace: Trace): UIO[Test] = ZIO.succeedUnsafe { implicit unsafe =>
-    val data0  = Ref.unsafe.make(data)
-    val buffer = Ref.unsafe.make(Buffer())
-    Test(data0, buffer)
+    TestRandom.unsafe.make(data)
   }
 
   /**
