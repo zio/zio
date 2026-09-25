@@ -11,7 +11,7 @@ import { VisualScope } from '../VisualScope';
 // engine's src/examples/effect-acquire-release.tsx — the actual
 // "ZIO.acquireRelease" example from the visual-effect project. The
 // source's isDarkMode={mainTaskState.type === "death"} accent is
-// deliberately dropped here (see the design spec's "Round 3" section) —
+// deliberately dropped here —
 // EffectExample no longer supports isDarkMode (round 1 removed it because
 // two permanently-dark variants don't work on a light/dark-toggling host).
 

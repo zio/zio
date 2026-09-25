@@ -9,7 +9,7 @@ import { visualEffect } from '../VisualEffect';
 // engine's src/examples/effect-retry-exponential.tsx — the actual
 // "ZIO.retry" example from the visual-effect project, chosen for the Error
 // handling tab because its retry+exponential-backoff shape matches what
-// was already on this tab (see the design spec's "Round 2" section).
+// was already on this tab.
 const parkingAttempt = createCounter(0);
 
 const attempts = ['😤 Too Close!', '😡 Too Far!', '🤬 Neutral!', '😑 Focus.'];
