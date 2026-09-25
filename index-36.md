@@ -3,26 +3,26 @@
 > [ZIO Streams Compress](https://github.com/zio/zio-streams-compress) integrates several compression algorithms and
 > archive formats with [ZIO Streams](https://zio.dev).
 
-[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-streams-compress/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-streams-compress-docs_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-streams-compress-docs_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-streams-compress-docs_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-streams-compress-docs_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-streams-compress-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-streams-compress-docs_2.13) [![ZIO Streams Compress docs](https://img.shields.io/github/stars/zio/zio-streams-compress?style=social)](https://github.com/zio/zio-streams-compress) [![Scala Steward badge](https://img.shields.io/badge/Scala_Steward-helping-blue.svg?style=flat&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAQCAMAAAARSr4IAAAAVFBMVEUAAACHjojlOy5NWlrKzcYRKjGFjIbp293YycuLa3pYY2LSqql4f3pCUFTgSjNodYRmcXUsPD/NTTbjRS+2jomhgnzNc223cGvZS0HaSD0XLjbaSjElhIr+AAAAAXRSTlMAQObYZgAAAHlJREFUCNdNyosOwyAIhWHAQS1Vt7a77/3fcxxdmv0xwmckutAR1nkm4ggbyEcg/wWmlGLDAA3oL50xi6fk5ffZ3E2E3QfZDCcCN2YtbEWZt+Drc6u6rlqv7Uk0LdKqqr5rk2UCRXOk0vmQKGfc94nOJyQjouF9H/wCc9gECEYfONoAAAAASUVORK5CYII=)](https://scala-steward.org)
+[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-streams-compress/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-streams-compress-docs_2.13.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-streams-compress-docs_2.13) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-streams-compress-docs_2.13%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-streams-compress-docs_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-streams-compress-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-streams-compress-docs_2.13) [![ZIO Streams Compress docs](https://img.shields.io/github/stars/zio/zio-streams-compress?style=social)](https://github.com/zio/zio-streams-compress) [![Scala Steward badge](https://img.shields.io/badge/Scala_Steward-helping-blue.svg?style=flat&logo=data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAQCAMAAAARSr4IAAAAVFBMVEUAAACHjojlOy5NWlrKzcYRKjGFjIbp293YycuLa3pYY2LSqql4f3pCUFTgSjNodYRmcXUsPD/NTTbjRS+2jomhgnzNc223cGvZS0HaSD0XLjbaSjElhIr+AAAAAXRSTlMAQObYZgAAAHlJREFUCNdNyosOwyAIhWHAQS1Vt7a77/3fcxxdmv0xwmckutAR1nkm4ggbyEcg/wWmlGLDAA3oL50xi6fk5ffZ3E2E3QfZDCcCN2YtbEWZt+Drc6u6rlqv7Uk0LdKqqr5rk2UCRXOk0vmQKGfc94nOJyQjouF9H/wCc9gECEYfONoAAAAASUVORK5CYII=)](https://scala-steward.org)
 
 ## Installation
 
 In order to use this library, we need to add one of the following line in our `build.sbt` file:
 
 ```sbt
-libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli" % "2.1.4"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli4j" % "2.1.4"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-bzip2" % "2.1.4"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-gzip" % "2.1.4"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-lz4" % "2.1.4"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-snappy" % "2.1.4"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-tar" % "2.1.4"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zip" % "2.1.4"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zip4j" % "2.1.4"
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zstd" % "2.1.4"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli" % "2.1.5"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-brotli4j" % "2.1.5"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-bzip2" % "2.1.5"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-gzip" % "2.1.5"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-lz4" % "2.1.5"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-snappy" % "2.1.5"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-tar" % "2.1.5"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zip" % "2.1.5"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zip4j" % "2.1.5"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zstd" % "2.1.5"
 ```
 
-_As of 2.2.0, zio-streams-compress requires zio 2.1.25 or later._
+_As of 2.1.3, zio-streams-compress requires zio 2.1.25 or later._
 
 For Brotli you can choose between the 'brotli' and the 'brotli4j' version. The first is based on the official Java
 library but only does decompression. The second is based on [Brotli4J](https://github.com/hyperxpro/Brotli4j) which does
@@ -38,9 +38,9 @@ Currently only jvm is supported. PRs for scala-js and scala-native are welcome.
 ```scala
 // Example.sc
 // Run with: scala-cli Example.sc
-//> using dep dev.zio:zio-streams-compress-gzip:2.1.4
-//> using dep dev.zio:zio-streams-compress-tar:2.1.4
-//> using dep dev.zio:zio-streams-compress-zip4j:2.1.4
+//> using dep dev.zio:zio-streams-compress-gzip:2.1.5
+//> using dep dev.zio:zio-streams-compress-tar:2.1.5
+//> using dep dev.zio:zio-streams-compress-zip4j:2.1.5
 
 import zio._
 import zio.compress.{ArchiveEntry, GzipCompressor, GzipDecompressor, TarUnarchiver, Zip4JArchiver}
@@ -99,13 +99,13 @@ operate in a streaming fashion without corrupting content.
 Most of the time the new requirement should not be an issue. For example, you can concatenate 'unarchive' and 'archive'
 pipelines without problems.
 
-Here are two cases where the requirement can be issue:
+Here are two use cases where the requirement can be an issue:
 
 1. You are only interested in the metadata of the archive entries. In this case you can use the unarchiver's `list`
    method which drains the entry's contents behind the scenes.
 
-2. Buffering, aggregation or rechunking is needed to improve throughput.
-   In this case you can first slurp the content in memory, and then do the buffering/aggregation/rechunking.
+2. Buffering, aggregation, rechunking or parallel processing is needed to improve throughput.
+   In this case you can first slurp the content in memory, and then do the buffering/aggregation/etc.
    As the whole entry will be pulled into memory, checking the size is prudent. Be aware that the reported size might
    not be available, or may even be maliciously incorrect! Here is an example that loads at most `maxEntrySize` bytes
    per entry:
@@ -121,5 +121,5 @@ ZStream
       else ZIO.succss((archiveEntry, content))
     }
   }
-  .rechunk(10) // here it is safe to rechunk
+  .rechunk(10) // here it is safe to rechunk, process in parallel, etc.
 ```
