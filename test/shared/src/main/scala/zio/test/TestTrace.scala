@@ -135,24 +135,32 @@ sealed trait TestTrace[+A] { self =>
   }
 
   /**
-   * Apply the code to every node in the tree.
+   * Apply the complete code to every node in the tree, but only if a value is
+   * provided. (Mirrors the guarding pattern used by `withCode`,
+   * `withCustomLabel`, `withLocation` etc., so that wrapping a trace in an
+   * outer `Meta` whose `completeCode` is `None` does not clobber a
+   * `completeCode` already present on the inner trace.)
    */
   final def withCompleteCode(completeCode: Option[String]): TestTrace[A] =
-    self match {
-      case node: TestTrace.Node[_] =>
-        node.copy(completeCode = completeCode, children = node.children.map(_.withCompleteCode(completeCode)))
-      case TestTrace.AndThen(left, right) =>
-        TestTrace.AndThen(left.withCompleteCode(completeCode), right.withCompleteCode(completeCode))
-      case and: TestTrace.And =>
-        TestTrace
-          .And(and.left.withCompleteCode(completeCode), and.right.withCompleteCode(completeCode))
-          .asInstanceOf[TestTrace[A]]
-      case or: TestTrace.Or =>
-        TestTrace
-          .Or(or.left.withCompleteCode(completeCode), or.right.withCompleteCode(completeCode))
-          .asInstanceOf[TestTrace[A]]
-      case not: TestTrace.Not =>
-        TestTrace.Not(not.trace.withCompleteCode(completeCode)).asInstanceOf[TestTrace[A]]
+    if (completeCode.isDefined) {
+      self match {
+        case node: TestTrace.Node[_] =>
+          node.copy(completeCode = completeCode, children = node.children.map(_.withCompleteCode(completeCode)))
+        case TestTrace.AndThen(left, right) =>
+          TestTrace.AndThen(left.withCompleteCode(completeCode), right.withCompleteCode(completeCode))
+        case and: TestTrace.And =>
+          TestTrace
+            .And(and.left.withCompleteCode(completeCode), and.right.withCompleteCode(completeCode))
+            .asInstanceOf[TestTrace[A]]
+        case or: TestTrace.Or =>
+          TestTrace
+            .Or(or.left.withCompleteCode(completeCode), or.right.withCompleteCode(completeCode))
+            .asInstanceOf[TestTrace[A]]
+        case not: TestTrace.Not =>
+          TestTrace.Not(not.trace.withCompleteCode(completeCode)).asInstanceOf[TestTrace[A]]
+      }
+    } else {
+      self
     }
 
   final def withGenFailureDetails(genFailureDetails: Option[GenFailureDetails]): TestTrace[A] =

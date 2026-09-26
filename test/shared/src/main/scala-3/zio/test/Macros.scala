@@ -428,7 +428,7 @@ object SmartAssertMacros {
     val arrow             = transform(expr).asExprOf[TestArrow[Any, Boolean]]
     val pos               = expr.asTerm.pos
     val location          = Expr(Some(s"${pos.sourceFile.path}:${pos.endLine + 1}"))
-    val result            = '{ TestResult($arrow.withCode($code).meta(location = $location)) }
+    val result            = '{ TestResult.cached($arrow.withCode($code).meta(location = $location)) }
     if stats.isEmpty then result else Block(stats, result.asTerm).asExprOf[TestResult]
   }
 
