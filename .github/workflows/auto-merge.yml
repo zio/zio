@@ -18,11 +18,25 @@ jobs:
       github.event.pull_request.user.login == 'zio-scala-steward[bot]' ||
       github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
+      # Merges performed with the default GITHUB_TOKEN don't trigger downstream
+      # `push`-triggered workflows (e.g. the website's publish-website job) —
+      # GitHub suppresses events authored by GITHUB_TOKEN to avoid recursive
+      # runs. Use the repo's GitHub App identity instead, so the eventual
+      # auto-merge push is attributed to a real actor and the `push` event
+      # on series/2.x fires normally.
+      - name: Generate a token
+        id: generate-token
+        uses: actions/create-github-app-token@v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_SECRET }}
+          owner: ${{ github.repository_owner }}
+
       - name: Enable auto-merge for bot PR
         if: github.event_name == 'pull_request_target'
         run: gh pr merge --auto --squash ${{ github.event.number }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
 
       - name: Backfill auto-merge for existing bot PRs
@@ -38,5 +52,5 @@ jobs:
             xargs -I{} gh pr merge --auto --squash {}
           done
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
           GH_REPO: ${{ github.repository }}
