@@ -8,7 +8,7 @@
 First, add the following dependency to your build.sbt:
 
 ```
-"dev.zio" %% "zio-opentracing" % "<version>"
+"dev.zio" %% "zio-opentracing" % "3.1.20"
 ```
 
 ## Usage

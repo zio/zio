@@ -16,7 +16,7 @@ Some of the key features:
 Add the following dependency to your `build.sbt` to use OpenTelemetry inside your ZIO application:
 
 ```scala
-"dev.zio" %% "zio-opentelemetry" % "<version>"
+"dev.zio" %% "zio-opentelemetry" % "3.1.20"
 ```
 
 You will also need SDK dependencies to be able to provide configured instances of [Tracer](https://javadoc.io/doc/io.opentelemetry/opentelemetry-api/latest/io/opentelemetry/api/trace/Tracer.html), [Meter](https://javadoc.io/static/io.opentelemetry/opentelemetry-api/1.33.0/io/opentelemetry/api/metrics/Meter.html), and [Logger](https://javadoc.io/doc/io.opentelemetry/opentelemetry-api/latest/io/opentelemetry/api/logs/Logger.html), such as:
