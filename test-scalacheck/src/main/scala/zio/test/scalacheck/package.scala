@@ -83,6 +83,31 @@ import zio.test.{ErrorMessage => M}
  */
 package object scalacheck {
 
+  private def scalaCheckResultToGenFailureDetails(result: CheckTest.Result): Option[GenFailureDetails] = {
+    def singleValue(args: List[Prop.Arg[Any]]): Option[Any] =
+      args match {
+        case head :: Nil => Some(head.arg)
+        case Nil         => None
+        case _           => Some(args.map(_.arg))
+      }
+
+    def originalValue(args: List[Prop.Arg[Any]]): Option[Any] =
+      args match {
+        case head :: Nil => Some(head.origArg)
+        case Nil         => None
+        case _           => Some(args.map(_.origArg))
+      }
+
+    result.status match {
+      case CheckTest.Failed(args, _) | CheckTest.PropException(args, _, _) =>
+        for {
+          initial <- originalValue(args)
+          shrunken <- singleValue(args)
+        } yield GenFailureDetails(initial, shrunken, result.succeeded.toLong)
+      case _ => None
+    }
+  }
+
   implicit final class ScalaCheckGenSyntax[A](private val self: org.scalacheck.Gen[A]) extends AnyVal {
 
     /**
@@ -106,8 +131,12 @@ package object scalacheck {
     def assertZIO(
       name: String = "ScalaCheck Prop Assertion",
       testParams: CheckTest.Parameters = CheckTest.Parameters.default
-    ): TestResult =
-      Assertion.assertion[Prop](name)(prop => CheckTest.check(testParams, prop).passed).run(self)
+    ): TestResult = {
+      val result       = CheckTest.check(testParams, self)
+      val testResult   = Assertion.assertion[Prop](name)(prop => result.passed).run(self)
+      val failureInput = scalaCheckResultToGenFailureDetails(result)
+      failureInput.fold(testResult)(testResult.setGenFailureDetails)
+    }
   }
 
   implicit final class ScalaCheckPropertiesSyntax(private val self: Properties) extends AnyVal {
@@ -127,6 +156,7 @@ package object scalacheck {
                 TestTrace.boolean(result.passed) {
                   M.text(name) + M.choice("succeeded", "failed")
                 }
+                  .withGenFailureDetails(scalaCheckResultToGenFailureDetails(result))
               }
               .reduce(_ && _)
           }
