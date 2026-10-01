@@ -10,15 +10,12 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, 
 object SerializableSpec extends ZIOBaseSpec {
 
   def spec = suite("SerializableSpec")(
-    test("Semaphore is serializable") {
-      val n = 20L
-      for {
-        semaphore   <- Semaphore.make(n)
-        count       <- semaphore.available
-        returnSem   <- serializeAndBack(semaphore)
-        returnCount <- returnSem.available
-      } yield assert(returnCount)(equalTo(count))
-    },
+    semaphoreRoundTrip(fair = true, permits = 1L),
+    semaphoreRoundTrip(fair = true, permits = 20L),
+    semaphoreRoundTrip(fair = false, permits = 1L),
+    semaphoreRoundTrip(fair = false, permits = 20L),
+    semaphoreWithWaiters(fair = true),
+    semaphoreWithWaiters(fair = false),
     test("ClockLive is serializable") {
       Live.live(ZIO.clock).flatMap(clockTest)
     },
@@ -223,6 +220,54 @@ object SerializableSpec extends ZIOBaseSpec {
       } yield assertTrue(nonEmptyChunk == result)
     }
   )
+
+  private def makeSemaphore(fair: Boolean, permits: Long): UIO[Semaphore] =
+    if (fair) Semaphore.make(permits) else Semaphore.makeUnfair(permits)
+
+  private def policy(fair: Boolean): String = if (fair) "fair" else "unfair"
+
+  /**
+   * An idle semaphore survives a round trip with its permits, and the copy
+   * still works: a fiber that queues on it is woken when a permit comes back.
+   * One permit uses the compact layout, more use the padded one.
+   */
+  def semaphoreRoundTrip(fair: Boolean, permits: Long): Spec[Any, Any] =
+    test(s"Semaphore is serializable (${policy(fair)}, $permits permit${if (permits == 1L) "" else "s"})") {
+      for {
+        original <- makeSemaphore(fair, permits)
+        copy     <- serializeAndBack(original)
+        restored <- copy.available
+        gate     <- Promise.make[Nothing, Unit]
+        holder   <- copy.withPermits(permits)(gate.await).fork
+        _        <- copy.available.repeatUntil(_ == 0L)
+        waiter   <- copy.withPermit(ZIO.unit).fork
+        _        <- copy.awaiting.repeatUntil(_ == 1L)
+        _        <- gate.succeed(())
+        _        <- holder.join *> waiter.join
+        after    <- copy.available
+      } yield assertTrue(restored == permits, after == permits)
+    } @@ timeout(10.seconds)
+
+  /**
+   * The scaladoc's promise: serializing a semaphore that has queued fibers
+   * throws, and it serializes again once the queue has drained.
+   */
+  def semaphoreWithWaiters(fair: Boolean): Spec[Any, Any] =
+    test(s"Semaphore with queued fibers is not serializable (${policy(fair)})") {
+      for {
+        sem     <- makeSemaphore(fair, 1L)
+        gate    <- Promise.make[Nothing, Unit]
+        holder  <- sem.withPermit(gate.await).fork
+        _       <- sem.available.repeatUntil(_ == 0L)
+        waiter  <- sem.withPermit(ZIO.unit).fork
+        _       <- sem.awaiting.repeatUntil(_ == 1L)
+        queued  <- ZIO.attempt(serializeToBytes(sem)).exit
+        _       <- gate.succeed(())
+        _       <- holder.join *> waiter.join
+        drained <- serializeAndBack(sem).flatMap(_.available)
+      } yield assert(queued)(fails(isSubtype[java.io.NotSerializableException](anything))) &&
+        assertTrue(drained == 1L)
+    } @@ timeout(10.seconds)
 
   def clockTest(clock: Clock) =
     for {
