@@ -9,9 +9,9 @@
 Add the following lines to your `project/plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.8.0")
-addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.8.0")
-addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.8.0")
+addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.8.5")
+addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.8.5")
+addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.8.5")
 ```
 
 Then you can enable them by using the following code in your `build.sbt` file:
@@ -127,7 +127,7 @@ ZIO SBT CI plugin generates a default GitHub workflow that includes common CI ta
 To use ZIO SBT CI plugin, add the following lines to your `plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.8.0")
+addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.8.5")
 
 resolvers ++= Resolver.sonatypeOssRepos("public")
 ```
@@ -165,7 +165,7 @@ Note that the plugin declares `trigger = allRequirements`, so having it on the c
 
 ### Auto-Approving and Auto-Merging Dependency Update PRs
 
-Besides `ci.yml`, the `ciGenerateGithubWorkflow` task also generates two more workflow files: `auto-approve.yml` and `auto-merge.yml`. These workflows automatically approve and enable GitHub's native auto-merge (squash strategy) on pull requests opened by dependency-update bots, such as [Scala Steward](https://github.com/scala-steward-org/scala-steward), [Dependabot](https://github.com/dependabot), and [Renovate](https://github.com/renovatebot/renovate).
+Besides `ci.yml`, the `ciGenerateGithubWorkflow` task also generates two more workflow files: `auto-approve.yml` and `auto-merge.yml`. These workflows automatically approve, and squash-merge once CI is green, pull requests opened by dependency-update bots, such as [Scala Steward](https://github.com/scala-steward-org/scala-steward), [Dependabot](https://github.com/dependabot), and [Renovate](https://github.com/renovatebot/renovate).
 
 Both workflows trigger on `pull_request_target` and also support `workflow_dispatch`, which backfills the approval/auto-merge on every currently open PR from the configured bots—handy for recovering PRs that were opened before the workflow existed, or after a workflow bug is fixed.
 
@@ -191,7 +191,7 @@ The default value mirrors the bots used by the `zio/zio` repository: `Seq(Depend
 
 > **Note:**
 >
-> For `gh pr merge --auto` to actually merge a PR (rather than just queue it), the target repository needs "Allow auto-merge" enabled under **Settings → General**, and branch protection with required status checks configured on the target branch.
+> `auto-merge.yml` waits for every check on the PR (other than its own bot jobs) to finish and merges with `gh pr merge --squash` only if none failed, so it is safe on branches without required status checks. A red check fails the job and leaves the PR open. The `workflow_dispatch` backfill still uses `gh pr merge --auto`, which merges immediately on a branch with no required status checks, so configure branch protection with required checks before relying on it.
 
 > **Note:**
 >
@@ -217,6 +217,56 @@ Using `workflow_run` instead of triggering directly on `pull_request` means the 
 Put together, this makes `ciEnableDeployPreview` safe to turn on before the Docusaurus site exists: neither workflow does any real work until `website/` is a genuine installation and a pull request actually changes it.
 
 This requires two repository secrets: `NETLIFY_AUTH_TOKEN`, a [personal access token](https://docs.netlify.com/api/get-started/#authentication) generated from the Netlify user account that owns the site, and `NETLIFY_SITE_ID`, found under the site's **Site configuration → General → Site details** in the Netlify dashboard. The default value of `ciEnableDeployPreview` is `false`, so existing builds see no change until they opt in.
+
+### Release Drafter
+
+`ciEnableReleaseDrafter` defaults to `true`, so `ciGenerateGithubWorkflow` generates `release-drafter.yml` automatically, which runs [`release-drafter/release-drafter`](https://github.com/release-drafter/release-drafter) on every push to the release branch to keep a draft GitHub Release up to date with categorized notes for each merged pull request. Set it to `false` to opt out:
+
+```scala
+ThisBuild / ciEnableReleaseDrafter := false
+```
+
+The first time the feature generates a `release-drafter.yml`, `ciGenerateGithubWorkflow` also scaffolds `.github/release-drafter.yml` — release-drafter's own config file — from `ciReleaseDrafterCategories`/`ciReleaseDrafterExcludeLabels`/`ciReleaseDrafterAutolabeler`/`ciReleaseDrafterVersionResolver`, if that file doesn't already exist. Unlike every other generated file, it is **never rewritten or deleted afterward**, even if those settings change or `ciEnableReleaseDrafter` is turned back off: category/label taxonomy is inherently per-repo and meant to be hand-customized once scaffolded, so `ciCheckGithubWorkflow`'s drift check does not cover it either — only `.github/workflows/release-drafter.yml` (the workflow file) participates in that check, the same as `ci.yml`/`auto-approve.yml`/`auto-merge.yml`/`deploy-preview.yml`.
+
+`release-drafter.yml`'s `push` trigger runs on `ciReleaseDrafterBranch` when set, otherwise the first entry of `ciEnabledBranches`, otherwise `main` — GitHub Actions' static `on.push.branches` list can't use the same `default_branch` runtime expression this plugin uses elsewhere, so a literal branch name is always required. Repos maintaining multiple release series (e.g. `series/2.x`) should set `ciReleaseDrafterBranch` explicitly.
+
+This is purely additive: it does not change `ci.yml`'s own triggers or jobs, and it does not publish the draft release automatically — a human still does that, which is what fires the existing `release: published`-gated release jobs. Because the feature defaults to *on*, a repo that already hand-maintains a `release-drafter.yml` (release-drafter's own README convention) has that file **overwritten** by the generated workflow the next time `ciGenerateGithubWorkflow` runs, exactly like `ci.yml` — silently, with no warning, so custom triggers, `runs-on` or steps are lost. `ciCheckGithubWorkflow` fails until the regenerated file is committed. The hand-edited `.github/release-drafter.yml` config file is unaffected. To keep a hand-written workflow, set `ciEnableReleaseDrafter := false`: when disabled, the plugin only deletes a `release-drafter.yml` it generated itself — identified by the "autogenerated" header every generated workflow carries — and never a hand-written one. To customize the generated workflow instead, use `ciReleaseDrafterBranch`, `ciReleaseDrafterCategories`, `ciReleaseDrafterExcludeLabels`, `ciReleaseDrafterAutolabeler` and `ciReleaseDrafterVersionResolver`.
+
+### Dependabot
+
+`ciEnableDependabot` defaults to `true`, so `ciGenerateGithubWorkflow` also generates `.github/dependabot.yml` from `ciDependabotConfig`. The default is a single weekly `github-actions` update at the repository root, which is what the ZIO-ecosystem repos use. Add more ecosystems, directories, intervals or groups explicitly; nothing is auto-detected:
+
+```scala
+import zio.sbt.githubactions.{DependabotConfig, DependabotGroup, DependabotUpdate}
+
+ThisBuild / ciDependabotConfig := DependabotConfig(
+  Seq(
+    DependabotUpdate("github-actions"),
+    DependabotUpdate(
+      "npm",
+      directory = "/website",
+      openPullRequestsLimit = Some(5),
+      groups = Seq(DependabotGroup("docusaurus", patterns = Seq("@docusaurus/*", "react")))
+    )
+  )
+)
+```
+
+Unlike `.scala-steward.conf`, the file is fully owned by the plugin: a hand-written `dependabot.yml` is **overwritten** on the next `ciGenerateGithubWorkflow`, and `ciCheckGithubWorkflow` fails if it differs from the generated one. Set `ciEnableDependabot := false` to opt out; the plugin then deletes only a `dependabot.yml` carrying its "autogenerated" header, never a hand-written one.
+
+### Scala Steward
+
+`ciEnableScalaSteward` defaults to `true`, so `ciGenerateGithubWorkflow` generates `scala-steward.yml` automatically, which runs [`scala-steward-org/scala-steward-action`](https://github.com/scala-steward-org/scala-steward-action) on a daily schedule (`ciScalaStewardSchedule`, default `"0 0 * * *"`) to open dependency-update pull requests, authenticating as a GitHub App via the `SCALA_STEWARD_GITHUB_APP_ID`, `SCALA_STEWARD_GITHUB_APP_INSTALLATION_ID` and `SCALA_STEWARD_GITHUB_APP_PRIVATE_KEY` repository secrets. Set it to `false` to opt out:
+
+```scala
+ThisBuild / ciEnableScalaSteward := false
+```
+
+`ciScalaStewardTimeoutMinutes` (default `45`), `ciScalaStewardPermissions` (default `contents: read` — the action authenticates via the GitHub App's installation token, since `github-app-auth-only` is always set, so no write scope is needed by default) and `ciScalaStewardWorkflowEnv` (default empty; a repo needing JVM tuning during dependency resolution sets `JDK_JAVA_OPTIONS`/similar here) all override the generated job.
+
+The first time this feature renders a non-empty `.scala-steward.conf` from `ciScalaStewardConfig`, it scaffolds that file at the repository root, if it does not already exist. Like `.github/release-drafter.yml`, it is **never rewritten or deleted afterward**, even if `ciScalaStewardConfig` changes or `ciEnableScalaSteward` is turned back off — repo-specific pins/ignores/grouping are meant to be hand-customized once scaffolded, and `ciCheckGithubWorkflow`'s drift check does not cover it either, only `.github/workflows/scala-steward.yml` does. An all-default `ciScalaStewardConfig` renders to nothing, so most repos never see this file at all unless they set it.
+
+This is purely additive: it does not change `ci.yml`'s own triggers or jobs. Because the feature defaults to *on*, a repo that already hand-maintains a `scala-steward.yml` (as every ZIO-ecosystem repo currently does) has that file **overwritten** by the generated workflow the next time `ciGenerateGithubWorkflow` runs, exactly like `ci.yml` — silently, with no warning — and `ciCheckGithubWorkflow` fails until the regenerated file is committed. The hand-edited `.scala-steward.conf` is unaffected. To keep a hand-written workflow, set `ciEnableScalaSteward := false`: when disabled, the plugin only deletes a `scala-steward.yml` it generated itself — identified by its "autogenerated" header — and never a hand-written one. To customize the generated workflow instead, use `ciScalaStewardSchedule`, `ciScalaStewardTimeoutMinutes`, `ciScalaStewardPermissions`, `ciScalaStewardWorkflowEnv` and `ciScalaStewardConfig`.
 
 ### Keeping the Workflow in Sync
 
@@ -245,6 +295,20 @@ All settings are `ThisBuild`-scoped.
 | `ciSwapSizeGB` | `Int` | `0` | Adds a swap-space step to every job when greater than zero |
 | `ciBackgroundJobs` | `Seq[String]` | `Seq.empty` | Commands prefixed to each `run`, for daemons a job needs |
 | `ciEnableDeployPreview` | `Boolean` | `false` | Adds website-artifact upload steps to `build` and generates `deploy-preview.yml`. Requires `NETLIFY_AUTH_TOKEN`/`NETLIFY_SITE_ID` secrets |
+| `ciEnableReleaseDrafter` | `Boolean` | `true` | Generates `release-drafter.yml` and scaffolds `.github/release-drafter.yml` (once). Overwrites a hand-written `release-drafter.yml` when on; when off, only deletes a copy it generated itself |
+| `ciReleaseDrafterCategories` | `Seq[ReleaseDrafterCategory]` | Features/Bug Fixes/Maintenance/Dependency Updates | Categories written into the scaffolded config on first generation only |
+| `ciReleaseDrafterVersionResolver` | `Option[ReleaseDrafterVersionResolver]` | `None` | Optional `version-resolver` block for the scaffolded config |
+| `ciReleaseDrafterAutolabeler` | `Seq[ReleaseDrafterAutolabelerRule]` | `Seq.empty` | Optional `autolabeler` rules for the scaffolded config |
+| `ciReleaseDrafterExcludeLabels` | `Seq[String]` | `Seq("skip-changelog")` | `exclude-labels` for the scaffolded config |
+| `ciReleaseDrafterBranch` | `Option[Branch]` | `None` | Branch `release-drafter.yml`'s `push` trigger runs on. Falls back to the first of `ciEnabledBranches`, then `"main"` |
+| `ciEnableScalaSteward` | `Boolean` | `true` | Generates `scala-steward.yml` and scaffolds `.scala-steward.conf` (once, only if non-empty). Overwrites a hand-written `scala-steward.yml` when on; when off, only deletes a copy it generated itself |
+| `ciScalaStewardSchedule` | `String` | `"0 0 * * *"` | Cron schedule for `scala-steward.yml`'s `schedule` trigger |
+| `ciScalaStewardTimeoutMinutes` | `Int` | `45` | `timeout-minutes` for the scala-steward job |
+| `ciScalaStewardPermissions` | `Map[String, String]` | `contents: read` | Permissions block for `scala-steward.yml`; the action authenticates via the GitHub App's installation token, not `GITHUB_TOKEN`, so no write scope is needed by default |
+| `ciScalaStewardWorkflowEnv` | `Map[String, String]` | `Map.empty` | Extra env vars for the scala-steward job |
+| `ciScalaStewardConfig` | `ScalaStewardConfig` | `ScalaStewardConfig()` | Settings scaffolded into `.scala-steward.conf` on first non-empty render |
+| `ciEnableDependabot` | `Boolean` | `true` | Generates `.github/dependabot.yml`. Overwrites a hand-written one when on; when off, only deletes a copy it generated itself |
+| `ciDependabotConfig` | `DependabotConfig` | one weekly `github-actions` update at `/` | Content of the generated `dependabot.yml` |
 
 **Test matrix**
 
@@ -287,7 +351,7 @@ All settings are `ThisBuild`-scoped.
 
 | Task | Description |
 | --- | --- |
-| `ciGenerateGithubWorkflow` | Writes `ci.yml`, `auto-approve.yml` and `auto-merge.yml`, plus `deploy-preview.yml` when `ciEnableDeployPreview` is `true` |
+| `ciGenerateGithubWorkflow` | Writes `ci.yml`, `auto-approve.yml` and `auto-merge.yml`, plus `deploy-preview.yml` when `ciEnableDeployPreview` is `true` and `release-drafter.yml` (and scaffolds `.github/release-drafter.yml` once) when `ciEnableReleaseDrafter` is `true`, and scala-steward.yml (and scaffolds .scala-steward.conf once, when ciScalaStewardConfig renders non-empty content) when ciEnableScalaSteward is true, and `.github/dependabot.yml` when `ciEnableDependabot` is `true` |
 | `ciCheckGithubWorkflow` | Regenerates and fails if the committed files are stale |
 | `ciGenerateAutoApproveWorkflow` | Writes `auto-approve.yml` only |
 | `ciGenerateAutoMergeWorkflow` | Writes `auto-merge.yml` only |
@@ -432,7 +496,7 @@ ZIO SBT Source is a Scala 2.13 + Scala 3 cross-compiled library that provides ut
 Add the following line to your `libraryDependencies` in `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.8.0"
+libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.8.5"
 ```
 
 ### Features
