@@ -4932,6 +4932,13 @@ object ZIOSpec extends ZIOBaseSpec {
       }
     ),
     suite("eager evaluation of ZIO methods on Exit")(
+      test("attempt succeeds") {
+        assertTrue(Exit.attempt(1) == Exit.succeed(1))
+      },
+      test("attempt captures non-fatal exceptions") {
+        val exception = new RuntimeException("failure")
+        assertTrue(Exit.attempt(throw exception) == Exit.fail(exception))
+      },
       test("as") {
         val exit = Exit.succeed(1).as(2)
         assertTrue(exit == Exit.succeed(2))

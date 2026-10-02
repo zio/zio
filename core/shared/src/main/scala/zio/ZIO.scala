@@ -6901,6 +6901,12 @@ object Exit extends Serializable {
       case scala.util.Failure(t) => fail(t)
     }
 
+  def attempt[A](code: => A): Exit[Throwable, A] =
+    try succeed(code)
+    catch {
+      case t if nonFatal(t) => fail(t)
+    }
+
   def succeed[A](a: A): Exit[Nothing, A] = Success(a)
 
   val unit: Exit[Nothing, Unit] = succeed(())
