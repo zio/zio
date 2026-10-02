@@ -1,6 +1,6 @@
 # Introduction to izumi-reflect
 
-> [![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/izumi-reflect/workflows/CI/badge.svg) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/izumi-reflect_2.12.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/izumi-reflect_2.12/) [![izumi-reflect](https://img.shields.io/github/stars/zio/izumi-reflect?style=social)](https://github.com/zio/izumi-reflect)
+> [![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/izumi-reflect/workflows/CI/badge.svg) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fizumi-reflect_3%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/izumi-reflect_3/) [![izumi-reflect](https://img.shields.io/github/stars/zio/izumi-reflect?style=social)](https://github.com/zio/izumi-reflect)
 
 # izumi-reflect
 
@@ -13,7 +13,7 @@
 ## Why `izumi-reflect`
 
 1. `izumi-reflect` compiles faster, runs a lot faster than `scala-reflect` and is fully immutable and [thread-safe](https://github.com/scala/bug/issues/10766),
-2. `izumi-reflect` supports Scala 2.11, 2.12, 2.13 and **Scala 3**,
+2. `izumi-reflect` supports Scala 2.12, 2.13 and **Scala 3**,
 3. `izumi-reflect` supports Scala.js and Scala Native,
 4. `izumi-reflect` works well with [GraalVM Native Image](https://www.graalvm.org/reference-manual/native-image/),
 5. `izumi-reflect` allows you to obtain tags for unapplied type constructors (`F[_]`) and combine them at runtime.
