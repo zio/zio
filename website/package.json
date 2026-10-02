@@ -62,7 +62,7 @@
     "clsx": "2.1.1",
     "docusaurus-plugin-copy-page-button": "^0.8.0",
     "docusaurus-plugin-llms": "0.6.0",
-    "effect": "^3.19.14",
+    "effect": "^4.0.0",
     "highlight.js": "11.12.0",
     "motion": "^13.0.0",
     "node-fetch": "^3.3.2",
