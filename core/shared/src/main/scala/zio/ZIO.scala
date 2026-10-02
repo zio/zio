@@ -6787,7 +6787,7 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
 
 }
 
-object Exit extends Serializable {
+object Exit extends Serializable with ExitVersionSpecific {
 
   final case class Success[+A](value: A)        extends Exit[Nothing, A]
   final case class Failure[+E](cause: Cause[E]) extends Exit[E, Nothing]
@@ -6899,12 +6899,6 @@ object Exit extends Serializable {
     t match {
       case scala.util.Success(a) => succeed(a)
       case scala.util.Failure(t) => fail(t)
-    }
-
-  def attempt[A](code: => A): Exit[Throwable, A] =
-    try succeed(code)
-    catch {
-      case t if nonFatal(t) => fail(t)
     }
 
   def succeed[A](a: A): Exit[Nothing, A] = Success(a)
