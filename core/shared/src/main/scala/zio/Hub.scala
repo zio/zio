@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.{MutableConcurrentQueue, Platform}
+import zio.internal.{MutableConcurrentQueue, Platform, Sync}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -308,7 +308,7 @@ object Hub {
    * A `Strategy[A]` describes the protocol for how publishers and subscribers
    * will communicate with each other through the hub.
    */
-  private sealed abstract class Strategy[A] {
+  private[zio] sealed abstract class Strategy[A] {
 
     /**
      * Describes how publishers should signal to subscribers that they are
@@ -384,7 +384,7 @@ object Hub {
     }
   }
 
-  private object Strategy {
+  private[zio] object Strategy {
 
     /**
      * A strategy that applies back pressure to publishers when the hub is at
@@ -503,27 +503,77 @@ object Hub {
         subscribers: java.util.Set[(internal.Hub.Subscription[A], MutableConcurrentQueue[Promise[Nothing, A]])],
         as: Iterable[A],
         isShutdown: AtomicBoolean
-      )(implicit trace: Trace): UIO[Boolean] = {
-        def unsafeSlidingPublish(as: Iterable[A]): Unit =
-          if (as.nonEmpty && hub.capacity > 0) {
-            val iterator = as.iterator
-            var a        = iterator.next()
-            var loop     = true
-            while (loop) {
-              hub.slide()
-              val published = hub.publish(a)
-              if (published && iterator.hasNext) {
-                a = iterator.next()
-              } else if (published && !iterator.hasNext) {
-                loop = false
-              }
-            }
-          }
-
+      )(implicit trace: Trace): UIO[Boolean] =
         ZIO.succeed {
-          unsafeSlidingPublish(as)
+          unsafeSlidingPublish(as, hub)
           unsafeCompleteSubscribers(hub, subscribers)
           true
+        }
+
+      /**
+       * Publishes values to the hub, dropping the oldest values to make room
+       * for the new ones.
+       *
+       * Only the last `capacity` values can survive, so we take those and
+       * publish them in bulk. There is no bulk `slide`, but `publishAll`
+       * reserves its space in one compare-and-set on the bounded hubs, rather
+       * than racing for one slot per value.
+       *
+       * We slide only the shortfall, the room the hub lacks, rather than once
+       * per value we still hold. Sliding `remaining.length` times every round
+       * would drop whatever occupies those slots now, which on a retry round
+       * can be values a concurrent publisher has already been told were
+       * accepted. `size` is approximate under concurrency, so the shortfall is
+       * a hint: too low costs another round, while too high destroys someone
+       * else's values, and we bias to the former.
+       *
+       * `publishAll` returns the values it could not place, which is what we
+       * retry with, never fewer, so a value is not dropped without being
+       * published. If a whole round places nothing then a concurrent publisher
+       * took the space we just freed, so hint that we are spinning.
+       *
+       * Exposed for testing.
+       */
+      private[zio] def unsafeSlidingPublish(as: Iterable[A], hub: internal.Hub[A]): Unit = {
+        val capacity = hub.capacity
+        if (as.nonEmpty && capacity > 0) {
+          val chunk = Chunk.fromIterable(as)
+          if (chunk.length == 1) unsafeSlidingPublishOne(chunk(0), hub)
+          else {
+            var remaining = chunk.takeRight(capacity)
+            while (remaining.nonEmpty) {
+              unsafeSlide(hub, remaining.length - (capacity - hub.size()))
+              val surplus = hub.publishAll(remaining)
+              if (surplus.length == remaining.length) Sync.onSpinWait()
+              remaining = surplus
+            }
+          }
+        }
+      }
+
+      /**
+       * The single value case, which `publish` always takes. Going through the
+       * bulk path would allocate a slice and a surplus chunk to move one value,
+       * so slide and publish it directly.
+       */
+      private def unsafeSlidingPublishOne(a: A, hub: internal.Hub[A]): Unit = {
+        var loop = true
+        while (loop) {
+          if (hub.size() >= hub.capacity) hub.slide()
+          if (hub.publish(a)) loop = false
+          else Sync.onSpinWait()
+        }
+      }
+
+      /**
+       * Slides up to `n` values out. There's no bulk `slide`, so this drops
+       * them one at a time, mirroring `Queue.Strategy.Sliding.unsafeDrop`.
+       */
+      private def unsafeSlide(hub: internal.Hub[A], n: Int): Unit = {
+        var i = n
+        while (i > 0) {
+          hub.slide()
+          i -= 1
         }
       }
 
