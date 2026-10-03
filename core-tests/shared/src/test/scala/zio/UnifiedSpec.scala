@@ -16,7 +16,6 @@ object UnifiedSpec extends ZIOBaseSpec {
       },
       test("preserves stack trace in `printStackTrace`") {
         val boom = generateRuntimeBoom
-        // TODO - is it ok to use `exceptionHasTrace` from another test suite, which under the hood calls `printStackTrace`?
         assert(boom)(zio.StackTracesSpec.exceptionHasTrace {
           if (TestVersion.isScala2)
             """java.lang.RuntimeException: boom

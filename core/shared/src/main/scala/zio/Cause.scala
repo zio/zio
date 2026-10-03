@@ -901,8 +901,6 @@ object Cause extends Serializable {
           trace.take(1024).foreach(trace => append(s"\tat $trace"))
         }
 
-        // TODO - should we override `toString`, so it carries the name of the exception, rather than `zio.Cause$Unified$$anon$3`?
-        // TODO - `FiberFailure` includes the full stack trace in the `toString`. do we want to follow that pattern, or the more typical "toString is class + message"?
         override final def toString: String = s"$className: $message"
 
         override final def getMessage: String = message
