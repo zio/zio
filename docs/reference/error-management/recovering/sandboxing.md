@@ -2,6 +2,15 @@
 id: sandboxing
 title: "Sandboxing"
 sidebar_label: "6. Sandboxing"
+description: "Use ZIO's sandbox, unsandbox, and sandboxWith operators to expose and recover from the full Cause graph — including defects and interruptions — not just typed failures."
+keywords:
+  - "sandbox"
+  - "unsandbox"
+  - "sandboxWith"
+  - "Cause"
+  - "defects"
+  - "interruptions"
+  - "error recovery"
 ---
 
 We know that a ZIO effect may fail due to a failure, a defect, a fiber interruption, or a combination of these causes. So a ZIO effect may contain more than one cause. Using the `ZIO#sandbox` operator, we can sandbox all errors of a ZIO application, whether the cause is a failure, defect, or a fiber interruption or combination of these. This operator exposes the full cause of a ZIO effect into the error channel:
@@ -11,6 +20,10 @@ trait ZIO[-R, +E, +A] {
   def sandbox: ZIO[R, Cause[E], A]
 }
 ```
+
+## When to Use
+
+Use `ZIO#sandbox` when you need to apply operators other than `catchAllCause` or `catchSomeCause` to the full `Cause` graph — for example, using `ZIO#catchSome` or `ZIO#mapError` against defects and interruptions as well as typed failures. Use [`ZIO#catchAllCause` or `ZIO#catchSomeCause`](catching.md) directly instead when a single pattern-match-and-recover step is all you need; those operators reach the full `Cause` without an explicit sandbox/unsandbox round-trip. `ZIO#sandboxWith` combines the sandbox → operate → unsandbox round-trip in a single call when a more composable form is convenient.
 
 We can use the `ZIO#sandbox` operator to uncover the full causes of an _exceptional effect_. So we can see all the errors that occurred as a type of `Cause[E]` at the error channel of the `ZIO` data type. So then we can use normal error-handling operators such as `ZIO#catchSome` and `ZIO#catchAll` operators:
 
@@ -62,7 +75,7 @@ There is another version of sandbox called `ZIO#sandboxWith`. This operator help
 
 ```scala
 trait ZIO[-R, +E, +A] {
-  def sandboxWith[R1 <: R, E2, B](f: ZIO[R1, Cause[E], A] => ZIO[R1, Cause[E2], B])
+  def sandboxWith[R1 <: R, E2, B](f: ZIO[R1, Cause[E], A] => ZIO[R1, Cause[E2], B]): ZIO[R1, E2, B]
 }
 ```
 
@@ -96,3 +109,24 @@ object MainApp extends ZIOAppDefault {
 // Caught a failure: Oh uh!
 // fallback result on failure
 ```
+
+There is also a companion-object form, `ZIO.unsandbox`, which accepts the sandboxed effect as a parameter rather than being called as an instance method. Its signature is:
+
+```scala
+object ZIO {
+  def unsandbox[R, E, A](v: => ZIO[R, Cause[E], A])(implicit trace: Trace): ZIO[R, E, A]
+}
+```
+
+This is useful when passing a sandboxed effect to a helper function or when you want to build a pipeline:
+
+```scala mdoc:compile-only
+import zio._
+
+def recoverFromCause[R, A](
+  sandboxedEffect: ZIO[R, Cause[String], A]
+): ZIO[R, String, A] =
+  ZIO.unsandbox(sandboxedEffect)
+```
+
+Both `ZIO#unsandbox` (the instance method) and `ZIO.unsandbox(v)` (the companion form) produce the same result — choose whichever reads more naturally in context.

@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Highlight, Prism } from 'prism-react-renderer';
-import { usePrismTheme } from '@docusaurus/theme-common';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import useIsBrowser from '@docusaurus/useIsBrowser';
+import BrowserOnly from '@docusaurus/BrowserOnly';
 import Link from '@docusaurus/Link';
 import clsx from 'clsx';
 import { FaCopy, FaCheck, FaArrowRight } from 'react-icons/fa6';
@@ -9,14 +8,28 @@ import styles from './styles.module.css';
 
 import { examples } from './data';
 
-// prism-react-renderer v2 highlights against the shared prismjs instance.
-// The homepage has no @theme/CodeBlock to trigger Docusaurus's language
-// loader, so register Scala (extends Java) here against that same instance.
-// Idempotent if Docusaurus already loaded it elsewhere.
-globalThis.Prism = Prism;
-require('prismjs/components/prism-java');
-require('prismjs/components/prism-scala');
-delete globalThis.Prism;
+// Code-split via React.lazy so `motion`, `effect`, and the rest of the
+// animation engine only load into a separate chunk when a visitor actually
+// opens the Visual tab, instead of shipping in the main homepage bundle.
+// Still only ever rendered inside <BrowserOnly> below, so it never executes
+// during Docusaurus's Node.js prerender of this page.
+const VISUAL_COMPONENTS = {
+  concurrency: React.lazy(
+    () => import('../../visual-effects/scenarios/RaceVisual'),
+  ),
+  errors: React.lazy(
+    () => import('../../visual-effects/scenarios/RetryExponentialVisual'),
+  ),
+  resources: React.lazy(
+    () => import('../../visual-effects/scenarios/AcquireReleaseVisual'),
+  ),
+  streaming: React.lazy(
+    () => import('../../visual-effects/scenarios/StreamingVisual'),
+  ),
+  di: React.lazy(
+    () => import('../../visual-effects/scenarios/DependencyInjectionVisual'),
+  ),
+};
 
 // Editor-style code panel ported from zio-http's HomepageCodeSnippet
 // (website/src/components/HomepageCodeSnippet in the zio/zio-http repo):
@@ -25,7 +38,6 @@ export default function CodeShowcase() {
   const [activeTab, setActiveTab] = useState(0);
   const [copied, setCopied] = useState(false);
   const isBrowser = useIsBrowser();
-  const prismTheme = usePrismTheme();
   const timeoutRef = useRef(null);
 
   useEffect(() => {
@@ -127,54 +139,45 @@ export default function CodeShowcase() {
               ))}
             </div>
 
-            {/* Code Area */}
+            {/* Visual area. There is no Code view any more: every tab has a
+                visual, and each one already shows its own snippet inside the
+                card, so a second copy behind a toggle was one control and one
+                rendering path for nothing. The Copy button still copies the
+                snippet. */}
             <div
               id={`tabpanel-${activeTab}`}
-              className={styles.codeArea}
+              className={styles.visualArea}
               role="tabpanel"
               aria-labelledby={`tab-${activeTab}`}
             >
-              <Highlight
-                key={activeTab}
-                theme={prismTheme}
-                code={active.code.trim()}
-                language="scala"
-              >
-                {({
-                  className,
-                  style,
-                  tokens,
-                  getLineProps,
-                  getTokenProps,
-                }) => (
-                  <pre className={`${className} ${styles.pre}`} style={style}>
-                    <code>
-                      {tokens.map((line, i) => (
-                        <div
-                          key={i}
-                          {...getLineProps({ line, key: i })}
-                          className={styles.codeLine}
-                        >
-                          <span className={styles.lineNumber}>{i + 1}</span>
-                          <span className={styles.lineContent}>
-                            {line.map((token, key) => (
-                              <span
-                                key={key}
-                                {...getTokenProps({ token, key })}
-                              />
-                            ))}
-                          </span>
-                        </div>
-                      ))}
-                    </code>
-                  </pre>
-                )}
-              </Highlight>
+              <BrowserOnly fallback={<div className={styles.visualArea} />}>
+                {() => {
+                  const VisualComponent = VISUAL_COMPONENTS[active.visual];
+                  if (!VisualComponent) return null;
+                  return (
+                    <Suspense fallback={<div className={styles.visualArea} />}>
+                      <VisualComponent />
+                    </Suspense>
+                  );
+                }}
+              </BrowserOnly>
             </div>
 
             {/* Toolbar */}
             <div className={styles.toolbar}>
-              <span className={styles.langBadge}>Scala</span>
+              <div className={styles.toolbarLeft}>
+                {/* Credit for the engine these visuals are ported from. */}
+                <span className={styles.attribution}>
+                  Originally developed as Kit Langton's{' '}
+                  <a
+                    href="https://effect.kitlangton.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Visual Effect
+                  </a>
+                </span>
+              </div>
               {isBrowser && (
                 <button
                   type="button"

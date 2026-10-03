@@ -1,6 +1,12 @@
 ---
 id: chaining-effects-based-on-errors
 title: "Chaining Effects Based on Errors"
+description: "Chain ZIO effects based on error values using flatMapError, which sequences a second effect dependent on the first effect's typed error."
+keywords:
+  - "flatMapError"
+  - "chaining effects"
+  - "error channel"
+  - "error sequencing"
 ---
 
 

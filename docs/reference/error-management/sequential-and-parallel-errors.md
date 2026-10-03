@@ -1,6 +1,14 @@
 ---
 id: sequential-and-parallel-errors
 title: "Sequential and Parallel Errors"
+description: "Understand how ZIO handles multiple errors from sequential and parallel compositions using Cause.Then, Cause.Both, and the parallelErrors combinator."
+keywords:
+  - "sequential errors"
+  - "parallel errors"
+  - "Cause.Then"
+  - "Cause.Both"
+  - "parallelErrors"
+  - "error composition"
 ---
 
 A simple and regular ZIO application usually fails with one error, which is the first error encountered by the ZIO runtime:
@@ -54,7 +62,7 @@ val result: ZIO[Any, ::[String], Nothing] =
 
 Note that this operator is only for failures, not defects or interruptions.
 
-Also, when we work with resource-safety operators like `ZIO#ensuring` we can have multiple sequential errors. Why? because regardless of the original effect has any errors or not, the finalizer is uninterruptible. So the finalizer will be run. Unless the finalizer should be an unexceptional effect (`URIO`), it may die because of a defect. Therefore, it creates multiple sequential errors:
+Resource-safety operators like `ZIO#ensuring` can also produce multiple sequential errors. Regardless of whether the original effect succeeds or fails, the finalizer always runs and is uninterruptible. If the finalizer is not an unexceptional effect (`URIO`) and it encounters a defect, both the original error and the finalizer's defect are recorded — creating multiple sequential errors:
 
 ```scala mdoc:compile-only
 import zio._

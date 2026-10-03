@@ -17,6 +17,38 @@ Onion architecture is based on the _inversion of control_ principle. So each lay
 
 In ZIO by taking advantage of both functional and object-oriented programming, we can implement onion architecture in a very simple and elegant way. To implement this architecture, please refer to the [Writing ZIO Services](../service-pattern/index.md) section which empowers you to create layers (services) in the onion architecture. In order to assemble all layers and make the whole application work, please refer to the [Dependency Injection In ZIO](../di/index.md) section.
 
+### Assembling Layers: Composition Operators
+
+Once each onion ring is expressed as a `ZLayer`, we need a way to wire the rings together into one application. `ZLayer` gives us a small set of composition operators for exactly this, and choosing the right one is an architectural decision, not just a syntactic one:
+
+- **`++`** — combines two layers in parallel, producing a layer that requires the union of their inputs and produces the union of their outputs. Use it to combine independent rings (or independent services on the same ring) that don't depend on each other.
+- **`<*>`** — combines two layers sequentially, also producing the union of their inputs and outputs. Use it when combining two layers that don't feed into one another, but where you want to be explicit that they are wired one after the other rather than concurrently.
+- **`>>>`** — feeds the output of one layer into the input of the next, producing a layer with the first layer's inputs and the second layer's outputs. This is how one onion ring is stacked directly on top of the ring beneath it.
+- **`>+>`** — like `>>>`, but keeps the first layer's outputs around as well, so both rings' services remain in the environment. Use it when an outer ring needs direct access to an inner ring's service, not just the ring built on top of it.
+
+For anything beyond a couple of layers, hand-composing with these operators becomes tedious and error-prone. `ZLayer.make[T]` builds the whole dependency graph for a target service `T` automatically from the layers you give it, in any order, failing at compile time if a dependency is missing or ambiguous:
+
+```scala mdoc:invisible
+import zio._
+
+trait UserRepository
+trait Database
+trait ConnectionPool
+trait Config
+
+object UserRepository { val live: ZLayer[Database, Nothing, UserRepository] = ZLayer.succeed(new UserRepository {}) }
+object Database       { val live: ZLayer[ConnectionPool, Nothing, Database] = ZLayer.succeed(new Database {}) }
+object ConnectionPool { val live: ZLayer[Config, Nothing, ConnectionPool]   = ZLayer.succeed(new ConnectionPool {}) }
+object Config         { val live: ZLayer[Any, Nothing, Config]             = ZLayer.succeed(new Config {}) }
+```
+
+```scala mdoc:compile-only
+val application: ZLayer[Any, Nothing, UserRepository] =
+  ZLayer.make[UserRepository](UserRepository.live, Database.live, ConnectionPool.live, Config.live)
+```
+
+`ZLayer.make` figures out that `UserRepository` needs `Database`, `Database` needs `ConnectionPool`, and `ConnectionPool` needs `Config`, and assembles `>>>` and `>+>` chains for you. For the full construction API, including partial and automatic wiring, refer to the [Dependency Injection In ZIO](../di/index.md) section.
+
 ## Streaming Architecture
 
 Many reasons make streaming architecture a good choice for building applications:
@@ -117,9 +149,20 @@ object MetricsService {
 
 }
 
-object UserAoo extends ZIOAppDefault {
+object UserApp extends ZIOAppDefault {
   override val bootstrap = MetricsService.layer
 
   def run = Server.serve(userHttpApp).provideSome(Server.defaultWithPort(8080))
 }
 ```
+
+Both examples above generalize beyond metrics: the same sidecar shape — a self-contained `ZLayer` exposing its own HTTP route, wired in either as a composed app or via `bootstrap` — is how you'd add logging or tracing sidecars too, not just a Prometheus exporter. See the [Developer Productivity](../non-functional-requirements.md#9-developer-productivity) section for the broader observability picture (logging, tracing, and metrics together), and [ZIO Logging](https://zio.dev/zio-logging) for a sidecar-ready logging library built the same way.
+
+## Module Boundaries and Scaling
+
+The composable-apps example above (`UserApp <> DocumentApp <> Metrics`) raises a natural question: when should a growing application stay a single `ZIOAppDefault` with more layers, and when should it split into multiple, independently composed apps?
+
+- **One app, more layers** — while the application shares a single lifecycle (it starts, runs, and shuts down together) and its services are used across most of the codebase, keep it as one `ZIOAppDefault` and grow its `ZLayer` graph. The Onion Architecture layering already gives you separation of concerns; you don't need separate apps to get separate modules.
+- **Multiple composed apps** — once a part of the system has its own independent lifecycle (it can be deployed, scaled, or restarted separately, like the `Metrics` app above), or serves a distinct bounded context with little shared code, model it as its own `ZIOAppDefault` and compose it with the others via `<>`, as the Sidecar Pattern section does.
+
+Either way, module boundaries in a ZIO application are `ZLayer` boundaries: a module is a service (or a small family of services) exposed as a layer, with its own `live` implementation and its own dependencies declared through the constructor pattern from the [Writing ZIO Services](../service-pattern/index.md) section. Whether you organize the codebase by bounded context (one package per module, each owning its layers end-to-end) or by architectural layer (one package per onion ring, shared across modules) is a project-structure decision independent of this — both compose the same way through `ZLayer`.
