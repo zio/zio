@@ -3,7 +3,6 @@ package zio.internal.metrics
 import zio._
 import zio.metrics._
 
-import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
@@ -18,14 +17,15 @@ private[zio] class ConcurrentMetricRegistry {
 
   def snapshot()(implicit unsafe: Unsafe): Set[MetricPair.Untyped] = {
     val iterator = map.entrySet().iterator()
-    val result   = scala.collection.mutable.Set[MetricPair.Untyped]()
+    val result   = Set.newBuilder[MetricPair.Untyped]
+    result.sizeHint(map.size())
     while (iterator.hasNext) {
       val value = iterator.next()
-      val key   = value.getKey()
-      val hook  = value.getValue()
-      result.add(MetricPair.make(key, hook.get()))
+      val key   = value.getKey
+      val hook  = value.getValue
+      result += MetricPair.make(key, hook.get())
     }
-    result.toSet
+    result.result()
   }
 
   def get[Type <: MetricKeyType](
@@ -33,7 +33,7 @@ private[zio] class ConcurrentMetricRegistry {
   )(implicit unsafe: Unsafe): MetricHook[key.keyType.In, key.keyType.Out] = {
     type Result = MetricHook[key.keyType.In, key.keyType.Out]
 
-    var hook0: MetricHook[_, zio.metrics.MetricState.Untyped] = map.get(key)
+    val hook0: MetricHook[_, zio.metrics.MetricState.Untyped] = map.get(key)
 
     if (hook0 eq null) {
       (key.keyType match {
@@ -74,40 +74,51 @@ private[zio] class ConcurrentMetricRegistry {
     val len       = listeners.length
 
     if (len > 0) {
+      // Hoist casts out of while loops: `value.asInstanceOf[Double]` unboxes on every call,
+      // so performing it once before the loop avoids repeated unboxing overhead.
       var i = 0
       key.keyType match {
         case MetricKeyType.Gauge =>
+          val k = key.asInstanceOf[MetricKey.Gauge]
+          val v = value.asInstanceOf[Double]
           eventType match {
             case MetricEventType.Modify =>
               while (i < len) {
-                listeners(i).modifyGauge(key.asInstanceOf[MetricKey.Gauge], value.asInstanceOf[Double])
+                listeners(i).modifyGauge(k, v)
                 i = i + 1
               }
             case MetricEventType.Update =>
               while (i < len) {
-                listeners(i).updateGauge(key.asInstanceOf[MetricKey.Gauge], value.asInstanceOf[Double])
+                listeners(i).updateGauge(k, v)
                 i = i + 1
               }
           }
         case MetricKeyType.Histogram(_) =>
+          val k = key.asInstanceOf[MetricKey.Histogram]
+          val v = value.asInstanceOf[Double]
           while (i < len) {
-            listeners(i).updateHistogram(key.asInstanceOf[MetricKey.Histogram], value.asInstanceOf[Double])
+            listeners(i).updateHistogram(k, v)
             i = i + 1
           }
         case MetricKeyType.Frequency =>
+          val k = key.asInstanceOf[MetricKey.Frequency]
+          val v = value.asInstanceOf[String]
           while (i < len) {
-            listeners(i).updateFrequency(key.asInstanceOf[MetricKey.Frequency], value.asInstanceOf[String])
+            listeners(i).updateFrequency(k, v)
             i = i + 1
           }
         case MetricKeyType.Summary(_, _, _, _) =>
+          val k            = key.asInstanceOf[MetricKey.Summary]
+          val (v, instant) = value.asInstanceOf[(Double, java.time.Instant)]
           while (i < len) {
-            val (v, instant) = value.asInstanceOf[(Double, Instant)]
-            listeners(i).updateSummary(key.asInstanceOf[MetricKey.Summary], v, instant)
+            listeners(i).updateSummary(k, v, instant)
             i = i + 1
           }
         case MetricKeyType.Counter =>
+          val k = key.asInstanceOf[MetricKey.Counter]
+          val v = value.asInstanceOf[Double]
           while (i < len) {
-            listeners(i).updateCounter(key.asInstanceOf[MetricKey.Counter], value.asInstanceOf[Double])
+            listeners(i).updateCounter(k, v)
             i = i + 1
           }
       }

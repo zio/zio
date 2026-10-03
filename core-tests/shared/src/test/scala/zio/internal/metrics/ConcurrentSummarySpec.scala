@@ -12,7 +12,8 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
         val summary = ConcurrentMetricHooks.summary(
           MetricKey.summary(name = "test", maxSize = 0, maxAge = 10.seconds, error = 0.0, quantiles = Chunk.empty)
         )
-        val observe = Clock.instant.flatMap(now => ZIO.attempt(summary.update((11.0, now))))
+        val observe =
+          Clock.instant.flatMap(now => ZIO.attempt(summary.update((11.0, now))))
 
         for {
           _        <- observe
@@ -34,7 +35,8 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
               quantiles = Chunk.empty
             )
           )
-          val observe = Clock.instant.flatMap(now => ZIO.attempt(summary.update(11.0 -> now)))
+          val observe =
+            Clock.instant.flatMap(now => ZIO.attempt(summary.update((11.0, now))))
 
           for {
             _        <- observe
@@ -58,7 +60,8 @@ object ConcurrentSummarySpec extends ZIOBaseSpec {
                 quantiles = Chunk.empty
               )
             )
-            val observe     = Clock.instant.flatMap(now => ZIO.attempt(summary.update(11.0 -> now)))
+            val observe =
+              Clock.instant.flatMap(now => ZIO.attempt(summary.update((11.0, now))))
             val getSnapshot = ZIO.attempt(summary.get())
 
             val test =
