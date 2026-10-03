@@ -137,7 +137,8 @@ object BuildHelper {
           "-language:noAutoTupling",
           "-Xignore-scala2-macros",
           "-Xmax-inlines:64",
-          "-noindent"
+          "-noindent",
+          "-Yfuture-lazy-vals"
         )
       case Some((2, 13)) =>
         Seq(
