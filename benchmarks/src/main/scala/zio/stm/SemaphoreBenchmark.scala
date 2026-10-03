@@ -9,9 +9,9 @@ import java.util.concurrent.TimeUnit
 @State(JScope.Thread)
 @BenchmarkMode(Array(Mode.Throughput))
 @OutputTimeUnit(TimeUnit.SECONDS)
-@Warmup(iterations = 5, timeUnit = TimeUnit.SECONDS, time = 1)
-@Measurement(iterations = 4, timeUnit = TimeUnit.SECONDS, time = 1)
-@Fork(4)
+@Warmup(iterations = 3, timeUnit = TimeUnit.SECONDS, time = 1)
+@Measurement(iterations = 3, timeUnit = TimeUnit.SECONDS, time = 1)
+@Fork(3)
 class SemaphoreBenchmark {
 
   @Param(Array("1", "10"))
@@ -21,16 +21,6 @@ class SemaphoreBenchmark {
   var fibers: Int = _
 
   val ops: Int = 1000
-
-  @Benchmark
-  def semaphoreContention(): Unit =
-    unsafeRun(ZIO.foreachParDiscard(1 to nSTM) { _ =>
-      for {
-        sem   <- Semaphore.make(math.max(1, fibers / 2L))
-        fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(ZIO.succeed(1)))))
-        _     <- fiber.join
-      } yield ()
-    })
 
   @Benchmark
   def tsemaphoreContention(): Unit =
@@ -54,4 +44,25 @@ class SemaphoreBenchmark {
       _     <- fiber.join
     } yield ()).unsafeRunSync()
   }
+
+  @Benchmark
+  def fairSemaphoreContention(): Unit =
+    unsafeRun(ZIO.foreachParDiscard(1 to nSTM) { _ =>
+      for {
+        sem   <- Semaphore.makeFair(math.max(1, fibers / 2L))
+        fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(ZIO.succeed(1)))))
+        _     <- fiber.join
+      } yield ()
+    })
+
+  @Benchmark
+  def unfairSemaphoreContention(): Unit =
+    unsafeRun(ZIO.foreachParDiscard(1 to nSTM) { _ =>
+      for {
+        sem   <- Semaphore.makeUnfair(math.max(1, fibers / 2L))
+        fiber <- ZIO.forkAll(List.fill(fibers)(repeat(ops)(sem.withPermit(ZIO.succeed(1)))))
+        _     <- fiber.join
+      } yield ()
+    })
+
 }
