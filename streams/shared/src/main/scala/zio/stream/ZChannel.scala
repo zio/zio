@@ -1096,32 +1096,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
       } else if (that0 eq ZChannel.identityAny) {
         self.asInstanceOf[ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone2]]
       } else {
-        class ChannelFailure(val err: Cause[OutErr1]) extends Throwable(null, null, true, false) {
-          override def getMessage: String = err.unified.headOption.fold("<unknown>")(_.message)
-
-          override def getStackTrace(): Array[StackTraceElement] =
-            err.unified.headOption.fold[Chunk[StackTraceElement]](Chunk.empty)(_.trace).toArray
-
-          override def getCause(): Throwable =
-            err.find { case Cause.Die(throwable, _) => throwable }
-              .orElse(err.find { case Cause.Fail(value: Throwable, _) => value })
-              .orNull
-
-          def fillSuppressed()(implicit unsafe: Unsafe): Unit =
-            if (getSuppressed().length == 0) {
-              err.unified.iterator.drop(1).foreach(unified => addSuppressed(unified.toThrowable))
-            }
-
-          override def toString =
-            err.prettyPrint
-        }
-        var channelFailure: ChannelFailure = null
+        var channelFailure: ZChannel.ChannelFailure[OutErr1] = null
 
         lazy val reader: ZChannel[Env, OutErr, OutElem, OutDone, Nothing, OutElem, OutDone] =
           ZChannel.readWithCause(
             elem => ZChannel.write(elem) *> reader,
             err => {
-              channelFailure = new ChannelFailure(err)
+              channelFailure = new ZChannel.ChannelFailure(err)
               ZChannel.refailCause(Cause.die(channelFailure))
             },
             done => ZChannel.succeedNow(done)
@@ -1140,7 +1121,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
                     (e, st) => Cause.fail(e, st),
                     (t, st) =>
                       t match {
-                        case t: ChannelFailure if t == channelFailure =>
+                        case t: ZChannel.ChannelFailure[OutErr1] if t == channelFailure =>
                           t.err
                         case t => Cause.die(t, st)
                       },
@@ -1580,6 +1561,26 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 }
 
 object ZChannel {
+  private[stream] final class ChannelFailure[OutErr1](val err: Cause[OutErr1])
+      extends Throwable(null, null, true, false) {
+    override def getMessage: String = err.unified.headOption.fold("<unknown>")(_.message)
+
+    override def getStackTrace(): Array[StackTraceElement] =
+      err.unified.headOption.fold[Chunk[StackTraceElement]](Chunk.empty)(_.trace).toArray
+
+    override def getCause(): Throwable =
+      err.find { case Cause.Die(throwable, _) => throwable }
+        .orElse(err.find { case Cause.Fail(value: Throwable, _) => value })
+        .orNull
+
+    def fillSuppressed()(implicit unsafe: Unsafe): Unit =
+      if (getSuppressed().length == 0) {
+        err.unified.iterator.drop(1).foreach(unified => addSuppressed(unified.toThrowable))
+      }
+
+    override def toString =
+      err.prettyPrint
+  }
   private val failLeftUnit = Exit.fail(Left(()))
   private val failUnit     = Exit.failCause(Cause.unit)
 
