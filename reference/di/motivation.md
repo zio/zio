@@ -1,10 +1,10 @@
 # Motivation
 
-> :::caution
-> In this section, we are going to study how ZIO supports dependency injection by providing pedagogical examples. Examples provided in these sections are not idiomatic and are not meant to be used as a reference. We will discuss the idiomatic way to use dependency injection in ZIO later.
+> So feel free to skip reading this section if you are not interested to learn the underlying concepts in detail.
+> :::
 
-So feel free to skip reading this section if you are not interested to learn the underlying concepts in detail.
-:::
+:::caution
+In this section, we are going to study how ZIO supports dependency injection by providing pedagogical examples. Examples provided in these sections are not idiomatic and are not meant to be used as a reference. We will discuss the idiomatic way to use dependency injection in ZIO later.
 
 Assume we have two services called `Formatter` and `Compiler` like the below:
 

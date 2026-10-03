@@ -206,6 +206,7 @@ object MainApp extends ZIOAppDefault {
       _ <- Console.printLine(s"Application config after the update operation: $config")
     } yield ()
 
+
   val appLayers: ZLayer[Any, Nothing, AppConfig] =
     ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized"))
 
@@ -249,6 +250,7 @@ object MainApp extends ZIOAppDefault {
       config <- ZIO.service[AppConfig]
       _      <- Console.printLine(s"Application config after the update operation: $config")
     } yield ()
+
 
   val appLayers: ZLayer[Any, Nothing, AppConfig] =
     ZLayer(ZIO.succeed(AppConfig(5)).debug("Application config initialized"))

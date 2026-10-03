@@ -102,6 +102,7 @@ val maybeId: IO[Option[Nothing], String] = ZIO.fromOption(Some("abc123"))
 def getUser(userId: String): IO[Throwable, Option[User]] = ???
 def getTeam(teamId: String): IO[Throwable, Team] = ???
 
+
 val result: IO[Throwable, Option[(User, Team)]] = (for {
   id   <- maybeId
   user <- getUser(id).some
