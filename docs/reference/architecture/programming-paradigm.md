@@ -80,7 +80,24 @@ We use FP to achieve **code maintainability** and OOP to achieve **code organiza
     - **Constructors** which help us to create a new instance of a data type
     - **Modules** which allows us to bundle together related operations into a single unit
 
-So, we leverage the power of both FP and OOP to build a better software system in ZIO.
+So, we leverage the power of both FP and OOP to build a better software system in ZIO. A ZIO service shows both at once: an OOP-style interface for **code organization**, constructed through a `ZLayer` rather than a constructor, paired with FP-style **composability** once you're inside its methods:
+
+```scala mdoc:silent
+import zio._
+
+trait FooService {
+  def bar(baz: String): UIO[Unit]
+}
+
+object FooService {
+  val live: ZLayer[Any, Nothing, FooService] =
+    ZLayer.succeed(new FooService {
+      def bar(baz: String): UIO[Unit] = ZIO.succeed(println(baz))
+    })
+}
+```
+
+`FooService` is the interface — the object-oriented half, giving callers something to program against without knowing which implementation they'll get. `FooService.live` is how that implementation is constructed and wired in, using `ZLayer` in place of `new`. See the [Writing ZIO Services](../service-pattern/index.md) section for the full pattern, including how multiple services compose.
 
 ## Imperative and Declarative Programming
 
@@ -103,6 +120,21 @@ In structured programming, we use control structures to organize our code into b
 A structured control flow makes nested blocks of code with clear boundaries. Each new block of code has its own scope where all objects defined in that block are only visible inside that block. As a result, objects are bound to their enclosing blocks for their lifetime. Having clear scopes and lifetimes of objects make it easier to understand the control flow of the program.
 
 ZIO embraces the structured programming into the next level by using this paradigm in other areas of programming such as [structured concurrency](../fiber/index.md#structured-concurrency), [scope based resource management](../resource/scope.md), and also regional interruption model.
+
+The same block-scoping idea applies to concurrency: a fiber forked inside a block is a child of the fiber that forked it, and its lifetime is bound to that block, just as a local variable's lifetime is bound to the block it's declared in. Interrupting the parent interrupts every child it forked, without having to track and cancel them individually:
+
+```scala mdoc:compile-only
+import zio._
+
+val program =
+  for {
+    parent <- ZIO.foreach(1 to 3)(n => ZIO.debug(s"child $n running").forever.fork).fork
+    _      <- ZIO.sleep(1.second)
+    _      <- parent.interrupt // interrupts the parent AND all three children it forked
+  } yield ()
+```
+
+This is structured concurrency: the concurrency structure (which fibers exist, and for how long) mirrors the program's own block structure, instead of being a separate, untracked set of running threads.
 
 ## Aspect Oriented Programming
 
