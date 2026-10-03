@@ -22,7 +22,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] trait RuntimePlatformSpecific {
 
-  final val defaultExecutor: Executor =
+  final lazy val defaultExecutor: Executor =
     Executor.makeDefault(autoBlocking = false)
 
   final val defaultBlockingExecutor: Executor =
