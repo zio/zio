@@ -268,7 +268,9 @@ object BuildHelper {
     },
     scalacOptions += "-P:scalanative:genStaticForwardersForNonTopLevelObjects",
     Test / fork := false,
-    bspEnabled  := false
+    bspEnabled  := false,
+    // We get issues with this in Scala native. In either way, it's not needed since it doesn't run on the JVM
+    scalacOptions -= "-Yfuture-lazy-vals"
   )
 
   def jsSettings: List[Def.Setting[_]] = List(
