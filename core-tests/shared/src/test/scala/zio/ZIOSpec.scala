@@ -2545,6 +2545,47 @@ object ZIOSpec extends ZIOBaseSpec {
         val effect = (ZIO.unit.timeout(Duration.Infinity)).uninterruptible
         assertZIO(effect)(isSome(isUnit))
       } @@ zioTag(interruption),
+      test("timeout under the live clock forks only one fiber") {
+        val forks = new java.util.concurrent.atomic.AtomicInteger(0)
+        val supervisor = new Supervisor[Any] {
+          def value(implicit trace: Trace): UIO[Any] = ZIO.succeed(forks.get)
+          def onStart[R, E, A](
+            environment: ZEnvironment[R],
+            effect: ZIO[R, E, A],
+            parent: Option[Fiber.Runtime[Any, Any]],
+            fiber: Fiber.Runtime[E, A]
+          )(implicit unsafe: Unsafe): Unit = {
+            forks.incrementAndGet()
+            ()
+          }
+          def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
+        }
+        val io = ZIO.succeed(42).timeout(1.hour).supervised(supervisor)
+        assertZIO(Live.live(io))(isSome(equalTo(42))) *> assertZIO(ZIO.succeed(forks.get()))(equalTo(1))
+      },
+      test("timeout under the live clock returns the computed value") {
+        assertZIO(Live.live(ZIO.succeed(42).timeout(1.hour)))(isSome(equalTo(42)))
+      },
+      test("timeout under the live clock propagates interruption") {
+        for {
+          fiber <- Live.live(ZIO.never.timeout(1.hour)).fork
+          _     <- fiber.interrupt
+          exit  <- fiber.await
+        } yield assert(exit)(isInterrupted)
+      },
+      test("timeout under the live clock propagates failure") {
+        assertZIO(Live.live(ZIO.fail("fail").timeout(1.hour)).exit)(fails(equalTo("fail")))
+      },
+      test("timeout with zero duration under the live clock") {
+        assertZIO(Live.live(ZIO.succeed(42).timeout(Duration.Zero)).exit)(succeeds(anything))
+      },
+      test("timeout respects TestClock") {
+        for {
+          fiber  <- ZIO.never.timeout(5.minutes).fork
+          _      <- TestClock.adjust(5.minutes)
+          result <- fiber.join
+        } yield assert(result)(isNone)
+      },
       test("timeout preserves uninterruptibility") {
         def run(start: Promise[Nothing, Unit], end: Promise[Nothing, Unit]) =
           ZIO.scoped {
