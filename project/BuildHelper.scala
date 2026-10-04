@@ -137,7 +137,8 @@ object BuildHelper {
           "-language:noAutoTupling",
           "-Xignore-scala2-macros",
           "-Xmax-inlines:64",
-          "-noindent"
+          "-noindent",
+          "-Yfuture-lazy-vals"
         )
       case Some((2, 13)) =>
         Seq(
@@ -267,7 +268,9 @@ object BuildHelper {
     },
     scalacOptions += "-P:scalanative:genStaticForwardersForNonTopLevelObjects",
     Test / fork := false,
-    bspEnabled  := false
+    bspEnabled  := false,
+    // We get issues with this in Scala native. In either way, it's not needed since it doesn't run on the JVM
+    scalacOptions -= "-Yfuture-lazy-vals"
   )
 
   def jsSettings: List[Def.Setting[_]] = List(
