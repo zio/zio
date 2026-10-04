@@ -139,7 +139,7 @@ object TestExecutor {
                         )
                       )
                     start  <- ClockLive.currentTime(TimeUnit.MILLISECONDS)
-                    result <- Live.withLive(test)(ZIO.identityFn).either
+                    result <- test.either
                   } yield {
                     val end = ClockLive.unsafe.currentTime(TimeUnit.MILLISECONDS)(Unsafe)
                     ExecutionEvent
@@ -163,9 +163,13 @@ object TestExecutor {
               }
 
             val scopedSpec =
-              (spec @@ TestAspect.aroundTest(
-                ZTestLogger.default.build.as(ZIO.successFn[TestSuccess])
-              )).annotated
+              spec
+                .transform[R with TestEnvironment with Scope, E] {
+                  case Spec.TestCase(test, annotations) =>
+                    Spec.TestCase(Annotations.withAnnotation(ZTestLogger.locally(test)), annotations)
+                  case specCase =>
+                    specCase
+                }
                 .provideSomeLayer[R](freshLayerPerSpec)
                 .provideLayerShared(sharedSpecLayer.tapErrorCause { e =>
                   processEvent(
