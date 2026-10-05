@@ -96,15 +96,27 @@ abstract class TestRunner(
   final protected def toTask(taskDef: TaskDef): TestTask =
     toTask(taskDef, loadSpec(taskDef), None)
 
-  private def loadSpec(taskDef: TaskDef): ZIOSpecAbstract = {
-    val fqcn: String = TestRunner.moduleName(taskDef.fullyQualifiedName())
-    // Creating the class from magic ether
-    org.portablescala.reflect.Reflect
-      .lookupLoadableModuleClass(fqcn, testClassLoader)
-      .getOrElse(throw new ClassNotFoundException(s"failed to load object: $fqcn"))
-      .loadModule()
-      .asInstanceOf[ZIOSpecAbstract]
-  }
+  private def loadSpec(taskDef: TaskDef): ZIOSpecAbstract =
+    taskDef.fingerprint() match {
+      case fp: sbt.testing.SubclassFingerprint if fp.isModule() =>
+        val fqcn: String = TestRunner.moduleName(taskDef.fullyQualifiedName())
+        org.portablescala.reflect.Reflect
+          .lookupLoadableModuleClass(fqcn, testClassLoader)
+          .getOrElse(throw new ClassNotFoundException(s"failed to load object: $fqcn"))
+          .loadModule()
+          .asInstanceOf[ZIOSpecAbstract]
+
+      case fp: sbt.testing.SubclassFingerprint if !fp.isModule() =>
+        throw new IllegalArgumentException(
+          s"ZIO Test spec '${taskDef.fullyQualifiedName()}' must be defined as a Scala object, not a class. " +
+            s"Change `class ${taskDef.fullyQualifiedName()} extends ZIOSpecDefault` to `object ${taskDef.fullyQualifiedName()} extends ZIOSpecDefault`."
+        )
+
+      case fp =>
+        throw new IllegalArgumentException(
+          s"Unsupported fingerprint for '${taskDef.fullyQualifiedName()}': $fp"
+        )
+    }
 
   final override def done(): String = {
     verifyNonDone()
