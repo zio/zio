@@ -27,7 +27,7 @@
     "@zio.dev/izumi-reflect": "2026.10.2-c6971ad6b21d",
     "@zio.dev/zio-amqp": "1.0.0-alpha.3",
     "@zio.dev/zio-aws": "2025.2.9-b3c92258585e",
-    "@zio.dev/zio-blocks": "0.0.51",
+    "@zio.dev/zio-blocks": "0.0.56",
     "@zio.dev/zio-bson": "1.0.11",
     "@zio.dev/zio-cache": "0.3.0",
     "@zio.dev/zio-cli": "0.7.4",
