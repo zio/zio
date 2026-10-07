@@ -441,7 +441,7 @@ object ScheduleSpec extends ZIOBaseSpec {
           equalTo(List(expectedFirstInTime, expectedSecondInTime, expectedBefore, expectedAfter))
         }
       },
-      test("recur only in months containing valid number of days") {
+      test("skips next month if it does not contain a valid number of days") {
         def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
           in._1.map(t => t._1.withNano(0))
 
@@ -456,6 +456,78 @@ object ScheduleSpec extends ZIOBaseSpec {
 
         assertZIO(runManually(Schedule.dayOfMonth(30), input).map(toOffsetDateTime)) {
           val expected = originOffset.withMonth(3).withDayOfMonth(30)
+          equalTo(List(expected))
+        }
+      },
+      test("skips this month if it does not contain a valid number of days") {
+        def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
+          in._1.map(t => t._1.withNano(0))
+
+        val originOffset = OffsetDateTime
+          .now()
+          .withYear(2020)
+          .withMonth(2)
+          .withDayOfMonth(20)
+          .truncatedTo(ChronoUnit.DAYS)
+
+        val input = List(originOffset).map((_, ()))
+
+        assertZIO(runManually(Schedule.dayOfMonth(30), input).map(toOffsetDateTime)) {
+          val expected = originOffset.withMonth(3).withDayOfMonth(30)
+          equalTo(List(expected))
+        }
+      },
+      test("does not skip February for 29 days") {
+        def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
+          in._1.map(t => t._1.withNano(0))
+
+        val originOffset = OffsetDateTime
+          .now()
+          .withYear(2020)
+          .withMonth(1)
+          .withDayOfMonth(31)
+          .truncatedTo(ChronoUnit.DAYS)
+
+        val input = List(originOffset).map((_, ()))
+
+        assertZIO(runManually(Schedule.dayOfMonth(29), input).map(toOffsetDateTime)) {
+          val expected = originOffset.withMonth(2).withDayOfMonth(29)
+          equalTo(List(expected))
+        }
+      },
+      test("skips non-leap February for 29 days #1") {
+        def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
+          in._1.map(t => t._1.withNano(0))
+
+        val originOffset = OffsetDateTime
+          .now()
+          .withYear(2021)
+          .withMonth(2)
+          .withDayOfMonth(28)
+          .truncatedTo(ChronoUnit.DAYS)
+
+        val input = List(originOffset).map((_, ()))
+
+        assertZIO(runManually(Schedule.dayOfMonth(29), input).map(toOffsetDateTime)) {
+          val expected = originOffset.withMonth(3).withDayOfMonth(29)
+          equalTo(List(expected))
+        }
+      },
+      test("skips non-leap February for 29 days #2") {
+        def toOffsetDateTime[T](in: (List[(OffsetDateTime, T)], Option[T])): List[OffsetDateTime] =
+          in._1.map(t => t._1.withNano(0))
+
+        val originOffset = OffsetDateTime
+          .now()
+          .withYear(2021)
+          .withMonth(1)
+          .withDayOfMonth(31)
+          .truncatedTo(ChronoUnit.DAYS)
+
+        val input = List(originOffset).map((_, ()))
+
+        assertZIO(runManually(Schedule.dayOfMonth(29), input).map(toOffsetDateTime)) {
+          val expected = originOffset.withMonth(3).withDayOfMonth(29)
           equalTo(List(expected))
         }
       },
