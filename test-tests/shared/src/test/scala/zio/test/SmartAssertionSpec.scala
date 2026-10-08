@@ -21,6 +21,16 @@ object SmartAssertionSpec extends ZIOBaseSpec {
   private val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
   def spec = suite("SmartAssertionSpec")(
+    test("assertTrue can be lifted inside flatMap") {
+      ZIO.succeed(1).flatMap(value => assertTrue(value == 1))
+    },
+    test("multiple assertTrue expressions can be lifted inside flatMap") {
+      ZIO.succeed(1).flatMap(value => assertTrue(value == 1, value > 0))
+    },
+    test("assertTrue can be lifted to an effect without requirements or errors") {
+      val effect: UIO[TestResult] = assertTrue(1 == 1)
+      effect
+    },
     suite("Array")(
       suite("==")(
         test("success") {
