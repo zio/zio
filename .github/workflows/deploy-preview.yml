@@ -1,9 +1,19 @@
 name: Deploy Preview
 
+# Netlify previews are deployed on demand only, to save Netlify credits.
+#
+# 1. When CI succeeds for a PR, a single bot comment with an unchecked
+#    "Deploy preview" checkbox is created (or reset) on that PR.
+# 2. When someone with write access ticks the checkbox, the website artifact
+#    built by that CI run is deployed to Netlify.
+# 3. A new push resets the checkbox, so a new deployment needs a new tick.
+
 on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
+  issue_comment:
+    types: [edited]
 
 permissions:
   actions: read
@@ -14,20 +24,13 @@ permissions:
   statuses: write
 
 jobs:
-  deploy-preview:
+  post-preview-comment:
     runs-on: ubuntu-latest
     if: >
+      github.event_name == 'workflow_run' &&
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success'
     steps:
-      - name: Download Website Artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: website-artifact
-          path: website-artifact
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Download PR Metadata
         uses: actions/download-artifact@v8
         with:
@@ -40,12 +43,112 @@ jobs:
         id: pr
         run: echo "number=$(cat pr-metadata/pr-number.txt)" >> "$GITHUB_OUTPUT"
 
-      - name: Compute Deployment Metadata
-        id: meta
-        run: |
-          echo "time=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> "$GITHUB_OUTPUT"
-          sha="${{ github.event.workflow_run.head_sha }}"
-          echo "short_sha=${sha:0:7}" >> "$GITHUB_OUTPUT"
+      - name: Create or Reset Preview Comment
+        uses: actions/github-script@v9
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        with:
+          script: |
+            const issue_number = parseInt(process.env.PR_NUMBER, 10);
+            const sha = process.env.HEAD_SHA;
+            const body = [
+              '<!-- netlify-preview-comment -->',
+              `<!-- preview-sha:${sha} -->`,
+              '### 🌐 Website preview',
+              '',
+              `- [ ] **Deploy preview** for commit [\`${sha.slice(0, 7)}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${sha})`,
+              '',
+              'Tick the checkbox to deploy this commit to Netlify. Previews are not deployed automatically: after a new push, tick the box again.',
+            ].join('\n');
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments.find(
+              (c) => c.user.type === 'Bot' && c.body.includes('<!-- netlify-preview-comment -->')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                body,
+              });
+            }
+
+  deploy-preview:
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      github.event.comment.user.type == 'Bot' &&
+      contains(github.event.comment.body, '<!-- netlify-preview-comment -->') &&
+      contains(github.event.comment.body, '- [x]')
+    concurrency:
+      group: deploy-preview-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    steps:
+      - name: Check Permission of the Requester
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: context.payload.sender.login,
+            });
+            if (!['admin', 'maintain', 'write'].includes(data.permission)) {
+              core.setFailed(`${context.payload.sender.login} has no write access, refusing to deploy preview.`);
+            }
+
+      - name: Find CI Run of the Commit
+        id: ci
+        uses: actions/github-script@v9
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        with:
+          script: |
+            const match = process.env.COMMENT_BODY.match(/<!-- preview-sha:([0-9a-f]{40}) -->/);
+            if (!match) {
+              core.setFailed('Cannot find the commit sha in the preview comment.');
+              return;
+            }
+            const sha = match[1];
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci.yml',
+              head_sha: sha,
+              event: 'pull_request',
+              status: 'success',
+              per_page: 1,
+            });
+            if (data.workflow_runs.length === 0) {
+              core.setFailed(`No successful CI run found for commit ${sha}.`);
+              return;
+            }
+            core.setOutput('sha', sha);
+            core.setOutput('run_id', data.workflow_runs[0].id);
+
+      - name: Download Website Artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: website-artifact
+          path: website-artifact
+          run-id: ${{ steps.ci.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy Preview to Netlify
         id: netlify-deploy
@@ -53,8 +156,8 @@ jobs:
         with:
           publish-dir: ./website-artifact
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          deploy-message: "PR #${{ steps.pr.outputs.number }}"
-          alias: pr-${{ steps.pr.outputs.number }}
+          deploy-message: "PR #${{ github.event.issue.number }}"
+          alias: pr-${{ github.event.issue.number }}
           enable-pull-request-comment: false
           enable-commit-comment: false
         env:
@@ -62,37 +165,53 @@ jobs:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         timeout-minutes: 5
 
-      - name: Mark previous preview comments as outdated
+      - name: Update Preview Comment With Deploy URL
         uses: actions/github-script@v9
+        env:
+          SHA: ${{ steps.ci.outputs.sha }}
+          DEPLOY_URL: ${{ steps.netlify-deploy.outputs.deploy-url }}
         with:
           script: |
-            const { data: comments } = await github.rest.issues.listComments({
+            const sha = process.env.SHA;
+            const time = new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+            const body = [
+              '<!-- netlify-preview-comment -->',
+              `<!-- preview-sha:${sha} -->`,
+              '### 🌐 Website preview',
+              '',
+              `🚀 Preview deployed to Netlify: ${process.env.DEPLOY_URL}`,
+              '',
+              `🕒 Deployed at: ${time}`,
+              `📌 Commit: [\`${sha.slice(0, 7)}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/commit/${sha})`,
+              '',
+              '- [ ] **Redeploy preview** (tick to deploy this commit again)',
+              '',
+              'Previews are not deployed automatically: after a new push, tick the box again.',
+            ].join('\n');
+            await github.rest.issues.updateComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: ${{ steps.pr.outputs.number }},
-              per_page: 100,
+              comment_id: context.payload.comment.id,
+              body,
             });
-            const stale = comments.filter(
-              (c) => c.user.type === 'Bot' && c.body.includes('<!-- netlify-preview-comment -->')
-            );
-            for (const comment of stale) {
-              await github.graphql(
-                `mutation($id: ID!) {
-                  minimizeComment(input: { subjectId: $id, classifier: OUTDATED }) {
-                    minimizedComment { isMinimized }
-                  }
-                }`,
-                { id: comment.node_id }
-              );
-            }
 
-      - name: Post Preview URL Comment
-        uses: peter-evans/create-or-update-comment@v5
+      - name: Reset Checkbox on Failure
+        if: failure()
+        uses: actions/github-script@v9
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
-          issue-number: ${{ steps.pr.outputs.number }}
-          body: |
-            <!-- netlify-preview-comment -->
-            🚀 New preview deployed to Netlify: ${{ steps.netlify-deploy.outputs.deploy-url }}
-
-            🕒 Deployed at: ${{ steps.meta.outputs.time }}
-            📌 Commit: [`${{ steps.meta.outputs.short_sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.event.workflow_run.head_sha }})
+          script: |
+            const body = process.env.COMMENT_BODY
+              .replace('- [x]', '- [ ]')
+              .split('\n')
+              .filter((l) => !l.startsWith('⚠️'))
+              .join('\n')
+              .trimEnd() + `\n\n⚠️ Preview deployment failed, see [workflow run](${process.env.RUN_URL}). Tick the box to retry.`;
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              body,
+            });
