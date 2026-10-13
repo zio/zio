@@ -1838,7 +1838,27 @@ object ZStreamSpec extends ZIOBaseSpec {
             for {
               exit <- stream.runDrain.exit
             } yield assertTrue(exit.isInterrupted)
-          }
+          },
+          test("does not deadlock when a partial take interrupts async inner streams") {
+            // Needs a pure Exit canceler, which leaves interruption disabled once delivered (#11115),
+            // so the interrupted producer keeps running and never releases its offer.
+            def asyncForever: ZStream[Any, Nothing, Int] =
+              ZStream.repeatZIOChunk {
+                ZIO.asyncInterrupt[Any, Nothing, Chunk[Int]] { k =>
+                  ExecutionContext.global.execute(() => k(Exit.succeed(Chunk(1, 2, 3, 4))))
+                  Left(Exit.unit)
+                }
+              }
+
+            ZStream
+              .fromIterable(0 until 10)
+              .map(_ => asyncForever)
+              .flatMapPar(256)(identity)
+              .take(6)
+              .runDrain
+              .as(assertCompletes)
+            // nonFlaky is load-bearing: without the fix, a single run only deadlocks ~8% of the time.
+          } @@ TestAspect.timeout(20.seconds) @@ exceptJS(nonFlaky(300))
         ),
         suite("flatMapParSwitch")(
           test("guarantee ordering no parallelism") {

@@ -2,6 +2,13 @@
 id: global-shared-state
 title: "Global Shared State Using Ref"
 sidebar_label: "Global Shared State"
+description: "Manage global shared state in ZIO applications using Ref, enabling safe concurrent state sharing between fibers."
+keywords:
+  - "Shared State Management"
+  - "Mutable Reference"
+  - "Concurrent State Management"
+  - "Fiber State Sharing"
+  - "Application State Pattern"
 ---
 
 One of the common use cases for `Ref` is to manage the state of applications, especially in concurrent environments. We can use the `Ref` data type, which is a purely functional description of a mutable reference.

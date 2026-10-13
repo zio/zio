@@ -1,6 +1,14 @@
 ---
-id: index
+id: "index"
 title: "Core Data Types"
+description: "Foundational data types for ZIO applications including effect values, type aliases, runtime execution, exit values, and failure causes."
+keywords:
+  - "ZIO"
+  - "Effects"
+  - "Type Aliases"
+  - "Runtime"
+  - "Exit"
+  - "Cause"
 ---
 
 In this section we are going to talk about the basic data types that are required to build a ZIO application:

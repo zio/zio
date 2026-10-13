@@ -1,6 +1,15 @@
 ---
 id: converting-defects-to-failures
 title: "Converting Defects to Failures"
+description: "Convert ZIO defects back to typed failures using absorb and resurrect operators to recover from unexpected errors in your error handling flow."
+keywords:
+  - "absorb Operator"
+  - "resurrect Operator"
+  - "Defect to Failure Conversion"
+  - "Error Recovery"
+  - "Cause Handling"
+  - "Die Causes"
+  - "Interruption Handling"
 ---
 
 Both `ZIO#resurrect` and `ZIO#absorb` are symmetrical opposite of the `ZIO#orDie` operator. The `ZIO#orDie` takes failures from the error channel and converts them into defects, whereas the `ZIO#absorb` and `ZIO#resurrect` take defects and convert them into failures:
@@ -12,6 +21,10 @@ trait ZIO[-R, +E, +A] {
   def resurrect(implicit ev1: E IsSubtypeOfError Throwable): ZIO[R, Throwable, A]
 }
 ```
+
+## When to Use
+
+Use `ZIO#absorb` or `ZIO#resurrect` when you need to treat all defects uniformly as `Throwable` failures — for example, to pipe a defect-prone effect into code that handles `Throwable` through the typed error channel. Use [`ZIO#unrefine` or `ZIO#unrefineWith`](error-refinement.md) instead when you want to promote only specific defects to typed domain errors while leaving all other defects untyped. Prefer `resurrect` over `absorb` when fiber interruption should remain an interruption rather than being collapsed into a typed `Throwable` failure.
 
 Below are examples of the `ZIO#absorb` and `ZIO#resurrect` operators:
 

@@ -31,6 +31,11 @@ object Annotations {
 
   implicit val tag: Tag[Annotations] = Tag(EnvironmentTag.tagFromTagMacro[Annotations])
 
+  private[test] object unsafe {
+    def make()(implicit unsafe: Unsafe): Annotations =
+      Test(Ref.unsafe.make(TestAnnotationMap.empty))
+  }
+
   final case class Test(ref: Ref.Atomic[TestAnnotationMap]) extends Annotations {
     def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: Trace): UIO[Unit] =
       ref.update(_.annotate(key, value))
@@ -83,8 +88,7 @@ object Annotations {
   val live: ULayer[Annotations] = {
     implicit val trace = Tracer.newTrace
     ZLayer.scoped {
-      val ref         = Unsafe.unsafe(Ref.unsafe.make(TestAnnotationMap.empty)(_))
-      val annotations = Test(ref)
+      val annotations = unsafe.make()(Unsafe)
       withAnnotationsScoped(annotations).as(annotations)
     }
   }
