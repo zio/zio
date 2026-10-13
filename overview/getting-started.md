@@ -7,7 +7,7 @@
 Include ZIO in your project by adding the following to your `build.sbt` file:
 
 ```
-libraryDependencies += "dev.zio" %% "zio" % "2.1.26"
+libraryDependencies += "dev.zio" %% "zio" % "2.1.27"
 ```
 
 ## Main

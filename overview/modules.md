@@ -7,7 +7,7 @@
 ## Core
 
 ```
-libraryDependencies += "dev.zio" %% "zio" % "2.1.26"
+libraryDependencies += "dev.zio" %% "zio" % "2.1.27"
 ```
 
 | Artifact | Description |
@@ -17,7 +17,7 @@ libraryDependencies += "dev.zio" %% "zio" % "2.1.26"
 ## Streaming
 
 ```
-libraryDependencies += "dev.zio" %% "zio-streams" % "2.1.26"
+libraryDependencies += "dev.zio" %% "zio-streams" % "2.1.27"
 ```
 
 | Artifact | Description |
@@ -27,8 +27,8 @@ libraryDependencies += "dev.zio" %% "zio-streams" % "2.1.26"
 ## Testing
 
 ```
-libraryDependencies += "dev.zio" %% "zio-test"     % "2.1.26" % Test
-libraryDependencies += "dev.zio" %% "zio-test-sbt" % "2.1.26" % Test
+libraryDependencies += "dev.zio" %% "zio-test"     % "2.1.27" % Test
+libraryDependencies += "dev.zio" %% "zio-test-sbt" % "2.1.27" % Test
 testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 ```
 
