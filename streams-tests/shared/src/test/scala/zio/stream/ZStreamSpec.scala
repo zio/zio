@@ -3432,6 +3432,30 @@ object ZStreamSpec extends ZIOBaseSpec {
               exit <- stream.peel(sink).exit
             } yield assert(exit)(fails(equalTo("fail")))
           },
+          test("propagates errors to the remainder of the stream") {
+            ZIO.scoped {
+              (ZStream(1, 2, 3) ++ ZStream.fail("fail")).peel(ZSink.take[Int](1)).flatMap { case (_, rest) =>
+                rest.runCollect.exit.map(exit => assert(exit)(fails(equalTo("fail"))))
+              }
+            }
+          },
+          test("propagates defects to the remainder of the stream") {
+            val boom = new RuntimeException("boom")
+            ZIO.scoped {
+              ZStream.die(boom).peel(ZSink.succeed(())).flatMap { case (_, rest) =>
+                rest.runDrain.exit.map(exit => assert(exit)(dies(equalTo(boom))))
+              }
+            }
+          },
+          test("orDie on the remainder of the stream dies with the error") {
+            val boom = new RuntimeException("boom")
+            ZStream
+              .unwrapScoped((ZStream(1) ++ ZStream.fail(boom)).peel(ZSink.succeed(())).map(_._2))
+              .orDie
+              .runDrain
+              .exit
+              .map(exit => assert(exit)(dies(equalTo(boom))))
+          },
           test("preserves the scope") {
             for {
               ref     <- Ref.make[Chunk[String]](Chunk.empty)
