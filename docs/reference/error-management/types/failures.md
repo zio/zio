@@ -1,13 +1,22 @@
 ---
 id: failures
-title: "Failures"
+title: Failures
+description: "Model expected typed errors in ZIO using ZIO.fail, including custom domain error types for better error handling and type safety."
+keywords:
+  - "ZIO.fail Constructor"
+  - "Typed Errors"
+  - "Expected Errors"
+  - "Domain Errors"
+  - "Error Type Parameter"
+  - "User-defined Exceptions"
+  - "Error Handling"
 ---
 
 When writing ZIO application, we can model a failure, using the `ZIO.fail` constructor:
 
 ```scala
-trait ZIO {
-  def fail[E](error: => E): ZIO[Any, E, Nothing]
+object ZIO {
+  def fail[E](error: => E): IO[E, Nothing]
 }
 ```
 

@@ -1,6 +1,15 @@
 ---
 id: expected-and-unexpected-errors
 title: "Expected and Unexpected Errors"
+description: "Distinguish between expected recoverable errors and unexpected defects, and learn how ZIO's type system reflects expected errors while sandboxing unforeseen failures."
+keywords:
+  - "Expected Errors"
+  - "Unexpected Errors"
+  - "Error Type Parameter"
+  - "Recoverable Errors"
+  - "Domain Errors"
+  - "Defect Handling"
+  - "Error Sandboxing"
 ---
 
 Inside an application, there are two distinct categories of errors:

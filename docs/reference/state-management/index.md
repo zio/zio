@@ -1,6 +1,14 @@
 ---
-id: index
+id: "index"
 title: "Introduction to State Management in ZIO"
+description: "Overview of state management approaches in ZIO, covering recursion, global shared state with Ref, and fiber-local state with FiberRef and ZState."
+keywords:
+  - "State Management"
+  - "Global Shared State"
+  - "Fiber-local State"
+  - "Ref"
+  - "FiberRef"
+  - "Concurrent State"
 ---
 
 When we write a program, more often we need to keep track of some sort of state during the execution of the program. If an object has a state, its behavior is influenced by passing the time.

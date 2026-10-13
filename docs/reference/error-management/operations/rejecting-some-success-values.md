@@ -1,6 +1,13 @@
 ---
 id: rejecting-some-success-values
 title: "Rejecting Some Success Values"
+description: "Convert select success values into typed failures using ZIO#reject and ZIO#rejectZIO with a partial function, turning unwanted successes into errors."
+keywords:
+  - "reject"
+  - "rejectZIO"
+  - "partial function"
+  - "success to failure"
+  - "error channel"
 ---
 
 We can reject some success values using the `ZIO#reject` operator:

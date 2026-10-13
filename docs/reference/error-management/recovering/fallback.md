@@ -2,8 +2,20 @@
 id: fallback
 title: "Fallback"
 sidebar_label: "2. Fallback"
+description: "Provide alternative effects or values when a ZIO effect fails using orElse, orElseFail, orElseSucceed, and related fallback combinators."
+keywords:
+  - "orElse"
+  - "orElseFail"
+  - "orElseSucceed"
+  - "fallback"
+  - "error recovery"
+  - "alternative effect"
 ---
 
+
+## When to Use
+
+Use `ZIO#orElse` and the related fallback operators when any failure should trigger a fixed alternative effect or default value and you do not need the error value to choose between alternatives. Use [`ZIO#catchAll`](catching.md) instead when the recovery logic depends on inspecting the specific error — for example, to return a different fallback per error type. For transient failures where the same operation should be re-attempted before falling back, prefer [`ZIO#retry`](retrying.md) or `ZIO#retryOrElse`.
 
 ## `ZIO#orElse`
 
@@ -63,7 +75,7 @@ val result: ZIO[Any, Throwable, Either[LocalConfig, RemoteConfig]] =
 These two operators convert the original failure with constant succeed or failure values:
 
 ```scala
-trait ZIO[-R, +R, +E] {
+trait ZIO[-R, +E, +A] {
   def orElseFail[E1](e1: => E1): ZIO[R, E1, A]
 
   def orElseSucceed[A1 >: A](a1: => A1): ZIO[R, Nothing, A1]

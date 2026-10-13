@@ -1,6 +1,14 @@
 ---
-id: clock
+id: "clock"
 title: "TestClock"
+description: "Provides deterministic time control in tests, enabling fast testing of time-dependent effects without waiting for real time."
+keywords:
+  - "Deterministic Testing"
+  - "Time Control"
+  - "TestClock Service"
+  - "Scheduled Effects"
+  - "Sleep Testing"
+  - "Time Simulation"
 ---
 
 In most cases we want unit tests to be as fast as possible. Waiting for real time to pass by is a real killer for this.

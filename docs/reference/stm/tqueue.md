@@ -1,6 +1,14 @@
 ---
 id: tqueue
-title: "TQueue"
+title: TQueue
+description: "Mutable queue for STM transactions with bounded/unbounded capacity and blocking operations for safe concurrent data sharing."
+keywords:
+  - "Transactional Queue"
+  - "STM Collections"
+  - "Bounded Queue"
+  - "Queue Operations"
+  - "Blocking Semantics"
+  - "Concurrent Data Sharing"
 ---
 
 A `TQueue[A]` is a mutable queue that can participate in transactions in STM.

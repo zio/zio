@@ -418,6 +418,9 @@ final class TMap[K, V] private (
                 newBucket = pair :: newBucket
               }
             }
+            while (it.hasNext) {
+              newBucket = it.next() :: newBucket
+            }
             buckets.array(i).unsafeSet(journal, newBucket)
           }
 

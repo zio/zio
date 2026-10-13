@@ -1,6 +1,14 @@
 ---
-id: creating-effects
+id: "creating-effects"
 title: "Creating Effects"
+description: "Comprehensive guide to creating ZIO effects from values, Scala data types, and converting synchronous or asynchronous code."
+keywords:
+  - "Effect Creation"
+  - "Scala Type Conversion"
+  - "Synchronous Code"
+  - "Asynchronous Code"
+  - "Blocking Operations"
+  - "Error Handling"
 ---
 
 This section explores some of the common ways to create ZIO effects from values, from computations, and from common Scala data types.

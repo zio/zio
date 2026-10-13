@@ -72,6 +72,13 @@ trait TestConsole extends Console with Restorable {
 
 object TestConsole extends Serializable {
 
+  implicit val tag: Tag[TestConsole] = Tag(EnvironmentTag.tagFromTagMacro[TestConsole])
+
+  private[test] object unsafe {
+    def make(data: Data, debug: Boolean, live: Live, annotations: Annotations)(implicit unsafe: Unsafe): Test =
+      Test(Ref.unsafe.make(data), live, annotations, FiberRef.unsafe.make(debug))
+  }
+
   case class Test(
     consoleState: Ref.Atomic[TestConsole.Data],
     live: Live,
@@ -228,11 +235,7 @@ object TestConsole extends Serializable {
   ): ZLayer[Live with Annotations, Nothing, TestConsole] =
     ZLayer.scoped {
       ZIO.environmentWithZIO[Live & Annotations] { env =>
-        val live        = env.get[Live]
-        val annotations = env.get[Annotations]
-        val ref         = Ref.unsafe.make(data)(Unsafe)
-        val debugRef    = FiberRef.unsafe.make(debug)(Unsafe)
-        val test        = Test(ref, live, annotations, debugRef)
+        val test = unsafe.make(data, debug, env.get[Live], env.get[Annotations])(Unsafe)
         ZIO.withConsoleScoped(test).as(test)
       }
     }
@@ -240,8 +243,11 @@ object TestConsole extends Serializable {
   val any: ZLayer[TestConsole, Nothing, TestConsole] =
     ZLayer.environment[TestConsole](Tracer.newTrace)
 
+  private[test] val DefaultData: Data =
+    Data(Nil, Vector())
+
   val debug: ZLayer[Live with Annotations, Nothing, TestConsole] =
-    make(Data(Nil, Vector()), true)(Tracer.newTrace)
+    make(DefaultData, true)(Tracer.newTrace)
 
   val silent: ZLayer[Live with Annotations, Nothing, TestConsole] =
     make(Data(Nil, Vector()), false)(Tracer.newTrace)

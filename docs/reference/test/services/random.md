@@ -1,6 +1,14 @@
 ---
-id: random
+id: "random"
 title: "TestRandom"
+description: "Supports deterministic testing of randomness using seed-based generation or predefined value feeding for reproducible property-based test scenarios."
+keywords:
+  - "TestRandom Service"
+  - "Deterministic Testing"
+  - "Seed-based Generation"
+  - "Property Testing"
+  - "Random Value Feeding"
+  - "Reproducible Tests"
 ---
 
 When working with randomness, testing might be hard because the inputs to the tested function change on every invocation. So our code behaves in an indeterministic way.

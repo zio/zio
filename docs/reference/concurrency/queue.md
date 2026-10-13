@@ -1,6 +1,14 @@
 ---
 id: queue
-title: "Queue"
+title: Queue
+description: "Lightweight, fully asynchronous in-memory queue with composable back-pressure for fiber coordination."
+keywords:
+  - "Bounded Queue"
+  - "Back-pressure Support"
+  - "Asynchronous Queue"
+  - "Producer-Consumer Pattern"
+  - "Non-blocking Queue"
+  - "Fiber Coordination"
 ---
 
 `Queue` is a lightweight in-memory queue built on ZIO with composable and transparent back-pressure. It is fully asynchronous (no locks or blocking), purely-functional and type-safe.
@@ -23,7 +31,7 @@ A `Queue` can be bounded (with a limited capacity) or unbounded.
 
 There are several strategies to process new values when the queue is full:
 
-- The default `bounded` queue is back-pressured: when full, any offering fiber will be suspended until the queue is able to add the item
+- The default `bounded` queue is back-pressured: when full, any offering [fiber](../fiber/index.md) will be suspended until the queue is able to add the item
 - A `dropping` queue will drop new items when the queue is full
 - A `sliding` queue will drop old items when the queue is full
 
@@ -157,3 +165,4 @@ val awaitShutdown: UIO[Unit] = for {
 - [ZIO Queue Talk by Wiem Zine El Abidine @ PSUG 2018](https://www.slideshare.net/wiemzin/psug-zio-queue)
 - [Elevator Control System using ZIO](https://medium.com/@wiemzin/elevator-control-system-using-zio-c718ae423c58)
 - [Scalaz 8 IO vs Akka (typed) actors vs Monix](https://blog.softwaremill.com/scalaz-8-io-vs-akka-typed-actors-vs-monix-part-1-5672657169e1)
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — shows how `cats.effect.std.Queue` maps directly to `zio.Queue`, and where the rest of `cats.effect.std` lands in ZIO.

@@ -589,8 +589,8 @@ object TestAspect extends TimeoutVariants {
             Annotations.annotate(TestAnnotation.fibers, Left(n))
           case _ => Exit.unit
         }
-        ZIO.acquireReleaseWith(acquire)(_ => release) {
-          Supervisor.fibersIn(_).flatMap(test.supervised(_))
+        ZIO.acquireReleaseWith(acquire)(_ => release) { ref =>
+          test.supervised(Supervisor.unsafe.fibersIn(ref))
         }
       }
     }
