@@ -22,6 +22,10 @@ trait ZIO[-R, +E, +A] {
 }
 ```
 
+## When to Use
+
+Use `ZIO#absorb` or `ZIO#resurrect` when you need to treat all defects uniformly as `Throwable` failures — for example, to pipe a defect-prone effect into code that handles `Throwable` through the typed error channel. Use [`ZIO#unrefine` or `ZIO#unrefineWith`](error-refinement.md) instead when you want to promote only specific defects to typed domain errors while leaving all other defects untyped. Prefer `resurrect` over `absorb` when fiber interruption should remain an interruption rather than being collapsed into a typed `Throwable` failure.
+
 Below are examples of the `ZIO#absorb` and `ZIO#resurrect` operators:
 
 ```scala mdoc:compile-only

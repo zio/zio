@@ -17,6 +17,14 @@ The goal of the hackathon is to work on ZIO and related libraries, improve the e
 
 The followings are recordings of past ZIO events.
 
+### ZIO Hackathon 2025
+
+At [LambdaConf 2025](https://www.lambdaconf.us/) in Estes Park, Colorado, the first ZIO Hackathon at LambdaConf brought together core ZIO contributors and newcomers for a full day of hacking on core ZIO libraries. You can read the recap on the [Ziverge blog](https://ziverge.com/blog/inside-the-zio-hackathon-at-lambdaconf-2025-a-day-of-pure-functional-firepower).
+
+### ZIO Hackathon 2020
+
+A three-day, fully online ZIO Hackathon held from November 20th to 22nd, 2020, in which 670 developers from around the world submitted over 170 pull requests across eight ZIO ecosystem projects. Read more on the [Ziverge blog](https://ziverge.com/blog/zio-hackathon-2020).
+
 ### Zymposiums
 
 Every Friday the [Ziverge](https://ziverge.com/) team hosts a Zymposium, an hour-long ZIO-focused live stream. You can find the recordings of past Zymposiums on the [Ziverge YouTube channel](https://www.youtube.com/playlist?list=PLvdARMfvom9C8ss18he1P5vOcogawm5uC).

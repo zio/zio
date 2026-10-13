@@ -218,6 +218,14 @@ class SmartAssertMacros(val c: blackbox.Context) {
       case q"$lhs || $rhs" if lhs.tpe == typeOf[Boolean] =>
         AST.Or(parseExpr(lhs), parseExpr(rhs), pos.getPos(tree), pos.getPos(lhs), pos.getPos(rhs))
 
+      case MethodCall(_, _, _, _)
+          if tree.symbol != null &&
+            tree.symbol != NoSymbol &&
+            tree.symbol.isMethod &&
+            tree.symbol.isJava &&
+            tree.symbol.isStatic =>
+        AST.Raw(tree, pos.getPos(tree))
+
       case MethodCall(lhs, name, tpes, args) =>
         AST.Method(
           parseExpr(lhs),

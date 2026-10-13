@@ -347,3 +347,4 @@ If you need the continuation to be part of the atomic operation—ensuring no ot
 ## See Also
 
 - [Global Shared State](../state-management/global-shared-state.md) — Manage global shared state in ZIO applications using Ref, enabling safe concurrent state sharing between fibers.
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — step-by-step guide showing how `Ref.of[IO](v)` maps to `Ref.make(v)` and how the rest of the `Ref` API carries over unchanged.

@@ -6,10 +6,17 @@ import SectionWrapper from '@site/src/components/ui/SectionWrapper';
 
 import { ecosystemProjects } from './data';
 
+function ProjectIcon({ icon, name }) {
+  if (typeof icon === 'string' && icon.startsWith('/')) {
+    return <img src={icon} alt={`${name} logo`} className={styles.ecosystemCardIconImg} />;
+  }
+  return icon;
+}
+
 export default function Ecosystem({ eyebrow, title, subtitle, children}) {
-  // Separate ZIO HTTP from other projects (featured project)
-  const featuredProject = ecosystemProjects.find(p => p.name === 'ZIO HTTP');
-  const otherProjects = ecosystemProjects.filter(p => p.name !== 'ZIO HTTP');
+  // Separate ZIO Blocks from other projects (featured project)
+  const featuredProject = ecosystemProjects.find(p => p.name === 'ZIO Blocks');
+  const otherProjects = ecosystemProjects.filter(p => p.name !== 'ZIO Blocks');
 
   return (
     <SectionWrapper eyebrow={eyebrow} title={title} subtitle={subtitle} >
@@ -21,7 +28,7 @@ export default function Ecosystem({ eyebrow, title, subtitle, children}) {
               <div className={styles.ecosystemCard}>
                 <div className={styles.ecosystemCardHeader}>
                   <div className={styles.ecosystemCardIcon}>
-                    {featuredProject.icon}
+                    <ProjectIcon icon={featuredProject.icon} name={featuredProject.name} />
                   </div>
                   <h3>{featuredProject.name}</h3>
                 </div>
@@ -50,7 +57,7 @@ export default function Ecosystem({ eyebrow, title, subtitle, children}) {
               <div className={styles.ecosystemCard}>
                 <div className={styles.ecosystemCardHeader}>
                   <div className={styles.ecosystemCardIcon}>
-                    {project.icon}
+                    <ProjectIcon icon={project.icon} name={project.name} />
                   </div>
                   <h3>{project.name}</h3>
                 </div>

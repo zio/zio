@@ -362,3 +362,4 @@ This way the creator of a `Scope` can be sure that someone else will not "pull t
 
 - [ZStream](../stream/zstream/index.md) — for converting scoped resources into streaming data
 - [Handling Resources](../../overview/handling-resources.md) — foundational overview of resource management patterns
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — shows how `Resource.make(acq)(rel)` maps to `ZIO.acquireRelease` inside `ZIO.scoped`, and how stacking resources in one `for`-comprehension replaces nested `.use` calls.

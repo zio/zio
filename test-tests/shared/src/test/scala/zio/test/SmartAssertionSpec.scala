@@ -21,6 +21,16 @@ object SmartAssertionSpec extends ZIOBaseSpec {
   private val company: Company = Company("Ziverge", List(User("Bobo", List.tabulate(2)(n => Post(s"Post #$n")))))
 
   def spec = suite("SmartAssertionSpec")(
+    test("assertTrue can be lifted inside flatMap") {
+      ZIO.succeed(1).flatMap(value => assertTrue(value == 1))
+    },
+    test("multiple assertTrue expressions can be lifted inside flatMap") {
+      ZIO.succeed(1).flatMap(value => assertTrue(value == 1, value > 0))
+    },
+    test("assertTrue can be lifted to an effect without requirements or errors") {
+      val effect: UIO[TestResult] = assertTrue(1 == 1)
+      effect
+    },
     suite("Array")(
       suite("==")(
         test("success") {
@@ -729,6 +739,20 @@ object SmartAssertionSpec extends ZIOBaseSpec {
           val actual   = FailureCase.fromTrace(result.result, Chunk.empty).map(_.location)
           actual.length == 5 && actual == expected
         case _ => false
+      }
+    ),
+    suite("Java static method calls")(
+      test("on java.lang.Math") {
+        assertTrue(java.lang.Math.abs(-1) == 1)
+      },
+      test("on java.lang.Integer") {
+        assertTrue(java.lang.Integer.parseInt("42") == 42)
+      },
+      test("nested inside boolean operators") {
+        assertTrue(
+          java.lang.Math.abs(-1) == 1 &&
+            java.lang.Integer.parseInt("42") == 42
+        )
       }
     )
   )

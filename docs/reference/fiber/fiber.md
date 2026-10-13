@@ -547,7 +547,7 @@ for {
 } yield ()
 ```
 
-Note that there is no way to stop interruption. We can only delay it, by making an effect uninterruptible.
+Note that there is no way to stop interruption. We can only delay it, by making an effect uninterruptible. An interrupt that arrives while a fiber is inside an uninterruptible region is recorded rather than discarded, and it is delivered at the moment the region ends — which also means that an uninterruptible region around an effect that never completes defers the interrupt forever, as in the example above. See [Interruptible and Uninterruptible Regions](../interruption/interruptible-regions.md) for how to bound such a region with `ZIO.uninterruptibleMask` and `restore`.
 
 ### Fiber Finalization on Interruption
 
@@ -597,7 +597,7 @@ for {
 
 ### Interrupting Blocking Operations
 
-The `ZIO#attemptBlocking` is interruptible by default, but its interruption will not translate to JVM thread interruption. Instead, we can use `ZIO#attemptBlockingInterrupt` to translate the ZIO interruption of that effect into JVM thread interruption. For details and examples on interrupting blocking operations see [here](../core/zio/zio.md#blocking-synchronous-side-effects).
+The `ZIO#attemptBlocking` is interruptible by default, but its interruption will not translate to JVM thread interruption. Instead, we can use `ZIO#attemptBlockingInterrupt` to translate the ZIO interruption of that effect into JVM thread interruption. For details and examples on interrupting blocking operations see [Interrupting Blocking Operations](../interruption/blocking-operations.md); the [ZIO data type](../core/zio/zio.md#blocking-synchronous-side-effects) page documents the blocking constructors themselves.
 
 ### Automatic Interruption
 
@@ -731,3 +731,4 @@ All of the pieces of machinery that ZIO gives us are 100% asynchronous and non-b
 ## See Also
 
 - **[The Differ Data Type](../../guides/compositional-fiberref-updates-with-differ.md)** — Learn how `Differ[Value, Patch]` enables ZIO's runtime to merge concurrent fiber updates on `FiberRef` in a compositional way; understanding how `combine` is called at fiber join time deepens intuition about the fiber lifecycle.
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — contrasts cats-effect `fiber.cancel` with ZIO `fiber.interrupt` and explains why every ZIO fiber is interruptible by default.

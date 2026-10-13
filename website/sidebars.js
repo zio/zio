@@ -12,13 +12,15 @@ module.exports = {
       "overview/basic-concurrency",
       "overview/running-effects",
       "overview/performance",
+      "overview/modules",
       "overview/platforms"
     ],
   "reference-sidebar": [
     "reference/index",
     {
       type: "category",
-      label: "Core",
+      label: "Core Data Types",
+      link: { type: "doc", id: "reference/core/index" },
       collapsed: false,
       items: [
         "reference/core/zio/zio",
@@ -67,6 +69,7 @@ module.exports = {
           {
             type: "category",
             label: "Recovering From Errors",
+            link: { type: "doc", id: "reference/error-management/recovering/index" },
             items:
               [
                 "reference/error-management/recovering/catching",
@@ -81,6 +84,7 @@ module.exports = {
           {
             type: "category",
             label: "Error Channel Operations",
+            link: { type: "doc", id: "reference/error-management/operations/index" },
             items:
               [
                 "reference/error-management/operations/map-operations",
@@ -101,6 +105,7 @@ module.exports = {
           {
             type: "category",
             label: "Best Practices",
+            link: { type: "doc", id: "reference/error-management/best-practices/index" },
             items:
               [
                 "reference/error-management/best-practices/algebraic-data-types",
@@ -112,12 +117,24 @@ module.exports = {
           "reference/error-management/examples"
         ]
     },
-    "reference/interruption/index",
+    {
+      type: "category",
+      label: "Interruption Model",
+      link: { type: "doc", id: "reference/interruption/index" },
+      items: [
+        "reference/interruption/interruptible-regions",
+        "reference/interruption/triggering-interruption",
+        "reference/interruption/interruption-and-finalizers",
+        "reference/interruption/blocking-operations",
+        "reference/interruption/common-pitfalls"
+      ]
+    },
     {
       type: "category",
       label: "Built-in Services",
       link: { type: "doc", id: "reference/services/index" },
       items: [
+        "reference/services/anatomy",
         "reference/services/console",
         "reference/services/clock",
         "reference/services/random",
@@ -201,18 +218,7 @@ module.exports = {
           }
         ]
     },
-    {
-      type: "category",
-      label: "Scheduling",
-      link: { type: "doc", id: "reference/schedule/index" },
-      items: [
-        "reference/schedule/repetition",
-        "reference/schedule/retrying",
-        "reference/schedule/built-in-schedules",
-        "reference/schedule/combinators",
-        "reference/schedule/examples",
-      ]
-    },
+    "reference/schedule",
     {
       type: "category",
       label: "State Management",
@@ -320,7 +326,6 @@ module.exports = {
       label: "Streaming",
       link: { type: "doc", id: "reference/stream/index" },
       items: [
-        "reference/stream/installation",
         "reference/stream/chunk",
         {
           type: "category",
@@ -424,6 +429,7 @@ module.exports = {
             "reference/test/assertions/built-in-assertions",
           ]
         },
+        "reference/test/zio-test-diff",
         "reference/test/test-hierarchies-and-organization",
         "reference/test/sharing-layers-within-the-same-file",
         "reference/test/sharing-layers-between-multiple-files",
@@ -473,6 +479,7 @@ module.exports = {
             "reference/test/property-testing/getting-started",
             "reference/test/property-testing/how-generators-work",
             "reference/test/property-testing/built-in-generators",
+            "reference/test/property-testing/operators",
             "reference/test/property-testing/shrinking",
           ]
         }
@@ -517,6 +524,8 @@ module.exports = {
       type: "category",
       label: "Integration Guides",
       items: [
+        { type: "doc", id: "guides/scala-native", label: "Scala Native" },
+        { type: "doc", id: "guides/scala-js", label: "Scala.js" },
         "guides/interop/with-cats-effect",
         "guides/interop/with-future",
         "guides/interop/with-java",
@@ -576,11 +585,5 @@ module.exports = {
     "ecosystem/tools",
     "ecosystem/templates"
   ],
-  "resources-sidebar": [
-    "resources/index",
-    "resources/articles",
-    "resources/videos",
-    "resources/sampleprojects",
-    "resources/poweredbyzio"
-  ]
+  "resources-sidebar": ["resources/index"]
 }

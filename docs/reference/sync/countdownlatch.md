@@ -135,3 +135,7 @@ object MainApp extends ZIOAppDefault {
 ```
 
 In this example, 10 producers are producing numbers concurrently, and the consumer is waiting for its condition to be fulfilled to start the consumption process.
+
+## See Also
+
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — shows how `cats.effect.std.CountDownLatch` maps to `zio.concurrent.CountdownLatch`, part of the `zio-concurrent` module.

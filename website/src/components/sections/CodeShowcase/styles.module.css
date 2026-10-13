@@ -19,7 +19,7 @@
   margin: 0 auto;
   padding: 0 2rem;
   display: grid;
-  grid-template-columns: 2fr 3fr;
+  grid-template-columns: 2fr 5fr;
   gap: 4rem;
   align-items: stretch;
 }
@@ -222,41 +222,35 @@
   box-shadow: inset 0 -2px 0 var(--ifm-color-primary);
 }
 
-.codeArea {
-  flex: 1;
+.visualArea {
+  /* flex: 0 0 <height>, not flex: 1 — flex: 1 sets flex-basis: 0%, which
+     overrides the explicit height below and lets the box grow to fit
+     whichever visual example is tallest (e.g. Resource safety's finalizer
+     stack) instead of staying fixed. flex-shrink: 0 keeps it from being
+     compressed either. */
+  flex: 0 0 640px;
   display: flex;
-  flex-direction: column;
+  height: 640px;
+  overflow-y: auto;
 }
 
-.pre {
-  margin: 0;
-  padding: 1.25rem 1rem;
-  overflow: auto;
-  /* Hold a stable height across tabs (tallest snippet is ~15 lines) so the
-     panel does not jump when switching between short and long examples. */
-  min-height: 24rem;
-  max-height: 500px;
-  font-size: 0.875rem;
-  line-height: 1.6;
+.attribution {
+  /* emphasis-700, not -600: at 0.75rem/-600 this resolved to #8d949e on a
+     near-white toolbar, which lands under the WCAG AA 4.5:1 floor for small
+     text. -700 is #606770 in light and #dadde1 in dark, both comfortably
+     above it. */
+  font-size: 0.8125rem;
+  color: var(--ifm-color-emphasis-700);
 }
 
-.codeLine {
-  display: block;
+.attribution a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
-.lineNumber {
-  display: inline-block;
-  width: 2.5ch;
-  min-width: 2.5ch;
-  margin-right: 1.5rem;
-  text-align: right;
-  color: var(--ifm-color-emphasis-400);
-  user-select: none;
-  font-variant-numeric: tabular-nums;
-}
-
-.lineContent {
-  display: inline;
+.attribution a:hover {
+  color: var(--ifm-color-primary);
 }
 
 .toolbar {
@@ -268,12 +262,10 @@
   border-top: 1px solid var(--ifm-color-emphasis-200);
 }
 
-.langBadge {
-  font-size: 0.75rem;
-  color: var(--ifm-color-emphasis-600);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  font-family: var(--ifm-font-family-monospace);
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .copyButton {
@@ -311,8 +303,12 @@
     overflow-x: auto;
   }
 
-  .pre {
-    overflow: auto;
-    max-height: 450px;
+  /* Secondary credit, first thing to go when the toolbar gets tight. */
+  .attribution {
+    display: none;
+  }
+
+  .visualArea {
+    height: 580px;
   }
 }

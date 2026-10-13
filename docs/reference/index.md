@@ -6,19 +6,21 @@ title: "Introduction"
 ZIO contains a few data types that can help you solve complex problems in asynchronous and concurrent programming. ZIO data types categorize into these sections:
 
 1. [Core Data Types](#core-data-types)
-2. [Contextual Data Types](#contextual-data-types)
-3. [State Management](#state-management)
-4. [Concurrency](#concurrency)
+2. [Control Flow](#control-flow)
+3. [Scheduling](#scheduling)
+4. [Contextual Data Types](#contextual-data-types)
+5. [State Management](#state-management)
+6. [Concurrency](#concurrency)
     - [Fiber Primitives](#fiber-primitives)
     - [Concurrency Primitives](#concurrency-primitives)
     - [Synchronization Aids](#synchronization-aids)
     - [STM](#stm)
-5. [Resource Management](#resource-management)
-6. [Streaming](#streaming)
-7. [Logging](#logging)
-8. [Metrics](#metrics)
-9. [Testing](#testing)
-10. [Miscellaneous](#miscellaneous)
+7. [Resource Management](#resource-management)
+8. [Streaming](#streaming)
+9. [Logging](#logging)
+10. [Metrics](#metrics)
+11. [Testing](#testing)
+12. [Miscellaneous](#miscellaneous)
 
 ## Core Data Types
 - **[ZIO](core/zio/zio.md)** — `ZIO` is a value that models an effectful program, which might fail or succeed.
@@ -31,6 +33,14 @@ ZIO contains a few data types that can help you solve complex problems in asynch
 - **[Runtime](core/runtime.md)** — `Runtime[R]` is capable of executing tasks within an environment `R`.
 - **[Exit](core/exit.md)** — `Exit[E, A]` describes the result of executing an `IO` value.
 - **[Cause](core/cause.md)** — `Cause[E]` is a description of a full story of a fiber failure.
+
+## Control Flow
+
+- **[Control Flow](control-flow/index.md)** — ZIO's built-in conditional and looping combinators: `when`, `unless`, `cond`, `ifZIO`, `loop`, `iterate`, `foreach`, and `foreachPar`.
+
+## Scheduling
+
+- **[Schedule](schedule.md)** — `Schedule[-Env, -In, +Out]` is a composable, time-aware state machine for repeating and retrying ZIO effects with full control over timing, delays, and recurrence logic.
 
 ## Contextual Data Types
 

@@ -516,4 +516,4 @@ You started this tutorial with no knowledge of `Reloadable` and a plain `ZLayer`
 - [Reloadable Services Reference](../../reference/service-pattern/reloadable-services.md) — The full reference covering `ServiceReloader` from `zio-macros`, which eliminates `Reloadable[T]` from the environment type using a transparent proxy.
 - [ScopedRef Reference](../../reference/resource/scopedref.md) — The underlying primitive that powers `Reloadable`: a mutable reference whose value owns a resource scope.
 - [ZLayer Reference](../../reference/contextual/zlayer.md) — Deep dive into how `ZLayer` models dependency graphs and resource lifecycles.
-- [Schedule Reference](../../reference/schedule/index.md) — All the built-in schedules you can combine to control the auto-reload interval.
+- [Schedule Reference](../../reference/schedule.md) — All the built-in schedules you can combine to control the auto-reload interval.

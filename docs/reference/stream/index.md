@@ -16,6 +16,18 @@ The primary goal of a streaming library is to introduce **a high-level API that 
 
 A streaming library helps us to concentrate on the business logic and separates us from low-level implementation details.
 
+## Installation
+
+ZIO Streams ships as its own module. In order to use it, we need to add the following line to our `build.sbt` file:
+
+```scala mdoc:passthrough
+println(s"""```scala""")
+println(
+s"""libraryDependencies += "dev.zio" %% "zio-streams" % "${zio.BuildInfo.version.split('+').head}""""
+)
+println(s"""```""")
+```
+
 ## Use Cases
 
 There are lots of examples of streaming that people might not recognize, this is a common problem especially for beginners. A beginner might say "I don't need a streaming library. Why should I use that?". It's because they don't see streams. Once we use a streaming library, we start to see streams everywhere but until then we don't understand where they are. 

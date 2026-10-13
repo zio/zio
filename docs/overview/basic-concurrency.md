@@ -46,7 +46,7 @@ Fibers are scheduled onto operating system threads by the ZIO runtime. Because f
 
 ### The Fiber Data Type
 
-The `Fiber` data type in ZIO represents a "handle" on the execution of an effect. The `Fiber` data type is most similar to Scala's `Future` data type, which represents a "handle" on a running asynchronous operation.
+The [`Fiber`](../reference/fiber/fiber.md) data type in ZIO represents a "handle" on the execution of an effect. The `Fiber` data type is most similar to Scala's `Future` data type, which represents a "handle" on a running asynchronous operation.
 
 The `Fiber[E, A]` data type in ZIO has two type parameters:
 
@@ -169,7 +169,6 @@ The following table summarizes some of the sequential operations and their corre
 | -----------------------------: | :---------------: | :------------------: |
 | Zips two effects into one      | `ZIO#zip`         | `ZIO#zipPar`         |
 | Zips two effects into one      | `ZIO#zipWith`     | `ZIO#zipWithPar`     |
-| Zips multiple effects into one | `ZIO#tupled`      | `ZIO#tupledPar`      |
 | Collects from many effects     | `ZIO.collectAll`  | `ZIO.collectAllPar`  |
 | Effectfully loop over values   | `ZIO.foreach`     | `ZIO.foreachPar`     |
 | Reduces many values            | `ZIO.reduceAll`   | `ZIO.reduceAllPar`   |

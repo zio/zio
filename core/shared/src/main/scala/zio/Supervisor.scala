@@ -96,8 +96,30 @@ object Supervisor {
   def fibersIn(
     ref: AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]
   )(implicit trace: Trace): UIO[Supervisor[SortedSet[Fiber.Runtime[Any, Any]]]] =
-    ZIO.succeed {
+    ZIO.succeed(unsafe.fibersIn(ref))
 
+  /**
+   * A supervisor that doesn't do anything in response to supervision events.
+   */
+  val none: Supervisor[Unit] = new ConstSupervisor(_ => ZIO.unit)
+
+  private class ConstSupervisor[A](value0: Trace => UIO[A]) extends Supervisor[A] {
+    def value(implicit trace: Trace): UIO[A] = value0(trace)
+
+    def onStart[R, E, A](
+      environment: ZEnvironment[R],
+      effect: ZIO[R, E, A],
+      parent: Option[Fiber.Runtime[Any, Any]],
+      fiber: Fiber.Runtime[E, A]
+    )(implicit unsafe: Unsafe): Unit = ()
+
+    def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
+  }
+
+  private[zio] object unsafe {
+    def fibersIn(
+      ref: AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]
+    ): Supervisor[SortedSet[Fiber.Runtime[Any, Any]]] =
       new Supervisor[SortedSet[Fiber.Runtime[Any, Any]]] {
         def value(implicit trace: Trace): UIO[SortedSet[Fiber.Runtime[Any, Any]]] =
           ZIO.succeed(ref.get)
@@ -123,27 +145,7 @@ object Supervisor {
           }
         }
       }
-    }
 
-  /**
-   * A supervisor that doesn't do anything in response to supervision events.
-   */
-  val none: Supervisor[Unit] = new ConstSupervisor(_ => ZIO.unit)
-
-  private class ConstSupervisor[A](value0: Trace => UIO[A]) extends Supervisor[A] {
-    def value(implicit trace: Trace): UIO[A] = value0(trace)
-
-    def onStart[R, E, A](
-      environment: ZEnvironment[R],
-      effect: ZIO[R, E, A],
-      parent: Option[Fiber.Runtime[Any, Any]],
-      fiber: Fiber.Runtime[E, A]
-    )(implicit unsafe: Unsafe): Unit = ()
-
-    def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
-  }
-
-  private[zio] object unsafe {
     def track(weak: Boolean)(implicit unsafe: Unsafe): Supervisor[Chunk[Fiber.Runtime[Any, Any]]] = {
       val set: java.util.Set[Fiber.Runtime[Any, Any]] =
         if (weak) Platform.newWeakSet[Fiber.Runtime[Any, Any]]()
