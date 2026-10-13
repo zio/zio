@@ -1,6 +1,14 @@
 ---
 id: classic-assertions
 title: "Classic Assertions"
+description: "Traditional assertion methods using assert and assertZIO functions for composing assertions to test values and ZIO effects in ZIO Test."
+keywords:
+  - "Classic Assertions"
+  - "assert Function"
+  - "assertZIO Function"
+  - "TestResult Type"
+  - "Assertion Composition"
+  - "Error Type Testing"
 ---
 
 :::note

@@ -4,6 +4,17 @@ object SmartAssertionScala3Spec extends ZIOBaseSpec {
 
   override def spec =
     suite("SmartAssertionScala3Spec")(
+      suite("Java static method calls")(
+        test("on java.lang.Math") {
+          assertTrue(java.lang.Math.abs(-1) == 1)
+        },
+        test("on java.lang.Integer") {
+          assertTrue(java.lang.Integer.parseInt("42") == 42)
+        },
+        test("nested inside boolean operators") {
+          assertTrue(java.lang.Math.abs(-1) == 1 && java.lang.Math.max(1, 2) == 2)
+        }
+      ),
       suite("new instance creation")(
         test("anonymous class (trait) with overload and type args - new instance") {
           trait ClassWithOverload[X] {

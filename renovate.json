@@ -27,10 +27,17 @@
         "documentation"
       ],
       "matchPackageNames": [
-        "^@zio\\.dev\\/.*"
+        "@zio.dev/**"
       ],
       "ignoreUnstable": false,
       "enabled": true
+    },
+    {
+      "description": "Visual effects use the Effect v3 API (Context.GenericTag); v4 removed it and crashes the homepage",
+      "matchPackageNames": [
+        "effect"
+      ],
+      "allowedVersions": "<4.0.0"
     },
     {
       "description": "Disable patch updates for non-ZIO npm packages",

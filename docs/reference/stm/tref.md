@@ -1,9 +1,17 @@
 ---
 id: tref
-title: "TRef"
+title: TRef
+description: "TRef is a mutable reference to immutable values that participates in STM transactions with atomicity, consistency, and isolation guarantees."
+keywords:
+  - "Transactional Reference"
+  - "STM Transactions"
+  - "Atomic Operations"
+  - "Mutable References"
+  - "ZIO STM"
+  - "Reference Updates"
 ---
 
-A `TRef[A]` is a mutable reference to an immutable value, which can participate in transactions in STM. The mutable reference can be retrieved and set from within transactions, with strong guarantees for atomicity, consistency, and isolation from other transactions.
+A `TRef[A]` is a mutable reference to an immutable value, which can participate in transactions in [STM](stm.md). The mutable reference can be retrieved and set from within transactions, with strong guarantees for atomicity, consistency, and isolation from other transactions.
 
 `TRef` provides the low-level machinery to create transactions from modifications of STM memory.
 
@@ -141,7 +149,7 @@ val modifyMultiple: UIO[(String, Int)] = for {
 
 ## Example usage
 
-Here is a scenario where we use a `TRef` to hand-off a value between two `Fiber`s
+Here is a scenario where we use a `TRef` to hand-off a value between two [`Fiber`](../fiber/fiber.md)s
 
 ```scala mdoc:silent
 import zio._
@@ -171,4 +179,8 @@ val transferredMoney: UIO[String] = for {
 
 In this example, we create and commit two transactional references for the sender and receiver to be able to extract their value. 
 On the following step, we create an atomic transactional that updates both accounts only when there is sufficient balance available in the sender account. In the end, we fork to run asynchronously.
-On the running fiber, we suspend until the sender balance suffers changes, in this case, to reach `zero`. Finally, we extract the new values out of the accounts and combine them in one result. 
+On the running fiber, we suspend until the sender balance suffers changes, in this case, to reach `zero`. Finally, we extract the new values out of the accounts and combine them in one result.
+
+## See Also
+
+- [Introduction to STM](index.md) — STM enables composable atomic transactions on memory with atomicity, consistency, and isolation guarantees for concurrent programs.

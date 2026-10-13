@@ -1,6 +1,13 @@
 ---
 id: handling-resources
 title: "Handling Resources"
+description: "Learn how to manage resources safely in ZIO with Scope, acquire-release patterns, and ensure no resource leaks even under failure or interruption."
+keywords:
+  - "Resource Management"
+  - "Scope"
+  - "Acquire Release"
+  - "Resource Safety"
+  - "ZIO Resources"
 ---
 
 Ensuring that your applications never leak resources is one of the keys to maximizing application throughput, minimizing latency, and maximizing per-node uptime.
@@ -21,7 +28,7 @@ ZIO provides a version of this with the `ZIO#ensuring` method, whose guarantees 
 
 As with `try` / `finally`, the `ensuring` method guarantees if the effect it is called on begins executing and terminates (either normally or abnormally), then the finalizer will begin execution.
 
-```scala mdoc
+```scala mdoc:silent
 val finalizer: UIO[Unit] = 
   ZIO.succeed(println("Finalizing!"))
 
@@ -71,13 +78,15 @@ val groupedFileData: IO[IOException, Unit] =
 
 Like `ensuring`, `acquireReleaseWith` has compositional semantics, so if one `acquireReleaseWith` is nested inside another `acquireReleaseWith`, and the outer resource is acquired, then the outer release will always be called, even if, for example, the inner release fails.
 
-For resources which implement the AutoClosable interface, the convenience method `fromAutoClosable` can be used, which can be seen as the ZIO equivalent of try-with-resource.
+For resources which implement the AutoCloseable interface, the convenience method `fromAutoCloseable` can be used, which can be seen as the ZIO equivalent of try-with-resource.
 
 ```scala mdoc:invisible
 import zio._
 import java.io.FileInputStream
 def openFileInputStream(name: String): IO[Throwable, FileInputStream] = ZIO.attemptBlocking(new FileInputStream(name))
 ```
+
+`ZIO.scoped` runs an effect within a [`Scope`](../reference/resource/scope.md), which manages the lifetime of the resources acquired within it, ensuring they are released once the scope closes:
 
 ```scala mdoc:silent
 val bytesInFile: IO[Throwable, Int] =

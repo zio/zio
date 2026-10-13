@@ -1,7 +1,15 @@
 ---
 id: fiber
 slug: fiber.md
-title: "Fiber"
+title: Fiber
+description: "Lightweight concurrency primitives for non-blocking, structured execution of ZIO effects with automatic supervision and interruption."
+keywords:
+  - "Lightweight Fibers"
+  - "Structured Concurrency"
+  - "Fiber Interruption"
+  - "Fiber Supervision"
+  - "Non-blocking Execution"
+  - "Parallel Operators"
 ---
 
 To perform an effect without blocking the current process, we can use fibers, which are a lightweight concurrency mechanism.
@@ -539,7 +547,7 @@ for {
 } yield ()
 ```
 
-Note that there is no way to stop interruption. We can only delay it, by making an effect uninterruptible.
+Note that there is no way to stop interruption. We can only delay it, by making an effect uninterruptible. An interrupt that arrives while a fiber is inside an uninterruptible region is recorded rather than discarded, and it is delivered at the moment the region ends — which also means that an uninterruptible region around an effect that never completes defers the interrupt forever, as in the example above. See [Interruptible and Uninterruptible Regions](../interruption/interruptible-regions.md) for how to bound such a region with `ZIO.uninterruptibleMask` and `restore`.
 
 ### Fiber Finalization on Interruption
 
@@ -589,7 +597,7 @@ for {
 
 ### Interrupting Blocking Operations
 
-The `ZIO#attemptBlocking` is interruptible by default, but its interruption will not translate to JVM thread interruption. Instead, we can use `ZIO#attemptBlockingInterrupt` to translate the ZIO interruption of that effect into JVM thread interruption. For details and examples on interrupting blocking operations see [here](../core/zio/zio.md#blocking-synchronous-side-effects).
+The `ZIO#attemptBlocking` is interruptible by default, but its interruption will not translate to JVM thread interruption. Instead, we can use `ZIO#attemptBlockingInterrupt` to translate the ZIO interruption of that effect into JVM thread interruption. For details and examples on interrupting blocking operations see [Interrupting Blocking Operations](../interruption/blocking-operations.md); the [ZIO data type](../core/zio/zio.md#blocking-synchronous-side-effects) page documents the blocking constructors themselves.
 
 ### Automatic Interruption
 
@@ -718,3 +726,9 @@ With ZIO, we do not have to think about callbacks, unless sometimes, when we nee
 Most of the ZIO operations that one would expect to be blocking do actually not block the underlying thread, but they offer blocking semantics managed by ZIO. For example, every time we see something like `ZIO.sleep` or when we take something from a queue (`queue.take`) or offer something to a queue (`queue.offer`) or if we acquire a permit from a semaphore (`semaphore.withPermit`) and so forth, we are just blocking semantically without actually blocking an underlying thread. If we use the corresponding methods in Java, like `Thread.sleep` or any of its `lock` machinery, then those methods are going to block a thread. So this is why we say that ZIO is 100% non-blocking, while Java threads are not.
 
 All of the pieces of machinery that ZIO gives us are 100% asynchronous and non-blocking. As they don't block and monopolize the thread, all of the async work is executed on the primary thread pool in ZIO.
+
+
+## See Also
+
+- **[The Differ Data Type](../../guides/compositional-fiberref-updates-with-differ.md)** — Learn how `Differ[Value, Patch]` enables ZIO's runtime to merge concurrent fiber updates on `FiberRef` in a compositional way; understanding how `combine` is called at fiber join time deepens intuition about the fiber lifecycle.
+- [Migrate from Cats Effect to ZIO](../../guides/migrate/from-cats-effect.md) — contrasts cats-effect `fiber.cancel` with ZIO `fiber.interrupt` and explains why every ZIO fiber is interruptible by default.
