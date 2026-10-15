@@ -45,9 +45,7 @@ class AwaitBenchmark {
       unsafeRun(
         for {
           fiber <- ZIO.succeed(42).fork
-          _ <- ZIO.foreachDiscard(range)(_ =>
-                 fiber.await.timeoutFail(new RuntimeException("await timed out"))(1.second)
-               )
+          _     <- ZIO.foreachDiscard(range)(_ => fiber.await.timeout(1.second))
         } yield ()
       )
   }
