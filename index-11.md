@@ -1,119 +1,111 @@
-# Introduction to ZIO Cache
+# Introduction to ZIO CLI
 
-> ZIO Cache is a library that makes it easy to optimize the performance of our application by caching values.
+> Rapidly build powerful command-line applications powered by ZIO
 
-[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-cache/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-cache_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-cache_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-cache_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-cache_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-cache-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-cache-docs_2.13) [![ZIO Cache](https://img.shields.io/github/stars/zio/zio-cache?style=social)](https://github.com/zio/zio-cache)
-
-## Introduction
-
-Sometimes we may call or receive requests to do overlapping work. Assume we are writing a service that is going to handle all incoming requests. We don't want to handle duplicate requests. Using ZIO Cache we can make our application to be more **performant** by preventing duplicated works.
-
-Some key features of ZIO Cache:
-
-- **Compositionality** — If we want our applications to be **compositional**, different parts of our application may do overlapping work. ZIO Cache helps us to stay benefit from compositionality while using caching.
-
-- **Unification of Synchronous and Asynchronous Caches** — Compositional definition of cache in terms of _lookup function_ unifies synchronous and asynchronous caches. So the lookup function can compute value either synchronously or asynchronously.
-
-- **Deep ZIO Integration** — ZIO Cache is a ZIO native solution. So without losing the power of ZIO it includes support for _concurrent lookups_, _failure_, and _interruption_.
-
-- **Caching Policy** — Using caching policy, the ZIO Cache can determine when values should/may be removed from the cache. So, if we want to build something more complex and custom we have a lot of flexibility. The caching policy has two parts and together they define a whole caching policy:
-
-    - **Priority (Optional Removal)** — When we are running out of space, it defines the order that the existing values **might** be removed from the cache to make more space.
-
-    - **Evict (Mandatory Removal)** — Regardless of space when we **must** remove existing values because they are no longer valid anymore. They might be invalid because they do not satisfy business requirements (e.g., maybe it's too old). This is a function that determines whether an entry is valid based on the entry and the current time.
-
-- **Composition Caching Policy** — We can define much more complicated caching policies out of much simpler ones.
-
-- **Cache/Entry Statistics** — ZIO Cache maintains some good statistic metrics, such as entries, memory size, hits, misses, loads, evictions, and total load time. So we can look at how our cache is doing and decide where we should change our caching policy to improve caching metrics.
-
-## How to Define a Cache?
-
-A cache is defined in terms of a lookup function that describes how to compute the value associated with a key if a value is not already in the cache.
-
-```scala
-import zio._
-
-trait Lookup[-Key, -Environment, +Error, +Value] {
-  def lookup(key: Key): ZIO[Environment, Error, Value]
-}
-```
-
-The lookup function takes a key of type `Key` and returns a `ZIO` effect that requires an environment of type `Environment` and can fail with an error of type `Error` or succeed with a value of type `Value`. Because the lookup function returns a `ZIO` effect it can describe both synchronous and asynchronous workflows.
-
-We construct a cache using a lookup function as well as a maximum size and a time to live.
-
-```scala
-trait Cache[-Key, +Error, +Value] {
-  def get(k: Key): IO[Error, Value]
-}
-
-object Cache {
-
-  def make[Key, Environment, Error, Value](
-    capacity: Int,
-    timeToLive: Duration,
-    lookup: Lookup[Key, Environment, Error, Value]
-  ): ZIO[Environment, Nothing, Cache[Key, Error, Value]] =
-    ???
-}
-```
-
-Once we have created a cache the most idiomatic way to work with it is the `get` operator. The `get` operator will return the current value in the cache if it exists or else compute a new value, put it in the cache, and return it.
-
-If multiple concurrent processes get the value at the same time the value will only be computed once, with all of the other processes receiving the computed value as soon as it is available. All of this will be done using ZIO's fiber based concurrency model without ever blocking any underlying operating system threads.
+[![Experimental](https://img.shields.io/badge/Project%20Stage-Experimental-yellowgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-cli/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-cli_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-cli_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-cli_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-cli_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-cli-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-cli-docs_2.13) [![ZIO CLI](https://img.shields.io/github/stars/zio/zio-cli?style=social)](https://github.com/zio/zio-cli)
 
 ## Installation
 
-In order to use this library, we need to add the following line in our `build.sbt` file:
+To use **ZIO CLI**, we need to add the following to our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-cache" % "0.3.0"
+libraryDependencies += "dev.zio" %% "zio-cli" % "0.7.4"
+```
+## Getting Started
+**ZIO CLI** allows to easily construct a CLI application. A CLI or Command-Line Interface is an application that allows the user to give instructions by means of pieces of text called commands. A command has the following structure
+```
+command param1 param2 ... paramN
+```
+where `command` is the name of the command and `param1`, `param2`, ..., `paramN` form a list of parameters depending on the command that determines the precise instruction to the CLI application.
+
+Given the case, a command itself might contain subcommands. This allows a better design of the command-line application and a more comfortable user experience.
+
+A command might include arguments and options.
+- Arguments are name-less and position-based parameters that the user specifies just by the position in the command. As an example, we can consider the widely used command-line application Git. One subcommand is `clone`. It creates a copy of an existing repository. An argument of `git clone` is `repository`. If the repository name is `https://github.com/zio/zio-cli.git`, we will use it in the following manner:
+```
+git clone https://github.com/zio/zio-cli.git
 ```
 
-## Example
+- Options are named and position-independent parameters that are specified by writing the content after the name. The name is preceded by `--`. An option may have a shorter form called an alias. When the alias is used instead of the full name, only `-` is needed. An option of command `git clone` is `local`. It is a boolean option, so it is not necessary to write true or false after it: it will be true only if it appears. It is used in the following manner:
+```
+git clone --local
+```
+It also has an alias `-l`:
+```
+git clone -l
+```
 
-In this example, we are calling `timeConsumingEffect` three times in parallel with the same key. The ZIO Cache runs this effect only once. So the concurrent lookups will suspend until the value being computed is available:
+The description of the command `git clone`, taking only into account option `local` and argument `repository` will be
+```
+git clone [-l] <repository>
+```
+where `[]` implies that the option is optional and `<>` indicates an argument.
+
+### Difference between Args and Options
+Arguments and options are different due to the way the user specifies them. Arguments are not specified using its name, only by the position inside the command. On the other hand, options must be preceded by its name and `--` indicating that it is the name of an option. 
+
+Furthermore, a command-line application will represent them in different ways. Argument's name will be inside `<>` while an option will be preceded by `--`. In case that the option has a short form or alias, this will be preceded by `-`.
+
+### First ZIO CLI example
+
+ This is done by defining `cliApp` value from `ZIOCliDefault` using `CliApp.make` and specifying a `Command` as parameter. A `Command[Model]` is a description of the commands of a CLI application that allows to specify which commands are valid and how to transform the input into an instance of `Model`. Then it is possible to implement the logic of the CLI application in terms of `Model`. As a sample we are going to create a command of Git. We are going to implement only command `git clone` with argument `repository` and option `local`.
 
 ```scala
-import zio._
-import zio.cache.{Cache, Lookup}
+import zio.cli._
+import zio.cli.HelpDoc.Span.text
+import zio.Console.printLine
 
-object ZIOCacheExample extends ZIOAppDefault {
-  def timeConsumingEffect(key: String) =
-    ZIO.sleep(5.seconds).as(key.hashCode)
+// object of your app must extend ZIOCliDefault
+object Sample extends ZIOCliDefault {
 
-  def run =
-    for {
-      cache <- Cache.make(
-        capacity = 100,
-        timeToLive = Duration.Infinity,
-        lookup = Lookup(timeConsumingEffect)
-      )
-      result <- cache
-        .get("key1")
-        .zipPar(cache.get("key1"))
-        .zipPar(cache.get("key1"))
-      _ <- ZIO.debug(
-        s"Result of parallel execution of three effects with the same key: $result"
-      )
-
-      hits <- cache.cacheStats.map(_.hits)
-      misses <- cache.cacheStats.map(_.misses)
-      _ <- ZIO.debug(s"Number of cache hits: $hits")
-      _ <- ZIO.debug(s"Number of cache misses: $misses")
-    } yield ()
-
+  /**
+   * First we define the commands of the Cli. To do that we need:
+   *    - Create command options
+   *    - Create command arguments
+   *    - Create help (HelpDoc) 
+   */
+  val options: Options[Boolean] = Options.boolean("local").alias("l")
+  val arguments: Args[String] = Args.text("repository")
+  val help: HelpDoc = HelpDoc.p("Creates a copy of an existing repository")
+  
+  val command: Command[(Boolean, String)] = Command("clone").subcommands(Command("clone", options, arguments).withHelp(help))
+  
+  // Define val cliApp using CliApp.make
+  val cliApp = CliApp.make(
+    name = "Sample Git",
+    version = "1.1.0",
+    summary = text("Sample implementation of git clone"),
+    command = command
+  ) {
+    // Implement logic of CliApp
+    case _ => printLine("executing git clone")
+  }
 }
 ```
-
-The output of this program should be as follows:
-
+The output will be
 ```
-Result of parallel execution three effects with the same key: ((3288498,3288498),3288498)
-Number of cache hits: 2
-Number of cache misses: 1
+   _____@       @           @        @   __@     @       @  ______@   _ @  __ @
+  / ___/@ ____ _@  ____ ___ @   ____ @  / /@ ___ @       @ / ____/@  (_)@ / /_@
+  \__ \ @/ __ `/@ / __ `__ \@  / __ \@ / / @/ _ \@       @/ / __  @ / / @/ __/@
+ ___/ / / /_/ / @/ / / / / /@ / /_/ /@/ /  /  __/@       / /_/ /  @/ /  / /_  @
+/____/  \__,_/  /_/ /_/ /_/ @/ .___/ /_/   \___/ @       \____/   /_/   \__/  @
+        @       @           /_/      @     @     @       @        @     @     @
+
+Sample Git v1.1.0 -- Sample implementation of git clone
+
+USAGE
+
+  $ clone clone [(-l, --local)] <repository>
+
+COMMANDS
+
+  clone [(-l, --local)] <repository>  Creates a copy of an existing repository
 ```
 
-## Resources
+If there is a `CliApp`, you can run a command using its method `run` and passing parameters in a `List[String]`.
 
-- [Compositional Caching](https://www.youtube.com/watch?v=iFeTUhYpPLs) by Adam Fraser (December 2020) — In this talk, Adam will introduce ZIO Cache, a new library in the ZIO ecosystem that provides a drop-in caching solution for ZIO applications. We will see how ZIO’s support for asynchrony and concurrent lets us implement a cache in terms of a single lookup function and how we get many other things such as typed errors and compositional caching policies for free. See how easy it can be to add caching to your ZIO application!
+## References
+
+- [10 Minute Command-Line Apps With ZIO CLI](https://www.youtube.com/watch?v=UeR8YUN4Tws) by Aiswarya Prakasan
+- [Hacking on ZIO-CLI](https://www.youtube.com/watch?v=HxPCXfnbg3U) by Adam Fraser and Kit Langton
+- [Behold! The Happy Path To Captivate Your Users With Stunning CLI Apps!](https://www.youtube.com/watch?v=0c3zbUq4lQo) by Jorge Vasquez
