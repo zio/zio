@@ -2438,21 +2438,19 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       p       <- Promise.make[E1, Z]
       handoff <- ZStream.Handoff.make[Signal]
     } yield {
-      val consumer: ZSink[R1, E1, A1, A1, Unit] = sink.collectLeftover
-        .foldCauseSink(
-          c => ZSink.fromZIO(p.failCause(c)) *> ZSink.failCause(c),
+      // Only the sink is shielded from upstream failures, so that `loop` can
+      // observe them and forward them to the remainder of the stream as is.
+      val consumer: ZChannel[R1, E, Chunk[A1], Any, E1, Chunk[Nothing], Unit] = sink.collectLeftover.channel
+        .failOnInputError[E1]
+        .foldCauseChannel(
+          c => ZChannel.fromZIO(p.failCause(c)) *> ZChannel.refailCause(c),
           { case (z1, leftovers) =>
-            lazy val loop: ZChannel[Any, E, Chunk[A1], Any, E1, Chunk[A1], Unit] = ZChannel.readWithCause(
+            lazy val loop: ZChannel[Any, E, Chunk[A1], Any, E, Nothing, Unit] = ZChannel.readWithCause(
               (in: Chunk[A1]) => ZChannel.fromZIO(handoff.offer(Signal.Emit(in))) *> loop,
               (e: Cause[E]) => ZChannel.fromZIO(handoff.offer(Signal.Halt(e))) *> ZChannel.refailCause(e),
               (_: Any) => ZChannel.fromZIO(handoff.offer(Signal.End))
             )
-
-            ZSink.fromChannel(
-              ZChannel.fromZIO(p.succeed(z1)) *>
-                ZChannel.fromZIO(handoff.offer(Signal.Emit(leftovers))) *>
-                loop
-            )
+            ZChannel.fromZIO(p.succeed(z1) *> handoff.offer(Signal.Emit(leftovers))) *> loop
           }
         )
 
@@ -2465,7 +2463,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       )
 
       for {
-        _ <- self.tapErrorCause(cause => p.failCause(cause)).run(consumer).forkScoped
+        _ <- (self.channel >>> consumer).runDrain.forkScoped
         z <- p.await
       } yield (z, new ZStream(producer))
     }).flatten
