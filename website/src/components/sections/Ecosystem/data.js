@@ -12,7 +12,7 @@ export const ecosystemProjects = [
       'High-performance implementations avoiding boxing and unnecessary allocations',
       'Includes Schema, Chunk, Scope, Docs, TypeId, Context, MediaType, and Ring Buffer blocks',
     ],
-    link: '/zio-blocks',
+    link: 'https://zioblocks.com',
     icon: '/img/ecosystem/zio-blocks-mark.svg'
   },
   {

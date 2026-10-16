@@ -3,7 +3,6 @@ const ecosystemRepos = {
   'zio2-interop-cats2': { repo: 'https://github.com/zio/interop-cats', branch: 'main' },
   'zio-amqp': { repo: 'https://github.com/zio/zio-amqp', branch: 'master' },
   'zio-aws': { repo: 'https://github.com/zio/zio-aws', branch: 'master' },
-  'zio-blocks': { repo: 'https://github.com/zio/zio-blocks', branch: 'main' },
   'zio-bson': { repo: 'https://github.com/zio/zio-bson', branch: 'main' },
   'zio-cache': { repo: 'https://github.com/zio/zio-cache', branch: 'series/2.x' },
   'zio-cli': { repo: 'https://github.com/zio/zio-cli', branch: 'master' },
