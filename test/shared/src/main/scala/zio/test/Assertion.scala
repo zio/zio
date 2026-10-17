@@ -66,7 +66,7 @@ object Assertion extends AssertionVariants {
             .result()
         }
       )
-    TestResult(
+    TestResult.cached(
       (TestArrow.succeed(expr).withCode(codeString.getOrElse("input")) >>> assertion.arrow).withLocation
         .withCompleteCode(completeString.getOrElse("<CODE>"))
     )
