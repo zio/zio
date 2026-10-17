@@ -17,11 +17,11 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{Duration, Scheduler, Trace, UIO, Unsafe, ZIO}
+import zio.{Cause, Duration, FiberId, Scheduler, Trace, UIO, Unsafe, ZIO}
 
 import java.time.Instant
 import java.util.concurrent._
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.{Collections, List}
 import scala.annotation.tailrec
 
@@ -31,9 +31,26 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
     (ZIO.executor <*> ZIO.runtime[Any]).map { case (executor, runtime) =>
       new Scheduler.Internal {
         def schedule(runnable: Runnable, duration: Duration)(implicit unsafe: Unsafe): Scheduler.CancelToken = {
+          // The cancelled flag is flipped by whichever of the forked fiber or
+          // the cancel token runs first. This allows cancellation to be
+          // performed synchronously, without blocking the calling thread
+          // waiting for the fiber to be interrupted, which would otherwise
+          // hang when this scheduler is used from within an uninterruptible
+          // region (the runtime captured above inherits the interruptibility
+          // of the fiber that created it, hence the `.interruptible` below):
+          val cancelled = new AtomicBoolean(false)
           val fiber =
-            runtime.unsafe.fork((sleep(duration) *> ZIO.succeed(runnable.run())))
-          () => runtime.unsafe.run(fiber.interruptAs(zio.FiberId.None)).getOrThrowFiberFailure().isInterrupted
+            runtime.unsafe.fork(
+              (sleep(duration) *> ZIO.suspendSucceed {
+                if (cancelled.compareAndSet(false, true)) ZIO.succeed(runnable.run())
+                else ZIO.unit
+              }).interruptible
+            )
+          () =>
+            if (cancelled.compareAndSet(false, true)) {
+              fiber.unsafe.interrupt(Cause.interrupt(FiberId.None))(unsafe)
+              true
+            } else false
         }
 
         def asScheduledExecutorService: ScheduledExecutorService = {
