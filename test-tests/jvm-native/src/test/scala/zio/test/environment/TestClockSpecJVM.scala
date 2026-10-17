@@ -3,7 +3,7 @@ package zio.test.environment
 import zio._
 import zio.test.Assertion._
 import zio.test.TestAspect.{nonFlaky, timeout, parallelN}
-import zio.test.{TestClock, ZIOBaseSpec, assert, assertCompletes}
+import zio.test.{Live, TestClock, ZIOBaseSpec, assert, assertCompletes}
 
 import java.util.concurrent.TimeUnit
 
@@ -36,6 +36,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                    )
                  }
             _      <- TestClock.adjust(25.seconds)
+            _      <- Live.live(ref.get.repeatUntil(_.size >= 5).timeout(10.seconds))
             values <- ref.get
           } yield assert(values.reverse)(equalTo(List(5L, 10L, 15L, 20L, 25L)))
         },
@@ -63,6 +64,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                    )
                  }
             _      <- TestClock.adjust(28.seconds)
+            _      <- Live.live(ref.get.repeatUntil(_.size >= 5).timeout(10.seconds))
             values <- ref.get
           } yield assert(values.reverse)(equalTo(List(8L, 13L, 18L, 23L, 28L)))
         },
@@ -90,6 +92,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
                    )
                  }
             _      <- TestClock.adjust(33.seconds)
+            _      <- Live.live(ref.get.repeatUntil(_.size >= 5).timeout(10.seconds))
             values <- ref.get
           } yield assert(values.reverse)(equalTo(List(5L, 12L, 19L, 26L, 33L)))
         },
@@ -122,6 +125,7 @@ object TestClockSpecJVM extends ZIOBaseSpec {
             _      <- TestClock.adjust(4.seconds)
             _      <- ZIO.succeed(future.cancel(false))
             _      <- TestClock.adjust(11.seconds)
+            _      <- Live.live(ref.get.repeatUntil(_.size >= 1).timeout(10.seconds))
             values <- ref.get
           } yield assert(values.reverse)(equalTo(List(5L)))
         }
