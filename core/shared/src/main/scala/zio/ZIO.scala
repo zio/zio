@@ -1018,9 +1018,25 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Returns an effect that, if evaluated, will return the lazily computed
    * result of this effect.
+   *
+   * @see
+   *   [[memoizeSuccess]] For a variant that caches the result of the effect
+   *   after its first successful execution.
    */
   final def memoize(implicit trace: Trace): UIO[ZIO[R, E, A]] =
     ZIO.memoize((_: Unit) => self).map(_.apply(()))
+
+  /**
+   * Caches the result of the effect after its first successful execution. The
+   * effect is executed only once, and subsequent invocations return the cached
+   * result without re-executing the effect.
+   *
+   * @see
+   *   [[memoize]] For a variant that caches the result of the effect after its
+   *   first execution, regardless of success or failure.
+   */
+  final def memoizeSuccess(implicit trace: Trace): UIO[ZIO[R, E, A]] =
+    ZIO.memoizeSuccess((_: Unit) => self).map(_.apply(()))
 
   /**
    * Returns a new effect where the error channel has been merged into the
@@ -4366,16 +4382,42 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     logWarningCause("", cause)
 
   /**
-   * Returns a memoized version of the specified effectual function.
+   * Returns a memoized version of the specified effectual function. This
+   * variant will memoize the result of the function, whether it succeeds or
+   * fails.
+   *
+   * @see
+   *   [[memoizeSuccess]] For a variant that caches only successful results.
    */
   def memoize[R, E, A, B](f: A => ZIO[R, E, B])(implicit trace: Trace): UIO[A => ZIO[R, E, B]] =
+    memoizeImpl(f, successOnly = false)
+
+  /**
+   * Returns a memoized version of the provided effectful function, caching only
+   * successful results.
+   *
+   * @see
+   *   [[memoize]] For a variant that caches both successful and failed results.
+   */
+  def memoizeSuccess[R, E, A, B](f: A => ZIO[R, E, B])(implicit trace: Trace): UIO[A => ZIO[R, E, B]] =
+    memoizeImpl(f, successOnly = true)
+
+  private def memoizeImpl[R, E, A, B](f: A => ZIO[R, E, B], successOnly: Boolean)(implicit
+    trace: Trace
+  ): UIO[A => ZIO[R, E, B]] =
     ZIO.succeed {
       @inline implicit def u: Unsafe = Unsafe
 
+      def nonCacheable(exit: Exit[?, ?]): Boolean = exit match {
+        case Exit.Failure(c) => successOnly || c.isInterruptedOnly
+        case _               => false
+      }
+
       val ref = Ref.unsafe.make(Map.empty[A, Promise[E, (FiberRefs.Patch, B)]])
+
       def loop(a: A): ZIO[R, E, B] =
         ZIO.fiberIdWith { fiberId =>
-          val isSetter = new AtomicBoolean()
+          val isSetter = new AtomicBoolean(false)
           for {
             promise <- ref.modify { map =>
                          map.getOrElse(a, null) match {
@@ -4383,14 +4425,12 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                              val p = Promise.unsafe.make[E, (FiberRefs.Patch, B)](fiberId)
                              val f2 = ZIO.uninterruptibleMask { restore =>
                                isSetter.set(true)
-                               restore(f(a).diffFiberRefs).exitWith {
-                                 case ex if ex.isInterruptedOnly =>
+                               restore(f(a).diffFiberRefs).exitWith { ex =>
+                                 if (nonCacheable(ex)) {
                                    ref.unsafe.update(_ - a)
-                                   p.unsafe.done(ex)
-                                   Exit.unit
-                                 case ex =>
-                                   p.unsafe.done(ex)
-                                   Exit.unit
+                                 }
+                                 p.unsafe.done(ex)
+                                 Exit.unit
                                }.fork
                              }
                              (f2.as(p), map.updated(a, p))
@@ -4398,9 +4438,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                          }
                        }.flatten
             b <- promise.await.exitWith {
-                   case Exit.Success((patch, b))                      => ZIO.patchFiberRefs(patch).as(b)
-                   case ex if !isSetter.get() && ex.isInterruptedOnly => loop(a)
-                   case ex                                            => ex.asInstanceOf[Exit[E, Nothing]]
+                   case Exit.Success((patch, b))                  => ZIO.patchFiberRefs(patch).as(b)
+                   case ex if !isSetter.get() && nonCacheable(ex) => loop(a)
+                   case ex                                        => ex.asInstanceOf[Exit[E, Nothing]]
                  }
           } yield b
         }
