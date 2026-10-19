@@ -77,14 +77,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@4dc7044f
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@758bc5b5
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@d3e455f
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@3cce3233
 ```
 
 ## From ZIO
