@@ -95,6 +95,12 @@
   object-fit: contain;
 }
 
+.ecosystemCardLogo {
+  display: block;
+  height: 48px;
+  width: auto;
+}
+
 .ecosystemCardHeader h3 {
   margin: 0;
   font-size: 1.5rem;

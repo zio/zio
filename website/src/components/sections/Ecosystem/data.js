@@ -13,7 +13,11 @@ export const ecosystemProjects = [
       'Includes Schema, Chunk, Scope, Docs, TypeId, Context, MediaType, and Ring Buffer blocks',
     ],
     link: 'https://zioblocks.com',
-    icon: '/img/ecosystem/zio-blocks-mark.svg'
+    // Full wordmark: the mark doubles as the "Z", so no separate name is rendered
+    logo: {
+      light: '/img/ecosystem/zio-blocks-logo.svg',
+      dark: '/img/ecosystem/zio-blocks-logo-on-dark.svg'
+    }
   },
   {
     name: 'ZIO HTTP',

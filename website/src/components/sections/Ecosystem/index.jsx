@@ -1,6 +1,8 @@
 import React from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+import ThemedImage from '@theme/ThemedImage';
 import styles from './styles.module.css';
 import SectionWrapper from '@site/src/components/ui/SectionWrapper';
 
@@ -27,10 +29,16 @@ export default function Ecosystem({ eyebrow, title, subtitle, children}) {
             <div className={clsx('col col--8 col--offset-2', styles.mainProjectCol)}>
               <div className={styles.ecosystemCard}>
                 <div className={styles.ecosystemCardHeader}>
-                  <div className={styles.ecosystemCardIcon}>
-                    <ProjectIcon icon={featuredProject.icon} name={featuredProject.name} />
-                  </div>
-                  <h3>{featuredProject.name}</h3>
+                  <h3>
+                    <ThemedImage
+                      alt={featuredProject.name}
+                      sources={{
+                        light: useBaseUrl(featuredProject.logo.light),
+                        dark: useBaseUrl(featuredProject.logo.dark),
+                      }}
+                      className={styles.ecosystemCardLogo}
+                    />
+                  </h3>
                 </div>
                 <p className={styles.ecosystemCardDescription}>{featuredProject.description}</p>
                 <ul className={styles.ecosystemCardFeatures}>
