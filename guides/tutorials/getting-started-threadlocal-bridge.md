@@ -315,9 +315,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$19999/0x00007f2beaf6c3d0@16a3c1be
+//     eval = zio.Scope$$$Lambda$20025/0x00007f068ef8f728@44165529
 //   ),
-//   successK = zio.ZIO$$$Lambda$20000/0x00007f2beaf6c688@630b8e0d
+//   successK = zio.ZIO$$$Lambda$20026/0x00007f068ef8f9e0@32c6b727
 // )
 ```
 
