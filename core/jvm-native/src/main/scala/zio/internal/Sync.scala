@@ -20,4 +20,10 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[zio] object Sync {
   def apply[A](anyRef: AnyRef)(f: => A): A = anyRef.synchronized(f)
+
+  /**
+   * Hints to the runtime that the caller is in a busy-wait loop, so that it can
+   * avoid burning the carrier thread while the contended state clears.
+   */
+  @inline def onSpinWait(): Unit = Thread.onSpinWait()
 }
