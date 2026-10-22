@@ -7,7 +7,7 @@
 
 First, add the following dependency to your build.sbt:
 ```
-"dev.zio" %% "zio-opencensus" % "3.1.20"
+"dev.zio" %% "zio-opencensus" % "3.1.21"
 ```
 
 ## Usage
