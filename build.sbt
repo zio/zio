@@ -669,7 +669,7 @@ lazy val benchmarks = project.module
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
         "qa.hedgehog"               %% "hedgehog-core" % "0.15.0",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
-        "org.springframework"        % "spring-core"   % "7.0.9"
+        "org.springframework"        % "spring-core"   % "7.0.10"
       )
     },
     excludeDependencies ++= {
