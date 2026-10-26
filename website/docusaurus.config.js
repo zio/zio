@@ -7,6 +7,12 @@ const lightCodeTheme = prismThemes.github;
 const darkCodeTheme = prismThemes.vsDark;
 const { getEditUrl } = require('./editUrl');
 
+// Ecosystem projects are copied from these npm packages into docs/<project>
+// and served at /<project>, each with its own sidebar.
+const ecosystemProjects = Object.keys(require('./package.json').dependencies)
+  .filter((name) => name.startsWith('@zio.dev/'))
+  .map((name) => name.split('/')[1]);
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'ZIO',
@@ -80,10 +86,12 @@ const config = {
           position: 'left',
         },
         {
-          type: 'doc',
-          docId: 'ecosystem/index',
+          // Not `type: 'doc'`: that item is only active on pages of the
+          // ecosystem sidebar, but each project has a sidebar of its own.
+          to: '/ecosystem/',
           label: 'Ecosystem',
           position: 'left',
+          activeBaseRegex: `^/(ecosystem|${ecosystemProjects.join('|')})(/|$)`,
         },
         {
           type: 'doc',
