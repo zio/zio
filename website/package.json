@@ -10,7 +10,7 @@
     "serve": "docusaurus generate-sidebar; docusaurus serve",
     "clear": "docusaurus clear",
     "upgrade-zio-docs": "bash ./upgrade-zio-docs.sh",
-    "generate-sidebar": "patch-guides; docusaurus generate-sidebar",
+    "generate-sidebar": "yarn patch-guides; docusaurus generate-sidebar",
     "patch-guides": "bash ./patch-guides.sh"
   },
   "dependencies": {
