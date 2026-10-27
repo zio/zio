@@ -110,7 +110,12 @@ jobs:
       - name: Compile Docs
         run: |
           while true; do free -h; sleep 5; done &
-          sbt -v "docs/mdoc; docs/unidoc"
+          sbt -v docs/mdoc
+
+      # The API reference served at /api: the unified Scala 3 Scaladoc, copied into website/static/api. A separate sbt
+      # run from mdoc, so the two builds do not share one JVM heap.
+      - name: Generate API Docs
+        run: sbt -v apiDocs
 
       - name: Build The Website
         working-directory: ./website
