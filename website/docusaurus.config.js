@@ -79,6 +79,15 @@ const config = {
           label: 'Reference',
           position: 'left',
         },
+        // The Scaladoc is plain HTML copied into static/api by `sbt apiDocs`, outside the Docusaurus router:
+        // pathname:// makes it a full page load and keeps the broken link checker off it. The API pages copy this
+        // navbar (scripts/lib/api-theme.mjs, NAV_LINKS).
+        {
+          to: 'pathname:///api/',
+          label: 'API',
+          position: 'left',
+          target: '_self',
+        },
         {
           type: 'doc',
           docId: 'guides/index',
@@ -138,8 +147,9 @@ const config = {
               href: '/guides',
             },
             {
-              label: 'Scaladoc of ZIO',
-              href: 'https://javadoc.io/doc/dev.zio/zio_3/latest/index.html',
+              label: 'API Reference',
+              to: 'pathname:///api/',
+              target: '_self',
             },
           ],
         },

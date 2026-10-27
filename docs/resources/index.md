@@ -7,7 +7,7 @@ Looking for something specific? It's probably already got a home:
 
 - **Libraries & tools** → [Ecosystem](../ecosystem/index.mdx) (official + community-maintained, added via PR)
 - **Talks & conference recordings** → [Events](../events/index.md) (Functional Scala, ZIO World, weekly Zymposiums)
-- **API docs** → [Scaladoc](https://javadoc.io/doc/dev.zio/zio_3/latest/index.html)
+- **API docs** → <a href="/api/">API reference</a> (the Scaladoc of every ZIO module)
 
 ## Books
 

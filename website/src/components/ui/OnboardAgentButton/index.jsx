@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ClaudeLogo, CodexLogo, CursorLogo, OpenCodeLogo } from './logos';
+import { PROMPT } from './prompt.mjs';
 
-export const PROMPT =
-  'Fetch https://zio.dev/start.md and follow the instructions to set up my environment for ZIO development.';
+export { PROMPT };
 
 export async function copyPrompt(text) {
   try {
