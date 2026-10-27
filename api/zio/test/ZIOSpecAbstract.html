@@ -1,120 +1,814 @@
-<!DOCTYPE html ><html><head><meta http-equiv="X-UA-Compatible" content="IE=edge"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/><title></title><meta content="" name="description"/><meta content="" name="keywords"/><meta http-equiv="content-type" content="text/html; charset=UTF-8"/><link href="../../lib/index.css" media="screen" type="text/css" rel="stylesheet"/><link href="../../lib/template.css" media="screen" type="text/css" rel="stylesheet"/><link href="../../lib/print.css" media="print" type="text/css" rel="stylesheet"/><link href="../../lib/diagrams.css" media="screen" type="text/css" rel="stylesheet" id="diagrams-css"/><script type="text/javascript" src="../../lib/jquery.min.js"></script><script type="text/javascript" src="../../lib/index.js"></script><script type="text/javascript" src="../../index.js"></script><script type="text/javascript" src="../../lib/scheduler.js"></script><script type="text/javascript" src="../../lib/template.js"></script><script type="text/javascript">/* this variable can be used by the JS to determine the path to the root document */
-var toRoot = '../../';</script></head><body><div id="search"><span id="doc-title"><span id="doc-version"></span></span> <span class="close-results"><span class="left">&lt;</span> Back</span><div id="textfilter"><span class="input"><input autocapitalize="none" placeholder="Search" id="index-input" type="text" accesskey="/"/><i class="clear material-icons"></i><i id="search-icon" class="material-icons"></i></span></div></div><div id="search-results"><div id="search-progress"><div id="progress-fill"></div></div><div id="results-content"><div id="entity-results"></div><div id="member-results"></div></div></div><div id="content-scroll-container" style="-webkit-overflow-scrolling: touch;"><div id="content-container" style="-webkit-overflow-scrolling: touch;"><div id="subpackage-spacer"><div id="packages"><h1>Packages</h1><ul><li class="indented0 " name="_root_.root" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="_root_" class="anchorToMember"></a><a id="root:_root_" class="anchorToMember"></a> <span class="permalink"><a href="../../index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="../../index.html" title=""><span class="name">root</span></a></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="../../index.html" name="_root_" id="_root_" class="extype">root</a></dd></dl></div></li><li class="indented1 " name="_root_.zio" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="zio" class="anchorToMember"></a><a id="zio:zio" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="../index.html" title=""><span class="name">zio</span></a></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="../../index.html" name="_root_" id="_root_" class="extype">root</a></dd></dl></div></li><li class="indented2 " name="zio.test" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="test" class="anchorToMember"></a><a id="test:test" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="index.html" title="_ZIO Test_ is a featherweight testing library for effectful programs."><span class="name">test</span></a></span><p class="shortcomment cmt">_ZIO Test_ is a featherweight testing library for effectful programs.</p><div class="fullcomment"><div class="comment cmt"><p>_ZIO Test_ is a featherweight testing library for effectful programs.</p><p>The library imagines every spec as an ordinary immutable value, providing
-tremendous potential for composition. Thanks to tight integration with ZIO,
-specs can use resources (including those requiring disposal), have well-
-defined linear and parallel semantics, and can benefit from a host of ZIO
-combinators.</p><pre><span class="kw">import</span> zio.test._
-<span class="kw">import</span> zio.Clock.nanoTime
+<!DOCTYPE html><html data-pathToRoot="../../" data-rawLocation="zio/test/ZIOSpecAbstract" data-dynamicSideMenu="true"><head><meta charset="utf-8"></meta><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></meta><title>ZIOSpecAbstract</title><link rel="icon" href="/img/favicon.png"><script type="text/javascript" src="../../scripts/theme.js"></script><script type="text/javascript" src="../../scripts/searchData.js" defer="true"></script><script type="text/javascript" src="../../scripts/scastieConfiguration.js" defer="true"></script><link rel="stylesheet" href="../../styles/theme/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/components/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/components/button/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/layout/bundle.css"></link><link rel="stylesheet" href="../../styles/nord-light.css"></link><link rel="stylesheet" href="../../styles/dotty-icons.css"></link><link rel="stylesheet" href="../../styles/filter-bar.css"></link><link rel="stylesheet" href="../../styles/code-snippets.css"></link><link rel="stylesheet" href="../../styles/searchbar.css"></link><link rel="stylesheet" href="../../styles/social-links.css"></link><link rel="stylesheet" href="../../styles/versions-dropdown.css"></link><link rel="stylesheet" href="../../styles/content-contributors.css"></link><link rel="stylesheet" href="../../styles/fontawesome.css"></link><script type="text/javascript" src="../../hljs/highlight.pack.js" defer="true"></script><script type="text/javascript" src="../../scripts/hljs-scala3.js" defer="true"></script><script type="text/javascript" src="../../scripts/ux.js" defer="true"></script><script type="text/javascript" src="../../scripts/common/component.js" defer="true"></script><script type="text/javascript" src="../../scripts/common/utils.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/FilterBar.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/DocumentableList.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/Input.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/FilterGroup.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/Filter.js" defer="true"></script><script type="text/javascript" src="../../scripts/scaladoc-scalajs.js" defer="true"></script><script type="text/javascript" src="../../scripts/contributors.js" defer="true"></script><script type="text/javascript" src="https://code.jquery.com/jquery-3.5.1.min.js" defer="true"></script><script type="text/javascript" src="https://d3js.org/d3.v6.min.js" defer="true"></script><script type="text/javascript" src="https://cdn.jsdelivr.net/npm/graphlib-dot@0.6.2/dist/graphlib-dot.min.js" defer="true"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/dagre-d3/0.6.1/dagre-d3.min.js" defer="true"></script><script type="text/javascript" src="https://scastie.scala-lang.org/embedded.js" defer="true"></script><script type="text/javascript" src="../../scripts/data.js" defer="true"></script><link rel="stylesheet" href="../../styles/apistyles.css"></link><script>var pathToRoot = "../../";</script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=fallback"><link rel="stylesheet" href="/api/styles/zio-api.css"></head><body><div id=""><div id="header" class="za-navbar"><div class="za-navbar__left"><span id="mobile-menu-toggle" class="za-navbar__toggle" role="button" tabindex="0" aria-label="Toggle navigation bar"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"/></svg></span><a class="za-navbar__brand" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><span id="dropdown-trigger" hidden></span><div id="version-dropdown" hidden></div><a class="za-navbar__link" href="/overview/getting-started">Overview</a><a class="za-navbar__link" href="/reference/">Reference</a><a class="za-navbar__link za-navbar__link--active" href="/api/" aria-current="page">API</a><a class="za-navbar__link" href="/guides/">Guides</a><a class="za-navbar__link" href="/ecosystem/">Ecosystem</a><a class="za-navbar__link" href="/resources/">Resources</a><a class="za-navbar__link" href="/events/">Events</a></div><div class="za-navbar__right"><a class="za-navbar__link" href="http://chat.zio.dev" target="_blank" rel="noopener noreferrer">Chat Bot</a><a class="za-navbar__link" href="/blog">Blog</a><a class="za-navbar__link za-navbar__link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a><button type="button" class="za-navbar__icon za-onboard" data-onboard-prompt="Fetch https://zio.dev/start.md and follow the instructions to set up my environment for ZIO development." title="Copy the prompt to onboard your coding agent to ZIO" aria-label="Copy the ZIO agent onboarding prompt to the clipboard"><svg class="za-onboard__idle" viewBox="0 0 576 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M9.4 86.6C-3.1 74.1-3.1 53.9 9.4 41.4s32.8-12.5 45.3 0l192 192c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L178.7 256 9.4 86.6zM256 416l288 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-288 0c-17.7 0-32-14.3-32-32s14.3-32 32-32z"/></svg><svg class="za-onboard__done" viewBox="0 0 448 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></svg></button><button type="button" class="za-navbar__icon za-mode" data-color-mode-toggle title="light mode" aria-label="Switch between dark and light mode (currently light mode)"><svg class="za-mode__light" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg class="za-mode__dark" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg></button><button type="button" id="search-toggle" class="za-search" title="Search the API" aria-label="Search the API"><svg width="20" height="20" class="za-search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"/><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="za-search__label">Search</span></button></div></div><div id="mobile-menu"><div class="mobile-menu-header body-small"><a class="mobile-menu-logo" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><button id="mobile-menu-close" class="icon-button close"></button></div><div class="mobile-menu-container body-medium"><input id="mobile-scaladoc-searchbar-input" class="scaladoc-searchbar-input" type="search" placeholder="Find anything"></input><nav class="za-mobile-links"><a class="za-mobile-link" href="/overview/getting-started">Overview</a><a class="za-mobile-link" href="/reference/">Reference</a><a class="za-mobile-link za-mobile-link--active" href="/api/" aria-current="page">API</a><a class="za-mobile-link" href="/guides/">Guides</a><a class="za-mobile-link" href="/ecosystem/">Ecosystem</a><a class="za-mobile-link" href="/resources/">Resources</a><a class="za-mobile-link" href="/events/">Events</a><a class="za-mobile-link" href="http://chat.zio.dev" target="_blank" rel="noopener noreferrer">Chat Bot</a><a class="za-mobile-link" href="/blog">Blog</a><a class="za-mobile-link za-mobile-link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a></nav><span id="mobile-theme-toggle" class="mobile-menu-item mode"></span></div></div><span id="mobile-sidebar-toggle" class="floating-button"></span><div id="leftColumn" class="body-small"></div><div id="scaladoc-searchBar"></div><div id="main"><div id="content" class="body-medium"><div><nav class="za-breadcrumbs" aria-label="Breadcrumbs"><ul class="za-breadcrumbs__list"><li class="za-breadcrumbs__item"><a aria-label="Home page" class="za-breadcrumbs__link" href="/"><svg viewBox="0 0 24 24" class="za-breadcrumbs__home"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/api/"><span>API</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../../zio"><span>zio</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../test"><span>test</span></a></li><li class="za-breadcrumbs__item za-breadcrumbs__item--active"><span class="za-breadcrumbs__link">ZIOSpecAbstract</span></li></ul></nav><div class="cover-header">
+ <span class="icon"><span class="micon cl"></span></span>
+ <h1 class="h600 single">ZIOSpecAbstract</h1>
+</div>
+<div class="fqname body-large">
+ <span>zio.test.ZIOSpecAbstract</span>
+</div>
+<div class="main-signature mono-small-block">
+ <div class="signature">
+  <span class="signature-short"><span class="modifiers"><span t="k">abstract </span></span><span class="kind"><span t="k">class </span></span><a href="ZIOSpecAbstract" t="n" class="documentableName ">ZIOSpecAbstract</a><span t="k"> extends </span><a href="../ZIOApp" t="t">ZIOApp</a></span><span class="signature-long"></span>
+ </div>
+</div>
+<div class="cover">
+ <div class="doc"></div>
+ <section id="attributes">
+  <h2 class="h500">Attributes</h2>
+  <dl class="attributes">
+   <dt class="body-small">
+    Source
+   </dt>
+   <dd class="body-medium">
+    <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/test/shared/src/main/scala/zio/test/ZIOSpecAbstract.scala#L28" target="_blank">ZIOSpecAbstract.scala</a>
+   </dd>
+   <dt class="body-small">
+    Graph
+   </dt>
+   <dd class="body-medium">
+    <div id="inheritance-diagram" class="diagram-class showGraph">
+     <button type="button" class="label-only-button" onclick="zoomOut()">Reset zoom</button><button type="button" class="label-only-button" onclick="hideGraph()">Hide graph</button><button type="button" class="label-only-button" onclick="showGraph()">Show graph</button>
+     <svg id="graph"></svg>
+     <script type="text/dot" id="dot"> digraph g {
+ node0 [id=node0, label="<span style=\"color: #FFFFFF;\">class <a href=\"ZIOSpecAbstract.html\" t=\"n\">ZIOSpecAbstract</a></span>", class="class vertex"];
+node1 [id=node1, label="<span style=\"color: #FFFFFF;\">class <span data-unresolved-link=\"\" t=\"n\">Object</span></span>", class="class vertex"];
+node2 [id=node2, label="<span style=\"color: #FFFFFF;\">class <span data-unresolved-link=\"\" t=\"n\">Any</span></span>", class="class vertex"];
+node3 [id=node3, label="<span style=\"color: #FFFFFF;\">trait <span data-unresolved-link=\"\" t=\"n\">Matchable</span></span>", class="trait vertex"];
+node4 [id=node4, label="<span style=\"color: #FFFFFF;\">trait <a href=\"../ZIOApp.html\" t=\"n\">ZIOApp</a></span>", class="trait vertex"];
+node5 [id=node5, label="<span style=\"color: #FFFFFF;\">class <a href=\"ZIOSpec.html\" t=\"n\">ZIOSpec</a>[<span t=\"t\">R</span>]</span>", class="class vertex"];
+node6 [id=node6, label="<span style=\"color: #FFFFFF;\">class <a href=\"ZIOSpecDefault.html\" t=\"n\">ZIOSpecDefault</a></span>", class="class vertex"];
+node7 [id=node7, label="<span style=\"color: #FFFFFF;\">class <a href=\"junit/JUnitRunnableSpec.html\" t=\"n\">JUnitRunnableSpec</a></span>", class="class vertex"];
 
-<span class="kw">object</span> MyTest <span class="kw">extends</span> ZIOSpecDefault {
-  <span class="kw">def</span> spec = suite(<span class="lit">"clock"</span>)(
-    test(<span class="lit">"time is non-zero"</span>) {
-      <span class="kw">for</span> {
-        time <span class="kw">&lt;-</span> Live.live(nanoTime)
-      } <span class="kw">yield</span> assertTrue(time &gt;= <span class="num">0</span>L)
-    }
-  )
-}</pre></div><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="../index.html" name="zio" id="zio" class="extype">zio</a></dd></dl></div></li><li class="indented3 " name="zio.test.diff" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="diff" class="anchorToMember"></a><a id="diff:diff" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/diff/index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="diff/index.html" title=""><span class="name">diff</span></a></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="index.html" name="zio.test" id="zio.test" class="extype">test</a></dd></dl></div></li><li class="indented3 " name="zio.test.internal" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="internal" class="anchorToMember"></a><a id="internal:internal" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/internal/index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="internal/index.html" title=""><span class="name">internal</span></a></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="index.html" name="zio.test" id="zio.test" class="extype">test</a></dd></dl></div></li><li class="indented3 " name="zio.test.laws" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="laws" class="anchorToMember"></a><a id="laws:laws" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/laws/index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="laws/index.html" title="The laws package provides functionality for describing laws as values."><span class="name">laws</span></a></span><p class="shortcomment cmt">The <code>laws</code> package provides functionality for describing laws as values.</p><div class="fullcomment"><div class="comment cmt"><p>The <code>laws</code> package provides functionality for describing laws as values. The
-fundamental abstraction is a set of <code>ZLaws[Caps, R]</code>. These laws model the
-laws that instances having a capability of type <code>Caps</code> are expected to
-satisfy. A capability <code>Caps[_]</code> is an abstraction describing some
-functionality that is common across different data types and obeys certain
-laws. For example, we can model the capability of two values of a type being
-compared for equality as follows:</p><pre><span class="kw">trait</span> Equal[-A] {
-  <span class="kw">def</span> equal(a1: A, a2: A): <span class="std">Boolean</span>
-}</pre><p>Definitions of equality are expected to obey certain laws:</p><ol class="decimal"><li>Reflexivity - <code>a1 === a1</code></li><li>Symmetry - <code>a1 === a2 ==&gt; a2 === a1</code></li><li>Transitivity - <code>(a1 === a2) &amp;&amp; (a2 === a3) ==&gt; (a1 === a3)</code></li></ol><p>These laws define what the capabilities mean and ensure that it is safe to
-abstract across different instances with the same capability.</p><p>Using ZIO Test, we can represent these laws as values. To do so, we define
-each law using one of the <code>ZLaws</code> constructors. For example:</p><pre><span class="kw">val</span> transitivityLaw = ZLaws.Laws3[Equal](<span class="lit">"transitivityLaw"</span>) {
-  <span class="kw">def</span> apply[A: Equal](a1: A, a2: A, a3: A): TestResult =
-    ???
-}</pre><p>We can then combine laws using the <code>+</code> operator:</p><pre><span class="kw">val</span> reflexivityLaw: = ???
-<span class="kw">val</span> symmetryLaw:    = ???
 
-<span class="kw">val</span> equalLaws = reflexivityLaw + symmetryLaw + transitivityLaw</pre><p>Laws have a <code>run</code> method that takes a generator of values of type <code>A</code> and
-checks that those values satisfy the laws. In addition, objects can extend
-<code>ZLawful</code> to provide an even more convenient syntax for users to check that
-instances satisfy certain laws.</p><pre><span class="kw">object</span> Equal <span class="kw">extends</span> Lawful[Equal]
+ node0 -> node1;
+node1 -> node2;
+node1 -> node3;
+node3 -> node2;
+node0 -> node4;
+node4 -> node1;
+node5 -> node0;
+node6 -> node5;
+node7 -> node6;
 
-<span class="kw">object</span> Hash <span class="kw">extends</span> Lawful[Hash]
-
-<span class="kw">object</span> Ord <span class="kw">extends</span> Lawful[Ord]
-
-checkAllLaws(Equal + Hash + Ord)(Gen.int)</pre><p>Note that capabilities compose seamlessly because of contravariance. We can
-combine laws describing different capabilities to construct a set of laws
-requiring that instances having all of the capabilities satisfy each of the
-laws.
-</p></div><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="index.html" name="zio.test" id="zio.test" class="extype">test</a></dd></dl></div></li><li class="indented3 " name="zio.test.magnolia" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="magnolia" class="anchorToMember"></a><a id="magnolia:magnolia" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/magnolia/index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="magnolia/index.html" title=""><span class="name">magnolia</span></a></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="index.html" name="zio.test" id="zio.test" class="extype">test</a></dd></dl></div></li><li class="indented3 " name="zio.test.poly" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="poly" class="anchorToMember"></a><a id="poly:poly" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/poly/index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="poly/index.html" title=""><span class="name">poly</span></a></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="index.html" name="zio.test" id="zio.test" class="extype">test</a></dd></dl></div></li><li class="indented3 " name="zio.test.refined" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="refined" class="anchorToMember"></a><a id="refined:refined" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/refined/index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="refined/index.html" title=""><span class="name">refined</span></a></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="index.html" name="zio.test" id="zio.test" class="extype">test</a></dd></dl></div></li><li class="indented3 " name="zio.test.render" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="render" class="anchorToMember"></a><a id="render:render" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/render/index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="render/index.html" title=""><span class="name">render</span></a></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="index.html" name="zio.test" id="zio.test" class="extype">test</a></dd></dl></div></li><li class="indented3 " name="zio.test.results" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="results" class="anchorToMember"></a><a id="results:results" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/results/index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="results/index.html" title=""><span class="name">results</span></a></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="index.html" name="zio.test" id="zio.test" class="extype">test</a></dd></dl></div></li><li class="indented3 " name="zio.test.scalacheck" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="scalacheck" class="anchorToMember"></a><a id="scalacheck:scalacheck" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/scalacheck/index.html" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">package</span></span> <span class="symbol"><a href="scalacheck/index.html" title="This package provides helpers to integrate *some* ScalaCheck primitives to their ZIO equivalents."><span class="name">scalacheck</span></a></span><p class="shortcomment cmt">This package provides helpers to integrate *some* ScalaCheck primitives to
-their ZIO equivalents.</p><div class="fullcomment"><div class="comment cmt"><p>This package provides helpers to integrate *some* ScalaCheck primitives to
-their ZIO equivalents. Currently available helpers:</p><ul><li>Converting ScalaCheck Generators to ZIO Generators</li><li>Asserting a ScalaCheck <code>Prop</code> with ZIO</li><li>Asserting a ScalaCheck <code>Properties</code> with ZIO</li></ul><p>**Generators**</p><p>This functionality converts legacy ScalaCheck generators to ZIO Test
-generators to support upgrading to ZIO Test without having to reimplement
-existing generators. To use it import this module and then call <code>toGenZIO</code> on
-any existing ScalaCheck generator. For example:</p><pre><span class="kw">import</span> org.scalacheck.Arbitrary
-
-<span class="kw">import</span> zio._
-<span class="kw">import</span> zio.test._
-<span class="kw">import</span> zio.test.scalacheck._
-
-<span class="kw">val</span> anyInt: Gen[<span class="std">Any</span>, <span class="std">Int</span>] =
-  Arbitrary.arbitrary[<span class="std">Int</span>].toGenZIO</pre><p>**Asserting ScalaCheck <code>Prop</code> and <code>Properties</code>**</p><p>This functionality generates ZIO Assertions from either ScalaCheck <code>Prop</code> or
-<code>Properties</code>. This helps with integrating other libraries that provide
-ScalaCheck properties as helpers, i.e. cats-laws.</p><p><code>Prop</code> example:</p><pre><span class="kw">import</span> org.scalacheck.Prop
-<span class="kw">import</span> org.scalacheck.Test.{ Parameters <span class="kw">=&gt;</span> ScalaCheckParameters }
-
-<span class="kw">import</span> zio._
-<span class="kw">import</span> zio.test._
-<span class="kw">import</span> zio.test.scalacheck._
-
-<span class="kw">val</span> prop: Prop = Prop.forAll { (n: <span class="std">Int</span>, m: <span class="std">Int</span>) <span class="kw">=&gt;</span>
-  n + m == m + n
 }
-<span class="kw">val</span> resultDefault: TestResult = prop.assertZIO()
-
-<span class="kw">val</span> resultWithCustomizations: TestResult =
-  prop.assertZIO(<span class="lit">"My Prop Name"</span>, ScalaCheckParameters.default.withMaxSize(<span class="num">10</span>))</pre><p><code>Properties</code> example:</p><pre><span class="kw">import</span> org.scalacheck.{ Prop, Properties }
-<span class="kw">import</span> org.scalacheck.Test.{ Parameters <span class="kw">=&gt;</span> ScalaCheckParameters }
-
-<span class="kw">import</span> zio._
-<span class="kw">import</span> zio.test._
-<span class="kw">import</span> zio.test.scalacheck._
-
-<span class="kw">object</span> MyProperties <span class="kw">extends</span> Properties(<span class="lit">"MyProperties"</span>) {
-  property(<span class="lit">"myProp"</span>) = Prop.forAll { (n: <span class="std">Int</span>, m: <span class="std">Int</span>) <span class="kw">=&gt;</span>
-    n + m == m + n
-  }
-}
-
-* <span class="kw">val</span> resultDefault: TestResult = MyProperties.assertZIO()
-
-<span class="cmt">// Beware that we can't provide a custom name here, it will be</span>
-<span class="cmt">// taken from the `Properties` name parameter</span>
-<span class="kw">val</span> resultWithCustomizations: TestResult =
-  MyProperties.assertZIO(ScalaCheckParameters.default.withMaxSize(<span class="num">10</span>))</pre></div><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="index.html" name="zio.test" id="zio.test" class="extype">test</a></dd></dl></div></li><li class="current-entities indented2"><a href="Annotations$.html" title="" class="object"></a> <a href="Annotations.html" title="The Annotations trait provides access to an annotation map that tests can add arbitrary annotations to." class="trait"></a><a href="Annotations.html" title="The Annotations trait provides access to an annotation map that tests can add arbitrary annotations to.">Annotations</a></li><li class="current-entities indented2"><a href="Assertion$.html" title="" class="object"></a> <a href="Assertion.html" title="" class="class"></a><a href="Assertion.html" title="">Assertion</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="AssertionVariants.html" title="" class="trait"></a><a href="AssertionVariants.html" title="">AssertionVariants</a></li><li class="current-entities indented2"><a href="CheckConstructor$.html" title="" class="object"></a> <a href="CheckConstructor.html" title="" class="trait"></a><a href="CheckConstructor.html" title="">CheckConstructor</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="CheckConstructorLowPriority1.html" title="" class="trait"></a><a href="CheckConstructorLowPriority1.html" title="">CheckConstructorLowPriority1</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="CheckConstructorLowPriority2.html" title="" class="trait"></a><a href="CheckConstructorLowPriority2.html" title="">CheckConstructorLowPriority2</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="CheckConstructorLowPriority3.html" title="" class="trait"></a><a href="CheckConstructorLowPriority3.html" title="">CheckConstructorLowPriority3</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="package$$CheckVariants$.html" title="" class="object"></a><a href="package$$CheckVariants$.html" title="">CheckVariants</a></li><li class="current-entities indented2"><a href="CompileVariants$.html" title="Proxy methods to call package private methods from the macro" class="object"></a> <a href="CompileVariants.html" title="" class="trait"></a><a href="CompileVariants.html" title="">CompileVariants</a></li><li class="current-entities indented2"><a href="CustomAssertion$.html" title="" class="object"></a> <a href="CustomAssertion.html" title="CustomAssertion allows users to create their own custom assertions for use in assertTrue." class="class"></a><a href="CustomAssertion.html" title="CustomAssertion allows users to create their own custom assertions for use in assertTrue.">CustomAssertion</a></li><li class="current-entities indented2"><a href="Eql$.html" title="" class="object"></a> <a href="Eql.html" title="A value of type Eql[A, B] provides implicit evidence that two values with types A and B could potentially be equal, that is, that A is a subtype of B or B is a subtype of A." class="class"></a><a href="Eql.html" title="A value of type Eql[A, B] provides implicit evidence that two values with types A and B could potentially be equal, that is, that A is a subtype of B or B is a subtype of A.">Eql</a></li><li class="current-entities indented2"><a href="ErrorMessage$.html" title="" class="object"></a> <a href="ErrorMessage.html" title="" class="trait"></a><a href="ErrorMessage.html" title="">ErrorMessage</a></li><li class="current-entities indented2"><a href="ExecutionEvent$.html" title="" class="object"></a> <a href="ExecutionEvent.html" title="" class="trait"></a><a href="ExecutionEvent.html" title="">ExecutionEvent</a></li><li class="current-entities indented2"><a href="ExecutionEventSink$.html" title="" class="object"></a> <a href="ExecutionEventSink.html" title="" class="trait"></a><a href="ExecutionEventSink.html" title="">ExecutionEventSink</a></li><li class="current-entities indented2"><a href="FailureCase$.html" title="" class="object"></a> <a href="FailureCase.html" title="" class="class"></a><a href="FailureCase.html" title="">FailureCase</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="FunctionVariants.html" title="" class="trait"></a><a href="FunctionVariants.html" title="">FunctionVariants</a></li><li class="current-entities indented2"><a href="Gen$.html" title="" class="object"></a> <a href="Gen.html" title="A Gen[R, A] represents a generator of values of type A, which requires an environment R." class="class"></a><a href="Gen.html" title="A Gen[R, A] represents a generator of values of type A, which requires an environment R.">Gen</a></li><li class="current-entities indented2"><a href="GenFailureDetails$.html" title="" class="object"></a> <a href="GenFailureDetails.html" title="GenFailureDetails keeps track of relevant information related to a failure in a generative test." class="class"></a><a href="GenFailureDetails.html" title="GenFailureDetails keeps track of relevant information related to a failure in a generative test.">GenFailureDetails</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="GenZIO.html" title="" class="trait"></a><a href="GenZIO.html" title="">GenZIO</a></li><li class="current-entities indented2"><a href="Live$.html" title="" class="object"></a> <a href="Live.html" title="The Live trait provides access to the &quot;live&quot; default ZIO services from within ZIO Test for workflows such as printing test results to the console or timing out tests where it is necessary to access the real implementations of these services." class="trait"></a><a href="Live.html" title="The Live trait provides access to the &quot;live&quot; default ZIO services from within ZIO Test for workflows such as printing test results to the console or timing out tests where it is necessary to access the real implementations of these services.">Live</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="ProvideSomePartiallyApplied.html" title="" class="class"></a><a href="ProvideSomePartiallyApplied.html" title="">ProvideSomePartiallyApplied</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="ProvideSomeSharedPartiallyApplied.html" title="" class="class"></a><a href="ProvideSomeSharedPartiallyApplied.html" title="">ProvideSomeSharedPartiallyApplied</a></li><li class="current-entities indented2"><a href="ReporterEventRenderer$.html" title="" class="object"></a> <a href="ReporterEventRenderer.html" title="" class="trait"></a><a href="ReporterEventRenderer.html" title="">ReporterEventRenderer</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="Restorable.html" title="" class="trait"></a><a href="Restorable.html" title="">Restorable</a></li><li class="current-entities indented2"><a href="Result$.html" title="" class="object"></a> <a href="Result.html" title="" class="trait"></a><a href="Result.html" title="">Result</a></li><li class="current-entities indented2"><a href="Sample$.html" title="" class="object"></a> <a href="Sample.html" title="A sample is a single observation from a random variable, together with a tree of &quot;shrinkings&quot; used for minimization of &quot;large&quot; failures." class="class"></a><a href="Sample.html" title="A sample is a single observation from a random variable, together with a tree of &quot;shrinkings&quot; used for minimization of &quot;large&quot; failures.">Sample</a></li><li class="current-entities indented2"><a href="Sized$.html" title="" class="object"></a> <a href="Sized.html" title="" class="trait"></a><a href="Sized.html" title="">Sized</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="SmartAssertMacros.html" title="" class="class"></a><a href="SmartAssertMacros.html" title="">SmartAssertMacros</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="package$$SmartAssertionOps.html" title="" class="class"></a><a href="package$$SmartAssertionOps.html" title="">SmartAssertionOps</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="SmartSpecMacros.html" title="" class="class"></a><a href="SmartSpecMacros.html" title="">SmartSpecMacros</a></li><li class="current-entities indented2"><a href="Spec$.html" title="" class="object"></a> <a href="Spec.html" title="A Spec[R, E] is the backbone of _ZIO Test_." class="class"></a><a href="Spec.html" title="A Spec[R, E] is the backbone of _ZIO Test_.">Spec</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="SpecLayerMacros.html" title="" class="class"></a><a href="SpecLayerMacros.html" title="">SpecLayerMacros</a></li><li class="current-entities indented2"><a href="SuiteConstructor$.html" title="" class="object"></a> <a href="SuiteConstructor.html" title="" class="trait"></a><a href="SuiteConstructor.html" title="">SuiteConstructor</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="SuiteConstructorLowPriority1.html" title="" class="trait"></a><a href="SuiteConstructorLowPriority1.html" title="">SuiteConstructorLowPriority1</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="SuiteConstructorLowPriority2.html" title="" class="trait"></a><a href="SuiteConstructorLowPriority2.html" title="">SuiteConstructorLowPriority2</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="SuiteConstructorLowPriority3.html" title="" class="trait"></a><a href="SuiteConstructorLowPriority3.html" title="">SuiteConstructorLowPriority3</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="SuiteConstructorLowPriority4.html" title="" class="trait"></a><a href="SuiteConstructorLowPriority4.html" title="">SuiteConstructorLowPriority4</a></li><li class="current-entities indented2"><a href="SuiteId$.html" title="" class="object"></a> <a href="SuiteId.html" title="" class="class"></a><a href="SuiteId.html" title="">SuiteId</a></li><li class="current-entities indented2"><a href="Summary$.html" title="" class="object"></a> <a href="Summary.html" title="" class="class"></a><a href="Summary.html" title="">Summary</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="SummaryBuilder$.html" title="" class="object"></a><a href="SummaryBuilder$.html" title="">SummaryBuilder</a></li><li class="current-entities indented2"><a href="TestAnnotation$.html" title="" class="object"></a> <a href="TestAnnotation.html" title="A type of annotation." class="class"></a><a href="TestAnnotation.html" title="A type of annotation.">TestAnnotation</a></li><li class="current-entities indented2"><a href="TestAnnotationMap$.html" title="" class="object"></a> <a href="TestAnnotationMap.html" title="An annotation map keeps track of annotations of different types." class="class"></a><a href="TestAnnotationMap.html" title="An annotation map keeps track of annotations of different types.">TestAnnotationMap</a></li><li class="current-entities indented2"><a href="TestAnnotationRenderer$.html" title="" class="object"></a> <a href="TestAnnotationRenderer.html" title="A TestAnnotationRenderer knows how to render test annotations." class="class"></a><a href="TestAnnotationRenderer.html" title="A TestAnnotationRenderer knows how to render test annotations.">TestAnnotationRenderer</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="TestArgs$.html" title="" class="object"></a><a href="TestArgs$.html" title="">TestArgs</a></li><li class="current-entities indented2"><a href="TestArrow$.html" title="" class="object"></a> <a href="TestArrow.html" title="" class="trait"></a><a href="TestArrow.html" title="">TestArrow</a></li><li class="current-entities indented2"><a href="TestAspect$.html" title="" class="object"></a> <a href="TestAspect.html" title="A TestAspect is an aspect that can be weaved into specs." class="class"></a><a href="TestAspect.html" title="A TestAspect is an aspect that can be weaved into specs.">TestAspect</a></li><li class="current-entities indented2"><a href="TestClock$.html" title="" class="object"></a> <a href="TestClock.html" title="TestClock makes it easy to deterministically and efficiently test effects involving the passage of time." class="trait"></a><a href="TestClock.html" title="TestClock makes it easy to deterministically and efficiently test effects involving the passage of time.">TestClock</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="TestClockPlatformSpecific.html" title="" class="trait"></a><a href="TestClockPlatformSpecific.html" title="">TestClockPlatformSpecific</a></li><li class="current-entities indented2"><a href="TestConfig$.html" title="" class="object"></a> <a href="TestConfig.html" title="The TestConfig service provides access to default configuration settings used by ZIO Test, including the number of times to repeat tests to ensure they are stable, the number of times to retry flaky tests, the sufficient number of samples to check from a random variable, and the maximum number of shrinkings to minimize large failures." class="trait"></a><a href="TestConfig.html" title="The TestConfig service provides access to default configuration settings used by ZIO Test, including the number of times to repeat tests to ensure they are stable, the number of times to retry flaky tests, the sufficient number of samples to check from a random variable, and the maximum number of shrinkings to minimize large failures.">TestConfig</a></li><li class="current-entities indented2"><a href="TestConsole$.html" title="" class="object"></a> <a href="TestConsole.html" title="TestConsole provides a testable interface for programs interacting with the console by modeling input and output as reading from and writing to input and output buffers maintained by TestConsole and backed by a Ref." class="trait"></a><a href="TestConsole.html" title="TestConsole provides a testable interface for programs interacting with the console by modeling input and output as reading from and writing to input and output buffers maintained by TestConsole and backed by a Ref.">TestConsole</a></li><li class="current-entities indented2"><a href="TestConstructor$.html" title="" class="object"></a> <a href="TestConstructor.html" title="" class="trait"></a><a href="TestConstructor.html" title="">TestConstructor</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="TestConstructorLowPriority1.html" title="" class="trait"></a><a href="TestConstructorLowPriority1.html" title="">TestConstructorLowPriority1</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="TestConstructorLowPriority2.html" title="" class="trait"></a><a href="TestConstructorLowPriority2.html" title="">TestConstructorLowPriority2</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="TestConstructorLowPriority3.html" title="" class="trait"></a><a href="TestConstructorLowPriority3.html" title="">TestConstructorLowPriority3</a></li><li class="current-entities indented2"><a href="TestDuration$.html" title="" class="object"></a> <a href="TestDuration.html" title="" class="trait"></a><a href="TestDuration.html" title="">TestDuration</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="package$$TestEnvironment$.html" title="" class="object"></a><a href="package$$TestEnvironment$.html" title="">TestEnvironment</a></li><li class="current-entities indented2"><a href="TestExecutor$.html" title="" class="object"></a> <a href="TestExecutor.html" title="A TestExecutor[R, E] is capable of executing specs that require an environment R and may fail with an E." class="class"></a><a href="TestExecutor.html" title="A TestExecutor[R, E] is capable of executing specs that require an environment R and may fail with an E.">TestExecutor</a></li><li class="current-entities indented2"><a href="TestFailure$.html" title="" class="object"></a> <a href="TestFailure.html" title="" class="class"></a><a href="TestFailure.html" title="">TestFailure</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="TestLens.html" title="" class="class"></a><a href="TestLens.html" title="">TestLens</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="package$$TestLensAnyOps.html" title="" class="class"></a><a href="package$$TestLensAnyOps.html" title="">TestLensAnyOps</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="package$$TestLensCauseOps.html" title="" class="class"></a><a href="package$$TestLensCauseOps.html" title="">TestLensCauseOps</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="package$$TestLensEitherOps.html" title="" class="class"></a><a href="package$$TestLensEitherOps.html" title="">TestLensEitherOps</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="package$$TestLensExitOps.html" title="" class="class"></a><a href="package$$TestLensExitOps.html" title="">TestLensExitOps</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="package$$TestLensOptionOps.html" title="" class="class"></a><a href="package$$TestLensOptionOps.html" title="">TestLensOptionOps</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="package$$TestLensTryOps.html" title="" class="class"></a><a href="package$$TestLensTryOps.html" title="">TestLensTryOps</a></li><li class="current-entities indented2"><a href="TestLogger$.html" title="" class="object"></a> <a href="TestLogger.html" title="" class="trait"></a><a href="TestLogger.html" title="">TestLogger</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="TestPlatform$.html" title="TestPlatform provides information about the platform tests are being run on to enable platform specific test configuration." class="object"></a><a href="TestPlatform$.html" title="TestPlatform provides information about the platform tests are being run on to enable platform specific test configuration.">TestPlatform</a></li><li class="current-entities indented2"><a href="TestRandom$.html" title="" class="object"></a> <a href="TestRandom.html" title="TestRandom allows for deterministically testing effects involving randomness." class="trait"></a><a href="TestRandom.html" title="TestRandom allows for deterministically testing effects involving randomness.">TestRandom</a></li><li class="current-entities indented2"><a href="TestReporters$.html" title="" class="object"></a> <a href="TestReporters.html" title="" class="class"></a><a href="TestReporters.html" title="">TestReporters</a></li><li class="current-entities indented2"><a href="TestResult$.html" title="" class="object"></a> <a href="TestResult.html" title="" class="class"></a><a href="TestResult.html" title="">TestResult</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="package$$TestResultZIOOps.html" title="" class="class"></a><a href="package$$TestResultZIOOps.html" title="">TestResultZIOOps</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="TestRunner.html" title="A TestRunner[R, E] encapsulates all the logic necessary to run specs that require an environment R and may fail with an error E." class="class"></a><a href="TestRunner.html" title="A TestRunner[R, E] encapsulates all the logic necessary to run specs that require an environment R and may fail with an error E.">TestRunner</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="TestServices$.html" title="" class="object"></a><a href="TestServices$.html" title="">TestServices</a></li><li class="current-entities indented2"><a href="TestSuccess$.html" title="" class="object"></a> <a href="TestSuccess.html" title="" class="class"></a><a href="TestSuccess.html" title="">TestSuccess</a></li><li class="current-entities indented2"><a href="TestSystem$.html" title="" class="object"></a> <a href="TestSystem.html" title="TestSystem supports deterministic testing of effects involving system properties." class="trait"></a><a href="TestSystem.html" title="TestSystem supports deterministic testing of effects involving system properties.">TestSystem</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="TestTimeoutException.html" title="" class="class"></a><a href="TestTimeoutException.html" title="">TestTimeoutException</a></li><li class="current-entities indented2"><a href="TestTrace$.html" title="" class="object"></a> <a href="TestTrace.html" title="" class="trait"></a><a href="TestTrace.html" title="">TestTrace</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="TestVersion$.html" title="TestVersion provides information about the Scala version tests are being run on to enable platform specific test configuration." class="object"></a><a href="TestVersion$.html" title="TestVersion provides information about the Scala version tests are being run on to enable platform specific test configuration.">TestVersion</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="TimeVariants.html" title="" class="trait"></a><a href="TimeVariants.html" title="">TimeVariants</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="TimeoutVariants.html" title="" class="trait"></a><a href="TimeoutVariants.html" title="">TimeoutVariants</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="ZIOSpec.html" title="" class="class"></a><a href="ZIOSpec.html" title="">ZIOSpec</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="" title="" class="class"></a><a href="" title="">ZIOSpecAbstract</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="ZIOSpecDefault.html" title="" class="class"></a><a href="ZIOSpecDefault.html" title="">ZIOSpecDefault</a></li><li class="current-entities indented2"><span class="separator"></span> <a href="package$$ZTest$.html" title="" class="object"></a><a href="package$$ZTest$.html" title="">ZTest</a></li><li class="current-entities indented2"><a href="ZTestEventHandler$.html" title="" class="object"></a> <a href="ZTestEventHandler.html" title="" class="trait"></a><a href="ZTestEventHandler.html" title="">ZTestEventHandler</a></li><li class="current-entities indented2"><a href="ZTestLogger$.html" title="" class="object"></a> <a href="ZTestLogger.html" title="A ZTestLogger is an implementation of a ZLogger that writes all log messages to an internal data structure." class="trait"></a><a href="ZTestLogger.html" title="A ZTestLogger is an implementation of a ZLogger that writes all log messages to an internal data structure.">ZTestLogger</a></li></ul></div></div><div id="content"><body class="class type"><div id="definition"><div class="big-circle class">c</div><p id="owner"><a href="../index.html" name="zio" id="zio" class="extype">zio</a>.<a href="index.html" name="zio.test" id="zio.test" class="extype">test</a></p><h1>ZIOSpecAbstract<span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html" title="Permalink"><i class="material-icons"></i></a></span></h1><h3><span class="morelinks"></span></h3></div><h4 id="signature" class="signature"><span class="modifier_kind"><span class="modifier">abstract </span> <span class="kind">class</span></span> <span class="symbol"><span class="name">ZIOSpecAbstract</span><span class="result"> extends <a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a> with <span name="zio.test.ZIOSpecAbstractVersionSpecific" class="extype">ZIOSpecAbstractVersionSpecific</span></span></span></h4><div id="comment" class="fullcommenttop"><dl class="attributes block"><dt>Self Type</dt><dd><a href="" name="zio.test.ZIOSpecAbstract" id="zio.test.ZIOSpecAbstract" class="extype">ZIOSpecAbstract</a></dd><dt>Annotations</dt><dd><span class="name">@EnableReflectiveInstantiation</span><span class="args">()</span> </dd></dl><div class="toggleContainer"><div class="toggle block"><span>Linear Supertypes</span><div class="superTypes hiddenContent"><span name="zio.test.ZIOSpecAbstractVersionSpecific" class="extype">ZIOSpecAbstractVersionSpecific</span>, <a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a>, <span name="zio.ZIOAppVersionSpecific" class="extype">ZIOAppVersionSpecific</span>, <span name="zio.ZIOAppPlatformSpecific" class="extype">ZIOAppPlatformSpecific</span>, <a href="https://www.scala-lang.org/api/2.13.18/scala/AnyRef.html#scala.AnyRef" name="scala.AnyRef" id="scala.AnyRef" class="extype">AnyRef</a>, <a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a></div></div></div><div class="toggleContainer"><div class="toggle block"><span>Known Subclasses</span><div class="subClasses hiddenContent"><a href="ZIOSpec.html" name="zio.test.ZIOSpec" id="zio.test.ZIOSpec" class="extype">ZIOSpec</a>, <a href="ZIOSpecDefault.html" name="zio.test.ZIOSpecDefault" id="zio.test.ZIOSpecDefault" class="extype">ZIOSpecDefault</a></div></div></div></div><div id="mbrsel"><div class="toggle"></div><div id="memberfilter"><i class="material-icons arrow"></i><span class="input"><input placeholder="Filter all members" id="mbrsel-input" type="text" accesskey="/"/></span><i class="clear material-icons"></i></div><div id="filterby"><div id="order"><span class="filtertype">Ordering</span><ol><li class="alpha in"><span>Alphabetic</span></li><li class="inherit out"><span>By Inheritance</span></li></ol></div><div class="ancestors"><span class="filtertype">Inherited<br/></span><ol id="linearization"><li class="in" name="zio.test.ZIOSpecAbstract"><span>ZIOSpecAbstract</span></li><li class="in" name="zio.test.ZIOSpecAbstractVersionSpecific"><span>ZIOSpecAbstractVersionSpecific</span></li><li class="in" name="zio.ZIOApp"><span>ZIOApp</span></li><li class="in" name="zio.ZIOAppVersionSpecific"><span>ZIOAppVersionSpecific</span></li><li class="in" name="zio.ZIOAppPlatformSpecific"><span>ZIOAppPlatformSpecific</span></li><li class="in" name="scala.AnyRef"><span>AnyRef</span></li><li class="in" name="scala.Any"><span>Any</span></li></ol></div><div class="ancestors"><span class="filtertype"></span><ol><li class="hideall out"><span>Hide All</span></li><li class="showall in"><span>Show All</span></li></ol></div><div id="visbl"><span class="filtertype">Visibility</span><ol><li class="public in"><span>Public</span></li><li class="protected out"><span>Protected</span></li></ol></div></div></div><div id="template"><div id="allMembers"><div id="constructors" class="members"><h3>Instance Constructors</h3><ol><li class="indented0 " name="zio.test.ZIOSpecAbstract#&lt;init&gt;" group="Ungrouped" fullComment="no" data-isabs="false" visbl="pub"><a id="&lt;init&gt;():zio.test.ZIOSpecAbstract" class="anchorToMember"></a><a id="&lt;init&gt;:ZIOSpecAbstract" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#&lt;init&gt;():zio.test.ZIOSpecAbstract" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">new</span></span> <span class="symbol"><span class="name">ZIOSpecAbstract</span><span class="params">()</span></span></li></ol></div><div id="types" class="types members"><h3>Type Members</h3><ol><li class="indented0 " name="zio.ZIOApp.Environment" group="Ungrouped" fullComment="yes" data-isabs="true" visbl="pub"><a id="Environment" class="anchorToMember"></a><a id="Environment:Environment" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#Environment" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">abstract </span> <span class="kind">type</span></span> <span class="symbol"><span class="name">Environment</span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li></ol></div><div class="values members"><h3>Abstract Value Members</h3><ol><li class="indented0 " name="zio.test.ZIOSpecAbstract#bootstrap" group="Ungrouped" fullComment="yes" data-isabs="true" visbl="pub"><a id="bootstrap:zio.ZLayer[Any,Any,ZIOSpecAbstract.this.Environment]" class="anchorToMember"></a><a id="bootstrap:ZLayer[Any,Any,Environment]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#bootstrap:zio.ZLayer[Any,Any,ZIOSpecAbstract.this.Environment]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">abstract </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">bootstrap</span><span class="result">: <a href="../ZLayer.html" name="zio.ZLayer" id="zio.ZLayer" class="extype">ZLayer</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>, <a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>, <a href="#Environment" name="zio.test.ZIOSpecAbstract.Environment" id="zio.test.ZIOSpecAbstract.Environment" class="extmbr">Environment</a>]</span></span><p class="shortcomment cmt">A layer that manages the acquisition and release of services necessary for
-the application to run.</p><div class="fullcomment"><div class="comment cmt"><p>A layer that manages the acquisition and release of services necessary for
-the application to run.
-</p></div><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="" name="zio.test.ZIOSpecAbstract" id="zio.test.ZIOSpecAbstract" class="extype">ZIOSpecAbstract</a> → <a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="zio.ZIOApp#environmentTag" group="Ungrouped" fullComment="yes" data-isabs="true" visbl="pub"><a id="environmentTag:zio.EnvironmentTag[ZIOApp.this.Environment]" class="anchorToMember"></a><a id="environmentTag:zio.EnvironmentTag[Environment]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#environmentTag:zio.EnvironmentTag[ZIOApp.this.Environment]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">implicit abstract </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">environmentTag</span><span class="result">: <a href="../index.html#EnvironmentTag[A]=izumi.reflect.Tag[A]" name="zio.EnvironmentTag" id="zio.EnvironmentTag" class="extmbr">zio.EnvironmentTag</a>[<a href="#Environment" name="zio.test.ZIOSpecAbstract.Environment" id="zio.test.ZIOSpecAbstract.Environment" class="extmbr">Environment</a>]</span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="zio.test.ZIOSpecAbstract#spec" group="Ungrouped" fullComment="no" data-isabs="true" visbl="pub"><a id="spec:zio.test.Spec[ZIOSpecAbstract.this.Environmentwithzio.test.TestEnvironmentwithzio.Scope,Any]" class="anchorToMember"></a><a id="spec:Spec[EnvironmentwithTestEnvironmentwithScope,Any]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#spec:zio.test.Spec[ZIOSpecAbstract.this.Environmentwithzio.test.TestEnvironmentwithzio.Scope,Any]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">abstract </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">spec</span><span class="result">: <a href="Spec.html" name="zio.test.Spec" id="zio.test.Spec" class="extype">Spec</a>[<a href="#Environment" name="zio.test.ZIOSpecAbstract.Environment" id="zio.test.ZIOSpecAbstract.Environment" class="extmbr">Environment</a> with <a href="index.html#TestEnvironment=zio.test.Annotationswithzio.test.Livewithzio.test.Sizedwithzio.test.TestConfig" name="zio.test.TestEnvironment" id="zio.test.TestEnvironment" class="extmbr">TestEnvironment</a> with <a href="../Scope.html" name="zio.Scope" id="zio.Scope" class="extype">Scope</a>, <a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>]</span></span></li></ol></div><div class="values members"><h3>Concrete Value Members</h3><ol><li class="indented0 " name="scala.AnyRef#!=" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="!=(x$1:Any):Boolean" class="anchorToMember"></a><a id="!=(Any):Boolean" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#!=(x$1:Any):Boolean" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name" title="gt4s: $bang$eq">!=</span><span class="params">(<span name="arg0">arg0: <a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Boolean.html#scala.Boolean" name="scala.Boolean" id="scala.Boolean" class="extype">Boolean</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div></li><li class="indented0 " name="scala.AnyRef###" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="##:Int" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html###:Int" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name" title="gt4s: $hash$hash">##</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Int.html#scala.Int" name="scala.Int" id="scala.Int" class="extype">Int</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div></li><li class="indented0 " name="zio.test.ZIOSpecAbstract#&lt;&gt;" group="Ungrouped" fullComment="no" data-isabs="false" visbl="pub"><a id="&lt;&gt;(that:zio.test.ZIOSpecAbstract)(implicittrace:zio.Trace):zio.test.ZIOSpecAbstract" class="anchorToMember"></a><a id="&lt;&gt;(ZIOSpecAbstract)(Trace):ZIOSpecAbstract" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#&lt;&gt;(that:zio.test.ZIOSpecAbstract)(implicittrace:zio.Trace):zio.test.ZIOSpecAbstract" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name" title="gt4s: $less$greater">&lt;&gt;</span><span class="params">(<span name="that">that: <a href="" name="zio.test.ZIOSpecAbstract" id="zio.test.ZIOSpecAbstract" class="extype">ZIOSpecAbstract</a></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="trace">trace: <a href="../index.html#Trace=zio.internal.stacktracer.Tracer.instance.Typewithzio.internal.stacktracer.Tracer.Traced" name="zio.Trace" id="zio.Trace" class="extmbr">Trace</a></span>)</span><span class="result">: <a href="" name="zio.test.ZIOSpecAbstract" id="zio.test.ZIOSpecAbstract" class="extype">ZIOSpecAbstract</a></span></span></li><li class="indented0 " name="zio.ZIOApp#&lt;&gt;" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="&lt;&gt;(that:zio.ZIOApp)(implicittrace:zio.Trace):zio.ZIOApp" class="anchorToMember"></a><a id="&lt;&gt;(ZIOApp)(Trace):ZIOApp" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#&lt;&gt;(that:zio.ZIOApp)(implicittrace:zio.Trace):zio.ZIOApp" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name" title="gt4s: $less$greater">&lt;&gt;</span><span class="params">(<span name="that">that: <a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="trace">trace: <a href="../index.html#Trace=zio.internal.stacktracer.Tracer.instance.Typewithzio.internal.stacktracer.Tracer.Traced" name="zio.Trace" id="zio.Trace" class="extmbr">Trace</a></span>)</span><span class="result">: <a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></span></span><p class="shortcomment cmt">Composes this <a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a> with another <a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a>, to yield an application
-that executes the logic of both applications.</p><div class="fullcomment"><div class="comment cmt"><p>Composes this <a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a> with another <a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a>, to yield an application
-that executes the logic of both applications.
-</p></div><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="scala.AnyRef#==" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="==(x$1:Any):Boolean" class="anchorToMember"></a><a id="==(Any):Boolean" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#==(x$1:Any):Boolean" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name" title="gt4s: $eq$eq">==</span><span class="params">(<span name="arg0">arg0: <a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Boolean.html#scala.Boolean" name="scala.Boolean" id="scala.Boolean" class="extype">Boolean</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div></li><li class="indented0 " name="scala.Any#asInstanceOf" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="asInstanceOf[T0]:T0" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#asInstanceOf[T0]:T0" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">asInstanceOf</span><span class="tparams">[<span name="T0">T0</span>]</span><span class="result">: <span name="scala.Any.asInstanceOf.T0" class="extype">T0</span></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>Any</dd></dl></div></li><li class="indented0 " name="zio.test.ZIOSpecAbstract#aspects" group="Ungrouped" fullComment="no" data-isabs="false" visbl="pub"><a id="aspects:zio.Chunk[zio.test.TestAspectAtLeastR[ZIOSpecAbstract.this.Environmentwithzio.test.TestEnvironment]]" class="anchorToMember"></a><a id="aspects:Chunk[TestAspectAtLeastR[EnvironmentwithTestEnvironment]]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#aspects:zio.Chunk[zio.test.TestAspectAtLeastR[ZIOSpecAbstract.this.Environmentwithzio.test.TestEnvironment]]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">def</span></span> <span class="symbol"><span class="name">aspects</span><span class="result">: <a href="../Chunk.html" name="zio.Chunk" id="zio.Chunk" class="extype">Chunk</a>[<a href="index.html#TestAspectAtLeastR[-R]=zio.test.TestAspect[Nothing,R,Nothing,Any]" name="zio.test.TestAspectAtLeastR" id="zio.test.TestAspectAtLeastR" class="extmbr">TestAspectAtLeastR</a>[<a href="#Environment" name="zio.test.ZIOSpecAbstract.Environment" id="zio.test.ZIOSpecAbstract.Environment" class="extmbr">Environment</a> with <a href="index.html#TestEnvironment=zio.test.Annotationswithzio.test.Livewithzio.test.Sizedwithzio.test.TestConfig" name="zio.test.TestEnvironment" id="zio.test.TestEnvironment" class="extmbr">TestEnvironment</a>]]</span></span></li><li class="indented0 " name="scala.AnyRef#clone" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="prt"><a id="clone():Object" class="anchorToMember"></a><a id="clone():AnyRef" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#clone():Object" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">def</span></span> <span class="symbol"><span class="name">clone</span><span class="params">()</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/AnyRef.html#scala.AnyRef" name="scala.AnyRef" id="scala.AnyRef" class="extype">AnyRef</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Attributes</dt><dd>protected[<span name="java.lang" class="extype">lang</span>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd><span class="name">@throws</span><span class="args">(<span><span class="defval">classOf[java.lang.CloneNotSupportedException]</span></span>)</span> <span class="name">@native</span><span class="args">()</span> </dd></dl></div></li><li class="indented0 " name="scala.AnyRef#eq" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="eq(x$1:AnyRef):Boolean" class="anchorToMember"></a><a id="eq(AnyRef):Boolean" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#eq(x$1:AnyRef):Boolean" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">eq</span><span class="params">(<span name="arg0">arg0: <a href="https://www.scala-lang.org/api/2.13.18/scala/AnyRef.html#scala.AnyRef" name="scala.AnyRef" id="scala.AnyRef" class="extype">AnyRef</a></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Boolean.html#scala.Boolean" name="scala.Boolean" id="scala.Boolean" class="extype">Boolean</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div></li><li class="indented0 " name="scala.AnyRef#equals" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="equals(x$1:Object):Boolean" class="anchorToMember"></a><a id="equals(AnyRef):Boolean" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#equals(x$1:Object):Boolean" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">def</span></span> <span class="symbol"><span class="name">equals</span><span class="params">(<span name="arg0">arg0: <a href="https://www.scala-lang.org/api/2.13.18/scala/AnyRef.html#scala.AnyRef" name="scala.AnyRef" id="scala.AnyRef" class="extype">AnyRef</a></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Boolean.html#scala.Boolean" name="scala.Boolean" id="scala.Boolean" class="extype">Boolean</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div></li><li class="indented0 " name="zio.ZIOApp#exit" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="exit(code:zio.ExitCode)(implicittrace:zio.Trace):zio.UIO[Unit]" class="anchorToMember"></a><a id="exit(ExitCode)(Trace):UIO[Unit]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#exit(code:zio.ExitCode)(implicittrace:zio.Trace):zio.UIO[Unit]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">exit</span><span class="params">(<span name="code">code: <a href="../ExitCode.html" name="zio.ExitCode" id="zio.ExitCode" class="extype">ExitCode</a></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="trace">trace: <a href="../index.html#Trace=zio.internal.stacktracer.Tracer.instance.Typewithzio.internal.stacktracer.Tracer.Traced" name="zio.Trace" id="zio.Trace" class="extmbr">Trace</a></span>)</span><span class="result">: <a href="../index.html#UIO[+A]=zio.ZIO[Any,Nothing,A]" name="zio.UIO" id="zio.UIO" class="extmbr">UIO</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Unit.html#scala.Unit" name="scala.Unit" id="scala.Unit" class="extype">Unit</a>]</span></span><p class="shortcomment cmt">A helper function to exit the application with the specified exit code.</p><div class="fullcomment"><div class="comment cmt"><p>A helper function to exit the application with the specified exit code.
-</p></div><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="zio.ZIOApp#exitUnsafe" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="prt"><a id="exitUnsafe(exit:zio.Exit[Nothing,zio.ExitCode])(implicitunsafe:zio.Unsafe):Unit" class="anchorToMember"></a><a id="exitUnsafe(Exit[Nothing,ExitCode])(Unsafe):Unit" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#exitUnsafe(exit:zio.Exit[Nothing,zio.ExitCode])(implicitunsafe:zio.Unsafe):Unit" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">exitUnsafe</span><span class="params">(<span name="exit">exit: <a href="../Exit.html" name="zio.Exit" id="zio.Exit" class="extype">Exit</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Nothing.html#scala.Nothing" name="scala.Nothing" id="scala.Nothing" class="extype">Nothing</a>, <a href="../ExitCode.html" name="zio.ExitCode" id="zio.ExitCode" class="extype">ExitCode</a>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="unsafe">unsafe: <a href="../Unsafe.html" name="zio.Unsafe" id="zio.Unsafe" class="extype">Unsafe</a></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Unit.html#scala.Unit" name="scala.Unit" id="scala.Unit" class="extype">Unit</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Attributes</dt><dd>protected[<a href="../index.html" name="zio" id="zio" class="extype">zio</a>] </dd><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="zio.ZIOApp#exitUnsafe" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="prt"><a id="exitUnsafe(code:zio.ExitCode)(implicitunsafe:zio.Unsafe):Unit" class="anchorToMember"></a><a id="exitUnsafe(ExitCode)(Unsafe):Unit" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#exitUnsafe(code:zio.ExitCode)(implicitunsafe:zio.Unsafe):Unit" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">def</span></span> <span class="symbol"><span class="name">exitUnsafe</span><span class="params">(<span name="code">code: <a href="../ExitCode.html" name="zio.ExitCode" id="zio.ExitCode" class="extype">ExitCode</a></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="unsafe">unsafe: <a href="../Unsafe.html" name="zio.Unsafe" id="zio.Unsafe" class="extype">Unsafe</a></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Unit.html#scala.Unit" name="scala.Unit" id="scala.Unit" class="extype">Unit</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Attributes</dt><dd>protected[<a href="../index.html" name="zio" id="zio" class="extype">zio</a>] </dd><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="zio.ZIOApp#getArgs" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="getArgs(implicittrace:zio.Trace):zio.ZIO[zio.ZIOAppArgs,Nothing,zio.Chunk[String]]" class="anchorToMember"></a><a id="getArgs(Trace):ZIO[ZIOAppArgs,Nothing,Chunk[String]]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#getArgs(implicittrace:zio.Trace):zio.ZIO[zio.ZIOAppArgs,Nothing,zio.Chunk[String]]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">getArgs</span><span class="params">(<span class="implicit">implicit </span><span name="trace">trace: <a href="../index.html#Trace=zio.internal.stacktracer.Tracer.instance.Typewithzio.internal.stacktracer.Tracer.Traced" name="zio.Trace" id="zio.Trace" class="extmbr">Trace</a></span>)</span><span class="result">: <a href="../ZIO.html" name="zio.ZIO" id="zio.ZIO" class="extype">ZIO</a>[<a href="../ZIOAppArgs.html" name="zio.ZIOAppArgs" id="zio.ZIOAppArgs" class="extype">ZIOAppArgs</a>, <a href="https://www.scala-lang.org/api/2.13.18/scala/Nothing.html#scala.Nothing" name="scala.Nothing" id="scala.Nothing" class="extype">Nothing</a>, <a href="../Chunk.html" name="zio.Chunk" id="zio.Chunk" class="extype">Chunk</a>[<span name="scala.Predef.String" class="extype">String</span>]]</span></span><p class="shortcomment cmt">A helper function to obtain access to the command-line arguments of the
-application.</p><div class="fullcomment"><div class="comment cmt"><p>A helper function to obtain access to the command-line arguments of the
-application. You may use this helper function inside your <code>run</code> function.
-</p></div><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="scala.AnyRef#getClass" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="getClass():Class[_]" class="anchorToMember"></a><a id="getClass():Class[_&lt;:AnyRef]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#getClass():Class[_]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">getClass</span><span class="params">()</span><span class="result">: <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/Class.html#java.lang.Class" name="java.lang.Class" id="java.lang.Class" class="extype">Class</a>[_ &lt;: <a href="https://www.scala-lang.org/api/2.13.18/scala/AnyRef.html#scala.AnyRef" name="scala.AnyRef" id="scala.AnyRef" class="extype">AnyRef</a>]</span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef → Any</dd><dt>Annotations</dt><dd><span class="name">@native</span><span class="args">()</span> </dd></dl></div></li><li class="indented0 " name="zio.ZIOApp#gracefulShutdownTimeout" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="gracefulShutdownTimeout:zio.Duration" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#gracefulShutdownTimeout:zio.Duration" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">def</span></span> <span class="symbol"><span class="name">gracefulShutdownTimeout</span><span class="result">: <a href="../index.html#Duration=java.time.Duration" name="zio.Duration" id="zio.Duration" class="extmbr">zio.Duration</a></span></span><p class="shortcomment cmt">The time that the application will wait for finalizers to run before
-exiting.</p><div class="fullcomment"><div class="comment cmt"><p>The time that the application will wait for finalizers to run before
-exiting.</p><p><b>NOTE</b>: This is currently used only for JVM &amp; ScalaNative applications
-</p></div><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="scala.AnyRef#hashCode" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="hashCode():Int" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#hashCode():Int" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">def</span></span> <span class="symbol"><span class="name">hashCode</span><span class="params">()</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Int.html#scala.Int" name="scala.Int" id="scala.Int" class="extype">Int</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef → Any</dd><dt>Annotations</dt><dd><span class="name">@native</span><span class="args">()</span> </dd></dl></div></li><li class="indented0 " name="zio.ZIOApp#installSignalHandlers" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="prt"><a id="installSignalHandlers(runtime:zio.Runtime[Any])(implicittrace:zio.Trace):zio.UIO[Any]" class="anchorToMember"></a><a id="installSignalHandlers(Runtime[Any])(Trace):UIO[Any]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#installSignalHandlers(runtime:zio.Runtime[Any])(implicittrace:zio.Trace):zio.UIO[Any]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">def</span></span> <span class="symbol"><span class="name">installSignalHandlers</span><span class="params">(<span name="runtime">runtime: <a href="../Runtime.html" name="zio.Runtime" id="zio.Runtime" class="extype">Runtime</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="trace">trace: <a href="../index.html#Trace=zio.internal.stacktracer.Tracer.instance.Typewithzio.internal.stacktracer.Tracer.Traced" name="zio.Trace" id="zio.Trace" class="extmbr">Trace</a></span>)</span><span class="result">: <a href="../index.html#UIO[+A]=zio.ZIO[Any,Nothing,A]" name="zio.UIO" id="zio.UIO" class="extmbr">UIO</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>]</span></span><div class="fullcomment"><dl class="attributes block"><dt>Attributes</dt><dd>protected </dd><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="zio.ZIOApp#interruptRootFibers" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="prt"><a id="interruptRootFibers(mainFiberId:zio.FiberId)(implicittrace:zio.Trace):zio.UIO[Unit]" class="anchorToMember"></a><a id="interruptRootFibers(FiberId)(Trace):UIO[Unit]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#interruptRootFibers(mainFiberId:zio.FiberId)(implicittrace:zio.Trace):zio.UIO[Unit]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">def</span></span> <span class="symbol"><span class="name">interruptRootFibers</span><span class="params">(<span name="mainFiberId">mainFiberId: <a href="../FiberId.html" name="zio.FiberId" id="zio.FiberId" class="extype">FiberId</a></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="trace">trace: <a href="../index.html#Trace=zio.internal.stacktracer.Tracer.instance.Typewithzio.internal.stacktracer.Tracer.Traced" name="zio.Trace" id="zio.Trace" class="extmbr">Trace</a></span>)</span><span class="result">: <a href="../index.html#UIO[+A]=zio.ZIO[Any,Nothing,A]" name="zio.UIO" id="zio.UIO" class="extmbr">UIO</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Unit.html#scala.Unit" name="scala.Unit" id="scala.Unit" class="extype">Unit</a>]</span></span><div class="fullcomment"><dl class="attributes block"><dt>Attributes</dt><dd>protected[<a href="../index.html" name="zio" id="zio" class="extype">zio</a>] </dd><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="zio.ZIOApp#invoke" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="invoke(args:zio.Chunk[String])(implicittrace:zio.Trace):zio.ZIO[Any,Any,Any]" class="anchorToMember"></a><a id="invoke(Chunk[String])(Trace):ZIO[Any,Any,Any]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#invoke(args:zio.Chunk[String])(implicittrace:zio.Trace):zio.ZIO[Any,Any,Any]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">invoke</span><span class="params">(<span name="args">args: <a href="../Chunk.html" name="zio.Chunk" id="zio.Chunk" class="extype">Chunk</a>[<span name="scala.Predef.String" class="extype">String</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="trace">trace: <a href="../index.html#Trace=zio.internal.stacktracer.Tracer.instance.Typewithzio.internal.stacktracer.Tracer.Traced" name="zio.Trace" id="zio.Trace" class="extmbr">Trace</a></span>)</span><span class="result">: <a href="../ZIO.html" name="zio.ZIO" id="zio.ZIO" class="extype">ZIO</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>, <a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>, <a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>]</span></span><p class="shortcomment cmt">Invokes the main app.</p><div class="fullcomment"><div class="comment cmt"><p>Invokes the main app. Designed primarily for testing.
-</p></div><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="scala.Any#isInstanceOf" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="isInstanceOf[T0]:Boolean" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#isInstanceOf[T0]:Boolean" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">isInstanceOf</span><span class="tparams">[<span name="T0">T0</span>]</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Boolean.html#scala.Boolean" name="scala.Boolean" id="scala.Boolean" class="extype">Boolean</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>Any</dd></dl></div></li><li class="indented0 " name="zio.ZIOAppPlatformSpecific#main" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="main(args0:Array[String]):Unit" class="anchorToMember"></a><a id="main(Array[String]):Unit" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#main(args0:Array[String]):Unit" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">main</span><span class="params">(<span name="args0">args0: <a href="https://www.scala-lang.org/api/2.13.18/scala/Array.html#scala.Array" name="scala.Array" id="scala.Array" class="extype">Array</a>[<span name="scala.Predef.String" class="extype">String</span>]</span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Unit.html#scala.Unit" name="scala.Unit" id="scala.Unit" class="extype">Unit</a></span></span><p class="shortcomment cmt">The Scala main function, intended to be called only by the Scala runtime.</p><div class="fullcomment"><div class="comment cmt"><p>The Scala main function, intended to be called only by the Scala runtime.
-</p></div><dl class="attributes block"><dt>Definition Classes</dt><dd>ZIOAppPlatformSpecific</dd></dl></div></li><li class="indented0 " name="scala.AnyRef#ne" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="ne(x$1:AnyRef):Boolean" class="anchorToMember"></a><a id="ne(AnyRef):Boolean" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#ne(x$1:AnyRef):Boolean" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">ne</span><span class="params">(<span name="arg0">arg0: <a href="https://www.scala-lang.org/api/2.13.18/scala/AnyRef.html#scala.AnyRef" name="scala.AnyRef" id="scala.AnyRef" class="extype">AnyRef</a></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Boolean.html#scala.Boolean" name="scala.Boolean" id="scala.Boolean" class="extype">Boolean</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div></li><li class="indented0 " name="scala.AnyRef#notify" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="notify():Unit" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#notify():Unit" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">notify</span><span class="params">()</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Unit.html#scala.Unit" name="scala.Unit" id="scala.Unit" class="extype">Unit</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd><span class="name">@native</span><span class="args">()</span> </dd></dl></div></li><li class="indented0 " name="scala.AnyRef#notifyAll" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="notifyAll():Unit" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#notifyAll():Unit" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">notifyAll</span><span class="params">()</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Unit.html#scala.Unit" name="scala.Unit" id="scala.Unit" class="extype">Unit</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd><span class="name">@native</span><span class="args">()</span> </dd></dl></div></li><li class="indented0 " name="zio.test.ZIOSpecAbstract#run" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="run:zio.ZIO[ZIOSpecAbstract.this.Environmentwithzio.ZIOAppArgswithzio.Scope,Any,zio.test.Summary]" class="anchorToMember"></a><a id="run:ZIO[EnvironmentwithZIOAppArgswithScope,Any,Summary]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#run:zio.ZIO[ZIOSpecAbstract.this.Environmentwithzio.ZIOAppArgswithzio.Scope,Any,zio.test.Summary]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">run</span><span class="result">: <a href="../ZIO.html" name="zio.ZIO" id="zio.ZIO" class="extype">ZIO</a>[<a href="#Environment" name="zio.test.ZIOSpecAbstract.Environment" id="zio.test.ZIOSpecAbstract.Environment" class="extmbr">Environment</a> with <a href="../ZIOAppArgs.html" name="zio.ZIOAppArgs" id="zio.ZIOAppArgs" class="extype">ZIOAppArgs</a> with <a href="../Scope.html" name="zio.Scope" id="zio.Scope" class="extype">Scope</a>, <a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>, <a href="Summary.html" name="zio.test.Summary" id="zio.test.Summary" class="extype">Summary</a>]</span></span><p class="shortcomment cmt">The main function of the application, which can access the command-line
-arguments through the <code>args</code> helper method of this class.</p><div class="fullcomment"><div class="comment cmt"><p>The main function of the application, which can access the command-line
-arguments through the <code>args</code> helper method of this class. If the provided
-effect fails for any reason, the cause will be logged, and the exit code of
-the application will be non-zero. Otherwise, the exit code of the
-application will be zero.
-</p></div><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="" name="zio.test.ZIOSpecAbstract" id="zio.test.ZIOSpecAbstract" class="extype">ZIOSpecAbstract</a> → <a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="zio.test.ZIOSpecAbstract#runSpec" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="prt"><a id="runSpec(implicittrace:zio.Trace):zio.ZIO[ZIOSpecAbstract.this.Environmentwithzio.test.TestEnvironmentwithzio.ZIOAppArgswithzio.Scope,Throwable,zio.test.Summary]" class="anchorToMember"></a><a id="runSpec(Trace):ZIO[EnvironmentwithTestEnvironmentwithZIOAppArgswithScope,Throwable,Summary]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#runSpec(implicittrace:zio.Trace):zio.ZIO[ZIOSpecAbstract.this.Environmentwithzio.test.TestEnvironmentwithzio.ZIOAppArgswithzio.Scope,Throwable,zio.test.Summary]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">runSpec</span><span class="params">(<span class="implicit">implicit </span><span name="trace">trace: <a href="../index.html#Trace=zio.internal.stacktracer.Tracer.instance.Typewithzio.internal.stacktracer.Tracer.Traced" name="zio.Trace" id="zio.Trace" class="extmbr">Trace</a></span>)</span><span class="result">: <a href="../ZIO.html" name="zio.ZIO" id="zio.ZIO" class="extype">ZIO</a>[<a href="#Environment" name="zio.test.ZIOSpecAbstract.Environment" id="zio.test.ZIOSpecAbstract.Environment" class="extmbr">Environment</a> with <a href="index.html#TestEnvironment=zio.test.Annotationswithzio.test.Livewithzio.test.Sizedwithzio.test.TestConfig" name="zio.test.TestEnvironment" id="zio.test.TestEnvironment" class="extmbr">TestEnvironment</a> with <a href="../ZIOAppArgs.html" name="zio.ZIOAppArgs" id="zio.ZIOAppArgs" class="extype">ZIOAppArgs</a> with <a href="../Scope.html" name="zio.Scope" id="zio.Scope" class="extype">Scope</a>, <span name="scala.Throwable" class="extype">Throwable</span>, <a href="Summary.html" name="zio.test.Summary" id="zio.test.Summary" class="extype">Summary</a>]</span></span><div class="fullcomment"><dl class="attributes block"><dt>Attributes</dt><dd>protected </dd></dl></div></li><li class="indented0 " name="zio.ZIOApp#runtime" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="runtime:zio.Runtime[Any]" class="anchorToMember"></a><a id="runtime:Runtime[Any]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#runtime:zio.Runtime[Any]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">def</span></span> <span class="symbol"><span class="name">runtime</span><span class="result">: <a href="../Runtime.html" name="zio.Runtime" id="zio.Runtime" class="extype">Runtime</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>]</span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="scala.AnyRef#synchronized" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="synchronized[T0](x$1:=&gt;T0):T0" class="anchorToMember"></a><a id="synchronized[T0](=&gt;T0):T0" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#synchronized[T0](x$1:=&gt;T0):T0" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">synchronized</span><span class="tparams">[<span name="T0">T0</span>]</span><span class="params">(<span name="arg0">arg0: =&gt; <span name="java.lang.AnyRef.synchronized.T0" class="extype">T0</span></span>)</span><span class="result">: <span name="java.lang.AnyRef.synchronized.T0" class="extype">T0</span></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef</dd></dl></div></li><li class="indented0 " name="scala.AnyRef#toString" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="toString():String" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#toString():String" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">def</span></span> <span class="symbol"><span class="name">toString</span><span class="params">()</span><span class="result">: <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/String.html#java.lang.String" name="java.lang.String" id="java.lang.String" class="extype">String</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef → Any</dd></dl></div></li><li class="indented0 " name="zio.test.ZIOSpecAbstractVersionSpecific#validateEnv" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="validateEnv[R1,R,E](spec:zio.test.Spec[R,E]):zio.test.Spec[R1,E]" class="anchorToMember"></a><a id="validateEnv[R1,R,E](Spec[R,E]):Spec[R1,E]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#validateEnv[R1,R,E](spec:zio.test.Spec[R,E]):zio.test.Spec[R1,E]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">implicit macro </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">validateEnv</span><span class="tparams">[<span name="R1">R1</span>, <span name="R">R</span>, <span name="E">E</span>]</span><span class="params">(<span name="spec">spec: <a href="Spec.html" name="zio.test.Spec" id="zio.test.Spec" class="extype">Spec</a>[<span name="zio.test.ZIOSpecAbstractVersionSpecific.validateEnv.R" class="extype">R</span>, <span name="zio.test.ZIOSpecAbstractVersionSpecific.validateEnv.E" class="extype">E</span>]</span>)</span><span class="result">: <a href="Spec.html" name="zio.test.Spec" id="zio.test.Spec" class="extype">Spec</a>[<span name="zio.test.ZIOSpecAbstractVersionSpecific.validateEnv.R1" class="extype">R1</span>, <span name="zio.test.ZIOSpecAbstractVersionSpecific.validateEnv.E" class="extype">E</span>]</span></span><p class="shortcomment cmt">This implicit conversion macro will ensure that the provided ZIO effect
-does not require more than the provided environment.</p><div class="fullcomment"><div class="comment cmt"><p>This implicit conversion macro will ensure that the provided ZIO effect
-does not require more than the provided environment.</p><p>If it is missing requirements, it will report a descriptive error message.
-Otherwise, the effect will be returned unmodified.
-</p></div><dl class="attributes block"><dt>Definition Classes</dt><dd>ZIOSpecAbstractVersionSpecific</dd></dl></div></li><li class="indented0 " name="zio.ZIOAppVersionSpecific#validateEnv" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="validateEnv[R1,R,E,A](zio:zio.ZIO[R,E,A]):zio.ZIO[R1,E,A]" class="anchorToMember"></a><a id="validateEnv[R1,R,E,A](ZIO[R,E,A]):ZIO[R1,E,A]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#validateEnv[R1,R,E,A](zio:zio.ZIO[R,E,A]):zio.ZIO[R1,E,A]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">implicit macro </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">validateEnv</span><span class="tparams">[<span name="R1">R1</span>, <span name="R">R</span>, <span name="E">E</span>, <span name="A">A</span>]</span><span class="params">(<span name="zio">zio: <a href="../ZIO.html" name="zio.ZIO" id="zio.ZIO" class="extype">ZIO</a>[<span name="zio.ZIOAppVersionSpecific.validateEnv.R" class="extype">R</span>, <span name="zio.ZIOAppVersionSpecific.validateEnv.E" class="extype">E</span>, <span name="zio.ZIOAppVersionSpecific.validateEnv.A" class="extype">A</span>]</span>)</span><span class="result">: <a href="../ZIO.html" name="zio.ZIO" id="zio.ZIO" class="extype">ZIO</a>[<span name="zio.ZIOAppVersionSpecific.validateEnv.R1" class="extype">R1</span>, <span name="zio.ZIOAppVersionSpecific.validateEnv.E" class="extype">E</span>, <span name="zio.ZIOAppVersionSpecific.validateEnv.A" class="extype">A</span>]</span></span><p class="shortcomment cmt">This implicit conversion macro will ensure that the provided ZIO effect
-does not require more than the provided environment.</p><div class="fullcomment"><div class="comment cmt"><p>This implicit conversion macro will ensure that the provided ZIO effect
-does not require more than the provided environment.</p><p>If it is missing requirements, it will report a descriptive error message.
-Otherwise, the effect will be returned unmodified.
-</p></div><dl class="attributes block"><dt>Definition Classes</dt><dd>ZIOAppVersionSpecific</dd></dl></div></li><li class="indented0 " name="scala.AnyRef#wait" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="wait():Unit" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#wait():Unit" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">wait</span><span class="params">()</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Unit.html#scala.Unit" name="scala.Unit" id="scala.Unit" class="extype">Unit</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd><span class="name">@throws</span><span class="args">(<span><span class="defval">classOf[java.lang.InterruptedException]</span></span>)</span> </dd></dl></div></li><li class="indented0 " name="scala.AnyRef#wait" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="wait(x$1:Long,x$2:Int):Unit" class="anchorToMember"></a><a id="wait(Long,Int):Unit" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#wait(x$1:Long,x$2:Int):Unit" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">wait</span><span class="params">(<span name="arg0">arg0: <a href="https://www.scala-lang.org/api/2.13.18/scala/Long.html#scala.Long" name="scala.Long" id="scala.Long" class="extype">Long</a></span>, <span name="arg1">arg1: <a href="https://www.scala-lang.org/api/2.13.18/scala/Int.html#scala.Int" name="scala.Int" id="scala.Int" class="extype">Int</a></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Unit.html#scala.Unit" name="scala.Unit" id="scala.Unit" class="extype">Unit</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd><span class="name">@throws</span><span class="args">(<span><span class="defval">classOf[java.lang.InterruptedException]</span></span>)</span> </dd></dl></div></li><li class="indented0 " name="scala.AnyRef#wait" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="pub"><a id="wait(x$1:Long):Unit" class="anchorToMember"></a><a id="wait(Long):Unit" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#wait(x$1:Long):Unit" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">wait</span><span class="params">(<span name="arg0">arg0: <a href="https://www.scala-lang.org/api/2.13.18/scala/Long.html#scala.Long" name="scala.Long" id="scala.Long" class="extype">Long</a></span>)</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Unit.html#scala.Unit" name="scala.Unit" id="scala.Unit" class="extype">Unit</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd><span class="name">@throws</span><span class="args">(<span><span class="defval">classOf[java.lang.InterruptedException]</span></span>)</span> <span class="name">@native</span><span class="args">()</span> </dd></dl></div></li><li class="indented0 " name="zio.ZIOApp#workflow" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="prt"><a id="workflow(args:zio.Chunk[String],skipLogging:Boolean)(implicittrace:zio.Trace):zio.ZIO[Any,Any,Any]" class="anchorToMember"></a><a id="workflow(Chunk[String],Boolean)(Trace):ZIO[Any,Any,Any]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#workflow(args:zio.Chunk[String],skipLogging:Boolean)(implicittrace:zio.Trace):zio.ZIO[Any,Any,Any]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">workflow</span><span class="params">(<span name="args">args: <a href="../Chunk.html" name="zio.Chunk" id="zio.Chunk" class="extype">Chunk</a>[<span name="scala.Predef.String" class="extype">String</span>]</span>, <span name="skipLogging">skipLogging: <a href="https://www.scala-lang.org/api/2.13.18/scala/Boolean.html#scala.Boolean" name="scala.Boolean" id="scala.Boolean" class="extype">Boolean</a></span>)</span><span class="params">(<span class="implicit">implicit </span><span name="trace">trace: <a href="../index.html#Trace=zio.internal.stacktracer.Tracer.instance.Typewithzio.internal.stacktracer.Tracer.Traced" name="zio.Trace" id="zio.Trace" class="extmbr">Trace</a></span>)</span><span class="result">: <a href="../ZIO.html" name="zio.ZIO" id="zio.ZIO" class="extype">ZIO</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>, <a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>, <a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>]</span></span><div class="fullcomment"><dl class="attributes block"><dt>Attributes</dt><dd>protected[<a href="../index.html" name="zio" id="zio" class="extype">zio</a>] </dd><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li><li class="indented0 " name="zio.ZIOApp#workflow" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="prt"><a id="workflow(args:Array[String])(implicittrace:zio.Trace):zio.ZIO[Any,Any,Any]" class="anchorToMember"></a><a id="workflow(Array[String])(Trace):ZIO[Any,Any,Any]" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#workflow(args:Array[String])(implicittrace:zio.Trace):zio.ZIO[Any,Any,Any]" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier">final </span> <span class="kind">def</span></span> <span class="symbol"><span class="name">workflow</span><span class="params">(<span name="args">args: <a href="https://www.scala-lang.org/api/2.13.18/scala/Array.html#scala.Array" name="scala.Array" id="scala.Array" class="extype">Array</a>[<span name="scala.Predef.String" class="extype">String</span>]</span>)</span><span class="params">(<span class="implicit">implicit </span><span name="trace">trace: <a href="../index.html#Trace=zio.internal.stacktracer.Tracer.instance.Typewithzio.internal.stacktracer.Tracer.Traced" name="zio.Trace" id="zio.Trace" class="extmbr">Trace</a></span>)</span><span class="result">: <a href="../ZIO.html" name="zio.ZIO" id="zio.ZIO" class="extype">ZIO</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>, <a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>, <a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a>]</span></span><div class="fullcomment"><dl class="attributes block"><dt>Attributes</dt><dd>protected[<a href="../index.html" name="zio" id="zio" class="extype">zio</a>] </dd><dt>Definition Classes</dt><dd><a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></dd></dl></div></li></ol></div><div class="values members"><h3>Deprecated Value Members</h3><ol><li class="indented0 " name="scala.AnyRef#finalize" group="Ungrouped" fullComment="yes" data-isabs="false" visbl="prt"><a id="finalize():Unit" class="anchorToMember"></a> <span class="permalink"><a href="../../zio/test/ZIOSpecAbstract.html#finalize():Unit" title="Permalink"><i class="material-icons"></i></a></span> <span class="modifier_kind"><span class="modifier"></span> <span class="kind">def</span></span> <span class="symbol"><span class="name deprecated" title="Deprecated: (Since version 9)">finalize</span><span class="params">()</span><span class="result">: <a href="https://www.scala-lang.org/api/2.13.18/scala/Unit.html#scala.Unit" name="scala.Unit" id="scala.Unit" class="extype">Unit</a></span></span><div class="fullcomment"><dl class="attributes block"><dt>Attributes</dt><dd>protected[<span name="java.lang" class="extype">lang</span>] </dd><dt>Definition Classes</dt><dd>AnyRef</dd><dt>Annotations</dt><dd><span class="name">@throws</span><span class="args">(<span><span class="symbol">classOf[java.lang.Throwable]</span></span>)</span> <span class="name">@Deprecated</span> </dd><dt>Deprecated</dt><dd class="cmt"><p><i>(Since version 9)</i></p></dd></dl></div></li></ol></div></div><div id="inheritedMembers"><div name="zio.test.ZIOSpecAbstractVersionSpecific" class="parent"><h3>Inherited from <span name="zio.test.ZIOSpecAbstractVersionSpecific" class="extype">ZIOSpecAbstractVersionSpecific</span></h3></div><div name="zio.ZIOApp" class="parent"><h3>Inherited from <a href="../ZIOApp.html" name="zio.ZIOApp" id="zio.ZIOApp" class="extype">ZIOApp</a></h3></div><div name="zio.ZIOAppVersionSpecific" class="parent"><h3>Inherited from <span name="zio.ZIOAppVersionSpecific" class="extype">ZIOAppVersionSpecific</span></h3></div><div name="zio.ZIOAppPlatformSpecific" class="parent"><h3>Inherited from <span name="zio.ZIOAppPlatformSpecific" class="extype">ZIOAppPlatformSpecific</span></h3></div><div name="scala.AnyRef" class="parent"><h3>Inherited from <a href="https://www.scala-lang.org/api/2.13.18/scala/AnyRef.html#scala.AnyRef" name="scala.AnyRef" id="scala.AnyRef" class="extype">AnyRef</a></h3></div><div name="scala.Any" class="parent"><h3>Inherited from <a href="https://www.scala-lang.org/api/2.13.18/scala/Any.html#scala.Any" name="scala.Any" id="scala.Any" class="extype">Any</a></h3></div></div><div id="groupedMembers"><div name="Ungrouped" class="group"><h3>Ungrouped</h3></div></div></div><div id="tooltip"></div><div id="footer"></div></body></div></div></div></body></html>
+</script>
+    </div>
+   </dd>
+   <dt class="body-small">
+    Supertypes
+   </dt>
+   <dd class="body-medium">
+    <div class="mono-small-block supertypes">
+     <div>
+      trait <a href="../ZIOApp" t="n">ZIOApp</a>
+     </div>
+     <div>
+      class <span data-unresolved-link="" t="n">Object</span>
+     </div>
+     <div>
+      trait <span data-unresolved-link="" t="n">Matchable</span>
+     </div>
+     <div>
+      class <span data-unresolved-link="" t="n">Any</span>
+     </div><span></span>
+    </div>
+   </dd>
+   <dt class="body-small">
+    Known subtypes
+   </dt>
+   <dd class="body-medium">
+    <div class="mono-small-block subtypes">
+     <div>
+      class <a href="ZIOSpec" t="n">ZIOSpec</a>[<span t="t">R</span>]
+     </div>
+     <div>
+      class <a href="ZIOSpecDefault" t="n">ZIOSpecDefault</a>
+     </div>
+     <div>
+      class <a href="junit/JUnitRunnableSpec" t="n">JUnitRunnableSpec</a>
+     </div><span></span>
+    </div>
+   </dd>
+   <dt class="body-small">
+    Self type
+   </dt>
+   <dd class="body-medium">
+    <div class="mono-small-block supertypes">
+     <span></span>
+     <div>
+      <a href="ZIOSpecAbstract" t="n">ZIOSpecAbstract</a>
+     </div>
+    </div>
+   </dd>
+  </dl>
+ </section>
+</div>
+<section id="members-list">
+ <h2 class="h500">Members list</h2>
+ <div class="documentableFilter">
+  <div class="filtersContainer"></div><input class="filterableInput" placeholder="Filter by any phrase" data-test-id="filterBarInput" type="search"><button class="clearButton label-only-button" data-test-id="filterBarClearButton">Clear all</button>
+ </div>
+ <div class="membersList expand">
+  <div class="tabs">
+   <div class="contents">
+    <section id="Type-members">
+     <div data-togglable="Type members" class="tab expand">
+      <div class="member-group-header">
+       <h3 data-togglable="Type members" class="h400">Type members</h3>
+      </div>
+      <section id="Inherited-and-Abstract-types">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Inherited and Abstract types</h4>
+        </div>
+        <div class="documentableElement" id="Environment-0" data-f-inherited="ZIOApp">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">type </span></span><a href="ZIOSpecAbstract#Environment-0" t="n" class="documentableName ">Environment</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../ZIOApp#Environment-0">ZIOApp</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/core/shared/src/main/scala/zio/ZIOApp.scala#L34" target="_blank">ZIOApp.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+     </div>
+    </section>
+    <section id="Value-members">
+     <div data-togglable="Value members" class="tab expand">
+      <div class="member-group-header">
+       <h3 data-togglable="Value members" class="h400">Value members</h3>
+      </div>
+      <section id="Abstract-methods">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Abstract methods</h4>
+        </div>
+        <div class="documentableElement" id="bootstrap-0">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#bootstrap-0" t="n" class="documentableName ">bootstrap</a>: <a href="../ZLayer" t="t">ZLayer</a>[<span data-unresolved-link="" t="t">Any</span>, <span data-unresolved-link="" t="t">Any</span>, <a href="../ZIOApp#Environment-0" t="t">Environment</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>A layer that manages the acquisition and release of services necessary for the application to run.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>A layer that manages the acquisition and release of services necessary for the application to run.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/test/shared/src/main/scala/zio/test/ZIOSpecAbstract.scala#L33" target="_blank">ZIOSpecAbstract.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="spec-0">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#spec-0" t="n" class="documentableName ">spec</a>: <a href="Spec" t="t">Spec</a>[<a href="../ZIOApp#Environment-0" t="t">Environment</a><span t="k"> &amp; </span><a href="../test#TestEnvironment-0" t="t">TestEnvironment</a><span t="k"> &amp; </span><a href="../Scope" t="t">Scope</a>, <span data-unresolved-link="" t="t">Any</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/test/shared/src/main/scala/zio/test/ZIOSpecAbstract.scala#L31" target="_blank">ZIOSpecAbstract.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+      <section id="Concrete-methods">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Concrete methods</h4>
+        </div>
+        <div class="documentableElement" id="<>-fffff731" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#<>-fffff731" t="n" class="documentableName ">&lt;&gt;</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <a href="ZIOSpecAbstract" t="t">ZIOSpecAbstract</a>)(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">trace</span>: <a href="../../zio#Trace-0" t="t">Trace</a>): <a href="ZIOSpecAbstract" t="t">ZIOSpecAbstract</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/test/shared/src/main/scala/zio/test/ZIOSpecAbstract.scala#L47" target="_blank">ZIOSpecAbstract.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="aspects-0">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#aspects-0" t="n" class="documentableName ">aspects</a>: <a href="../Chunk" t="t">Chunk</a>[<a href="../test#TestAspectAtLeastR-0" t="t">TestAspectAtLeastR</a>[<a href="../ZIOApp#Environment-0" t="t">Environment</a><span t="k"> &amp; </span><a href="../test#TestEnvironment-0" t="t">TestEnvironment</a>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/test/shared/src/main/scala/zio/test/ZIOSpecAbstract.scala#L35" target="_blank">ZIOSpecAbstract.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="run-0" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#run-0" t="n" class="documentableName ">run</a>: <a href="../ZIO" t="t">ZIO</a>[<a href="../ZIOApp#Environment-0" t="t">Environment</a><span t="k"> &amp; </span><a href="../ZIOAppArgs" t="t">ZIOAppArgs</a><span t="k"> &amp; </span><a href="../Scope" t="t">Scope</a>, <span data-unresolved-link="" t="t">Any</span>, <a href="Summary" t="t">Summary</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>The main function of the application, which can access the command-line arguments through the <code>args</code> helper method of this class. If the provided effect fails for any reason, the cause will be logged, and the exit code of the application will be non-zero. Otherwise, the exit code of the application will be zero.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>The main function of the application, which can access the command-line arguments through the <code>args</code> helper method of this class. If the provided effect fails for any reason, the cause will be logged, and the exit code of the application will be non-zero. Otherwise, the exit code of the application will be zero.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/test/shared/src/main/scala/zio/test/ZIOSpecAbstract.scala#L38" target="_blank">ZIOSpecAbstract.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="runSpec-63f" data-f-visibility="protected" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final protected </span></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#runSpec-63f" t="n" class="documentableName ">runSpec</a>(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">trace</span>: <a href="../../zio#Trace-0" t="t">Trace</a>): <a href="../ZIO" t="t">ZIO</a>[<a href="../ZIOApp#Environment-0" t="t">Environment</a><span t="k"> &amp; </span><a href="../test#TestEnvironment-0" t="t">TestEnvironment</a><span t="k"> &amp; </span><a href="../ZIOAppArgs" t="t">ZIOAppArgs</a><span t="k"> &amp; </span><a href="../Scope" t="t">Scope</a>, <a href="https://www.scala-lang.org/api/2.13.18/scala.html#Throwable" t="t">Throwable</a>, <a href="Summary" t="t">Summary</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/test/shared/src/main/scala/zio/test/ZIOSpecAbstract.scala#L68" target="_blank">ZIOSpecAbstract.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+      <section id="Inherited-methods">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Inherited methods</h4>
+        </div>
+        <div class="documentableElement" id="<>-c31" data-f-keywords="final" data-f-inherited="ZIOApp">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#<>-c31" t="n" class="documentableName ">&lt;&gt;</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <a href="../ZIOApp" t="t">ZIOApp</a>)(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">trace</span>: <a href="../../zio#Trace-0" t="t">Trace</a>): <a href="../ZIOApp" t="t">ZIOApp</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Composes this <a href="../ZIOApp">ZIOApp</a> with another <a href="../ZIOApp">ZIOApp</a>, to yield an application that executes the logic of both applications.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Composes this <a href="../ZIOApp">ZIOApp</a> with another <a href="../ZIOApp">ZIOApp</a>, to yield an application that executes the logic of both applications.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../ZIOApp#<>-c31">ZIOApp</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/core/shared/src/main/scala/zio/ZIOApp.scala#L65" target="_blank">ZIOApp.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="exit-2c6" data-f-keywords="final" data-f-inherited="ZIOApp">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#exit-2c6" t="n" class="documentableName ">exit</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">code</span>: <a href="../ExitCode" t="t">ExitCode</a>)(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">trace</span>: <a href="../../zio#Trace-0" t="t">Trace</a>): <a href="../../zio#UIO-0" t="t">UIO</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Unit.html" t="t">Unit</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>A helper function to exit the application with the specified exit code.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>A helper function to exit the application with the specified exit code.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../ZIOApp#exit-2c6">ZIOApp</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/core/shared/src/main/scala/zio/ZIOApp.scala#L83" target="_blank">ZIOApp.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="getArgs-63f" data-f-keywords="final" data-f-inherited="ZIOApp">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#getArgs-63f" t="n" class="documentableName ">getArgs</a>(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">trace</span>: <a href="../../zio#Trace-0" t="t">Trace</a>): <a href="../ZIO" t="t">ZIO</a>[<a href="../ZIOAppArgs" t="t">ZIOAppArgs</a>, <span data-unresolved-link="" t="t">Nothing</span>, <a href="../Chunk" t="t">Chunk</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Predef$.html#String" t="t">String</a>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>A helper function to obtain access to the command-line arguments of the application. You may use this helper function inside your <code>run</code> function.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>A helper function to obtain access to the command-line arguments of the application. You may use this helper function inside your <code>run</code> function.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../ZIOApp#getArgs-63f">ZIOApp</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/core/shared/src/main/scala/zio/ZIOApp.scala#L77" target="_blank">ZIOApp.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="gracefulShutdownTimeout-0" data-f-inherited="ZIOApp">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#gracefulShutdownTimeout-0" t="n" class="documentableName ">gracefulShutdownTimeout</a>: <a href="../DurationModule#Duration-0" t="t">Duration</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>The time that the application will wait for finalizers to run before exiting.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>The time that the application will wait for finalizers to run before exiting.</p>
+              <p>'''NOTE''': This is currently used only for JVM &amp; ScalaNative applications</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../ZIOApp#gracefulShutdownTimeout-0">ZIOApp</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/core/shared/src/main/scala/zio/ZIOApp.scala#L57" target="_blank">ZIOApp.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="invoke-fffff960" data-f-keywords="final" data-f-inherited="ZIOApp">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#invoke-fffff960" t="n" class="documentableName ">invoke</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">args</span>: <a href="../Chunk" t="t">Chunk</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Predef$.html#String" t="t">String</a>])(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">trace</span>: <a href="../../zio#Trace-0" t="t">Trace</a>): <a href="../ZIO" t="t">ZIO</a>[<span data-unresolved-link="" t="t">Any</span>, <span data-unresolved-link="" t="t">Any</span>, <span data-unresolved-link="" t="t">Any</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Invokes the main app. Designed primarily for testing.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Invokes the main app. Designed primarily for testing.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../ZIOApp#invoke-fffff960">ZIOApp</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/core/shared/src/main/scala/zio/ZIOApp.scala#L123" target="_blank">ZIOApp.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="main-913" data-f-keywords="final" data-f-inherited="ZIOAppPlatformSpecific">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#main-913" t="n" class="documentableName ">main</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">args0</span>: <a href="https://www.scala-lang.org/api/2.13.18/scala/Array.html" t="t">Array</a>[<a href="https://www.scala-lang.org/api/2.13.18/scala/Predef$.html#String" t="t">String</a>]): <a href="https://www.scala-lang.org/api/2.13.18/scala/Unit.html" t="t">Unit</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>The Scala main function, intended to be called only by the Scala runtime.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>The Scala main function, intended to be called only by the Scala runtime.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <span data-unresolved-link="">ZIOAppPlatformSpecific (hidden)</span>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/core/jvm-native/src/main/scala/zio/ZIOAppPlatformSpecific.scala#L11" target="_blank">ZIOAppPlatformSpecific.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="runtime-0" data-f-inherited="ZIOApp">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#runtime-0" t="n" class="documentableName ">runtime</a>: <a href="../Runtime" t="t">Runtime</a>[<span data-unresolved-link="" t="t">Any</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../ZIOApp#runtime-0">ZIOApp</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/core/shared/src/main/scala/zio/ZIOApp.scala#L59" target="_blank">ZIOApp.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+     </div>
+    </section>
+    <section id="Implicits">
+     <div data-togglable="Implicits" class="tab expand">
+      <div class="member-group-header">
+       <h3 data-togglable="Implicits" class="h400">Implicits</h3>
+      </div>
+      <section id="Inherited-implicits">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Inherited implicits</h4>
+        </div>
+        <div class="documentableElement" id="validateEnv-9d4" data-f-keywords="implicit,inline" data-f-inherited="ZIOSpecAbstractVersionSpecific">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">implicit inline </span></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#validateEnv-9d4" t="n" class="documentableName ">validateEnv</a>[<span t="k"></span><span data-unresolved-link="" t="t">R1</span>, <span t="k"></span><span data-unresolved-link="" t="t">R</span>, <span t="k"></span><span data-unresolved-link="" t="t">E</span>, <span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k">inline </span><span data-unresolved-link="" t="n">spec</span>: <a href="Spec" t="t">Spec</a>[<span t="t">R</span>, <span t="t">E</span>]): <a href="Spec" t="t">Spec</a>[<span data-unresolved-link="" t="t">R1</span>, <span data-unresolved-link="" t="t">E</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>This implicit conversion macro will ensure that the provided ZIO effect does not require more than the provided environment.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>This implicit conversion macro will ensure that the provided ZIO effect does not require more than the provided environment.</p>
+              <p>If it is missing requirements, it will report a descriptive error message. Otherwise, the effect will be returned unmodified.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <span data-unresolved-link="">ZIOSpecAbstractVersionSpecific (hidden)</span>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/test/shared/src/main/scala-3/zio/test/ZIOSpecAbstractVersionSpecific.scala#L15" target="_blank">ZIOSpecAbstractVersionSpecific.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="validateEnv-fffff8f4" data-f-keywords="implicit,inline" data-f-inherited="ZIOAppVersionSpecific">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">implicit inline </span></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#validateEnv-fffff8f4" t="n" class="documentableName ">validateEnv</a>[<span t="k"></span><span data-unresolved-link="" t="t">R1</span>, <span t="k"></span><span data-unresolved-link="" t="t">R</span>, <span t="k"></span><span data-unresolved-link="" t="t">E</span>, <span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k">inline </span><span data-unresolved-link="" t="n">zio</span>: <a href="../ZIO" t="t">ZIO</a>[<span t="t">R</span>, <span t="t">E</span>, <span t="t">A</span>]): <a href="../ZIO" t="t">ZIO</a>[<span data-unresolved-link="" t="t">R1</span>, <span data-unresolved-link="" t="t">E</span>, <span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>This implicit conversion macro will ensure that the provided ZIO effect does not require more than the provided environment.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>This implicit conversion macro will ensure that the provided ZIO effect does not require more than the provided environment.</p>
+              <p>If it is missing requirements, it will report a descriptive error message. Otherwise, the effect will be returned unmodified.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <span data-unresolved-link="">ZIOAppVersionSpecific (hidden)</span>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/core/shared/src/main/scala-3/zio/ZIOAppVersionSpecific.scala#L15" target="_blank">ZIOAppVersionSpecific.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+      <section id="Inherited-and-Abstract-implicits">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Inherited and Abstract implicits</h4>
+        </div>
+        <div class="documentableElement" id="environmentTag-0" data-f-keywords="implicit" data-f-inherited="ZIOApp">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">implicit </span></span><span class="kind"><span t="k">def </span></span><a href="ZIOSpecAbstract#environmentTag-0" t="n" class="documentableName ">environmentTag</a>: <a href="https://javadoc.io/page/dev.zio/izumi-reflect_3/3.0.11/izumi/reflect/Tag.html" t="t">Tag</a>[<a href="../ZIOApp#Environment-0" t="t">Environment</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../ZIOApp#environmentTag-0">ZIOApp</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio/blob/c737a4409df34cb6b7962c150ed3d8a7297ff1cb/core/shared/src/main/scala/zio/ZIOApp.scala#L32" target="_blank">ZIOApp.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+     </div>
+    </section>
+   </div>
+  </div>
+ </div>
+</section></div><div id="toc" class="body-small"><div id="toc-container"><span class="toc-title h200">In this article</span><nav class="toc-nav"><ul class="toc-list"><li><a href="#attributes">Attributes</a></li><li><a href="#members-list">Members list</a><ul><li><a href="#Type-members">Type members</a><ul><li><a href="#Inherited-and-Abstract-types">Inherited and Abstract types</a></li></ul></li><li><a href="#Value-members">Value members</a><ul><li><a href="#Abstract-methods">Abstract methods</a></li><li><a href="#Concrete-methods">Concrete methods</a></li><li><a href="#Inherited-methods">Inherited methods</a></li></ul></li><li><a href="#Implicits">Implicits</a><ul><li><a href="#Inherited-implicits">Inherited implicits</a></li><li><a href="#Inherited-and-Abstract-implicits">Inherited and Abstract implicits</a></li></ul></li></ul></li></ul></nav></div></div></div></div></div></body></html>

@@ -4,7 +4,7 @@
 
 - **Libraries & tools** → [Ecosystem](../ecosystem/index.mdx) (official + community-maintained, added via PR)
 - **Talks & conference recordings** → [Events](../events/index.md) (Functional Scala, ZIO World, weekly Zymposiums)
-- **API docs** → [Scaladoc](https://javadoc.io/doc/dev.zio/zio_3/latest/index.html)
+- **API docs** → API reference (the Scaladoc of every ZIO module)
 
 ## Books
 
