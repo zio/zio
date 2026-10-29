@@ -114,6 +114,21 @@ sealed trait Dequeue[+A] extends Serializable {
   def poll(implicit trace: Trace): UIO[Option[A]] =
     takeUpTo(1).map(_.headOption)
 }
-private[zio] object Dequeue {
+object Dequeue {
   private[zio] abstract class Internal[+A] extends Dequeue[A]
+
+  implicit final class DequeueShutdownCauseOps[+A](private val self: Dequeue[A]) extends AnyVal {
+
+    /**
+     * Shuts down the queue with the specified cause. For `Queue`-backed
+     * instances, any fibers that are suspended on `offer` or `take` and future
+     * calls to `offer*` and `take*` will fail with the specified cause; other
+     * `Dequeue` implementations fall back to `shutdown`.
+     */
+    def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit] =
+      self match {
+        case queue: Queue[_] => queue.shutdownCause(cause).unit
+        case _               => self.shutdown
+      }
+  }
 }

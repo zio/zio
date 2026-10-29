@@ -87,6 +87,21 @@ sealed trait Enqueue[-A] extends Serializable {
   def isFull(implicit trace: Trace): UIO[Boolean] =
     size.map(_ >= capacity)
 }
-private[zio] object Enqueue {
+object Enqueue {
   private[zio] trait Internal[-A] extends Enqueue[A]
+
+  implicit final class EnqueueShutdownCauseOps[-A](private val self: Enqueue[A]) extends AnyVal {
+
+    /**
+     * Shuts down the queue with the specified cause. For `Queue`-backed
+     * instances, any fibers that are suspended on `offer` or `take` and future
+     * calls to `offer*` and `take*` will fail with the specified cause; other
+     * `Enqueue` implementations fall back to `shutdown`.
+     */
+    def shutdownCause(cause: Cause[Nothing])(implicit trace: Trace): UIO[Unit] =
+      self match {
+        case queue: Queue[_] => queue.shutdownCause(cause).unit
+        case _               => self.shutdown
+      }
+  }
 }
