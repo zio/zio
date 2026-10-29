@@ -5679,8 +5679,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
         ZIO.clock.flatMap { clock =>
           if (clock eq Clock.ClockLive) {
             // With the live clock the timeout is registered directly on the
-            // global scheduler, which avoids forking a second fiber for the
-            // sleep and lets an already-completed effect resume synchronously.
+            // global scheduler. An already-completed effect resumes synchronously;
+            // otherwise an isolated timer fiber evaluates the by-name duration.
             ZIO.withFiberRuntime[R, E, B1] { (parentFiber, parentStatus) =>
               import TimeoutTo._
               import java.util.concurrent.atomic.AtomicReference
@@ -5723,47 +5723,36 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                         Right(childFiber.inheritAll *> done.exit.asInstanceOf[Exit[E, A]].mapExit(f))
                       case Registering =>
                         if (state.compareAndSet(Registering, Suspended)) {
-                          val result: Either[URIO[R, Any], ZIO[R, E, B1]] =
+                          val timer = ZIO.succeed {
                             try {
-                              // Evaluate the by-name duration exactly once; a
-                              // second evaluation would observe a different
-                              // value (and re-run any side effects).
-                              val d = duration
-                              if (d <= Duration.Zero) {
-                                // Non-positive durations elapse immediately; the
-                                // scheduler would defer them on some platforms
-                                if (state.compareAndSet(Suspended, TimedOut))
-                                  cb(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b()))
+                              // Arbitrary by-name code must not run in the parent:
+                              // it can block or access fiber-local thread locals.
+                              // Evaluate it at most once in an isolated timer fiber.
+                              if (state.get() eq Suspended) {
+                                val d = duration
+                                if (d <= Duration.Zero) {
+                                  // Non-positive durations elapse immediately; the
+                                  // scheduler would defer them on some platforms.
+                                  if (state.compareAndSet(Suspended, TimedOut))
+                                    cb(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b()))
+                                } else if (state.get() eq Suspended) {
+                                  val cancel = Clock.globalScheduler.schedule(
+                                    () =>
+                                      if (state.compareAndSet(Suspended, TimedOut))
+                                        cb(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b())),
+                                    d
+                                  )(Unsafe)
 
-                                Left(ZIO.unit)
-                              } else {
-                                val cancel = Clock.globalScheduler.schedule(
-                                  () =>
-                                    if (state.compareAndSet(Suspended, TimedOut))
-                                      cb(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b())),
-                                  d
-                                )(Unsafe)
-
-                                cancelTimeout.set(cancel)
-                                if (state.get() ne Suspended) cancel()
-
-                                Left(ZIO.succeed(cancel()))
+                                  cancelTimeout.set(cancel)
+                                  if (state.get() ne Suspended) cancel()
+                                }
                               }
                             } catch {
                               case t if nonFatal(t) =>
-                                // Duration evaluation or deadline registration
-                                // failed with a non-fatal exception (e.g. a defective
-                                // duration). Fatal errors (OutOfMemoryError and other
-                                // VirtualMachineErrors) are left to ZIO's fatal-error
-                                // reporter, matching the legacy raceFibersWith path.
-                                // Cancel any
-                                // registered deadline, and if the child has not
-                                // already completed, interrupt and inherit it so
-                                // its finalizers run, then fail with the defect
-                                // instead of leaking the already-started child
-                                // fiber. If the child already completed, the
-                                // observer already resumed the effect with its
-                                // result, so we must not resume it again.
+                                // Fatal errors must still reach ZIO's fatal-error
+                                // reporter. For a defect, cancel any deadline and
+                                // interrupt and inherit an unfinished child before
+                                // failing, without resuming a completed child twice.
                                 val pendingCancel = cancelTimeout.get()
                                 if (pendingCancel ne null) pendingCancel()
                                 if (state.compareAndSet(Suspended, TimedOut))
@@ -5772,9 +5761,21 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                                       childFiber.inheritAll *>
                                       Exit.failCause(Cause.die(t))
                                   )
-                                Left(ZIO.unit)
                             }
-                          result
+                            ()
+                          }.interruptible
+                          // Like the legacy sleep fiber, the timer is globally
+                          // scoped: interruption must not wait for blocking
+                          // synchronous duration code to return.
+                          val timerFiber = ZIO.unsafe
+                            .fork(trace, timer, parentFiber, parentStatus.runtimeFlags, FiberScope.global)(Unsafe)
+                          Left(
+                            ZIO.succeed {
+                              state.compareAndSet(Suspended, TimedOut)
+                              val cancel = cancelTimeout.get()
+                              if (cancel ne null) cancel()
+                            } *> timerFiber.interruptAsFork(parentFiberId)
+                          )
                         } else complete()
                       case _ => Left(ZIO.unit)
                     }

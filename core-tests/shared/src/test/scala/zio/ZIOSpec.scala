@@ -2545,7 +2545,7 @@ object ZIOSpec extends ZIOBaseSpec {
         val effect = (ZIO.unit.timeout(Duration.Infinity)).uninterruptible
         assertZIO(effect)(isSome(isUnit))
       } @@ zioTag(interruption),
-      test("timeout under the live clock forks only one fiber") {
+      test("timeout under the live clock forks two fibers for a pending effect") {
         val forks = new java.util.concurrent.atomic.AtomicInteger(0)
         val supervisor = new Supervisor[Any] {
           def value(implicit trace: Trace): UIO[Any] = ZIO.succeed(forks.get)
@@ -2560,8 +2560,8 @@ object ZIOSpec extends ZIOBaseSpec {
           }
           def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
         }
-        val io = ZIO.succeed(42).timeout(1.hour).supervised(supervisor)
-        assertZIO(Live.live(io))(isSome(equalTo(42))) *> assertZIO(ZIO.succeed(forks.get()))(equalTo(1))
+        val io = ZIO.never.timeout(Duration.Zero).supervised(supervisor)
+        assertZIO(Live.live(io))(isNone) *> assertZIO(ZIO.succeed(forks.get()))(equalTo(2))
       },
       test("timeout under the live clock returns the computed value") {
         assertZIO(Live.live(ZIO.succeed(42).timeout(1.hour)))(isSome(equalTo(42)))
@@ -2573,6 +2573,38 @@ object ZIOSpec extends ZIOBaseSpec {
           exit  <- fiber.await
         } yield assert(exit)(isInterrupted)
       },
+      test("timeout interruption is not blocked by a blocking by-name duration") {
+        for {
+          entered <- Promise.make[Nothing, Unit]
+          release <- Promise.make[Nothing, Unit]
+          runtime <- ZIO.runtime[Any]
+          fiber <- Live
+                     .live(ZIO.never.timeout {
+                       Unsafe.unsafe { implicit unsafe =>
+                         entered.unsafe.succeed(())
+                         runtime.unsafe.run(release.await).getOrThrowFiberFailure()
+                       }
+                       1.hour
+                     })
+                     .fork
+          _ <- entered.await
+          beforeRelease <- Live
+                             .live(fiber.interrupt.timeout(1.second))
+                             .ensuring(release.succeed(()))
+          exit <- fiber.await
+        } yield assert(beforeRelease)(isSome(isInterrupted)) && assert(exit)(isInterrupted)
+      } @@ exceptJS,
+      test("timeout by-name duration does not leak FiberRef writes to the parent") {
+        for {
+          ref    <- FiberRef.make(0, (value: Int) => value, (parent: Int, _: Int) => parent)
+          handle <- Unsafe.unsafe(implicit unsafe => ref.asThreadLocal)
+          result <- Live.live(ZIO.never.timeout {
+                      handle.set(99)
+                      1.millis
+                    })
+          value <- ref.get
+        } yield assert(result)(isNone) && assert(value)(equalTo(0))
+      } @@ TestAspect.fromLayer(Runtime.enableCurrentFiber),
       test("timeout under the live clock propagates failure") {
         assertZIO(Live.live(ZIO.fail("fail").timeout(1.hour)).exit)(fails(equalTo("fail")))
       },
