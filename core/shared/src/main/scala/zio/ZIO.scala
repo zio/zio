@@ -5750,9 +5750,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                                 Left(ZIO.succeed(cancel()))
                               }
                             } catch {
-                              case t: Throwable =>
+                              case t if nonFatal(t) =>
                                 // Duration evaluation or deadline registration
-                                // failed (e.g. a defective duration). Cancel any
+                                // failed with a non-fatal exception (e.g. a defective
+                                // duration). Fatal errors (OutOfMemoryError and other
+                                // VirtualMachineErrors) are left to ZIO's fatal-error
+                                // reporter, matching the legacy raceFibersWith path.
+                                // Cancel any
                                 // registered deadline, and if the child has not
                                 // already completed, interrupt and inherit it so
                                 // its finalizers run, then fail with the defect
