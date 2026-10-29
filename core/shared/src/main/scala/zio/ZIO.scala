@@ -5723,26 +5723,54 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
                         Right(childFiber.inheritAll *> done.exit.asInstanceOf[Exit[E, A]].mapExit(f))
                       case Registering =>
                         if (state.compareAndSet(Registering, Suspended)) {
-                          if (duration <= Duration.Zero) {
-                            // Non-positive durations elapse immediately; the
-                            // scheduler would defer them on some platforms
-                            if (state.compareAndSet(Suspended, TimedOut))
-                              cb(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b()))
-
-                            Left(ZIO.unit)
-                          } else {
-                            val cancel = Clock.globalScheduler.schedule(
-                              () =>
+                          val result: Either[URIO[R, Any], ZIO[R, E, B1]] =
+                            try {
+                              // Evaluate the by-name duration exactly once; a
+                              // second evaluation would observe a different
+                              // value (and re-run any side effects).
+                              val d = duration
+                              if (d <= Duration.Zero) {
+                                // Non-positive durations elapse immediately; the
+                                // scheduler would defer them on some platforms
                                 if (state.compareAndSet(Suspended, TimedOut))
-                                  cb(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b())),
-                              duration
-                            )(Unsafe)
+                                  cb(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b()))
 
-                            cancelTimeout.set(cancel)
-                            if (state.get() ne Suspended) cancel()
+                                Left(ZIO.unit)
+                              } else {
+                                val cancel = Clock.globalScheduler.schedule(
+                                  () =>
+                                    if (state.compareAndSet(Suspended, TimedOut))
+                                      cb(childFiber.interruptAs(parentFiberId) *> childFiber.inheritAll.as(b())),
+                                  d
+                                )(Unsafe)
 
-                            Left(ZIO.succeed(cancel()))
-                          }
+                                cancelTimeout.set(cancel)
+                                if (state.get() ne Suspended) cancel()
+
+                                Left(ZIO.succeed(cancel()))
+                              }
+                            } catch {
+                              case t: Throwable =>
+                                // Duration evaluation or deadline registration
+                                // failed (e.g. a defective duration). Cancel any
+                                // registered deadline, and if the child has not
+                                // already completed, interrupt and inherit it so
+                                // its finalizers run, then fail with the defect
+                                // instead of leaking the already-started child
+                                // fiber. If the child already completed, the
+                                // observer already resumed the effect with its
+                                // result, so we must not resume it again.
+                                val pendingCancel = cancelTimeout.get()
+                                if (pendingCancel ne null) pendingCancel()
+                                if (state.compareAndSet(Suspended, TimedOut))
+                                  cb(
+                                    childFiber.interruptAs(parentFiberId) *>
+                                      childFiber.inheritAll *>
+                                      Exit.failCause(Cause.die(t))
+                                  )
+                                Left(ZIO.unit)
+                            }
+                          result
                         } else complete()
                       case _ => Left(ZIO.unit)
                     }
