@@ -27,9 +27,9 @@ const config = {
   projectName: 'zio',
   themeConfig: {
     announcementBar: {
-      id: 'announcementBar',
+      id: 'announcementBar-zioblocks',
       content:
-        '📚 <b>ZIONOMICON</b>, updated for ZIO 2.1, is out now! Grab <a href="https://zionomicon.com" target="_blank">your free copy</a> and level up your ZIO skills 🚀',
+        '<img src="/img/ecosystem/zio-blocks-icon.svg" alt="" style="height: 1.1em; vertical-align: middle;"> <b>ZIO Blocks</b> has a new website! Visit <a href="https://zioblocks.com" target="_blank">zioblocks.com</a> to explore the docs 🚀',
       backgroundColor: '#ececec',
       textColor: '#1a1a1a',
       isCloseable: true,
