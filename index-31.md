@@ -9,9 +9,9 @@
 Add the following lines to your `project/plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.8.6")
-addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.8.6")
-addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.8.6")
+addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.8.7")
+addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.8.7")
+addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.8.7")
 ```
 
 Then you can enable them by using the following code in your `build.sbt` file:
@@ -127,7 +127,7 @@ ZIO SBT CI plugin generates a default GitHub workflow that includes common CI ta
 To use ZIO SBT CI plugin, add the following lines to your `plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.8.6")
+addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.8.7")
 
 resolvers ++= Resolver.sonatypeOssRepos("public")
 ```
@@ -191,7 +191,7 @@ The default value mirrors the bots used by the `zio/zio` repository: `Seq(Depend
 
 > **Note:**
 >
-> `auto-merge.yml` waits for every check on the PR (other than its own bot jobs) to finish and merges with `gh pr merge --squash` only if none failed, so it is safe on branches without required status checks. A red check fails the job and leaves the PR open. The `workflow_dispatch` backfill still uses `gh pr merge --auto`, which merges immediately on a branch with no required status checks, so configure branch protection with required checks before relying on it.
+> When the PR's base branch requires status checks (through classic branch protection or a ruleset), `auto-merge.yml` enables GitHub's native auto-merge with `gh pr merge --auto --squash` and finishes at once; GitHub merges the PR when the required checks pass. On a branch without required status checks, where `--auto` would merge before CI finishes, it instead waits for every check on the PR (other than its own bot jobs) to finish and merges with `gh pr merge --squash` only if none failed. A red check fails the job and leaves the PR open. The `workflow_dispatch` backfill still uses `gh pr merge --auto`, which merges immediately on a branch with no required status checks, so configure branch protection with required checks before relying on it.
 
 > **Note:**
 >
@@ -230,6 +230,25 @@ Using `workflow_run` instead of triggering directly on `pull_request` means the 
 Put together, this makes `ciEnableDeployPreview` safe to turn on before the Docusaurus site exists: neither workflow does any real work until `website/` is a genuine installation and a pull request actually changes it.
 
 This requires two repository secrets: `NETLIFY_AUTH_TOKEN`, a [personal access token](https://docs.netlify.com/api/get-started/#authentication) generated from the Netlify user account that owns the site, and `NETLIFY_SITE_ID`, found under the site's **Site configuration → General → Site details** in the Netlify dashboard. The default value of `ciEnableDeployPreview` is `false`, so existing builds see no change until they opt in.
+
+#### On-demand previews
+
+Every preview deploy costs Netlify credits. To deploy only when someone asks for it, switch the mode:
+
+```scala
+import zio.sbt.githubactions.DeployPreviewMode
+
+ThisBuild / ciEnableDeployPreview := true
+ThisBuild / ciDeployPreviewMode   := DeployPreviewMode.OnDemand
+```
+
+`ciDeployPreviewMode` defaults to `DeployPreviewMode.Automatic`, the behavior described above, so nothing changes until you opt in. With `OnDemand`, `deploy-preview.yml` is still generated, but it works differently:
+
+1. After a successful pull-request CI run, the `post-preview-comment` job creates one bot comment on the pull request with an unticked **Deploy preview** checkbox. Nothing is deployed yet. A later push resets the same comment to the new commit with the box unticked again.
+2. When someone ticks the box, GitHub fires an `issue_comment` `edited` event and the `deploy-preview` job runs. It first checks that the person who ticked has `admin`, `maintain` or `write` access to the repository and adds a 👍 reaction to the comment to acknowledge the request, then finds the successful `ci.yml` run for the exact commit named in the comment, downloads that run's `website-artifact`, and deploys it to Netlify.
+3. The comment is rewritten with the preview URL, the deploy time and the commit, plus a **Redeploy preview** checkbox. If the deployment fails, the box is unticked again and the comment links to the failed run.
+
+Deployments are serialized per pull request (a second tick waits for the first instead of cancelling it). The two Netlify secrets and the `website-artifact` / `pr-metadata` artifacts from `build` are the same as for the automatic mode, and the generated workflow looks up CI by its file name, `ci.yml`.
 
 ### Release Drafter
 
@@ -309,6 +328,7 @@ All settings are `ThisBuild`-scoped.
 | `ciSwapSizeGB` | `Int` | `0` | Adds a swap-space step to every job when greater than zero |
 | `ciBackgroundJobs` | `Seq[String]` | `Seq.empty` | Commands prefixed to each `run`, for daemons a job needs |
 | `ciEnableDeployPreview` | `Boolean` | `false` | Adds website-artifact upload steps to `build` and generates `deploy-preview.yml`. Requires `NETLIFY_AUTH_TOKEN`/`NETLIFY_SITE_ID` secrets |
+| `ciDeployPreviewMode` | `DeployPreviewMode` | `DeployPreviewMode.Automatic` | Only used with `ciEnableDeployPreview`. `Automatic` deploys every successful pull-request CI run; `OnDemand` posts a "Deploy preview" checkbox comment and deploys only when it is ticked |
 | `ciEnableReleaseDrafter` | `Boolean` | `true` | Generates `release-drafter.yml` and scaffolds `.github/release-drafter.yml` (once). Overwrites a hand-written `release-drafter.yml` when on; when off, only deletes a copy it generated itself |
 | `ciReleaseDrafterCategories` | `Seq[ReleaseDrafterCategory]` | Features/Bug Fixes/Maintenance/Dependency Updates | Categories written into the scaffolded config on first generation only |
 | `ciReleaseDrafterVersionResolver` | `Option[ReleaseDrafterVersionResolver]` | `None` | Optional `version-resolver` block for the scaffolded config |
@@ -525,7 +545,7 @@ ZIO SBT Source is a Scala 2.13 + Scala 3 cross-compiled library that provides ut
 Add the following line to your `libraryDependencies` in `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.8.6"
+libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.8.7"
 ```
 
 ### Features
