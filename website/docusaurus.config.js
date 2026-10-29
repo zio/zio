@@ -29,7 +29,7 @@ const config = {
     announcementBar: {
       id: 'announcementBar-zioblocks',
       content:
-        '🧱 <b>ZIO Blocks</b> has a new website! Visit <a href="https://zioblocks.com" target="_blank">zioblocks.com</a> to explore the docs 🚀',
+        '<img src="/img/ecosystem/zio-blocks-icon.svg" alt="" style="height: 1.1em; vertical-align: middle;"> <b>ZIO Blocks</b> has a new website! Visit <a href="https://zioblocks.com" target="_blank">zioblocks.com</a> to explore the docs 🚀',
       backgroundColor: '#ececec',
       textColor: '#1a1a1a',
       isCloseable: true,
