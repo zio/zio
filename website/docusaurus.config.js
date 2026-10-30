@@ -281,6 +281,7 @@ const config = {
       },
     ],
   ],
+  clientModules: [require.resolve('./src/clientModules/ecosystem-sidebar.js')],
   plugins: [
     async function myPlugin(context, options) {
       return {
