@@ -1,0 +1,120 @@
+{
+  "categories": [
+    {
+      "id": "web",
+      "label": "Web & APIs",
+      "collapsed": false,
+      "official": [],
+      "external": [
+        {
+          "label": "ZIO HTTP",
+          "href": "https://ziohttp.com"
+        }
+      ],
+      "community": [
+        "caliban",
+        "tapir",
+        "zio-grpc"
+      ]
+    },
+    {
+      "id": "data",
+      "label": "Data & Persistence",
+      "official": [
+        "zio-cache",
+        "zio-dynamodb",
+        "zio-query",
+        "zio-quill",
+        "zio-redis",
+        "zio-rocksdb"
+      ],
+      "community": [
+        "mongo4cats",
+        "tranzactio",
+        "zio-apache-parquet",
+        "zio-elasticsearch",
+        "zio-lmdb"
+      ]
+    },
+    {
+      "id": "messaging",
+      "label": "Messaging & Streaming",
+      "official": [
+        "zio-amqp",
+        "zio-kafka",
+        "zio-sqs",
+        "zio-streams-compress"
+      ],
+      "community": [
+        "tamer",
+        "zio-kinesis"
+      ]
+    },
+    {
+      "id": "serialization",
+      "label": "Serialization & Schema",
+      "official": [
+        "zio-bson",
+        "zio-json",
+        "zio-parser",
+        "zio-schema"
+      ],
+      "community": []
+    },
+    {
+      "id": "observability",
+      "label": "Config & Observability",
+      "official": [
+        "zio-config",
+        "zio-logging",
+        "zio-metrics-connectors",
+        "zio-profiling",
+        "zio-telemetry"
+      ],
+      "community": [
+        "logstage",
+        "tofu-zio2-logging"
+      ]
+    },
+    {
+      "id": "cloud",
+      "label": "Cloud & Infrastructure",
+      "official": [
+        "zio-aws",
+        "zio-ftp",
+        "zio-lambda",
+        "zio-s3"
+      ],
+      "community": [
+        "scala-k8s",
+        "zio-k8s"
+      ]
+    },
+    {
+      "id": "tooling",
+      "label": "Testing & Tooling",
+      "official": [
+        "izumi-reflect",
+        "zio-cli",
+        "zio-constraintless",
+        "zio-direct",
+        "zio-prelude",
+        "zio-process",
+        "zio-sbt",
+        "zio2-interop-cats2"
+      ],
+      "community": [
+        "distage",
+        "munit-zio",
+        "rezilience",
+        "zio-test-akka-http"
+      ],
+      "external": [
+        {
+          "label": "ZIO IntelliJ",
+          "href": "https://github.com/zio/zio-intellij"
+        }
+      ]
+    }
+  ]
+}

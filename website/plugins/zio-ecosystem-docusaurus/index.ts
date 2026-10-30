@@ -8,13 +8,16 @@ import * as fs from 'fs'
  * Registers a CLI command called `generate-sidebar` that:
  * 1. Copies project files from ZIO npm packages into `./docs/`
  * 2. Aggregates sidebars from old-style and new-style projects
- * 3. Generates an `ecosystem-sidebar.js` file listing every project as a link
+ * 3. Generates an `ecosystem-sidebar.js` file that groups every official and
+ *    community library into the purpose-based categories of
+ *    `ecosystem-categories.json`
  * 4. Generates a `per-project-sidebars.js` file with one sidebar per project
  *
  * Each project's docs belong to exactly one sidebar (its own), so Docusaurus
- * shows that sidebar on the project's pages. The ecosystem sidebar only holds
- * `link` items, which point to a project without making its docs part of the
- * ecosystem sidebar.
+ * shows that sidebar on the project's pages. Official libraries appear in the
+ * ecosystem sidebar as `link` items, which point to a project without making
+ * its docs part of the ecosystem sidebar. Community libraries are single pages
+ * under `docs/ecosystem/community`, so they appear as `doc` items.
  *
  * @param context - Docusaurus plugin context
  * @param options - Plugin configuration options
@@ -72,12 +75,23 @@ function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
           // Plain links rather than `ref` items: a `ref` item takes its label
           // from the doc's `sidebar_label` ("Introduction", "Getting Started")
           // instead of the project name.
-          const ecosystemSidebar =
-            projects.map(project => ({
-              type: 'link',
-              label: project.category.label,
-              href: '/' + entryDocId(project.category).replace(/index$/, '')
-            }))
+          const officialLinks: Record<string, SidebarEntry> =
+            Object.fromEntries(
+              projects.map(project => [
+                project.name,
+                {
+                  label: project.category.label,
+                  item: {
+                    type: 'link',
+                    label: project.category.label,
+                    href: '/' + entryDocId(project.category).replace(/index$/, ''),
+                    className: 'eco-tag eco-tag-official'
+                  }
+                }
+              ])
+            )
+
+          const ecosystemSidebar = categorizedEcosystem(officialLinks)
 
           const perProjectSidebars =
             Object.fromEntries(
@@ -100,6 +114,73 @@ function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
 type EcosystemProject = {
   name: string
   category: SidebarItemCategoryConfig
+}
+
+type SidebarEntry = { label: string, item: unknown }
+
+type CategoryConfig = {
+  id: string
+  label: string
+  collapsed?: boolean
+  official: string[]
+  external?: { label: string, href: string }[]
+  community: string[]
+}
+
+// The title of a community library's page, used as its sidebar label so that
+// the entries of a category can be sorted next to the official ones.
+function communityLabel(docId: string): string {
+  const source = fs.readFileSync(`../docs/ecosystem/community/${docId}.md`, 'utf8')
+  const title = source.match(/^title:\s*"?([^"\n]+?)"?\s*$/m)
+  return title ? title[1] : docId
+}
+
+// Groups the libraries by purpose, as listed in `ecosystem-categories.json`.
+// A library that is not listed lands in "Other", so a new package or page
+// never disappears from the sidebar.
+function categorizedEcosystem(officialLinks: Record<string, SidebarEntry>) {
+  const categories: CategoryConfig[] =
+    JSON.parse(fs.readFileSync('ecosystem-categories.json', 'utf8')).categories
+
+  const communityDocs =
+    fs.readdirSync('../docs/ecosystem/community')
+      .filter(file => file.endsWith('.md') && file !== 'index.md')
+      .map(file => file.replace(/\.md$/, ''))
+
+  const listed = new Set(categories.flatMap(c => c.official))
+  const listedCommunity = new Set(categories.flatMap(c => c.community))
+
+  const all: CategoryConfig[] = categories.concat({
+    id: 'other',
+    label: 'Other',
+    official: Object.keys(officialLinks).filter(name => !listed.has(name)),
+    community: communityDocs.filter(doc => !listedCommunity.has(doc))
+  })
+
+  return all
+    .map(category => {
+      const entries: SidebarEntry[] =
+        category.official.map(name => officialLinks[name]).filter(entry => entry !== undefined)
+          .concat((category.external || []).map(link => ({
+            label: link.label,
+            item: { type: 'link', label: link.label, href: link.href, className: 'eco-tag eco-tag-official' }
+          })))
+          .concat(category.community.map(doc => ({
+            label: communityLabel(doc),
+            item: { type: 'doc', id: `ecosystem/community/${doc}`, label: communityLabel(doc), className: 'eco-tag eco-tag-community' }
+          })))
+          .sort((a, b) => a.label.localeCompare(b.label))
+
+      return { category, entries }
+    })
+    .filter(({ entries }) => entries.length > 0)
+    .map(({ category, entries }) => ({
+      type: 'category',
+      label: category.label,
+      className: `eco-category eco-category-${category.id}`,
+      collapsed: category.collapsed !== undefined ? category.collapsed : true,
+      items: entries.map(entry => entry.item)
+    }))
 }
 
 function writeSidebarFile(path: string, sidebar: unknown) {

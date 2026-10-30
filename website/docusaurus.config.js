@@ -309,6 +309,14 @@ const config = {
             from: '/tutorials/producing-consuming-data-from-kafka-topics',
             to: '/zio-kafka/tutorial',
           },
+          {
+            from: ['/ecosystem/tools', '/ecosystem/templates', '/ecosystem/tools-and-templates'],
+            to: '/ecosystem/',
+          },
+          {
+            from: '/ecosystem/community/zio-amqp',
+            to: '/zio-amqp',
+          },
         ],
       },
     ],
