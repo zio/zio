@@ -328,8 +328,8 @@ Developer experience and productivity are very important for choosing a technolo
 [6]: ../di/automatic-layer-construction.md
 [7]: ../test/index.md
 [8]: https://www.youtube.com/watch?v=QDleESXlZJw
-[9]: ../../ecosystem/officials/index.md
-[10]: ../../ecosystem/community/index.md
+[9]: ../../ecosystem/officials/index.mdx
+[10]: ../../ecosystem/community/index.mdx
 [11]: ../resource/scope.md
 [12]: ../resource/index.md
 [13]: ../error-management/index.md
