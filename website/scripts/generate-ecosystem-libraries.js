@@ -17,14 +17,18 @@ const docs = path.join(website, '..', 'docs', 'ecosystem')
 const sidebar = require(path.join(website, 'ecosystem-sidebar.js'))
 const descriptions = require(path.join(website, 'ecosystem-descriptions.json'))
 
+// Official libraries are `link` items, except those with a single page, which
+// are `doc` items.
+const officialHref = (item) => item.href || `/${item.id.replace(/index$/, '')}`
+
 const kinds = {
   official: {
     page: path.join(docs, 'index.mdx'),
-    href: (item) => item.href,
-    key: (item) =>
-      item.href.startsWith('/')
-        ? item.href.replace(/^\/+|\/+$/g, '')
-        : item.label.toLowerCase().replace(/\s+/g, '-'),
+    href: (item) => officialHref(item),
+    key: (item) => {
+      const href = officialHref(item)
+      return href.startsWith('/') ? href.replace(/^\/+|\/+$/g, '') : item.label.toLowerCase().replace(/\s+/g, '-')
+    },
   },
   community: {
     page: path.join(docs, 'index.mdx'),
