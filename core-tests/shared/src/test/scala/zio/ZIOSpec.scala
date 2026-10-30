@@ -2621,20 +2621,20 @@ object ZIOSpec extends ZIOBaseSpec {
       test("timeout under the live clock routes fatal duration errors to the fatal error reporter") {
         for {
           reported <- Promise.make[Nothing, Throwable]
-          fiber    <- Live
-                         .live(
-                           FiberRef.currentReportFatal.locally { (t: Throwable) =>
-                             Unsafe.unsafe { implicit unsafe =>
-                               reported.unsafe.succeed(t)
-                             }
-                             throw t
-                           } {
-                             ZIO.never.timeout(throw new OutOfMemoryError("synthetic-duration-error"))
-                           }
-                         )
-                         .fork
-          outcome  <- Live.live(reported.await.timeout(5.seconds))
-          _        <- fiber.interrupt
+          fiber <- Live
+                     .live(
+                       FiberRef.currentReportFatal.locally { (t: Throwable) =>
+                         Unsafe.unsafe { implicit unsafe =>
+                           reported.unsafe.succeed(t)
+                         }
+                         throw t
+                       } {
+                         ZIO.never.timeout(throw new OutOfMemoryError("synthetic-duration-error"))
+                       }
+                     )
+                     .fork
+          outcome <- Live.live(reported.await.timeout(5.seconds))
+          _       <- fiber.interrupt
         } yield assertTrue(
           outcome.exists(t => t.isInstanceOf[OutOfMemoryError] && t.getMessage == "synthetic-duration-error")
         )
