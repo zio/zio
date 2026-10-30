@@ -310,7 +310,14 @@ const config = {
             to: '/zio-kafka/tutorial',
           },
           {
-            from: ['/ecosystem/tools', '/ecosystem/templates', '/ecosystem/tools-and-templates'],
+            from: [
+              '/ecosystem/tools',
+              '/ecosystem/templates',
+              '/ecosystem/tools-and-templates',
+              '/ecosystem/officials',
+              '/ecosystem/community',
+              '/ecosystem/compatible',
+            ],
             to: '/ecosystem/',
           },
           {

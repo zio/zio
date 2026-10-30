@@ -548,10 +548,6 @@ module.exports = {
   "ecosystem-sidebar": [
     { type: "doc", id: "ecosystem/index", label: "Overview", className: "eco-overview" },
     ...ecosystemSidebar,
-    { type: "html", value: "Resources", className: "eco-section-label" },
-    { type: "doc", id: "ecosystem/officials/index", label: "All Official Libraries" },
-    { type: "doc", id: "ecosystem/community/index", label: "All Community Libraries" },
-    "ecosystem/compatible",
     {
       type: "link",
       label: "Add your library",

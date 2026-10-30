@@ -697,16 +697,6 @@ html.homepage-snap .fp-section {
 
 /* ── Ecosystem sidebar ────────────────────────────────────────────────── */
 /* Classes come from website/sidebars.js and the generate-sidebar plugin. */
-.eco-section-label {
-  margin: 1.1rem 0 0.25rem;
-  padding: 0 var(--ifm-menu-link-padding-horizontal);
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ifm-color-emphasis-600);
-}
-
 .eco-category > .menu__list-item-collapsible > .menu__link {
   display: flex;
   align-items: center;
