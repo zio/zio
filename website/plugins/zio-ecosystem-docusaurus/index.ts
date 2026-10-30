@@ -107,7 +107,7 @@ function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
               projects.filter(project => !isSinglePage(project.category)).map(project => [
                 `${project.name}-sidebar`,
                 [
-                  { type: 'link', label: '← ZIO Ecosystem', href: '/ecosystem/' },
+                  { type: 'link', label: '← ZIO Ecosystem', href: `/ecosystem/?eco-category=${categoryIdOf(project.name)}` },
                   { ...project.category, collapsible: false, collapsed: false }
                 ]
               ])
@@ -134,6 +134,17 @@ type CategoryConfig = {
   official: string[]
   external?: { label: string, href: string }[]
   community: string[]
+}
+
+// The id of the category that lists a project in the ecosystem sidebar. The
+// "← ZIO Ecosystem" link of the project passes it along, so the ecosystem
+// sidebar opens with that category expanded (see
+// src/clientModules/ecosystem-sidebar.js).
+function categoryIdOf(project: string): string {
+  const categories: CategoryConfig[] =
+    JSON.parse(fs.readFileSync('ecosystem-categories.json', 'utf8')).categories
+  const category = categories.find(c => c.official.includes(project))
+  return category ? category.id : 'other'
 }
 
 // The title of a community library's page, used as its sidebar label so that
