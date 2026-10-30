@@ -29,7 +29,10 @@ export const ecosystemProjects = [
       'Middleware system for cross-cutting concerns',
     ],
     link: 'https://ziohttp.com',
-    icon: '/img/ecosystem/zio-http-logo-mark.png'
+    icon: {
+      light: '/img/ecosystem/zio-http-logo-mark-light.svg',
+      dark: '/img/ecosystem/zio-http-logo-mark-dark.svg'
+    }
   },
   {
     name: 'ZIO Streams',

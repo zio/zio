@@ -9,6 +9,15 @@ import SectionWrapper from '@site/src/components/ui/SectionWrapper';
 import { ecosystemProjects } from './data';
 
 function ProjectIcon({ icon, name }) {
+  if (typeof icon === 'object') {
+    return (
+      <ThemedImage
+        alt={`${name} logo`}
+        sources={{ light: icon.light, dark: icon.dark }}
+        className={styles.ecosystemCardIconImg}
+      />
+    );
+  }
   if (typeof icon === 'string' && icon.startsWith('/')) {
     return <img src={icon} alt={`${name} logo`} className={styles.ecosystemCardIconImg} />;
   }
