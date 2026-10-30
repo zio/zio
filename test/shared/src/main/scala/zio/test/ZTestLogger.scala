@@ -106,6 +106,9 @@ object ZTestLogger {
       }
       val logOutput: UIO[Chunk[LogEntry]] =
         ZIO.succeed(get)
+
+      override def toString: String =
+        s"ZTestLogger@${Integer.toHexString(java.lang.System.identityHashCode(this))}"
     }
   }
 }
