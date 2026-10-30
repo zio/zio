@@ -33,6 +33,8 @@ addCommandAlias(
   "; scalafmtSbtCheck; scalafmtCheckAll"
 )
 
+// The API reference served at /api: the unified Scaladoc, built on Scala 3 (see `apiReference / generateApiDocs`).
+addCommandAlias("apiDocs", s"++$Scala3 apiReference/generateApiDocs")
 addCommandAlias(
   "compileJVM",
   ";coreTestsJVM/Test/compile;stacktracerJVM/Test/compile;streamsTestsJVM/Test/compile;testTestsJVM/Test/compile;testMagnoliaTestsJVM/Test/compile;testRefinedJVM/Test/compile;testRunnerJVM/Test/compile;examplesJVM/Test/compile;macrosTestsJVM/Test/compile;concurrentJVM/Test/compile;managedTestsJVM/Test/compile"
@@ -667,7 +669,7 @@ lazy val benchmarks = project.module
         "org.jctools"                % "jctools-core"  % "4.0.7",
         "org.typelevel"             %% "cats-effect"   % CatsEffectVersion,
         "org.scalacheck"            %% "scalacheck"    % ScalaCheckVersion,
-        "qa.hedgehog"               %% "hedgehog-core" % "0.15.0",
+        "qa.hedgehog"               %% "hedgehog-core" % "0.15.1",
         "com.github.japgolly.nyaya" %% "nyaya-gen"     % nyanaVersion,
         "org.springframework"        % "spring-core"   % "7.0.10"
       )
@@ -807,18 +809,6 @@ lazy val docs = project.module
     crossScalaVersions --= List(Scala212, Scala3),
     mdocIn  := (LocalRootProject / baseDirectory).value / "docs",
     mdocOut := (LocalRootProject / baseDirectory).value / "website" / "docs",
-    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
-      core.jvm,
-      streams.jvm,
-      tests.jvm,
-      testMagnolia.jvm,
-      testRefined.jvm,
-      testScalaCheck.jvm
-    ),
-    ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
-    cleanFiles += (ScalaUnidoc / unidoc / target).value,
-    docusaurusCreateSite     := docusaurusCreateSite.dependsOn(Compile / unidoc).value,
-    docusaurusPublishGhpages := docusaurusPublishGhpages.dependsOn(Compile / unidoc).value,
     resolvers += Resolver.sonatypeCentralSnapshots,
     mdocVariables ++= Map(
       "VERSION"                        -> version.value.split('+').head,
@@ -931,7 +921,124 @@ lazy val docs = project.module
     core.js,
     macros.jvm
   )
-  .enablePlugins(MdocPlugin, DocusaurusPlugin, ScalaUnidocPlugin)
+  .enablePlugins(MdocPlugin, DocusaurusPlugin)
   .aggregate(docs_make_zio_app_configurable)
+
+lazy val generateApiDocs = taskKey[File]("Generate the unified Scaladoc into website/static/api")
+
+// The API reference served at /api on the website: one unified Scaladoc, built on Scala 3 (`sbt apiDocs`). It has a
+// project of its own because `docs` is Scala 2.13 only: mdoc compiles the docs against libraries with no Scala 3 build.
+lazy val apiReference = project
+  .in(file("target/apiReference"))
+  .settings(
+    publish / skip     := true,
+    ideSkipProject     := true,
+    crossScalaVersions := Seq(Scala213, Scala3),
+    // Every published library module, on the JVM (JS and Native share its public API). A new published module must be
+    // added here too.
+    ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
+      core.jvm,
+      streams.jvm,
+      tests.jvm,
+      testRunner.jvm,
+      testJunitRunner,
+      testJunitEngine,
+      testMagnolia.jvm,
+      testRefined.jvm,
+      testScalaCheck.jvm,
+      concurrent.jvm,
+      managed.jvm,
+      macros.jvm,
+      stacktracer.jvm,
+      internalMacros.jvm
+    ),
+    // Scala 3 Scaladoc options. Scala 2's Scaladoc rejects them ("bad option: '-project'"), and the project is
+    // Scala 2.13 until `sbt apiDocs` switches it.
+    ScalaUnidoc / unidoc / scalacOptions ++= {
+      val root = (ThisBuild / baseDirectory).value
+      val revision =
+        scala.util.Try(scala.sys.process.Process("git rev-parse HEAD", root).!!.trim).getOrElse("series/2.x")
+      if (!scalaVersion.value.startsWith("3.")) Seq.empty
+      else
+        Seq(
+          "-project",
+          "ZIO",
+          "-project-version",
+          version.value,
+          "-sourceroot",
+          root.getAbsolutePath,
+          s"-source-links:github://zio/zio/$revision",
+          "-social-links:github::https://github.com/zio/zio",
+          // Load the side menu from one JS file: inlined, it repeats the whole package tree on every page and the site
+          // grows many times larger.
+          "-dynamic-side-menu"
+        )
+    },
+    // sbt-api-mappings maps every module on the classpath to its javadoc.io page, so links between documented types
+    // would leave the site for javadoc.io, which has no page for a snapshot. The modules of this build (the ones at its
+    // own version) are all documented here, so drop their mappings; other libraries keep theirs.
+    ScalaUnidoc / unidoc / apiMappings := {
+      val ownVersion = s"/${version.value}/"
+      (ScalaUnidoc / unidoc / apiMappings).value.filterNot { case (_, url) =>
+        url.toString.startsWith("https://javadoc.io/page/dev.zio/") && url.toString.contains(ownVersion)
+      }
+    },
+    // Copies the unified Scaladoc into website/static/api, so `yarn build` publishes it at /api. The website skin
+    // (website/scripts/theme-api.mjs) targets Scaladoc 3's output, so run it on Scala 3: `sbt apiDocs` is
+    // `++3.x apiReference/generateApiDocs`.
+    generateApiDocs := Def.taskDyn {
+      // Checked before Scaladoc runs: on Scala 2 the task would first build a Scala 2 Scaladoc, which fails here.
+      if (!scalaVersion.value.startsWith("3."))
+        Def.task[File](
+          sys.error(s"generateApiDocs needs Scala 3 (got ${scalaVersion.value}); run `sbt apiDocs` instead")
+        )
+      else
+        Def.task {
+          val apiDir = (ThisBuild / baseDirectory).value / "website" / "static" / "api"
+          val docDir = (ScalaUnidoc / doc).value
+          IO.delete(apiDir)
+          IO.copyDirectory(docDir, apiDir)
+          // Scaladoc bugs in scripts/ux.js break navigation; patch them in place.
+          // Each patch fails the task once its target text is gone, so a Scaladoc upgrade that fixes (or rewrites) the
+          // script gets the patch reviewed instead of silently skipped.
+          val uxJsPatches = Seq(
+            // The dynamic side menu interpolates `baseUrl`, an array of path segments, straight into its links, so
+            // JavaScript joins it with commas: under /api every menu link becomes ",api/zio.html", which resolves against
+            // the current page and 404s. (At a site root the array is [""] and the bug is invisible.) Join it with "/".
+            "return `${baseUrl}/${loc.join(\"/\")}.html`;" ->
+              "return `${baseUrl.join(\"/\")}/${loc.join(\"/\")}.html`;",
+            // Same-origin link clicks are loaded in place with jQuery's `$.get`, and jQuery comes from code.jquery.com:
+            // when it fails to load, the click handler calls preventDefault and then throws "$ is not defined", so no link
+            // navigates. Use fetch, and fall back to a normal page load if the request fails (the never-settling promise
+            // keeps the in-place load from running then).
+            "$.get(href, function (data) {" ->
+              ("fetch(href).then((r) => (r.ok ? r.text() : Promise.reject(r)))" +
+                ".catch(() => { window.location.href = href; return new Promise(() => {}); })" +
+                ".then(function (data) {"),
+            // Back and Forward restore the page content but not the dynamic side menu, which keeps highlighting the page
+            // you left. Update it the way a link click does.
+            "  loadPageState(document, e.state);\n" ->
+              ("  const oldLoc = getRawLoc();\n" +
+                "  loadPageState(document, e.state);\n" +
+                "  if (dynamicSideMenu && updateMenu) updateMenu(oldLoc, getRawLoc());\n"),
+            // A URL naming a section (#attributes) rather than a member expands it with the member's toggle button, which
+            // a section does not have, so the page setup throws there and skips the rest (code highlighting included).
+            // Toggle the button only when there is one.
+            "btn.classList.toggle(\"expand\");\n        btn.classList.toggle(\"expanded\");" ->
+              "btn?.classList.toggle(\"expand\");\n        btn?.classList.toggle(\"expanded\");"
+          )
+          val uxJs = apiDir / "scripts" / "ux.js"
+          val patchedUxJs = uxJsPatches.foldLeft(IO.read(uxJs)) { case (src, (broken, fixed)) =>
+            if (!src.contains(broken))
+              sys.error(s"$uxJs no longer contains `$broken`: check whether Scaladoc fixed it and drop this patch")
+            src.replace(broken, fixed)
+          }
+          IO.write(uxJs, patchedUxJs)
+          Keys.streams.value.log.info(s"Copied the API docs from $docDir to $apiDir")
+          apiDir
+        }
+    }.value
+  )
+  .enablePlugins(ScalaUnidocPlugin)
 
 Global / excludeLintKeys += ideSkipProject

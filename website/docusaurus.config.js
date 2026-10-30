@@ -7,6 +7,12 @@ const lightCodeTheme = prismThemes.github;
 const darkCodeTheme = prismThemes.vsDark;
 const { getEditUrl } = require('./editUrl');
 
+// Ecosystem projects are copied from these npm packages into docs/<project>
+// and served at /<project>, each with its own sidebar.
+const ecosystemProjects = Object.keys(require('./package.json').dependencies)
+  .filter((name) => name.startsWith('@zio.dev/'))
+  .map((name) => name.split('/')[1]);
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'ZIO',
@@ -21,9 +27,9 @@ const config = {
   projectName: 'zio',
   themeConfig: {
     announcementBar: {
-      id: 'announcementBar',
+      id: 'announcementBar-zioblocks',
       content:
-        '📚 <b>ZIONOMICON</b>, updated for ZIO 2.1, is out now! Grab <a href="https://zionomicon.com" target="_blank">your free copy</a> and level up your ZIO skills 🚀',
+        '<img src="/img/ecosystem/zio-blocks-icon.svg" alt="" style="height: 1.1em; vertical-align: middle;"> <b>ZIO Blocks</b> has a new website! Visit <a href="https://zioblocks.com" target="_blank">zioblocks.com</a> to explore the docs 🚀',
       backgroundColor: '#ececec',
       textColor: '#1a1a1a',
       isCloseable: true,
@@ -73,6 +79,15 @@ const config = {
           label: 'Reference',
           position: 'left',
         },
+        // The Scaladoc is plain HTML copied into static/api by `sbt apiDocs`, outside the Docusaurus router:
+        // pathname:// makes it a full page load and keeps the broken link checker off it. The API pages copy this
+        // navbar (scripts/lib/api-theme.mjs, NAV_LINKS).
+        {
+          to: 'pathname:///api/',
+          label: 'API',
+          position: 'left',
+          target: '_self',
+        },
         {
           type: 'doc',
           docId: 'guides/index',
@@ -80,10 +95,12 @@ const config = {
           position: 'left',
         },
         {
-          type: 'doc',
-          docId: 'ecosystem/index',
+          // Not `type: 'doc'`: that item is only active on pages of the
+          // ecosystem sidebar, but each project has a sidebar of its own.
+          to: '/ecosystem/',
           label: 'Ecosystem',
           position: 'left',
+          activeBaseRegex: `^/(ecosystem|${ecosystemProjects.join('|')})(/|$)`,
         },
         {
           type: 'doc',
@@ -130,8 +147,9 @@ const config = {
               href: '/guides',
             },
             {
-              label: 'Scaladoc of ZIO',
-              href: 'https://javadoc.io/doc/dev.zio/zio_3/latest/index.html',
+              label: 'API Reference',
+              to: 'pathname:///api/',
+              target: '_self',
             },
           ],
         },
@@ -205,7 +223,8 @@ const config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} ZIO Maintainers - Built with <a href="https://docusaurus.io/">Docusaurus</a>`,
+      // Copyright, licence and credit on one line; the year is the build year.
+      copyright: `Copyright © ${new Date().getFullYear()} ZIO Maintainers · Licensed under the <a href="https://github.com/zio/zio/blob/series/2.x/LICENSE">Apache License 2.0</a> · Built with <a href="https://docusaurus.io/">Docusaurus</a>`,
     },
   },
   presets: [

@@ -36,6 +36,7 @@ website/package-lock.json
 website/static/api
 website/yarn-error.log
 website/ecosystem-sidebar.js
+website/per-project-sidebars.js
 .bsp/
 .vscode
 docs/.crossref-state/state.json

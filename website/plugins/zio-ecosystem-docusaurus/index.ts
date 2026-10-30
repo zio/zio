@@ -8,7 +8,13 @@ import * as fs from 'fs'
  * Registers a CLI command called `generate-sidebar` that:
  * 1. Copies project files from ZIO npm packages into `./docs/`
  * 2. Aggregates sidebars from old-style and new-style projects
- * 3. Generates an `ecosystem-sidebar.js` file with merged and sorted configuration
+ * 3. Generates an `ecosystem-sidebar.js` file listing every project as a link
+ * 4. Generates a `per-project-sidebars.js` file with one sidebar per project
+ *
+ * Each project's docs belong to exactly one sidebar (its own), so Docusaurus
+ * shows that sidebar on the project's pages. The ecosystem sidebar only holds
+ * `link` items, which point to a project without making its docs part of the
+ * ecosystem sidebar.
  *
  * @param context - Docusaurus plugin context
  * @param options - Plugin configuration options
@@ -35,43 +41,93 @@ function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
             }
           }
 
-          const result =
+          const projects: EcosystemProject[] =
             oldStyledZioProjects
               // If the sidebar is simple and doesn't have label
               .filter(e => (require(`@zio.dev/${e.routeBasePath}/${e.sidebarPath}`).sidebar[0] == "index"))
-              .map(project => {
-                return mapConfig(
+              .map(project => ({
+                name: project.routeBasePath,
+                category: mapConfig(
                   categoryTemplate(
                     project.name,
                     require(`@zio.dev/${project.routeBasePath}/${project.sidebarPath}`)
                       .sidebar
-                     .filter(e => e != "index")),
+                      .filter(e => e != "index")),
                   `${project.routeBasePath}/`
-                )
-              })
+                ) as SidebarItemCategoryConfig
+              }))
               .concat(
                 zioNpmProjects()
                   // If the sidebar has all the metadata including the label
                   .filter(e => {
                     return require(`@zio.dev/${e}/sidebars.js`).sidebar[0].label !== undefined;
                   })
-                  .map(project =>
-                    mapConfig(require(`@zio.dev/${project}/sidebars.js`).sidebar[0], `${project}/`)
-                  )
+                  .map(project => ({
+                    name: project,
+                    category: mapConfig(require(`@zio.dev/${project}/sidebars.js`).sidebar[0], `${project}/`) as SidebarItemCategoryConfig
+                  }))
               )
-              .sort((a, b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0)
+              .sort((a, b) => a.category.label < b.category.label ? -1 : a.category.label > b.category.label ? 1 : 0)
 
-          const content =
-            `const sidebar = ${JSON.stringify(result, null, '  ')}\nmodule.exports = sidebar`
+          // Plain links rather than `ref` items: a `ref` item takes its label
+          // from the doc's `sidebar_label` ("Introduction", "Getting Started")
+          // instead of the project name.
+          const ecosystemSidebar =
+            projects.map(project => ({
+              type: 'link',
+              label: project.category.label,
+              href: '/' + entryDocId(project.category).replace(/index$/, '')
+            }))
 
-          fs.writeFile('ecosystem-sidebar.js', content, err => {
-            if (err) {
-              console.error(err);
-            }
-          });
+          const perProjectSidebars =
+            Object.fromEntries(
+              projects.map(project => [
+                `${project.name}-sidebar`,
+                [
+                  { type: 'link', label: '← ZIO Ecosystem', href: '/ecosystem/' },
+                  { ...project.category, collapsible: false, collapsed: false }
+                ]
+              ])
+            )
+
+          writeSidebarFile('ecosystem-sidebar.js', ecosystemSidebar)
+          writeSidebarFile('per-project-sidebars.js', perProjectSidebars)
         })
     }
   }
+}
+
+type EcosystemProject = {
+  name: string
+  category: SidebarItemCategoryConfig
+}
+
+function writeSidebarFile(path: string, sidebar: unknown) {
+  const content =
+    `const sidebar = ${JSON.stringify(sidebar, null, '  ')}\nmodule.exports = sidebar`
+
+  fs.writeFile(path, content, err => {
+    if (err) {
+      console.error(err);
+    }
+  });
+}
+
+// The doc a project's entry in the ecosystem sidebar should open: the
+// category's own page if it has one, otherwise its first doc.
+function entryDocId(config: SidebarItemConfig): string | undefined {
+  if (typeof (config) === "string") {
+    return config
+  } else if (isSidebarItemCategoryConfig(config)) {
+    if (config.link && config.link.type === "doc") {
+      return (config.link as SidebarItemCategoryLinkDoc).id
+    }
+    for (const item of config.items as SidebarItemConfig[]) {
+      const id = entryDocId(item)
+      if (id) return id
+    }
+  }
+  return undefined
 }
 
 function zioNpmProjects(): string[] {
@@ -90,6 +146,8 @@ function zioNpmProjects(): string[] {
 function copy(srcDir: string, destDir: string) {
   const fs = require('fs-extra');
   try {
+    // Drop files left over from a previous package version
+    fs.removeSync(destDir)
     fs.copySync(srcDir, destDir, { overwrite: true || false })
   } catch (err) {
     console.error(err)
@@ -99,78 +157,8 @@ function copy(srcDir: string, destDir: string) {
 const oldStyledZioProjects =
   [
     {
-      name: 'Caliban Deriving',
-      routeBasePath: 'caliban-deriving',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Interop Monix',
-      routeBasePath: 'interop-monix',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Izumi Reflect',
-      routeBasePath: 'izumi-reflect',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Actors',
-      routeBasePath: 'zio-actors',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: "ZIO Akka Cluster",
-      routeBasePath: 'zio-akka-cluster',
-      sidebarPath: 'sidebars.js',
-    },
-    {
       name: 'ZIO AWS',
       routeBasePath: 'zio-aws',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: "ZIO Connect",
-      routeBasePath: 'zio-connect',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: "ZIO Deriving",
-      routeBasePath: 'zio-deriving',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Flow',
-      routeBasePath: 'zio-flow',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Interop Guava',
-      routeBasePath: 'zio-interop-guava',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Interop Scalaz',
-      routeBasePath: 'zio-interop-scalaz',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Interop Twitter',
-      routeBasePath: 'zio-interop-twitter',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Memberlist',
-      routeBasePath: 'zio-memberlist',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Meta',
-      routeBasePath: 'zio-meta',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO NIO',
-      routeBasePath: 'zio-nio',
       sidebarPath: 'sidebars.js',
     },
     {
@@ -191,11 +179,6 @@ const oldStyledZioProjects =
     {
       name: 'ZIO SQS',
       routeBasePath: 'zio-sqs',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Webhooks',
-      routeBasePath: 'zio-webhooks',
       sidebarPath: 'sidebars.js',
     }
   ]
