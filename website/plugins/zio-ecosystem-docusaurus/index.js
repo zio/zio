@@ -84,21 +84,30 @@ function zioEcosystemPlugin(context, options) {
                     .sort((a, b) => a.category.label < b.category.label ? -1 : a.category.label > b.category.label ? 1 : 0);
                 // Plain links rather than `ref` items: a `ref` item takes its label
                 // from the doc's `sidebar_label` ("Introduction", "Getting Started")
-                // instead of the project name.
+                // instead of the project name. A project with a single page gets no
+                // sidebar of its own, so it is a `doc` item, which makes the ecosystem
+                // sidebar the one shown on that page.
                 const officialLinks = Object.fromEntries(projects.map(project => [
                     project.name,
                     {
                         label: project.category.label,
-                        item: {
-                            type: 'link',
-                            label: project.category.label,
-                            href: '/' + entryDocId(project.category).replace(/index$/, ''),
-                            className: 'eco-tag eco-tag-official'
-                        }
+                        item: isSinglePage(project.category)
+                            ? {
+                                type: 'doc',
+                                id: entryDocId(project.category),
+                                label: project.category.label,
+                                className: 'eco-tag eco-tag-official'
+                            }
+                            : {
+                                type: 'link',
+                                label: project.category.label,
+                                href: '/' + entryDocId(project.category).replace(/index$/, ''),
+                                className: 'eco-tag eco-tag-official'
+                            }
                     }
                 ]));
                 const ecosystemSidebar = categorizedEcosystem(officialLinks);
-                const perProjectSidebars = Object.fromEntries(projects.map(project => [
+                const perProjectSidebars = Object.fromEntries(projects.filter(project => !isSinglePage(project.category)).map(project => [
                     `${project.name}-sidebar`,
                     [
                         { type: 'link', label: '← ZIO Ecosystem', href: '/ecosystem/' },
@@ -164,6 +173,20 @@ function writeSidebarFile(path, sidebar) {
             console.error(err);
         }
     });
+}
+// Whether a project documents itself on one page, in which case it doesn't
+// need a sidebar of its own.
+function isSinglePage(config) {
+    return leafDocCount(config) <= 1;
+}
+function leafDocCount(config) {
+    if (typeof (config) === "string") {
+        return 1;
+    }
+    else if (isSidebarItemCategoryConfig(config)) {
+        return config.items.reduce((count, item) => count + leafDocCount(item), 0);
+    }
+    return 1;
 }
 // The doc a project's entry in the ecosystem sidebar should open: the
 // category's own page if it has one, otherwise its first doc.
