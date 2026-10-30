@@ -92,7 +92,7 @@ println(
     |""".stripMargin)
 ```
 
-Inside the `index.md` file, the `sidebar_title` field is used to set the name of the library in the sidebar of the documentation website on [this page](ecosystem/officials/index.mdx). Therefore, make sure to set it at the top of the `docs/index.md` file.
+Inside the `index.md` file, the `sidebar_title` field is used to set the name of the library in the sidebar of the documentation website on [this page](ecosystem/index.mdx#official-libraries). Therefore, make sure to set it at the top of the `docs/index.md` file.
 
 Also, we can use `@‎PROJECT_BADGES@` placeholder to add badges to the documentation. The `@‎PROJECT_BADGES@` placeholder will be replaced with the badges of the library. Also, the `@‎VERSION@` placeholder will be replaced with the latest version of the library.
 

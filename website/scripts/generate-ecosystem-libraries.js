@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Regenerates the lists of libraries in docs/ecosystem/officials/index.mdx and
-// docs/ecosystem/community/index.mdx.
+// Regenerates the lists of official and community libraries in
+// docs/ecosystem/index.mdx.
 //
 // The libraries and their categories come from ecosystem-sidebar.js, which
 // `docusaurus generate-sidebar` writes from ecosystem-categories.json; the
@@ -19,7 +19,7 @@ const descriptions = require(path.join(website, 'ecosystem-descriptions.json'))
 
 const kinds = {
   official: {
-    page: path.join(docs, 'officials', 'index.mdx'),
+    page: path.join(docs, 'index.mdx'),
     href: (item) => item.href,
     key: (item) =>
       item.href.startsWith('/')
@@ -27,7 +27,7 @@ const kinds = {
         : item.label.toLowerCase().replace(/\s+/g, '-'),
   },
   community: {
-    page: path.join(docs, 'community', 'index.mdx'),
+    page: path.join(docs, 'index.mdx'),
     href: (item) => `/${item.id}`,
     key: (item) => item.id.split('/').pop(),
   },
