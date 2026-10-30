@@ -81,6 +81,10 @@ object SmartAssertionSpec extends ZIOBaseSpec {
       val myString = "something"
       assertTrue(myString.contains("aoseunoth") && myString == "coool")
     } @@ failing,
+    test("short-circuits ||") {
+      val option: Option[Int] = None
+      assertTrue(option.isEmpty || option.get == 1)
+    },
     suite("referencing literals")(
       test("List") {
         val list = List(10, 23, 8, 8)
