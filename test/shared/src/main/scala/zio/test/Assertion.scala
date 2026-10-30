@@ -737,10 +737,13 @@ object Assertion extends AssertionVariants {
    * as the specified Iterable, though not necessarily in the same order.
    */
   def hasSameElements[A, B](other: Iterable[B])(implicit ev: A <:< B): Assertion[Iterable[A]] =
+    hasSameElements[A](other.asInstanceOf[Iterable[A]])
+
+  private[zio] def hasSameElements[A](other: Iterable[A]): Assertion[Iterable[A]] =
     Assertion[Iterable[A]](
       TestArrow
         .make[Iterable[A], Boolean] { actual =>
-          val actualSeq: Seq[B] = actual.toSeq.map(ev)
+          val actualSeq = actual.toSeq
           val otherSeq  = other.toSeq
 
           val result = actualSeq.diff(otherSeq).isEmpty && otherSeq.diff(actualSeq).isEmpty
