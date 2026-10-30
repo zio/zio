@@ -108,7 +108,7 @@ object ZTestLogger {
         ZIO.succeed(get)
 
       override def toString: String =
-        s"ZTestLogger@${Integer.toHexString(System.identityHashCode(this))}"
+        s"ZTestLogger@${Integer.toHexString(java.lang.System.identityHashCode(this))}"
     }
   }
 }
