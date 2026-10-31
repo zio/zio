@@ -280,25 +280,28 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
               case Some(fib) => fib.join
             }
 
-          // Waiting for the scheduler
-          val waitForSchedule: URIO[R1 with Clock, Option[Q]] =
-            scheduleFiber.getAndSet(None).flatMap {
-              case None      => updateSchedule
-              case Some(fib) => fib.join
+          // The fiber running the current schedule step. It is forked once and
+          // kept across pulls that produce nothing, so that pulls racing it do
+          // not wrap it into ever longer chains of joining fibers (#8686)
+          val getScheduleFiber: URIO[R1 with Clock, Fiber[Nothing, Option[Q]]] =
+            scheduleFiber.get.flatMap {
+              case None      => updateSchedule.forkDaemon.tap(fib => scheduleFiber.set(Some(fib)))
+              case Some(fib) => ZIO.succeedNow(fib)
             }
 
           def updateLastChunk(take: Take[_, P]): UIO[Unit] =
             take.tap(lastChunk.set(_))
+
+          def stopSchedule(scheduleWaiting: Fiber[Nothing, Option[Q]]): UIO[Unit] =
+            scheduleFiber.set(None) *> scheduleWaiting.interrupt.unit
 
           def setScheduleOnEmptyChunk(
             take: Take[E1, P],
             optFiber: Option[Fiber[Nothing, Option[Q]]]
           ): UIO[Unit] =
             optFiber.fold(ZIO.unit) { scheduleWaiting =>
-              if (take.exit.fold(_ => true, _.nonEmpty))
-                scheduleWaiting.interrupt.unit
-              else
-                scheduleFiber.set(Some(scheduleWaiting))
+              if (take.exit.fold(_ => true, _.nonEmpty)) stopSchedule(scheduleWaiting)
+              else ZIO.unit
             }
 
           def handleTake(
@@ -307,10 +310,10 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
           ): Pull[R1, E1, Take[E1, Either[Nothing, P]]] =
             take
               .foldM(
-                scheduleWaiting.fold(ZIO.unit)(_.interrupt.unit) *> push(None).map(ps =>
+                scheduleWaiting.fold(ZIO.unit)(stopSchedule) *> push(None).map(ps =>
                   Chunk(Take.chunk(ps.map(Right(_))), Take.end)
                 ),
-                cause => ZIO.halt(cause),
+                cause => scheduleWaiting.fold(ZIO.unit)(stopSchedule) *> ZIO.halt(cause),
                 os =>
                   Take
                     .fromPull(push(Some(os)).asSomeError)
@@ -325,33 +328,38 @@ abstract class ZStream[-R, +E, +O](val process: ZManaged[R, Nothing, ZIO[R, Opti
             if (!race)
               waitForProducer.flatMap(handleTake(_, None)) <* raceNextTime.set(true)
             else
-              waitForSchedule.raceWith[R1 with Clock, Nothing, Option[E1], Take[E1, O], Chunk[Take[E1, Either[Q, P]]]](
-                waitForProducer
-              )(
-                (scheduleDone, producerWaiting) =>
-                  ZIO.done(scheduleDone).flatMap {
-                    case None =>
-                      for {
-                        lastQ         <- lastChunk.set(Chunk.empty) *> sdriver.last.orDie <* sdriver.reset
-                        scheduleResult = Take.single(Left(lastQ))
-                        take          <- Take.fromPull(push(None).asSomeError).tap(updateLastChunk)
-                        _             <- raceNextTime.set(false)
-                        _             <- waitingFiber.set(Some(producerWaiting))
-                      } yield Chunk(scheduleResult, take.map(Right(_)))
+              getScheduleFiber.flatMap { scheduleWaiting =>
+                scheduleWaiting.join.raceWith[R1 with Clock, Nothing, Option[E1], Take[E1, O], Chunk[
+                  Take[E1, Either[Q, P]]
+                ]](
+                  waitForProducer
+                )(
+                  (scheduleDone, producerWaiting) =>
+                    scheduleFiber.set(None) *> ZIO.done(scheduleDone).flatMap {
+                      case None =>
+                        for {
+                          lastQ         <- lastChunk.set(Chunk.empty) *> sdriver.last.orDie <* sdriver.reset
+                          scheduleResult = Take.single(Left(lastQ))
+                          take          <- Take.fromPull(push(None).asSomeError).tap(updateLastChunk)
+                          _             <- raceNextTime.set(false)
+                          _             <- waitingFiber.set(Some(producerWaiting))
+                        } yield Chunk(scheduleResult, take.map(Right(_)))
 
-                    case Some(_) =>
-                      for {
-                        ps <- Take.fromPull(push(None).asSomeError).tap(updateLastChunk)
-                        _  <- raceNextTime.set(false)
-                        _  <- waitingFiber.set(Some(producerWaiting))
-                      } yield Chunk.single(ps.map(Right(_)))
-                  },
-                (
-                  producerDone,
-                  scheduleWaiting
-                ) => handleTake(Take(producerDone.flatMap(_.exit)), Some(scheduleWaiting)),
-                Some(ZScope.global)
-              )
+                      case Some(_) =>
+                        for {
+                          ps <- Take.fromPull(push(None).asSomeError).tap(updateLastChunk)
+                          _  <- raceNextTime.set(false)
+                          _  <- waitingFiber.set(Some(producerWaiting))
+                        } yield Chunk.single(ps.map(Right(_)))
+                    },
+                  // Only the fiber joining the schedule lost the race, the
+                  // schedule itself keeps running for the next pull
+                  (producerDone, scheduleJoin) =>
+                    scheduleJoin.interrupt *>
+                      handleTake(Take(producerDone.flatMap(_.exit)), Some(scheduleWaiting)),
+                  Some(ZScope.global)
+                )
+              }
 
           raceNextTime.get
             .flatMap(go)
