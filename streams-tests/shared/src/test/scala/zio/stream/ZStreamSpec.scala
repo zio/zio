@@ -1715,7 +1715,19 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertM(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(
               equalTo(Chunk(Chunk(1, 2), Chunk(3, 4)))
             )
-          }
+          },
+          testM("group based on time passed when an infinite stream emits empty chunks") {
+            // https://github.com/zio/zio/issues/8686
+            val stream = ZStream
+              .fromIterable(Seq(1, 2))
+              .forever
+              .mapAccum(Set.empty[Int])((seen, i) => if (seen(i)) (seen, None) else (seen + i, Some(i)))
+              .collectSome
+              .groupedWithin(3, 5.seconds)
+              .take(1)
+
+            assertM(zio.test.environment.live(stream.runCollect))(equalTo(Chunk(Chunk(1, 2))))
+          } @@ timeout(30.seconds)
         ),
         testM("interleave") {
           val s1 = ZStream(2, 3)
