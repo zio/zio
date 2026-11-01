@@ -5667,22 +5667,59 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
     ): ZIO[R, E, B1] =
-      ZIO.fiberIdWith { parentFiberId =>
-        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
-          (winner, loser) =>
-            winner.await.flatMap { exit =>
-              loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
+      ZIO.clockWith(_.scheduler).flatMap { scheduler =>
+        val d = duration
+        ZIO.withFiberRuntime[R, E, B1] { (parentFiber, parentStatus) =>
+          import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
+
+          val raceIndicator = new AtomicBoolean(false)
+          val cancelTimeout = new AtomicReference[Scheduler.CancelToken]()
+
+          val graft    = ZIO.Grafter(parentFiber)
+          val childEff = graft.applyOnExit(self)
+          val childFiber =
+            ZIO.unsafe.makeChildFiber(trace, childEff, parentFiber, parentStatus.runtimeFlags, null)(Unsafe)
+          val startChild = childFiber.startSuspended()(Unsafe)
+
+          ZIO.asyncInterrupt[R, E, B1](
+            { cb =>
+              childFiber.addObserver { exit =>
+                if (raceIndicator.compareAndSet(false, true)) {
+                  val cancel = cancelTimeout.get()
+                  if (cancel ne null) cancel()
+                  cb(childFiber.inheritAll *> exit.mapExit(f))
+                }
+              }(Unsafe)
+
+              startChild(childEff)
+
+              if (!raceIndicator.get()) {
+                if (d <= Duration.Zero) {
+                  if (raceIndicator.compareAndSet(false, true)) {
+                    cb(childFiber.interruptAs(parentFiber.id) *> childFiber.inheritAll.as(b()))
+                  }
+                } else if (d < Duration.Infinity) {
+                  val cancel = scheduler.schedule(
+                    () =>
+                      if (raceIndicator.compareAndSet(false, true)) {
+                        cb(childFiber.interruptAs(parentFiber.id) *> childFiber.inheritAll.as(b()))
+                      },
+                    d
+                  )(Unsafe)
+
+                  cancelTimeout.set(cancel)
+                  if (raceIndicator.get()) cancel()
+                }
+              }
+
+              Left(ZIO.succeed {
+                val cancel = cancelTimeout.get()
+                if (cancel ne null) cancel()
+              })
             },
-          (winner, loser) =>
-            winner.await.flatMap {
-              case e: Exit.Failure[Nothing] =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
-              case _ =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
-            },
-          null,
-          FiberScope.global
-        )
+            childFiber.id
+          )
+        }
       }
   }
 
