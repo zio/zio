@@ -30,6 +30,10 @@ object ZIOAppArgs {
   /**
    * Use when your App does not need to access the command-line arguments.
    */
-  val empty: ULayer[ZIOAppArgs] = ZLayer.succeed(ZIOAppArgs(Chunk.empty))(Tag[ZIOAppArgs], Trace.empty)
+  val empty: ULayer[ZIOAppArgs] = {
+    implicit val tag: Tag[ZIOAppArgs] = Tag(EnvironmentTag.tagFromTagMacro)
+    implicit val trace: Trace         = Trace.empty
+    ZLayer.succeed(ZIOAppArgs(Chunk.empty))
+  }
 
 }

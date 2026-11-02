@@ -41,7 +41,7 @@ jobs:
     - name: Cache scala dependencies
       uses: coursier/cache-action@v8
     - name: Lint code
-      run: sbt "++2.13; check; ++3.3; check"
+      run: sbt "++2.13; check; ++3.9; check"
 
   publishLocal:
     runs-on: ubuntu-latest
@@ -71,13 +71,13 @@ jobs:
         uses: coursier/cache-action@v8
       - name: publishLocal 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
-        run: sbt --client -v "++${{ matrix.scala }}; root212/Test/compile; root212/publishLocal"
+        run: sbt --client -v "++${{ matrix.scala }}; root212/compile; root212/publishLocal"
       - name: publishLocal 2.13
         if: ${{ startsWith(matrix.scala, '2.13.') }}
-        run: sbt --client -v "++${{ matrix.scala }}; root213/Test/compile; root213/publishLocal"
+        run: sbt --client -v "++${{ matrix.scala }}; root213/compile; root213/publishLocal"
       - name: publishLocal 3
         if: ${{ startsWith(matrix.scala, '3.') }}
-        run: sbt --client -v "++${{ matrix.scala }}; root3/Test/compile; root3/publishLocal"
+        run: sbt --client -v "++${{ matrix.scala }}; root3/compile; root3/publishLocal"
       - name: Mima Checks
         run: sbt --client mimaChecks
       - name: Shutdown SBT server
