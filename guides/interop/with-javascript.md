@@ -5,7 +5,7 @@
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+34-b120cf49-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+35-948a3d50-SNAPSHOT"
 ```
 
 ## Example
