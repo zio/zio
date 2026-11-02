@@ -209,6 +209,7 @@ object BuildHelper {
     name                     := s"$prjName",
     crossScalaVersions       := Seq(Scala212, Scala213, Scala3),
     ThisBuild / scalaVersion := Scala213,
+    javacOptions ++= Seq("--release", JdkReleaseVersion),
     scalacOptions ++= stdOptions ++ extraOptions(
       scalaVersion.value,
       optimize = isRelease || !isSnapshot.value,
