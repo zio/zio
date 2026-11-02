@@ -1,4 +1,5 @@
 const ecosystemSidebar = require("./ecosystem-sidebar");
+const perProjectSidebars = require("./per-project-sidebars");
 
 module.exports = {
   overview_sidebar:
@@ -585,5 +586,6 @@ module.exports = {
     "ecosystem/tools",
     "ecosystem/templates"
   ],
-  "resources-sidebar": ["resources/index"]
+  "resources-sidebar": ["resources/index"],
+  ...perProjectSidebars
 }

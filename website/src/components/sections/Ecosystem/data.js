@@ -12,8 +12,12 @@ export const ecosystemProjects = [
       'High-performance implementations avoiding boxing and unnecessary allocations',
       'Includes Schema, Chunk, Scope, Docs, TypeId, Context, MediaType, and Ring Buffer blocks',
     ],
-    link: '/zio-blocks',
-    icon: '/img/ecosystem/zio-blocks-mark.svg'
+    link: 'https://zioblocks.com',
+    // Full wordmark: the mark doubles as the "Z", so no separate name is rendered
+    logo: {
+      light: '/img/ecosystem/zio-blocks-logo.svg',
+      dark: '/img/ecosystem/zio-blocks-logo-on-dark.svg'
+    }
   },
   {
     name: 'ZIO HTTP',
@@ -25,7 +29,10 @@ export const ecosystemProjects = [
       'Middleware system for cross-cutting concerns',
     ],
     link: 'https://ziohttp.com',
-    icon: '/img/ecosystem/zio-http-logo-mark.png'
+    icon: {
+      light: '/img/ecosystem/zio-http-logo-mark-light.svg',
+      dark: '/img/ecosystem/zio-http-logo-mark-dark.svg'
+    }
   },
   {
     name: 'ZIO Streams',
