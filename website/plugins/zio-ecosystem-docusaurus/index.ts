@@ -108,7 +108,7 @@ function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
                 `${project.name}-sidebar`,
                 [
                   { type: 'link', label: '← ZIO Ecosystem', href: `/ecosystem/?eco-category=${categoryIdOf(project.name)}` },
-                  { ...project.category, collapsible: false, collapsed: false }
+                  { ...project.category, collapsible: false, collapsed: false, items: itemsWithoutOwnPage(project.category) }
                 ]
               ])
             )
@@ -212,6 +212,13 @@ function writeSidebarFile(path: string, sidebar: unknown) {
       console.error(err);
     }
   });
+}
+
+// The category of a project links to its own page, so listing that page again
+// among its items would show the same entry twice.
+function itemsWithoutOwnPage(category: SidebarItemCategoryConfig): SidebarItemConfig[] {
+  const own = category.link && category.link.type === "doc" ? (category.link as SidebarItemCategoryLinkDoc).id : undefined
+  return (category.items as SidebarItemConfig[]).filter(item => item !== own)
 }
 
 // Whether a project documents itself on one page, in which case it doesn't

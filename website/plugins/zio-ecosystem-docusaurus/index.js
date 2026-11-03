@@ -111,7 +111,7 @@ function zioEcosystemPlugin(context, options) {
                     `${project.name}-sidebar`,
                     [
                         { type: 'link', label: '← ZIO Ecosystem', href: `/ecosystem/?eco-category=${categoryIdOf(project.name)}` },
-                        { ...project.category, collapsible: false, collapsed: false }
+                        { ...project.category, collapsible: false, collapsed: false, items: itemsWithoutOwnPage(project.category) }
                     ]
                 ]));
                 writeSidebarFile('ecosystem-sidebar.js', ecosystemSidebar);
@@ -182,6 +182,12 @@ function writeSidebarFile(path, sidebar) {
             console.error(err);
         }
     });
+}
+// The category of a project links to its own page, so listing that page again
+// among its items would show the same entry twice.
+function itemsWithoutOwnPage(category) {
+    const own = category.link && category.link.type === "doc" ? category.link.id : undefined;
+    return category.items.filter(item => item !== own);
 }
 // Whether a project documents itself on one page, in which case it doesn't
 // need a sidebar of its own.
