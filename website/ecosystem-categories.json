@@ -89,6 +89,7 @@
       ],
       "community": [
         "scala-k8s",
+        "shard",
         "zio-k8s"
       ]
     },
@@ -109,6 +110,7 @@
         "decrel",
         "distage",
         "munit-zio",
+        "neotype",
         "rezilience",
         "zio-test-akka-http"
       ],
