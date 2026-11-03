@@ -754,6 +754,12 @@ html.homepage-snap .fp-section {
   background: rgba(220, 38, 38, 0.2);
 }
 
+.eco-category .menu__link[data-eco-last] {
+  box-shadow: inset 3px 0 0 var(--ifm-color-primary);
+  background: rgba(220, 38, 38, 0.1);
+  font-weight: 600;
+}
+
 .eco-overview > .menu__link {
   font-weight: 600;
 }
