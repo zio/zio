@@ -33,7 +33,9 @@
         "tranzactio",
         "zio-apache-parquet",
         "zio-elasticsearch",
-        "zio-lmdb"
+        "zio-lmdb",
+        "zio-mongodb",
+        "zio-spark"
       ]
     },
     {
@@ -104,6 +106,7 @@
         "zio2-interop-cats2"
       ],
       "community": [
+        "decrel",
         "distage",
         "munit-zio",
         "rezilience",

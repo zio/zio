@@ -36,6 +36,7 @@
   },
   "community": {
     "caliban": "A purely functional library for creating GraphQL servers and clients in Scala.",
+    "decrel": "A library for declarative programming using relations between data, with automatic batching, parallelization, and caching.",
     "distage": "A compile-time safe, transparent, and debuggable dependency injection framework for pure FP Scala.",
     "logstage": "A zero-cost structural logging framework for Scala and Scala.js.",
     "mongo4cats": "A functional and idiomatic interface for MongoDB, with a dedicated ZIO 2 module.",
@@ -52,6 +53,8 @@
     "zio-k8s": "An idiomatic ZIO client for the Kubernetes API, with code generation for custom resources and operators.",
     "zio-kinesis": "A ZIO-based AWS Kinesis client for consuming and producing data.",
     "zio-lmdb": "An embedded, ACID, key-value database for ZIO, stored in a single file.",
+    "zio-mongodb": "A ZIO wrapper around the official MongoDB Java driver, with compile-time codecs and a type-safe query DSL.",
+    "zio-spark": "A functional wrapper around Spark that makes it work with ZIO and improves error management.",
     "zio-test-akka-http": "An Akka HTTP route test kit for ZIO Test."
   }
 }
