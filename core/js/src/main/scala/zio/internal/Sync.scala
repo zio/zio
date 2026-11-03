@@ -23,4 +23,10 @@ private[zio] object Sync {
     val _ = anyRef
     f
   }
+
+  /**
+   * Scala.js is single threaded, so there is no other thread that could clear
+   * the contended state and nothing to wait for.
+   */
+  @inline def onSpinWait(): Unit = ()
 }
