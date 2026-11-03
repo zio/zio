@@ -421,6 +421,21 @@ a {
       animation: none;
     }
   }
+
+  /* ── Keep scrolling inside the chat ───────────────────────────────────────
+   Wheel/touch scrolling chains to the page once the message list hits its
+   end, or when the pointer is over a part that doesn't scroll (header, input).
+   `overscroll-behavior` only acts on scroll containers, so make the fixed
+   #container one too (it never overflows: the window is capped at 100vh) and
+   stop chaining on both it and the message list (#scroller). */
+  .zio-chat #container,
+  .zio-chat #scroller {
+    overscroll-behavior: contain;
+  }
+
+  .zio-chat #container {
+    overflow-y: auto;
+  }
 } /* end @layer components (ByteBrain chat overrides) */
 
 /* ── Algolia DocSearch: brand-consistent theming ─────────────────────────
