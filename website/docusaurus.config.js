@@ -114,7 +114,6 @@ const config = {
           label: 'Events',
           position: 'left',
         },
-        { to: 'http://chat.zio.dev', label: 'Chat Bot', position: 'right' },
         { to: 'blog', label: 'Blog', position: 'right' },
         {
           type: 'docsVersionDropdown',

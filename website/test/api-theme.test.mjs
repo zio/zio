@@ -80,7 +80,7 @@ test('the navbar links match the Docusaurus navbar, with API as the current page
   assert.deepEqual(NAV_LINKS.map(({ label, href, position }) => ({ label, href, position })), site);
   const nav = navbarHtml({ prompt: PROMPT });
   assert.match(nav, /<a class="za-navbar__link za-navbar__link--active" href="\/api\/" aria-current="page">API<\/a>/);
-  assert.match(nav, /<a class="za-navbar__link" href="http:\/\/chat\.zio\.dev" target="_blank" rel="noopener noreferrer">Chat Bot<\/a>/);
+  assert.ok(!nav.includes('Chat Bot') && !nav.includes('chat.zio.dev'));
   assert.match(
     nav,
     /<a class="za-navbar__link za-navbar__link--github" href="https:\/\/github\.com\/zio\/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg/,

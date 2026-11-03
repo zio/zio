@@ -33,7 +33,6 @@ export const NAV_LINKS = [
   { label: 'Ecosystem', href: '/ecosystem/', position: 'left' },
   { label: 'Resources', href: '/resources/', position: 'left' },
   { label: 'Events', href: '/events/', position: 'left' },
-  { label: 'Chat Bot', href: 'http://chat.zio.dev', position: 'right', newTab: true },
   { label: 'Blog', href: '/blog', position: 'right' },
   // An icon only (src/css/custom.css draws .header-github-link as the GitHub mark), named by its aria-label.
   { label: 'GitHub repository', href: 'https://github.com/zio/zio', position: 'right', newTab: true, icon: 'github' },
