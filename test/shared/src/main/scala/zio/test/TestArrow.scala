@@ -251,16 +251,20 @@ object TestArrow {
         }
 
       case And(lhs, rhs) =>
-        for {
-          l <- runLoop(lhs, in)
-          r <- runLoop(rhs, in)
-        } yield l && r
+        runLoop(lhs, in).flatMap { l =>
+          l.result match {
+            case Result.Succeed(false) => TailCalls.done(l)
+            case _                     => runLoop(rhs, in).map(l && _)
+          }
+        }
 
       case Or(lhs, rhs) =>
-        for {
-          l <- runLoop(lhs, in)
-          r <- runLoop(rhs, in)
-        } yield l || r
+        runLoop(lhs, in).flatMap { l =>
+          l.result match {
+            case Result.Succeed(true) => TailCalls.done(l)
+            case _                    => runLoop(rhs, in).map(l || _)
+          }
+        }
 
       case Not(arrow) =>
         runLoop(arrow, in).map(!_)
