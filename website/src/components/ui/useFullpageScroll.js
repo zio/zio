@@ -79,6 +79,8 @@ export default function useFullpageScroll(selector) {
       if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) {
         return;
       }
+      // Keys pressed while focus is in the chat belong to the chat.
+      if (e.target.closest?.('.zio-chat')) return;
       const now = Date.now();
       if (now < lockUntil) return;
       const list = sections();
