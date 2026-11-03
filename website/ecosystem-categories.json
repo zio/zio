@@ -19,55 +19,55 @@
     },
     {
       "id": "data",
-      "label": "Data & Persistence",
+      "label": "Databases & Data Access",
       "official": [
-        "zio-cache",
         "zio-dynamodb",
-        "zio-query",
         "zio-quill",
+        "zio-query",
         "zio-redis",
         "zio-rocksdb"
       ],
       "community": [
+        "decrel",
         "mongo4cats",
         "tranzactio",
-        "zio-apache-parquet",
         "zio-elasticsearch",
         "zio-lmdb",
-        "zio-mongodb",
-        "zio-spark"
+        "zio-mongodb"
       ]
     },
     {
       "id": "messaging",
-      "label": "Messaging & Streaming",
+      "label": "Messaging & Data Pipelines",
       "official": [
         "zio-amqp",
         "zio-kafka",
-        "zio-sqs",
-        "zio-streams-compress"
+        "zio-sqs"
       ],
       "community": [
         "tamer",
-        "zio-kinesis"
+        "zio-kinesis",
+        "zio-spark"
       ]
     },
     {
       "id": "serialization",
-      "label": "Serialization & Schema",
+      "label": "Serialization & Formats",
       "official": [
         "zio-bson",
         "zio-json",
         "zio-parser",
-        "zio-schema"
+        "zio-schema",
+        "zio-streams-compress"
       ],
-      "community": []
+      "community": [
+        "zio-apache-parquet"
+      ]
     },
     {
       "id": "observability",
-      "label": "Config & Observability",
+      "label": "Logging, Metrics & Tracing",
       "official": [
-        "zio-config",
         "zio-logging",
         "zio-metrics-connectors",
         "zio-profiling",
@@ -89,36 +89,61 @@
       ],
       "community": [
         "scala-k8s",
-        "shard",
         "zio-k8s"
       ]
     },
     {
-      "id": "tooling",
-      "label": "Testing & Tooling",
+      "id": "app",
+      "label": "Configuration, CLI & App Wiring",
+      "official": [
+        "zio-cli",
+        "zio-config",
+        "zio-process"
+      ],
+      "community": [
+        "distage"
+      ]
+    },
+    {
+      "id": "resilience",
+      "label": "Resilience, Caching & Clustering",
+      "official": [
+        "zio-cache"
+      ],
+      "community": [
+        "rezilience",
+        "shard"
+      ]
+    },
+    {
+      "id": "fp",
+      "label": "Functional Programming & Types",
       "official": [
         "izumi-reflect",
-        "zio-cli",
         "zio-constraintless",
         "zio-direct",
         "zio-prelude",
-        "zio-process",
-        "zio-sbt",
         "zio2-interop-cats2"
       ],
       "community": [
-        "decrel",
-        "distage",
-        "munit-zio",
-        "neotype",
-        "rezilience",
-        "zio-test-akka-http"
+        "neotype"
+      ]
+    },
+    {
+      "id": "tooling",
+      "label": "Testing & Developer Tools",
+      "official": [
+        "zio-sbt"
       ],
       "external": [
         {
           "label": "ZIO IntelliJ",
           "href": "https://github.com/zio/zio-intellij"
         }
+      ],
+      "community": [
+        "munit-zio",
+        "zio-test-akka-http"
       ]
     }
   ]
