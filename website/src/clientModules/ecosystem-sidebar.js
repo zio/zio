@@ -11,6 +11,9 @@ const PARAM = 'eco-category';
 const STORAGE_KEY = 'eco-sidebar-open-categories';
 const LAST_KEY = 'eco-sidebar-last-library';
 const MARK = 'data-eco-last';
+// The links to libraries. The header of a category is a link too, and until
+// the page is hydrated it points to the first library of the category.
+const LIBRARY_LINKS = '.eco-category .menu__list a.menu__link';
 const CATEGORY_PREFIX = 'eco-category-';
 const ATTEMPTS = 40;
 
@@ -63,7 +66,7 @@ function mark(library) {
   unmark();
   let scrolled = false;
   const apply = () => {
-    const link = Array.from(document.querySelectorAll('.eco-category a.menu__link')).find(
+    const link = Array.from(document.querySelectorAll(LIBRARY_LINKS)).find(
       (candidate) => candidate.getAttribute('href') === library
     );
     if (!link) return;
@@ -128,7 +131,7 @@ if (typeof document !== 'undefined') {
       if (!event.target.closest('.theme-doc-sidebar-container') || categories().length === 0) return;
       unmark();
       // A library is a link inside a category, to a page of this site.
-      const link = event.target.closest('.eco-category a.menu__link');
+      const link = event.target.closest(LIBRARY_LINKS);
       const href = link ? link.getAttribute('href') : null;
       if (href && href.startsWith('/')) remember(href);
       // Toggling a category changes what is open, so wait for the new state.
