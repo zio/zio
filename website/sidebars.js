@@ -546,45 +546,14 @@ module.exports = {
     }
   ],
   "ecosystem-sidebar": [
-    "ecosystem/index",
+    { type: "doc", id: "ecosystem/index", label: "Overview", className: "eco-overview" },
+    ...ecosystemSidebar,
     {
-      type: "category",
-      label: "Official Libraries",
-      collapsed: false,
-      link: { type: "doc", id: "ecosystem/officials/index" },
-      items: ecosystemSidebar
-    },
-    {
-      type: "category",
-      label: "Community Libraries",
-      link: { type: "doc", id: "ecosystem/community/index" },
-      items: [
-        "ecosystem/community/caliban",
-        "ecosystem/community/distage",
-        "ecosystem/community/fhir-indexer",
-        "ecosystem/community/logstage",
-        "ecosystem/community/munit-zio",
-        "ecosystem/community/rezilience",
-        "ecosystem/community/scala-k8s",
-        "ecosystem/community/tamer",
-        "ecosystem/community/tofu-zio2-logging",
-        "ecosystem/community/tranzactio",
-        "ecosystem/community/zio-amqp",
-        "ecosystem/community/zio-apache-parquet",
-        "ecosystem/community/zio-eclipsestore",
-        "ecosystem/community/zio-grpc",
-        "ecosystem/community/zio-k8s",
-        "ecosystem/community/zio-kinesis",
-        "ecosystem/community/zio-nebula",
-        "ecosystem/community/zio-pulsar",
-        "ecosystem/community/zio-slick-interop",
-        "ecosystem/community/zio-temporal",
-        "ecosystem/community/zio-test-akka-http",
-      ],
-    },
-    "ecosystem/compatible",
-    "ecosystem/tools",
-    "ecosystem/templates"
+      type: "link",
+      label: "Add your library",
+      href: "/contributing-to-zio-ecosystem",
+      className: "eco-add-library"
+    }
   ],
   "resources-sidebar": ["resources/index"],
   ...perProjectSidebars

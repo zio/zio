@@ -281,6 +281,7 @@ const config = {
       },
     ],
   ],
+  clientModules: [require.resolve('./src/clientModules/ecosystem-sidebar.js')],
   plugins: [
     async function myPlugin(context, options) {
       return {
@@ -308,6 +309,21 @@ const config = {
           {
             from: '/tutorials/producing-consuming-data-from-kafka-topics',
             to: '/zio-kafka/tutorial',
+          },
+          {
+            from: [
+              '/ecosystem/tools',
+              '/ecosystem/templates',
+              '/ecosystem/tools-and-templates',
+              '/ecosystem/officials',
+              '/ecosystem/community',
+              '/ecosystem/compatible',
+            ],
+            to: '/ecosystem/',
+          },
+          {
+            from: '/ecosystem/community/zio-amqp',
+            to: '/zio-amqp',
           },
         ],
       },

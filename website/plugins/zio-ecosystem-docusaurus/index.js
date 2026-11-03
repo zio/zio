@@ -30,13 +30,16 @@ const fs = __importStar(require("fs"));
  * Registers a CLI command called `generate-sidebar` that:
  * 1. Copies project files from ZIO npm packages into `./docs/`
  * 2. Aggregates sidebars from old-style and new-style projects
- * 3. Generates an `ecosystem-sidebar.js` file listing every project as a link
+ * 3. Generates an `ecosystem-sidebar.js` file that groups every official and
+ *    community library into the purpose-based categories of
+ *    `ecosystem-categories.json`
  * 4. Generates a `per-project-sidebars.js` file with one sidebar per project
  *
  * Each project's docs belong to exactly one sidebar (its own), so Docusaurus
- * shows that sidebar on the project's pages. The ecosystem sidebar only holds
- * `link` items, which point to a project without making its docs part of the
- * ecosystem sidebar.
+ * shows that sidebar on the project's pages. Official libraries appear in the
+ * ecosystem sidebar as `link` items, which point to a project without making
+ * its docs part of the ecosystem sidebar. Community libraries are single pages
+ * under `docs/ecosystem/community`, so they appear as `doc` items.
  *
  * @param context - Docusaurus plugin context
  * @param options - Plugin configuration options
@@ -81,17 +84,34 @@ function zioEcosystemPlugin(context, options) {
                     .sort((a, b) => a.category.label < b.category.label ? -1 : a.category.label > b.category.label ? 1 : 0);
                 // Plain links rather than `ref` items: a `ref` item takes its label
                 // from the doc's `sidebar_label` ("Introduction", "Getting Started")
-                // instead of the project name.
-                const ecosystemSidebar = projects.map(project => ({
-                    type: 'link',
-                    label: project.category.label,
-                    href: '/' + entryDocId(project.category).replace(/index$/, '')
-                }));
-                const perProjectSidebars = Object.fromEntries(projects.map(project => [
+                // instead of the project name. A project with a single page gets no
+                // sidebar of its own, so it is a `doc` item, which makes the ecosystem
+                // sidebar the one shown on that page.
+                const officialLinks = Object.fromEntries(projects.map(project => [
+                    project.name,
+                    {
+                        label: project.category.label,
+                        item: isSinglePage(project.category)
+                            ? {
+                                type: 'doc',
+                                id: entryDocId(project.category),
+                                label: project.category.label,
+                                className: 'eco-tag eco-tag-official'
+                            }
+                            : {
+                                type: 'link',
+                                label: project.category.label,
+                                href: '/' + entryDocId(project.category).replace(/index$/, ''),
+                                className: 'eco-tag eco-tag-official'
+                            }
+                    }
+                ]));
+                const ecosystemSidebar = categorizedEcosystem(officialLinks);
+                const perProjectSidebars = Object.fromEntries(projects.filter(project => !isSinglePage(project.category)).map(project => [
                     `${project.name}-sidebar`,
                     [
-                        { type: 'link', label: '← ZIO Ecosystem', href: '/ecosystem/' },
-                        { ...project.category, collapsible: false, collapsed: false }
+                        { type: 'link', label: '← ZIO Ecosystem', href: `/ecosystem/?eco-category=${categoryIdOf(project.name)}` },
+                        { ...project.category, collapsible: false, collapsed: false, items: itemsWithoutOwnPage(project.category) }
                     ]
                 ]));
                 writeSidebarFile('ecosystem-sidebar.js', ecosystemSidebar);
@@ -100,6 +120,61 @@ function zioEcosystemPlugin(context, options) {
         }
     };
 }
+// The id of the category that lists a project in the ecosystem sidebar. The
+// "← ZIO Ecosystem" link of the project passes it along, so the ecosystem
+// sidebar opens with that category expanded (see
+// src/clientModules/ecosystem-sidebar.js).
+function categoryIdOf(project) {
+    const categories = JSON.parse(fs.readFileSync('ecosystem-categories.json', 'utf8')).categories;
+    const category = categories.find(c => c.official.includes(project));
+    return category ? category.id : 'other';
+}
+// The title of a community library's page, used as its sidebar label so that
+// the entries of a category can be sorted next to the official ones.
+function communityLabel(docId) {
+    const source = fs.readFileSync(`../docs/ecosystem/community/${docId}.md`, 'utf8');
+    const title = source.match(/^title:\s*"?([^"\n]+?)"?\s*$/m);
+    return title ? title[1] : docId;
+}
+// Groups the libraries by purpose, as listed in `ecosystem-categories.json`.
+// A library that is not listed lands in "Other", so a new package or page
+// never disappears from the sidebar.
+function categorizedEcosystem(officialLinks) {
+    const categories = JSON.parse(fs.readFileSync('ecosystem-categories.json', 'utf8')).categories;
+    const communityDocs = fs.readdirSync('../docs/ecosystem/community')
+        .filter(file => file.endsWith('.md') && file !== 'index.md')
+        .map(file => file.replace(/\.md$/, ''));
+    const listed = new Set(categories.flatMap(c => c.official));
+    const listedCommunity = new Set(categories.flatMap(c => c.community));
+    const all = categories.concat({
+        id: 'other',
+        label: 'Other',
+        official: Object.keys(officialLinks).filter(name => !listed.has(name)),
+        community: communityDocs.filter(doc => !listedCommunity.has(doc))
+    });
+    return all
+        .map(category => {
+        const entries = category.official.map(name => officialLinks[name]).filter(entry => entry !== undefined)
+            .concat((category.external || []).map(link => ({
+            label: link.label,
+            item: { type: 'link', label: link.label, href: link.href, className: 'eco-tag eco-tag-official' }
+        })))
+            .concat(category.community.map(doc => ({
+            label: communityLabel(doc),
+            item: { type: 'doc', id: `ecosystem/community/${doc}`, label: communityLabel(doc), className: 'eco-tag eco-tag-community' }
+        })))
+            .sort((a, b) => a.label.localeCompare(b.label));
+        return { category, entries };
+    })
+        .filter(({ entries }) => entries.length > 0)
+        .map(({ category, entries }) => ({
+        type: 'category',
+        label: category.label,
+        className: `eco-category eco-category-${category.id}`,
+        collapsed: category.collapsed !== undefined ? category.collapsed : true,
+        items: entries.map(entry => entry.item)
+    }));
+}
 function writeSidebarFile(path, sidebar) {
     const content = `const sidebar = ${JSON.stringify(sidebar, null, '  ')}\nmodule.exports = sidebar`;
     fs.writeFile(path, content, err => {
@@ -107,6 +182,26 @@ function writeSidebarFile(path, sidebar) {
             console.error(err);
         }
     });
+}
+// The category of a project links to its own page, so listing that page again
+// among its items would show the same entry twice.
+function itemsWithoutOwnPage(category) {
+    const own = category.link && category.link.type === "doc" ? category.link.id : undefined;
+    return category.items.filter(item => item !== own);
+}
+// Whether a project documents itself on one page, in which case it doesn't
+// need a sidebar of its own.
+function isSinglePage(config) {
+    return leafDocCount(config) <= 1;
+}
+function leafDocCount(config) {
+    if (typeof (config) === "string") {
+        return 1;
+    }
+    else if (isSidebarItemCategoryConfig(config)) {
+        return config.items.reduce((count, item) => count + leafDocCount(item), 0);
+    }
+    return 1;
 }
 // The doc a project's entry in the ecosystem sidebar should open: the
 // category's own page if it has one, otherwise its first doc.

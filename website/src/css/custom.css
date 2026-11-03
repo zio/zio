@@ -694,3 +694,124 @@ html.homepage-snap .fp-section {
   margin-left: auto;
   margin-right: auto;
 }
+
+/* ── Ecosystem sidebar ────────────────────────────────────────────────── */
+/* Classes come from website/sidebars.js and the generate-sidebar plugin. */
+.eco-category > .menu__list-item-collapsible > .menu__link {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+}
+
+.eco-category > .menu__list-item-collapsible > .menu__link::before {
+  content: '';
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  background-color: var(--ifm-color-primary);
+  -webkit-mask: var(--eco-icon) center / contain no-repeat;
+  mask: var(--eco-icon) center / contain no-repeat;
+}
+
+.eco-category > .menu__list {
+  margin-left: 1.15rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--ifm-color-emphasis-200);
+}
+
+/* Official / Community pill after each library. */
+.eco-tag > .menu__link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.eco-tag > .menu__link::after {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0.05rem 0.45rem;
+  border-radius: 99px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.eco-tag-official > .menu__link::after {
+  content: 'Official';
+  color: var(--ifm-color-primary-darker);
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.eco-tag-community > .menu__link::after {
+  content: 'Community';
+  color: var(--ifm-color-emphasis-700);
+  border: 1px solid var(--ifm-color-emphasis-400);
+}
+
+[data-theme='dark'] .eco-tag-official > .menu__link::after {
+  color: var(--ifm-color-primary-lightest);
+  background: rgba(220, 38, 38, 0.2);
+}
+
+.eco-category .menu__link[data-eco-last] {
+  box-shadow: inset 3px 0 0 var(--ifm-color-primary);
+  background: rgba(220, 38, 38, 0.1);
+  font-weight: 600;
+}
+
+.eco-overview > .menu__link {
+  font-weight: 600;
+}
+
+.eco-add-library > .menu__link {
+  justify-content: center;
+  margin-top: 1rem;
+  border: 1px dashed var(--ifm-color-primary-light);
+  font-weight: 600;
+  color: var(--ifm-color-primary);
+}
+
+.eco-category-web {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%229%22/%3E%3Cpath d=%22M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18%22/%3E%3C/svg%3E");
+}
+
+.eco-category-data {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cellipse cx=%2212%22 cy=%226%22 rx=%228%22 ry=%223%22/%3E%3Cpath d=%22M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6%22/%3E%3C/svg%3E");
+}
+
+.eco-category-messaging {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M3 8c3-3 6 3 9 0s6 3 9 0M3 16c3-3 6 3 9 0s6 3 9 0%22/%3E%3C/svg%3E");
+}
+
+.eco-category-serialization {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M8 4c-2 0-3 1-3 3v2c0 1.5-1 3-2 3 1 0 2 1.5 2 3v2c0 2 1 3 3 3M16 4c2 0 3 1 3 3v2c0 1.5 1 3 2 3-1 0-2 1.5-2 3v2c0 2-1 3-3 3%22/%3E%3C/svg%3E");
+}
+
+.eco-category-observability {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%223%22/%3E%3Cpath d=%22M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2%22/%3E%3C/svg%3E");
+}
+
+.eco-category-cloud {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M7 18a4 4 0 0 1-.5-8A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z%22/%3E%3C/svg%3E");
+}
+
+.eco-category-tooling {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3%22/%3E%3C/svg%3E");
+}
+
+.eco-category-app {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0%22/%3E%3Ccircle cx=%2216%22 cy=%226%22 r=%222%22/%3E%3Ccircle cx=%2210%22 cy=%2212%22 r=%222%22/%3E%3Ccircle cx=%2218%22 cy=%2218%22 r=%222%22/%3E%3C/svg%3E");
+}
+
+.eco-category-resilience {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6z%22/%3E%3C/svg%3E");
+}
+
+.eco-category-fp {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M6 20l6-9M9 4h2l7 16%22/%3E%3C/svg%3E");
+}
+
+.eco-category-other {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx=%225%22 cy=%2212%22 r=%221.5%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%221.5%22/%3E%3Ccircle cx=%2219%22 cy=%2212%22 r=%221.5%22/%3E%3C/svg%3E");
+}
