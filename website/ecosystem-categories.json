@@ -19,7 +19,7 @@
     },
     {
       "id": "data",
-      "label": "Databases & Data Access",
+      "label": "Data Access",
       "official": [
         "zio-dynamodb",
         "zio-quill",
@@ -38,7 +38,7 @@
     },
     {
       "id": "messaging",
-      "label": "Messaging & Data Pipelines",
+      "label": "Messaging & Pipelines",
       "official": [
         "zio-amqp",
         "zio-kafka",
@@ -66,7 +66,7 @@
     },
     {
       "id": "observability",
-      "label": "Logging, Metrics & Tracing",
+      "label": "Observability",
       "official": [
         "zio-logging",
         "zio-metrics-connectors",
@@ -94,7 +94,7 @@
     },
     {
       "id": "app",
-      "label": "Configuration, CLI & App Wiring",
+      "label": "Config & App Wiring",
       "official": [
         "zio-cli",
         "zio-config",
@@ -106,7 +106,7 @@
     },
     {
       "id": "resilience",
-      "label": "Resilience, Caching & Clustering",
+      "label": "Resilience & Scaling",
       "official": [
         "zio-cache"
       ],
@@ -117,7 +117,7 @@
     },
     {
       "id": "fp",
-      "label": "Functional Programming & Types",
+      "label": "Types & Abstractions",
       "official": [
         "izumi-reflect",
         "zio-constraintless",
@@ -131,7 +131,7 @@
     },
     {
       "id": "tooling",
-      "label": "Testing & Developer Tools",
+      "label": "Testing & Dev Tools",
       "official": [
         "zio-sbt"
       ],
