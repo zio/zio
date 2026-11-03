@@ -800,6 +800,18 @@ html.homepage-snap .fp-section {
   --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3%22/%3E%3C/svg%3E");
 }
 
+.eco-category-app {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0%22/%3E%3Ccircle cx=%2216%22 cy=%226%22 r=%222%22/%3E%3Ccircle cx=%2210%22 cy=%2212%22 r=%222%22/%3E%3Ccircle cx=%2218%22 cy=%2218%22 r=%222%22/%3E%3C/svg%3E");
+}
+
+.eco-category-resilience {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6z%22/%3E%3C/svg%3E");
+}
+
+.eco-category-fp {
+  --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d=%22M6 20l6-9M9 4h2l7 16%22/%3E%3C/svg%3E");
+}
+
 .eco-category-other {
   --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx=%225%22 cy=%2212%22 r=%221.5%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%221.5%22/%3E%3Ccircle cx=%2219%22 cy=%2212%22 r=%221.5%22/%3E%3C/svg%3E");
 }
