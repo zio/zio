@@ -370,6 +370,8 @@ object SmartAssertions {
               diffResult match {
                 case DiffResult.Different(_, _, None) =>
                   M.pretty(a) + M.equals + M.pretty(that)
+                case diffResult if diffResult.noDiff =>
+                  M.pretty(a) + M.equals + M.pretty(that)
                 case diffResult =>
                   M.choice("There was no difference", "There was a difference") ++
                     M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
@@ -401,6 +403,8 @@ object SmartAssertions {
               diffResult match {
                 case DiffResult.Different(_, _, None) =>
                   M.pretty(a) + M.equals + M.pretty(that)
+                case diffResult if diffResult.noDiff =>
+                  M.pretty(a) + M.equals + M.pretty(that)
                 case diffResult =>
                   M.choice("There was no difference", "There was a difference") ++
                     M.custom(ConsoleUtils.underlined("Expected")) ++ M.custom(PrettyPrint(that)) ++
@@ -431,6 +435,8 @@ object SmartAssertions {
               val diffResult = diff.diff(conv(that), a)
               diffResult match {
                 case DiffResult.Different(_, _, None) =>
+                  M.pretty(a) + M.equals + M.pretty(that)
+                case diffResult if diffResult.noDiff =>
                   M.pretty(a) + M.equals + M.pretty(that)
                 case diffResult =>
                   M.choice("There was no difference", "There was a difference") ++
