@@ -1743,8 +1743,8 @@ Developer experience and productivity are very important for choosing a technolo
 [6]: ../di/automatic-layer-construction.md
 [7]: ../test/index.md
 [8]: https://www.youtube.com/watch?v=QDleESXlZJw
-[9]: ../../ecosystem/officials/index.md
-[10]: ../../ecosystem/community/index.md
+[9]: ../../ecosystem/index.mdx#official-libraries
+[10]: ../../ecosystem/index.mdx#community-libraries
 [11]: ../resource/scope.md
 [12]: ../resource/index.md
 [13]: ../error-management/index.md
@@ -2606,12 +2606,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20477/0x00007fbb57113ae0@76fb96fa
+//   eval = zio.Ref$$$Lambda$20487/0x00007f360b223ae0@366a5672
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20477/0x00007fbb57113ae0@5e557065
+//   eval = zio.Ref$$$Lambda$20487/0x00007f360b223ae0@68cbde7c
 // )
 
 sealed trait State
@@ -2622,7 +2622,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20477/0x00007fbb57113ae0@60bf5997
+//   eval = zio.Ref$$$Lambda$20487/0x00007f360b223ae0@503cfd56
 // )
 ```
 
@@ -2639,7 +2639,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20477/0x00007fbb57113ae0@48b49b02
+//   eval = zio.Ref$$$Lambda$20487/0x00007f360b223ae0@e9267ca
 // )
 ```
 
@@ -2651,7 +2651,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20477/0x00007fbb57113ae0@1a59b35b
+//   eval = zio.Ref$$$Lambda$20487/0x00007f360b223ae0@7b2acca6
 // )
 ```
 
@@ -15760,25 +15760,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@1a422619
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@74483999
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@69ecf84
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@6d93fd7b
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@3f8b53c
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@1d8911f6
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-11-02T17:05:55.000047762Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-11-03T19:17:50.565034589Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@4b0d2248
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@4a36954
 ```
 
 ### Construction / Creating Instances
@@ -16892,7 +16892,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20598/0x00007fbb571b3c08@11136dff
+//   eval = zio.Supervisor$$$Lambda$20608/0x00007f360b2cc2b8@22310bcf
 // )
 ```
 
@@ -17721,7 +17721,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19612/0x00007fbb56f4b398@5d112d7f
+//     f = zio.ZIO$$$Lambda$19622/0x00007f360b05cc80@71169976
 //   ),
 //   successK = <function1>
 // )
@@ -18502,7 +18502,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@ce3d89f
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@393c9e06
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -18515,12 +18515,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$19013/0x00007fbb56e228f0@7b4cc353
+//       eval = zio.ZIO$$$Lambda$18864/0x00007f360aea36f0@28d00efe
 //     ),
-//     successK = zio.ZIO$$$Lambda$19602/0x00007fbb56f444d0@678ae670
+//     successK = zio.ZIO$$$Lambda$19612/0x00007f360b049cd0@4d5f57bc
 //   ),
-//   successK = zio.ZIO$$$Lambda$19016/0x00007fbb56e24b68@426ba79e,
-//   failureK = zio.ZIO$$Lambda$20394/0x00007fbb570e8950@60f652fa
+//   successK = zio.ZIO$$$Lambda$18870/0x00007f360aea5968@22aab241,
+//   failureK = zio.ZIO$$Lambda$20404/0x00007f360b1fc950@34ca763a
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -18532,11 +18532,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$19013/0x00007fbb56e228f0@7b4cc353
+//       eval = zio.ZIO$$$Lambda$18864/0x00007f360aea36f0@28d00efe
 //     ),
-//     successK = zio.ZIO$$$Lambda$19602/0x00007fbb56f444d0@3732a541
+//     successK = zio.ZIO$$$Lambda$19612/0x00007f360b049cd0@4e2011fa
 //   ),
-//   successK = zio.ZIO$$Lambda$20624/0x00007fbb571d50d0@3dadfb40
+//   successK = zio.ZIO$$Lambda$20634/0x00007f360b2df498@279fb07f
 // )
 ```
 
@@ -23838,7 +23838,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@70d0e8f5
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@3d98a1c6
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -23866,9 +23866,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$20076/0x00007fbb57018690@4f8eecaf
+//     eval = zio.Scope$$$Lambda$20086/0x00007f360b1223b0@17194157
 //   ),
-//   successK = zio.ZIO$$$Lambda$20077/0x00007fbb57018948@679fccfc
+//   successK = zio.ZIO$$$Lambda$20087/0x00007f360b122668@25d95d65
 // )
 ```
 
@@ -23917,7 +23917,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@65faa96d
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@5100e8e3
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -23947,9 +23947,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$20076/0x00007fbb57018690@4f8eecaf
+//     eval = zio.Scope$$$Lambda$20086/0x00007f360b1223b0@17194157
 //   ),
-//   successK = zio.ZIO$$$Lambda$20077/0x00007fbb57018948@11af9621
+//   successK = zio.ZIO$$$Lambda$20087/0x00007f360b122668@4258b1e6
 // )
 ```
 
@@ -23980,7 +23980,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@1d6f674a
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@513ad0fc
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -23995,9 +23995,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$20076/0x00007fbb57018690@4f8eecaf
+//     eval = zio.Scope$$$Lambda$20086/0x00007f360b1223b0@17194157
 //   ),
-//   successK = zio.ZIO$$$Lambda$20077/0x00007fbb57018948@701a2e83
+//   successK = zio.ZIO$$$Lambda$20087/0x00007f360b122668@7783023
 // )
 ```
 
@@ -24041,7 +24041,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@2d43c8de
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@5e38a9fc
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24058,9 +24058,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$20076/0x00007fbb57018690@4f8eecaf
+//     eval = zio.Scope$$$Lambda$20086/0x00007f360b1223b0@17194157
 //   ),
-//   successK = zio.ZIO$$$Lambda$20077/0x00007fbb57018948@533f2226
+//   successK = zio.ZIO$$$Lambda$20087/0x00007f360b122668@7579d16c
 // )
 ```
 
@@ -24092,7 +24092,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@2c89e15d
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@3e21340
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -24109,9 +24109,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$20076/0x00007fbb57018690@4f8eecaf
+//     eval = zio.Scope$$$Lambda$20086/0x00007f360b1223b0@17194157
 //   ),
-//   successK = zio.ZIO$$$Lambda$20077/0x00007fbb57018948@3fe4d6ed
+//   successK = zio.ZIO$$$Lambda$20087/0x00007f360b122668@74da8db3
 // )
 ```
 
@@ -24143,7 +24143,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@100e41db
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@58103248
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -24174,9 +24174,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$20076/0x00007fbb57018690@4f8eecaf
+//     eval = zio.Scope$$$Lambda$20086/0x00007f360b1223b0@17194157
 //   ),
-//   successK = zio.ZIO$$$Lambda$20077/0x00007fbb57018948@775301f4
+//   successK = zio.ZIO$$$Lambda$20087/0x00007f360b122668@6d1e8a30
 // )
 ```
 
@@ -24209,7 +24209,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@6e8a1f9d
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@a8b9af4
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24225,9 +24225,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$20076/0x00007fbb57018690@4f8eecaf
+//     eval = zio.Scope$$$Lambda$20086/0x00007f360b1223b0@17194157
 //   ),
-//   successK = zio.ZIO$$$Lambda$20077/0x00007fbb57018948@4fcd5aef
+//   successK = zio.ZIO$$$Lambda$20087/0x00007f360b122668@36c83031
 // )
 ```
 
@@ -24258,7 +24258,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@3ff9743d
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@41ab2a4c
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -24285,9 +24285,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$20076/0x00007fbb57018690@4f8eecaf
+//     eval = zio.Scope$$$Lambda$20086/0x00007f360b1223b0@17194157
 //   ),
-//   successK = zio.ZIO$$$Lambda$20077/0x00007fbb57018948@2fbc87e0
+//   successK = zio.ZIO$$$Lambda$20087/0x00007f360b122668@6f851f8c
 // )
 ```
 
@@ -24307,7 +24307,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@49f3b5b1
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@c82aa69
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24330,9 +24330,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$20076/0x00007fbb57018690@4f8eecaf
+//     eval = zio.Scope$$$Lambda$20086/0x00007f360b1223b0@17194157
 //   ),
-//   successK = zio.ZIO$$$Lambda$20077/0x00007fbb57018948@1f22f1df
+//   successK = zio.ZIO$$$Lambda$20087/0x00007f360b122668@419e203d
 // )
 ```
 
@@ -24348,7 +24348,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@70f795af
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@626aefd1
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -24370,9 +24370,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$20076/0x00007fbb57018690@4f8eecaf
+//     eval = zio.Scope$$$Lambda$20086/0x00007f360b1223b0@17194157
 //   ),
-//   successK = zio.ZIO$$$Lambda$20077/0x00007fbb57018948@3f5c52d2
+//   successK = zio.ZIO$$$Lambda$20087/0x00007f360b122668@2d571e52
 // )
 ```
 
@@ -24388,7 +24388,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@2ca36b74
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@6172c980
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -24408,9 +24408,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$20076/0x00007fbb57018690@4f8eecaf
+//     eval = zio.Scope$$$Lambda$20086/0x00007f360b1223b0@17194157
 //   ),
-//   successK = zio.ZIO$$$Lambda$20077/0x00007fbb57018948@1dd91b0f
+//   successK = zio.ZIO$$$Lambda$20087/0x00007f360b122668@43a07f4b
 // )
 ```
 
@@ -24428,7 +24428,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@61cbf263
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@62b65780
 
 val example = {
   val scoped = ZIO.scoped {
@@ -24450,9 +24450,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$20076/0x00007fbb57018690@4f8eecaf
+//       eval = zio.Scope$$$Lambda$20086/0x00007f360b1223b0@17194157
 //     ),
-//     successK = zio.ZIO$$$Lambda$20077/0x00007fbb57018948@577723f3
+//     successK = zio.ZIO$$$Lambda$20087/0x00007f360b122668@319a1c7
 //   ),
 //   successK = <function1>
 // )
@@ -28457,14 +28457,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@592f7993
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@703a0600
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@3447b5b4
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@49a1e578
 ```
 
 ### From ZIO
@@ -35191,9 +35191,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$20086/0x00007fbb57024870@1ff40004
+//             onState = zio.ZIO$$$Lambda$20096/0x00007f360b12e728@1e94f93
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$20094/0x00007fbb5702a028@5af68d9e
+//           successK = zio.test.package$ZTest$$$Lambda$20104/0x00007f360b133e70@44ebc1ca
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -38183,7 +38183,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+36-a2bb0dc3-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+39-d5d1fc7e-SNAPSHOT"
 ```
 
 ### Example
@@ -39446,13 +39446,13 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [33]: https://doc.akka.io/docs/alpakka/current/sqs.html
 [34]: ../../zio-sqs/index.md
 [35]: https://doc.akka.io/docs/alpakka/current/amqp.html
-[36]: ../../ecosystem/community/zio-amqp.md
+[36]: /zio-amqp/
 [37]: https://doc.akka.io/docs/alpakka/current/kinesis.html
 [38]: ../../ecosystem/community/zio-kinesis.md
 [39]: https://doc.akka.io/docs/alpakka/current/dynamodb.html
 [40]: https://github.com/zio/zio-dynamodb
 [41]: https://doc.akka.io/docs/alpakka/current/external/pulsar.html
-[42]: ../../ecosystem/community/zio-pulsar.md
+[42]: https://github.com/jczuchnowski/zio-pulsar
 [43]: https://doc.akka.io/docs/alpakka/current/awslambda.html
 [44]: https://github.com/zio/zio-lambda
 [45]: https://doc.akka.io/docs/alpakka/current/cassandra.html
@@ -39469,7 +39469,7 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [56]: https://github.com/zio/zio-http
 [57]: ../../zio-nio/index.md
 [58]: https://doc.akka.io/docs/alpakka/current/slick.html
-[59]: ../../ecosystem/community/zio-slick-interop.md
+[59]: https://github.com/ScalaConsultants/zio-slick-interop
 [60]: https://doc.akka.io/docs/alpakka/current/external/tcp.html
 [61]: https://github.com/searler/zio-tcp
 [62]: https://doc.akka.io/docs/alpakka/current/google-cloud-pub-sub.html
@@ -50139,9 +50139,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$20076/0x00007fbb57018690@4f8eecaf
+//     eval = zio.Scope$$$Lambda$20086/0x00007f360b1223b0@17194157
 //   ),
-//   successK = zio.ZIO$$$Lambda$20077/0x00007fbb57018948@6c49ec54
+//   successK = zio.ZIO$$$Lambda$20087/0x00007f360b122668@51aaa333
 // )
 ```
 
@@ -52904,6 +52904,80 @@ And the response:
 
 ---
 
+## Decrel
+
+[Decrel](https://yoohaemin.github.io/decrel) is a Scala library for **dec**larative programming using **rel**ations between our data. It fetches data with automatic batching, parallelization, and caching while keeping the business logic clean and readable. It runs on ZIO through ZIO Query, and on Cats Effect through Fetch.
+
+### Introduction
+
+Fetching data from datasources is usually done by calling repository methods one after another. This works, but it hides a few issues: independent fetches run sequentially, fetching many items leads to the N+1 query problem, and caching needs extra code for every operation.
+
+With Decrel, we:
+- **Declare Relations** — Express the relationships between our data models as first-class values, for example "a `Book` has one `Author`" or "a `User` may have a `PremiumSubscription`".
+- **Implement Datasources** — Decide how each relation is fulfilled, including batching and caching.
+- **Compose Relations** — Combine simple relations sequentially (`<>:`) or in parallel (`&`) to express complex access patterns.
+- **Execute Efficiently** — The composed relations run with batching and parallelism by default, through ZIO Query.
+- **Generate Test Data** — The same relations can generate random data for ZIO Test and ScalaCheck.
+
+### Installation
+
+In order to use this library with ZIO, we need to add the following lines to our `build.sbt` file:
+
+```scala
+libraryDependencies += "com.yoohaemin" %% "decrel-zquery" % "0.2.0"
+libraryDependencies += "com.yoohaemin" %% "decrel-ziotest" % "0.2.0" % Test
+```
+
+The `decrel-fetch` module is for Cats Effect users, and `decrel-scalacheck` generates test data for ScalaCheck.
+
+### Example
+
+First, we declare the relations between the data models:
+
+```scala
+object Book {
+  object author extends Relation.Single[Book, Author]
+}
+
+object User {
+  object subscription extends Relation.Optional[User, PremiumSubscription]
+}
+```
+
+Then we implement the datasource of each relation. The implementation receives all the inputs at once, so it can batch them:
+
+```scala
+implementSingleDatasource(Book.author) { books =>
+  ZIO.succeed(books.map(book => book -> authorMap(book.authorId)))
+}
+```
+
+Finally, we compose the relations and run them. The author and the price are fetched in parallel:
+
+```scala
+val bookId: Book.Id = ???
+
+for {
+  (book: Book, author: Author, price: Price) <-
+    (Book.Self & Book.author & Book.price).toZIO(bookId)
+} yield ()
+```
+
+To fetch the details of many books, we use `toZIOMany`. The underlying calls are batched, so the number of calls to each datasource doesn't grow with the number of books:
+
+```scala
+val bookIds: List[Book.Id] = ???
+
+for {
+  bookDetails: List[(Book, Author, Price)] <-
+    (Book.Self & Book.author & Book.price).toZIOMany(bookIds)
+} yield ()
+```
+
+For the full documentation, see the [Decrel documentation](https://yoohaemin.github.io/decrel).
+
+---
+
 ## Distage
 
 [Distage](https://izumi.7mind.io/distage/) is a compile-time safe, transparent, and debuggable Dependency Injection framework for pure FP Scala.
@@ -52987,109 +53061,6 @@ object DistageExample extends zio.App {
 
 ---
 
-## Fhir-indexer
-
-[Fhir-indexer](https://github.com/royashcenazi/fhir-indexer) is a ZIO based library for fetching FHIR resources fast and easy.
-
-### Introduction
-
-Welcome to the FHIR Indexing with ZIO and HAPI FHIR repository! This open-source project aims to provide a robust and efficient solution for indexing FHIR (Fast Healthcare Interoperability Resources) based APIs. The project leverages the power of the ZIO framework to handle concurrency and asynchronicity, while wrapping around the widely-used HAPI FHIR library for working with FHIR resources.
-
-### Features
-
-- **Asynchronous and Concurrent Indexing**: The project takes advantage of ZIO's powerful concurrency model to efficiently index FHIR resources from multiple APIs simultaneously.
-
-- **Modular and Extensible Design**: The codebase is structured in a modular way, allowing easy extension and customization to fit different FHIR-based API implementations.
-
-- **Authentication Support**: The library supports various authentication mechanisms for accessing secure FHIR endpoints, ensuring data privacy and security.
-
-- **Resource Filtering and Transformation**: Users can define custom filters and transformations to tailor the indexing process according to their specific requirements.
-
-### Installation
-
-#### SBT
-
-`libraryDependencies += "io.github.royashcenazi" % "fhir-indexer" % "v0.0.2"`
-
-#### Maven
-
-```xml
-   <dependency>
-        <groupId>io.github.royashcenazi</groupId>
-        <artifactId>fhir-indexer</artifactId>
-        <version>v0.0.2</version>
-    </dependency>
-```
-
-### Example
-
-```scala
-object ZioApp extends ZIOAppDefault {
-
-  class ConditionIndexer(override val hapiFhirClient: FHIRHapiClient) extends ApiIndexer {
-    override type ProcessResult = Unit
-
-    override def indexApi[T <: IParam](searchMetadata: RequestMetadata[T]): ZIO[Any, Throwable, Unit] = {
-      for {
-        data <- createPagedApiIndexingFlow[Encounter, T](searchMetadata)
-        _ <- ZIO.log(s"Processed api: ${getClass.getSimpleName} with ${data.size} entries")
-      } yield ()
-    }
-  }
-
-  object ConditionIndexer {
-    val layer: ZLayer[FHIRHapiClient, Nothing, ConditionIndexer] = ZLayer {
-      for {
-        hapiClient <- ZIO.service[FHIRHapiClient]
-      } yield new ConditionIndexer(hapiClient)
-    }
-  }
-
-  def myApp: ZIO[ConditionIndexer, Nothing, Exit[Throwable, Unit]] = {
-    val requestMetadata = RequestMetadata[TokenClientParam]("")
-    for {
-      conditionsService <- ZIO.service[ConditionIndexer]
-      zio = conditionsService.indexApi[TokenClientParam](requestMetadata)
-    } yield {
-      Unsafe.unsafe { implicit unsafe =>
-        Runtime.default.unsafe.run(zio)
-      }
-    }
-  }
-
-  object FhirConfigTest {
-    val layer: zio.ZLayer[Any, Nothing, FhirIndexingConfig] =
-      zio.ZLayer.succeed(FhirIndexingConfig(url = "",
-        authUrl ="/oauth2/token",
-        clientId = "",
-        secret = ""))
-  }
-
-  override def run: ZIO[Any, Throwable, Exit[Throwable, Unit]] = {
-    myApp.debug("example")
-      .provide(
-        Client.default,
-        FhirConfigTest.layer,
-        FhirAuthClientImpl.layer(),
-        FHIRHapiClientImpl.layer(),
-        ConditionIndexer.layer
-      )
-  }
-}
-```
-
-Happy indexing!
-
----
-
-## ZIO Ecosystem Community Libraries
-
-In this section we are going to introduce some of the most important libraries that have first-class ZIO support from the community.
-
-If you know a useful library that has first-class ZIO support, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
-
----
-
 ## LogStage
 
 [LogStage](https://izumi.7mind.io/logstage/) is a zero-cost structural logging framework for Scala & Scala.js.
@@ -53169,6 +53140,66 @@ I 2021-07-26T21:27:35.270 (LogStageExample.scala:12)  <.L.m.8.10.11 [16:zio-defa
 
 ---
 
+## Mongo4cats
+
+[Mongo4cats](https://github.com/Kirill5k/mongo4cats) is a Scala library that provides a functional and idiomatic interface for working with MongoDB. It is built on top of the official MongoDB Java driver and has a dedicated ZIO 2 module.
+
+### Introduction
+
+Mongo4cats integrates with both Cats Effect/FS2 and ZIO. The ZIO module exposes the client, database, and collection as ZIO services (`ZMongoClient`, `ZMongoDatabase`, and `ZMongoCollection`), with a fluent API for building filters, projections, and sorting. It is available for Scala 2.12, 2.13, and 3.
+
+### Installation
+
+In order to use this library with ZIO 2, we need to add the following lines to our `build.sbt` file:
+
+```scala
+libraryDependencies += "io.github.kirill5k" %% "mongo4cats-zio" % "0.8.0"
+libraryDependencies += "io.github.kirill5k" %% "mongo4cats-zio-embedded" % "0.8.0" % Test
+```
+
+The `mongo4cats-zio-embedded` module is optional and provides an embedded MongoDB for tests. To encode and decode documents with ZIO JSON, also add:
+
+```scala
+libraryDependencies += "io.github.kirill5k" %% "mongo4cats-zio-json" % "0.8.0"
+```
+
+### Example
+
+The following example connects to a local MongoDB, inserts some documents, and queries them:
+
+```scala
+import mongo4cats.bson.Document
+import mongo4cats.bson.syntax._
+import mongo4cats.operations.{Filter, Projection}
+import mongo4cats.zio.{ZMongoClient, ZMongoCollection, ZMongoDatabase}
+import zio._
+
+object Zio extends ZIOAppDefault {
+
+  val client     = ZLayer.scoped[Any](ZMongoClient.fromConnectionString("mongodb://localhost:27017"))
+  val database   = ZLayer.fromZIO(ZIO.serviceWithZIO[ZMongoClient](_.getDatabase("my-db")))
+  val collection = ZLayer.fromZIO(ZIO.serviceWithZIO[ZMongoDatabase](_.getCollection("docs")))
+
+  val program = for {
+    coll <- ZIO.service[ZMongoCollection[Document]]
+    _    <- coll.insertMany((0 to 100).map(i => Document("name" := s"doc-$i", "index" := i)))
+    docs <- coll.find
+      .filter(Filter.gte("index", 10) && Filter.regex("name", "doc-[1-9]0"))
+      .projection(Projection.excludeId)
+      .sortByDesc("name")
+      .limit(5)
+      .all
+    _ <- Console.printLine(docs.mkString("[\n", ",\n", "\n]"))
+  } yield ()
+
+  override def run = program.provide(client, database, collection)
+}
+```
+
+For the full documentation, see the [Mongo4cats microsite](https://kirill5k.github.io/mongo4cats/docs/).
+
+---
+
 ## MUnit ZIO
 
 [MUnit ZIO](https://github.com/poslegm/munit-zio) is an integration library between MUnit and ZIO.
@@ -53212,6 +53243,91 @@ class SimpleZIOSpec extends ZSuite {
   }
 }
 ```
+
+---
+
+## Neotype
+
+[Neotype](https://github.com/kitlangton/neotype) is a friendly newtype library for Scala 3. It validates values at compile time using plain Scala expressions, and it integrates with several ZIO libraries.
+
+### Introduction
+
+Key features of Neotype:
+- **Compile-Time Validation** — Values are checked at compile time using plain Scala expressions, with helpful compilation errors.
+- **Zero Runtime Overhead** — Newtypes are built with `inline` and `opaque type`.
+- **Runtime Validation** — The `make` and `makeOrThrow` methods validate values that are only known at runtime.
+- **Integrations** — Neotype provides codecs and instances for popular libraries, including ZIO JSON, ZIO Quill, ZIO Config, ZIO Schema, and ZIO Test.
+- **Comptime** — An optional `comptime` module evaluates expressions at compile time and inlines the results as literals.
+
+### Installation
+
+In order to use this library, we need to add the following line to our `build.sbt` file, using the latest version:
+
+```scala
+libraryDependencies += "io.github.kitlangton" %% "neotype" % "0.7.2"
+```
+
+The optional compile-time evaluator is a separate artifact:
+
+```scala
+libraryDependencies += "io.github.kitlangton" %% "comptime" % "0.7.2"
+```
+
+### Example
+
+We define a newtype by extending `Newtype`, and optionally override `validate`. Constructing a value from an invalid literal is a compile error:
+
+```scala
+import neotype.*
+
+object NonEmptyString extends Newtype[String]:
+  override inline def validate(input: String): Boolean =
+    input.nonEmpty
+
+NonEmptyString("Hello") // OK
+NonEmptyString("")      // Compile Error
+```
+
+Newtypes also prevent mixing up values of the same underlying type, such as the IDs of different entities:
+
+```scala
+type UserId = UserId.Type
+object UserId extends Newtype[Long]
+
+type OrderId = OrderId.Type
+object OrderId extends Newtype[Long]
+
+def getUser(id: UserId): User = ???
+
+getUser(UserId(123))   // Compiles
+getUser(OrderId(456))  // Doesn't compile: type mismatch
+```
+
+### ZIO JSON
+
+By importing `neotype.interop.ziojson.given`, Neotype generates a `JsonCodec` for the newtype, and the validation runs when decoding:
+
+```scala
+import neotype.interop.ziojson.given
+import zio.json.*
+
+type NonEmptyString = NonEmptyString.Type
+object NonEmptyString extends Newtype[String]:
+  override inline def validate(value: String): Boolean | String =
+    if value.nonEmpty then true else "String must not be empty"
+
+case class Person(name: NonEmptyString, age: Int) derives JsonCodec
+
+val parsed = """{"name": "Kit", "age": 30}""".fromJson[Person]
+// Right(Person(NonEmptyString("Kit"), 30))
+
+val failed = """{"name": "", "age": 30}""".fromJson[Person]
+// Left(".name(String must not be empty)")
+```
+
+The import has to be in the same file as `Person`, not in the file of `NonEmptyString`. The generated codec is only available in the file that imports it.
+
+The other ZIO integrations are for ZIO Quill, ZIO Config, ZIO Schema, and `DeriveGen` of ZIO Test. See the [Neotype README](https://github.com/kitlangton/neotype) for the complete list of integrations.
 
 ---
 
@@ -53412,6 +53528,128 @@ object ZIOExample extends ZIOAppDefault {
 
 ---
 
+## Shard
+
+[Shard](https://ghostdogpr.github.io/shard/) is a Scala library that makes it easy to distribute entities across multiple servers, and to interact with those entities using their ID without knowing their actual location. This is also known as _entity sharding_ with _location transparency_. Shard exposes a purely functional API and depends heavily on ZIO.
+
+Shard 3 is the successor of [Shardcake](https://github.com/devsisters/shardcake) 2.x, with the same concepts and a new messaging API. The documentation has a [migration guide](https://ghostdogpr.github.io/shard/migration).
+
+### Introduction
+
+Entity sharding is a way to avoid concurrent updates of the same data when an application runs on multiple servers. Instead of using a global lock, all the requests for an entity, for example a guild in a game, are redirected to a single entity that handles them sequentially. The entities are spread across the servers, so each entity exists in only one place at a time.
+
+Shard provides components to:
+- Automatically manage the assignment of entities to servers.
+- Send messages to entities using their IDs.
+
+The architecture has two main parts. The **Shard Manager** is an independent component, with a single running instance, that assigns shards to pods. The **entities** run on the application servers and process the messages sent to them. The behavior of an entity, including its persistence, is up to us.
+
+Four parts are pluggable:
+- `Storage`: where the shard assignments are stored. Shard provides an implementation using Redis.
+- `Pods`: how to communicate with remote pods. Shard provides an implementation using gRPC.
+- `MessageCodec[Msg]`: how to encode and decode messages. Shard provides backends using Kryo and Proteus.
+- `PodsHealth`: how to check if a pod is healthy. Shard provides an implementation using the Kubernetes API.
+
+### Installation
+
+In order to use this library, we need to add the following lines to our `build.sbt` file. The Shard Manager needs `shard-manager`, and the application servers need `shard-entities`:
+
+```scala
+libraryDependencies ++= Seq(
+  "com.github.ghostdogpr" %% "shard-manager"            % "3.0.0-RC1",
+  "com.github.ghostdogpr" %% "shard-entities"           % "3.0.0-RC1",
+  "com.github.ghostdogpr" %% "shard-protocol-grpc"      % "3.0.0-RC1",
+  "com.github.ghostdogpr" %% "shard-serialization-kryo" % "3.0.0-RC1"
+)
+```
+
+### Example
+
+First, we start the Shard Manager. This example uses an in-memory storage and a simple `PodsHealth` that pings a pod to see if it's alive:
+
+```scala
+import shard._
+import shard.interfaces._
+import zio._
+
+object ShardManagerApp extends ZIOAppDefault {
+  def run: Task[Nothing] =
+    Server.run.provide(
+      ZLayer.succeed(ManagerConfig.default),
+      ZLayer.succeed(GrpcConfig.default),
+      PodsHealth.local, // just ping a pod to see if it's alive
+      GrpcPods.live,    // use gRPC protocol
+      Storage.memory,   // store data in memory
+      ShardManager.live // shard manager logic
+    )
+}
+```
+
+Then we define an entity. The messages are an `enum` with two type parameters: `E` is the type of the errors a message can fail with, and `A` is the type of its reply. An `EntityType` gives the entity a unique name:
+
+```scala
+import shard.kryo.given
+
+case class GuildFull(maxMembers: Int)
+
+enum GuildMessage[E, A] {
+  case Join(userId: String)  extends GuildMessage[GuildFull, Set[String]]
+  case Leave(userId: String) extends GuildMessage[Nothing, Unit]
+}
+
+object Guild extends EntityType[GuildMessage]("guild")
+```
+
+The behavior of the entity is a function that is called when the entity starts, and returns the handler that processes its messages one at a time. The `Scope` is closed when the entity stops, so it can be used to save the entity state:
+
+```scala
+def behavior(entityId: String): ZIO[Scope, Nothing, Guild.Handler] =
+  Ref.make(Set.empty[String]).map { state =>
+    new Guild.Handler {
+      def handle[E, A](message: GuildMessage[E, A]): IO[E, A] =
+        message match {
+          case GuildMessage.Join(userId)  =>
+            state.get.flatMap(members =>
+              if (members.size >= 5) ZIO.fail(GuildFull(5))
+              else state.updateAndGet(_ + userId)
+            )
+          case GuildMessage.Leave(userId) =>
+            state.update(_ - userId)
+        }
+    }
+  }
+```
+
+Finally, we register the entity, register the pod to the Shard Manager, and send messages using only the entity ID:
+
+```scala
+val program =
+  for {
+    _     <- Sharding.registerEntity(Guild)(behavior)
+    _     <- Sharding.registerScoped
+    guild <- Sharding.messenger(Guild)
+    _     <- guild.send("guild1")(GuildMessage.Join("user1")).either.debug
+    _     <- guild.send("guild1")(GuildMessage.Join("user2")).either.debug
+  } yield ()
+
+def run: Task[Unit] =
+  ZIO.scoped(program).provide(
+    ZLayer.succeed(Config.default),
+    ZLayer.succeed(GrpcConfig.default),
+    Storage.memory,           // store data in memory
+    ShardManagerClient.live,  // client to communicate with the Shard Manager
+    GrpcPods.live,            // use gRPC protocol
+    GrpcShardingService.live, // expose gRPC service
+    Sharding.live             // sharding logic
+  )
+```
+
+The same code can run on multiple pods, and the sharding system ensures that each guild runs on a single pod. For a real deployment, we would use an actual `Storage` implementation, such as Redis, and save the entity state outside of memory.
+
+For more details, see the [Shard documentation](https://ghostdogpr.github.io/shard/).
+
+---
+
 ## Tamer
 
 [Tamer](https://github.com/laserdisc-io/tamer) is a multi-functional Kafka connector for producing data based on [ZIO Kafka](https://github.com/zio/zio-kafka).
@@ -53483,6 +53721,62 @@ object ZIOExample extends ZIOAppDefault {
  }
  ```
  See full example [on the GitHub repo](https://github.com/laserdisc-io/tamer/blob/4e1a7646fb44041648d9aa3ba089decb81ebe487/example/src/main/scala/tamer/db/DatabaseSimple.scala)
+
+---
+
+## Tapir
+
+[Tapir](https://tapir.softwaremill.com) is a library to describe HTTP APIs, expose them as a server, consume them as a client, and automatically document them using open standards. It has first-class ZIO support through the `tapir-zio` and `tapir-zio-http-server` modules.
+
+### Introduction
+
+Key features of Tapir:
+- **Type Safety** — Compile-time guarantees, develop-time completions, and read-time information.
+- **Declarative** — Separate the shape of an endpoint (the "what") from the server logic (the "how").
+- **Documentation** — Generate OpenAPI, AsyncAPI, and JSON Schema documentation from endpoint descriptions.
+- **Observability** — Use the endpoint metadata to report rich metrics and tracing information.
+- **Library, Not a Framework** — Tapir integrates with the stack we already use, so we can expose Tapir endpoints alongside native ones.
+
+### Installation
+
+The `tapir-zio` module defines the `ZServerEndpoint` type alias and the helpers to work with ZIO:
+
+```scala
+libraryDependencies += "com.softwaremill.sttp.tapir" %% "tapir-zio" % "1.14.1"
+```
+
+To expose the endpoints using the ZIO HTTP server, add the ZIO HTTP interpreter instead, which already depends on `tapir-zio`:
+
+```scala
+libraryDependencies += "com.softwaremill.sttp.tapir" %% "tapir-zio-http-server" % "1.14.1"
+```
+
+Tapir also provides ZIO-based integrations for other servers, JSON libraries, and observability tools. See the [Tapir documentation](https://tapir.softwaremill.com) for the complete list.
+
+### Example
+
+Instead of the usual `import sttp.tapir.*`, we import `sttp.tapir.ztapir.*`. It brings into scope all the input and output descriptions, and replaces the standard server logic methods with `zServerLogic` and `zServerSecurityLogic`, which accept ZIO effects:
+
+```scala
+import sttp.tapir.PublicEndpoint
+import sttp.tapir.ztapir.*
+import sttp.tapir.server.ziohttp.ZioHttpInterpreter
+import zio.http.{Response, Routes}
+import zio.*
+
+def countCharacters(s: String): ZIO[Any, Nothing, Int] =
+  ZIO.succeed(s.length)
+
+val countCharactersEndpoint: PublicEndpoint[String, Unit, Int, Any] =
+  endpoint.in(stringBody).out(plainBody[Int])
+
+val countCharactersHttp: Routes[Any, Response] =
+  ZioHttpInterpreter().toHttp(countCharactersEndpoint.zServerLogic(countCharacters))
+```
+
+The resulting `Routes` can be served like any other ZIO HTTP routes, and a single application can contain both Tapir-generated and native ZIO HTTP routes.
+
+The ZIO HTTP interpreter also supports streaming request and response bodies using `ZStream`, and web sockets.
 
 ---
 
@@ -53816,78 +54110,6 @@ object services {
 
 ---
 
-## ZIO AMQP
-
-[ZIO AMQP](https://github.com/svroonland/zio-amqp) is a ZIO-based AMQP client for Scala.
-
-### Introduction
-
-ZIO AMQP is a ZIO-based wrapper around the RabbitMQ client. It provides a streaming interface to AMQP queues and helps to prevent us from shooting ourselves in the foot with thread-safety issues.
-
-### Installation
-
-In order to use this library, we need to add the following line in our `build.sbt` file:
-
-```scala
-libraryDependencies += "nl.vroste" %% "zio-amqp" % "0.3.0"
-```
-
-### Example
-
-First, let's create an instance of RabbitMQ:
-
-```
-docker run -d --name some-rabbit -p 5672:5672 -p 5673:5673 -p 15672:15672 rabbitmq:3-management
-```
-
-Then we need to create `my_exchange` and `my_queue` and bind the queue to the exchange via the RabbitMQ management dashboard (`localhost:15672`).
-
-Now we can run the example below:
-
-```scala
-import nl.vroste.zio.amqp._
-import nl.vroste.zio.amqp.model._
-import zio._
-
-import java.net.URI
-
-object ZIOAMQPExample extends ZIOAppDefault {
-
-  val channel: ZIO[Scope, Throwable, Channel] = for {
-    connection <- Amqp.connect(URI.create("amqp://localhost:5672"))
-    channel    <- Amqp.createChannel(connection)
-  } yield channel
-
-  val myApp: ZIO[Any, Throwable, Unit] =
-    ZIO.scoped {
-      for {
-        channel                            <- channel
-        producer: ZIO[Any, Throwable, Long] =
-          Random.nextUUID
-            .flatMap(uuid => channel.publish(ExchangeName("my_exchange"), uuid.toString.getBytes).unit)
-            .schedule(Schedule.spaced(1.seconds))
-
-        consumer: ZIO[Any, Throwable, Unit] =
-          channel
-            .consume(queue = QueueName("my_queue"), consumerTag = ConsumerTag("my_consumer"))
-            .mapZIO { record =>
-              val deliveryTag = record.getEnvelope.getDeliveryTag
-              Console.printLine(s"Received $deliveryTag: ${new String(record.getBody)}") *>
-                channel.ack(DeliveryTag(deliveryTag))
-            }
-            .runDrain
-        p                                  <- producer.fork
-        c                                  <- consumer.fork
-        _                                  <- p.zip(c).join
-      } yield ()
-    }
-
-  override def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Any] = myApp
-}
-```
-
----
-
 ## ZIO Apache Parquet
 
 [ZIO Apache Parquet](https://github.com/grouzen/zio-apache-parquet) is a ZIO-powered Apache Parquet library.
@@ -53986,94 +54208,101 @@ See the full docs on the project's [website](https://mnedokushev.me/zio-apache-p
 
 ---
 
-## ZIO EclipseStore
+## ZIO Elasticsearch
 
-[ZIO EclipseStore](https://github.com/riccardomerolla/zio-eclipsestore) is a ZIO-based library for type-safe, efficient, and boilerplate-free access to [EclipseStore](https://github.com/eclipse-store/store).
+[ZIO Elasticsearch](https://lambdaworks.github.io/zio-elasticsearch) is a type-safe and streaming-friendly ZIO native Elasticsearch client.
 
 ### Introduction
 
-ZIO EclipseStore provides a ZIO-powered interface to EclipseStore, offering a modern, functional approach to object graph persistence with type safety and composability.
+The library uses sttp as the HTTP client for executing requests, and builds on other ZIO libraries: ZIO Schema for type-safe queries and ZIO Prelude newtypes for `IndexName`, `DocumentId`, and `Routing`.
 
-### Features
+Key features of ZIO Elasticsearch:
+- **Type Safety** — Build queries and aggregations with accessors derived from a ZIO Schema, so referring to a field that doesn't exist is a compile error.
+- **Fluent API** — Add optional parameters, such as routing and refresh, in chained method calls.
+- **Bulk Requests** — Combine requests like `create`, `upsert`, and `deleteById` into a single `bulk` request.
+- **Streaming** — Stream search results with a plain, scroll, or search-after strategy.
 
-- **Type-Safe API** — Leverage ZIO's type system for compile-time safety
-- **Automatic Query Batching** — Batchable queries are optimized automatically
-- **Parallel Execution** — Un-batchable queries execute in parallel with controlled concurrency
-- **Typed Root Instances** — Declaratively describe and access root aggregates
-- **Lifecycle Management** — Checkpoints, backups, and restarts via `LifecycleCommand`
-- **Streaming Persistence** — Stream keys/values and batch updates with `putAll`/`persistAll`
-- **GigaMap Module** — Advanced indexed maps with query DSL, CRUD, and persistence support
-- **Resource Safety** — ZIO's resource management ensures proper cleanup
-- **Custom Type Handlers & Blobs** — Register custom binary handlers for domain types and blobs
-- **Backup Targets & Import/Export** — Built-in backup configuration (SQLite/SQL/S3/FTP), import/export helpers
-- **Performance Tuning** — Configure channels, caches, compression, off-heap page store, encryption
-- **Lazy Loading & Eager Storing** — Lazy references/collections plus eager-field semantics
-- **ZIO Config Integration** — Load `EclipseStoreConfig` from HOCON/resources via zio-config
-- **Effect-Oriented** — All operations are ZIO effects for composability
+The supported versions are Scala 2.12, 2.13, and 3, ZIO 2, Elasticsearch 7 and 8, and JVM 17 or later.
 
 ### Installation
 
+In order to use this library, we need to add the following line to our `build.sbt` file:
+
 ```scala
-libraryDependencies ++= Seq(
-  "io.github.riccardomerolla" %% "zio-eclipsestore" % "1.0.5",
-  "io.github.riccardomerolla" %% "zio-eclipsestore-gigamap" % "1.0.5", // Optional: for GigaMap module
-  "io.github.riccardomerolla" %% "zio-eclipsestore-storage-sqlite" % "1.0.5" // Optional: for SQLite storage/backup
-)
+libraryDependencies += "io.lambdaworks" %% "zio-elasticsearch" % "0.5.1"
 ```
 
 ### Example
 
-A simple demo showcasing batch operations, typed roots, and query execution:
+To execute a request, we use the `Elasticsearch` layer, which has an `execute` method accepting an `ElasticRequest`. The layer needs an `ElasticExecutor` (`ElasticExecutor.local` runs against `localhost:9200`, while `ElasticExecutor.live` needs an `ElasticConfig`) and an sttp backend:
 
 ```scala
-import io.github.riccardomerolla.zio.eclipsestore.config.EclipseStoreConfig
-import io.github.riccardomerolla.zio.eclipsestore.domain.{Query, RootDescriptor}
-import io.github.riccardomerolla.zio.eclipsestore.service.{EclipseStoreService, LifecycleCommand}
-import zio.*
-import scala.collection.mutable.ListBuffer
+import sttp.client3.httpclient.zio.HttpClientZioBackend
+import zio.elasticsearch._
+import zio._
 
-object MyApp extends ZIOAppDefault:
-  def run =
-    val program = for
-      // Batch store values
-      _ <- EclipseStoreService.putAll(
-        List("user:1" -> "Alice", "user:2" -> "Bob", "user:3" -> "Charlie")
-      )
-      
-      // Retrieve values
-      user <- EclipseStoreService.get[String, String]("user:1")
-      _ <- ZIO.logInfo(s"User: ${user.getOrElse("not found")}")
-      
-      // Stream all values
-      streamed <- EclipseStoreService.streamValues[String].runCollect
-      _ <- ZIO.logInfo(s"All users: ${streamed.mkString(", ")}")
-      
-      // Work with typed roots
-      favoritesDescriptor = RootDescriptor(
-        id = "favorite-users",
-        initializer = () => ListBuffer.empty[String]
-      )
-      favorites <- EclipseStoreService.root(favoritesDescriptor)
-      _ <- ZIO.succeed(favorites.addOne("user:1"))
-      _ <- EclipseStoreService.maintenance(LifecycleCommand.Checkpoint)
-      
-      // Execute multiple queries in batch
-      queries = List(
-        Query.Get[String, String]("user:1"),
-        Query.Get[String, String]("user:2"),
-        Query.Get[String, String]("user:3")
-      )
-      results <- EclipseStoreService.executeMany(queries)
-      _ <- ZIO.logInfo(s"Batch query results: ${results.mkString(", ")}")
-    yield ()
-    
-    program.provide(
-      EclipseStoreConfig.temporaryLayer,
-      EclipseStoreService.live
+object ZIOElasticsearchExample extends ZIOAppDefault {
+  val indexName = IndexName("index")
+  val result: RIO[Elasticsearch, CreationOutcome] =
+    Elasticsearch.execute(ElasticRequest.createIndex(indexName))
+
+  override def run =
+    result.provide(
+      ElasticExecutor.local,
+      Elasticsearch.layer,
+      HttpClientZioBackend.layer()
     )
+}
 ```
 
-See the full docs on the project's [GitHub repository](https://github.com/riccardomerolla/zio-eclipsestore).
+### Type-safe Queries
+
+To make requests type-safe, we derive a `Schema` for our document type and use it to create accessors:
+
+```scala
+final case class Address(street: String, number: Int)
+
+object Address {
+  implicit val schema: Schema.CaseClass2[String, Int, Address] =
+    DeriveSchema.gen[Address]
+
+  val (street, number) = schema.makeAccessors(FieldAccessorBuilder)
+}
+
+final case class User(id: Int, address: Address)
+
+object User {
+  implicit val schema: Schema.CaseClass2[String, Address, User] =
+    DeriveSchema.gen[User]
+
+  val (id, address) = schema.makeAccessors(FieldAccessorBuilder)
+}
+
+val query: BoolQuery[User] =
+  ElasticQuery
+    .must(ElasticQuery.range(User.id).gte(7).lt(10))
+    .should(ElasticQuery.startsWith(User.address / Address.street, "ZIO"))
+
+val request: SearchRequest =
+  ElasticRequest.search(IndexName("index"), query)
+
+val result: RIO[Elasticsearch, SearchResult] = Elasticsearch.execute(request)
+```
+
+### Streaming
+
+The `Elasticsearch.stream` and `Elasticsearch.streamAs` methods turn a search request into a `ZStream`. The `StreamConfig` selects the strategy:
+
+```scala
+val request: SearchRequest =
+  ElasticRequest.search(IndexName("index"), ElasticQuery.range(User.id).gte(5))
+
+val scrollStream: ZStream[Elasticsearch, Throwable, Item] =
+  Elasticsearch.stream(request, StreamConfig.Scroll)
+
+val searchAfterStream: ZStream[Elasticsearch, Throwable, User] =
+  Elasticsearch.streamAs[User](request, StreamConfig.SearchAfter)
+```
 
 ---
 
@@ -54349,524 +54578,258 @@ object ZIOKinesisConsumerExample extends zio.App {
 
 ---
 
-## ZIO NebulaGraph
+## ZIO LMDB
 
-[zio-nebula](https://github.com/nebula-contrib/zio-nebula) is a simple wrapper around [nebula-java](https://github.com/vesoft-inc/nebula-java/) for easier integration with [NebulaGraph](https://github.com/vesoft-inc/nebula) into Scala, ZIO applications.
+[ZIO LMDB](https://dacr.github.io/zio-lmdb/) is an embedded, ACID, key-value database for ZIO. It needs no infrastructure: the data lives in a single file.
 
 ### Introduction
 
-- Supports all clients: Session Pool、Pool、Storage、Meta
-- Support for configuring clients with typesafe config
-- Other optimizations suitable for Scala pure functional
-- Support Scala 3, Scala 2.13 and Scala 2.12
+ZIO LMDB is built on top of [lmdbjava](https://github.com/lmdbjava/lmdbjava) and offers a type-safe, ZIO-native API.
+
+Key features of ZIO LMDB:
+- **Three Collection Kinds** — `LMDBCollection` (one key to one value), `LMDBMulti` (one key to many values), and `LMDBIndex` (one key to many keys).
+- **Customizable Codecs** — Use the JSON codec (`derives LMDBCodecJson`), the bytes-optimized codecs for keys, or our own.
+- **Atomic Transactions** — Run transactions on a single collection or across collections.
+- **Lexicographic Ordering** — Keys are sorted, so range scans and pagination come for free.
 
 ### Installation
 
-In order to use this library, we need to add the following line in our `build.sbt` file:
+In order to use this library, we need to add the following line to our `build.sbt` file:
 
 ```scala
-libraryDependencies += "io.github.jxnu-liguobin" %% "zio-nebula" % <version>
+libraryDependencies += "fr.janalyse" %% "zio-lmdb" % "2.8.6"
 ```
-
-There are the version correspondence between zio-nebula and nebula-java:
-
-|  zio  | zio-nebula | nebula-java |
-|:-----:|:----------:|:-----------:|
-| 2.0.x |   0.0.x    |    3.6.0    |
-| 2.0.x |   0.1.0    |    3.6.0    |
-| 2.0.x |   0.1.1    |    3.6.1    |
 
 ### Example
 
-Usually, we use a session client, which can be conveniently used in ZIO applications like this:
+In the following example, we create a collection of `Person` values, insert one, update it, and fetch it back:
 
 ```scala
-import zio._
-import zio.nebula._
+import zio.*, zio.lmdb.*, zio.lmdb.json.*
+import java.util.UUID
 
-final class NebulaSessionClientExample(sessionClient: NebulaSessionClient) {
+case class Person(name: String, age: Int) derives LMDBCodecJson
 
-  def execute(stmt: String): ZIO[Any, Throwable, NebulaResultSet] = {
-    // your business logic
-    sessionClient.execute(stmt)
-  }
+object Example extends ZIOAppDefault:
+  def run = (for {
+    people <- LMDB.collectionCreate[UUID, Person]("people", failIfExists = false)
+    id     <- Random.nextUUID
+    _      <- people.insert(id, Person("Alice", 30))
+    _      <- people.update(id, previous => previous.copy(age = previous.age + 1))
+    result <- people.fetch(id)
+    _      <- Console.printLine(result)
+  } yield ()).provide(LMDB.liveWithDatabaseName("my-app"), Scope.default)
+```
+
+When running with Scala CLI, the JVM needs the following options to give LMDB access to NIO internals:
+
+```scala
+//> using dep fr.janalyse::zio-lmdb:2.8.6
+//> using javaOpt --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED
+```
+
+For the full API reference, including transactions, codecs, indexes, and configuration, see the [ZIO LMDB documentation](https://dacr.github.io/zio-lmdb/).
+
+---
+
+## ZIO MongoDB
+
+[ZIO MongoDB](https://github.com/zeal18/zio-mongodb) is a ZIO wrapper around the official MongoDB Java driver.
+
+### Introduction
+
+The main goals of the project are:
+- **First-Class ZIO Support** — The client, database, and collection are exposed as ZIO services and effects.
+- **Compile-Time Codecs** — The runtime codec resolution of the Java driver is replaced by compile-time codec derivation, and Scala 3 is supported.
+- **Type-Safe Query DSL** — Query building is split from results processing, and filters are built with a type-safe DSL.
+- **Test Kit** — A `zio-test` integrated test kit runs the tests against an embedded MongoDB.
+
+ZIO 1 is no longer supported; the latest version based on ZIO 1 is `0.5.1`.
+
+### Installation
+
+In order to use this library, we need to add the following lines to our `build.sbt` file:
+
+```scala
+libraryDependencies ++= Seq(
+  "io.github.zeal18" %% "zio-mongodb-bson"    % "0.11.5",
+  "io.github.zeal18" %% "zio-mongodb-driver"  % "0.11.5",
+  "io.github.zeal18" %% "zio-mongodb-testkit" % "0.11.5" % Test
+)
+```
+
+### Example
+
+First, we create the layers for the client and the database:
+
+```scala
+import io.github.zeal18.zio.mongodb.driver.MongoClient
+import io.github.zeal18.zio.mongodb.driver.MongoDatabase
+import zio.ZIO
+import zio.ZLayer
+
+val client: ZLayer[Any, Throwable, MongoClient] =
+  MongoClient.live("mongodb://localhost:27017")
+
+val database: ZLayer[Any, Throwable, MongoDatabase] =
+  client >>> ZLayer.fromZIO(ZIO.serviceWith[MongoClient](_.getDatabase("database-name")))
+```
+
+Then we can write a data access layer on top of a typed collection:
+
+```scala
+import io.github.zeal18.zio.mongodb.bson.annotations.BsonId
+import io.github.zeal18.zio.mongodb.driver.MongoDatabase
+import io.github.zeal18.zio.mongodb.driver.filters
+import zio.Task
+import zio.ZLayer
+
+case class User(@BsonId id: Int, name: String)
+
+trait UsersDal {
+  def insert(user: User): Task[Boolean]
+  def get(id: Int): Task[Option[User]]
+  def delete(id: Int): Task[Boolean]
 }
 
-object NebulaSessionClientExample {
-  lazy val layer = ZLayer.fromFunction(new NebulaSessionClientExample(_))
-}
+object UsersDal {
+  val live: ZLayer[MongoDatabase, Nothing, UsersDal] = ZLayer.fromZIO(for {
+    mongo <- ZIO.service[MongoDatabase]
 
-object NebulaSessionClientMain extends ZIOAppDefault {
+    coll =
+      mongo
+        .getCollection[User]("users")
+        .withReadConcern(ReadConcern.MAJORITY)
+        .withWriteConcern(WriteConcern.MAJORITY)
+  } yield new UsersDal {
+    override def insert(user: User): Task[Boolean] =
+      coll.insertOne(user).map(_.wasAcknowledged())
 
-  override def run = (for {
-    _ <- ZIO.serviceWithZIO[NebulaSessionClient](_.init()) // since 0.1.1, no need to call it manually. 
-    _ <- ZIO.serviceWithZIO[NebulaSessionClientExample](
-             _.execute("""
-                         |INSERT VERTEX person(name, age) VALUES 
-                         |'Bob':('Bob', 10), 
-                         |'Lily':('Lily', 9),'Tom':('Tom', 10),
-                         |'Jerry':('Jerry', 13),
-                         |'John':('John', 11);""".stripMargin)
-           )
-    _ <- ZIO.serviceWithZIO[NebulaSessionClientExample](
-             _.execute("""
-                         |INSERT EDGE like(likeness) VALUES
-                         |'Bob'->'Lily':(80.0),
-                         |'Bob'->'Tom':(70.0),
-                         |'Lily'->'Jerry':(84.0),
-                         |'Tom'->'Jerry':(68.3),
-                         |'Bob'->'John':(97.2);""".stripMargin)
-           )
-    _ <- ZIO.serviceWithZIO[NebulaSessionClientExample](
-             _.execute("""
-                         |USE test;
-                         |MATCH (p:person) RETURN p LIMIT 4;
-                         |""".stripMargin)
-           )
-  } yield ())
-    .provide(
-      Scope.default,
-      NebulaSessionClientExample.layer,
-      SessionClientEnv
-    )
+    override def get(id: Int): Task[Option[User]] =
+      coll.find(filters.eq(id)).runHead
 
+    override def delete(id: Int): Task[Boolean] =
+      coll.deleteOne(filters.eq(id)).map(_.getDeletedCount() > 0)
+  })
 }
 ```
 
-Add configuration in classpath:
+### Testing
 
-```hocon
-{
-  graph {
-    address = [
-      {
-        host = "127.0.0.1",
-        port = 9669
-      }
-    ]
-    auth {
-      username = "root"
-      password = "nebula"
-    }
-    spaceName = "test"
-    reconnect = true
-  }
+The test kit provides `MongoClientTest` and `MongoDatabaseTest`, which start an embedded MongoDB. Sharing the client layer avoids relaunching MongoDB for every test case, while a database with a random name isolates the test cases from each other:
 
-  meta {
-    address = [
-      {
-        host = "127.0.0.1",
-        port = 9559
-      }
-    ]
-    timeoutMills = 30000
-    connectionRetry = 3
-    executionRetry = 1
-    enableSSL = false
-  }
+```scala
+import io.github.zeal18.zio.mongodb.testkit.MongoClientTest
+import io.github.zeal18.zio.mongodb.testkit.MongoDatabaseTest
+import zio.ZIO
+import zio.test.*
 
-  storage {
-    address = [
-      {
-        host = "127.0.0.1",
-        port = 9559
-      }
-    ]
-    timeoutMills = 30000
-    connectionRetry = 3
-    executionRetry = 1
-    enableSSL = false
-  }
+object UsersDalSpec extends ZIOSpecDefault {
+  override def spec = suite("UsersDalSpec")(
+    test("insert user") {
+      for {
+        dal <- ZIO.service[UsersDal]
 
-  pool {
-    timeoutMills = 60000
-    enableSsl = false
-    minConnsSize = 10
-    maxConnsSize = 10
-    intervalIdleMills = 100
-    waitTimeMills = 100
-  }
+        inserted <- dal.insert(User(3, "John Doe"))
+      } yield assertTrue(inserted)
+    },
+    test("get user") {
+      for {
+        dal <- ZIO.service[UsersDal]
+        user = User(5, "John Doe")
+
+        _      <- dal.insert(user)
+        result <- dal.get(5)
+      } yield assertTrue(result.get == user)
+    },
+  ).provideSomeLayer(MongoDatabaseTest.random >>> UsersDal.live)
+    .provideLayerShared(MongoClientTest.live())
 }
 ```
 
 ---
 
-## ZIO Pulsar
+## ZIO Spark
 
-[ZIO Pulsar](https://github.com/apache/pulsar) is the _Apache Pulsar_ client for Scala with ZIO and ZIO Streams integration.
+[ZIO Spark](https://univalence.github.io/zio-spark/) is a functional wrapper around Spark that makes it work with ZIO, improves error management, and increases performance.
 
 ### Introduction
 
-ZIO Pulsar is a purely functional Scala wrapper over the official Pulsar client. Some key features of this library:
+ZIO Spark rewrites the existing Spark API using better functional programming principles. Each Spark type has a corresponding type in `zio.spark`, such as `Dataset` and `SparkSession`, with a different API:
 
-- **Type-safe** — Utilizes Scala type system to reduce runtime exceptions present in the official Java client.
-- **Streaming-enabled** — Naturally integrates with ZIO Streams.
-- **ZIO integrated** — Uses common ZIO primitives like ZIO effect and `ZManaged` to reduce the boilerplate and increase expressiveness.
+- **Effectful Actions** — Actions return ZIO effects. For example, `count` returns a `Task[Long]` instead of a `Long`.
+- **Explicit Errors** — Operations that can fail return a `TryAnalysis`, which lets us handle, for example, a column that doesn't exist.
+- **No Implicit SparkSession** — The session is provided as a ZIO layer, so there is no need to pass an implicit `SparkSession` around.
+- **ZIO Features** — Spark jobs can use features like retrying and running in parallel.
+- **Existing Code** — Existing Spark code can be used without modifications, and lifted into ZIO Spark with `zio.spark.sql.fromSpark`.
+
+The library supports Scala 2.11, 2.12, 2.13, and 3, and it works with [ZIO Direct](https://zio.dev/zio-direct). The authors describe it as not yet as battle-tested as they would like it to be.
 
 ### Installation
 
-In order to use this library, we need to add the following line in our `build.sbt` file for _Scala 3_:
+In order to use this library, we need to add the following lines to our `build.sbt` file. Spark is provided, so we add the Spark version we use, as we usually would:
 
 ```scala
-libraryDependencies += "com.github.jczuchnowski" %% "zio-pulsar" % "0.1"
+libraryDependencies ++= Seq(
+  "io.univalence"    %% "zio-spark"  % "0.13.0",
+  "org.apache.spark" %% "spark-core" % "3.3.1" % Provided,
+  "org.apache.spark" %% "spark-sql"  % "3.3.1" % Provided
+)
+```
+
+To create an example application with all the dependencies, we can use the Giter8 template:
+
+```bash
+sbt new univalence/zio-spark.g8
 ```
 
 ### Example
 
-First of all we need to create an instance of _Apache Pulsar_ and run that:
-
-```
-docker run -it \
-  -p 6650:6650 \
-  -p 8080:8080 \
-  --mount source=pulsardata,target=/pulsar/data \
-  --mount source=pulsarconf,target=/pulsar/conf \
-  --network pulsar \
-  apachepulsar/pulsar:2.7.0 \
-  bin/pulsar standalone
-```
-
-Now we can run the following example:
+In the following example, we read a text file, keep the lines that contain `zio`, and print them. We use ZIO Direct to write the program in a direct style:
 
 ```scala
-import org.apache.pulsar.client.api.{PulsarClientException, Schema}
-import zio._
-import zio.blocking._
-import zio.clock._
-import zio.console._
-import zio.pulsar._
-import zio.stream._
-
-import java.nio.charset.StandardCharsets
-
-object StreamingExample extends zio.App {
-  val topic = "my-topic"
-
-  val producer: ZManaged[Has[PulsarClient], PulsarClientException, Unit] =
-    for {
-      sink <- Producer.make(topic, Schema.STRING).map(_.asSink)
-      _ <- Stream.fromIterable(0 to 100).map(i => s"Message $i").run(sink).toManaged_
-    } yield ()
-
-  val consumer: ZManaged[Has[PulsarClient] with Blocking with Console, PulsarClientException, Unit] =
-    for {
-      builder <- ConsumerBuilder.make(Schema.STRING).toManaged_
-      consumer <- builder
-        .subscription(Subscription("my-subscription", SubscriptionType.Exclusive))
-        .topic(topic)
-        .build
-      _ <- consumer.receiveStream.take(10).foreach { e =>
-        consumer.acknowledge(e.getMessageId) *>
-          putStrLn(new String(e.getData, StandardCharsets.UTF_8)).orDie
-      }.toManaged_
-    } yield ()
-
-  val myApp =
-    for {
-      f <- consumer.fork
-      _ <- producer
-      _ <- f.join.toManaged_
-    } yield ()
-
-  def run(args: List[String]): URIO[ZEnv, ExitCode] =
-    myApp
-      .provideCustom(
-        (Console.live ++ Clock.live) >+>
-          PulsarClient.live("localhost", 6650)
-      ).useNow.exitCode
-}
-```
-
-### Resources
-
-- [ZIO World - ZIO PULSAR](https://www.youtube.com/watch?v=tpwydDqQBmk) by Jakub Czuchnowski (March 2020) — A new library that offers a native, first-class ZIO experience for Pulsar, the Kafka competitor gaining traction for some use cases.
-
----
-
-## ZIO Slick Interop
-
-[ZIO Slick Interop](https://github.com/ScalaConsultants/zio-slick-interop) is a small library, that provides interop between Slick and ZIO.
-
-### Installation
-
-In order to use this library, we need to add the following line in our `build.sbt` file:
-
-```scala
-libraryDependencies += "io.scalac" %% "zio-slick-interop" % "0.4.0"
-```
-
-### Example
-
-To run this example we should also add the _HikariCP integration for Slick_ in our `build.sbt` file:
-
-```scala
-libraryDependencies += "com.typesafe.slick" %% "slick-hikaricp" % "3.3.3"
-```
-
-Here is a full working example of creating database-agnostic Slick repository:
-
-```scala
-import com.typesafe.config.ConfigFactory
-import slick.interop.zio.DatabaseProvider
-import slick.interop.zio.syntax._
-import slick.jdbc.H2Profile.api._
-import slick.jdbc.JdbcProfile
-import zio.console.Console
-import zio.interop.console.cats.putStrLn
-import zio.{ExitCode, IO, URIO, ZEnvironment, ZIO, ZLayer}
-
-import scala.jdk.CollectionConverters._
-
-case class Item(id: Long, name: String)
-
-trait ItemRepository {
-  def add(name: String): IO[Throwable, Long]
-
-  def getById(id: Long): IO[Throwable, Option[Item]]
-
-  def upsert(name: String): IO[Throwable, Long]
-}
-
-object ItemsTable {
-  class Items(tag: Tag) extends Table[Item](
-    _tableTag = tag,
-    _tableName = "ITEMS"
-  ) {
-    def id = column[Long]("ID", O.PrimaryKey, O.AutoInc)
-
-    def name = column[String]("NAME")
-
-    def * = (id, name) <> ((Item.apply _).tupled, Item.unapply _)
-  }
-
-  val table = TableQuery[ItemsTable.Items]
-}
-
-object SlickItemRepository {
-  val live: ZLayer[DatabaseProvider, Throwable, ItemRepository] =
-    ZLayer.fromServiceM { db =>
-      db.profile.flatMap { profile =>
-        import profile.api._
-
-        val initialize = ZIO.fromDBIO(ItemsTable.table.schema.createIfNotExists)
-
-        val repository = new ItemRepository {
-          private val items = ItemsTable.table
-
-          def add(name: String): IO[Throwable, Long] =
-            ZIO
-              .fromDBIO((items returning items.map(_.id)) += Item(0L, name))
-              .provideEnvironment(ZEnvironment(db))
-
-          def getById(id: Long): IO[Throwable, Option[Item]] = {
-            val query = items.filter(_.id === id).result
-
-            ZIO.fromDBIO(query).map(_.headOption).provideEnvironment(ZEnvironment(db))
-          }
-
-          def upsert(name: String): IO[Throwable, Long] =
-            ZIO
-              .fromDBIO { implicit ec =>
-                (for {
-                  itemOpt <- items.filter(_.name === name).result.headOption
-                  id <- itemOpt.fold[DBIOAction[Long, NoStream, Effect.Write]](
-                    (items returning items.map(_.id)) += Item(0L, name)
-                  )(item => (items.map(_.name) update name).map(_ => item.id))
-                } yield id).transactionally
-              }
-              .provideEnvironment(Environment(db))
-        }
-
-        initialize.as(repository).provideEnvironment(Environment(db))
-      }
-    }
-}
-
-object Main extends zio.App {
-
-  private val config = ConfigFactory.parseMap(
-    Map(
-      "url" -> "jdbc:h2:mem:test1;DB_CLOSE_DELAY=-1",
-      "driver" -> "org.h2.Driver",
-      "connectionPool" -> "disabled"
-    ).asJava
-  )
-
-  private val env: ZLayer[Any, Throwable, ItemRepository] =
-    (ZLayer.succeed(config) ++ ZLayer.succeed[JdbcProfile](
-      slick.jdbc.H2Profile
-    )) >>> DatabaseProvider.live >>> SlickItemRepository.live
-
-  val myApp: ZIO[Console with Has[ItemRepository], Throwable, Unit] =
-    for {
-      repo <- ZIO.service[ItemRepository]
-      aId1 <- repo.add("A")
-      _ <- repo.add("B")
-      a <- repo.getById(1L)
-      b <- repo.getById(2L)
-      aId2 <- repo.upsert("A")
-      _ <- putStrLn(s"$aId1 == $aId2")
-      _ <- putStrLn(s"A item: $a")
-      _ <- putStrLn(s"B item: $b")
-    } yield ()
-
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    myApp.provideCustom(env).exitCode
-}
-```
-
----
-
-## ZIO Temporal
-
-[ZIO Temporal](https://zio-temporal.vhonta.dev/) is a ZIO library for Temporal, a microservice workflow orchestration platform.
-
-### Introduction
-
-ZIO Temporal is a ZIO library based on the Temporal Java-SDK. ZIO Temporal brings first-class Scala & ZIO support with additional compile-time checks that Java SDK lacks.
-
-[Temporal](https://temporal.io/) platform helps to eliminate complex errors or retry logic, avoid callbacks, and ensure that every workflow you start completes. Temporal delivers durable execution for your services and applications.
-
-### Installation
-
-To use the library, we need to add the following dependency:
-
-```scala
-libraryDependencies += "dev.vhonta" %% "zio-temporal-core" % "0.4.0"
-```
-
-### Examples
-
-Here we have one ZIO app with two "modules". One is the worker that executes the workflow activity, and the other is the Client that sends the request to the Temporal platform. To run the sample, it's required to download [Temporal cli](https://docs.temporal.io/cli) (recommended for development).
-
-Run the Temporal server on one shell:
-
-```sh
-temporal server start-dev --ip 0.0.0.0 --db-filename /tmp/temporal.db
-```
-
-Now we can run the sample application, which is based on Temporal Java SDK docs using [scala-cli](https://scala-cli.virtuslab.org):
-
-```scala
-//> using scala "3.3.0"
-
-//> using lib "dev.zio::zio:2.0.16"
-//> using lib "dev.vhonta::zio-temporal-core:0.4.0"
-//> using lib "dev.zio::zio-logging:2.1.14"
-//> using lib "dev.zio::zio-logging-slf4j2-bridge:2.1.14"
-
 import zio.*
-import zio.temporal.*
-import zio.temporal.worker.*
-import zio.temporal.workflow.*
-import zio.logging.*
+import zio.direct.*
+import zio.spark.sql.*
 
-// This is our workflow interface
-@workflowInterface
-trait EchoWorkflow:
+// import for syntax + spark encoders
+import zio.spark.sql.implicits.*
+import scala3encoders.given
 
-  @workflowMethod
-  def echo(str: String): String
+// throw AnalysisException directly
+import zio.spark.sql.TryAnalysis.syntax.throwAnalysisException
 
-// Workflow implementation
-class EchoWorkflowImpl extends EchoWorkflow:
-  private val logger = ZWorkflow.makeLogger
+object Main extends ZIOAppDefault {
+  val sparkSession = SparkSession.builder.master("local").asLayer
 
-  override def echo(str: String): String =
-    logger.info(s"Worker: Received \"$str\"")
-    s"ACK: $str"
+  override def run = {
+    defer {
+      val readBuild: RIO[SparkSession, DataFrame] = SparkSession.read.text("./build.sbt")
+      val text: Dataset[String] = readBuild.run.as[String]
 
-// Main Application
-object Main extends ZIOAppDefault:
-  val taskQueue = "echo-queue"
+      text.filter(_.contains("zio")).show(truncate = false).run
 
-  // Worker implementation
-  val setupWorker = ZWorkerFactory.newWorker(taskQueue) @@
-    ZWorker.addWorkflow[EchoWorkflowImpl].fromClass
-
-  // Client implementation
-  def invokeWorkflow(msg: String) = ZIO.serviceWithZIO[ZWorkflowClient]: client =>
-    for
-      uuid <- Random.nextUUID
-      workflowID = s"echo-$uuid"
-      echoWorkflow <- client
-                        .newWorkflowStub[EchoWorkflow]
-                        .withTaskQueue(taskQueue)
-                        .withWorkflowId(workflowID)
-                        .withWorkflowRunTimeout(2.seconds)
-                        .withRetryOptions(ZRetryOptions.default.withMaximumAttempts(3))
-                        .build
-      _   <- ZIO.logInfo(s"Will submit message \"$msg\" with workflow ID $workflowID")
-      res <- ZWorkflowStub.execute(echoWorkflow.echo(msg))
-      _   <- ZIO.logInfo(s"Greeting received: $res")
-    yield res
-
-  // Logging configuration
-  val logFilter: LogFilter[String] = LogFilter.logLevelByName(
-    LogLevel.Info,
-    "io.grpc.netty" -> LogLevel.Warning,
-    "io.netty"      -> LogLevel.Warning,
-    "io.temporal"   -> LogLevel.Error,
-  )
-  override val bootstrap: ZLayer[ZIOAppArgs, Any, Any] =
-    Runtime.removeDefaultLoggers >>> consoleLogger(ConsoleLoggerConfig(LogFormat.colored, logFilter))
-
-  // ZIO Main Program
-  def run: ZIO[ZIOAppArgs & Scope, Any, Any] =
-    val program =
-      for
-        args           <- getArgs
-        msg             = if args.isEmpty then "testMsg" else args.mkString(" ")
-        _              <- setupWorker
-        _              <- ZWorkerFactory.setup
-        _              <- ZWorkflowServiceStubs.setup()
-        workflowResult <- invokeWorkflow(msg)
-        _              <- ZIO.logInfo(s"The workflow result: $workflowResult")
-      yield ExitCode.success
-
-    program
-      .provideSome[ZIOAppArgs & Scope](
-        ZWorkflowServiceStubsOptions.make,
-        ZWorkflowClientOptions.make,
-        ZWorkerFactoryOptions.make,
-        ZWorkflowClient.make,
-        ZWorkflowServiceStubs.make,
-        ZWorkerFactory.make,
-        slf4j.bridge.Slf4jBridge.initialize,
-      )
+      Console.printLine("what a time to be alive!").run
+    }.provideLayer(sparkSession)
+  }
+}
 ```
 
-Generates the output:
+### Using Existing Spark Code
 
-```sh
-❯ scli zio-temporal.scala
-timestamp=2023-06-28T09:27:21.171306+02:00 level=INFO thread=zio-fiber-4 message="ZWorkerFactory started"
-timestamp=2023-06-28T09:27:21.238575+02:00 level=INFO thread=zio-fiber-4 message="Will submit message "testMsg" with workflow ID echo-82026831-91df-4138-b862-710d87b3ebb4"
-timestamp=2023-06-28T09:27:21.5684+02:00   level=INFO thread=zio-fiber-183 message="Worker: Received "testMsg""
-timestamp=2023-06-28T09:27:21.645988+02:00 level=INFO thread=zio-fiber-4 message="Greeting received: ACK: testMsg"
-timestamp=2023-06-28T09:27:21.6473+02:00   level=INFO thread=zio-fiber-4 message="The workflow result: ACK: testMsg"
-timestamp=2023-06-28T09:27:21.705634+02:00 level=INFO thread=zio-fiber-4 message="ZWorkerFactory shutdownNow initiated..."
+Existing Spark code can be lifted into ZIO Spark. Then we can keep using it, or switch to the new API with `.zioSpark`:
+
+```scala
+def existingCode(implicit ss: org.apache.spark.sql.SparkSession): org.apache.spark.sql.Dataset[String] = {
+  import ss.implicits._
+  ss.read.parquet("toto.parquet").as[String]
+}
+
+val out =
+  zio.spark.sql.fromSpark(existingCode).flatMap(_.zioSpark.count)
 ```
 
-Results of the execution can also be seen in the [Temporal UI](http://localhost:8233) running locally or the [tctl](https://github.com/temporalio/tctl) tool:
-
-```sh
-❯ tctl workflow observe --workflow_id echo-81ef73da-d54d-492a-8f91-78e888dcebc8
-Progress:
-  1, 2023-04-18T20:34:00Z, WorkflowExecutionStarted
-  2, 2023-04-18T20:34:00Z, WorkflowTaskScheduled
-  3, 2023-04-18T20:34:00Z, WorkflowTaskStarted
-  4, 2023-04-18T20:34:00Z, WorkflowTaskCompleted
-  5, 2023-04-18T20:34:00Z, WorkflowExecutionCompleted
-
-Result:
-  Run Time: 1 seconds
-  Status: COMPLETED
-  Output: ["ACK: testMsg"]
-```
-
-### Want more?
-You can find more complex and end-to-end example projects in [zio-temporal-samples](https://github.com/vitaliihonta/zio-temporal-samples) repo.
+For the full documentation, see the [ZIO Spark documentation](https://univalence.github.io/zio-spark/).
 
 ---
 
@@ -54909,56 +54872,160 @@ object MySpec extends AkkaZIOSpecDefault {
 
 ---
 
-## ZparkIO
+## ZIO Ecosystem
 
-[ZParkIO](https://github.com/leobenkel/ZparkIO) is a boilerplate framework to use _Spark_ and _ZIO_ together.
+ZIO has a rich ecosystem of libraries and tools that enhance its capabilities and provide additional functionality. This ecosystem includes libraries for various purposes, such as web development, data processing, testing, and more.
 
-### Introduction
+Browse the libraries by purpose in the sidebar, or jump to the complete lists below: the [official libraries](#official-libraries), maintained by the ZIO team under the [ZIO Organization](https://github.com/zio), the [community libraries](#community-libraries), maintained by members of the ZIO community, and the [compatible libraries](#compatible-libraries) that work with ZIO.
 
-_ZparkIO_ enables us to:
-- Wrap asynchronous and synchronous operations smoothly. So everything is wrapped in ZIO.
-- Have ZIO features in our spark jobs, like forking and joining fibers, parallelizing tasks, retrying, and timing-out.
-- Make our spark job much easier to debug
+Below are some of the highlights from the official libraries:
 
-### Installation
+### Official Libraries
 
-In order to use this library, we need to add the following line in our `build.sbt` file:
+Official ZIO libraries are hosted in the [ZIO organization](https://github.com/zio/) on GitHub, and are generally maintained by core contributors to ZIO.
 
-```scala
-libraryDependencies += "com.leobenkel" %% "zparkio" % "[SPARK_VERSION]_[VERSION]"
-```
+#### Development Status
 
-### Example
+Each project in the ZIO organization namespace has a _Stage Badge_ which indicates the current status of that project:
 
-Using _ZparkIO_ we can write jobs like the following example:
+* **Production Ready** — The project is stable and already used in production. We can expect reliability for the implemented use cases.
+* **Development** — The project already has RC or milestone releases, but is still under active development. We should not expect full stability yet.
+* **Experimental** — The project is not yet released, but an important part of the work is already done.
+* **Research** — The project is at the design stage, with some sketches of work but nothing usable yet.
+* **Concept** — The project is just an idea, development hasn't started yet.
+* **Deprecated** — The project is not maintained anymore, and we don't recommend its usage.
 
-```scala
-import com.leobenkel.zparkio.Services.SparkModule
-import com.leobenkel.zparkio.Services.SparkModule.SparkModule
-import com.leobenkel.zparkio.ZparkioApplicationTimeoutException
-import org.apache.spark.sql.DataFrame
-import zio.clock.Clock
-import zio.duration.durationInt
-import zio.{Schedule, Task, ZIO}
+{/* BEGIN GENERATED: official libraries */}
 
-def readParquetFile[A](parquetPath: String): ZIO[Clock with SparkModule, Throwable, DataFrame] =
-  for {
-    spark <- SparkModule()
-    dataset <- Task(spark.read.parquet(parquetPath))
-      .retry(
-        Schedule.recurs(3) && Schedule.exponential(2.seconds)
-      )
-      .timeoutFail(ZparkioApplicationTimeoutException())(5.minutes)
-  } yield dataset
-```
+#### Web & APIs
 
-### Resources
+- [ZIO HTTP](https://ziohttp.com) — A type-safe, composable, and feature-rich HTTP library built on top of ZIO.
 
-- [Accelerating Spark with ZIO](https://www.youtube.com/watch?v=bWgVGzb5-H8) by Leo Benkel (December 2020) — Apache Spark is a powerful tool for distributed analytics but isn’t built to offer rich primitives for local parallelism. Yet, using local parallelism, it is possible to dramatically improve the performance of ML projects—for example, by fetching data sources in parallel. Historically, Scala projects have used Scala's Future for local parallelism, but increasingly, many projects have begun adopting ZIO as a better Future. Although powerful, ZIO is not easy to set up with Spark. In this talk, Leo will introduce an open-source library that handles all boilerplate so you can easily implement Spark and ZIO in your ML projects, and will then present detailed benchmarks showing how much additional performance can be obtained through local parallelism. Learn how to use ZIO to make Spark better and faster!
+#### Data Access
 
----
+- [ZIO DynamoDB](/zio-dynamodb/) — Simple, type-safe, and efficient access to AWS DynamoDB.
+- [ZIO Query](/zio-query/) — A library for writing optimized queries to data sources in a compositional style, with batching, pipelining, and caching.
+- [ZIO Quill](/zio-quill/) — A quoted domain-specific language for expressing queries in Scala and executing them as SQL or CQL.
+- [ZIO Redis](/zio-redis/) — A type-safe and performant ZIO-native Redis client.
+- [ZIO Rocksdb](/zio-rocksdb/) — A ZIO-based interface to RocksDB.
 
-## ZIO Compatible Libraries
+#### Messaging & Pipelines
+
+- [ZIO AMQP](/zio-amqp/) — A ZIO-based wrapper around the RabbitMQ client with a streaming interface to AMQP queues.
+- [ZIO Kafka](/zio-kafka/) — A purely functional, streams-based Kafka client for ZIO.
+- [ZIO SQS](/zio-sqs/) — A ZIO-powered client for AWS SQS, built on top of ZIO AWS.
+
+#### Serialization & Formats
+
+- [ZIO Bson](/zio-bson/) — A BSON library with tight ZIO integration and native support for BSON types.
+- [ZIO JSON](/zio-json/) — A fast and secure JSON library with tight ZIO integration.
+- [ZIO Parser](/zio-parser/) — A library for constructing parsers and pretty printers from invertible syntax descriptions.
+- [ZIO Schema](/zio-schema/) — A library for modeling the schema of data structures as first-class values, enabling serialization, deserialization, and data migration.
+- [ZIO Streams Compress](/zio-streams-compress/) — A library that integrates compression algorithms and archive formats with ZIO Streams.
+
+#### Observability
+
+- [ZIO Logging](/zio-logging/) — Simple logging for ZIO applications, with correlation, context, and pluggable backends.
+- [ZIO Metrics Connectors](/zio-metrics-connectors/) — Integrations between ZIO metrics and monitoring systems such as Prometheus and Datadog.
+- [ZIO Profiling](/zio-profiling/) — A collection of profilers for understanding the runtime behavior of ZIO programs.
+- [ZIO Telemetry](/zio-telemetry/) — Purely functional and type-safe clients for OpenTracing, OpenCensus, and OpenTelemetry.
+
+#### Cloud & Infrastructure
+
+- [ZIO AWS](/zio-aws/) — A ZIO wrapper for all AWS services, built on the AWS Java SDK v2.
+- [ZIO FTP](/zio-ftp/) — A thin wrapper over (s)FTP clients for ZIO.
+- [ZIO Lambda](/zio-lambda/) — A ZIO-based AWS Custom Runtime compatible with GraalVM Native Image.
+- [ZIO S3](/zio-s3/) — A thin wrapper over the S3 async client for ZIO.
+
+#### Config & App Wiring
+
+- [ZIO CLI](/zio-cli/) — A library for rapidly building powerful command-line applications powered by ZIO.
+- [ZIO Config](/zio-config/) — A ZIO-based library that extends ZIO's `Config` with support for various sources and automatic derivation.
+- [ZIO Process](/zio-process/) — A library for interacting with external processes and command-line programs, backed by ZIO Streams.
+
+#### Resilience & Scaling
+
+- [ZIO Cache](/zio-cache/) — A library for optimizing the performance of an application by caching values.
+
+#### Types & Abstractions
+
+- [Izumi Reflect](/izumi-reflect/) — A fast, lightweight, portable and efficient alternative to `TypeTag` from `scala-reflect`.
+- [ZIO 2.x Interop Cats 2.x](/zio2-interop-cats2/) — An interoperability layer that lets ZIO 2 work with Cats Effect 2 and its ecosystem.
+- [ZIO Constraintless](/zio-constraintless/) — A library for building programs as descriptions with maximum polymorphism and modularity, and zero abstraction leakage.
+- [ZIO Direct Style](/zio-direct/) — A library for writing ZIO programs in a direct, imperative style, based on the Monadless paradigm.
+- [ZIO Prelude](/zio-prelude/) — A lightweight, distinctly Scala take on functional abstractions, with tight ZIO integration.
+
+#### Testing & Dev Tools
+
+- [ZIO IntelliJ](https://github.com/zio/zio-intellij) — A plugin for IntelliJ IDEA that brings enhancements when using ZIO in your projects.
+- [ZIO SBT](/zio-sbt/) — A collection of sbt plugins that simplify the development of ZIO projects.
+
+{/* END GENERATED: official libraries */}
+
+### Community Libraries
+
+In this section we are going to introduce some of the most important libraries that have first-class ZIO support from the community.
+
+If you know a useful library that has first-class ZIO support, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
+
+{/* BEGIN GENERATED: community libraries */}
+
+#### Web & APIs
+
+- [Caliban](/ecosystem/community/caliban) — A purely functional library for creating GraphQL servers and clients in Scala.
+- [Tapir](/ecosystem/community/tapir) — A library to describe HTTP APIs, expose them as a server, consume them as a client, and document them automatically, with first-class ZIO support.
+- [ZIO gRPC](/ecosystem/community/zio-grpc) — A library for writing purely functional gRPC servers and clients with ZIO.
+
+#### Data Access
+
+- [Decrel](/ecosystem/community/decrel) — A library for declarative programming using relations between data, with automatic batching, parallelization, and caching.
+- [Mongo4cats](/ecosystem/community/mongo4cats) — A functional and idiomatic interface for MongoDB, with a dedicated ZIO 2 module.
+- [TranzactIO](/ecosystem/community/tranzactio) — A ZIO wrapper for database access libraries, currently Doobie and Anorm.
+- [ZIO Elasticsearch](/ecosystem/community/zio-elasticsearch) — A type-safe and streaming-friendly ZIO-native Elasticsearch client.
+- [ZIO LMDB](/ecosystem/community/zio-lmdb) — An embedded, ACID, key-value database for ZIO, stored in a single file.
+- [ZIO MongoDB](/ecosystem/community/zio-mongodb) — A ZIO wrapper around the official MongoDB Java driver, with compile-time codecs and a type-safe query DSL.
+
+#### Messaging & Pipelines
+
+- [tamer](/ecosystem/community/tamer) — A multi-functional Kafka connector for producing data, based on ZIO Kafka.
+- [ZIO Kinesis](/ecosystem/community/zio-kinesis) — A ZIO-based AWS Kinesis client for consuming and producing data.
+- [ZIO Spark](/ecosystem/community/zio-spark) — A functional wrapper around Spark that makes it work with ZIO and improves error management.
+
+#### Serialization & Formats
+
+- [ZIO Apache Parquet](/ecosystem/community/zio-apache-parquet) — A ZIO-powered library for reading and writing Parquet files without running a Spark cluster.
+
+#### Observability
+
+- [LogStage](/ecosystem/community/logstage) — A zero-cost structural logging framework for Scala and Scala.js.
+- [Tofu ZIO 2 Logging](/ecosystem/community/tofu-zio2-logging) — Logging integration of Tofu, a functional toolkit based on the tagless-final approach, with ZIO 2.
+
+#### Cloud & Infrastructure
+
+- [Scala k8s](/ecosystem/community/scala-k8s) — A Kubernetes client, data models, and typesafe manifest generation for Scala, Scala.js, and Scala Native.
+- [ZIO K8s](/ecosystem/community/zio-k8s) — An idiomatic ZIO client for the Kubernetes API, with code generation for custom resources and operators.
+
+#### Config & App Wiring
+
+- [Distage](/ecosystem/community/distage) — A compile-time safe, transparent, and debuggable dependency injection framework for pure FP Scala.
+
+#### Resilience & Scaling
+
+- [Rezilience](/ecosystem/community/rezilience) — A ZIO-native fault tolerance library with policies for making asynchronous systems more resilient to failures.
+- [Shard](/ecosystem/community/shard) — A library for distributing entities across multiple servers and sending them messages by ID, without knowing their location. It is the successor of Shardcake.
+
+#### Types & Abstractions
+
+- [Neotype](/ecosystem/community/neotype) — A friendly newtype library for Scala 3 with compile-time validation and integrations with ZIO JSON, ZIO Quill, ZIO Config, and ZIO Schema.
+
+#### Testing & Dev Tools
+
+- [MUnit ZIO](/ecosystem/community/munit-zio) — An integration library between MUnit and ZIO.
+- [ZIO Test Akka HTTP](/ecosystem/community/zio-test-akka-http) — An Akka HTTP route test kit for ZIO Test.
+
+{/* END GENERATED: community libraries */}
+
+### Compatible Libraries
 
 List of ZIO compatible libraries:
 
@@ -54973,67 +55040,9 @@ List of ZIO compatible libraries:
 - [fs2](https://github.com/typelevel/fs2) — Compositional, streaming I/O library for Scala
 - [http4s](https://github.com/http4s/http4s) — A minimal, idiomatic Scala interface for HTTP
 - [Automorph](https://automorph.org) - RPC in a few lines of Scala code
-
----
-
-## ZIO Ecosystem
-
-ZIO has a rich ecosystem of libraries and tools that enhance its capabilities and provide additional functionality. This ecosystem includes libraries for various purposes, such as web development, data processing, testing, and more.
-
-But it doesn't end there! If you need a comprehensive list of libraries and tools, you can find them in one of the following sections:
-
-- [Official libraries](officials/index.md), maintained by the ZIO team under the [ZIO Organization](https://github.com/zio).
-- [Community libraries](community/index.md), maintained by members of the ZIO community.
-
-Below are some of the highlights from the official libraries:
-
----
-
-## ZIO Ecosystem Official Libraries
-
-Official ZIO libraries are hosted in the [ZIO organization](https://github.com/zio/) on GitHub, and are generally maintained by core contributors to ZIO.
-
-### Development Status
-
-Each project in the ZIO organization namespace has a _Stage Badge_ which indicates the current status of that project:
-
-* **Production Ready** — The project is stable and already used in production. We can expect reliability for the implemented use cases.
-* **Development** — The project already has RC or milestone releases, but is still under active development. We should not expect full stability yet.
-* **Experimental** — The project is not yet released, but an important part of the work is already done.
-* **Research** — The project is at the design stage, with some sketches of work but nothing usable yet.
-* **Concept** — The project is just an idea, development hasn't started yet.
-* **Deprecated** — The project is not maintained anymore, and we don't recommend its usage.
-
-### Highlights Projects
-
-Here is the list of some of the highlighted projects that can be used in everyday ZIO development:
-
-1. [ZIO HTTP](https://ziohttp.com): A type-safe, composable, and feature-rich HTTP library built on top of ZIO.
-2. [ZIO Config](https://zio.dev/zio-config): A functional type-safe configuration library for ZIO applications.
-3. [ZIO Logging](https://zio.dev/zio-logging): A logging library to integrate with different logging backends.
-4. [ZIO JSON](https://zio.dev/zio-json): A JSON library to work with JSON data in ZIO applications.
-5. [ZIO Schema](https://zio.dev/zio-schema): A library for generating/defining type-safe schemas for custom data types in ZIO applications.
-6. [ZIO Quill](https://zio.dev/zio-quill): A library to interact with databases using type-safe queries.
-7. [ZIO Kafka](https://zio.dev/zio-kafka): A Kafka client for ZIO and ZIO Streams
-8. [ZIO Prelude](https://zio.dev/zio-prelude): A lightweight, distinctly Scala take on functional abstractions, with tight ZIO integration
-
-### Official Libraries
-
----
-
-## Project Templates
-
-List of project starters, bootstrap tools or, templates.
-
-- [zio-scala2-quickstart.g8](https://github.com/ScalaConsultants/zio-scala2-quickstart.g8) — A Giter8 template for a basic Scala 2 application with a choice of libraries to use (Akka HTTP, ZIO HTTP, Quill, Slick)
-- [zio-scala3-quickstart.g8](https://github.com/ScalaConsultants/zio-scala3-quickstart.g8) — A Giter8 template for a basic Scala 3 application with ZIO HTTP and Quill
-- [zio-scala-3-project.g8](https://github.com/lachezar/zio-scala-3-project.g8) - A Giter8 template for Scala 3 + ZIO 2 web service applications using zio-http, zio-json, zio-quill, zio-kafka, zio-prelude and Onion architecure.
-
----
-
-## ZIO Tools
-
-- [ZIO IntelliJ](https://github.com/zio/zio-intellij) — A complementary, community-developed plugin for IntelliJ IDEA, brings enhancements when using ZIO in your projects
+- [ldbc](https://github.com/takapi327/ldbc) — Pure functional JDBC layer for Scala 3 built on Cats Effect, usable with ZIO through the `ldbc-zio-interop` module
+- [Iron](https://github.com/iltotore/iron) — Strong type constraints for Scala 3, with the `iron-zio`, `iron-zio-json`, and `iron-zio-blocks-schema` modules for ZIO
+- [sttp-ai](https://github.com/softwaremill/sttp-ai) — A Scala toolkit for working with third-party LLMs such as OpenAI and Claude, with a ZIO backend
 
 ---
 
@@ -55738,7 +55747,7 @@ Let's see an example of how to use this library:
 ....
 ```
 
-Inside the `index.md` file, the `sidebar_title` field is used to set the name of the library in the sidebar of the documentation website on [this page](ecosystem/officials/index.md). Therefore, make sure to set it at the top of the `docs/index.md` file.
+Inside the `index.md` file, the `sidebar_title` field is used to set the name of the library in the sidebar of the documentation website on [this page](ecosystem/index.mdx#official-libraries). Therefore, make sure to set it at the top of the `docs/index.md` file.
 
 Also, we can use `@‎PROJECT_BADGES@` placeholder to add badges to the documentation. The `@‎PROJECT_BADGES@` placeholder will be replaced with the badges of the library. Also, the `@‎VERSION@` placeholder will be replaced with the latest version of the library.
 
@@ -56685,7 +56694,7 @@ Other useful system properties are:
 
 ---
 
-## ZIO AMQP(2)
+## ZIO AMQP
 
 ZIO AMQP is a ZIO-based wrapper around the RabbitMQ client. It provides a streaming interface to AMQP queues and helps to prevent you from shooting yourself in the foot with thread-safety issues. 
 

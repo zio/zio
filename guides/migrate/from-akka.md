@@ -1210,13 +1210,13 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [33]: https://doc.akka.io/docs/alpakka/current/sqs.html
 [34]: ../../zio-sqs/index.md
 [35]: https://doc.akka.io/docs/alpakka/current/amqp.html
-[36]: ../../ecosystem/community/zio-amqp.md
+[36]: /zio-amqp/
 [37]: https://doc.akka.io/docs/alpakka/current/kinesis.html
 [38]: ../../ecosystem/community/zio-kinesis.md
 [39]: https://doc.akka.io/docs/alpakka/current/dynamodb.html
 [40]: https://github.com/zio/zio-dynamodb
 [41]: https://doc.akka.io/docs/alpakka/current/external/pulsar.html
-[42]: ../../ecosystem/community/zio-pulsar.md
+[42]: https://github.com/jczuchnowski/zio-pulsar
 [43]: https://doc.akka.io/docs/alpakka/current/awslambda.html
 [44]: https://github.com/zio/zio-lambda
 [45]: https://doc.akka.io/docs/alpakka/current/cassandra.html
@@ -1233,7 +1233,7 @@ There is also a work-in-progress implementation of the Raft protocol called [ZIO
 [56]: https://github.com/zio/zio-http
 [57]: ../../zio-nio/index.md
 [58]: https://doc.akka.io/docs/alpakka/current/slick.html
-[59]: ../../ecosystem/community/zio-slick-interop.md
+[59]: https://github.com/ScalaConsultants/zio-slick-interop
 [60]: https://doc.akka.io/docs/alpakka/current/external/tcp.html
 [61]: https://github.com/searler/zio-tcp
 [62]: https://doc.akka.io/docs/alpakka/current/google-cloud-pub-sub.html
