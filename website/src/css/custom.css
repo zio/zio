@@ -457,8 +457,8 @@ a {
   }
 
   /* ── Inline code follows the site's red accent ───────────────────────────
-   The widget's inline code defaults to a blue tint. Set its tint variables to
-   a soft wash of the primary red, per theme. Text keeps the bubble's own
+   0.0.11 hard-coded a blue tint; 0.0.12 defaults to grey and reads these
+   variables. Set them to a soft wash of the primary red, per theme. Text keeps the bubble's own
    colour, so contrast stays ≥ 9:1 on both bubbles in light and dark. */
   .zio-chat {
     --bytebrain-code-bg: color-mix(in srgb, var(--ifm-color-primary) 15%, transparent);
