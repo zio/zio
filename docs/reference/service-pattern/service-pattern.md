@@ -177,7 +177,7 @@ object InmemoryBlobStorage {
   /**
    * An in-memory implementation of the `BlobStorage` service.
    */
-  val layer = 
+  val layer: ULayer[BlobStorage] = 
     ZLayer {
       ???
     } 
@@ -187,7 +187,7 @@ object InmemoryMetadataRepo {
   /**
    * An in-memory implementation of the `MetadataRepo` service.
    */
-  val layer = 
+  val layer: ULayer[MetadataRepo] = 
     ZLayer {
       ???
     }
