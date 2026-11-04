@@ -455,6 +455,20 @@ a {
   .zio-chat {
     --bytebrain-offset-top: var(--ifm-navbar-height);
   }
+
+  /* ── Inline code follows the site's red accent ───────────────────────────
+   The widget's inline code defaults to a blue tint. Set its tint variables to
+   a soft wash of the primary red, per theme. Text keeps the bubble's own
+   colour, so contrast stays ≥ 9:1 on both bubbles in light and dark. */
+  .zio-chat {
+    --bytebrain-code-bg: color-mix(in srgb, var(--ifm-color-primary) 15%, transparent);
+    --bytebrain-user-code-bg: color-mix(in srgb, var(--ifm-color-primary) 18%, transparent);
+  }
+
+  [data-theme='dark'] .zio-chat {
+    --bytebrain-code-bg: color-mix(in srgb, var(--ifm-color-primary) 30%, transparent);
+    --bytebrain-user-code-bg: color-mix(in srgb, var(--ifm-color-primary) 30%, transparent);
+  }
 } /* end @layer components (ByteBrain chat overrides) */
 
 /* ── Algolia DocSearch: brand-consistent theming ─────────────────────────
