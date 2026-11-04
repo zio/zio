@@ -1,6 +1,7 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
+import zio.test.diff.{DiffRenderer, DiffResult}
 import zio.test.render.LogLine.{Fragment, Message}
 import zio.test.render._
 
@@ -10,10 +11,14 @@ object ErrorMessage {
 
   def choice(success: String, failure: String): ErrorMessage = Choice(success, failure)
   def custom(string: String): ErrorMessage                   = Custom(string)
-  def pretty(value: Any): ErrorMessage                       = Value(PrettyPrint(value))
-  def text(string: String): ErrorMessage                     = choice(string, string)
-  def throwable(throwable: Throwable): ErrorMessage          = ThrowableZIO(throwable)
-  def value(value: Any): ErrorMessage                        = Value(value)
+  def diff[A, B](expected: A, actual: B, diffResult: DiffResult)(implicit
+    renderer: DiffRenderer = DiffRenderer.default
+  ): ErrorMessage =
+    DiffZIO(expected, actual, diffResult, renderer)
+  def pretty(value: Any): ErrorMessage              = Value(PrettyPrint(value))
+  def text(string: String): ErrorMessage            = choice(string, string)
+  def throwable(throwable: Throwable): ErrorMessage = ThrowableZIO(throwable)
+  def value(value: Any): ErrorMessage               = Value(value)
 
   val did: ErrorMessage    = choice("did", "did not")
   val equals: ErrorMessage = choice("was equal to", "was not equal to")
@@ -24,8 +29,14 @@ object ErrorMessage {
   private final case class Combine(lhs: ErrorMessage, rhs: ErrorMessage, spacing: Int = 1) extends ErrorMessage
   private final case class CombineMessage(lhs: ErrorMessage, rhs: ErrorMessage)            extends ErrorMessage
   private final case class Custom(string: String)                                          extends ErrorMessage
-  private final case class ThrowableZIO(throwable: Throwable)                              extends ErrorMessage
-  private final case class Value(value: Any)                                               extends ErrorMessage
+  private final case class DiffZIO[A, B](
+    expected: A,
+    actual: B,
+    diffResult: DiffResult,
+    renderer: DiffRenderer
+  ) extends ErrorMessage
+  private final case class ThrowableZIO(throwable: Throwable) extends ErrorMessage
+  private final case class Value(value: Any)                  extends ErrorMessage
 }
 
 sealed trait ErrorMessage { self =>
@@ -40,6 +51,9 @@ sealed trait ErrorMessage { self =>
 
       case ErrorMessage.Choice(success, failure) =>
         (if (isSuccess) fr(success).ansi(AnsiColor.MAGENTA) else error(failure)).toLine.toMessage
+
+      case ErrorMessage.DiffZIO(expected, actual, diffResult, renderer) =>
+        renderer.render(expected, actual, diffResult).render(isSuccess)
 
       case ErrorMessage.Value(value) =>
         Message(value.toString.split("\n").toIndexedSeq.map(primary(_).bold.toLine))
