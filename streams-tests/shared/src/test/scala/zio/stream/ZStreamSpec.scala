@@ -4351,7 +4351,20 @@ object ZStreamSpec extends ZIOBaseSpec {
               _      <- stream.tapSink(sink).take(3).runDrain
               result <- ref.get
             } yield assertTrue(result == 6)
-          } @@ TestAspect.flaky
+          },
+          test("early termination with a slow sink") {
+            for {
+              ref    <- Ref.make(0)
+              stream  = ZStream(1, 2, 3, 4, 5).rechunk(1).forever
+              sink    = ZSink.foreach((n: Int) => ZIO.sleep(2.seconds) *> ref.update(_ + n))
+              fib    <- stream.tapSink(sink).take(1).mapZIO(_ => ZIO.sleep(1.second)).runDrain.fork
+              _      <- TestClock.adjust(1.second)
+              early  <- ref.get
+              _      <- TestClock.adjust(2.seconds)
+              _      <- fib.join
+              result <- ref.get
+            } yield assertTrue(early == 0 && result == 1)
+          }
         ),
         suite("throttleEnforce")(
           test("free elements") {
