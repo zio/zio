@@ -3728,6 +3728,40 @@ object ZIOSpec extends ZIOBaseSpec {
           value   <- ref.get
         } yield assertTrue(value == true)
       } @@ exceptJS(nonFlaky),
+      suite("interrupting a fiber parked in asyncInterrupt restores interruptibility") {
+        // The canceler ran with interruption disabled and the flag was restored
+        // by a separate `enableInterruption` effect, which the run loop
+        // short-circuits when the fiber is already interrupted. A canceler that
+        // resolves in the same resumption - a pure `Exit`, as `ZIO.fromFuture`
+        // arms - therefore left interruption off: the interrupt was delivered
+        // once, and a fiber that caught it kept running uninterruptibly.
+        // No clock: `fiber.interrupt` awaits the fiber's exit, and the question
+        // is only whether the effect after the swallowed interrupt ran.
+        def survivesSwallowedInterrupt(parked: ZIO[Any, Throwable, Any]) =
+          for {
+            started   <- Promise.make[Nothing, Unit]
+            continued <- Promise.make[Nothing, Unit]
+            fiber <- ((started.succeed(()) *> parked).catchAllCause(_ => ZIO.unit) *>
+                       continued.succeed(())).forkDaemon
+            _        <- started.await
+            _        <- fiber.interrupt
+            survived <- continued.isDone
+          } yield survived
+
+        def testCase(name: String)(parked: ZIO[Any, Throwable, Any]) =
+          test(name) {
+            survivesSwallowedInterrupt(parked).map(survived => assertTrue(!survived))
+          } @@ zioTag(interruption)
+
+        Chunk(
+          testCase("pure Exit canceler")(ZIO.asyncInterrupt[Any, Nothing, Unit](_ => Left(Exit.unit))),
+          testCase("effect canceler")(ZIO.asyncInterrupt[Any, Nothing, Unit](_ => Left(ZIO.succeed(())))),
+          testCase("no canceler")(ZIO.async[Any, Nothing, Unit](_ => ())),
+          testCase("fromFuture over a Future that never completes") {
+            ZIO.fromFuture(_ => scala.concurrent.Promise[Unit]().future)
+          }
+        )
+      } @@ exceptJS(nonFlaky),
       test("asyncInterrupt cancelation") {
         for {
           ref       <- ZIO.succeed(new java.util.concurrent.atomic.AtomicInteger(0))
