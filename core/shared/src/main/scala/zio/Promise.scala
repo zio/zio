@@ -340,6 +340,18 @@ object Promise {
   def makeAs[E, A](fiberId: => FiberId)(implicit trace: Trace): UIO[Promise[E, A]] =
     ZIO.succeed(unsafe.make(fiberId)(Unsafe))
 
+  /**
+   * Makes a new promise to be completed by the fiber creating the promise and
+   * uses it to perform the specified effect.
+   */
+  def makeWith[E, A]: MakeWithPartiallyApplied[E, A] =
+    new MakeWithPartiallyApplied[E, A]
+
+  final class MakeWithPartiallyApplied[E, A](private val dummy: Boolean = true) extends AnyVal {
+    def apply[R, E1, B](f: Promise[E, A] => ZIO[R, E1, B])(implicit trace: Trace): ZIO[R, E1, B] =
+      ZIO.fiberIdWith(id => f(unsafe.make(id)(Unsafe)))
+  }
+
   object unsafe {
     def make[E, A](fiberId: FiberId)(implicit unsafe: Unsafe): Promise[E, A] = new Promise[E, A](fiberId)
   }

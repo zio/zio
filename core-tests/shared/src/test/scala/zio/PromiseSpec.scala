@@ -20,6 +20,14 @@ object PromiseSpec extends ZIOBaseSpec {
         v <- p.await
       } yield assert(s)(isTrue) && assert(v)(equalTo(32))
     },
+    test("create and use a promise using makeWith") {
+      Promise.makeWith[Nothing, Int] { p =>
+        for {
+          s <- p.succeed(32)
+          v <- p.await
+        } yield assert(s)(isTrue) && assert(v)(equalTo(32))
+      }
+    },
     test("complete a promise using complete") {
       for {
         p  <- Promise.make[Nothing, Int]
