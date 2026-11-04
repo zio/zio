@@ -2,7 +2,7 @@ package zio.internal
 
 import zio.test._
 import zio.test.TestAspect.{flaky, jvmOnly}
-import zio.ZIOBaseSpec
+import zio.{ZIO, ZIOBaseSpec}
 
 object WeakConcurrentBagSpec extends ZIOBaseSpec {
   final case class Wrapper[A](value: A)
@@ -54,7 +54,7 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
           bag.gc()
 
           assertTrue(bag.size == 50)
-        } @@ flaky +
+        } @@ flaky @@ jvmOnly +
         test("auto gc") {
           val bag = WeakConcurrentBag[Wrapper[String]](100)
 
@@ -69,6 +69,19 @@ object WeakConcurrentBagSpec extends ZIOBaseSpec {
           bag.graduate()
 
           assertTrue(bag.size <= 100)
-        } @@ flaky
-    } @@ jvmOnly
+        } @@ flaky @@ jvmOnly +
+        test("graduating 10000 elements under concurrency does not fail") {
+          val bag = WeakConcurrentBag[Wrapper[Int]](100)
+          for {
+            _ <- ZIO.foreachParDiscard(1 to 10000)(i => ZIO.succeed(bag.add(Wrapper(i))))
+            _ <- ZIO.succeed(bag.graduate())
+          } yield assertTrue(bag.size > 0)
+        } +
+        test("forking 10000 fibers does not fail in WeakConcurrentBag") {
+          for {
+            fibers <- ZIO.foreach(1 to 10000)(_ => ZIO.never.forkDaemon)
+            _      <- ZIO.foreachDiscard(fibers)(_.interrupt)
+          } yield assertCompletes
+        }
+    }
 }

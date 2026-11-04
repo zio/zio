@@ -1,6 +1,6 @@
 package zio.internal
 
-import zio.internal.WeakConcurrentBag.IsAlive
+import zio.internal.WeakConcurrentBag.{IsAlive, WeakRef}
 import zio.{Chunk, Duration, Unsafe}
 
 import java.lang.ref.WeakReference
@@ -59,7 +59,7 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
    * if necessary to make room.
    */
   final def add(a: A): Unit = {
-    val flushed = maybeFlushAndOffer(new WeakReference[A](a))
+    val flushed = maybeFlushAndOffer(new WeakRef[A](a))
 
     if (flushed.nonEmpty) {
       addToLongTermStorage(flushed)
@@ -183,6 +183,10 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
 }
 
 private[zio] object WeakConcurrentBag {
+
+  private final class WeakRef[A](a: A) extends WeakReference[A](a) {
+    override val hashCode: Int = scala.util.hashing.byteswap32(System.identityHashCode(this))
+  }
 
   def apply[A <: AnyRef](capacity: Int, isAlive: IsAlive[A] = IsAlive.always): WeakConcurrentBag[A] =
     new WeakConcurrentBag(capacity, isAlive)
