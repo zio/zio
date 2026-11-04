@@ -1053,6 +1053,16 @@ object ConfigProviderSpec extends ZIOBaseSpec {
         for {
           result <- configProvider.load(config)
         } yield assertTrue(result == List(Nil, List(1), List(1, 2)))
+      } +
+      test("Flat.util.parsePrimitive parses single and delimited values without name parameter") {
+        for {
+          splitVals <- ConfigProvider.Flat.util.parsePrimitive("1, 2, 3", Chunk("nums"), Config.Int, ",")
+          unsplitVals <-
+            ConfigProvider.Flat.util.parsePrimitive("hello, world", Chunk("greeting"), Config.Text, ",", split = false)
+        } yield assertTrue(
+          splitVals == Chunk(1, 2, 3),
+          unsplitVals == Chunk("hello, world")
+        )
       }
   }
 }

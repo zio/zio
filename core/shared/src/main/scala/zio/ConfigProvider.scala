@@ -371,26 +371,40 @@ object ConfigProvider {
       def parsePrimitive[A](
         text: String,
         path: Chunk[String],
-        name: String,
         primitive: Config.Primitive[A],
         escapedDelim: String,
         split: Boolean
-      ): IO[Config.Error, Chunk[A]] = {
-        val name = path.lastOption.getOrElse("<unnamed>")
-
+      ): IO[Config.Error, Chunk[A]] =
         if (!split)
           ZIO
             .fromEither(primitive.parse(text))
             .map(Chunk(_))
             .mapError(_.prefixed(path))
-        else {
-
+        else
           ZIO
             .foreach(splitPathString(text, escapedDelim))(s => ZIO.fromEither(primitive.parse(s.trim)))
             .mapError(_.prefixed(path))
-        }
-      }
 
+      def parsePrimitive[A](
+        text: String,
+        path: Chunk[String],
+        primitive: Config.Primitive[A],
+        escapedDelim: String
+      ): IO[Config.Error, Chunk[A]] =
+        parsePrimitive(text, path, primitive, escapedDelim, true)
+
+      @deprecated("Use parsePrimitive overload without name parameter", "2.1.25")
+      def parsePrimitive[A](
+        text: String,
+        path: Chunk[String],
+        name: String,
+        primitive: Config.Primitive[A],
+        escapedDelim: String,
+        split: Boolean
+      ): IO[Config.Error, Chunk[A]] =
+        parsePrimitive(text, path, primitive, escapedDelim, split)
+
+      @deprecated("Use parsePrimitive overload without name parameter", "2.1.25")
       def parsePrimitive[A](
         text: String,
         path: Chunk[String],
@@ -398,7 +412,7 @@ object ConfigProvider {
         primitive: Config.Primitive[A],
         escapedDelim: String
       ): IO[Config.Error, Chunk[A]] =
-        parsePrimitive(text, path, name, primitive, escapedDelim, true)
+        parsePrimitive(text, path, primitive, escapedDelim, true)
     }
   }
 
@@ -429,7 +443,7 @@ object ConfigProvider {
         for {
           _       <- Console.printLine(s"Please enter ${description} for property ${name}:").mapError(sourceError)
           line    <- Console.readLine.mapError(sourceError)
-          results <- Flat.util.parsePrimitive(line, path, name, primitive, ",", split)
+          results <- Flat.util.parsePrimitive(line, path, primitive, ",", split)
         } yield results
       }
 
@@ -572,7 +586,6 @@ object ConfigProvider {
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
         val pathString = makePathString(path)
-        val name       = path.lastOption.getOrElse("<unnamed>")
         val valueOpt   = mapWithIndexSplit.get(pathString)
 
         for {
@@ -580,7 +593,7 @@ object ConfigProvider {
                       .fromOption(valueOpt)
                       .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in arguments"))
           results <-
-            ZIO.foreach(values)(value => Flat.util.parsePrimitive(value, path, name, primitive, escapedSeqDelim, split))
+            ZIO.foreach(values)(value => Flat.util.parsePrimitive(value, path, primitive, escapedSeqDelim, split))
         } yield results.flatten
       }
 
@@ -626,7 +639,6 @@ object ConfigProvider {
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
         val pathString = makePathString(path)
-        val name       = path.lastOption.getOrElse("<unnamed>")
 
         for {
           valueOpt <- zio.System.env(pathString).mapError(sourceUnavailable(path))
@@ -634,7 +646,7 @@ object ConfigProvider {
             ZIO
               .fromOption(valueOpt)
               .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in the environment"))
-          results <- Flat.util.parsePrimitive(value, path, name, primitive, escapedSeqDelim, split)
+          results <- Flat.util.parsePrimitive(value, path, primitive, escapedSeqDelim, split)
         } yield results
       }
 
@@ -841,14 +853,13 @@ object ConfigProvider {
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
         val pathString = makePathString(path)
-        val name       = path.lastOption.getOrElse("<unnamed>")
         val valueOpt   = mapWithIndexSplit.get(pathString)
 
         for {
           value <- ZIO
                      .fromOption(valueOpt)
                      .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
-          results <- Flat.util.parsePrimitive(value, path, name, primitive, escapedSeqDelim, split)
+          results <- Flat.util.parsePrimitive(value, path, primitive, escapedSeqDelim, split)
         } yield results
       }
 
@@ -892,14 +903,13 @@ object ConfigProvider {
         trace: Trace
       ): IO[Config.Error, Chunk[A]] = {
         val pathString = makePathString(path)
-        val name       = path.lastOption.getOrElse("<unnamed>")
 
         for {
           valueOpt <- zio.System.property(pathString).mapError(sourceUnavailable(path))
           value <- ZIO
                      .fromOption(valueOpt)
                      .mapError(_ => Config.Error.MissingData(path, s"Expected ${pathString} to be set in properties"))
-          results <- Flat.util.parsePrimitive(value, path, name, primitive, escapedSeqDelim, split)
+          results <- Flat.util.parsePrimitive(value, path, primitive, escapedSeqDelim, split)
         } yield results
       }
 
