@@ -384,6 +384,9 @@ object TestAspectSpec extends ZIOBaseSpec {
         value <- ZIO.config(Config.string("key"))
       } yield assertTrue(value == "value")
     } @@ withConfigProvider(ConfigProvider.fromMap(Map("key" -> "value"))),
+    test("clockFactor fast-forwards TestClock at the specified factor of real time") {
+      ZIO.sleep(100.millis).as(assertCompletes)
+    } @@ clockFactor(10, precision = 10.millis),
     suite("checks")(
       test("runs aspect for every check sample") {
         check(Gen.int)(_ => assertCompletesZIO) *>

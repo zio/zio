@@ -385,6 +385,23 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
+   * An aspect that fast-forwards the `TestClock` at the specified factor of
+   * real time, adjusting the clock every `precision` interval.
+   */
+  def clockFactor(factor: Double, precision: Duration = 10.millis): TestAspectPoly =
+    new PerTest.Poly {
+      def perTest[R, E](
+        test: ZIO[R, TestFailure[E], TestSuccess]
+      )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess] = {
+        val step   = precision * factor
+        val adjust = (Live.live(ZIO.sleep(precision)) *> TestClock.adjust(step)).forever
+        ZIO.acquireReleaseWith(
+          FiberRef.currentSupervisor.locally(Supervisor.none)(adjust.forkDaemon)
+        )(_.interrupt)(_ => test)
+      }
+    }
+
+  /**
    * An aspect that runs each test on a separate fiber and prints a fiber dump
    * if the test fails or has not terminated within the specified duration.
    */
