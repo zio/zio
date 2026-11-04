@@ -3269,6 +3269,63 @@ object ZIOSpec extends ZIOBaseSpec {
       test("timeout of terminate") {
         val io: ZIO[Any, Nothing, Option[Int]] = ZIO.die(ExampleError).timeout(1.hour)
         assertZIO(Live.live(io).exit)(dies(equalTo(ExampleError)))
+      },
+      test("timeout elapses when the test clock is adjusted") {
+        for {
+          fiber  <- ZIO.never.timeout(10.seconds).fork
+          _      <- TestClock.adjust(10.seconds)
+          result <- fiber.join
+        } yield assert(result)(isNone)
+      },
+      test("timeout inherits fiber refs of the effect") {
+        for {
+          fiberRef <- FiberRef.make(0)
+          result   <- (fiberRef.set(42) *> ZIO.succeed("ok")).timeout(1.second)
+          value    <- fiberRef.get
+        } yield assert(result)(isSome(equalTo("ok"))) && assert(value)(equalTo(42))
+      },
+      test("timeout inherits fiber refs of the effect when the timeout elapses") {
+        for {
+          fiberRef <- FiberRef.make(0)
+          fiber    <- (fiberRef.set(42) *> ZIO.never).timeoutTo(0)(_ => 1)(1.second).fork
+          _        <- TestClock.adjust(1.second)
+          result   <- fiber.join
+          value    <- fiberRef.get
+        } yield assert(result)(equalTo(0)) && assert(value)(equalTo(42))
+      },
+      test("timeout forks only one child fiber") {
+        val forks = new java.util.concurrent.atomic.AtomicInteger(0)
+        val supervisor = new Supervisor[Any] {
+          def value(implicit trace: Trace): UIO[Any] = ZIO.succeed(forks.get)
+          def onStart[R, E, A](
+            environment: ZEnvironment[R],
+            effect: ZIO[R, E, A],
+            parent: Option[Fiber.Runtime[Any, Any]],
+            fiber: Fiber.Runtime[E, A]
+          )(implicit unsafe: Unsafe): Unit = {
+            forks.incrementAndGet()
+            ()
+          }
+          def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
+        }
+        val io = ZIO.succeed(42).timeout(1.hour).supervised(supervisor)
+        assertZIO(Live.live(io))(isSome(equalTo(42))) *> assertZIO(ZIO.succeed(forks.get()))(equalTo(1))
+      },
+      test("timeout evaluates duration expression only once") {
+        var count = 0
+        def duration = {
+          count += 1
+          1.hour
+        }
+        for {
+          result <- ZIO.succeed(42).timeout(duration)
+        } yield assert(result)(isSome(equalTo(42))) && assert(count)(equalTo(1))
+      },
+      test("timeout with zero duration on asynchronous effect times out") {
+        assertZIO(Live.live(ZIO.never.timeout(Duration.Zero)))(isNone)
+      },
+      test("timeout under Duration.Infinity succeeds") {
+        assertZIO(Live.live(ZIO.succeed(42).timeout(Duration.Infinity)))(isSome(equalTo(42)))
       }
     ),
     suite("RTS option tests")(

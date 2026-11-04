@@ -5663,27 +5663,103 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       ZIO.suspendSucceed(b()).flatMap(b => if (b) zio.unit else Exit.unit)
   }
 
+  private object TimeoutTo {
+    sealed trait State[+E, +A]
+    case object Registering                            extends State[Nothing, Nothing]
+    case object Suspended                              extends State[Nothing, Nothing]
+    case object TimedOut                               extends State[Nothing, Nothing]
+    final case class Completed[E, A](exit: Exit[E, A]) extends State[E, A]
+  }
+
   final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: () => B) {
+    import TimeoutTo._
+    import java.util.concurrent.atomic.AtomicReference
+    import scala.annotation.tailrec
+
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
-    ): ZIO[R, E, B1] =
-      ZIO.fiberIdWith { parentFiberId =>
-        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
-          (winner, loser) =>
-            winner.await.flatMap { exit =>
-              loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
-            },
-          (winner, loser) =>
-            winner.await.flatMap {
-              case e: Exit.Failure[Nothing] =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
-              case _ =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
-            },
-          null,
-          FiberScope.global
+    ): ZIO[R, E, B1] = {
+      def withScheduler(
+        scheduler: Scheduler,
+        parentFiber: Fiber.Runtime[E, B1],
+        parentStatus: Fiber.Status.Running
+      ): ZIO[R, E, B1] = {
+        implicit val unsafe: Unsafe = Unsafe
+
+        var childFiberId: FiberId = FiberId.None
+        ZIO.asyncInterrupt[R, E, B1](
+          { cb =>
+            val childEff   = ZIO.Grafter(parentFiber).applyOnExit(self)
+            val childFiber = ZIO.unsafe.makeChildFiber(trace, childEff, parentFiber, parentStatus.runtimeFlags, null)
+            childFiberId = childFiber.id
+
+            val state                    = new AtomicReference[State[E, A]](Registering)
+            var cancelTimeout: () => Any = null
+
+            @tailrec
+            def onTimeout(): Unit =
+              state.get() match {
+                case current @ (Registering | Suspended) =>
+                  if (state.compareAndSet(current, TimedOut))
+                    cb(childFiber.interruptAs(parentFiber.id) *> childFiber.inheritAll.as(b()))
+                  else onTimeout()
+                case Completed(_) | TimedOut => ()
+              }
+
+            @tailrec
+            def onChildExit(exit: Exit[E, A]): Unit =
+              state.get() match {
+                case Registering =>
+                  if (!state.compareAndSet(Registering, Completed(exit))) onChildExit(exit)
+                case Suspended =>
+                  if (state.compareAndSet(Suspended, Completed(exit))) {
+                    cancelTimeout()
+                    cb(childFiber.inheritAll *> exit.mapExit(f))
+                  } else onChildExit(exit)
+                case TimedOut | Completed(_) => ()
+              }
+
+            cancelTimeout = scheduler.schedule(() => onTimeout(), duration)
+
+            if (state.get() eq TimedOut) {
+              childFiber.startSuspended()
+              Left(Exit.unit)
+            } else {
+              childFiber.addObserver(onChildExit)
+              childFiber.start(childEff)
+
+              @tailrec
+              def registerOrResume(): Either[URIO[R, Any], ZIO[R, E, B1]] =
+                state.get() match {
+                  case Completed(exit) =>
+                    cancelTimeout()
+                    Right(childFiber.inheritAll *> exit.mapExit(f))
+                  case Registering =>
+                    if (state.compareAndSet(Registering, Suspended))
+                      Left(ZIO.succeed(cancelTimeout()))
+                    else
+                      registerOrResume()
+                  case TimedOut | Suspended =>
+                    Left(Exit.unit)
+                }
+
+              registerOrResume()
+            }
+          },
+          childFiberId
         )
       }
+
+      ZIO.withFiberRuntime[R, E, B1] { (parentFiber, parentStatus) =>
+        val services = parentFiber.getFiberRefOrNull(DefaultServices.currentServices)
+        val clock    = if (services eq null) Clock.ClockLive else services.get(Clock.tag)
+        if (clock eq Clock.ClockLive) withScheduler(Clock.globalScheduler, parentFiber, parentStatus)
+        else
+          clock.scheduler.flatMap { scheduler =>
+            ZIO.withFiberRuntime[R, E, B1]((pf, ps) => withScheduler(scheduler, pf, ps))
+          }
+      }
+    }
   }
 
   final class Acquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {

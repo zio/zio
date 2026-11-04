@@ -17,11 +17,11 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{Duration, Scheduler, Trace, UIO, Unsafe, ZIO}
+import zio.{Cause, Duration, FiberId, Scheduler, Trace, UIO, Unsafe, ZIO}
 
 import java.time.Instant
 import java.util.concurrent._
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.{Collections, List}
 import scala.annotation.tailrec
 
@@ -30,11 +30,25 @@ trait TestClockPlatformSpecific { self: TestClock.Test =>
   def scheduler(implicit trace: Trace): UIO[Scheduler] =
     (ZIO.executor <*> ZIO.runtime[Any]).map { case (executor, runtime) =>
       new Scheduler.Internal {
-        def schedule(runnable: Runnable, duration: Duration)(implicit unsafe: Unsafe): Scheduler.CancelToken = {
-          val fiber =
-            runtime.unsafe.fork((sleep(duration) *> ZIO.succeed(runnable.run())))
-          () => runtime.unsafe.run(fiber.interruptAs(zio.FiberId.None)).getOrThrowFiberFailure().isInterrupted
-        }
+        private[this] val ConstFalse = () => false
+
+        def schedule(runnable: Runnable, duration: Duration)(implicit unsafe: Unsafe): Scheduler.CancelToken =
+          duration match {
+            case Duration.Infinity => ConstFalse
+            case _ =>
+              val completed = new AtomicBoolean(false)
+              val fiber =
+                runtime.unsafe.fork(
+                  (sleep(duration) *> ZIO.succeed {
+                    if (completed.compareAndSet(false, true)) runnable.run()
+                  }).interruptible
+                )
+              () => {
+                val cancelled = completed.compareAndSet(false, true)
+                if (cancelled) fiber.unsafe.interrupt(Cause.interrupt(FiberId.None))
+                cancelled
+              }
+          }
 
         def asScheduledExecutorService: ScheduledExecutorService = {
           def compute[A](a: => A): Either[Throwable, A] =
