@@ -1996,14 +1996,18 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    */
   def mapZIOPar[Env, Err, In, Out](n: => Int, bufferSize: => Int = 16)(f: In => ZIO[Env, Err, Out])(implicit
     trace: Trace
-  ): ZPipeline[Env, Err, In, Out] =
-    new ZPipeline(
-      ZChannel
-        .identity[Nothing, Chunk[In], Any]
-        .concatMap(ZChannel.writeChunk(_))
-        .mapOutZIOPar(n, bufferSize)(f)
-        .mapOut(Chunk.single)
-    )
+  ): ZPipeline[Env, Err, In, Out] = {
+    val n0 = n
+    if (n0 <= 1) mapZIO(f)
+    else
+      new ZPipeline(
+        ZChannel
+          .identity[Nothing, Chunk[In], Any]
+          .concatMap(ZChannel.writeChunk(_))
+          .mapOutZIOPar(n0, bufferSize)(f)
+          .mapOut(Chunk.single)
+      )
+  }
 
   /**
    * Maps over elements of the stream with the specified effectful function,
