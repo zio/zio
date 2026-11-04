@@ -130,7 +130,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * only `Die` or `Interrupt` causes.
    */
   final def failureOrCause: Either[E, Cause[Nothing]] = failureOption match {
-    case Some(error) => Left(error)
+    case Some(error) => if (isDie) Right(stripFailures) else Left(error)
     case None        => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
   }
 
@@ -140,7 +140,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * to contain only `Die` or `Interrupt` causes.
    */
   final def failureTraceOrCause: Either[(E, StackTrace), Cause[Nothing]] = failureTraceOption match {
-    case Some(errorAndTrace) => Left(errorAndTrace)
+    case Some(errorAndTrace) => if (isDie) Right(stripFailures) else Left(errorAndTrace)
     case None                => Right(self.asInstanceOf[Cause[Nothing]]) // no E inside this cause, can safely cast
   }
 

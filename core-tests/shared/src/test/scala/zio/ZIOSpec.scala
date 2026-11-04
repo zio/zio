@@ -4991,6 +4991,22 @@ object ZIOSpec extends ZIOBaseSpec {
         val exit = Exit.succeed(1).unit
         assertTrue(exit == Exit.unit)
       }
+    ),
+    suite("defect preservation in composite causes")(
+      test("foldZIO preserves defect when combined with failure via Both or Then") {
+        val defect    = new RuntimeException("defect")
+        val dieCause  = Cause.die(defect)
+        val failCause = Cause.fail("error")
+        for {
+          exit1 <- ZIO.refailCause(dieCause && failCause).foldZIO(_ => ZIO.unit, _ => ZIO.unit).exit
+          exit2 <- ZIO.refailCause(failCause && dieCause).foldZIO(_ => ZIO.unit, _ => ZIO.unit).exit
+          exit3 <- ZIO.refailCause(dieCause ++ failCause).foldZIO(_ => ZIO.unit, _ => ZIO.unit).exit
+          exit4 <- ZIO.refailCause(failCause ++ dieCause).foldZIO(_ => ZIO.unit, _ => ZIO.unit).exit
+        } yield assert(exit1)(dies(equalTo(defect))) &&
+          assert(exit2)(dies(equalTo(defect))) &&
+          assert(exit3)(dies(equalTo(defect))) &&
+          assert(exit4)(dies(equalTo(defect)))
+      }
     )
   )
 

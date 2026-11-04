@@ -37,6 +37,23 @@ object CauseSpec extends ZIOBaseSpec {
         val n     = 100000
         val cause = List.fill(n)(Cause.fail("fail")).reduce(_ && _)
         assert(cause.failures.length)(equalTo(n))
+      },
+      test("`Cause#failureOrCause` and `Cause#failureTraceOrCause` preserve defects in composite causes") {
+        val defect        = new RuntimeException("defect")
+        val dieCause      = Cause.die(defect)
+        val failCause     = Cause.fail("error")
+        val bothDieFirst  = dieCause && failCause
+        val bothFailFirst = failCause && dieCause
+        val thenDieFirst  = dieCause ++ failCause
+        val thenFailFirst = failCause ++ dieCause
+        assert(bothDieFirst.failureOrCause)(isRight(equalTo(dieCause))) &&
+        assert(bothFailFirst.failureOrCause)(isRight(equalTo(dieCause))) &&
+        assert(thenDieFirst.failureOrCause)(isRight(equalTo(dieCause))) &&
+        assert(thenFailFirst.failureOrCause)(isRight(equalTo(dieCause))) &&
+        assert(bothDieFirst.failureTraceOrCause)(isRight(equalTo(dieCause))) &&
+        assert(bothFailFirst.failureTraceOrCause)(isRight(equalTo(dieCause))) &&
+        assert(thenDieFirst.failureTraceOrCause)(isRight(equalTo(dieCause))) &&
+        assert(thenFailFirst.failureTraceOrCause)(isRight(equalTo(dieCause)))
       }
     ),
     suite("Then")(
