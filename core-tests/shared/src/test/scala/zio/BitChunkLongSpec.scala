@@ -78,6 +78,15 @@ object BitChunkLongSpec extends ZIOBaseSpec {
         val expected = longs.map(toBinaryString(endianness)).mkString
         assert(actual)(equalTo(expected))
       }
+    },
+    test("foreach") {
+      check(genLongChunk, genInt, genInt, genEndianness) { (longs, n, m, endianness) =>
+        val builder = ChunkBuilder.make[Boolean]()
+        longs.asBitsLong(endianness).drop(n).take(m).foreach(builder += _)
+        val actual   = builder.result().toBinaryString
+        val expected = longs.map(toBinaryString(endianness)).mkString.drop(n).take(m)
+        assert(actual)(equalTo(expected))
+      }
     }
   )
 

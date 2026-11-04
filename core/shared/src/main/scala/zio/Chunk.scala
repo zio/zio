@@ -1989,42 +1989,6 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       newBitChunk(chunk.take(toTake), minBitIndex, index)
     }
 
-    // Iterates over bits in 3 phases:
-    // 1. Prefix bits: individual bits before the first full element
-    // 2. Full elements: process entire bytes/ints/longs efficiently via foreachElement
-    // 3. Suffix bits: individual bits after the last full element
-    override def foreach[A](f: Boolean => A): Unit = {
-      val minElementIndex = (minBitIndex + bits - 1) >> bitsLog2 // first full element index
-      val maxElementIndex = maxBitIndex >> bitsLog2              // last full element index (exclusive)
-      val minFullBitIndex = (minElementIndex << bitsLog2) min maxBitIndex
-      val maxFullBitIndex = (maxElementIndex << bitsLog2) max minFullBitIndex
-      val prefixBits      = minFullBitIndex - minBitIndex        // count of leading bits before first full element
-      val suffixBitsStart = maxFullBitIndex - minBitIndex        // 0-based index where trailing bits start
-
-      // Phase 1: prefix bits (before first full element)
-      var i = 0
-      while (i < prefixBits) {
-        f(self.apply(i))
-        i += 1
-      }
-
-      // Phase 2: full elements (processed efficiently without bit extraction)
-      i = minElementIndex
-      while (i < maxElementIndex) {
-        foreachElement(f, elementAt(i))
-        i += 1
-      }
-
-      // Phase 3: suffix bits (after last full element)
-      i = suffixBitsStart
-      while (i < length) {
-        f(self.apply(i))
-        i += 1
-      }
-    }
-
-    protected def foreachElement[A](f: Boolean => A, elem: T): Unit
-
     override protected[zio] def toArray[A1 >: Boolean](
       srcPos: Int,
       dest: Array[A1],
@@ -2088,18 +2052,6 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override protected def newBitChunk(bytes: Chunk[Byte], min: Int, max: Int): BitChunk[Byte] =
       BitChunkByte(bytes, min, max)
-
-    override protected def foreachElement[A](f: Boolean => A, byte: Byte): Unit = {
-      f((byte & 128) != 0)
-      f((byte & 64) != 0)
-      f((byte & 32) != 0)
-      f((byte & 16) != 0)
-      f((byte & 8) != 0)
-      f((byte & 4) != 0)
-      f((byte & 2) != 0)
-      f((byte & 1) != 0)
-      ()
-    }
 
     override def toPackedByte(implicit ev: Boolean <:< Boolean): Chunk[Byte] =
       if (minBitIndex == maxBitIndex) Chunk.empty
@@ -2230,42 +2182,6 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     override protected def newBitChunk(chunk: Chunk[Int], min: Int, max: Int): BitChunk[Int] =
       BitChunkInt(chunk, endianness, min, max)
 
-    override protected def foreachElement[A](f: Boolean => A, int: Int): Unit = {
-      f((int & 0x80000000) != 0)
-      f((int & 0x40000000) != 0)
-      f((int & 0x20000000) != 0)
-      f((int & 0x10000000) != 0)
-      f((int & 0x8000000) != 0)
-      f((int & 0x4000000) != 0)
-      f((int & 0x2000000) != 0)
-      f((int & 0x1000000) != 0)
-      f((int & 0x800000) != 0)
-      f((int & 0x400000) != 0)
-      f((int & 0x200000) != 0)
-      f((int & 0x100000) != 0)
-      f((int & 0x80000) != 0)
-      f((int & 0x40000) != 0)
-      f((int & 0x20000) != 0)
-      f((int & 0x10000) != 0)
-      f((int & 0x8000) != 0)
-      f((int & 0x4000) != 0)
-      f((int & 0x2000) != 0)
-      f((int & 0x1000) != 0)
-      f((int & 0x800) != 0)
-      f((int & 0x400) != 0)
-      f((int & 0x200) != 0)
-      f((int & 0x100) != 0)
-      f((int & 0x80) != 0)
-      f((int & 0x40) != 0)
-      f((int & 0x20) != 0)
-      f((int & 0x10) != 0)
-      f((int & 0x8) != 0)
-      f((int & 0x4) != 0)
-      f((int & 0x2) != 0)
-      f((int & 0x1) != 0)
-      ()
-    }
-
     override def toPackedInt(endianness: BitChunk.Endianness)(implicit ev: Boolean <:< Boolean): Chunk[Int] =
       if (minBitIndex == maxBitIndex) Chunk.empty
       else if ((minBitIndex & bits - 1) != 0) ChunkPackedBoolean[Int](self, bits, endianness)
@@ -2305,74 +2221,6 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
     override protected def newBitChunk(longs: Chunk[Long], min: Int, max: Int): BitChunk[Long] =
       BitChunkLong(longs, endianness, min, max)
-
-    override protected def foreachElement[A](f: Boolean => A, long: Long): Unit = {
-      f((long & 0x8000000000000000L) != 0)
-      f((long & 0x4000000000000000L) != 0)
-      f((long & 0x2000000000000000L) != 0)
-      f((long & 0x1000000000000000L) != 0)
-      f((long & 0x800000000000000L) != 0)
-      f((long & 0x400000000000000L) != 0)
-      f((long & 0x200000000000000L) != 0)
-      f((long & 0x100000000000000L) != 0)
-      f((long & 0x80000000000000L) != 0)
-      f((long & 0x40000000000000L) != 0)
-      f((long & 0x20000000000000L) != 0)
-      f((long & 0x10000000000000L) != 0)
-      f((long & 0x8000000000000L) != 0)
-      f((long & 0x4000000000000L) != 0)
-      f((long & 0x2000000000000L) != 0)
-      f((long & 0x1000000000000L) != 0)
-      f((long & 0x800000000000L) != 0)
-      f((long & 0x400000000000L) != 0)
-      f((long & 0x200000000000L) != 0)
-      f((long & 0x100000000000L) != 0)
-      f((long & 0x80000000000L) != 0)
-      f((long & 0x40000000000L) != 0)
-      f((long & 0x20000000000L) != 0)
-      f((long & 0x10000000000L) != 0)
-      f((long & 0x8000000000L) != 0)
-      f((long & 0x4000000000L) != 0)
-      f((long & 0x2000000000L) != 0)
-      f((long & 0x1000000000L) != 0)
-      f((long & 0x800000000L) != 0)
-      f((long & 0x400000000L) != 0)
-      f((long & 0x200000000L) != 0)
-      f((long & 0x100000000L) != 0)
-      f((long & 0x80000000L) != 0)
-      f((long & 0x40000000L) != 0)
-      f((long & 0x20000000L) != 0)
-      f((long & 0x10000000L) != 0)
-      f((long & 0x8000000L) != 0)
-      f((long & 0x4000000L) != 0)
-      f((long & 0x2000000L) != 0)
-      f((long & 0x1000000L) != 0)
-      f((long & 0x800000L) != 0)
-      f((long & 0x400000L) != 0)
-      f((long & 0x200000L) != 0)
-      f((long & 0x100000L) != 0)
-      f((long & 0x80000L) != 0)
-      f((long & 0x40000L) != 0)
-      f((long & 0x20000L) != 0)
-      f((long & 0x10000L) != 0)
-      f((long & 0x8000L) != 0)
-      f((long & 0x4000L) != 0)
-      f((long & 0x2000L) != 0)
-      f((long & 0x1000L) != 0)
-      f((long & 0x800L) != 0)
-      f((long & 0x400L) != 0)
-      f((long & 0x200L) != 0)
-      f((long & 0x100L) != 0)
-      f((long & 0x80L) != 0)
-      f((long & 0x40L) != 0)
-      f((long & 0x20L) != 0)
-      f((long & 0x10L) != 0)
-      f((long & 0x8L) != 0)
-      f((long & 0x4L) != 0)
-      f((long & 0x2L) != 0)
-      f((long & 0x1L) != 0)
-      ()
-    }
 
     override def toPackedLong(endianness: BitChunk.Endianness)(implicit ev: Boolean <:< Boolean): Chunk[Long] =
       if (minBitIndex == maxBitIndex) Chunk.empty

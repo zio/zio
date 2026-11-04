@@ -83,6 +83,15 @@ object BitChunkByteSpec extends ZIOBaseSpec {
         assert(actual)(equalTo(expected))
       }
     },
+    test("foreach") {
+      check(genByteChunk, genInt, genInt) { (bytes, n, m) =>
+        val builder = ChunkBuilder.make[Boolean]()
+        bytes.asBitsByte.drop(n).take(m).foreach(builder += _)
+        val actual   = builder.result().toBinaryString
+        val expected = bytes.map(toBinaryString).mkString.drop(n).take(m)
+        assert(actual)(equalTo(expected))
+      }
+    },
     test("and") {
       check(genBitChunk, genBitChunk) { (l, r) =>
         val anded  = l & r
