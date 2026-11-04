@@ -724,6 +724,25 @@ object ConfigProviderSpec extends ZIOBaseSpec {
           exit <- configProvider.load(config).exit
         } yield assert(exit)(failsWithA[Config.Error])
       } +
+      test("indexed sequence with missing field does not trigger withDefault or optional") {
+        val configProvider = ConfigProvider.fromMap(Map("employees[0].age" -> "1", "employees[0].idd" -> "2"))
+        val emptyProvider  = ConfigProvider.fromMap(Map.empty)
+        val product        = Config.int("age").zip(Config.int("id"))
+        val productDefault = Config.int("age").zip(Config.int("id").withDefault(99))
+        val withDefault    = Config.listOf("employees", product).withDefault(Nil)
+        val optional       = Config.listOf("employees", product).optional
+        val elemDefault    = Config.listOf("employees", productDefault).withDefault(Nil)
+
+        for {
+          exit1       <- configProvider.load(withDefault).exit
+          exit2       <- configProvider.load(optional).exit
+          emptyResult <- emptyProvider.load(withDefault)
+          elemResult  <- configProvider.load(elemDefault)
+        } yield assert(exit1)(failsWithA[Config.Error]) &&
+          assert(exit2)(failsWithA[Config.Error]) &&
+          assertTrue(emptyResult == Nil) &&
+          assertTrue(elemResult == List((1, 99)))
+      } +
       test("indexed sequence of multiple products") {
         val configProvider = ConfigProvider.fromMap(
           Map(

@@ -721,7 +721,14 @@ object ConfigProvider {
                 } else
                   ZIO
                     .foreach(Chunk.fromIterable(indices)) { index =>
-                      loop(prefix :+ BracketedIndex(index), config, split = true)
+                      loop(prefix :+ BracketedIndex(index), config, split = true).mapError { e =>
+                        if (e.isMissingDataOnly)
+                          e && Config.Error.InvalidData(
+                            prefix :+ BracketedIndex(index),
+                            s"A required field is missing in sequence element at index $index"
+                          )
+                        else e
+                      }
                     }
                     .map { chunkChunk =>
                       val flattened = chunkChunk.flatten
