@@ -96,6 +96,33 @@ object RuntimeSpecJVM extends ZIOBaseSpec {
           _ <- threadExited.await
           r <- ZIO.succeed(threadWasBlockedUntilFinalizationDone.get())
         } yield assertTrue(r)
-      } @@ TestAspect.timeout(10.seconds) @@ TestAspect.nonFlaky(5)
+      } @@ TestAspect.timeout(10.seconds) @@ TestAspect.nonFlaky(5),
+      test(
+        "ZScheduler completes sequential and parallel submissions without stalling when transitioning from searching"
+      ) {
+        val executor                = Executor.makeDefault()
+        implicit val unsafe: Unsafe = Unsafe.unsafe
+
+        for {
+          sequential <- ZIO.foreach(1 to 50) { i =>
+                          for {
+                            p <- Promise.make[Nothing, Int]
+                            _ <- ZIO.succeed {
+                                   executor.submitOrThrow { () =>
+                                     p.unsafe.succeed(i)
+                                     ()
+                                   }
+                                 }
+                            v <- p.await
+                          } yield v
+                        }
+          parallel <- ZIO
+                        .foreachPar(1 to 100)(i => ZIO.yieldNow.as(i))
+                        .onExecutor(executor)
+        } yield assertTrue(
+          sequential == (1 to 50).toList,
+          parallel == (1 to 100).toList
+        )
+      } @@ TestAspect.timeout(10.seconds) @@ TestAspect.nonFlaky
     )
 }
