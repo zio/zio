@@ -2996,7 +2996,7 @@ object ZStreamSpec extends ZIOBaseSpec {
               latch <- CountdownLatch.make(parallelism + 1)
               f <- ZStream
                      .range(0, iterations)
-                     .mapZIOPar(parallelism, parallelism)(_ => latch.countDown *> latch.await)
+                     .mapZIOPar(parallelism)(_ => latch.countDown *> latch.await)
                      .runDrain
                      .fork
               _     <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
@@ -3004,6 +3004,38 @@ object ZStreamSpec extends ZIOBaseSpec {
               count <- latch.count
               _     <- f.join
             } yield assertTrue(count == 0)
+          } @@ TestAspect.jvmOnly @@ nonFlaky,
+          test("parallelism is not bounded by bufferSize (#9339)") {
+            val parallelism = 32
+            val bufferSize  = 4
+            for {
+              latch <- CountdownLatch.make(parallelism + 1)
+              f <- ZStream
+                     .range(0, 100)
+                     .mapZIOPar(parallelism, bufferSize)(_ => latch.countDown *> latch.await)
+                     .runDrain
+                     .fork
+              _            <- Live.live(latch.count.delay(100.micros)).repeatUntil(_ == 1)
+              _            <- latch.countDown
+              count        <- latch.count
+              _            <- f.join
+              reverseLatch <- CountdownLatch.make(3)
+              ordered <- ZStream
+                           .range(0, 4)
+                           .mapZIOPar(4, 1) { i =>
+                             if (i == 0) reverseLatch.await.as(i)
+                             else reverseLatch.countDown.as(i)
+                           }
+                           .runCollect
+              maxPar <- ZStream
+                          .range(0, 64)
+                          .mapZIOPar(Int.MaxValue)(ZIO.succeed(_))
+                          .runCollect
+            } yield assertTrue(
+              count == 0,
+              ordered == Chunk(0, 1, 2, 3),
+              maxPar == Chunk.fromIterable(0 until 64)
+            )
           } @@ TestAspect.jvmOnly @@ nonFlaky,
           test("accumulates parallel errors") {
             sealed abstract class DbError extends Product with Serializable
