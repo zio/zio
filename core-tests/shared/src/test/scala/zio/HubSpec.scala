@@ -60,6 +60,141 @@ object HubSpec extends ZIOBaseSpec {
         }
       }
     ),
+    suite("shutdown")(
+      test("shutdown with take fiber") {
+        for {
+          selfId <- ZIO.fiberId
+          hub    <- Hub.bounded[Int](3)
+          f      <- ZIO.scoped(hub.subscribe.flatMap(_.take)).fork
+          _      <- f.status.repeatUntil(_.isInstanceOf[Fiber.Status.Suspended])
+          _      <- hub.shutdown
+          res    <- f.join.sandbox.either
+        } yield assert(res.left.map(_.untraced))(isLeft(equalTo(Cause.interrupt(selfId))))
+      },
+      test("shutdown with publish fiber") {
+        ZIO.scoped {
+          for {
+            selfId <- ZIO.fiberId
+            hub    <- Hub.bounded[Int](2)
+            _      <- hub.subscribe
+            _      <- hub.publish(1)
+            _      <- hub.publish(1)
+            f      <- hub.publish(1).fork
+            _      <- f.status.repeatUntil(_.isInstanceOf[Fiber.Status.Suspended])
+            _      <- hub.shutdown
+            res    <- f.join.sandbox.either
+          } yield assert(res.left.map(_.untraced))(isLeft(equalTo(Cause.interrupt(selfId))))
+        }
+      },
+      test("shutdown with publish") {
+        for {
+          selfId <- ZIO.fiberId
+          hub    <- Hub.bounded[Int](1)
+          _      <- hub.shutdown
+          res    <- hub.publish(1).sandbox.either
+        } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
+      },
+      test("shutdown with publishAll") {
+        for {
+          selfId <- ZIO.fiberId
+          hub    <- Hub.bounded[Int](1)
+          _      <- hub.shutdown
+          res    <- hub.publishAll(List(1)).sandbox.either
+        } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
+      },
+      test("shutdown with size") {
+        for {
+          selfId <- ZIO.fiberId
+          hub    <- Hub.bounded[Int](1)
+          _      <- hub.shutdown
+          res    <- hub.size.sandbox.either
+        } yield assert(res)(isLeft(equalTo(Cause.interrupt(selfId))))
+      }
+    ),
+    suite("shutdownCause")(
+      test("shutdown with take fiber using Cause.die") {
+        for {
+          hub  <- Hub.bounded[Int](3)
+          f    <- ZIO.scoped(hub.subscribe.flatMap(_.take)).fork
+          _    <- f.status.repeatUntil(_.isInstanceOf[Fiber.Status.Suspended])
+          cause = Cause.die(new RuntimeException("test"))
+          _    <- hub.shutdownCause(cause)
+          res  <- f.join.sandbox.either
+        } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+      },
+      test("shutdown with publish fiber using Cause.die") {
+        ZIO.scoped {
+          for {
+            hub  <- Hub.bounded[Int](2)
+            _    <- hub.subscribe
+            _    <- hub.publish(1)
+            _    <- hub.publish(1)
+            f    <- hub.publish(1).fork
+            _    <- f.status.repeatUntil(_.isInstanceOf[Fiber.Status.Suspended])
+            cause = Cause.die(new RuntimeException("test"))
+            _    <- hub.shutdownCause(cause)
+            res  <- f.join.sandbox.either
+          } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+        }
+      },
+      test("shutdown with publish using Cause.die") {
+        for {
+          hub  <- Hub.bounded[Int](1)
+          cause = Cause.die(new RuntimeException("test"))
+          _    <- hub.shutdownCause(cause)
+          res  <- hub.publish(1).sandbox.either
+        } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+      },
+      test("shutdown with publishAll using Cause.die") {
+        for {
+          hub  <- Hub.bounded[Int](1)
+          cause = Cause.die(new RuntimeException("test"))
+          _    <- hub.shutdownCause(cause)
+          res  <- hub.publishAll(List(1)).sandbox.either
+        } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+      },
+      test("shutdown with size using Cause.die") {
+        for {
+          hub  <- Hub.bounded[Int](1)
+          cause = Cause.die(new RuntimeException("test"))
+          _    <- hub.shutdownCause(cause)
+          res  <- hub.size.sandbox.either
+        } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+      }
+    ),
+    suite("awaitShutdown")(
+      test("single") {
+        for {
+          hub <- Hub.bounded[Int](3)
+          p   <- Promise.make[Nothing, Boolean]
+          _   <- (hub.awaitShutdown *> p.succeed(true)).fork
+          _   <- hub.shutdown
+          res <- p.await
+        } yield assert(res)(isTrue)
+      },
+      test("multiple") {
+        for {
+          hub  <- Hub.bounded[Int](3)
+          p1   <- Promise.make[Nothing, Boolean]
+          p2   <- Promise.make[Nothing, Boolean]
+          _    <- (hub.awaitShutdown *> p1.succeed(true)).fork
+          _    <- (hub.awaitShutdown *> p2.succeed(true)).fork
+          _    <- hub.shutdown
+          res1 <- p1.await
+          res2 <- p2.await
+        } yield assert(res1)(isTrue) &&
+          assert(res2)(isTrue)
+      },
+      test("already shutdown") {
+        for {
+          hub <- Hub.bounded[Int](3)
+          _   <- hub.shutdown
+          p   <- Promise.make[Nothing, Boolean]
+          _   <- (hub.awaitShutdown *> p.succeed(true)).fork
+          res <- p.await
+        } yield assert(res)(isTrue)
+      }
+    ),
     suite("concurrent publishers and subscribers")(
       test("one to one") {
         check(smallInt, Gen.listOf(smallInt)) { (n, as) =>

@@ -784,6 +784,70 @@ object QueueSpec extends ZIOBaseSpec {
         _ <- f.await
       } yield assertCompletes
     } @@ exceptJS(nonFlaky),
+    suite("shutdownCause")(
+      test("shutdown with take fiber using Cause.die") {
+        for {
+          queue <- Queue.bounded[Int](3)
+          f     <- queue.take.fork
+          _     <- waitForSize(queue, -1)
+          cause  = Cause.die(new RuntimeException("test"))
+          _     <- queue.shutdownCause(cause)
+          res   <- f.join.sandbox.either
+        } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+      },
+      test("shutdown with offer fiber using Cause.die") {
+        for {
+          queue <- Queue.bounded[Int](2)
+          _     <- queue.offer(1)
+          _     <- queue.offer(1)
+          f     <- queue.offer(1).fork
+          _     <- waitForSize(queue, 3)
+          cause  = Cause.die(new RuntimeException("test"))
+          _     <- queue.shutdownCause(cause)
+          res   <- f.join.sandbox.either
+        } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+      },
+      test("shutdown with offer using Cause.die") {
+        for {
+          queue <- Queue.bounded[Int](1)
+          cause  = Cause.die(new RuntimeException("test"))
+          _     <- queue.shutdownCause(cause)
+          res   <- queue.offer(1).sandbox.either
+        } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+      },
+      test("shutdown with take using Cause.die") {
+        for {
+          queue <- Queue.bounded[Int](1)
+          cause  = Cause.die(new RuntimeException("test"))
+          _     <- queue.shutdownCause(cause)
+          res   <- queue.take.sandbox.either
+        } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+      },
+      test("shutdown with takeAll using Cause.die") {
+        for {
+          queue <- Queue.bounded[Int](1)
+          cause  = Cause.die(new RuntimeException("test"))
+          _     <- queue.shutdownCause(cause)
+          res   <- queue.takeAll.sandbox.either
+        } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+      },
+      test("shutdown with takeUpTo using Cause.die") {
+        for {
+          queue <- Queue.bounded[Int](1)
+          cause  = Cause.die(new RuntimeException("test"))
+          _     <- queue.shutdownCause(cause)
+          res   <- queue.takeUpTo(1).sandbox.either
+        } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+      },
+      test("shutdown with size using Cause.die") {
+        for {
+          queue <- Queue.bounded[Int](1)
+          cause  = Cause.die(new RuntimeException("test"))
+          _     <- queue.shutdownCause(cause)
+          res   <- queue.size.sandbox.either
+        } yield assert(res.left.map(_.untraced))(isLeft(equalTo(cause)))
+      }
+    ),
     suite("back-pressured bounded queue stress testing") {
       val genChunk = Gen.chunkOfBounded(20, 100)(smallInt)
       List(
