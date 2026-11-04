@@ -12,6 +12,7 @@ export default function FooterWrapper(props) {
           websocketPort="80"
           websocketEndpoint="/chat"
           apikey="91088b1e-9b7f-4c0f-baf9-0800799209c5"
+          askOnSelect
         />
       </div>
     </>
