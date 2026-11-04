@@ -1,27 +1,35 @@
 package zio
 
-import java.util.concurrent.ConcurrentLinkedQueue
-import scala.collection.mutable
+import java.util.concurrent.ConcurrentLinkedDeque
+import java.util.function.Predicate
 
 private[zio] trait QueuePlatformSpecific {
 
-  // java.util.concurrent.ConcurrentLinkedDeque is not available in Scala Native, so we need to createa custom `addFirst` method
-  private[zio] final class ConcurrentDeque[A <: AnyRef] extends ConcurrentLinkedQueue[A] {
+  // Scala Native's `ConcurrentLinkedDeque` has a loop-termination bug in `linkFirst`, `linkLast`,
+  // `first`, and `last` under concurrent contention (`restart = true` inside `while (true)`).
+  // Synchronizing on the underlying `ConcurrentLinkedDeque` provides O(1) `addFirst` while avoiding the spin.
+  private[zio] final class ConcurrentDeque[A <: AnyRef] {
+    private[this] val underlying = new ConcurrentLinkedDeque[A]()
 
-    def addFirst(a: A): Unit = {
-      var popped = poll()
-      if (popped eq null) {
-        offer(a)
-      } else {
-        val buf = new mutable.ArrayBuffer[A]
-        while (popped ne null) {
-          buf += popped
-          popped = poll()
-        }
-        offer(a)
-        buf.foreach(offer)
-      }
-    }
+    def addFirst(a: A): Unit =
+      this.synchronized(underlying.addFirst(a))
 
+    def isEmpty(): Boolean =
+      this.synchronized(underlying.isEmpty())
+
+    def offer(a: A): Boolean =
+      this.synchronized(underlying.offer(a))
+
+    def poll(): A =
+      this.synchronized(underlying.poll())
+
+    def remove(a: A): Boolean =
+      this.synchronized(underlying.remove(a))
+
+    def removeIf(filter: Predicate[_ >: A]): Boolean =
+      this.synchronized(underlying.removeIf(filter))
+
+    def size(): Int =
+      this.synchronized(underlying.size())
   }
 }
