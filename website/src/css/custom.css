@@ -444,6 +444,17 @@ a {
   .zio-chat #container {
     overflow-y: auto;
   }
+
+  /* ── Stay below the sticky navbar ─────────────────────────────────────────
+   The widget caps its open window at calc(100dvh - --bytebrain-offset-top),
+   so the window stops below the navbar instead of sliding under it. Only the
+   navbar height is used: Docusaurus sets --docusaurus-announcement-bar-height
+   to `auto` below 997px, which makes any calc() using it invalid. The bar
+   scrolls away while the navbar stays, so the navbar alone is the right
+   offset once the reader has scrolled. */
+  .zio-chat {
+    --bytebrain-offset-top: var(--ifm-navbar-height);
+  }
 } /* end @layer components (ByteBrain chat overrides) */
 
 /* ── Algolia DocSearch: brand-consistent theming ─────────────────────────
