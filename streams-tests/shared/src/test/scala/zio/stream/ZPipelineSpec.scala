@@ -311,6 +311,32 @@ object ZPipelineSpec extends ZIOBaseSpec {
           .runCollect
           .map(assert(_)(equalTo(Chunk.range(1, 21))))
       },
+      test("fromFunction propagates provideSomeEnvironment to the upstream") {
+        for {
+          ref <- Ref.make(0)
+          _ <- ZStream
+                 .serviceWithZIO[Int](i => ref.set(i))
+                 .via(ZPipeline.fromFunction { (s: ZStream[Any, Nothing, Unit]) =>
+                   s.provideSomeEnvironment[Int](_.update(_ => 2))
+                 })
+                 .provideEnvironment(ZEnvironment(1))
+                 .runDrain
+          result <- ref.get
+        } yield assert(result)(equalTo(2))
+      },
+      test("fromFunction propagates provideSomeEnvironment to a layer-provided upstream") {
+        for {
+          ref <- Ref.make(0)
+          _ <- ZStream
+                 .serviceWithZIO[Int](i => ref.set(i))
+                 .via(ZPipeline.fromFunction { (s: ZStream[Any, Nothing, Unit]) =>
+                   s.provideSomeEnvironment[Int](_.update(_ => 2))
+                 })
+                 .runDrain
+                 .provideLayer(ZLayer.succeed(1))
+          result <- ref.get
+        } yield assert(result)(equalTo(2))
+      },
       suite("mapEitherChunk")(
         test("with empty chunk") {
           val chunk = Chunk.empty[Int]

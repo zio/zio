@@ -247,18 +247,30 @@ private[stream] final class ChannelExecutor[Env, InErr, InElem, InDone, OutErr, 
               }
 
             case ZChannel.DeferedUpstream(mkChannel) =>
-              val inpAsChannel: ZChannel[Env, Any, Any, Any, Any, Any, Any] = execToPullingChannel(input)
+              val inputProvidedEnv = input.providedEnv
 
-              // when input's provided env is null, we have to explicitly provide it with the 'outer' env
-              // otherwise any env provided by downstream will override the 'correct' env when the input channel executes effects.
               val nextChannel: Channel[Env] =
-                if (null ne input.providedEnv)
-                  mkChannel(inpAsChannel.asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]])
-                else
+                if (null ne inputProvidedEnv) {
+                  input.providedEnv = null
+                  val inpAsChannel = execToPullingChannel(input)
+                  mkChannel(ZChannel.environmentWithChannel[Any] { pe =>
+                    inpAsChannel
+                      .asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]]
+                      .provideEnvironment(inputProvidedEnv.unionAll(pe))
+                  })
+                } else {
+                  val inpAsChannel = execToPullingChannel(input)
+                  // when input's provided env is null, we have to explicitly provide it with the 'outer' env
+                  // otherwise any env provided by downstream will override the 'correct' env when the input channel executes effects.
                   ZChannel // TODO: can we eliminate the effect evaluation here? i.e. by usingFiber.currentFiber()
                     .environmentWithChannel[Env] { env =>
-                      mkChannel(inpAsChannel.provideEnvironment(env))
+                      mkChannel(ZChannel.environmentWithChannel[Any] { pe =>
+                        inpAsChannel
+                          .asInstanceOf[ZChannel[Any, Any, Any, Any, Any, Any, Any]]
+                          .provideEnvironment(env.unionAll(pe))
+                      })
                     }
+                }
 
               val previousInput = input
               input = null
