@@ -1117,6 +1117,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
 
         return null
       } else {
+        if (RuntimeFlags.opLog(_runtimeFlags)) {
+          val safeCur = cur
+          log(() => ZIO.render(safeCur), Cause.empty, ZIO.someDebug, safeCur.trace)
+        }
+
         try {
           cur match {
             case success: Exit.Success[Any] =>

@@ -127,6 +127,27 @@ object RuntimeFlagsSpec extends ZIOBaseSpec {
                 name <- ZIO.succeed(Thread.currentThread().getName)
               } yield assertTrue(name.startsWith("ZScheduler-Worker"))
             }.provide(Runtime.enableFlags(RuntimeFlag.EagerShiftBack))
-        } @@ TestAspect.jvmOnly
+        } @@ TestAspect.jvmOnly +
+        suite("OpLog") {
+          test("logs evaluated ZIO operations at Debug level when RuntimeFlag.OpLog is enabled") {
+            val effect = ZIO.succeed(1).map(_ + 1).flatMap(n => ZIO.succeed(n * 2))
+            for {
+              _       <- effect.provide(Runtime.enableFlags(RuntimeFlag.OpLog))
+              output  <- ZTestLogger.logOutput
+              messages = output.filter(_.logLevel == LogLevel.Debug).map(_.message())
+            } yield assertTrue(
+              messages.exists(_.startsWith("FlatMap(")),
+              messages.exists(_.startsWith("Mapped(")),
+              messages.exists(_.startsWith("Sync("))
+            )
+          } +
+            test("does not log ZIO operations when RuntimeFlag.OpLog is disabled") {
+              for {
+                _       <- ZIO.succeed(1).map(_ + 1)
+                output  <- ZTestLogger.logOutput
+                messages = output.filter(_.logLevel == LogLevel.Debug).map(_.message())
+              } yield assertTrue(messages.isEmpty)
+            }
+        }
     }
 }

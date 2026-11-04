@@ -6359,6 +6359,42 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] val someDebug   = Some(LogLevel.Debug)
   private[zio] val someTrace   = Some(LogLevel.Trace)
 
+  private[zio] def render(zio: ZIO.Erased, maxDepth: Int = 3): String = {
+    def loop(cur: ZIO.Erased, depth: Int): String =
+      if (depth <= 0) "..."
+      else
+        cur match {
+          case ZIO.Sync(trace, _) =>
+            s"Sync($trace)"
+          case ZIO.FlatMap(trace, first, _) =>
+            s"FlatMap($trace, ${loop(first, depth - 1)})"
+          case ZIO.Mapped(trace, first, _) =>
+            s"Mapped($trace, ${loop(first, depth - 1)})"
+          case ZIO.FoldZIO(trace, first, _, _) =>
+            s"FoldZIO($trace, ${loop(first, depth - 1)})"
+          case ZIO.Stateful(trace, _) =>
+            s"Stateful($trace)"
+          case ZIO.Async(trace, _, _) =>
+            s"Async($trace)"
+          case ZIO.WhileLoop(trace, _, _, _) =>
+            s"WhileLoop($trace)"
+          case ZIO.YieldNow(trace, _) =>
+            s"YieldNow($trace)"
+          case ZIO.UpdateRuntimeFlags(trace, update) =>
+            s"UpdateRuntimeFlags($trace, $update)"
+          case update: ZIO.UpdateRuntimeFlagsWithin[?, ?, ?] =>
+            s"UpdateRuntimeFlagsWithin(${update.trace}, ${update.update})"
+          case Exit.Success(value) =>
+            s"Success($value)"
+          case Exit.Failure(cause) =>
+            s"Failure(${cause.prettyPrint})"
+          case other =>
+            other.toString
+        }
+
+    loop(zio, maxDepth)
+  }
+
   @deprecated("use succeed", "2.0.9")
   private[zio] def succeedNow[A](a: A): UIO[A] =
     succeed(a)(Trace.empty)
