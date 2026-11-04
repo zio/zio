@@ -380,6 +380,14 @@ a {
     color: #ececec !important;
   }
 
+  /* Quote card shown above the input after "Ask …" (added with the selection
+   button). The widget's bg-white utility is !important, so its dark: variant
+   never applies and the card stays white with light text. Scoped by id. */
+  [data-theme='dark'] .zio-chat #bytebrain-quote-card {
+    background-color: #2b2e30 !important;
+    border-color: #4b5563 !important;
+  }
+
   /* Send button (bg-black / hover:bg-gray-900) → brand red pill, matching
    the homepage CTA buttons. */
   .zio-chat .bg-black {
