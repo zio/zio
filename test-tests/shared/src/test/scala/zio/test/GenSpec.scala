@@ -776,6 +776,85 @@ object GenSpec extends ZIOBaseSpec {
       check(Gen.setOfN(2)(Gen.fromIterable(List(1, 2, 3)))) { set =>
         assertTrue(set.size == 2)
       }
-    }
+    },
+    suite("determinism")(
+      test("fromIterable")(
+        for {
+          a <- (Gen.fromIterable(0 to 4) <*> Gen.uuid).runCollectN(10)
+          b <- (Gen.uuid <*> Gen.fromIterable(0 to 4)).runCollectN(10)
+        } yield assertTrue(
+          a.map(_._1).toSet.size > 1,
+          a.map(_._2).toSet.size == 10,
+          b.map(_._1).toSet.size == 10,
+          b.map(_._2).toSet.size > 1
+        )
+      ),
+      test("fromIterable with infinite iterable") {
+        val iterable = new Iterable[Int] {
+          override def hasDefiniteSize: Boolean = false
+
+          def iterator: Iterator[Int] = Iterator.iterate(0)(_ + 1)
+        }
+        for {
+          a <- Gen.fromIterable(iterable).runCollectN(10)
+        } yield assertTrue(a.toSet.size > 1)
+      },
+      test("concat")(
+        for {
+          a <- (Gen.const(true).concat(Gen.const(false)) <*> Gen.uuid).runCollectN(10)
+          b <- (Gen.uuid <*> Gen.const(true).concat(Gen.const(false))).runCollectN(10)
+        } yield assertTrue(
+          a.map(_._1).toSet == Set(true, false),
+          a.map(_._2).toSet.size == 10,
+          b.map(_._1).toSet.size == 10,
+          b.map(_._2).toSet == Set(true, false)
+        )
+      ),
+      test("const")(
+        for {
+          a <- Gen.const(1).runCollect
+          b <- Gen.const(1).runCollectN(5)
+        } yield assertTrue(
+          a == List(1),
+          b == List.fill(5)(1)
+        )
+      ),
+      test("iterable")(
+        for {
+          a <- Gen.fromIterable(0 to 4).runCollect
+          b <- Gen.fromIterable(0 to 4).runCollectN(20)
+        } yield assertTrue(
+          a == (0 to 4).toList,
+          b.size == 20 && b.distinct.size > 1 && b != (0 to 19).map(_ % 5)
+        )
+      ),
+      test("boolean")(
+        for {
+          a <- Gen.boolean.runCollect
+          b <- Gen.boolean.runCollectN(20)
+        } yield assertTrue(
+          a == List(false, true),
+          b.size == 20 && b.distinct.size == 2 && b != (0 to 19).map(_ % 2 == 1)
+        )
+      ),
+      test("option")(
+        for {
+          a <- Gen.option(Gen.boolean).runCollect
+          b <- Gen.option(Gen.boolean).runCollectN(20)
+        } yield assertTrue(
+          a == List(None, Some(false), Some(true)),
+          b.size == 20 && b.distinct.size == 3
+        )
+      ),
+      test("filter")(
+        for {
+          a <- Gen.fromIterable(0 to 5).filter(_ % 2 == 0).runCollect
+          b <- Gen.fromIterable(0 to 5).filter(_ % 2 == 0).runCollectN(20)
+        } yield assertTrue(
+          a == List(0, 2, 4),
+          b.size == 20 && b.toSet == Set(0, 2, 4)
+        )
+      )
+    )
   )
 }
