@@ -11,6 +11,7 @@ object PrettyPrintSpec extends ZIOBaseSpec {
     test("String") {
       assertTrue(
         PrettyPrint("A String").unstyled == "\"A String\"",
+        PrettyPrint(Predef.augmentString("A String"): Any).unstyled == "\"A String\"",
         PrettyPrint(
           "A String with a \" will be well formatted"
         ).unstyled == "\"A String with a \\\" will be well formatted\"",

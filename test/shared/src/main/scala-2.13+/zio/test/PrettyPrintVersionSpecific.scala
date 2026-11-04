@@ -3,6 +3,11 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[test] trait PrettyPrintVersionSpecific {
+  protected def unwrapStringOps(any: Any): Any =
+    any match {
+      case stringOps: scala.collection.StringOps => stringOps.repr
+      case other                                 => other
+    }
 
   def prettyPrintProduct(product: Product): String = {
     val name = product.productPrefix

@@ -12,7 +12,7 @@ import scala.annotation.switch
  */
 private[zio] object PrettyPrint extends PrettyPrintVersionSpecific {
   def apply(any: Any): String =
-    (any: @switch) match {
+    (unwrapStringOps(any): @switch) match {
       case null => "<null>"
 
       case string: String =>

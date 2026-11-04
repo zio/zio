@@ -4,6 +4,12 @@ import zio.internal.ansi.AnsiStringOps
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 private[test] trait PrettyPrintVersionSpecific {
+  protected def unwrapStringOps(any: Any): Any =
+    any match {
+      case stringOps: scala.collection.immutable.StringOps => stringOps.repr
+      case other                                           => other
+    }
+
   private def labels(product: Product): Iterator[String] = {
     val _ = product
     Iterator.continually("")
