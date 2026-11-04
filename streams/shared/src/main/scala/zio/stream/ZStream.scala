@@ -4396,15 +4396,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       val bufArray   = Array.ofDim[Byte](chunkSize0) // Reusable
 
       ZStream.repeatZIOChunkOption {
-        ZIO.suspend { // is0.available can throw an IOException, so we need to use `suspend`
-          if (is0.available() > 0) {
-            // Non-blocking read since data is available
-            Exit.succeed(is0.read(bufArray))
-          } else {
-            // No bytes are immediately available, so the read will block
-            ZIO.attemptBlockingInterrupt(is0.read(bufArray))
-          }
-        }
+        (if (is0.getClass eq classOf[java.io.ByteArrayInputStream])
+           ZIO.succeed(is0.read(bufArray))
+         else
+           ZIO.attemptBlockingInterrupt(is0.read(bufArray)))
           .refineToOrDie[IOException]
           .asSomeError
           .flatMap {

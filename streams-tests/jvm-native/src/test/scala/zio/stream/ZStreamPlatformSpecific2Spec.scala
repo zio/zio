@@ -154,6 +154,39 @@ object ZStreamPlatformSpecific2Spec extends ZIOBaseSpec {
             _       = outputStream.write(0)    // Ensure that the stream is still open
             out    <- ref.get
           } yield assert(result)(isInterrupted) && assertTrue(out == List[Byte](2, 3, 1))
+        } @@ TestAspect.timeout(10.seconds) @@ TestAspect.jvm(nonFlaky),
+        test("does not block worker threads when available() > 0") {
+          val threadName = new java.util.concurrent.atomic.AtomicReference[String]("")
+          for {
+            latch1 <- Promise.make[Nothing, Unit]
+            latch2 <- Promise.make[Nothing, Unit]
+            ref    <- Ref.make[List[Byte]](List.empty)
+            inputStream = new PipedInputStream() {
+                            override def available(): Int = 1
+                            override def read(b: Array[Byte], off: Int, len: Int): Int = {
+                              threadName.set(Thread.currentThread().getName)
+                              super.read(b, off, len)
+                            }
+                          }
+            outputStream = new PipedOutputStream(inputStream)
+            fiber <- {
+                       latch1.succeedUnit *> ZStream
+                         .fromInputStream(inputStream)
+                         .tapChunks(i => ref.update(_ ++ i) *> latch2.succeedUnit)
+                         .runCollect
+                     }.fork
+            _      <- latch1.await
+            _       = outputStream.write(Array[Byte](2, 3, 1))
+            _       = outputStream.flush()
+            _      <- latch2.await
+            _      <- ClockLive.sleep(1.milli)
+            _      <- fiber.interrupt
+            result <- fiber.await
+            _       = outputStream.write(0)
+            out    <- ref.get
+          } yield assert(result)(isInterrupted) &&
+            assertTrue(out == List[Byte](2, 3, 1)) &&
+            assertTrue(!threadName.get().startsWith("ZScheduler-Worker"))
         } @@ TestAspect.timeout(10.seconds) @@ TestAspect.jvm(nonFlaky)
       )
     )
