@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@babel/plugin-transform-parameters": "^8.0.0",
-    "@bytebrain.ai/bytebrain-ui": "0.0.8",
+    "@bytebrain.ai/bytebrain-ui": "0.0.10",
     "@docusaurus/core": "^3.5.2",
     "@docusaurus/plugin-client-redirects": "^3.5.2",
     "@docusaurus/preset-classic": "^3.5.2",
