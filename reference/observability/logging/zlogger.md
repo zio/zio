@@ -58,25 +58,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@69cc9250
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@53601bbf
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@3f3006b0
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@3857c3e8
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@42e31092
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@5715f79d
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-11-05T07:51:07.982115509Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-11-05T14:20:47.463705370Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@8d3808
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@46d2dd12
 ```
 
 ## Construction / Creating Instances

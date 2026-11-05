@@ -2606,12 +2606,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20480/0x00007fe1156be8a0@150e7cc5
+//   eval = zio.Ref$$$Lambda$20522/0x00007fd1c208b918@1df535df
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20480/0x00007fe1156be8a0@2ff1a430
+//   eval = zio.Ref$$$Lambda$20522/0x00007fd1c208b918@16aacc02
 // )
 
 sealed trait State
@@ -2622,7 +2622,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20480/0x00007fe1156be8a0@79bf3a27
+//   eval = zio.Ref$$$Lambda$20522/0x00007fd1c208b918@21103772
 // )
 ```
 
@@ -2639,7 +2639,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20480/0x00007fe1156be8a0@7c2637b4
+//   eval = zio.Ref$$$Lambda$20522/0x00007fd1c208b918@546a35ad
 // )
 ```
 
@@ -2651,7 +2651,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20480/0x00007fe1156be8a0@2f4a5dff
+//   eval = zio.Ref$$$Lambda$20522/0x00007fd1c208b918@717abb03
 // )
 ```
 
@@ -15760,25 +15760,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@69cc9250
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@53601bbf
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@3f3006b0
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@3857c3e8
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@42e31092
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@5715f79d
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-11-05T07:51:07.982115509Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-11-05T14:20:47.463705370Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@8d3808
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@46d2dd12
 ```
 
 ### Construction / Creating Instances
@@ -16892,7 +16892,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20601/0x00007fe116569650@5be1adff
+//   eval = zio.Supervisor$$$Lambda$20643/0x00007fd1c214dc08@4fc2adbc
 // )
 ```
 
@@ -17721,7 +17721,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19615/0x00007fe117331c10@c0cf123
+//     f = zio.ZIO$$$Lambda$19657/0x00007fd1c2fe1050@3a46135e
 //   ),
 //   successK = <function1>
 // )
@@ -18502,7 +18502,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@19ca9cdc
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@4f0ced90
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -18515,12 +18515,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18770/0x00007fe1171621c0@2a9df6a5
+//       eval = zio.ZIO$$$Lambda$18951/0x00007fd1c2e3f2c0@69092fa2
 //     ),
-//     successK = zio.ZIO$$$Lambda$19605/0x00007fe1173353f8@20f80bdc
+//     successK = zio.ZIO$$$Lambda$19647/0x00007fd1c2fd2bf0@18794b66
 //   ),
-//   successK = zio.ZIO$$$Lambda$18774/0x00007fe117163830@515fdbc7,
-//   failureK = zio.ZIO$$Lambda$20397/0x00007fe1154024a0@4b5c817e
+//   successK = zio.ZIO$$$Lambda$18954/0x00007fd1c2e41810@69d026a7,
+//   failureK = zio.ZIO$$Lambda$20439/0x00007fd1c1760690@5ee27294
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -18532,11 +18532,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18770/0x00007fe1171621c0@2a9df6a5
+//       eval = zio.ZIO$$$Lambda$18951/0x00007fd1c2e3f2c0@69092fa2
 //     ),
-//     successK = zio.ZIO$$$Lambda$19605/0x00007fe1173353f8@6c7a7eef
+//     successK = zio.ZIO$$$Lambda$19647/0x00007fd1c2fd2bf0@153b1dee
 //   ),
-//   successK = zio.ZIO$$Lambda$20627/0x00007fe1165c75d0@58a68028
+//   successK = zio.ZIO$$Lambda$20669/0x00007fd1c20939a0@42326aa8
 // )
 ```
 
@@ -23838,7 +23838,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@14fd267f
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@26ee79b8
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -23866,9 +23866,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$20079/0x00007fe11653a838@75995bae
+//     eval = zio.Scope$$$Lambda$20121/0x00007fd1c16869b0@20e59e35
 //   ),
-//   successK = zio.ZIO$$$Lambda$20080/0x00007fe11653aaf0@961c8bd
+//   successK = zio.ZIO$$$Lambda$20122/0x00007fd1c1686c68@13370e90
 // )
 ```
 
@@ -23917,7 +23917,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@15468753
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@235bbc2d
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -23947,9 +23947,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$20079/0x00007fe11653a838@75995bae
+//     eval = zio.Scope$$$Lambda$20121/0x00007fd1c16869b0@20e59e35
 //   ),
-//   successK = zio.ZIO$$$Lambda$20080/0x00007fe11653aaf0@3aee73cb
+//   successK = zio.ZIO$$$Lambda$20122/0x00007fd1c1686c68@8401477
 // )
 ```
 
@@ -23980,7 +23980,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@3363805d
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@5a5aaa89
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -23995,9 +23995,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$20079/0x00007fe11653a838@75995bae
+//     eval = zio.Scope$$$Lambda$20121/0x00007fd1c16869b0@20e59e35
 //   ),
-//   successK = zio.ZIO$$$Lambda$20080/0x00007fe11653aaf0@4257acd5
+//   successK = zio.ZIO$$$Lambda$20122/0x00007fd1c1686c68@146cb54f
 // )
 ```
 
@@ -24041,7 +24041,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@1848790a
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@2611d040
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24058,9 +24058,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$20079/0x00007fe11653a838@75995bae
+//     eval = zio.Scope$$$Lambda$20121/0x00007fd1c16869b0@20e59e35
 //   ),
-//   successK = zio.ZIO$$$Lambda$20080/0x00007fe11653aaf0@c94762b
+//   successK = zio.ZIO$$$Lambda$20122/0x00007fd1c1686c68@69a69b0e
 // )
 ```
 
@@ -24092,7 +24092,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@57b680b5
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@39ee8b8a
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -24109,9 +24109,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$20079/0x00007fe11653a838@75995bae
+//     eval = zio.Scope$$$Lambda$20121/0x00007fd1c16869b0@20e59e35
 //   ),
-//   successK = zio.ZIO$$$Lambda$20080/0x00007fe11653aaf0@40465b1d
+//   successK = zio.ZIO$$$Lambda$20122/0x00007fd1c1686c68@79a085b4
 // )
 ```
 
@@ -24143,7 +24143,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@1f6cbfbc
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@665f29ef
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -24174,9 +24174,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$20079/0x00007fe11653a838@75995bae
+//     eval = zio.Scope$$$Lambda$20121/0x00007fd1c16869b0@20e59e35
 //   ),
-//   successK = zio.ZIO$$$Lambda$20080/0x00007fe11653aaf0@21fa9e79
+//   successK = zio.ZIO$$$Lambda$20122/0x00007fd1c1686c68@4f32451c
 // )
 ```
 
@@ -24209,7 +24209,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@7444f4fe
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@4ae3143e
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24225,9 +24225,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$20079/0x00007fe11653a838@75995bae
+//     eval = zio.Scope$$$Lambda$20121/0x00007fd1c16869b0@20e59e35
 //   ),
-//   successK = zio.ZIO$$$Lambda$20080/0x00007fe11653aaf0@5f6febcc
+//   successK = zio.ZIO$$$Lambda$20122/0x00007fd1c1686c68@5ba1a904
 // )
 ```
 
@@ -24258,7 +24258,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@77068587
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@4ad92967
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -24285,9 +24285,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$20079/0x00007fe11653a838@75995bae
+//     eval = zio.Scope$$$Lambda$20121/0x00007fd1c16869b0@20e59e35
 //   ),
-//   successK = zio.ZIO$$$Lambda$20080/0x00007fe11653aaf0@24c78a8b
+//   successK = zio.ZIO$$$Lambda$20122/0x00007fd1c1686c68@289e6d65
 // )
 ```
 
@@ -24307,7 +24307,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@3a41a205
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@4ae23f8
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24330,9 +24330,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$20079/0x00007fe11653a838@75995bae
+//     eval = zio.Scope$$$Lambda$20121/0x00007fd1c16869b0@20e59e35
 //   ),
-//   successK = zio.ZIO$$$Lambda$20080/0x00007fe11653aaf0@49ce9a8d
+//   successK = zio.ZIO$$$Lambda$20122/0x00007fd1c1686c68@1c7eda3b
 // )
 ```
 
@@ -24348,7 +24348,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@6c5b8d03
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@20c8c4b3
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -24370,9 +24370,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$20079/0x00007fe11653a838@75995bae
+//     eval = zio.Scope$$$Lambda$20121/0x00007fd1c16869b0@20e59e35
 //   ),
-//   successK = zio.ZIO$$$Lambda$20080/0x00007fe11653aaf0@59677561
+//   successK = zio.ZIO$$$Lambda$20122/0x00007fd1c1686c68@1efcab4d
 // )
 ```
 
@@ -24388,7 +24388,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@7abed4cd
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@11ac4aad
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -24408,9 +24408,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$20079/0x00007fe11653a838@75995bae
+//     eval = zio.Scope$$$Lambda$20121/0x00007fd1c16869b0@20e59e35
 //   ),
-//   successK = zio.ZIO$$$Lambda$20080/0x00007fe11653aaf0@6150f4ce
+//   successK = zio.ZIO$$$Lambda$20122/0x00007fd1c1686c68@4bcbe52a
 // )
 ```
 
@@ -24428,7 +24428,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@4f05c55e
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@1e1d8131
 
 val example = {
   val scoped = ZIO.scoped {
@@ -24450,9 +24450,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$20079/0x00007fe11653a838@75995bae
+//       eval = zio.Scope$$$Lambda$20121/0x00007fd1c16869b0@20e59e35
 //     ),
-//     successK = zio.ZIO$$$Lambda$20080/0x00007fe11653aaf0@2b7c4373
+//     successK = zio.ZIO$$$Lambda$20122/0x00007fd1c1686c68@4bd824c3
 //   ),
 //   successK = <function1>
 // )
@@ -28457,14 +28457,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@8aa5495
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@2e5649a4
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@469f43eb
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@69ebea21
 ```
 
 ### From ZIO
@@ -35191,9 +35191,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$20089/0x00007fe11648ebb8@3323e78e
+//             onState = zio.ZIO$$$Lambda$20131/0x00007fd1c17a2cd0@3574c2a5
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$20097/0x00007fe1164a45d8@76217f8e
+//           successK = zio.test.package$ZTest$$$Lambda$20139/0x00007fd1c20e05d8@70764a6f
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -38183,7 +38183,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+45-0747f1e8-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+46-d59a6895-SNAPSHOT"
 ```
 
 ### Example
@@ -50139,9 +50139,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$20079/0x00007fe11653a838@75995bae
+//     eval = zio.Scope$$$Lambda$20121/0x00007fd1c16869b0@20e59e35
 //   ),
-//   successK = zio.ZIO$$$Lambda$20080/0x00007fe11653aaf0@431e9641
+//   successK = zio.ZIO$$$Lambda$20122/0x00007fd1c1686c68@1e6c6672
 // )
 ```
 
@@ -56694,57 +56694,1987 @@ Other useful system properties are:
 
 ---
 
-## ZIO AMQP
+## How to Acknowledge Messages
 
-ZIO AMQP is a ZIO-based wrapper around the RabbitMQ client. It provides a streaming interface to AMQP queues and helps to prevent you from shooting yourself in the foot with thread-safety issues. 
+A delivery that a consumer has not acknowledged stays on the broker as "unacknowledged": the broker redelivers it if the channel closes first. This guide shows how to acknowledge a message after it has been handled, how to reject one and requeue it, how to settle many deliveries at once, and when to skip acknowledgements entirely.
 
-[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-amqp/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-amqp_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-amqp_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-amqp_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-amqp_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-amqp-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-amqp-docs_2.13) [![ZIO AMQP](https://img.shields.io/github/stars/zio/zio-amqp?style=social)](https://github.com/zio/zio-amqp)
-
-### Installation
-
-Add the following lines to your `build.sbt` file:
+All snippets assume these imports and a channel `channel`, obtained from [`Amqp.createChannel`](./reference/amqp.md#creating-a-channel):
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-amqp" % "1.0.0-alpha.3"
+import com.rabbitmq.client.Delivery
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+val queue = QueueName("jobs")
+
+def tagOf(delivery: Delivery): DeliveryTag =
+  DeliveryTag(delivery.getEnvelope.getDeliveryTag)
+
+def handle(delivery: Delivery): ZIO[Any, Throwable, Unit] =
+  Console.printLine(new String(delivery.getBody, "UTF-8"))
 ```
 
-The latest version is built against ZIO 2.0.0-RC6.
+### Acknowledge After Processing
 
-### Consuming
-
-The example below creates a connection to an AMQP server and then creates a channel. Both are created as Managed resources, which means they are closed automatically after using even in the face of errors.
-
-The example then creates a stream of the messages consumed from a queue named `"queueName"`. Each received message is acknowledged back to the AMQP server.
+A consumer started with `Channel#consume` has `autoAck = false` by default, so every delivery must be settled. To acknowledge a message only after `handle` has succeeded, call `Channel#ack` as the last step of the stream stage. If `handle` fails, the stream fails, the channel is eventually closed, and the broker redelivers the unacknowledged messages:
 
 ```scala
-import nl.vroste.zio.amqp._
-import nl.vroste.zio.amqp.model._
-import java.net.URI
-import zio._
-import zio.Console._
+def worker(channel: Channel): ZIO[Any, Throwable, Unit] =
+  channel
+    .consume(queue, ConsumerTag("worker"))
+    .mapZIO(delivery => handle(delivery) *> channel.ack(tagOf(delivery)))
+    .runDrain
+```
 
-val channel: ZIO[Scope, Throwable, Channel] = for {
-  connection <- Amqp.connect(URI.create("amqp://my_amqp_server_uri"))
-  channel    <- Amqp.createChannel(connection)
-} yield channel
+### Reject and Requeue a Failed Message
 
-val effect: ZIO[Any, Throwable, Unit] =
-  ZIO.scoped {
-    channel.flatMap { channel =>
-      channel
-        .consume(queue = QueueName("queueName"), consumerTag = ConsumerTag("test"))
-        .mapZIO { record =>
-          val deliveryTag = record.getEnvelope.getDeliveryTag
-          printLine(s"Received ${deliveryTag}: ${new String(record.getBody)}") *>
-            channel.ack(DeliveryTag(deliveryTag))
-        }
-        .take(5)
-        .runDrain
+When processing fails and the next attempt may succeed, for example after a timeout, reject the message with `Channel#nack` and `requeue = true`. The broker puts it back on the queue, and it is delivered again with the `redelivered` flag set on its envelope. To keep the consumer alive when a single message fails:
+
+```scala
+def resilientWorker(channel: Channel): ZIO[Any, Throwable, Unit] =
+  channel
+    .consume(queue, ConsumerTag("resilient-worker"))
+    .mapZIO { delivery =>
+      handle(delivery).foldZIO(
+        _ => channel.nack(tagOf(delivery), requeue = true),
+        _ => channel.ack(tagOf(delivery))
+      )
     }
+    .runDrain
+```
+
+A requeued message returns to its original position in the queue, so a message that always fails is retried again and again. Check `delivery.getEnvelope.isRedeliver` and reject with `requeue = false` the second time to stop it.
+
+### Discard or Dead-Letter a Message
+
+`Channel#nack` with `requeue = false`, the default, removes the message from the queue. If the queue was declared with a dead-letter exchange, the broker republishes the message to that exchange instead of dropping it. To set that up, pass the RabbitMQ queue arguments to `Channel#queueDeclare`:
+
+```scala
+def declareWithDeadLetters(channel: Channel): ZIO[Any, Throwable, String] =
+  channel.queueDeclare(
+    queue,
+    durable = true,
+    arguments = Map("x-dead-letter-exchange" -> "jobs.dead")
+  )
+```
+
+The exchange `jobs.dead` and a queue bound to it must exist for the dead-lettered messages to be kept. See [Route Messages with Exchanges](./how-to-route-with-exchanges.md) for declaring them.
+
+### Settle a Batch with One Call
+
+Acknowledging each message costs one network round trip. To settle a whole batch with one, collect the tags and call `Channel#ackMany`, which acknowledges the highest tag with `multiple = true`. That also acknowledges every lower unacknowledged tag on the channel, so call it only when the whole group, and everything before it, is done:
+
+```scala
+def batchWorker(channel: Channel): ZIO[Any, Throwable, Unit] =
+  channel
+    .consume(queue, ConsumerTag("batch-worker"))
+    .groupedWithin(100, 1.second)
+    .mapZIO { batch =>
+      (ZIO.foreachDiscard(batch)(handle) *> channel.ackMany(batch.map(tagOf).toSeq)).when(batch.nonEmpty)
+    }
+    .runDrain
+```
+
+`Channel#nackMany` is the matching call for rejecting a group. Both methods throw `UnsupportedOperationException` when called with an empty sequence, so the example checks `batch.nonEmpty` before calling it.
+
+Because a batch is settled only after all its messages succeed, set a [prefetch limit](./how-to-limit-prefetch.md) at least as large as the batch size, or the broker will stop sending before the batch fills.
+
+### Skip Acknowledgements with autoAck
+
+Pass `autoAck = true` to `Channel#consume` to let the broker consider every message acknowledged the moment it sends it. This is the fastest mode, but a message in flight when the consumer or the channel dies is lost, and prefetch limits do not apply. Use it only for data you can afford to lose, such as metrics samples:
+
+```scala
+def firehose(channel: Channel): ZIO[Any, Throwable, Unit] =
+  channel
+    .consume(queue, ConsumerTag("firehose"), autoAck = true)
+    .mapZIO(handle)
+    .runDrain
+```
+
+Never call `Channel#ack` for a delivery received with `autoAck = true`: the broker has already forgotten the tag, and acknowledging it is a protocol error that closes the channel.
+
+### Running the Example
+
+The file [`AcknowledgeExample.scala`](https://github.com/zio/zio-amqp/blob/master/zio-amqp-examples/src/main/scala/zio/amqp/examples/howto/AcknowledgeExample.scala) publishes a good and a flaky message, acknowledges the first, rejects the second once with requeue, and acknowledges it on redelivery. Start RabbitMQ with `docker compose up -d` and run `sbt "zio-amqp-examples/runMain zio.amqp.examples.howto.AcknowledgeExample"`. The output is:
+
+```text
+good (redelivered = false): acked
+flaky (redelivered = false): nacked and requeued
+flaky (redelivered = true): acked
+```
+
+---
+
+## How to Connect to a Broker
+
+This guide shows how to open a connection to a RabbitMQ broker, how to pick between the three `Amqp.connect` overloads, and how to read connection settings from the environment, retry a failed connection, and use TLS.
+
+All snippets assume these imports:
+
+```scala
+import com.rabbitmq.client.{ Connection, ConnectionFactory }
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+import java.net.URI
+```
+
+### Connect with an AMQPConfig
+
+For a broker described by host, port and credentials, `AMQPConfig` is the most readable option. `AMQPConfig.default` points at `localhost:5672` with the `guest` user, so a development program only overrides what differs:
+
+```scala
+val connection: ZIO[Scope, Throwable, Connection] =
+  Amqp.connect(AMQPConfig.default.copy(host = "rabbit.internal", user = "app", password = "secret"))
+```
+
+The connection is a scoped resource: it is closed when the surrounding scope ends. See [`Amqp` and `AMQPConfig`](./reference/amqp.md) for every field.
+
+### Connect with a URI
+
+When the broker address is a single setting, such as a `RABBITMQ_URL` environment variable or a secret from a platform, pass it as a `URI`. The URI carries the credentials, the host, the port and the URL-encoded virtual host (`%2F` is `/`):
+
+```scala
+val connection: ZIO[Scope, Throwable, Connection] =
+  Amqp.connect(URI.create("amqp://guest:guest@localhost:5672/%2F"))
+```
+
+Use the `amqps` scheme for TLS.
+
+### Connect with a ConnectionFactory
+
+For anything the other two overloads cannot express, such as a custom SSL context, automatic recovery settings, a client-provided name or a custom executor, configure a RabbitMQ `ConnectionFactory` yourself and pass it in. `Amqp.connect(factory)` is the overload the other two call:
+
+```scala
+val connection: ZIO[Scope, Throwable, Connection] = {
+  val factory = new ConnectionFactory()
+  factory.setHost("rabbit.internal")
+  factory.setPort(5672)
+  factory.setUsername("app")
+  factory.setPassword("secret")
+  factory.setRequestedHeartbeat(30)
+  Amqp.connect(factory)
+}
+```
+
+Prefer the factory when a password contains characters that are special in URIs (such as `@`, `:` or `/`): `AMQPConfig#toUri` does not percent-encode them.
+
+### Read the Settings from the Environment
+
+To keep credentials out of the code, build the `AMQPConfig` from environment variables with `System.env`, falling back to the defaults:
+
+```scala
+val config: ZIO[Any, SecurityException, AMQPConfig] =
+  for {
+    host     <- System.env("AMQP_HOST").map(_.getOrElse(AMQPConfig.default.host))
+    user     <- System.env("AMQP_USER").map(_.getOrElse(AMQPConfig.default.user))
+    password <- System.env("AMQP_PASSWORD").map(_.getOrElse(AMQPConfig.default.password))
+  } yield AMQPConfig.default.copy(host = host, user = user, password = password)
+
+val connection: ZIO[Scope, Throwable, Connection] =
+  config.flatMap(Amqp.connect(_))
+```
+
+If you already use a configuration library, construct the same case class from its output. The library itself has no configuration integration.
+
+### Retry Until the Broker Is Available
+
+A container orchestrator often starts the application before the broker accepts connections. `Amqp.connect` fails with the RabbitMQ client's exception in the error channel, so any ZIO `Schedule` can retry it. To retry every two seconds, up to ten times:
+
+```scala
+val connection: ZIO[Scope, Throwable, Connection] =
+  Amqp.connect(AMQPConfig.default).retry(Schedule.spaced(2.seconds) && Schedule.recurs(10))
+```
+
+Retrying a scoped acquisition is safe: a failed attempt acquired nothing, so nothing is left to release.
+
+### Use More than One Channel
+
+One connection can serve many channels, and each channel serializes its own operations. To avoid a slow call on one channel delaying another, give independent jobs their own channels on a shared connection:
+
+```scala
+val program: ZIO[Any, Throwable, Unit] =
+  ZIO.scoped {
+    for {
+      connection <- Amqp.connect(AMQPConfig.default)
+      publisher  <- Amqp.createChannel(connection)
+      consumer   <- Amqp.createChannel(connection)
+      _          <- publisher.queueDeclare(QueueName("jobs"))
+    } yield ()
   }
 ```
 
-See the [ZIO documentation](https://zio.dev/docs/overview/overview_running_effects#defaultruntime) for more information on how to run this effect or integrate with an existing application.
+The channels are closed first, in reverse order, and then the connection.
+
+### Running the Example
+
+The file [`ConnectExample.scala`](https://github.com/zio/zio-amqp/blob/master/zio-amqp-examples/src/main/scala/zio/amqp/examples/howto/ConnectExample.scala) opens a connection with each of the three overloads against a local broker and prints whether each is open. Start RabbitMQ with `docker compose up -d`, then run `sbt "zio-amqp-examples/runMain zio.amqp.examples.howto.ConnectExample"` from the repository root. The output is:
+
+```text
+config open: true, uri open: true, factory open: true
+```
+
+---
+
+## How to Limit Prefetch to Apply Back-Pressure
+
+By default, a RabbitMQ broker pushes every message in a queue to a consumer as fast as the network allows. A slow consumer then accumulates an ever-growing backlog in memory, and a fast consumer on the same queue sits idle. This guide shows how to use `Channel#basicQos` to cap the number of unacknowledged messages a consumer holds, and how to pick the cap.
+
+All snippets assume these imports:
+
+```scala
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+val queue = QueueName("jobs")
+```
+
+### Set a Prefetch Count Before Consuming
+
+The prefetch count is the number of deliveries the broker sends before it waits for acknowledgements. Call `Channel#basicQos` before `Channel#consume`, because the setting applies to consumers that are started afterwards. With a prefetch of 10, the broker sends ten messages, then one more for each acknowledgement it receives:
+
+```scala
+def worker(channel: Channel): ZIO[Any, Throwable, Unit] =
+  channel.basicQos(10) *>
+    channel
+      .consume(queue, ConsumerTag("worker"))
+      .mapZIO { delivery =>
+        Console.printLine(new String(delivery.getBody, "UTF-8")) *>
+          channel.ack(DeliveryTag(delivery.getEnvelope.getDeliveryTag))
+      }
+      .runDrain
+```
+
+The limit only works with manual acknowledgements. A consumer started with `autoAck = true` is never limited, because its deliveries count as acknowledged when they are sent.
+
+### Choose the Count
+
+A prefetch of 1 gives the fairest distribution between workers: a worker receives its next message only when it is free, so one slow task never holds up messages that another worker could take. The price is a network round trip between every two messages, which limits the throughput of workers with very fast tasks.
+
+For tasks that take milliseconds, raise the count until the consumer is no longer waiting for the broker. A count of a few tens to a few hundred is common. For tasks that take seconds or longer, a count of 1 costs nothing. The prefetch should also be at least the size of any batch you [acknowledge in one call](./how-to-acknowledge-messages.md#settle-a-batch-with-one-call), otherwise the batch can never fill.
+
+A count of `0` removes the limit, which is the default behavior.
+
+### Apply the Limit to a Whole Channel
+
+With the default `global = false`, the count applies to each consumer that is started on the channel afterwards: two consumers with a prefetch of 5 can hold ten messages together. To share one budget across all consumers of the channel, pass `global = true`:
+
+```scala
+def sharedBudget(channel: Channel): ZIO[Any, Throwable, Unit] =
+  channel.basicQos(10, global = true)
+```
+
+Because `Amqp.createChannel` gives each channel its own prefetch setting, the simplest way to give every consumer its own limit is to give every consumer its own channel.
+
+### See the Limit at Work
+
+The count of ready messages on a queue excludes the ones that are delivered but unacknowledged, which makes the effect of the prefetch visible. If a consumer with a prefetch of 5 never acknowledges, a queue of 20 messages shows only 15 as ready:
+
+```scala
+def demonstrate(channel: Channel): ZIO[Any, Throwable, Long] =
+  for {
+    _     <- channel.basicQos(5)
+    fiber <- channel.consume(queue, ConsumerTag("holder")).runDrain.fork
+    _     <- ZIO.sleep(1.second)
+    ready <- channel.messageCount(queue)
+    _     <- fiber.interrupt
+  } yield ready
+```
+
+### Running the Example
+
+The file [`PrefetchExample.scala`](https://github.com/zio/zio-amqp/blob/master/zio-amqp-examples/src/main/scala/zio/amqp/examples/howto/PrefetchExample.scala) publishes 20 messages, starts a consumer with a prefetch of 5 that never acknowledges, and prints the number of ready messages. Start RabbitMQ with `docker compose up -d` and run `sbt "zio-amqp-examples/runMain zio.amqp.examples.howto.PrefetchExample"`. The output is:
+
+```text
+Ready messages with prefetch 5 and no acks: 15
+```
+
+---
+
+## How to Publish Durable Messages
+
+A message survives a broker restart only if two things hold: it sits in a durable queue, and it was published as persistent. This guide shows how to set both from ZIO AMQP, and how to attach other message properties such as a content type, a correlation id and headers.
+
+All snippets assume these imports:
+
+```scala
+import com.rabbitmq.client.{ AMQP, MessageProperties }
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+```
+
+### Declare a Durable Queue
+
+A durable queue is re-created by the broker after a restart, but it comes back empty unless its messages were persistent too. Declare it with `durable = true`:
+
+```scala
+def declare(channel: Channel): ZIO[Any, Throwable, String] =
+  channel.queueDeclare(QueueName("invoices"), durable = true)
+```
+
+The same flag exists on `Channel#exchangeDeclare`. A durable queue bound to a transient exchange loses the binding on restart, so declare exchanges that feed durable queues as durable too.
+
+### Publish a Persistent Message
+
+`Channel#publish` takes the message properties as a RabbitMQ `AMQP.BasicProperties`. A `deliveryMode` of 2 marks the message as persistent, and the broker writes it to disk. The client provides ready-made constants, so for a plain-text payload:
+
+```scala
+def publish(channel: Channel): ZIO[Any, Throwable, Unit] =
+  channel.publish(
+    exchange = ExchangeName(""),
+    body = "invoice-1".getBytes("UTF-8"),
+    routingKey = RoutingKey("invoices"),
+    props = MessageProperties.PERSISTENT_TEXT_PLAIN
+  )
+```
+
+The effect completes once the message has been handed to the client's connection. It does not wait for the broker to confirm that the message reached the disk, and ZIO AMQP has no publisher-confirm API, so a crash in that window can still lose a message.
+
+### Attach a Content Type, an Id and Headers
+
+To describe the payload to consumers, build the properties with the client's `AMQP.BasicProperties.Builder`. The content type tells consumers how to decode the body, the correlation id ties a message to a request, and headers carry free-form key-value pairs:
+
+```scala
+def publishJson(channel: Channel): ZIO[Any, Throwable, Unit] = {
+  val props = new AMQP.BasicProperties.Builder()
+    .contentType("application/json")
+    .deliveryMode(2)
+    .correlationId("order-42")
+    .headers(java.util.Collections.singletonMap[String, AnyRef]("source", "checkout"))
+    .build()
+
+  channel.publish(ExchangeName(""), """{"id":42}""".getBytes("UTF-8"), RoutingKey("invoices"), props = props)
+}
+```
+
+Publishing without `props` sends a message with no properties, which the broker treats as transient.
+
+### Read the Properties on the Consumer
+
+Each `Delivery` exposes the properties through `getProperties`. The getters return `null` for a property the publisher did not set, so wrap optional ones in `Option`:
+
+```scala
+def consume(channel: Channel): ZIO[Any, Throwable, Unit] =
+  channel
+    .consume(QueueName("invoices"), ConsumerTag("invoice-worker"))
+    .mapZIO { delivery =>
+      val props       = delivery.getProperties
+      val contentType = Option(props.getContentType)
+      val source      = Option(props.getHeaders).flatMap(h => Option(h.get("source")))
+      Console.printLine(s"contentType=$contentType source=$source") *>
+        channel.ack(DeliveryTag(delivery.getEnvelope.getDeliveryTag))
+    }
+    .runDrain
+```
+
+Header values come back as the RabbitMQ client's own types: a string header is a `LongString`, not a `String`. Call `toString` on it, or use `props.getHeaders.get("source").toString`.
+
+### Running the Example
+
+The file [`DurableMessagesExample.scala`](https://github.com/zio/zio-amqp/blob/master/zio-amqp-examples/src/main/scala/zio/amqp/examples/howto/DurableMessagesExample.scala) publishes a persistent JSON message to a durable queue and prints the properties that the consumer reads back. Start RabbitMQ with `docker compose up -d` and run `sbt "zio-amqp-examples/runMain zio.amqp.examples.howto.DurableMessagesExample"`. The output is:
+
+```text
+deliveryMode=2 contentType=application/json correlationId=order-42 source=howto
+```
+
+---
+
+## How to Route Messages with Exchanges
+
+A publisher sends every message to an exchange, never directly to a queue, and the exchange decides which queues receive a copy. This guide shows how to use a direct, a fanout and a topic exchange from ZIO AMQP to deliver one message to the right set of consumers. The semantics of the exchange types are those of RabbitMQ; see [Model Types](./reference/model.md#exchangetype) for the list.
+
+All snippets assume these imports:
+
+```scala
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+```
+
+### Send to a Queue by Name
+
+When a message has exactly one destination, use the default exchange, `ExchangeName("")`. RabbitMQ declares it for you, and it routes a message to the queue whose name equals the routing key, without any binding:
+
+```scala
+def sendToQueue(channel: Channel, queue: QueueName, body: String): ZIO[Any, Throwable, Unit] =
+  channel.publish(ExchangeName(""), body.getBytes("UTF-8"), RoutingKey(QueueName.unwrap(queue)))
+```
+
+### Route by Exact Key with a Direct Exchange
+
+To send messages to different queues depending on a label, declare a direct exchange and bind each queue with the label as its routing key. A message goes to every queue whose binding key equals the message's routing key. In the example, only the `errors` queue receives the second message:
+
+```scala
+def directRouting(channel: Channel): ZIO[Any, Throwable, Unit] = {
+  val logs   = ExchangeName("logs")
+  val infos  = QueueName("logs.info")
+  val errors = QueueName("logs.error")
+
+  for {
+    _ <- channel.exchangeDeclare(logs, ExchangeType.Direct)
+    _ <- channel.queueDeclare(infos)
+    _ <- channel.queueDeclare(errors)
+    _ <- channel.queueBind(infos, logs, RoutingKey("info"))
+    _ <- channel.queueBind(errors, logs, RoutingKey("error"))
+    _ <- channel.publish(logs, "disk is 80% full".getBytes("UTF-8"), RoutingKey("info"))
+    _ <- channel.publish(logs, "disk is full".getBytes("UTF-8"), RoutingKey("error"))
+  } yield ()
+}
+```
+
+Binding one queue several times, once per key, delivers to it every message that matches any of them.
+
+### Broadcast with a Fanout Exchange
+
+To deliver every message to every interested consumer, such as a cache-invalidation notice, use a fanout exchange. It ignores routing keys, so the key given to `Channel#queueBind` and `Channel#publish` is arbitrary. Each subscriber declares its own queue, and a server-named exclusive queue disappears with the subscriber:
+
+```scala
+def subscribe(channel: Channel, exchange: ExchangeName): ZIO[Scope, Throwable, Unit] =
+  for {
+    queue <- channel.queueDeclare(QueueName(""), exclusive = true, autoDelete = true).map(QueueName(_))
+    _     <- channel.queueBind(queue, exchange, RoutingKey(""))
+    _     <- channel
+               .consume(queue, ConsumerTag("subscriber"), autoAck = true)
+               .mapZIO(delivery => Console.printLine(new String(delivery.getBody, "UTF-8")))
+               .runDrain
+               .forkScoped
+  } yield ()
+
+def broadcast(channel: Channel, exchange: ExchangeName): ZIO[Any, Throwable, Unit] =
+  channel.exchangeDeclare(exchange, ExchangeType.Fanout) *>
+    channel.publish(exchange, "cache cleared".getBytes("UTF-8"))
+```
+
+A queue only receives messages published after it was bound, so declare and bind the subscriber queues before the first publish.
+
+### Route by Pattern with a Topic Exchange
+
+A topic exchange matches the routing key against patterns made of dot-separated words. In a binding key, `*` stands for exactly one word and `#` for zero or more words. With the keys `orders.created`, `payments.error` and `orders.error`, the queue bound with `orders.*` receives the first and the third, and the queue bound with `*.error` receives the second and the third:
+
+```scala
+def topicRouting(channel: Channel): ZIO[Any, Throwable, Unit] = {
+  val events = ExchangeName("events")
+  val orders = QueueName("orders")
+  val errors = QueueName("errors")
+
+  for {
+    _ <- channel.exchangeDeclare(events, ExchangeType.Topic)
+    _ <- channel.queueDeclare(orders)
+    _ <- channel.queueDeclare(errors)
+    _ <- channel.queueBind(orders, events, RoutingKey("orders.*"))
+    _ <- channel.queueBind(errors, events, RoutingKey("*.error"))
+    _ <- ZIO.foreachDiscard(List("orders.created", "payments.error", "orders.error")) { key =>
+           channel.publish(events, key.getBytes("UTF-8"), RoutingKey(key))
+         }
+  } yield ()
+}
+```
+
+A message that matches both bindings, here `orders.error`, is delivered once to each queue.
+
+### Clean Up
+
+Exchanges and queues declared without `durable` or `autoDelete` stay on the broker until they are deleted, or until the broker restarts. Delete the ones that a program or a test created with `Channel#queueDelete` and `Channel#exchangeDelete`. Deleting a queue or an exchange also removes its bindings:
+
+```scala
+def cleanUp(channel: Channel): ZIO[Any, Throwable, Unit] =
+  channel.queueDelete(QueueName("orders")) *>
+    channel.queueDelete(QueueName("errors")) *>
+    channel.exchangeDelete(ExchangeName("events"))
+```
+
+### Running the Example
+
+The file [`RoutingExample.scala`](https://github.com/zio/zio-amqp/blob/master/zio-amqp-examples/src/main/scala/zio/amqp/examples/howto/RoutingExample.scala) runs the topic exchange scenario above and prints how many messages each queue holds. Start RabbitMQ with `docker compose up -d` and run `sbt "zio-amqp-examples/runMain zio.amqp.examples.howto.RoutingExample"`. The output is:
+
+```text
+orders.* queue: 2 messages, *.error queue: 2 messages
+```
+
+---
+
+## How to Stop a Consumer
+
+A stream returned by `Channel#consume` has no end of its own: it waits for the next message until something stops it. This guide shows how to stop a consumer after a number of messages, on a shutdown signal, on a timeout and when the application ends, and what happens to the message that is being processed at that moment.
+
+All snippets assume these imports:
+
+```scala
+import com.rabbitmq.client.Delivery
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+val queue = QueueName("jobs")
+
+def process(delivery: Delivery): ZIO[Any, Throwable, Unit] =
+  Console.printLine(new String(delivery.getBody, "UTF-8"))
+```
+
+### What Happens When the Stream Ends
+
+However a consumer stream ends, whether it is completed, fails or is interrupted, `Channel#consume` cancels the consumer on the broker. The broker then stops sending messages to it. Messages that were already delivered but not acknowledged are not returned to the queue by the cancellation: they stay unacknowledged until the channel closes, and the broker then redelivers them.
+
+For that reason, stop consumers with the techniques below and close the channel promptly. Closing happens automatically when the `Scope` that created the channel ends.
+
+### Stop After a Number of Messages
+
+To process a fixed number of messages and stop, use the ordinary stream operators `take` and `takeUntil`. Here the consumer stops after the first ten messages:
+
+```scala
+def firstTen(channel: Channel): ZIO[Any, Throwable, Unit] =
+  channel
+    .consume(queue, ConsumerTag("first-ten"))
+    .take(10)
+    .mapZIO(d => process(d) *> channel.ack(DeliveryTag(d.getEnvelope.getDeliveryTag)))
+    .runDrain
+```
+
+### Stop When a Signal Arrives
+
+To stop a long-running worker from another fiber, for example when the application receives a termination signal, complete a `Promise` and halt the stream with `ZStream#haltWhen`. Put `ZStream#haltWhen` before the processing stage: the stream then stops asking for new messages, but the message that is already being processed runs to completion and is acknowledged:
+
+```scala
+def gracefulWorker(channel: Channel, shutdown: Promise[Throwable, Unit]): ZIO[Any, Throwable, Unit] =
+  channel
+    .consume(queue, ConsumerTag("graceful"))
+    .haltWhen(shutdown)
+    .mapZIO(d => process(d) *> channel.ack(DeliveryTag(d.getEnvelope.getDeliveryTag)))
+    .runDrain
+```
+
+To trigger it, run the worker on a fiber, and later complete the promise and wait for the worker:
+
+```scala
+def run(channel: Channel): ZIO[Any, Throwable, Unit] =
+  for {
+    shutdown <- Promise.make[Throwable, Unit]
+    worker   <- gracefulWorker(channel, shutdown).fork
+    _        <- ZIO.sleep(1.minute)
+    _        <- shutdown.succeed(())
+    _        <- worker.join
+  } yield ()
+```
+
+Combine this with `channel.basicQos(1)` set before consuming to bound how many messages the broker has already delivered when the signal arrives. With a prefetch of 1, at most one further message, which the broker sends right after the current acknowledgement, is left unacknowledged and returns to the queue when the channel closes. See [Limit Prefetch to Apply Back-Pressure](./how-to-limit-prefetch.md).
+
+:::note[Interrupting stops mid-message]
+Interrupting the worker fiber, or using `ZStream#interruptWhen`, cancels the processing stage as well. A message that was being processed is then never acknowledged and is redelivered after the channel closes. Choose that when processing is idempotent and fast shutdown matters more than finishing the current message.
+:::
+
+### Stop After a Period of Silence
+
+To stop a consumer that has been idle for too long, use `ZStream#timeout`, which ends the stream if the next element does not arrive in time:
+
+```scala
+def untilIdle(channel: Channel): ZIO[Any, Throwable, Unit] =
+  channel
+    .consume(queue, ConsumerTag("until-idle"))
+    .timeout(30.seconds)
+    .mapZIO(d => process(d) *> channel.ack(DeliveryTag(d.getEnvelope.getDeliveryTag)))
+    .runDrain
+```
+
+### Stop When the Application Ends
+
+A worker that should live as long as the application can run on a fiber that is tied to a scope. `forkScoped` interrupts the fiber when the scope closes, which cancels the consumer, and the scope then closes the channel and the connection in reverse order of acquisition:
+
+```scala
+val program: ZIO[Any, Throwable, Unit] =
+  ZIO.scoped {
+    for {
+      connection <- Amqp.connect(AMQPConfig.default)
+      channel    <- Amqp.createChannel(connection)
+      _          <- channel
+                      .consume(queue, ConsumerTag("app-worker"))
+                      .mapZIO(d => process(d) *> channel.ack(DeliveryTag(d.getEnvelope.getDeliveryTag)))
+                      .runDrain
+                      .forkScoped
+      _          <- ZIO.never
+    } yield ()
+  }
+```
+
+`ZIO.never` keeps the program alive until it is interrupted, for example by `ZIOAppDefault` when the process receives SIGTERM. The scope then runs the finalizers.
+
+### React When the Broker Stops the Consumer
+
+Two events end the stream without any action by the program. If the broker cancels the consumer, for example because the queue was deleted, the stream completes normally. If the channel or connection is shut down, the stream fails with the RabbitMQ client's `ShutdownSignalException`. To reconnect after a shutdown, wrap the whole acquire-and-consume program in a retry, because a closed channel cannot be reused:
+
+```scala
+def resilient(program: ZIO[Any, Throwable, Unit]): ZIO[Any, Throwable, Unit] =
+  program.retry(Schedule.exponential(1.second) && Schedule.recurs(5))
+```
+
+### Running the Example
+
+The file [`StopConsumerExample.scala`](https://github.com/zio/zio-amqp/blob/master/zio-amqp-examples/src/main/scala/zio/amqp/examples/howto/StopConsumerExample.scala) publishes three tasks of one second each, requests shutdown while the first is being processed, and prints what is left. Start RabbitMQ with `docker compose up -d` and run `sbt "zio-amqp-examples/runMain zio.amqp.examples.howto.StopConsumerExample"`. The output is:
+
+```text
+started task-1
+shutdown requested
+finished task-1
+consumers: 0, messages left: 1
+```
+
+The consumer finished `task-1` after the shutdown request, started nothing new, and was cancelled. One message is still ready in the queue. The second task was already delivered when the first was acknowledged, so it is unacknowledged on the channel and returns to the queue when the channel closes.
+
+---
+
+## How to Test with Testcontainers
+
+ZIO AMQP is a thin layer over a real broker, so the most reliable way to test code that uses it is to run against a real RabbitMQ. This guide shows how to start a throwaway RabbitMQ container for a ZIO Test suite with [Testcontainers for Scala](https://github.com/testcontainers/testcontainers-scala), the approach the library's own test suite uses, and how to point the same tests at a broker that is already running, as on a CI server.
+
+The test code on this page needs libraries that are not dependencies of ZIO AMQP itself, so the snippets are shown without being compiled by the documentation build. They are taken from the library's own test, [`AmqpClientSpec.scala`](https://github.com/zio/zio-amqp/blob/master/zio-amqp/src/test/scala/zio/amqp/AmqpClientSpec.scala), which compiles and runs in CI. Docker must be running on the machine that runs the tests.
+
+### Add the Test Dependencies
+
+Add ZIO Test and the Testcontainers module for RabbitMQ to the test scope, and register the ZIO Test framework with sbt:
+
+```scala
+libraryDependencies ++= Seq(
+  "dev.zio"      %% "zio-test"                      % "2.1.26" % Test,
+  "dev.zio"      %% "zio-test-sbt"                  % "2.1.26" % Test,
+  "com.dimafeng" %% "testcontainers-scala-rabbitmq" % "0.44.1"        % Test
+)
+
+testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
+```
+
+The versions above are the ones this repository's build uses at the time of writing. Check Maven Central for newer releases.
+
+### Start a Container as a Layer
+
+A container should start once per test run and stop afterwards, even if a test fails. Model it as a scoped `ZLayer` that acquires the container with `ZIO.acquireRelease`, and expose only what the tests need, the host and the AMQP port:
+
+```scala
+import com.dimafeng.testcontainers.RabbitMQContainer
+import zio._
+
+final case class ContainerDetails(host: String, amqpPort: Int)
+
+val rabbitContainerDetails: ZLayer[Scope, Throwable, ContainerDetails] =
+  ZLayer.fromZIO(
+    ZIO
+      .acquireRelease(ZIO.attempt(RabbitMQContainer.Def().start()))(c => ZIO.attempt(c.stop()).orDie)
+      .map(c => ContainerDetails(c.host, c.amqpPort))
+  )
+```
+
+`RabbitMQContainer.Def().start()` pulls the module's default RabbitMQ image on first use (at the time of writing `rabbitmq:3.7-management-alpine`; the CI workflow of this repository runs `rabbitmq:3.13`) and waits until the broker accepts connections. Testcontainers maps the AMQP port to a random free host port, which is why the layer reads `amqpPort` instead of assuming 5672.
+
+### Write a Test Against the Broker
+
+A test connects with the container's host and port, using the `ConnectionFactory` overload of `Amqp.connect`, and uses unique queue names so that tests do not interfere with each other. The suite shares one container with `provideSomeShared`:
+
+```scala
+import com.rabbitmq.client.ConnectionFactory
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+import zio.test._
+
+import java.util.UUID
+
+object PublishConsumeSpec extends ZIOSpecDefault {
+  def spec: Spec[Scope, Throwable] =
+    suite("PublishConsumeSpec")(
+      test("a published message is consumed") {
+        val queue = QueueName(s"queue-${UUID.randomUUID()}")
+
+        ZIO.service[ContainerDetails].flatMap { container =>
+          val factory = new ConnectionFactory()
+          factory.setHost(container.host)
+          factory.setPort(container.amqpPort)
+
+          Amqp
+            .connect(factory)
+            .flatMap(Amqp.createChannel)
+            .flatMap { channel =>
+              for {
+                _      <- channel.queueDeclare(queue)
+                _      <- channel.publish(ExchangeName(""), "ping".getBytes("UTF-8"), RoutingKey(QueueName.unwrap(queue)))
+                bodies <- channel
+                            .consume(queue, ConsumerTag("test"))
+                            .take(1)
+                            .runCollect
+                            .map(_.map(d => new String(d.getBody, "UTF-8")))
+                _      <- channel.queueDelete(queue)
+              } yield assertTrue(bodies == Chunk("ping"))
+            }
+        }
+      } @@ TestAspect.timeout(60.seconds)
+    ).provideSomeShared[Scope](rabbitContainerDetails)
+}
+```
+
+The connection and the channel are scoped, and ZIO Test's `Scope` environment closes them when the test ends. Always put a `TestAspect.timeout` aspect on a test that consumes: a stream that waits for a message that never arrives would otherwise hang the build.
+
+### Wait for Asynchronous Effects
+
+The broker updates some state asynchronously. For example, `Channel#messageCount` right after a publish can still return the old value, and `Channel#consumerCount` right after forking a consumer can return 0. The library's tests delay the assertion by a second, which needs the real clock because ZIO Test runs with a simulated one:
+
+```scala
+import zio._
+import zio.test._
+
+test("messageCount sees a published message") {
+  // ... declare queue, publish ...
+  channel.messageCount(queue).delay(1.second).map(count => assertTrue(count == 1L))
+} @@ TestAspect.withLiveClock
+```
+
+### Use a Broker That Is Already Running
+
+On a CI server, starting a container per job is slow, and the job may not be allowed to use Docker at all. The library's test suite switches on the `CI` environment variable: when it is set, it uses a RabbitMQ at `localhost:5672`, started by the CI workflow with the repository's `docker-compose.yml` (`docker compose up -d`), and otherwise starts a container:
+
+```scala
+val rabbitContainerDetails: ZLayer[Scope, Throwable, ContainerDetails] =
+  ZLayer.fromZIO(
+    zio.System.env("CI").flatMap {
+      case Some(_) => ZIO.succeed(ContainerDetails("localhost", 5672))
+      case None    =>
+        ZIO
+          .acquireRelease(ZIO.attempt(RabbitMQContainer.Def().start()))(c => ZIO.attempt(c.stop()).orDie)
+          .map(c => ContainerDetails(c.host, c.amqpPort))
+    }
+  )
+```
+
+Because the broker is shared by every test in that run, keep the unique queue names and delete what each test creates.
+
+---
+
+## ZIO AMQP
+
+ZIO AMQP is a ZIO-based wrapper around the [RabbitMQ Java client](https://www.rabbitmq.com/client-libraries/java-api-guide). It exposes queues as `ZStream`s of deliveries and serializes access to the underlying RabbitMQ channel, so concurrent fibers cannot corrupt it. Connections and channels are scoped resources: they are closed automatically when the `Scope` that owns them ends, even if the program fails or is interrupted.
+
+[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-amqp/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-amqp_2.13.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-amqp_2.13) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-amqp_2.13%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-amqp_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-amqp_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-amqp_2.13) [![ZIO AMQP](https://img.shields.io/github/stars/zio/zio-amqp?style=social)](https://github.com/zio/zio-amqp)
+
+### Installation
+
+Add the following line to your `build.sbt` file:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-amqp" % "1.0.1"
+```
+
+ZIO AMQP depends on ZIO 2 and the RabbitMQ Java client, and is published for Scala 2.12, 2.13 and 3.
+
+### A First Program
+
+The program below connects to a broker on `localhost:5672` with the default `guest`/`guest` credentials, declares a queue, publishes one message to it, and consumes that message back. Both the connection and the channel are scoped resources, so `ZIO.scoped` closes them when the program ends:
+
+```scala
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+val queue = QueueName("hello")
+
+val program: ZIO[Any, Throwable, Unit] =
+  ZIO.scoped {
+    for {
+      connection <- Amqp.connect(AMQPConfig.default)
+      channel    <- Amqp.createChannel(connection)
+      _          <- channel.queueDeclare(queue)
+      _          <- channel.publish(ExchangeName(""), "Hello, AMQP!".getBytes, RoutingKey("hello"))
+      _          <- channel
+                      .consume(queue, ConsumerTag("first-program"))
+                      .mapZIO { delivery =>
+                        Console.printLine(new String(delivery.getBody)) *>
+                          channel.ack(DeliveryTag(delivery.getEnvelope.getDeliveryTag))
+                      }
+                      .take(1)
+                      .runDrain
+    } yield ()
+  }
+```
+
+Publishing to the default exchange (the empty name `ExchangeName("")`) with the queue's name as the routing key delivers the message straight to that queue. The `consume` stream stays open until it is completed, here by `take(1)`, which also cancels the consumer on the broker.
+
+### Where to Go Next
+
+If you are new to AMQP, start with the [tutorial](./tutorial-work-queue.md), which builds a producer and a pool of competing consumers step by step.
+
+For a specific task, pick a how-to guide:
+
+- [Connect to a Broker](./how-to-connect.md)
+- [Acknowledge Messages](./how-to-acknowledge-messages.md)
+- [Limit Prefetch to Apply Back-Pressure](./how-to-limit-prefetch.md)
+- [Route Messages with Exchanges](./how-to-route-with-exchanges.md)
+- [Publish Durable Messages](./how-to-publish-durable-messages.md)
+- [Stop a Consumer](./how-to-stop-a-consumer.md)
+- [Test with Testcontainers](./how-to-test-with-testcontainers.md)
+
+To look up a type or method, use the reference pages:
+
+- [`Amqp` and `AMQPConfig`](./reference/amqp.md): create connections and channels.
+- [`Channel`](./reference/channel.md): declare queues and exchanges, publish, consume and acknowledge.
+- [Model Types](./reference/model.md): `QueueName`, `ExchangeName`, `RoutingKey`, `ConsumerTag`, `DeliveryTag`, `AmqpUri` and `ExchangeType`.
+
+---
+
+## Amqp and AMQPConfig
+
+`Amqp` is the entry point of the library. Its four methods acquire the two resources every program needs, a RabbitMQ `Connection` and a ZIO AMQP [`Channel`](./channel.md), and release them through the surrounding `Scope`. `AMQPConfig` describes how to reach the broker. The signatures are:
+
+```scala
+object Amqp {
+  def connect(factory: ConnectionFactory): ZIO[Scope, Throwable, Connection]
+  def connect(uri: URI): ZIO[Scope, Throwable, Connection]
+  def connect(amqpConfig: AMQPConfig): ZIO[Scope, Throwable, Connection]
+  def createChannel(connection: Connection): ZIO[Scope, Throwable, Channel]
+}
+```
+
+`Connection` and `ConnectionFactory` are the types of the RabbitMQ Java client (`com.rabbitmq.client`). ZIO AMQP does not wrap them.
+
+### Creating a Connection
+
+All three overloads of `Amqp.connect` open a connection on a blocking thread and register a finalizer that closes it when the `Scope` ends. If closing the connection fails, the error is not reported through the error channel: the finalizer dies with it (`orDie`).
+
+The overloads differ in how the broker is described. To connect with a fully configured RabbitMQ `ConnectionFactory`, for example to set TLS options or a custom executor:
+
+```scala
+import com.rabbitmq.client.ConnectionFactory
+import zio._
+import zio.amqp._
+
+val factory = new ConnectionFactory()
+factory.setHost("rabbit.internal")
+factory.setPort(5672)
+
+val connection: ZIO[Scope, Throwable, com.rabbitmq.client.Connection] =
+  Amqp.connect(factory)
+```
+
+To connect with an AMQP URI, which carries the host, port, credentials and virtual host in one string:
+
+```scala
+import java.net.URI
+import zio._
+import zio.amqp._
+
+val connection: ZIO[Scope, Throwable, com.rabbitmq.client.Connection] =
+  Amqp.connect(URI.create("amqp://guest:guest@localhost:5672/%2F"))
+```
+
+`Amqp.connect(uri)` creates a `ConnectionFactory` and calls `ConnectionFactory#setUri`, so any URI the RabbitMQ client accepts works, including the `amqps` scheme for TLS.
+
+To connect from an [`AMQPConfig`](#amqpconfig), which is the typed form of the same information:
+
+```scala
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+val connection: ZIO[Scope, Throwable, com.rabbitmq.client.Connection] =
+  Amqp.connect(AMQPConfig.default.copy(host = "rabbit.internal"))
+```
+
+`Amqp.connect(amqpConfig)` converts the configuration with `AMQPConfig#toUri` and then behaves like the URI overload. See [Connect to a Broker](../how-to-connect.md) for a task-oriented walkthrough, including loading the configuration from the environment.
+
+### Creating a Channel
+
+`Amqp.createChannel` opens a channel on an existing connection and wraps it in a [`Channel`](./channel.md). The wrapper owns a one-permit `Semaphore`, and every operation on it takes that permit, so the underlying RabbitMQ channel, which is not thread-safe, is used by one fiber at a time.
+
+The channel is closed when the `Scope` ends. The finalizer also takes the permit, so it waits for an operation that is in flight before closing. Like the connection finalizer, it dies if closing fails.
+
+To open a channel and use it in one scoped program:
+
+```scala
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+val program: ZIO[Any, Throwable, Unit] =
+  ZIO.scoped {
+    for {
+      connection <- Amqp.connect(AMQPConfig.default)
+      channel    <- Amqp.createChannel(connection)
+      _          <- channel.queueDeclare(QueueName("example"))
+    } yield ()
+  }
+```
+
+Because the finalizers run in reverse order of acquisition, the channel is closed before its connection.
+
+A single connection supports many channels. Create one channel per independent unit of work, for example one for a consumer and another for a publisher, so a slow operation on one does not hold the other's permit.
+
+### AMQPConfig
+
+`AMQPConfig` is a case class in `zio.amqp.model` that holds everything needed to build an AMQP URI. It has no ZIO Config or JSON codec of its own, so load the values with the mechanism your application already uses and construct it by hand. Its definition is:
+
+```scala
+case class AMQPConfig(
+  user: String,
+  password: String,
+  vhost: String,
+  heartbeatInterval: Duration,
+  ssl: Boolean,
+  host: String,
+  port: Short,
+  connectionTimeout: Duration
+) {
+  val encodedVhost: String
+  def toUri: AmqpUri
+}
+```
+
+The fields are:
+
+| Field               | Type       | Meaning                                                                    |
+| ------------------- | ---------- | -------------------------------------------------------------------------- |
+| `user`              | `String`   | User name.                                                                 |
+| `password`          | `String`   | Password.                                                                  |
+| `vhost`             | `String`   | Virtual host. `"/"` is the default virtual host.                           |
+| `heartbeatInterval` | `Duration` | Heartbeat interval. Written to the URI in whole seconds.                   |
+| `ssl`               | `Boolean`  | When `true`, the URI scheme is `amqps` instead of `amqp`.                  |
+| `host`              | `String`   | Broker host name.                                                          |
+| `port`              | `Short`    | Broker port.                                                               |
+| `connectionTimeout` | `Duration` | Connection timeout. Written to the URI in milliseconds.                    |
+
+#### Default Configuration
+
+`AMQPConfig.default` points at a local RabbitMQ with its stock credentials. To inspect its values:
+
+```scala
+import zio.amqp.model._
+
+AMQPConfig.default
+// res4: AMQPConfig = AMQPConfig(
+//   user = "guest",
+//   password = "guest",
+//   vhost = "/",
+//   heartbeatInterval = PT10S,
+//   ssl = false,
+//   host = "localhost",
+//   port = 5672,
+//   connectionTimeout = PT10S
+// )
+```
+
+Use `AMQPConfig#copy` to override individual fields. To target a TLS broker on the conventional TLS port:
+
+```scala
+import zio._
+import zio.amqp.model._
+
+val secure: AMQPConfig =
+  AMQPConfig.default.copy(host = "rabbit.example.com", port = 5671, ssl = true, user = "app")
+```
+
+#### Converting to a URI
+
+`AMQPConfig#encodedVhost` is the virtual host URL-encoded with UTF-8, so `"/"` becomes `%2F`. `AMQPConfig#toUri` assembles the URI from the other fields. To see the URI for the default configuration:
+
+```scala
+println(AMQPConfig.default.encodedVhost)
+// %2F
+println(AMQPConfig.default.toUri)
+// amqp://guest:guest@localhost:5672/%2F?heartbeat=10&connection_timeout=10000
+```
+
+The result has the type `AmqpUri`, a subtype of `java.net.URI`, so it can be passed anywhere a `URI` is expected. See [Model Types](./model.md#amqpuri).
+
+:::warning[Credentials are inserted into the URI as they are]
+`AMQPConfig#toUri` writes `user` and `password` into the URI without percent-encoding, and `port` is a `Short`, so it cannot hold values above 32767. If a password contains characters such as `@`, `:` or `/`, or the broker listens on a higher port, build a `ConnectionFactory` and use `Amqp.connect(factory)` instead.
+:::
+
+---
+
+## Channel
+
+`Channel` is the handle through which a program talks to the broker: it declares queues and exchanges, publishes messages, consumes them as a `ZStream`, and acknowledges them. It wraps a RabbitMQ Java client channel together with a one-permit `Semaphore`, and every method takes that permit for the duration of its call. The underlying client channel is not thread-safe, so this makes a `Channel` safe to share between fibers.
+
+A `Channel` has no public constructor. Obtain one from [`Amqp.createChannel`](./amqp.md#creating-a-channel), which closes it when the enclosing `Scope` ends.
+
+All the examples on this page assume the following setup, which opens a channel against a local broker and names a queue and an exchange:
+
+```scala
+import com.rabbitmq.client.AMQP
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+val queue    = QueueName("reference-queue")
+val exchange = ExchangeName("reference-exchange")
+
+def withChannel[A](use: Channel => ZIO[Any, Throwable, A]): ZIO[Any, Throwable, A] =
+  ZIO.scoped {
+    Amqp.connect(AMQPConfig.default).flatMap(Amqp.createChannel).flatMap(use)
+  }
+```
+
+Every method returns a `ZIO[Any, Throwable, _]` (or a `ZStream[Any, Throwable, _]`): the effects need no environment, and any failure of the RabbitMQ client, including an `IOException` from a closed channel or a protocol error from the broker, appears in the error channel. Methods that call the broker synchronously run on ZIO's blocking thread pool.
+
+:::note[Broker errors close the channel]
+In AMQP, most broker-side errors, such as operating on a queue that does not exist or re-declaring a queue with different arguments, close the channel they happened on. After that, every call on that `Channel` fails. Create a new channel with `Amqp.createChannel` to continue.
+:::
+
+### Queues
+
+A queue stores messages until a consumer takes them. These methods create, inspect and remove queues.
+
+#### Channel#queueDeclare
+
+`Channel#queueDeclare` creates a queue, or does nothing if a queue with the same name and the same properties already exists. It returns the name of the queue as a `String`:
+
+```scala
+class Channel {
+  def queueDeclare(
+    queue: QueueName,
+    durable: Boolean = false,
+    exclusive: Boolean = false,
+    autoDelete: Boolean = false,
+    arguments: Map[String, AnyRef] = Map.empty
+  ): ZIO[Any, Throwable, String]
+}
+```
+
+The parameters are:
+
+| Parameter    | Meaning                                                                                              |
+| ------------ | ---------------------------------------------------------------------------------------------------- |
+| `queue`      | Name of the queue. An empty name asks the broker to generate one.                                    |
+| `durable`    | The queue survives a broker restart. This does not make its messages persistent; see [Publish Durable Messages](../how-to-publish-durable-messages.md). |
+| `exclusive`  | The queue is used by this connection only and is deleted when the connection closes.                 |
+| `autoDelete` | The broker deletes the queue once its last consumer has gone.                                        |
+| `arguments`  | Optional queue arguments such as `x-message-ttl` or `x-dead-letter-exchange`.                        |
+
+All flags default to `false`. To declare a durable queue with a message time-to-live of one minute:
+
+```scala
+withChannel { channel =>
+  channel.queueDeclare(queue, durable = true, arguments = Map("x-message-ttl" -> Int.box(60000)))
+}
+```
+
+To let the broker choose a unique name, pass an empty `QueueName` and use the returned `String`. A server-named queue is usually also `exclusive`:
+
+```scala
+withChannel { channel =>
+  for {
+    name <- channel.queueDeclare(QueueName(""), exclusive = true, autoDelete = true)
+    _    <- Console.printLine(s"declared $name")
+  } yield ()
+}
+```
+
+#### Channel#queueDeclarePassive
+
+`Channel#queueDeclarePassive` checks that a queue exists without creating it. It returns the RabbitMQ client's `AMQP.Queue.DeclareOk`, which carries the queue name, the number of ready messages and the number of consumers. If the queue does not exist, the broker answers with an error and closes the channel:
+
+```scala
+class Channel {
+  def queueDeclarePassive(queue: QueueName): ZIO[Any, Throwable, AMQP.Queue.DeclareOk]
+}
+```
+
+To read the message count of an existing queue:
+
+```scala
+withChannel { channel =>
+  for {
+    _  <- channel.queueDeclare(queue)
+    ok <- channel.queueDeclarePassive(queue)
+    _  <- Console.printLine(s"${ok.getQueue}: ${ok.getMessageCount} ready, ${ok.getConsumerCount} consumers")
+  } yield ()
+}
+```
+
+#### Channel#queueDelete
+
+`Channel#queueDelete` removes a queue and everything in it. With `ifUnused` or `ifEmpty` set, the broker deletes the queue only when it has no consumers or no messages respectively; otherwise it replies with an error that closes the channel:
+
+```scala
+class Channel {
+  def queueDelete(
+    queue: QueueName,
+    ifUnused: Boolean = false,
+    ifEmpty: Boolean = false
+  ): ZIO[Any, Throwable, Unit]
+}
+```
+
+To delete a queue unconditionally:
+
+```scala
+withChannel(_.queueDelete(queue))
+```
+
+#### Channel#purgeQueue
+
+`Channel#purgeQueue` removes all messages that are ready to be delivered from a queue and keeps the queue. It returns the client's `AMQP.Queue.PurgeOk`. Messages that were delivered but are still unacknowledged are not removed:
+
+```scala
+class Channel {
+  def purgeQueue(queue: QueueName): ZIO[Any, Throwable, AMQP.Queue.PurgeOk]
+}
+```
+
+To empty a queue and report how many messages were dropped:
+
+```scala
+withChannel { channel =>
+  channel.purgeQueue(queue).flatMap(ok => Console.printLine(s"purged ${ok.getMessageCount} messages"))
+}
+```
+
+#### Channel#messageCount
+
+`Channel#messageCount` returns the number of messages that are ready to be delivered to consumers. The queue must exist: otherwise the broker closes the channel with an error. Messages that have been delivered but not yet acknowledged are not counted:
+
+```scala
+class Channel {
+  def messageCount(queue: QueueName): ZIO[Any, Throwable, Long]
+}
+```
+
+#### Channel#consumerCount
+
+`Channel#consumerCount` returns the number of consumers on a queue, with the same requirement that the queue exists:
+
+```scala
+class Channel {
+  def consumerCount(queue: QueueName): ZIO[Any, Throwable, Long]
+}
+```
+
+To read both counts of a queue:
+
+```scala
+withChannel { channel =>
+  for {
+    _         <- channel.queueDeclare(queue)
+    messages  <- channel.messageCount(queue)
+    consumers <- channel.consumerCount(queue)
+    _         <- Console.printLine(s"$messages messages, $consumers consumers")
+  } yield ()
+}
+```
+
+The counts come from the broker at the moment of the call and can be stale as soon as they arrive. Use them for monitoring and tests, not for coordination.
+
+### Exchanges and Bindings
+
+Publishers send messages to an exchange, and the exchange routes them to queues according to its [`ExchangeType`](./model.md#exchangetype) and the bindings between the exchange and the queues.
+
+#### Channel#exchangeDeclare
+
+`Channel#exchangeDeclare` creates an exchange, or does nothing if one with the same name and properties already exists. The `type` parameter is a Scala keyword-quoted name; pass it by position or as `` `type` = ... ``:
+
+```scala
+class Channel {
+  def exchangeDeclare(
+    exchange: ExchangeName,
+    `type`: ExchangeType,
+    durable: Boolean = false,
+    autoDelete: Boolean = false,
+    internal: Boolean = false,
+    arguments: Map[String, AnyRef] = Map.empty
+  ): ZIO[Any, Throwable, Unit]
+}
+```
+
+The flags mean:
+
+| Parameter    | Meaning                                                                                        |
+| ------------ | ---------------------------------------------------------------------------------------------- |
+| `durable`    | The exchange survives a broker restart.                                                        |
+| `autoDelete` | The broker deletes the exchange once its last binding is removed.                              |
+| `internal`   | Publishers cannot send to the exchange directly; only other exchanges can route messages to it. |
+| `arguments`  | Optional exchange arguments, such as `alternate-exchange`.                                     |
+
+To declare a durable topic exchange:
+
+```scala
+withChannel(_.exchangeDeclare(exchange, ExchangeType.Topic, durable = true))
+```
+
+#### Channel#exchangeDelete
+
+`Channel#exchangeDelete` removes an exchange. With `ifUnused = true`, the broker refuses to delete an exchange that still has bindings:
+
+```scala
+class Channel {
+  def exchangeDelete(
+    exchange: ExchangeName,
+    ifUnused: Boolean = false
+  ): ZIO[Any, Throwable, Unit]
+}
+```
+
+#### Channel#queueBind
+
+`Channel#queueBind` binds a queue to an exchange, so messages that the exchange routes by this binding's `routingKey` end up in the queue. What the key means depends on the exchange type: a direct exchange compares it for equality, a topic exchange treats it as a pattern, and a fanout exchange ignores it. A headers exchange ignores it too and matches on `arguments` instead:
+
+```scala
+class Channel {
+  def queueBind(
+    queue: QueueName,
+    exchange: ExchangeName,
+    routingKey: RoutingKey,
+    arguments: Map[String, AnyRef] = Map.empty
+  ): ZIO[Any, Throwable, Unit]
+}
+```
+
+To route every message with a key that starts with `orders.` to a queue:
+
+```scala
+withChannel { channel =>
+  for {
+    _ <- channel.exchangeDeclare(exchange, ExchangeType.Topic)
+    _ <- channel.queueDeclare(queue)
+    _ <- channel.queueBind(queue, exchange, RoutingKey("orders.#"))
+  } yield ()
+}
+```
+
+The library has no method to remove a binding. Deleting the queue or the exchange removes the bindings that refer to it.
+
+### Publishing
+
+Messages enter the broker through an exchange. One method sends them.
+
+#### Channel#publish
+
+`Channel#publish` sends one message to an exchange. The body is a byte array, so the encoding is up to the caller:
+
+```scala
+class Channel {
+  def publish(
+    exchange: ExchangeName,
+    body: Array[Byte],
+    routingKey: RoutingKey = RoutingKey(""),
+    mandatory: Boolean = false,
+    immediate: Boolean = false,
+    props: AMQP.BasicProperties = new AMQP.BasicProperties()
+  ): ZIO[Any, Throwable, Unit]
+}
+```
+
+The parameters are:
+
+| Parameter    | Meaning                                                                                                                                  |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `exchange`   | Target exchange. `ExchangeName("")` is the default exchange, which routes to the queue named by the routing key.                         |
+| `body`       | Message payload.                                                                                                                         |
+| `routingKey` | Routing key, matched by the exchange's bindings. Defaults to the empty key.                                                              |
+| `mandatory`  | Ask the broker to return the message if it cannot be routed to any queue. ZIO AMQP has no API to receive returned messages.              |
+| `immediate`  | Ask the broker to return the message if no consumer can take it immediately. RabbitMQ 3.0 and later reject this flag, so leave it `false`. |
+| `props`      | Message properties such as `deliveryMode`, `contentType`, `headers` or `correlationId`, from the RabbitMQ client's `AMQP.BasicProperties`. |
+
+The effect completes when the message has been handed to the client's connection. It does not wait for a broker confirmation, so success does not prove that the broker stored the message. A message that no binding matches is silently dropped.
+
+To publish a UTF-8 text message through the default exchange directly to a queue:
+
+```scala
+withChannel { channel =>
+  channel.publish(ExchangeName(""), "hello".getBytes("UTF-8"), RoutingKey(QueueName.unwrap(queue)))
+}
+```
+
+To publish a persistent JSON message with a content type, building the properties with the client's builder:
+
+```scala
+withChannel { channel =>
+  val props = new AMQP.BasicProperties.Builder()
+    .contentType("application/json")
+    .deliveryMode(2)
+    .build()
+
+  channel.publish(exchange, """{"id":1}""".getBytes("UTF-8"), RoutingKey("orders.created"), props = props)
+}
+```
+
+Publishing is safe to call from many fibers at once: calls queue up on the channel's permit and run one at a time.
+
+### Consuming
+
+A consumer receives messages from a queue as a stream. Two methods start it and tune how much the broker sends ahead.
+
+#### Channel#consume
+
+`Channel#consume` registers a consumer on a queue and exposes the deliveries as a `ZStream` of the RabbitMQ client's `com.rabbitmq.client.Delivery`:
+
+```scala
+class Channel {
+  def consume(
+    queue: QueueName,
+    consumerTag: ConsumerTag,
+    autoAck: Boolean = false
+  ): ZStream[Any, Throwable, Delivery]
+}
+```
+
+The parameters are:
+
+| Parameter     | Meaning                                                                                                                      |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `queue`       | Queue to consume from. It must exist.                                                                                        |
+| `consumerTag` | Identifier of this consumer on the channel. It must be unique among the channel's active consumers.                          |
+| `autoAck`     | When `true`, the broker treats a message as acknowledged as soon as it sends it. When `false` (the default), the program must call `Channel#ack` or `Channel#nack`. |
+
+The consumer is registered when the stream starts running, not when `Channel#consume` is called. A `Delivery` has `getBody`, `getEnvelope` and `getProperties`: the envelope holds the delivery tag, the exchange, the routing key and the redelivery flag.
+
+The stream behaves as follows:
+
+- It emits one element per delivery and has no end of its own: it keeps waiting for the next message.
+- When the stream stops, whether it was completed by an operator such as `take`, failed, or interrupted, the consumer is cancelled on the broker. Errors from the cancellation itself are ignored.
+- If the broker cancels the consumer, for example because the queue was deleted, the stream completes.
+- If the channel or connection shuts down, the stream fails with the client's `ShutdownSignalException`.
+
+To print five messages from a queue and acknowledge each one after it has been handled:
+
+```scala
+withChannel { channel =>
+  channel
+    .consume(queue, ConsumerTag("reference-consumer"))
+    .mapZIO { delivery =>
+      Console.printLine(new String(delivery.getBody, "UTF-8")) *>
+        channel.ack(DeliveryTag(delivery.getEnvelope.getDeliveryTag))
+    }
+    .take(5)
+    .runDrain
+}
+```
+
+The delivery tag is a `Long` in the envelope, so it is wrapped in `DeliveryTag` before it is acknowledged. See [Acknowledge Messages](../how-to-acknowledge-messages.md) for the full picture and [Stop a Consumer](../how-to-stop-a-consumer.md) for shutdown patterns.
+
+#### Channel#basicQos
+
+`Channel#basicQos` sets the prefetch count: the maximum number of unacknowledged deliveries the broker sends before it waits for acknowledgements. It is the main tool for bounding how much work a consumer holds at once:
+
+```scala
+class Channel {
+  def basicQos(count: Int, global: Boolean = false): ZIO[Any, Throwable, Unit]
+}
+```
+
+With `global = false`, the limit applies to each consumer started on the channel afterwards. With `global = true`, it is shared by all consumers on the channel. A `count` of `0` means no limit. The setting has no effect on consumers with `autoAck = true`. Call it before `Channel#consume`:
+
+```scala
+withChannel { channel =>
+  channel.basicQos(10) *>
+    channel
+      .consume(queue, ConsumerTag("limited"))
+      .mapZIO(delivery => channel.ack(DeliveryTag(delivery.getEnvelope.getDeliveryTag)))
+      .take(100)
+      .runDrain
+}
+```
+
+See [Limit Prefetch to Apply Back-Pressure](../how-to-limit-prefetch.md).
+
+### Acknowledging
+
+A delivery stays "unacknowledged" on the broker until the consumer settles it. If the channel closes before that, the broker puts the delivery back on the queue and delivers it again. These four methods settle deliveries.
+
+#### Channel#ack
+
+`Channel#ack` acknowledges one delivery, or, with `multiple = true`, every unacknowledged delivery up to and including the given tag on this channel:
+
+```scala
+class Channel {
+  def ack(deliveryTag: DeliveryTag, multiple: Boolean = false): ZIO[Any, Throwable, Unit]
+}
+```
+
+Acknowledging an unknown or already settled tag is a protocol error that closes the channel.
+
+#### Channel#ackMany
+
+`Channel#ackMany` acknowledges several deliveries with a single call to the broker. It sends `Channel#ack` for the highest tag in the sequence with `multiple = true`, so it also acknowledges every lower unacknowledged tag on the channel, including tags that are not in the sequence:
+
+```scala
+class Channel {
+  def ackMany(deliveryTags: Seq[DeliveryTag]): ZIO[Any, Throwable, Unit]
+}
+```
+
+The sequence must not be empty: `Channel#ackMany(Seq.empty)` throws `UnsupportedOperationException` when called, rather than failing the returned effect. To acknowledge a batch of five deliveries at once:
+
+```scala
+withChannel { channel =>
+  channel
+    .consume(queue, ConsumerTag("batch"))
+    .grouped(5)
+    .mapZIO { batch =>
+      val tags = batch.map(d => DeliveryTag(d.getEnvelope.getDeliveryTag))
+      channel.ackMany(tags)
+    }
+    .take(1)
+    .runDrain
+}
+```
+
+#### Channel#nack
+
+`Channel#nack` rejects one delivery, or with `multiple = true` every unacknowledged delivery up to and including the tag. With `requeue = true` the broker puts the message back on its queue; with `requeue = false` (the default) it discards the message, or dead-letters it if the queue has a dead-letter exchange:
+
+```scala
+class Channel {
+  def nack(
+    deliveryTag: DeliveryTag,
+    requeue: Boolean = false,
+    multiple: Boolean = false
+  ): ZIO[Any, Throwable, Unit]
+}
+```
+
+To put a message back on the queue after a failed attempt:
+
+```scala
+withChannel { channel =>
+  channel
+    .consume(queue, ConsumerTag("retrying"))
+    .mapZIO(delivery => channel.nack(DeliveryTag(delivery.getEnvelope.getDeliveryTag), requeue = true))
+    .take(1)
+    .runDrain
+}
+```
+
+`Channel#nack` is a RabbitMQ extension to AMQP 0-9-1, and it can reject several deliveries at once, which the standard `basic.reject` cannot.
+
+#### Channel#nackMany
+
+`Channel#nackMany` rejects several deliveries with a single call. Like `Channel#ackMany`, it uses the highest tag with `multiple = true`, so it affects every lower unacknowledged tag as well, and it throws for an empty sequence:
+
+```scala
+class Channel {
+  def nackMany(deliveryTags: Seq[DeliveryTag], requeue: Boolean = false): ZIO[Any, Throwable, Unit]
+}
+```
+
+---
+
+## Model Types
+
+The `zio.amqp.model` package holds the small types that appear in the signatures of [`Amqp`](./amqp.md) and [`Channel`](./channel.md): five newtypes that keep queue names, exchange names, routing keys, consumer tags and delivery tags from being mixed up, a typed URI, and the `ExchangeType` of an exchange. [`AMQPConfig`](./amqp.md#amqpconfig) lives in the same package. The examples on this page use the following import:
+
+```scala
+import zio.amqp.model._
+```
+
+### Newtypes
+
+Queue names, exchange names, routing keys and consumer tags are all strings, so passing one where another is expected compiles with plain `String` parameters and fails at run time on the broker. The model package wraps each of them in a [ZIO Prelude](https://zio.dev/zio-prelude/) newtype, which the compiler treats as a distinct type and which has no run-time cost:
+
+```scala
+package object model {
+  object QueueName    extends Newtype[String]
+  object ExchangeName extends Newtype[String]
+  object RoutingKey   extends Newtype[String]
+  object ConsumerTag  extends Newtype[String]
+  object DeliveryTag  extends Subtype[Long]
+  object AmqpUri      extends Subtype[URI]
+}
+```
+
+Each object is both the companion and the type: `QueueName` is the type `QueueName.Type` and the constructor `QueueName.apply`. To create the values and get the underlying strings back with `QueueName.unwrap`:
+
+```scala
+val queue    = QueueName("orders")
+// queue: QueueName.Type = "orders"
+val exchange = ExchangeName("orders-exchange")
+// exchange: ExchangeName.Type = "orders-exchange"
+val key      = RoutingKey("orders.created")
+// key: RoutingKey.Type = "orders.created"
+val tag      = ConsumerTag("billing-service")
+// tag: ConsumerTag.Type = "billing-service"
+
+QueueName.unwrap(queue)
+// res0: String = "orders"
+```
+
+Because the newtypes are distinct, a call such as `channel.queueBind(exchange, queue, key)` with the first two arguments swapped does not compile.
+
+#### QueueName
+
+`QueueName` names a queue. [`Channel#queueDeclare`](./channel.md#channelqueuedeclare) accepts an empty name, which asks the broker to generate one, and returns the name it chose as a `String`:
+
+```scala
+val serverNamed = QueueName("")
+```
+
+#### ExchangeName
+
+`ExchangeName` names an exchange. The empty name, `ExchangeName("")`, is the broker's predefined default exchange: it is a direct exchange that routes a message to the queue whose name equals the routing key.
+
+#### RoutingKey
+
+`RoutingKey` is the label a publisher attaches to a message and a binding matches against. [`Channel#publish`](./channel.md#channelpublish) defaults it to `RoutingKey("")`.
+
+#### ConsumerTag
+
+`ConsumerTag` identifies one consumer on a channel. [`Channel#consume`](./channel.md#channelconsume) requires one and uses it again to cancel the consumer when the stream ends, so two live consumers on the same channel must not share a tag.
+
+#### DeliveryTag
+
+`DeliveryTag` identifies a delivery on a channel so it can be acknowledged. It is declared with `Subtype[Long]` rather than `Newtype[Long]`, so a `DeliveryTag` is also a `Long`: it can be passed where a `Long` is expected and compared with `<`. The broker assigns tags in increasing order, which is what makes [`Channel#ackMany`](./channel.md#channelackmany) possible.
+
+The consumer hands out the raw tag as a `Long` through `Delivery#getEnvelope`, so it has to be wrapped before it is acknowledged:
+
+```scala
+import com.rabbitmq.client.Delivery
+
+def tagOf(delivery: Delivery): DeliveryTag =
+  DeliveryTag(delivery.getEnvelope.getDeliveryTag)
+
+val asLong: Long = DeliveryTag(42L)
+```
+
+A delivery tag is only meaningful on the channel that received the delivery. Acknowledging it on another channel is a protocol error.
+
+#### AmqpUri
+
+`AmqpUri` is a `java.net.URI` that has been produced by [`AMQPConfig#toUri`](./amqp.md#converting-to-a-uri). Because it is a subtype, it can be passed to `Amqp.connect(uri: URI)` directly. To build one by hand:
+
+```scala
+import java.net.URI
+
+val uri: AmqpUri = AmqpUri(new URI("amqp://guest:guest@localhost:5672/%2F"))
+```
+
+### ExchangeType
+
+An exchange decides how a published message is routed to queues, and its type fixes the rule. `ExchangeType` is a sealed trait with four cases for the types every RabbitMQ broker provides and one case for types added by plugins:
+
+```scala
+sealed trait ExchangeType extends Product with Serializable {
+  def name: String
+}
+
+object ExchangeType {
+  case object Direct                extends ExchangeType
+  case object Fanout                extends ExchangeType
+  case object Topic                 extends ExchangeType
+  case object Headers               extends ExchangeType
+  case class Custom(`type`: String) extends ExchangeType
+
+  implicit def represent(`type`: ExchangeType): String
+}
+```
+
+The `name` of each case is the string the broker expects. To list them:
+
+```scala
+List(ExchangeType.Direct, ExchangeType.Fanout, ExchangeType.Topic, ExchangeType.Headers).map(_.name)
+// res4: List[String] = List("direct", "fanout", "topic", "headers")
+```
+
+The cases behave as follows:
+
+| Case                   | Routes a message to                                                          |
+| ---------------------- | ---------------------------------------------------------------------------- |
+| `ExchangeType.Direct`  | Queues bound with a routing key equal to the message's routing key.          |
+| `ExchangeType.Fanout`  | Every bound queue; the routing key is ignored.                               |
+| `ExchangeType.Topic`   | Queues whose binding pattern matches the routing key (`*` and `#` wildcards). |
+| `ExchangeType.Headers` | Queues whose binding arguments match the message headers.                    |
+| `ExchangeType.Custom`  | Whatever the plugin that provides the exchange type decides.                 |
+
+`ExchangeType.Custom` carries the type name as given. To refer to an exchange type from a RabbitMQ plugin, such as the delayed-message plugin:
+
+```scala
+ExchangeType.Custom("x-delayed-message").name
+// res5: String = "x-delayed-message"
+```
+
+The implicit conversion `ExchangeType.represent` turns an `ExchangeType` into its name where a `String` is expected, which is how [`Channel#exchangeDeclare`](./channel.md#channelexchangedeclare) passes it to the RabbitMQ client. You rarely need it yourself.
+
+See [Route Messages with Exchanges](../how-to-route-with-exchanges.md) for a worked example of the first three types.
+
+---
+
+## Tutorial: Build a Work Queue
+
+Welcome! In this tutorial we build a small work queue with ZIO AMQP: a producer puts tasks on a queue, and a pool of workers takes them one at a time and confirms each one when it is done. By the end of this tutorial, you will know how to connect to RabbitMQ, declare a queue, publish messages, consume them as a stream, acknowledge them, and spread work fairly over several consumers.
+
+We assume you know the basics of ZIO (effects, `for` comprehensions and `ZIO.scoped`) but nothing about AMQP. The ideas we need are small:
+
+- A broker (here RabbitMQ) accepts messages from producers and hands them to consumers.
+- A queue is a named buffer inside the broker that holds messages until a consumer takes them.
+- A consumer acknowledges a message when it has finished processing it. A message that is never acknowledged is delivered again.
+
+### 1. Start RabbitMQ and Connect
+
+We need a running broker. The repository ships a `docker-compose.yml` that starts RabbitMQ 3.13 on port 5672, the default AMQP port. From the root of the repository, run:
+
+```bash
+docker compose up -d
+```
+
+We also add the library to our project:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-amqp" % "1.0.1"
+```
+
+Now we can connect. `Amqp.connect` opens a connection, and `Amqp.createChannel` opens a channel on it. A channel is the object we use for every operation: declaring queues, publishing and consuming. Both are scoped resources, so `ZIO.scoped` closes them for us when the program ends, even if it fails.
+
+The first program connects with the default settings (`localhost:5672`, user `guest`, password `guest`) and declares a queue named `tasks`. `durable = true` makes the queue survive a broker restart:
+
+```scala
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+val queue = QueueName("tasks")
+
+val program: ZIO[Any, Throwable, Unit] =
+  ZIO.scoped {
+    for {
+      connection <- Amqp.connect(AMQPConfig.default)
+      channel    <- Amqp.createChannel(connection)
+      name       <- channel.queueDeclare(queue, durable = true)
+      _          <- Console.printLine(s"Declared queue: $name")
+    } yield ()
+  }
+```
+
+Running it prints:
+
+```text
+Declared queue: tasks
+```
+
+Declaring a queue is idempotent: if `tasks` already exists with the same settings, nothing changes. That is why every program in this tutorial can declare the queue it uses.
+
+Notice that the names `QueueName("tasks")`, `ConsumerTag("worker")` and so on are wrapped in small types. They keep us from passing a queue name where an exchange name is expected. See [Model Types](./reference/model.md) for the full list.
+
+### 2. Publish Tasks
+
+Publishers do not send messages to a queue directly: they send them to an exchange, which routes them to queues. RabbitMQ provides a default exchange with the empty name. It routes a message to the queue whose name equals the message's routing key, which is exactly what a work queue needs.
+
+To publish five tasks, we call `Channel#publish` once per task. The body is a byte array, so we encode our text as UTF-8. The `MessageProperties.PERSISTENT_TEXT_PLAIN` constant from the RabbitMQ client marks each message as persistent, so the broker writes it to disk and it survives a restart together with the durable queue:
+
+```scala
+import com.rabbitmq.client.MessageProperties
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+val queue = QueueName("tasks")
+
+def publishTasks(channel: Channel): ZIO[Any, Throwable, Unit] =
+  ZIO.foreachDiscard(1 to 5) { i =>
+    channel.publish(
+      exchange = ExchangeName(""),
+      body = s"task-$i".getBytes("UTF-8"),
+      routingKey = RoutingKey(QueueName.unwrap(queue)),
+      props = MessageProperties.PERSISTENT_TEXT_PLAIN
+    )
+  }
+```
+
+The `publishTasks` function needs a `Channel`, so the complete program wraps it in the same connect-and-declare scaffolding as before. The runnable version also asks the broker how many messages are waiting, using `Channel#messageCount`:
+
+<details>
+  <summary>Runnable version, with the connection and the queue from section 1: <code>Concept2PublishExample.scala</code></summary>
+
+```scala
+//> using scala 2.13
+//> using dep dev.zio::zio-amqp:1.0.0
+// Run from this folder:  scala-cli run Concept2PublishExample.scala
+// Or from the repository root:  sbt "zio-amqp-examples/runMain zio.amqp.examples.tutorial.Concept2PublishExample"
+
+package zio.amqp.examples.tutorial
+
+import com.rabbitmq.client.MessageProperties
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+/**
+ * Work Queue Tutorial — 2. Publish Tasks
+ *
+ * Publishes five persistent task messages through the default exchange. Setup from section 1: the connection, the
+ * channel and the durable queue.
+ */
+object Concept2PublishExample extends ZIOAppDefault {
+
+  val queue: QueueName = QueueName("tasks")
+
+  val program: ZIO[Any, Throwable, Unit] =
+    ZIO.scoped {
+      for {
+        connection <- Amqp.connect(AMQPConfig.default)
+        channel    <- Amqp.createChannel(connection)
+        _          <- channel.queueDeclare(queue, durable = true)
+        _          <- ZIO.foreachDiscard(1 to 5) { i =>
+                        channel.publish(
+                          exchange = ExchangeName(""),
+                          body = s"task-$i".getBytes("UTF-8"),
+                          routingKey = RoutingKey(QueueName.unwrap(queue)),
+                          props = MessageProperties.PERSISTENT_TEXT_PLAIN
+                        )
+                      }
+        waiting    <- channel.messageCount(queue)
+        _          <- Console.printLine(s"Messages waiting in the queue: $waiting")
+      } yield ()
+    }
+
+  def run: ZIO[Any, Throwable, Unit] = program
+}
+```
+
+</details>
+
+Running it prints the number of messages in the queue:
+
+```text
+Messages waiting in the queue: 5
+```
+
+The broker updates its message counts asynchronously, so a count read immediately after publishing can occasionally lag behind.
+
+### 3. Consume and Acknowledge
+
+Now we need a worker. `Channel#consume` registers a consumer on a queue and returns a `ZStream` of deliveries. Each element is a RabbitMQ `Delivery` that carries the message body and an envelope with the delivery tag, the number that identifies this delivery on the channel.
+
+After a worker finishes a task, it calls `Channel#ack` with the delivery tag. Only then does the broker forget the message. If the worker crashes before acknowledging, the channel closes and the broker delivers the message to another consumer, so no task is lost.
+
+In the following program, `mapZIO` handles each delivery in order and `take(5)` ends the stream after five tasks. When the stream ends, the consumer is cancelled automatically:
+
+```scala
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+val queue = QueueName("tasks")
+
+def worker(channel: Channel): ZIO[Any, Throwable, Unit] =
+  channel
+    .consume(queue, ConsumerTag("worker"))
+    .mapZIO { delivery =>
+      val task = new String(delivery.getBody, "UTF-8")
+      Console.printLine(s"Working on $task") *>
+        channel.ack(DeliveryTag(delivery.getEnvelope.getDeliveryTag))
+    }
+    .take(5)
+    .runDrain
+```
+
+The envelope returns the tag as a plain `Long`, so we wrap it in `DeliveryTag` for `Channel#ack`.
+
+<details>
+  <summary>Runnable version, with the connection and the queue from section 1: <code>Concept3ConsumeExample.scala</code></summary>
+
+```scala
+//> using scala 2.13
+//> using dep dev.zio::zio-amqp:1.0.0
+// Run from this folder:  scala-cli run Concept3ConsumeExample.scala
+// Or from the repository root:  sbt "zio-amqp-examples/runMain zio.amqp.examples.tutorial.Concept3ConsumeExample"
+
+package zio.amqp.examples.tutorial
+
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+/**
+ * Work Queue Tutorial — 3. Consume and Acknowledge
+ *
+ * Consumes up to five tasks from the queue and acknowledges each one after it is handled. Run Concept2PublishExample
+ * first so the queue has messages.
+ */
+object Concept3ConsumeExample extends ZIOAppDefault {
+
+  val queue: QueueName = QueueName("tasks")
+
+  val program: ZIO[Any, Throwable, Unit] =
+    ZIO.scoped {
+      for {
+        connection <- Amqp.connect(AMQPConfig.default)
+        channel    <- Amqp.createChannel(connection)
+        _          <- channel
+                        .consume(queue, ConsumerTag("worker"))
+                        .mapZIO { delivery =>
+                          val task = new String(delivery.getBody, "UTF-8")
+                          Console.printLine(s"Working on $task") *>
+                            channel.ack(DeliveryTag(delivery.getEnvelope.getDeliveryTag))
+                        }
+                        .take(5)
+                        .runDrain
+      } yield ()
+    }
+
+  def run: ZIO[Any, Throwable, Unit] = program
+}
+```
+
+</details>
+
+If we run the publisher from section 2 and then this worker, the worker prints each task in the order it was published:
+
+```text
+Working on task-1
+Working on task-2
+Working on task-3
+Working on task-4
+Working on task-5
+```
+
+A consumer in ZIO AMQP is just a stream, so everything we know about `ZStream` applies: we can filter, batch with `grouped`, run stages in parallel with `mapZIOPar`, or stop with `take`, `takeUntil` and interruption.
+
+### 4. Share Work Between Workers
+
+A work queue earns its name when several workers share the load. If we start two consumers on the same queue, the broker hands each message to exactly one of them. By default, though, the broker pushes messages to consumers as fast as it can, regardless of how busy they are, so a slow worker can end up with a long backlog while a fast one is idle.
+
+`Channel#basicQos` fixes that. It sets the prefetch count: the maximum number of unacknowledged messages the broker sends to a consumer. With a prefetch of 1, a worker gets its next task only after it has acknowledged the previous one, so work flows to whichever worker is free.
+
+Each worker also gets its own channel, because a channel serializes its operations. The worker below creates a channel, limits its prefetch, and then consumes forever as a background fiber that is tied to the surrounding scope:
+
+```scala
+import com.rabbitmq.client.Connection
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+val queue = QueueName("tutorial-tasks")
+
+def worker(connection: Connection, name: String): ZIO[Scope, Throwable, Unit] =
+  for {
+    channel <- Amqp.createChannel(connection)
+    _       <- channel.basicQos(1)
+    _       <- channel
+                 .consume(queue, ConsumerTag(name))
+                 .mapZIO { delivery =>
+                   val task = new String(delivery.getBody, "UTF-8")
+                   Console.printLine(s"[$name] working on $task") *>
+                     ZIO.sleep(200.millis) *>
+                     channel.ack(DeliveryTag(delivery.getEnvelope.getDeliveryTag))
+                 }
+                 .runDrain
+                 .forkScoped
+  } yield ()
+```
+
+`forkScoped` starts the stream in a new fiber and interrupts it when the scope closes. Interrupting the stream cancels the consumer, and the scope then closes the channel. The `ZIO.sleep` stands in for real work.
+
+### 5. Putting It Together
+
+We now have all the pieces. The complete program declares a queue, starts two workers, publishes ten tasks, and waits until the workers have acknowledged all of them. It differs from the earlier sections in three ways. It uses a separate queue, `tutorial-tasks`, so it cannot collide with leftover messages from the earlier runs. It purges that queue at the start with `Channel#purgeQueue` so that it can be run repeatedly. And the workers share a `Ref` counter and a `Promise` so that the main fiber knows when the last task is done.
+
+<details>
+  <summary>Complete program: <code>CompleteExample.scala</code></summary>
+
+```scala
+//> using scala 2.13
+//> using dep dev.zio::zio-amqp:1.0.0
+// Run from this folder:  scala-cli run CompleteExample.scala
+// Or from the repository root:  sbt "zio-amqp-examples/runMain zio.amqp.examples.tutorial.CompleteExample"
+
+package zio.amqp.examples.tutorial
+
+import com.rabbitmq.client.{ Connection, MessageProperties }
+import zio._
+import zio.amqp._
+import zio.amqp.model._
+
+/**
+ * Work Queue Tutorial — Putting It Together
+ *
+ * Publishes ten tasks and processes them with two competing workers, each on its own channel with a prefetch of one.
+ */
+object CompleteExample extends ZIOAppDefault {
+
+  val queue: QueueName = QueueName("tutorial-tasks")
+  val taskCount: Int   = 10
+
+  def worker(
+    connection: Connection,
+    name: String,
+    processed: Ref[Int],
+    finished: Promise[Nothing, Unit]
+  ): ZIO[Scope, Throwable, Unit] =
+    for {
+      channel <- Amqp.createChannel(connection)
+      _       <- channel.basicQos(1)
+      _       <- channel
+                   .consume(queue, ConsumerTag(name))
+                   .mapZIO { delivery =>
+                     val task = new String(delivery.getBody, "UTF-8")
+                     for {
+                       _ <- Console.printLine(s"[$name] working on $task")
+                       _ <- ZIO.sleep(200.millis)
+                       _ <- channel.ack(DeliveryTag(delivery.getEnvelope.getDeliveryTag))
+                       n <- processed.updateAndGet(_ + 1)
+                       _ <- finished.succeed(()).when(n == taskCount)
+                     } yield ()
+                   }
+                   .runDrain
+                   .forkScoped
+    } yield ()
+
+  val program: ZIO[Any, Throwable, Unit] =
+    ZIO.scoped {
+      for {
+        connection <- Amqp.connect(AMQPConfig.default)
+        channel    <- Amqp.createChannel(connection)
+        _          <- channel.queueDeclare(queue, durable = true)
+        _          <- channel.purgeQueue(queue)
+        processed  <- Ref.make(0)
+        finished   <- Promise.make[Nothing, Unit]
+        _          <- worker(connection, "worker-1", processed, finished)
+        _          <- worker(connection, "worker-2", processed, finished)
+        _          <- ZIO.foreachDiscard(1 to taskCount) { i =>
+                        channel.publish(
+                          exchange = ExchangeName(""),
+                          body = s"task-$i".getBytes("UTF-8"),
+                          routingKey = RoutingKey(QueueName.unwrap(queue)),
+                          props = MessageProperties.PERSISTENT_TEXT_PLAIN
+                        )
+                      }
+        _          <- finished.await
+        left       <- channel.messageCount(queue)
+        _          <- Console.printLine(s"All $taskCount tasks done, $left messages left in the queue")
+      } yield ()
+    }
+
+  def run: ZIO[Any, Throwable, Unit] = program
+}
+```
+
+</details>
+
+When we run it, the two workers alternate, because each takes a new task only when it has finished the last one. The assignment of tasks to workers can differ between runs:
+
+```text
+[worker-2] working on task-1
+[worker-1] working on task-2
+[worker-1] working on task-3
+[worker-2] working on task-4
+[worker-1] working on task-5
+[worker-2] working on task-6
+[worker-1] working on task-7
+[worker-2] working on task-8
+[worker-1] working on task-9
+[worker-2] working on task-10
+All 10 tasks done, 0 messages left in the queue
+```
+
+When the main fiber leaves `ZIO.scoped`, the scope interrupts both workers, which cancels their consumers, closes their channels, and then closes the connection.
+
+### Running the Examples
+
+All runnable code from this tutorial is in [`zio-amqp-examples/src/main/scala/zio/amqp/examples/tutorial/`](https://github.com/zio/zio-amqp/tree/master/zio-amqp-examples/src/main/scala/zio/amqp/examples/tutorial). Start RabbitMQ with `docker compose up -d`, then run any file from that folder with `scala-cli run <File>.scala`, or from the repository root with `sbt "zio-amqp-examples/runMain zio.amqp.examples.tutorial.<ObjectName>"`. Stop the broker with `docker compose down`.
+
+### Where to Go Next
+
+Several how-to guides take the work queue further:
+
+- [Acknowledge Messages](./how-to-acknowledge-messages.md) covers rejecting and requeueing failed tasks.
+- [Limit Prefetch to Apply Back-Pressure](./how-to-limit-prefetch.md) explains choosing the prefetch count.
+- [Stop a Consumer](./how-to-stop-a-consumer.md) shows shutdown patterns for long-running workers.
+- [Route Messages with Exchanges](./how-to-route-with-exchanges.md) goes beyond the default exchange.
 
 ---
 
