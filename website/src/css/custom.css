@@ -455,6 +455,38 @@ a {
   .zio-chat {
     --bytebrain-offset-top: var(--ifm-navbar-height);
   }
+
+  /* Resize handles must sit above the panel: the panel is position: relative
+   (for its gradient edge) and comes later in the DOM, so it would paint over
+   the top-left corner handle and block resizing. */
+  .zio-chat .bytebrain-resize-handle {
+    z-index: 1;
+  }
+
+  /* Maximized view: full window height, centered, over the navbar. The site
+   Tailwind `.block !important` would turn the container back into block layout
+   (panel stuck to the left), so force flex here. Top is 0 and z-index sits above
+   the navbar (z-index 200), so the header buttons stay clickable. */
+  .zio-chat #container.bytebrain-maximized {
+    display: flex !important;
+    top: 0 !important;
+    z-index: 1000;
+  }
+
+
+  /* ── Inline code follows the site's red accent ───────────────────────────
+   0.0.11 hard-coded a blue tint; 0.0.12 defaults to grey and reads these
+   variables. Set them to a soft wash of the primary red, per theme. Text keeps the bubble's own
+   colour, so contrast stays ≥ 9:1 on both bubbles in light and dark. */
+  .zio-chat {
+    --bytebrain-code-bg: color-mix(in srgb, var(--ifm-color-primary) 15%, transparent);
+    --bytebrain-user-code-bg: color-mix(in srgb, var(--ifm-color-primary) 18%, transparent);
+  }
+
+  [data-theme='dark'] .zio-chat {
+    --bytebrain-code-bg: color-mix(in srgb, var(--ifm-color-primary) 30%, transparent);
+    --bytebrain-user-code-bg: color-mix(in srgb, var(--ifm-color-primary) 30%, transparent);
+  }
 } /* end @layer components (ByteBrain chat overrides) */
 
 /* ── Algolia DocSearch: brand-consistent theming ─────────────────────────
