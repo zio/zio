@@ -463,6 +463,15 @@ a {
     z-index: 1;
   }
 
+  /* Maximized view: centered over the whole page, behind the navbar. The site
+   Tailwind `.block !important` would turn the container back into block layout
+   (panel stuck to the left), so force flex here. Top is 0 so the sticky navbar
+   (z-index 200) paints over the backdrop and the panel. */
+  .zio-chat #container.bytebrain-maximized {
+    display: flex !important;
+    top: 0 !important;
+  }
+
 
   /* ── Inline code follows the site's red accent ───────────────────────────
    0.0.11 hard-coded a blue tint; 0.0.12 defaults to grey and reads these
