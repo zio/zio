@@ -456,19 +456,9 @@ a {
     --bytebrain-offset-top: var(--ifm-navbar-height);
   }
 
-  /* Resize handles must sit above the panel: the panel is position: relative
-   (for its gradient edge) and comes later in the DOM, so it would paint over
-   the top-left corner handle and block resizing. */
-  .zio-chat .bytebrain-resize-handle {
-    z-index: 1;
-  }
-
-  /* Maximized view: full window height, centered, over the navbar. The site
-   Tailwind `.block !important` would turn the container back into block layout
-   (panel stuck to the left), so force flex here. Top is 0 and z-index sits above
-   the navbar (z-index 200), so the header buttons stay clickable. */
+  /* Maximized view: full window height, above the navbar (z-index 200), so
+   the header buttons stay clickable. */
   .zio-chat #container.bytebrain-maximized {
-    display: flex !important;
     top: 0 !important;
     z-index: 1000;
   }
