@@ -456,6 +456,14 @@ a {
     --bytebrain-offset-top: var(--ifm-navbar-height);
   }
 
+  /* Resize handles must sit above the panel: the panel is position: relative
+   (for its gradient edge) and comes later in the DOM, so it would paint over
+   the top-left corner handle and block resizing. */
+  .zio-chat .bytebrain-resize-handle {
+    z-index: 1;
+  }
+
+
   /* ── Inline code follows the site's red accent ───────────────────────────
    0.0.11 hard-coded a blue tint; 0.0.12 defaults to grey and reads these
    variables. Set them to a soft wash of the primary red, per theme. Text keeps the bubble's own
