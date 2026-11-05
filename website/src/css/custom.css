@@ -463,13 +463,14 @@ a {
     z-index: 1;
   }
 
-  /* Maximized view: centered over the whole page, behind the navbar. The site
-   Tailwind `.block !important` would turn the container back into block layout
-   (panel stuck to the left), so force flex here. Top is 0 so the sticky navbar
-   (z-index 200) paints over the backdrop and the panel. */
+  /* Maximized view: centered over the whole page, on top of the navbar. The
+   site Tailwind `.block !important` would turn the container back into block
+   layout (panel stuck to the left), so force flex here. Top is 0 and z-index
+   sits above the navbar (z-index 200), so the header buttons stay clickable. */
   .zio-chat #container.bytebrain-maximized {
     display: flex !important;
     top: 0 !important;
+    z-index: 1000;
   }
 
 
