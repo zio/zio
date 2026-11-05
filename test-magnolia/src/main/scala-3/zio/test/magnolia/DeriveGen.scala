@@ -20,6 +20,7 @@ import zio.Chunk
 
 import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util.UUID
+import scala.annotation.threadUnsafe
 import scala.compiletime.{erasedValue, summonInline}
 import scala.deriving._
 import zio._
@@ -30,13 +31,21 @@ trait DeriveGen[A] {
 }
 
 object DeriveGen {
+
+  /**
+   * Non-inlined method to avoid creation of a new anonymous class on each
+   * callsite
+   */
+  private def fromFunction[A](fn: => Gen[Any, A]): DeriveGen[A] =
+    new DeriveGen[A] {
+      def derive: Gen[Any, A] = fn
+    }
+
   def apply[A](using DeriveGen[A]): Gen[Any, A] =
     summon[DeriveGen[A]].derive
 
   inline def instance[A](gen: => Gen[Any, A]): DeriveGen[A] =
-    new DeriveGen[A] {
-      val derive: Gen[Any, A] = gen
-    }
+    fromFunction(gen)
 
   /**
    * Util to derive a `DeriveGen` instance for a union type
@@ -99,27 +108,28 @@ object DeriveGen {
   given [A, T <: Tuple](using a: DeriveGen[A], t: DeriveGen[T]): DeriveGen[A *: T] =
     instance((a.derive <*> t.derive).map(_ *: _))
 
-  inline def gen[T](using m: Mirror.Of[T]): DeriveGen[T] =
-    new DeriveGen[T] {
-      def derive: Gen[Any, T] = {
-        val elemInstances = summonAll[m.MirroredElemTypes]
-        inline m match {
-          case s: Mirror.SumOf[T]     => genSum(s, elemInstances)
-          case p: Mirror.ProductOf[T] => genProduct(p, elemInstances)
-        }
+  inline def gen[T](using m: Mirror.Of[T]): DeriveGen[T] = {
+    @threadUnsafe
+    lazy val fn = {
+      val elemInstances = summonAll[m.MirroredElemTypes]
+      inline m match {
+        case s: Mirror.SumOf[T]     => genSum(s, elemInstances)
+        case p: Mirror.ProductOf[T] => genProduct(p, elemInstances)
       }
     }
+    fromFunction(fn)
+  }
 
   inline given derived[T](using m: Mirror.Of[T]): DeriveGen[T] =
     gen[T]
 
-  def genSum[T](s: Mirror.SumOf[T], instances: => List[DeriveGen[_]]): Gen[Any, T] =
-    Gen.suspend(Gen.oneOf(instances.map(_.asInstanceOf[DeriveGen[T]].derive): _*))
+  def genSum[T](s: Mirror.SumOf[T], instances: => List[DeriveGen[?]]): Gen[Any, T] =
+    Gen.suspend(Gen.oneOf(instances.map(_.asInstanceOf[DeriveGen[T]].derive)*))
 
-  def genProduct[T](p: Mirror.ProductOf[T], instances: => List[DeriveGen[_]]): Gen[Any, T] =
+  def genProduct[T](p: Mirror.ProductOf[T], instances: => List[DeriveGen[?]]): Gen[Any, T] =
     Gen.suspend(Gen.collectAll(instances.map(_.derive)).map(lst => Tuple.fromArray(lst.toArray)).map(p.fromProduct))
 
-  inline def summonAll[T <: Tuple]: List[DeriveGen[_]] =
+  inline def summonAll[T <: Tuple]: List[DeriveGen[?]] =
     inline erasedValue[T] match {
       case _: EmptyTuple => Nil
       case _: (t *: ts)  => summonInline[DeriveGen[t]] :: summonAll[ts]

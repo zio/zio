@@ -39,21 +39,21 @@ private[zio] trait ChunkPlatformSpecific {
       }
     }.asInstanceOf[ClassTag[A]]
 
-    private def isBoolean(c: Class[_]): Boolean =
+    private def isBoolean(c: Class[?]): Boolean =
       (c eq classOf[Boolean]) || (c eq classOf[java.lang.Boolean])
-    private def isByte(c: Class[_]): Boolean =
+    private def isByte(c: Class[?]): Boolean =
       (c eq classOf[Byte]) || (c eq classOf[java.lang.Byte])
-    private def isShort(c: Class[_]): Boolean =
+    private def isShort(c: Class[?]): Boolean =
       (c eq classOf[Short]) || (c eq classOf[java.lang.Short])
-    private def isInt(c: Class[_]): Boolean =
+    private def isInt(c: Class[?]): Boolean =
       (c eq classOf[Int]) || (c eq classOf[java.lang.Integer])
-    private def isLong(c: Class[_]): Boolean =
+    private def isLong(c: Class[?]): Boolean =
       (c eq classOf[Long]) || (c eq classOf[java.lang.Long])
-    private def isFloat(c: Class[_]): Boolean =
+    private def isFloat(c: Class[?]): Boolean =
       (c eq classOf[Float]) || (c eq classOf[java.lang.Float])
-    private def isDouble(c: Class[_]): Boolean =
+    private def isDouble(c: Class[?]): Boolean =
       (c eq classOf[Double]) || (c eq classOf[java.lang.Double])
-    private def isChar(c: Class[_]): Boolean =
+    private def isChar(c: Class[?]): Boolean =
       (c eq classOf[Char]) || (c eq classOf[java.lang.Character])
   }
 }

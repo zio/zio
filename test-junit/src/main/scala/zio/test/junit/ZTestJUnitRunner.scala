@@ -41,7 +41,7 @@ import zio.test.render.LogLine.Message
  * Scala.JS is not supported, as JUnit TestFramework for SBT under Scala.JS
  * doesn't support custom runners.
  */
-class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
+class ZTestJUnitRunner(klass: Class[?]) extends Runner with Filterable {
 
   private val className = klass.getName.stripSuffix("$")
 
@@ -59,7 +59,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       spec: Spec[R, E],
       description: Description,
       path: Vector[String] = Vector.empty
-    ): ZIO[R with Scope, Any, Unit] =
+    ): ZIO[R & Scope, Any, Unit] =
       spec.caseValue match {
         case Spec.ExecCase(_, spec)        => traverse(spec, description, path)
         case Spec.LabeledCase(label, spec) => traverse(spec, description, path :+ label)
@@ -73,7 +73,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       }
 
     val scoped =
-      ZIO.scoped[ZTestJUnitRunner.this.spec.Environment with zio.test.TestEnvironment](
+      ZIO.scoped[ZTestJUnitRunner.this.spec.Environment & zio.test.TestEnvironment](
         traverse(filteredSpec, description)
       )
 
@@ -92,7 +92,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   override def run(notifier: RunNotifier): Unit = {
     val _ = zio.Runtime.default.unsafe.run {
 
-      val instrumented: Spec[spec.Environment with TestEnvironment with Scope, Any] =
+      val instrumented: Spec[spec.Environment & TestEnvironment & Scope, Any] =
         instrumentSpec(filteredSpec, new JUnitNotifier(notifier))
       spec
         .runSpecAsApp(instrumented, TestArgs.empty, Console.ConsoleLive)
