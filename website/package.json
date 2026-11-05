@@ -26,7 +26,7 @@
     "@phosphor-icons/react": "^2.1.10",
     "@tailwindcss/postcss": "4.3.4",
     "@zio.dev/izumi-reflect": "2026.10.2-c6971ad6b21d",
-    "@zio.dev/zio-amqp": "1.0.0-alpha.3",
+    "@zio.dev/zio-amqp": "1.0.1",
     "@zio.dev/zio-aws": "2025.2.9-b3c92258585e",
     "@zio.dev/zio-bson": "1.0.11",
     "@zio.dev/zio-cache": "0.3.0",
