@@ -555,6 +555,5 @@ module.exports = {
       className: "eco-add-library"
     }
   ],
-  "resources-sidebar": ["resources/index"],
   ...perProjectSidebars
 }
