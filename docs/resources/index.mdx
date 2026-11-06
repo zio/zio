@@ -1,0 +1,48 @@
+---
+id: index
+title: "Resources"
+---
+
+import { CardGrid, ResourceCard, Banner } from '@site/src/components/ui/ResourceCards';
+
+Looking for something specific? It's probably already got a home:
+
+- **Libraries & tools** → [Ecosystem](../ecosystem/index.mdx) (official + community-maintained, added via PR)
+- **Talks & conference recordings** → [Events](../events/index.mdx) (Functional Scala, ZIO World, Zymposiums)
+- **API docs** → <a href="/api/">API reference</a> (the Scaladoc of every ZIO module)
+
+## Books
+
+<CardGrid>
+  <ResourceCard title="Zionomicon" href="https://www.zionomicon.com/" cta="Read Zionomicon">
+    The comprehensive book on ZIO, by John A. De Goes, Adam Fraser, and Milad Khajavi.
+  </ResourceCard>
+  <ResourceCard title="Effect-Oriented Programming" href="https://effectorientedprogramming.com/" cta="Visit the book site">
+    Building complex applications with ZIO, by Bill Frasure, Bruce Eckel, and James Ward.
+  </ResourceCard>
+</CardGrid>
+
+## Courses
+
+<CardGrid>
+  <ResourceCard eyebrow="Alvin Alexander" badge="Free" badgeKind="free" title="Alvin Alexander's ZIO video courses" href="https://www.learnscala.dev/my-courses" cta="Browse the courses">
+    Free YouTube courses covering ZIO fundamentals, ZIO Streams, ZIO Kafka, and ZIO HTTP + Caliban.
+  </ResourceCard>
+  <ResourceCard eyebrow="Rock the JVM" badge="Paid" badgeKind="paid" title="Daniel Ciocîrlan's ZIO courses on Rock the JVM" href="https://rockthejvm.com/courses/zio" cta="See the courses">
+    Paid courses covering ZIO fundamentals and the full-stack [ZIO Rite of Passage](https://rockthejvm.com/courses/zio-rite-of-passage).
+  </ResourceCard>
+</CardGrid>
+
+## Stay in the loop
+
+<CardGrid cols={3}>
+  <ResourceCard title="Discord" href="https://discord.gg/2ccFBr4" cta="Join Discord">
+    The most active place for ZIO discussion, help, and links to new community content as it's published.
+  </ResourceCard>
+  <ResourceCard title="Twitter/X" href="https://twitter.com/zioscala" cta="Follow @zioscala" />
+  <ResourceCard title="GitHub Discussions" href="https://github.com/zio/zio/discussions" cta="Open Discussions" />
+</CardGrid>
+
+<Banner title="Add your own content">
+  Wrote a blog post, gave a talk, built something with ZIO? Don't wait for a docs PR — share it on [Discord](https://discord.gg/2ccFBr4) or [GitHub Discussions](https://github.com/zio/zio/discussions) where the community will actually see it. If it's a library, add it to the [Ecosystem](../ecosystem/index.mdx) page.
+</Banner>
