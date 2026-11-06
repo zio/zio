@@ -328,7 +328,7 @@ jobs:
           commit_message="Update $package_name to $package_version"
           git commit -m "$commit_message" || echo "No changes to commit"
       - name: Generate a token
-        id: generate-tokens
+        id: generate-token
         uses: actions/create-github-app-token@v3.2.0
         with:
           app-id: ${{ secrets.APP_ID }}
