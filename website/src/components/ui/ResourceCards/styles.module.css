@@ -62,11 +62,11 @@
 }
 
 .cardLink:hover::before,
-.cardLink:focus-within::before {
+.cardLink:has(.titleLink:focus-visible)::before {
   opacity: 1;
 }
 
-.cardLink:focus-within {
+.cardLink:has(.titleLink:focus-visible) {
   outline: 2px solid var(--ifm-color-primary);
   outline-offset: 2px;
 }
