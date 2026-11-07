@@ -531,7 +531,11 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Pub/Sub](https://zio.dev/zio-redis/pub-sub.md): Redis Pub/Sub lets clients publish messages to named channels and lets other clients receive them as they arrive. ZIO Redis splits the feature in t...
 - [Testing](https://zio.dev/zio-redis/testing.md): Tests that talk to Redis need a server. The `zio-redis-embedded` module starts a real Redis process for the duration of a test and shuts it down af...
 - [Tutorial: Build a Rate Limiter](https://zio.dev/zio-redis/tutorial-rate-limiter.md): Welcome! In this tutorial we build a small rate limiter with ZIO Redis. By the end, you will have a service that allows at most a fixed number of r...
-- [Introduction to ZIO RocksDB](https://zio.dev/index-29.md): A ZIO-based interface to RocksDB.
+- [Introduction to ZIO RocksDB](https://zio.dev/index-29.md): ZIO RocksDB is a ZIO-native wrapper around the RocksDB embedded key-value store: layers, streaming iterators, transactions and typed serialization.
+- [Iterators and Range Scans](https://zio.dev/zio-rocksdb/iterators.md): Scan a RocksDB database as a ZStream: full scans, range scans from a key, backward scans, and scans over column families.
+- [Serialization](https://zio.dev/zio-rocksdb/serialization.md): Store typed keys and values in RocksDB by composing Serializer, Deserializer and Serde values, and handle decoding failures with DeserializeError.
+- [Transactions](https://zio.dev/zio-rocksdb/transactions.md): Update several RocksDB keys atomically with TransactionDB: atomically, manual transactions, getForUpdate locking, rollback and lock conflicts.
+- [Write Batches](https://zio.dev/zio-rocksdb/write-batch.md): Apply several RocksDB writes atomically with WriteBatch and RocksDB#write, and control durability with flush and flushWal.
 - [Credentials](https://zio.dev/zio-s3/credentials.md): zio-s3 expose credentials providers from aws https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html
 - [Introduction to ZIO S3](https://zio.dev/index-30.md): [ZIO S3](https://github.com/zio/zio-s3) is a thin wrapper over S3 async client for ZIO.
 - [Testing](https://zio.dev/zio-s3/testing.md): A stub implementation of s3 storage is provided for testing purpose and use internally a filesystem to simulate s3 storage

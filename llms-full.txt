@@ -2606,12 +2606,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20439/0x00007f501f0a74d8@29bd30a5
+//   eval = zio.Ref$$$Lambda$20447/0x00007f18e61ce000@5a831f70
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20439/0x00007f501f0a74d8@735eac93
+//   eval = zio.Ref$$$Lambda$20447/0x00007f18e61ce000@6e3c2768
 // )
 
 sealed trait State
@@ -2622,7 +2622,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20439/0x00007f501f0a74d8@10c72c09
+//   eval = zio.Ref$$$Lambda$20447/0x00007f18e61ce000@6c87332e
 // )
 ```
 
@@ -2639,7 +2639,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20439/0x00007f501f0a74d8@1ee3f78d
+//   eval = zio.Ref$$$Lambda$20447/0x00007f18e61ce000@63ef04d4
 // )
 ```
 
@@ -2651,7 +2651,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20439/0x00007f501f0a74d8@22944778
+//   eval = zio.Ref$$$Lambda$20447/0x00007f18e61ce000@9b5df1c
 // )
 ```
 
@@ -15760,25 +15760,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@51a4fecc
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@490f32cb
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@6347535f
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@4d43e5f
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@52922fe4
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@57ef3692
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-11-07T16:13:49.134149261Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-11-07T18:21:38.680340692Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@42910add
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@5d6c4a6f
 ```
 
 ### Construction / Creating Instances
@@ -16892,7 +16892,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20560/0x00007f501f13d650@1a3299b5
+//   eval = zio.Supervisor$$$Lambda$20568/0x00007f18e57a6c50@71b9f775
 // )
 ```
 
@@ -17721,7 +17721,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19574/0x00007f501eed1050@5bcd240f
+//     f = zio.ZIO$$$Lambda$19582/0x00007f18e71a95d0@57af2799
 //   ),
 //   successK = <function1>
 // )
@@ -18502,7 +18502,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@765f494c
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@63e517fe
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -18515,12 +18515,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18812/0x00007f501ed160d8@2bd21597
+//       eval = zio.ZIO$$$Lambda$18805/0x00007f18e6fec000@73bf7112
 //     ),
-//     successK = zio.ZIO$$$Lambda$19564/0x00007f501eec2800@72a9feda
+//     successK = zio.ZIO$$$Lambda$19572/0x00007f18e719af98@e7c8427
 //   ),
-//   successK = zio.ZIO$$$Lambda$18815/0x00007f501ed17748@38ce50fa,
-//   failureK = zio.ZIO$$Lambda$20356/0x00007f501f074580@6fa0155a
+//   successK = zio.ZIO$$$Lambda$18810/0x00007f18e6fee278@6627e098,
+//   failureK = zio.ZIO$$Lambda$20364/0x00007f18e5ea79f0@50c6a5cd
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -18532,11 +18532,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18812/0x00007f501ed160d8@2bd21597
+//       eval = zio.ZIO$$$Lambda$18805/0x00007f18e6fec000@73bf7112
 //     ),
-//     successK = zio.ZIO$$$Lambda$19564/0x00007f501eec2800@233018e8
+//     successK = zio.ZIO$$$Lambda$19572/0x00007f18e719af98@9396059
 //   ),
-//   successK = zio.ZIO$$Lambda$20586/0x00007f501f1575d0@6bd2af2a
+//   successK = zio.ZIO$$Lambda$20594/0x00007f18e57dfa68@667cba9b
 // )
 ```
 
@@ -23838,7 +23838,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@eb6a799
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@597ba1bb
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -23866,9 +23866,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
+//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
 //   ),
-//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@5528b785
+//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@3d265692
 // )
 ```
 
@@ -23917,7 +23917,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@5ea8fcca
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@29bf0ba4
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -23947,9 +23947,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
+//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
 //   ),
-//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@2f459494
+//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@445b48be
 // )
 ```
 
@@ -23980,7 +23980,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@4f670cbb
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@4cc750c5
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -23995,9 +23995,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
+//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
 //   ),
-//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@4d91c7d7
+//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@6297d1a9
 // )
 ```
 
@@ -24041,7 +24041,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@62924297
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@66138669
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24058,9 +24058,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
+//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
 //   ),
-//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@4091e69c
+//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@57afc459
 // )
 ```
 
@@ -24092,7 +24092,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@5d77f535
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@30f7ac03
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -24109,9 +24109,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
+//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
 //   ),
-//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@43f3d4c
+//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@55fb32cf
 // )
 ```
 
@@ -24143,7 +24143,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@95124a0
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@546e4e59
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -24174,9 +24174,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
+//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
 //   ),
-//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@61055762
+//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@130428e2
 // )
 ```
 
@@ -24209,7 +24209,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@749d6be7
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@1d46db61
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24225,9 +24225,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
+//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
 //   ),
-//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@65f82755
+//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@3b55dd01
 // )
 ```
 
@@ -24258,7 +24258,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@27a66833
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@33339c14
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -24285,9 +24285,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
+//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
 //   ),
-//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@74cedbf1
+//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@58e9d92d
 // )
 ```
 
@@ -24307,7 +24307,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@32a4d443
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@33f2bc4d
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24330,9 +24330,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
+//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
 //   ),
-//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@62413027
+//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@62e0a18f
 // )
 ```
 
@@ -24348,7 +24348,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@4def7cdc
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@61594f8
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -24370,9 +24370,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
+//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
 //   ),
-//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@5aa48004
+//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@b7ad395
 // )
 ```
 
@@ -24388,7 +24388,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@6925c3dd
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@be9be3f
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -24408,9 +24408,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
+//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
 //   ),
-//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@7bceffa8
+//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@4849e97b
 // )
 ```
 
@@ -24428,7 +24428,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@7319e691
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@3821387d
 
 val example = {
   val scoped = ZIO.scoped {
@@ -24450,9 +24450,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
+//       eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
 //     ),
-//     successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@ef9671d
+//     successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@4d1572a4
 //   ),
 //   successK = <function1>
 // )
@@ -28457,14 +28457,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@563c202d
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@a7adda0
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@86cd95
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@5d056fd7
 ```
 
 ### From ZIO
@@ -35191,9 +35191,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$20048/0x00007f501efa61e0@7968a6cc
+//             onState = zio.ZIO$$$Lambda$20056/0x00007f18e63b5f20@7dea3c9e
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$20056/0x00007f501efab9a0@3c6a3785
+//           successK = zio.test.package$ZTest$$$Lambda$20064/0x00007f18e62d75a8@38e8ad47
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -38183,7 +38183,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+56-7ec32d7e-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+57-1f87d74f-SNAPSHOT"
 ```
 
 ### Example
@@ -50139,9 +50139,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
+//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
 //   ),
-//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@6892df34
+//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@760e35ff
 // )
 ```
 
@@ -91763,61 +91763,821 @@ If the process fails between `Redis#incr` and `Redis#expire` on the first reques
 
 ## Introduction to ZIO RocksDB
 
-A ZIO-based interface to RocksDB.
+[ZIO RocksDB](https://github.com/zio/zio-rocksdb) is a ZIO-based interface to [RocksDB](https://rocksdb.org), an embeddable persistent key-value store that is optimized for fast storage. The library wraps the RocksDB Java API (`rocksdbjni`) so that a database handle is a `ZLayer`, every operation is a `ZIO` effect, and scans are `ZStream`s.
+
+[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-rocksdb/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-rocksdb_2.12.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-rocksdb_2.12) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-rocksdb_2.12%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-rocksdb_2.12/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-rocksdb_2.12/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-rocksdb_2.12) [![ZIO RocksDB](https://img.shields.io/github/stars/zio/zio-rocksdb?style=social)](https://github.com/zio/zio-rocksdb)
+
+### What the Library Provides
+
+ZIO RocksDB covers the parts of the RocksDB API that an application touches most often:
+
+| Capability                          | Entry point                           | Guide                                       |
+| ----------------------------------- | ------------------------------------- | ------------------------------------------- |
+| Reading and writing keys            | `RocksDB`                             | This page                                   |
+| Typed keys and values               | `Serializer`, `Deserializer`, `Serde` | [Serialization](./serialization.md)         |
+| Scanning and range queries          | `RocksDB#newIterator`                 | [Iterators and Range Scans](./iterators.md) |
+| Atomic multi-key updates            | `TransactionDB`, `Transaction`        | [Transactions](./transactions.md)           |
+| Atomic batched writes without locks | `WriteBatch`, `RocksDB#write`         | [Write Batches](./write-batch.md)           |
 
 ### Installation
 
-Add the following dependencies to your `build.sbt` file:
+To use the library, add the following line to `build.sbt`:
+
 ```scala
-libraryDependencies ++= Seq(
-  "dev.zio" %% "zio-rocksdb" % "0.4.2"
-)
+libraryDependencies += "dev.zio" %% "zio-rocksdb" % "0.4.5"
 ```
 
-### Using RocksDB
+The library is published for Scala 2.12, 2.13 and 3, requires ZIO 2, and runs on JDK 17 or newer. The native RocksDB binaries come with the `rocksdbjni` dependency, so no separate installation of RocksDB is needed.
 
-Use the provided `RocksDB` wrapper:
+### Getting Started
+
+Every operation in ZIO RocksDB takes and returns `Array[Byte]`, because that is what RocksDB stores. The examples below encode strings as UTF-8 by hand; to avoid this for richer types, see [Serialization](./serialization.md).
+
+#### Opening a Database
+
+To open a database, build a `ZLayer` with `RocksDB.live`. The layer opens the database when the layer is built and closes it when the enclosing `Scope` ends, so the handle cannot leak. To create the database directory when it does not exist yet, pass an `Options` value with `setCreateIfMissing(true)`:
 
 ```scala
-import java.nio.charset.StandardCharsets
+import org.rocksdb.Options
+import zio._
+import zio.rocksdb.RocksDB
 
-import zio.rocksdb
-import zio.rocksdb.{ RocksDB }
-
-val UTF_8 = StandardCharsets.UTF_8
-val key   = "key".getBytes(UTF_8)
-val value = "value".getBytes(UTF_8)
-
-val database  = RocksDB.live("/data/state")
-val readWrite = RocksDB.put(key, value) *> RocksDB.get(key)
-val result    = readWrite.provideCustomLayer(database)
+val database: ZLayer[Any, Throwable, RocksDB] =
+  RocksDB.live(new Options().setCreateIfMissing(true), "/tmp/zio-rocksdb-intro")
 ```
 
-### Using TransactionDB
+`RocksDB.live(path)` is a shorthand that opens the database with RocksDB's default options.
 
-`zio-rocksdb` provides transactional capabilities using RocksDB [Transaction API].
+#### Reading, Writing and Deleting Keys
+
+Once a `RocksDB` layer is available, the accessor methods on the `RocksDB` companion object write, read and delete keys. `RocksDB.get` returns `None` when the key does not exist:
 
 ```scala
-import java.nio.charset.StandardCharsets
+import java.nio.charset.StandardCharsets.UTF_8
+import org.rocksdb.Options
+import zio._
+import zio.rocksdb.RocksDB
 
-import zio.rocksdb
-import zio.rocksdb.{ TransactionDB, Transaction }
+object IntroExample extends ZIOAppDefault {
+  private val key   = "greeting".getBytes(UTF_8)
+  private val value = "hello".getBytes(UTF_8)
 
-val key0   = "key0".getBytes(UTF_8)
-val key1   = "key1".getBytes(UTF_8)
-val value0 = "value0".getBytes(UTF_8)
-val value1 = "value1".getBytes(UTF_8)
+  private val program: ZIO[RocksDB, Throwable, Unit] =
+    for {
+      _       <- RocksDB.put(key, value)
+      found   <- RocksDB.get(key)
+      _       <- Console.printLine(found.map(new String(_, UTF_8)))
+      _       <- RocksDB.delete(key)
+      missing <- RocksDB.get(key)
+      _       <- Console.printLine(missing.isEmpty)
+    } yield ()
 
-val database      = TransactionDB.live("/data/state")
-val write0        = Transaction.put(key0, value0)
-val write1        = Transaction.put(key1, value1)
-val writeTogether = TransactionDB.atomically {
-  write0 <&> write1
+  def run =
+    program.provide(RocksDB.live(new Options().setCreateIfMissing(true), "/tmp/zio-rocksdb-intro"))
 }
-val result        = readWrite.provideCustomLayer(database)
 ```
 
-[Transaction API]: https://github.com/facebook/rocksdb/wiki/Transactions#transactiondb
+All operations fail with `Throwable`, which is whatever RocksDB raised (a `RocksDBException` for most storage errors).
+
+#### Reading Several Keys at Once
+
+To fetch many keys in one call, use `RocksDB.multiGetAsList`. The result list lines up positionally with the keys that were passed in, with `None` for each missing key:
+
+```scala
+import java.nio.charset.StandardCharsets.UTF_8
+import zio._
+import zio.rocksdb.RocksDB
+
+val lookup: ZIO[RocksDB, Throwable, List[Option[String]]] =
+  RocksDB
+    .multiGetAsList(List("a", "b", "c").map(_.getBytes(UTF_8)))
+    .map(_.map(_.map(new String(_, UTF_8))))
+```
+
+### Where to Go Next
+
+The rest of the documentation builds on the layer and the accessor methods shown above. [Serialization](./serialization.md) explains how to store domain types instead of raw bytes, [Iterators and Range Scans](./iterators.md) shows how to read ranges of keys as a stream, [Transactions](./transactions.md) covers `TransactionDB` for atomic multi-key updates, and [Write Batches](./write-batch.md) shows how to apply several writes atomically without a transaction.
+
+---
+
+## Iterators and Range Scans
+
+RocksDB keeps keys sorted, which makes it good at reading many neighbouring keys at once. In this guide we scan a database with `RocksDB#newIterator`, which exposes a RocksDB iterator as a `ZStream`. By the end, you will be able to read all entries, start a scan at a given key, stop at the end of a key prefix, and read the newest entries first.
+
+We start with a full scan, then add a starting position, an upper bound and a direction.
+
+### The Problem
+
+`RocksDB.get` needs the exact key. To list everything stored under a key prefix, or the last few entries written, the application has to ask RocksDB for entries in key order. With the raw `rocksdbjni` API this means creating a `RocksIterator`, positioning it, advancing it in a loop, and closing it on every exit path, including failures and interruption:
+
+```scala
+import org.rocksdb.RocksDB
+
+def keysFrom(db: RocksDB, start: Array[Byte]): List[Array[Byte]] = {
+  val it = db.newIterator()
+  try {
+    it.seek(start)
+    val keys = List.newBuilder[Array[Byte]]
+    while (it.isValid) {
+      keys += it.key()
+      it.next()
+    }
+    keys.result()
+  } finally it.close()
+}
+```
+
+A forgotten `close` leaks native memory, and the loop loads everything into memory before the caller can stop it. ZIO RocksDB turns the iterator into a stream that opens the native iterator when the stream starts, closes it when the stream ends, fails or is interrupted, and reads entries only as fast as the consumer pulls them.
+
+### Scanning All Entries
+
+`RocksDB.newIterator` returns a `ZStream[RocksDB, Throwable, (Array[Byte], Array[Byte])]` of key-value pairs, starting at the first key and moving forward. All of the stream operators apply, for example `ZStream#take` to read only the first entries:
+
+```scala
+import java.nio.charset.StandardCharsets.UTF_8
+import zio._
+import zio.rocksdb.RocksDB
+
+val firstTen: ZIO[RocksDB, Throwable, List[(String, String)]] =
+  RocksDB.newIterator
+    .take(10)
+    .map { case (key, value) => new String(key, UTF_8) -> new String(value, UTF_8) }
+    .runCollect
+    .map(_.toList)
+```
+
+For a database holding the keys `a1`, `a2`, `a3`, `b1`, `b2` and `c1`, a full scan emits them in that order, because RocksDB compares keys byte by byte. Taking the first two entries stops the stream, and the native iterator is closed right away.
+
+### Starting at a Key
+
+To start somewhere other than the first key, use the accessor on the `RocksDB` service, which takes a `Direction` and a `Position`. `Position.Target` seeks to the first key that is greater than or equal to the target, so the target does not have to exist. The `RocksDB` companion object has no accessor for this overload, so we reach it through the service with `ZStream.serviceWithStream`:
+
+```scala
+import java.nio.charset.StandardCharsets.UTF_8
+import zio._
+import zio.rocksdb.RocksDB
+import zio.rocksdb.iterator.{ Direction, Position }
+import zio.stream.ZStream
+
+def scanFrom(start: String): ZStream[RocksDB, Throwable, (Array[Byte], Array[Byte])] =
+  ZStream.serviceWithStream[RocksDB](
+    _.newIterator(Direction.Forward, Position.Target(Chunk.fromArray(start.getBytes(UTF_8))))
+  )
+```
+
+With the example keys above, `scanFrom("b")` emits `b1`, `b2` and `c1`, and `scanFrom("z")` emits nothing.
+
+### Scanning a Key Prefix
+
+RocksDB iterators have no upper bound, so a scan that starts at a target continues to the end of the database. To read only the entries under a prefix, start at the prefix and stop with `ZStream#takeWhile` as soon as a key no longer starts with it:
+
+```scala
+import java.nio.charset.StandardCharsets.UTF_8
+import zio._
+import zio.rocksdb.RocksDB
+import zio.rocksdb.iterator.{ Direction, Position }
+import zio.stream.ZStream
+
+def scanPrefix(prefix: String): ZStream[RocksDB, Throwable, (String, String)] =
+  ZStream
+    .serviceWithStream[RocksDB](
+      _.newIterator(Direction.Forward, Position.Target(Chunk.fromArray(prefix.getBytes(UTF_8))))
+    )
+    .map { case (key, value) => new String(key, UTF_8) -> new String(value, UTF_8) }
+    .takeWhile { case (key, _) => key.startsWith(prefix) }
+```
+
+With the example keys, `scanPrefix("b")` emits `b1` and `b2`. Because `ZStream#takeWhile` ends the stream at the first key outside the prefix, the scan reads only one entry past the range.
+
+### Reading Backward
+
+`Direction.Backward` walks from higher keys to lower keys. Together with `Position.Last`, this reads the newest entries first when keys are ordered by time or by a counter. The first `n` entries from the end:
+
+```scala
+import java.nio.charset.StandardCharsets.UTF_8
+import zio._
+import zio.rocksdb.RocksDB
+import zio.rocksdb.iterator.{ Direction, Position }
+import zio.stream.ZStream
+
+def lastKeys(n: Long): ZIO[RocksDB, Throwable, List[String]] =
+  ZStream
+    .serviceWithStream[RocksDB](_.newIterator(Direction.Backward, Position.Last))
+    .take(n)
+    .map { case (key, _) => new String(key, UTF_8) }
+    .runCollect
+    .map(_.toList)
+```
+
+With the example keys, `lastKeys(3)` returns `c1`, `b2` and `b1`.
+
+:::warning
+`Position.Target` always seeks forward to the first key greater than or equal to the target, even when the direction is `Direction.Backward`. If the target key exists, a backward scan starts at it and then walks down. If it does not exist, the scan starts at the next key above the target, which is probably not what a "start at or below this key" query needs. With the example keys, a backward scan from target `b` emits `b1`, `a3`, `a2` and `a1`. A target above the last key emits nothing in either direction.
+:::
+
+### Scanning Column Families
+
+A `ColumnFamilyHandle` comes from `RocksDB.createColumnFamily`, which returns the handle of the family it creates. Each overload has a column family variant that takes a handle first: `RocksDB.newIterator(cfHandle)` scans the whole family forward, and `RocksDB.newIterator(cfHandle, direction, position)` takes a direction and a position like the default-family overload. `RocksDB.newIterators` scans several families at once and emits one pair of handle and entry stream for each, always forward from the first key:
+
+```scala
+import org.rocksdb.ColumnFamilyHandle
+import zio._
+import zio.rocksdb.RocksDB
+
+def countEntries(handles: List[ColumnFamilyHandle]): ZIO[RocksDB, Throwable, List[(ColumnFamilyHandle, Long)]] =
+  RocksDB
+    .newIterators(handles)
+    .mapZIO { case (handle, entries) => entries.runCount.map(handle -> _) }
+    .runCollect
+    .map(_.toList)
+```
+
+:::note
+Opening a database with column family descriptors does not return the handles through `RocksDB#initialHandles` yet, which is a known bug. Until it is fixed, obtain handles from `RocksDB.createColumnFamily`.
+:::
+
+### Decoding Entries
+
+The stream carries raw bytes. To scan typed values, map each pair through a `Deserializer` or `Serde` from [Serialization](./serialization.md). Mapping with `ZStream#mapZIO` and failing with the decoding error keeps the failure inside the stream:
+
+```scala
+import zio._
+import zio.rocksdb._
+import zio.stream.ZStream
+
+def scanLongs(deserializer: Deserializer[Any, Long]): ZStream[RocksDB, Throwable, (Long, Long)] =
+  RocksDB.newIterator.mapZIO { case (key, value) =>
+    val decoded =
+      for {
+        k <- deserializer.decode(Chunk.fromArray(key)).map(_.value)
+        v <- deserializer.decode(Chunk.fromArray(value)).map(_.value)
+      } yield (k, v)
+    decoded.mapError(error => new RuntimeException(error.message))
+  }
+```
+
+### Going Further
+
+For several writes that must succeed or fail together, see [Transactions](./transactions.md) and [Write Batches](./write-batch.md).
+
+---
+
+## Serialization
+
+RocksDB stores keys and values as raw bytes, so every `RocksDB` operation takes and returns `Array[Byte]`. In this guide we build encoders and decoders for domain types out of small, composable pieces: `Serializer`, `Deserializer` and `Serde`. By the end, you will have a typed `RocksDB.put` and `RocksDB.get` for a case class that converts to bytes and back without hand-written buffer code.
+
+We start with the primitive encoders that ship with the library, then compose them into larger ones, handle decoding failures, and finally connect the result to a database.
+
+### The Problem
+
+Without help, every call site converts its own types to bytes and back. Fixed-width numbers need a `ByteBuffer`, and a record with several fields needs the reader to know the exact layout the writer used:
+
+```scala
+import java.nio.ByteBuffer
+import java.nio.charset.StandardCharsets.UTF_8
+
+def encodeUser(id: Long, name: String): Array[Byte] = {
+  val nameBytes = name.getBytes(UTF_8)
+  val buf       = ByteBuffer.allocate(8 + nameBytes.length)
+  buf.putLong(id)
+  buf.put(nameBytes)
+  buf.array()
+}
+
+def decodeUser(bytes: Array[Byte]): (Long, String) = {
+  val buf  = ByteBuffer.wrap(bytes)
+  val id   = buf.getLong()
+  val rest = new Array[Byte](bytes.length - 8)
+  buf.get(rest)
+  (id, new String(rest, UTF_8))
+}
+```
+
+This code is easy to get subtly wrong: a truncated array throws a `BufferUnderflowException` instead of a typed failure, the layout is duplicated across two functions, and nothing makes the writer and the reader agree. ZIO RocksDB replaces this with encoders and decoders that are values, which can be combined and reused.
+
+### The Building Blocks
+
+A `Serializer[R, A]` turns an `A` into `Bytes`, where `Bytes` is an alias for `Chunk[Byte]`. A `Deserializer[R, A]` does the reverse, and a `Serde[R, A]` is both at once:
+
+```scala
+trait Serializer[-R, -A] {
+  def apply(a: A): URIO[R, Bytes]
+}
+
+trait Deserializer[-R, +A] {
+  def decode(bytes: Bytes): ZIO[R, DeserializeError, Result[A]]
+}
+
+trait Serde[-R, A] extends Serializer[R, A] with Deserializer[R, A]
+```
+
+Encoding cannot fail, so `Serializer#apply` returns a `URIO`. Decoding can fail with a `DeserializeError`. A decoder does not need to consume all of its input: it returns a `Result`, which pairs the decoded `value` with the `remainder` bytes it did not use. This is what allows decoders to be chained, because the next decoder starts from the remainder of the previous one.
+
+The `R` type parameter is the environment an encoder or decoder needs. Every built-in one uses `Any`, so none of them requires a service.
+
+To run effects in the examples below, we define a small helper that runs a `ZIO` value to completion:
+
+```scala
+import zio._
+import zio.rocksdb._
+
+def run[E, A](effect: ZIO[Any, E, A]): A =
+  Unsafe.unsafe(implicit u => Runtime.default.unsafe.run(effect).getOrThrowFiberFailure())
+```
+
+### Encoding Primitives
+
+The `Serializer` companion object provides encoders for `Boolean`, `Byte`, `Char`, `Double`, `Float`, `Int`, `Long` and `Short`, and the `Deserializer` companion object provides the matching decoders. Numbers are written in big-endian order with their natural fixed width.
+
+To encode an `Int` and decode it back:
+
+```scala
+val encoded = run(Serializer.int(42))
+// encoded: Bytes = Chunk.ByteArray(0, 0, 0, 42)
+
+run(Deserializer.int.decode(encoded))
+// res1: Result[Int] = Result(42, Chunk.Empty())
+```
+
+The decoded `Result` holds the value `42` and an empty remainder, because the decoder consumed all four bytes. Decoding fails with a `DeserializeError` when the input is malformed, which we cover in [Handling Decoding Errors](#handling-decoding-errors).
+
+:::note
+RocksDB compares keys byte by byte as unsigned values. A big-endian encoding of a non-negative `Int` or `Long` therefore sorts in numeric order, which makes these encoders a good fit for keys that are scanned in order. Negative numbers sort after all positive numbers, because their first byte is greater than or equal to `0x80`.
+:::
+
+### Encoding Strings and Raw Bytes
+
+`Serializer.string` encodes a `String` as UTF-8, and `Serializer.bytes` and `Serializer.byteArray` pass bytes through unchanged. On the decoding side, `Deserializer.bytes` and `Deserializer.byteArray` hand back everything that is left in the input, and there is no ready-made `Deserializer` for `String`. To get one, map the raw bytes:
+
+```scala
+import java.nio.charset.StandardCharsets.UTF_8
+
+val stringDeserializer: Deserializer[Any, String] =
+  Deserializer.bytes.map(bytes => new String(bytes.toArray, UTF_8))
+```
+
+This decoder consumes the entire input, so it is only correct for a value that stands alone or sits last in a composite. A string in the middle of a record needs a length prefix, which we add in [Composing Encoders for a Record](#composing-encoders-for-a-record).
+
+Using the encoder and the decoder together:
+
+```scala
+run(Serializer.string("hello").flatMap(stringDeserializer.decode))
+// res2: Result[String] = Result("hello", Chunk.Empty())
+```
+
+### Composing Encoders for a Record
+
+We model the record we want to store as a case class:
+
+```scala
+final case class User(id: Long, name: String, active: Boolean)
+```
+
+To build a serializer for `User` out of serializers for its fields, there are three combinators on `Serializer`:
+
+- `Serializer#contramap` adapts a serializer to another type by converting the input first.
+- `Serializer#divide` pairs two serializers into a serializer of tuples that concatenates their output.
+- `Serializer#divideWith` is `Serializer#divide` combined with a function that splits a value of another type into the two parts.
+
+A string must carry its own length when it is followed by other fields, so we write a length-prefixed string serializer first:
+
+```scala
+val lengthPrefixedString: Serializer[Any, String] =
+  Serializer[Any, String] { s =>
+    for {
+      body   <- Serializer.string(s)
+      length <- Serializer.int(body.length)
+    } yield length ++ body
+  }
+```
+
+The serializer for `User` splits the record into its fields and concatenates the encoded pieces in order:
+
+```scala
+val userSerializer: Serializer[Any, User] =
+  Serializer.long
+    .divide(lengthPrefixedString)
+    .divide(Serializer.boolean)
+    .contramap(u => ((u.id, u.name), u.active))
+```
+
+Decoders compose the same way. `Deserializer#zip` runs two decoders one after the other, feeding the remainder of the first into the second, and `Deserializer#map` converts the decoded value. `Deserializer#flatMap` lets a later decoder depend on an earlier value, which is what a length prefix needs:
+
+```scala
+val lengthPrefixedStringDeserializer: Deserializer[Any, String] =
+  Deserializer.int.flatMap { length =>
+    Deserializer[Any, Bytes] { bytes =>
+      val (head, tail) = bytes.splitAt(length)
+      if (head.length < length) ZIO.fail(DeserializeError.TooShort(bytes.length, length))
+      else ZIO.succeed(Result(head, tail))
+    }.map(body => new String(body.toArray, UTF_8))
+  }
+
+val userDeserializer: Deserializer[Any, User] =
+  Deserializer.long
+    .zip(lengthPrefixedStringDeserializer)
+    .zip(Deserializer.boolean)
+    .map { case ((id, name), active) => User(id, name, active) }
+```
+
+A round trip shows that the two sides agree on the layout. The encoded value is 8 bytes for the id, 4 for the name length, 3 for the name and 1 for the flag:
+
+```scala
+val userBytes = run(userSerializer(User(7L, "Ada", true)))
+// userBytes: Bytes = Chunk.Concat(
+//   0,
+//   0,
+//   0,
+//   0,
+//   0,
+//   0,
+//   0,
+//   7,
+//   0,
+//   0,
+//   0,
+//   3,
+//   65,
+//   100,
+//   97,
+//   1
+// )
+
+userBytes.length
+// res3: Int = 16
+
+run(userDeserializer.decode(userBytes))
+// res4: Result[User] = Result(User(7L, "Ada", true), Chunk.Empty())
+```
+
+Tuples have shortcuts. `Serializer.tuple2` through `Serializer.tuple22` take the element serializers as implicit parameters and produce a serializer of the tuple, and `Deserializer.tuple2` through `Deserializer.tuple22` do the same for decoders.
+
+### Optional and Alternative Values
+
+`Serializer.option` and `Serializer.either` encode `Option` and `Either` values, but neither writes a marker for which case was chosen. `Serializer.option` writes no bytes for `None` and the inner encoding for `Some`, and `Serializer.either` writes the encoding of whichever side is present. The same holds for `Serializer#choose` and `Serializer#chooseWith`.
+
+Because the bytes carry no tag, the library provides no decoder for them. When you need to store an optional value, write the tag yourself, as in this serializer and deserializer pair for `Option[Long]`:
+
+```scala
+val optionalLong: Serde[Any, Option[Long]] =
+  Serde(
+    Serializer[Any, Option[Long]] {
+      case None    => Serializer.boolean(false)
+      case Some(l) => Serializer.boolean(true).zipWith(Serializer.long(l))(_ ++ _)
+    },
+    Deserializer.boolean.flatMap {
+      case true  => Deserializer.long.map(Option(_))
+      case false => Deserializer[Any, Option[Long]](bytes => ZIO.succeed(Result(None, bytes)))
+    }
+  )
+```
+
+Both `None` and `Some` round trip:
+
+```scala
+List(Option.empty[Long], Some(5L)).map { value =>
+  run(optionalLong(value).flatMap(optionalLong.decode)).value
+}
+// res5: List[Option[Long]] = List(None, Some(5L))
+```
+
+### Encoding Collections
+
+For collections of fixed-width primitives, `Serializer.ints[List]`, `Serializer.longs`, `Serializer.doubles` and the matching methods for `Char`, `Float` and `Short` write the elements back to back. For other element types, `Serializer.list`, `Serializer.vector` and `Serializer.chunk` take an element serializer, and `Serializer.map` takes a key and a value serializer:
+
+```scala
+val scores = Map(1 -> 10.toShort, 2 -> 20.toShort)
+// scores: Map[Int, Short] = Map(1 -> 10, 2 -> 20)
+
+val scoresBytes = run(Serializer.map(Serializer.int, Serializer.short)(scores))
+// scoresBytes: Bytes = Chunk.Concat(0, 0, 0, 1, 0, 10, 0, 0, 0, 2, 0, 20)
+
+scoresBytes.length
+// res6: Int = 12
+```
+
+Decoding a collection is a two-step construction. `Deserializer.chunk` decodes elements one after another until the input runs out, and `Deserializer.list`, `Deserializer.vector`, `Deserializer.set` and `Deserializer.map` convert the resulting `Chunk`:
+
+```scala
+val scoresDeserializer: Deserializer[Any, Map[Int, Short]] =
+  Deserializer.map(Deserializer.chunk(Deserializer.int.zip(Deserializer.short)))
+```
+
+Decoding the bytes produced above returns the original map:
+
+```scala
+run(scoresDeserializer.decode(scoresBytes))
+// res7: Result[Map[Int, Short]] = Result(Map(1 -> 10, 2 -> 20), Chunk.Empty())
+```
+
+:::warning
+A collection has no length prefix, so `Deserializer.chunk` stops at the first element that does not fit in the remaining bytes and returns the leftover bytes as the `remainder`: decoding the bytes of two `Int` values followed by two extra bytes yields both integers and a two-byte remainder. Use it for collections of fixed-width elements or for a collection stored last in a value. For variable-width elements such as strings, prefix each element with its length, as in `lengthPrefixedString` above.
+:::
+
+### Handling Decoding Errors
+
+Decoders fail with a `DeserializeError`, a sealed class with a `message` and three cases. `DeserializeError.TooShort` reports that the input has fewer bytes than the decoder needs, `DeserializeError.UnexpectedByte` reports a byte outside the accepted set, and `DeserializeError.ChunkError` wraps a `Throwable` raised while decoding. The library's own decoders never produce `ChunkError`; it exists for custom decoders that call code which can throw.
+
+Decoding four bytes of input with a decoder that needs eight fails with `TooShort`, and a boolean decoder rejects any byte other than 0 or 1 with `UnexpectedByte`:
+
+```scala
+run(Deserializer.long.decode(Chunk[Byte](0, 0, 0, 1)).either)
+// res8: Either[DeserializeError, Result[Long]] = Left(TooShort(4, 8))
+
+run(Deserializer.boolean.decode(Chunk[Byte](2)).either)
+// res9: Either[DeserializeError, Result[Boolean]] = Left(
+//   UnexpectedByte(2, List(0, 1))
+// )
+```
+
+Because the error type is `DeserializeError` rather than `Throwable`, a corrupt value can be handled separately from a storage failure, for example by skipping the entry or reporting it. `DeserializeError` is not a `Throwable`, so a decoding failure cannot be raised into a `Task` without wrapping it, as we do next.
+
+### Reading and Writing Typed Values
+
+A `Serde` bundles a serializer and a deserializer for the same type, so that a single value can be passed around. `Serde.apply` builds one from the two halves:
+
+```scala
+val userSerde: Serde[Any, User] = Serde(userSerializer, userDeserializer)
+```
+
+To connect it to a database, we write a typed `putUser` and a typed `getUser` on top of the byte-level `RocksDB` operations. The `getUser` function turns a decoding failure into a `Throwable` so that it fits the `Task` returned by `RocksDB`:
+
+```scala
+import zio._
+import zio.rocksdb._
+
+final case class User(id: Long, name: String, active: Boolean)
+
+def userSerde: Serde[Any, User] = ???
+
+def putUser(user: User): ZIO[RocksDB, Throwable, Unit] =
+  for {
+    key   <- Serializer.long(user.id)
+    value <- userSerde(user)
+    _     <- RocksDB.put(key.toArray, value.toArray)
+  } yield ()
+
+def getUser(id: Long): ZIO[RocksDB, Throwable, Option[User]] =
+  for {
+    key   <- Serializer.long(id)
+    found <- RocksDB.get(key.toArray)
+    user <- ZIO.foreach(found) { bytes =>
+             userSerde
+               .decode(Chunk.fromArray(bytes))
+               .mapBoth(error => new RuntimeException(error.message), _.value)
+           }
+  } yield user
+```
+
+The same pattern applies inside a [transaction](./transactions.md) and for the keys and values of a [scan](./iterators.md), where each `(Array[Byte], Array[Byte])` pair is decoded with the same `Serde`.
+
+---
+
+## Transactions(Zio-rocksdb)
+
+`RocksDB` writes each key on its own: when an application updates two keys and fails in between, the database holds half of the change. In this guide we use `TransactionDB`, which runs a group of reads and writes as one transaction that is applied completely or not at all. By the end, you will be able to run an atomic update, undo one on failure, protect a read-modify-write cycle from concurrent writers, and manage a transaction by hand.
+
+We start with `TransactionDB.atomically`, which covers most uses, and then look at locking and manual transactions. The library uses the RocksDB [pessimistic transaction API](https://github.com/facebook/rocksdb/wiki/Transactions#transactiondb).
+
+### The Problem
+
+Moving money between two accounts is a read-modify-write cycle on two keys. With plain `RocksDB` operations, a failure after the first write leaves the accounts out of balance, and two concurrent transfers can both read the same balance and overwrite each other's result. The application cannot fix either problem on its own, because each `RocksDB.put` is independent and nothing holds a key between a `RocksDB.get` and the `RocksDB.put` that follows it.
+
+Transactions solve both: writes become visible only on commit, a failed transaction leaves no trace, and a key that is read for update stays locked until the transaction ends.
+
+### Opening a TransactionDB
+
+`TransactionDB` extends `RocksDB`, so every operation from the [introduction](./index.md), including `RocksDB.get`, `RocksDB.put` and `RocksDB.newIterator`, also works on a `TransactionDB` layer. Build the layer with `TransactionDB.live`, passing `Options` and the database path, optionally with a `TransactionDBOptions` value in between. The database is closed when the layer's scope ends:
+
+```scala
+import org.rocksdb.{ Options, TransactionDBOptions }
+import zio._
+import zio.rocksdb.TransactionDB
+
+val database: ZLayer[Any, Throwable, TransactionDB] =
+  TransactionDB.live(new Options().setCreateIfMissing(true), "/tmp/zio-rocksdb-tx")
+
+val databaseWithOptions: ZLayer[Any, Throwable, TransactionDB] =
+  TransactionDB.live(
+    new Options().setCreateIfMissing(true),
+    new TransactionDBOptions().setTransactionLockTimeout(2000),
+    "/tmp/zio-rocksdb-tx"
+  )
+```
+
+### Running an Atomic Update
+
+`TransactionDB.atomically` takes a program that needs a `Transaction` in its environment, runs it inside a new transaction, and commits when the program succeeds. The functions on the `Transaction` companion object (`Transaction.get`, `Transaction.put` and `Transaction.delete`) are the building blocks. To move an amount between two accounts stored as UTF-8 numbers:
+
+```scala
+import java.nio.charset.StandardCharsets.UTF_8
+import zio._
+import zio.rocksdb.{ Transaction, TransactionDB }
+
+def balance(bytes: Option[Array[Byte]]): Long =
+  bytes.map(new String(_, UTF_8).toLong).getOrElse(0L)
+
+def encode(amount: Long): Array[Byte] = amount.toString.getBytes(UTF_8)
+
+def transfer(from: String, to: String, amount: Long): ZIO[TransactionDB, Throwable, Unit] =
+  TransactionDB.atomically[Throwable, Unit] {
+    for {
+      fromBalance <- Transaction.getForUpdate(from.getBytes(UTF_8), exclusive = true).map(balance)
+      toBalance   <- Transaction.getForUpdate(to.getBytes(UTF_8), exclusive = true).map(balance)
+      _           <- ZIO.fail(new IllegalStateException("insufficient funds")).when(fromBalance < amount)
+      _           <- Transaction.put(from.getBytes(UTF_8), encode(fromBalance - amount))
+      _           <- Transaction.put(to.getBytes(UTF_8), encode(toBalance + amount))
+    } yield ()
+  }
+```
+
+When the program fails, the transaction is not committed, and none of its writes are applied. The error returned by `TransactionDB.atomically` is the error of the program, whose type must be a supertype of `Throwable`. For example, writing a key and then failing leaves the previously stored value unchanged: the stored `v0` is still there after `TransactionDB.atomically` returns the `RuntimeException`.
+
+Inside the transaction, reads see the transaction's own writes, and other readers do not see them until the commit. Reading the key with `RocksDB.get` while the transaction is open returns the old value.
+
+### Choosing Between Overloads
+
+`TransactionDB.atomically` has four overloads, which differ in two ways. Each exists with and without a `jrocks.WriteOptions` argument, for control over how the commit is written to disk, for example `new WriteOptions().setSync(true)`. And each exists for programs that need only `Transaction` and for programs that need `Transaction` plus other services:
+
+```scala
+import org.rocksdb.WriteOptions
+import zio._
+import zio.rocksdb.{ Transaction, TransactionDB }
+
+val key = "key".getBytes("UTF-8")
+
+val syncedWrite: ZIO[TransactionDB, Throwable, Unit] =
+  TransactionDB.atomically[Throwable, Unit](new WriteOptions().setSync(true))(Transaction.put(key, key))
+
+final case class Prefix(value: String)
+
+val withService: ZIO[TransactionDB with Prefix, Throwable, Unit] =
+  TransactionDB.atomically[Prefix, Throwable, Unit] {
+    ZIO.service[Prefix].flatMap(prefix => Transaction.put(key, prefix.value.getBytes("UTF-8")))
+  }
+```
+
+The overloads that take extra services have the type parameters `[R, E, A]`, and the ones for a `Transaction`-only program have `[E, A]`. The compiler cannot always infer which one applies, and reports an ambiguous overload when it cannot, so pass the type arguments explicitly when that happens, as both examples above do. The resulting effect needs a `TransactionDB` and whatever else the program needs besides `Transaction`.
+
+### Protecting a Read-Modify-Write Cycle
+
+A transaction does not stop other writers from changing a key after it was read with `Transaction.get`. To lock the key for the rest of the transaction, read it with `Transaction.getForUpdate`. Its `exclusive` flag selects between an exclusive lock for a key that will be written and a shared lock for a key that is only read for validation.
+
+A counter incremented from ten fibers at once is the classic case. Each fiber locks the key, reads it, and writes the next value, and the locks make the increments run one after the other:
+
+```scala
+import java.nio.charset.StandardCharsets.UTF_8
+import zio._
+import zio.rocksdb.{ Transaction, TransactionDB }
+
+val counterKey = "COUNT".getBytes(UTF_8)
+
+val increment: ZIO[TransactionDB, Throwable, Unit] =
+  TransactionDB.atomically[Throwable, Unit] {
+    Transaction.getForUpdate(counterKey, exclusive = true).flatMap { current =>
+      val next = current.map(new String(_, UTF_8).toInt).getOrElse(0) + 1
+      Transaction.put(counterKey, next.toString.getBytes(UTF_8))
+    }
+  }
+
+val program: ZIO[TransactionDB, Throwable, Option[String]] =
+  for {
+    _     <- ZIO.foreachParDiscard(0 until 10)(_ => increment)
+    value <- TransactionDB.get(counterKey)
+  } yield value.map(new String(_, UTF_8))
+```
+
+Running this program stores and returns `10`: no increment is lost. Without the exclusive lock, concurrent transactions could read the same value and write the same result.
+
+### Handling Lock Conflicts
+
+A transaction that asks for a key locked by another transaction waits for the lock. When the lock is not released within the lock timeout, the call fails with a `RocksDBException` whose message is `TimedOut(LockTimeout)`. The timeout comes from `TransactionDBOptions`, as in the options example above.
+
+Since `TransactionDB.atomically` starts a fresh transaction on every run, retrying the whole call is safe. A retry policy on the `TransactionDB.atomically` effect handles conflicts without any state to reset:
+
+```scala
+import zio._
+import zio.rocksdb.TransactionDB
+
+def withRetries[A](update: ZIO[TransactionDB, Throwable, A]): ZIO[TransactionDB, Throwable, A] =
+  update.retry(Schedule.recurs(3) && Schedule.spaced(50.millis))
+```
+
+### Managing a Transaction by Hand
+
+When one transaction has to span several steps that `TransactionDB.atomically` cannot wrap, `TransactionDB.beginTransaction` returns a `Transaction` that lives as long as the enclosing `Scope`. Nothing is committed automatically: the program calls `Transaction#commit` itself, or `Transaction#rollback` to discard the changes. Leaving the scope without a commit closes the transaction and discards its writes:
+
+```scala
+import java.nio.charset.StandardCharsets.UTF_8
+import zio._
+import zio.rocksdb.TransactionDB
+
+def writeBoth(a: String, b: String): ZIO[TransactionDB, Throwable, Unit] =
+  ZIO.scoped {
+    for {
+      tx <- TransactionDB.beginTransaction()
+      _  <- tx.put("a".getBytes(UTF_8), a.getBytes(UTF_8))
+      _  <- tx.put("b".getBytes(UTF_8), b.getBytes(UTF_8))
+      _  <- tx.commit
+    } yield ()
+  }
+```
+
+The `Transaction` methods mirror the `Transaction` companion functions used in `TransactionDB.atomically`, so the same code can be moved between the two styles. Each `Transaction` serializes its operations with a semaphore, so it is safe to use one from parallel fibers, for example with `<&>`:
+
+```scala
+import java.nio.charset.StandardCharsets.UTF_8
+import zio._
+import zio.rocksdb.{ Transaction, TransactionDB }
+
+val writeTogether: ZIO[TransactionDB, Throwable, Unit] =
+  TransactionDB.atomically[Throwable, Unit] {
+    Transaction.put("key0".getBytes(UTF_8), "value0".getBytes(UTF_8)) <&>
+      Transaction.put("key1".getBytes(UTF_8), "value1".getBytes(UTF_8))
+  }
+```
+
+### Going Further
+
+The operations that take a column family have variants with a `ColumnFamilyHandle` as the first argument on both `Transaction` and its companion object. To apply writes atomically without locking or reading, see [Write Batches](./write-batch.md).
+
+---
+
+## Write Batches
+
+A `WriteBatch` collects several writes and hands them to RocksDB in one call, so that they are applied atomically: after a crash, either all of them are visible or none are. In this guide we build a batch, write it to the database, and then look at the `RocksDB#flush` and `RocksDB#flushWal` operations that control when data reaches disk.
+
+A batch is lighter than a [transaction](./transactions.md): it takes no locks and cannot read, so it fits writes whose values are already known. When a write depends on a value read earlier, use a transaction instead.
+
+### The Problem
+
+With plain `RocksDB.put`, every key is written separately. An application that stores a record under two keys, such as a user and an index entry that points to the user, has a window between the two calls in which a crash leaves a user without an index entry or an index entry without a user. Each `RocksDB.put` call is atomic on its own, but the pair is not.
+
+### Writing a Batch
+
+`WriteBatch.open` creates a batch inside a `Scope`, and the native batch is released when the scope ends. `WriteBatch#put` adds a key-value pair to the batch without touching the database. `RocksDB#write` applies the whole batch with the given `WriteOptions`. The `RocksDB` companion object has no accessor for `write`, so the call goes through the service:
+
+```scala
+import java.nio.charset.StandardCharsets.UTF_8
+import org.rocksdb.WriteOptions
+import zio._
+import zio.rocksdb.{ RocksDB, WriteBatch }
+
+val storeUser: ZIO[RocksDB, Throwable, Unit] =
+  ZIO.scoped {
+    for {
+      batch <- WriteBatch.open
+      _     <- batch.put("user:42".getBytes(UTF_8), "Ada".getBytes(UTF_8))
+      _     <- batch.put("index:name:Ada".getBytes(UTF_8), "42".getBytes(UTF_8))
+      _     <- ZIO.serviceWithZIO[RocksDB](_.write(new WriteOptions(), batch))
+    } yield ()
+  }
+```
+
+After the call, both keys are readable, and a crash during the write cannot leave only one of them.
+
+`WriteBatch.open(reservedBytes)` reserves buffer space up front for large batches, and `WriteBatch.open(serialized)` rebuilds a batch from the bytes of an earlier one.
+
+### Writing to a Column Family
+
+Each key can go to a different column family: `WriteBatch#put(cfHandle, key, value)` takes a `ColumnFamilyHandle` as its first argument, so a single batch can span families:
+
+```scala
+import org.rocksdb.{ ColumnFamilyHandle, WriteOptions }
+import zio._
+import zio.rocksdb.{ RocksDB, WriteBatch }
+
+def storeInBoth(first: ColumnFamilyHandle, second: ColumnFamilyHandle): ZIO[RocksDB, Throwable, Unit] =
+  ZIO.scoped {
+    for {
+      batch <- WriteBatch.open
+      _     <- batch.put(first, "k".getBytes("UTF-8"), "1".getBytes("UTF-8"))
+      _     <- batch.put(second, "k".getBytes("UTF-8"), "2".getBytes("UTF-8"))
+      _     <- ZIO.serviceWithZIO[RocksDB](_.write(new WriteOptions(), batch))
+    } yield ()
+  }
+```
+
+:::note
+`WriteBatch` currently exposes only `WriteBatch#put`. To delete keys atomically together with writes, use a [transaction](./transactions.md).
+:::
+
+### Controlling Durability
+
+RocksDB first buffers writes in memory and in a write-ahead log (WAL). `RocksDB#flush` writes the in-memory tables to disk, and `RocksDB#flushWal` moves the buffered write-ahead log to its file, syncing it when `sync` is `true`. Neither has a companion accessor, so call them on the service:
+
+```scala
+import org.rocksdb.FlushOptions
+import zio._
+import zio.rocksdb.RocksDB
+
+val persist: ZIO[RocksDB, Throwable, Unit] =
+  ZIO.serviceWithZIO[RocksDB] { db =>
+    db.flush(new FlushOptions().setWaitForFlush(true)) *> db.flushWal(sync = true)
+  }
+```
+
+`RocksDB#flush` also has variants that take one `ColumnFamilyHandle` or a list of them. To make a single write durable without a flush, pass `WriteOptions` with `setSync(true)` to `RocksDB#write` or to the transaction functions.
 
 ---
 
