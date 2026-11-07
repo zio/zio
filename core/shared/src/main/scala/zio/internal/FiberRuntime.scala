@@ -22,8 +22,7 @@ import zio.internal.SpecializationHelpers.SpecializeInt
 import zio.metrics.{Metric, MetricLabel}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
 import java.util.{Set => JavaSet}
 import scala.annotation.tailrec
 
@@ -42,7 +41,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _blockingOn     = FiberRuntime.notBlockingOn
   private var _asyncContWith  = null.asInstanceOf[AsyncContWith]
   private val running         = new AtomicBoolean(false)
-  private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
+  private val inbox           = new FiberMailbox()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
@@ -1758,4 +1757,40 @@ object FiberRuntime {
       new AsyncContWith((callback, onInterrupt))
   }
 
+  private final class FiberMailboxNode(var value: FiberMessage) extends AtomicReference[FiberMailboxNode](null)
+
+  private final class FiberMailbox extends AtomicReference[FiberMailboxNode](new FiberMailboxNode(null)) {
+    private var head: FiberMailboxNode = get()
+
+    def add(message: FiberMessage): Boolean = {
+      val node = new FiberMailboxNode(message)
+      val prev = getAndSet(node)
+      prev.lazySet(node)
+      true
+    }
+
+    def poll(): FiberMessage = {
+      val next = head.get()
+      if (next ne null) {
+        val msg = next.value
+        next.value = null
+        head = next
+        msg
+      } else if (head ne get()) {
+        var n = head.get()
+        while (n eq null) {
+          n = head.get()
+        }
+        val msg = n.value
+        n.value = null
+        head = n
+        msg
+      } else {
+        null
+      }
+    }
+
+    def isEmpty: Boolean =
+      (head eq get()) && (head.get() eq null)
+  }
 }
