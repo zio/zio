@@ -199,7 +199,10 @@ function leafDocCount(config) {
         return 1;
     }
     else if (isSidebarItemCategoryConfig(config)) {
-        return config.items.reduce((count, item) => count + leafDocCount(item), 0);
+        // The category's own landing page (its `link`) is a page too, even though
+        // it is not listed in `items`.
+        const ownPage = config.link && config.link.type === "doc" ? 1 : 0;
+        return ownPage + config.items.reduce((count, item) => count + leafDocCount(item), 0);
     }
     return 1;
 }
