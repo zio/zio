@@ -21,12 +21,31 @@ class AwaitBenchmark {
     range = (0 to n).toList
 
   @Benchmark
+  def zioBaseline(): Unit = {
+    val _ =
+      unsafeRun(
+        ZIO.foreachDiscard(range)(_ => ZIO.succeed(42))
+      )
+  }
+
+  @Benchmark
   def zioAwait(): Unit = {
     val _ =
       unsafeRun(
         for {
           fiber <- ZIO.succeed(42).fork
           _     <- ZIO.foreachDiscard(range)(_ => fiber.await)
+        } yield ()
+      )
+  }
+
+  @Benchmark
+  def zioTimeout(): Unit = {
+    val _ =
+      unsafeRun(
+        for {
+          fiber <- ZIO.succeed(42).fork
+          _     <- ZIO.foreachDiscard(range)(_ => fiber.await.timeout(1.second))
         } yield ()
       )
   }
