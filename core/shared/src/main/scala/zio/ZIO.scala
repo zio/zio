@@ -5667,22 +5667,32 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
     ): ZIO[R, E, B1] =
-      ZIO.fiberIdWith { parentFiberId =>
-        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
-          (winner, loser) =>
-            winner.await.flatMap { exit =>
-              loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
-            },
-          (winner, loser) =>
-            winner.await.flatMap {
-              case e: Exit.Failure[Nothing] =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
-              case _ =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
-            },
-          null,
-          FiberScope.global
-        )
+      ZIO.suspendSucceed {
+        val d = duration
+        if (d <= Duration.Zero) Exit.succeed(b())
+        else if (!d.isFinite) self.map(f)
+        else
+          self match {
+            case Exit.Success(a) => Exit.succeed(f(a))
+            case _ =>
+              ZIO.fiberIdWith { parentFiberId =>
+                self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(d).interruptible)(
+                  (winner, loser) =>
+                    winner.await.flatMap { exit =>
+                      loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
+                    },
+                  (winner, loser) =>
+                    winner.await.flatMap {
+                      case e: Exit.Failure[Nothing] =>
+                        loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
+                      case _ =>
+                        loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
+                    },
+                  null,
+                  FiberScope.global
+                )
+              }
+          }
       }
   }
 
