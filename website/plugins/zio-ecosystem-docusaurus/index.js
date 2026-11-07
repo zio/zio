@@ -111,7 +111,7 @@ function zioEcosystemPlugin(context, options) {
                     `${project.name}-sidebar`,
                     [
                         { type: 'link', label: '← ZIO Ecosystem', href: `/ecosystem/?eco-category=${categoryIdOf(project.name)}` },
-                        { ...project.category, collapsible: false, collapsed: false, items: itemsWithoutOwnPage(project.category) }
+                        { ...project.category, collapsible: false, collapsed: false, items: sidebarItemsOf(project) }
                     ]
                 ]));
                 writeSidebarFile('ecosystem-sidebar.js', ecosystemSidebar);
@@ -199,7 +199,10 @@ function leafDocCount(config) {
         return 1;
     }
     else if (isSidebarItemCategoryConfig(config)) {
-        return config.items.reduce((count, item) => count + leafDocCount(item), 0);
+        // The category's own landing page (its `link`) is a page too, even though
+        // it is not listed in `items`.
+        const ownPage = config.link && config.link.type === "doc" ? 1 : 0;
+        return ownPage + config.items.reduce((count, item) => count + leafDocCount(item), 0);
     }
     return 1;
 }
@@ -282,5 +285,18 @@ function mapConfig(config, prefix) {
                 .map(item => mapConfig(item, prefix))
         };
     }
+}
+// Projects whose nested sidebar categories start expanded on their own sidebar.
+// Every other project keeps its nested categories collapsed.
+const expandedProjects = new Set(['zio-amqp']);
+function sidebarItemsOf(project) {
+    const items = itemsWithoutOwnPage(project.category);
+    return expandedProjects.has(project.name) ? items.map(expandCategories) : items;
+}
+function expandCategories(config) {
+    if (typeof (config) === "string" || !isSidebarItemCategoryConfig(config)) {
+        return config;
+    }
+    return { ...config, collapsed: false, items: config.items.map(expandCategories) };
 }
 exports.default = zioEcosystemPlugin;
