@@ -1983,7 +1983,7 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
   def mapZIOPar[R1 <: R, E1 >: E, A2](n: => Int)(f: A => ZIO[R1, E1, A2])(implicit
     trace: Trace
   ): ZStream[R1, E1, A2] =
-    mapZIOPar[R1, E1, A2](n, 16)(f)
+    ZStream.unwrapScoped(ZIO.succeed(n).map(parallelism => mapZIOPar[R1, E1, A2](parallelism, math.max(16, parallelism))(f)))
 
   /**
    * Maps over elements of the stream with the specified effectful function,
