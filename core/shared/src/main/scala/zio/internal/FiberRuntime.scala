@@ -42,7 +42,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _blockingOn     = FiberRuntime.notBlockingOn
   private var _asyncContWith  = null.asInstanceOf[AsyncContWith]
   private val running         = new AtomicBoolean(false)
-  private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
+  private val inbox           = new FiberRuntime.FiberMailbox()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
@@ -1758,4 +1758,44 @@ object FiberRuntime {
       new AsyncContWith((callback, onInterrupt))
   }
 
+
+  private[internal] final class FiberMailbox extends java.util.concurrent.atomic.AtomicReference[FiberMailbox.Node](new FiberMailbox.Node(null)) {
+    private var head: FiberMailbox.Node = get()
+
+    def add(message: FiberMessage): Boolean = {
+      val node = new FiberMailbox.Node(message)
+      val prev = getAndSet(node)
+      prev.lazySet(node)
+      true
+    }
+
+    def poll(): FiberMessage = {
+      val next = head.get()
+      if (next ne null) {
+        val msg = next.value
+        next.value = null
+        head = next
+        msg
+      } else if (head ne get()) {
+        var n = head.get()
+        while (n eq null) {
+          Thread.onSpinWait()
+          n = head.get()
+        }
+        val msg = n.value
+        n.value = null
+        head = n
+        msg
+      } else {
+        null
+      }
+    }
+
+    def isEmpty: Boolean =
+      (head eq get()) && (head.get() eq null)
+  }
+
+  private[internal] object FiberMailbox {
+    final class Node(var value: FiberMessage) extends java.util.concurrent.atomic.AtomicReference[Node](null)
+  }
 }
