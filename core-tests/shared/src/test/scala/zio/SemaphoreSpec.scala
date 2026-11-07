@@ -4,12 +4,16 @@ import zio.test.Assertion._
 import zio.test.TestAspect._
 import zio.test._
 
-object SemaphoreSpec extends ZIOBaseSpec {
-  override def spec = suite("SemaphoreSpec")(
+sealed abstract class AbstractSemaphoreSpec extends ZIOBaseSpec {
+
+  def makeSemaphore(permits: => Long): UIO[Semaphore]
+  def specName: String
+
+  override final def spec = suite(specName)(
     test("withPermit automatically releases the permit if the effect is interrupted") {
       for {
         promise   <- Promise.make[Nothing, Unit]
-        semaphore <- Semaphore.make(1)
+        semaphore <- makeSemaphore(1)
         effect     = semaphore.withPermit(promise.succeed(()) *> ZIO.never)
         fiber     <- effect.fork
         _         <- promise.await
@@ -19,7 +23,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
     },
     test("withPermit acquire is interruptible") {
       for {
-        semaphore <- Semaphore.make(0L)
+        semaphore <- makeSemaphore(0L)
         effect     = semaphore.withPermit(ZIO.unit)
         fiber     <- effect.fork
         _         <- fiber.interrupt
@@ -27,7 +31,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
     },
     test("withPermitsScoped releases same number of permits") {
       for {
-        semaphore <- Semaphore.make(2L)
+        semaphore <- makeSemaphore(2L)
         _         <- ZIO.scoped(semaphore.withPermitsScoped(2))
         permits   <- semaphore.available
       } yield assertTrue(permits == 2L)
@@ -80,7 +84,7 @@ object SemaphoreSpec extends ZIOBaseSpec {
     },
     test("awaiting returns the count of waiting fibers") {
       for {
-        semaphore    <- Semaphore.make(1)
+        semaphore    <- makeSemaphore(1)
         promise      <- Promise.make[Nothing, Unit]
         _            <- ZIO.foreachDiscard(1 to 11)(_ => semaphore.withPermit(promise.await).fork)
         waitingStart <- semaphore.awaiting.repeatUntil(_ == 10)
@@ -89,4 +93,15 @@ object SemaphoreSpec extends ZIOBaseSpec {
       } yield assertTrue(waitingStart == 10, waitingEnd == 0)
     } @@ timeout(10.seconds)
   ) @@ exceptJS(nonFlaky)
+
+}
+
+object FairSemaphoreSpec extends AbstractSemaphoreSpec {
+  override def makeSemaphore(permits: => Long): UIO[Semaphore] = Semaphore.makeFair(permits)
+  override def specName: String                                = "FairSemaphoreSpec"
+}
+
+object UnfairSemaphoreSpec extends AbstractSemaphoreSpec {
+  override def makeSemaphore(permits: => Long): UIO[Semaphore] = Semaphore.makeUnfair(permits)
+  override def specName: String                                = "UnfairSemaphoreSpec"
 }
