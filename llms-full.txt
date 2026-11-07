@@ -2606,12 +2606,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20327/0x00007f1bb5509268@5aea1a15
+//   eval = zio.Ref$$$Lambda$20439/0x00007f501f0a74d8@29bd30a5
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20327/0x00007f1bb5509268@2c2e164a
+//   eval = zio.Ref$$$Lambda$20439/0x00007f501f0a74d8@735eac93
 // )
 
 sealed trait State
@@ -2622,7 +2622,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20327/0x00007f1bb5509268@2df66e49
+//   eval = zio.Ref$$$Lambda$20439/0x00007f501f0a74d8@10c72c09
 // )
 ```
 
@@ -2639,7 +2639,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20327/0x00007f1bb5509268@3561c821
+//   eval = zio.Ref$$$Lambda$20439/0x00007f501f0a74d8@1ee3f78d
 // )
 ```
 
@@ -2651,7 +2651,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20327/0x00007f1bb5509268@114f821c
+//   eval = zio.Ref$$$Lambda$20439/0x00007f501f0a74d8@22944778
 // )
 ```
 
@@ -15760,25 +15760,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@6c1457da
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@51a4fecc
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@2fa03f91
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@6347535f
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@e0a87d8
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@52922fe4
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-11-07T15:21:20.381809210Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-11-07T16:13:49.134149261Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@606e192b
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@42910add
 ```
 
 ### Construction / Creating Instances
@@ -16892,7 +16892,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20448/0x00007f1bb57c1c08@188ec933
+//   eval = zio.Supervisor$$$Lambda$20560/0x00007f501f13d650@1a3299b5
 // )
 ```
 
@@ -17721,7 +17721,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19462/0x00007f1bb6303808@e869f2a
+//     f = zio.ZIO$$$Lambda$19574/0x00007f501eed1050@5bcd240f
 //   ),
 //   successK = <function1>
 // )
@@ -18502,7 +18502,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@2038ad72
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@765f494c
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -18515,12 +18515,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18606/0x00007f1bb71006b0@6a27b617
+//       eval = zio.ZIO$$$Lambda$18812/0x00007f501ed160d8@2bd21597
 //     ),
-//     successK = zio.ZIO$$$Lambda$19452/0x00007f1bb6322800@52b33253
+//     successK = zio.ZIO$$$Lambda$19564/0x00007f501eec2800@72a9feda
 //   ),
-//   successK = zio.ZIO$$$Lambda$18609/0x00007f1bb7102928@2f7c0126,
-//   failureK = zio.ZIO$$Lambda$20244/0x00007f1bb57deeb0@16130483
+//   successK = zio.ZIO$$$Lambda$18815/0x00007f501ed17748@38ce50fa,
+//   failureK = zio.ZIO$$Lambda$20356/0x00007f501f074580@6fa0155a
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -18532,11 +18532,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18606/0x00007f1bb71006b0@6a27b617
+//       eval = zio.ZIO$$$Lambda$18812/0x00007f501ed160d8@2bd21597
 //     ),
-//     successK = zio.ZIO$$$Lambda$19452/0x00007f1bb6322800@481a2716
+//     successK = zio.ZIO$$$Lambda$19564/0x00007f501eec2800@233018e8
 //   ),
-//   successK = zio.ZIO$$Lambda$20474/0x00007f1bb583def0@7227214b
+//   successK = zio.ZIO$$Lambda$20586/0x00007f501f1575d0@6bd2af2a
 // )
 ```
 
@@ -23838,7 +23838,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@5bad6055
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@eb6a799
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -23866,9 +23866,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
+//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
 //   ),
-//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@b1de9e4
+//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@5528b785
 // )
 ```
 
@@ -23917,7 +23917,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@742fe2df
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@5ea8fcca
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -23947,9 +23947,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
+//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
 //   ),
-//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@53d0a30a
+//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@2f459494
 // )
 ```
 
@@ -23980,7 +23980,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@5e8bf91b
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@4f670cbb
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -23995,9 +23995,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
+//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
 //   ),
-//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@1c4d4ace
+//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@4d91c7d7
 // )
 ```
 
@@ -24041,7 +24041,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@9c44c1b
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@62924297
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24058,9 +24058,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
+//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
 //   ),
-//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@9536a94
+//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@4091e69c
 // )
 ```
 
@@ -24092,7 +24092,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@42ce6f25
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@5d77f535
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -24109,9 +24109,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
+//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
 //   ),
-//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@38326c2d
+//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@43f3d4c
 // )
 ```
 
@@ -24143,7 +24143,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@637c2c04
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@95124a0
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -24174,9 +24174,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
+//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
 //   ),
-//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@7cbaa915
+//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@61055762
 // )
 ```
 
@@ -24209,7 +24209,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@4e73b88e
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@749d6be7
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24225,9 +24225,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
+//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
 //   ),
-//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@268bf592
+//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@65f82755
 // )
 ```
 
@@ -24258,7 +24258,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@7570b71d
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@27a66833
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -24285,9 +24285,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
+//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
 //   ),
-//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@57da4be3
+//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@74cedbf1
 // )
 ```
 
@@ -24307,7 +24307,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@1b891695
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@32a4d443
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24330,9 +24330,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
+//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
 //   ),
-//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@1cdfa228
+//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@62413027
 // )
 ```
 
@@ -24348,7 +24348,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@7043d8a0
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@4def7cdc
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -24370,9 +24370,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
+//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
 //   ),
-//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@5aaa1e1e
+//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@5aa48004
 // )
 ```
 
@@ -24388,7 +24388,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@6cd371d0
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@6925c3dd
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -24408,9 +24408,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
+//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
 //   ),
-//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@5e6aceae
+//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@7bceffa8
 // )
 ```
 
@@ -24428,7 +24428,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@65902eb1
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@7319e691
 
 val example = {
   val scoped = ZIO.scoped {
@@ -24450,9 +24450,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
+//       eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
 //     ),
-//     successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@3ee20bc
+//     successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@ef9671d
 //   ),
 //   successK = <function1>
 // )
@@ -28457,14 +28457,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@67a4ac3f
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@563c202d
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@47f83b36
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@86cd95
 ```
 
 ### From ZIO
@@ -35191,9 +35191,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$19936/0x00007f1bb60415b0@588ec9e0
+//             onState = zio.ZIO$$$Lambda$20048/0x00007f501efa61e0@7968a6cc
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$19944/0x00007f1bb6459e20@1d8c5c95
+//           successK = zio.test.package$ZTest$$$Lambda$20056/0x00007f501efab9a0@3c6a3785
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -38183,7 +38183,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+55-cd4ae9d5-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+56-7ec32d7e-SNAPSHOT"
 ```
 
 ### Example
@@ -50139,9 +50139,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
+//     eval = zio.Scope$$$Lambda$20038/0x00007f501ef9dd78@510ad442
 //   ),
-//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@5d3b75aa
+//   successK = zio.ZIO$$$Lambda$20039/0x00007f501ef9e030@6892df34
 // )
 ```
 
@@ -91821,49 +91821,7 @@ val result        = readWrite.provideCustomLayer(database)
 
 ---
 
-## Introduction to ZIO S3
-
-Thin wrapper over S3 async client for ZIO
-
-Setup
------
-
-```
-//support scala 2.12 / 2.13
-
-libraryDependencies += "dev.zio" %% "zio-s3" % "0.4.2.1"
-```
-
-How to use it ?
----------------
-
-ZIO-S3 is a thin wrapper over the s3 async java client. It exposes the main operations of the s3 java client.
-
-```scala
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
-import zio.Chunk
-import zio.s3._
-import zio.stream.{ZSink, ZStream}
-import software.amazon.awssdk.services.s3.model.S3Exception
-
-  // list all buckets available  
-  listBuckets.provideLayer(
-     live("us-east-1", AwsBasicCredentials.create("accessKeyId", "secretAccessKey"))
-  )
-  
-  // list all objects of all buckets
-  val l2: ZStream[S3, S3Exception, String] = (for {
-     bucket <- ZStream.fromIterableZIO(listBuckets) 
-     obj <- listAllObjects(bucket.name)
-  } yield obj.bucketName + "/" + obj.key).provideLayer(
-     live("us-east-1", AwsBasicCredentials.create("accessKeyId", "secretAccessKey"))
-  )  
-```
-
-All available s3 combinators and operations are available in the package object `zio.s3`, you only need to `import zio.s3._`
-
-Credentials
------------
+## Credentials
 
 zio-s3 expose credentials providers from aws https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/credentials.html
 If credentials cannot be found in one or multiple providers selected the operation will fail with `InvalidCredentials`
@@ -91897,30 +91855,102 @@ val s3: Layer[S3Exception, S3] = liveZIO(Region.AF_SOUTH_1, default)
 // use custom logic to fetch aws credentials
 val zcredentials: ZIO[R, S3Exception, AwsCredentials] = ??? // specific implementation to fetch credentials
 val s3: ZLayer[Any, S3Exception, S3] = settings(Region.AF_SOUTH_1, zcredentials) >>> live
-
 ```
 
-Test / Stub
------------
+---
 
-a stub implementation of s3 storage is provided for testing purpose and use internally a filesystem to simulate s3 storage
+## Introduction to ZIO S3
+
+[ZIO S3](https://github.com/zio/zio-s3) is a thin wrapper over S3 async client for ZIO.
+
+[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-s3/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-s3_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-s3_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-s3_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-s3_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-s3-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-s3-docs_2.13) [![ZIO S3](https://img.shields.io/github/stars/zio/zio-s3?style=social)](https://github.com/zio/zio-s3)
+
+### Introduction
+
+ZIO-S3 is a thin wrapper over the s3 async java client. It exposes the main operations of the s3 java client.
 
 ```scala
-import zio.nio.core.file.{Path => ZPath}
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
+import zio.Chunk
 import zio.s3._
+import zio.stream.{ZSink, ZStream}
+import software.amazon.awssdk.services.s3.model.S3Exception
 
-// build s3 Layer
-val stubS3: ZLayer[Any, Nothing, S3] = stub(ZPath("/tmp/s3-data"))
-
-// list all buckets available by using S3 Stub Layer 
-// will list all directories of `/tmp/s3-data`
-listBuckets.provideLayer(stubS3) 
+  // list all buckets available  
+  listBuckets.provideLayer(
+     live("us-east-1", AwsBasicCredentials.create("accessKeyId", "secretAccessKey"))
+  )
+  
+  // list all objects of all buckets
+  val l2: ZStream[S3, S3Exception, String] = (for {
+     bucket <- ZStream.fromIterableZIO(listBuckets) 
+     obj <- listAllObjects(bucket.name)
+  } yield obj.bucketName + "/" + obj.key).provideLayer(
+     live("us-east-1", AwsBasicCredentials.create("accessKeyId", "secretAccessKey"))
+  )  
 ```
 
-More information here on how to use [ZLayer https://zio.dev/docs/howto/howto_use_layers](https://zio.dev/docs/howto/howto_use_layers)
+All available s3 combinators and operations are available in the package object `zio.s3`, you only need to `import zio.s3._`
 
-Examples
---------
+### Installation
+
+In order to use this library, we need to add the following line in our `build.sbt` file:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-s3" % "0.4.4"
+```
+
+### Example 1
+
+Let's try an example of creating a bucket and adding an object into it. To run this example, we need to run an instance of _Minio_ which is object storage compatible with S3:
+
+```bash
+docker run -p 9000:9000 -e MINIO_ROOT_USER=MyKey -e MINIO_ROOT_PASSWORD=MySecret minio/minio  server --compat /data
+```
+
+In this example we create a bucket and then add a JSON object to it and then retrieve that:
+
+```scala
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
+import software.amazon.awssdk.regions.Region
+import zio._
+import zio.s3._
+import zio.stream.{ZStream, ZPipeline}
+import zio.Chunk
+
+import java.net.URI
+
+object ZIOS3Example extends ZIOAppDefault {
+
+  val myApp = for {
+    _ <- createBucket("docs")
+    json = Chunk.fromArray("""{  "id" : 1 , "name" : "A1" }""".getBytes)
+    _ <- putObject(
+      bucketName = "docs",
+      key = "doc1",
+      contentLength = json.length.toLong,
+      content = ZStream.fromChunk(json),
+      options = UploadOptions.fromContentType("application/json")
+    )
+    _ <- getObject("docs", "doc1")
+      .via(ZPipeline.utf8Decode)
+      .foreach(Console.printLine(_))
+  } yield ()
+
+  def run =
+    myApp
+      .provide(
+        live(
+          Region.CA_CENTRAL_1,
+          AwsBasicCredentials.create("MyKey", "MySecret"),
+          Some(URI.create("http://localhost:9000")),
+          forcePathStyle = Some(true) // Required for path-style S3 requests (MinIO by default uses them)
+        )
+      )
+}
+```
+
+### Example 2
 
 ```scala
 import software.amazon.awssdk.services.s3.model.S3Exception
@@ -91933,7 +91963,7 @@ val json: Chunk[Byte] = Chunk.fromArray("""{  "id" : 1 , "name" : "A1" }""".getB
 val up: ZIO[S3, S3Exception, Unit] = putObject(
   "bucket-1",
   "user.json",
-  json.length,
+  json.length.toLong,
   ZStream.fromChunk(json),
   UploadOptions.fromContentType("application/json")
 )
@@ -91958,8 +91988,7 @@ val os: OutputStream = ???
 val proc3: ZIO[S3, Exception, Long] = getObject("bucket-1", "upload/myfile.zip").run(ZSink.fromOutputStream(os))
 ```
 
-Support any commands ?
----
+### Support any commands?
 
 If you need a method which is not wrapped by the library, you can have access to underlying S3 client in a safe manner by using
 
@@ -91970,6 +91999,26 @@ import software.amazon.awssdk.services.s3.S3AsyncClient
  
 def execute[T](f: S3AsyncClient => CompletableFuture[T]) 
 ```
+
+---
+
+## Testing(Zio-s3)
+
+A stub implementation of s3 storage is provided for testing purpose and use internally a filesystem to simulate s3 storage
+
+```scala
+import zio.nio.core.file.{Path => ZPath}
+import zio.s3._
+
+// build s3 Layer
+val stubS3: ZLayer[Any, Nothing, S3] = stub(ZPath("/tmp/s3-data"))
+
+// list all buckets available by using S3 Stub Layer 
+// will list all directories of `/tmp/s3-data`
+listBuckets.provideLayer(stubS3) 
+```
+
+More information here on how to use [ZLayer https://zio.dev/docs/howto/howto_use_layers](https://zio.dev/docs/howto/howto_use_layers)
 
 ---
 
@@ -95511,39 +95560,25 @@ Example use cases that are possible:
 
 ---
 
-## Introduction to ZIO SQS
-
-This library is a [ZIO](https://github.com/zio/zio)-powered client for AWS SQS. It is built on top of the [AWS SDK for Java 2.0](https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/basics.html) via the automatically generated wrappers from [zio-aws](https://github.com/vigoo/zio-aws).
-
-### Add the dependency
-
-To use `zio-sqs`, add the following line in your `build.sbt` file:
-
-```
-libraryDependencies += "dev.zio" %% "zio-sqs" % "0.5.0"
-```
-
-### How to use
+## How to Use?
 
 In order to use the connector, you need to provide your program with a configured SQS client as an `Sqs` ZLayer. You can use `io.github.vigoo.zioaws.sqs.live` to use default AWS SDK settings or use `.customized` (refer to the [AWS SDK Documentation](https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/creating-clients.html) if you need help customizing it). See also the [ZIO documentation](https://zio.dev/docs/howto/howto_use_layers) on how to use layers.
 
-#### Publish messages
+### Publish messages
 
 Use `Producer.make` to instantiate an instance of `Producer` trait that can be used to publish objects of type `T` to the queue.
 
 ```scala
-def make[R, T](
-    queueUrl: String,
-    serializer: Serializer[T],
-    settings: ProducerSettings = ProducerSettings()
-  ): ZManaged[R with Sqs with Clock, Throwable, Producer[T]]
+def make[T](
+  queueUrl: String,
+  serializer: Serializer[T],
+  settings: ProducerSettings = ProducerSettings()
+): ZIO[Sqs & Scope, Throwable, Producer[T]]
 ```
 
 where:
-
 - `queueUrl: String` - an SQS queue URL
-- `serializer: Serializer[T]` - an instance of `zio.sqs.serialization.Serializer` that can be used to convert an object of type `T` to a string.
-
+- `serializer: Serializer[T]` - an instance of `zio.sqs.serialization.Serializer` that can be used to convert an object of type `T` to a `String`.
   ```scala
     trait Serializer[T] {
       def apply(t: T): String
@@ -95558,8 +95593,7 @@ where:
       The errors returned from SQS could either recoverable or not. An example of recoverable error -- when the server returned the code: `ServiceUnavailable`
     - `retryMaxCount: Int` - The number of retries to make for a posted event (default: 10).
 
-##### Producer
-
+#### Producer
 `Producer` contains two set of methods:
 - methods that fail the resulting *Task* or *Stream* if SQS server returns an error for a published event.
     - `def produce(e: ProducerEvent[T]): Task[ProducerEvent[T]]` - Publishes a single event and fails the task.
@@ -95580,7 +95614,7 @@ where:
 Producer tries to accumulate messages in batches and send them to the server.
 If messages should be sent one by one and batching is not expected, set `ProducerSettings.batchSize` to `1`.
 
-##### ProducerEvent
+#### ProducerEvent
 
 `ProducerEvent[T]` is an event that is published to SQS and contains the following parameters that could be configured:
 - `data: T` - Object to publish to SQS. A serializer for this type should be provided when a `Producer` is instantiated.
@@ -95595,46 +95629,45 @@ val str: String = "message to publish"
 val event: ProducerEvent = ProducerEvent(str)
 ```
 
-##### ProducerError
+#### ProducerError
 
-`ProducerError[T]` represents an [error details]((https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_BatchResultErrorEntry.html)) that were returned from the server.
+`ProducerError[T]` represents an [error details](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_BatchResultErrorEntry.html) that were returned from the server.
 - `senderFault: Boolean` - Specifies whether the error happened due to the caller of the batch API action.
 - `code: String` - An error code representing why the action failed on this entry.
 - `message: Option[String]` - A message explaining why the action failed on this entry.
 - `event: ProducerEvent[T]` - An event that triggered this error on the server.
 
-##### Publish Example
+#### Publish Example
 
 ```scala
-import io.github.vigoo.zioaws
-import io.github.vigoo.zioaws.sqs.Sqs
-import zio.clock.Clock
+import zio.aws.sqs.Sqs
 import zio.sqs._
 import zio.sqs.producer._
 import zio.sqs.serialization._
 import zio.stream._
-import zio.{ ExitCode, RIO, URIO, ZLayer }
+import zio.{ RIO, ZIO, ZLayer }
 
-object PublishExample extends zio.App {
+object PublishExample extends zio.ZIOAppDefault {
 
-  val client: ZLayer[Any, Throwable, Sqs] = zioaws.netty.default >>>
-    zioaws.core.config.default >>>
-    zioaws.sqs.live
+  val client: ZLayer[Any, Throwable, Sqs] =
+    zio.aws.netty.NettyHttpClient.default >>>
+      zio.aws.core.config.AwsConfig.default >>>
+      zio.aws.sqs.Sqs.live
 
-  val events                                                = List("message1", "message2").map(ProducerEvent(_))
-  val queueName                                             = "TestQueue"
-  val program: RIO[Clock with Sqs, Either[Throwable, Unit]] = for {
+  val events                                     = List("message1", "message2").map(ProducerEvent(_))
+  val queueName                                  = "TestQueue"
+  val program: RIO[Sqs, Either[Throwable, Unit]] = for {
     queueUrl    <- Utils.getQueueUrl(queueName)
     producer     = Producer.make(queueUrl, Serializer.serializeString)
-    errOrResult <- producer.use(p => p.sendStream(ZStream(events: _*)).runDrain.either)
+    errOrResult <- ZIO.scoped(producer.flatMap(p => p.sendStream(ZStream(events: _*)).runDrain.either))
   } yield errOrResult
 
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    program.provideCustomLayer(client).exitCode
+  override def run: ZIO[Any, Throwable, Unit] =
+    program.provide(client).absolve
 }
 ```
 
-#### Consume messages
+### Consume messages
 
 Use `SqsStream.apply` to get a stream of messages from a queue. It returns a ZIO `Stream` that you can consume with all the operators available.
 
@@ -95662,56 +95695,142 @@ import zio.sqs.{SqsStream, SqsStreamSettings}
 
 SqsStream(
   queueUrl,
-  SqsStreamSettings(stopWhenQueueEmpty = true, waitTimeSeconds = Some(3))
-).foreach(msg => UIO(println(msg.body)))
+  SqsStreamSettings.default.withStopWhenQueueEmpty(true).withWaitTimeSeconds(3).withAutoDelete(true)
+).foreach(msg => ZIO.succeed(println(msg.body)))
 ```
 
 #### Full example
 
+Here is an example of a program that sends a message to a queue and then consumes it using at-most-once delivery semantics:
 ```scala
-import io.github.vigoo.zioaws
-import io.github.vigoo.zioaws.core.config.CommonAwsConfig
-import io.github.vigoo.zioaws.sqs.Sqs
+import zio.aws.core.config.CommonAwsConfig
+import zio.aws.sqs.Sqs
 import software.amazon.awssdk.auth.credentials.{ AwsBasicCredentials, StaticCredentialsProvider }
 import software.amazon.awssdk.regions.Region
-import zio.clock.Clock
 import zio.sqs.producer.{ Producer, ProducerEvent }
 import zio.sqs.serialization.Serializer
 import zio.sqs.{ SqsStream, SqsStreamSettings, Utils }
 import zio._
 
-object TestApp extends zio.App {
+object AtMostOnceExample extends zio.ZIOAppDefault {
   val queueName = "TestQueue"
 
-  val client: ZLayer[Any, Throwable, Sqs] = zioaws.netty.default ++
-    ZLayer.succeed(
-      CommonAwsConfig(
-        region = Some(Region.of("ap-northeast-2")),
-        credentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create("key", "key")),
-        endpointOverride = None,
-        commonClientConfig = None
-      )
-    ) >>>
-    zioaws.core.config.configured() >>>
-    zioaws.sqs.live
+  val client: ZLayer[Any, Throwable, Sqs] =
+    zio.aws.netty.NettyHttpClient.default ++
+      ZLayer.succeed(
+        CommonAwsConfig(
+          region = Some(Region.of("ap-northeast-2")),
+          credentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create("key", "key")),
+          endpointOverride = None,
+          commonClientConfig = None
+        )
+      ) >>>
+      zio.aws.core.config.AwsConfig.configured() >>>
+      zio.aws.sqs.Sqs.live
 
-  val program: RIO[Sqs with Clock, Unit] = for {
+  val program: RIO[Sqs, Unit] = for {
     _        <- Utils.createQueue(queueName)
     queueUrl <- Utils.getQueueUrl(queueName)
     producer  = Producer.make(queueUrl, Serializer.serializeString)
-    _        <- producer.use { p =>
-                  p.produce(ProducerEvent("hello"))
+    _        <- ZIO.scoped {
+                  producer.flatMap { p =>
+                    p.produce(ProducerEvent("hello"))
+                  }
                 }
     _        <- SqsStream(
                   queueUrl,
-                  SqsStreamSettings(stopWhenQueueEmpty = true, waitTimeSeconds = Some(3))
-                ).foreach(msg => UIO(println(msg.body)))
+                  SqsStreamSettings.default.withStopWhenQueueEmpty(true).withWaitTimeSeconds(3).withAutoDelete(true)
+                ).foreach(msg => ZIO.succeed(println(msg.body)))
   } yield ()
 
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
-    program.provideCustomLayer(client).exitCode
+  override def run: Task[Unit] =
+    program.provide(client)
 }
 ```
+
+You can also achieve at-least-once delivery semantics by using `SqsStream.consumeChunkAtLeastOnce`:
+```scala
+def process(messages: Chunk[Message.ReadOnly]): Task[Unit] = 
+  ZIO.debug(messages.map(_.body.getOrElse(""))) *> ZIO.sleep(14.seconds)
+
+val consumerExample =
+  SqsStream.consumeChunkAtLeastOnce(
+    queueUrl = queueUrl,
+    settings = SqsStreamSettings.default
+      .withMaxNumberOfMessages(10)
+      .withVisibilityTimeout(5)
+      .withWaitTimeSeconds(20),
+    extensionSettings = SqsMessageLifetimeExtensionSettings.default,
+    consumerParallelism = 2
+  )(process)
+```
+
+If the `process` function fails, then messages will not be deleted from the queue and will be available for the next consumer to pull.
+
+---
+
+## Introduction to ZIO SQS
+
+[ZIO SQS](https://zio.dev/zio-sqs) is a ZIO-powered client for AWS SQS. It is built on top of the [AWS SDK for Java 2.0](https://docs.aws.amazon.com/sdk-for-java/v2/developer-guide/basics.html) via the automatically generated wrappers from [zio-aws](https://zio.dev/zio-aws).
+
+[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-sqs/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-sqs_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-sqs_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-sqs_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-sqs_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-sqs-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-sqs-docs_2.13) [![ZIO SQS](https://img.shields.io/github/stars/zio/zio-sqs?style=social)](https://github.com/zio/zio-sqs)
+
+### Introduction
+
+ZIO SQS enables us to produce and consume elements to/from the Amazon SQS service. It is integrated with ZIO Streams, so we can produce and consume elements in a streaming fashion, element by element or micro-batching.
+
+### Installation
+
+In order to use this library, we need to add the following line in our `build.sbt` file:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-sqs" % "0.12.0"
+```
+
+### Example
+
+In this example we produce a stream of events to the `MyQueue` and then consume them from that queue (at-most-once delivery semantics):
+
+```scala
+import zio._
+import zio.aws.core.config.AwsConfig
+import zio.aws.netty.NettyHttpClient
+import zio.aws.sqs.Sqs
+import zio.sqs.producer.{Producer, ProducerEvent}
+import zio.sqs.serialization.Serializer
+import zio.sqs.{SqsStream, SqsStreamSettings, Utils}
+import zio.stream.ZStream
+
+object ProducerConsumerExample extends ZIOAppDefault {
+  val queueName = "MyQueue"
+
+  val stream: ZStream[Any, Nothing, ProducerEvent[String]] =
+    ZStream.iterate(0)(_ + 1).map(_.toString).map(ProducerEvent(_))
+
+  val program: ZIO[Sqs, Throwable, Unit] = for {
+    _        <- Utils.createQueue(queueName)
+    queueUrl <- Utils.getQueueUrl(queueName)
+    producer  = Producer.make(queueUrl, Serializer.serializeString)
+    _        <- ZIO.scoped(producer.flatMap(_.sendStream(stream).runDrain))
+    _        <- SqsStream(
+                  queueUrl,
+                  SqsStreamSettings.default
+                    .withAutoDelete(true) // at-most-once delivery semantics
+                    .withStopWhenQueueEmpty(true)
+                    .withWaitTimeSeconds(3)
+                ).foreach(msg => Console.printLine(msg.body))
+  } yield ()
+
+  def run =
+    program.provide(
+      Sqs.live,
+      AwsConfig.default,
+      NettyHttpClient.default
+    )
+}
+```
+
+Check out the examples folder in `zio-sqs/src/test/scala/examples` for additional examples that cover at-least-once and at-most-once delivery semantics.
 
 ---
 
