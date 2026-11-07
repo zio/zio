@@ -2606,12 +2606,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20429/0x00007f18b71dbae0@3ccd2aa9
+//   eval = zio.Ref$$$Lambda$20327/0x00007f1bb5509268@5aea1a15
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20429/0x00007f18b71dbae0@2b723e0
+//   eval = zio.Ref$$$Lambda$20327/0x00007f1bb5509268@2c2e164a
 // )
 
 sealed trait State
@@ -2622,7 +2622,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20429/0x00007f18b71dbae0@772938d
+//   eval = zio.Ref$$$Lambda$20327/0x00007f1bb5509268@2df66e49
 // )
 ```
 
@@ -2639,7 +2639,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20429/0x00007f18b71dbae0@29e57090
+//   eval = zio.Ref$$$Lambda$20327/0x00007f1bb5509268@3561c821
 // )
 ```
 
@@ -2651,7 +2651,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20429/0x00007f18b71dbae0@76d3f38e
+//   eval = zio.Ref$$$Lambda$20327/0x00007f1bb5509268@114f821c
 // )
 ```
 
@@ -15760,25 +15760,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@6e4f9b76
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@6c1457da
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@4a700dc7
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@2fa03f91
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@5c6a7345
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@e0a87d8
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-11-06T18:24:49.720286906Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-11-07T15:21:20.381809210Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@2688cee6
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@606e192b
 ```
 
 ### Construction / Creating Instances
@@ -16892,7 +16892,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20550/0x00007f18b727ec50@5c979c26
+//   eval = zio.Supervisor$$$Lambda$20448/0x00007f1bb57c1c08@188ec933
 // )
 ```
 
@@ -17721,7 +17721,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19564/0x00007f18b7015310@6ba58a86
+//     f = zio.ZIO$$$Lambda$19462/0x00007f1bb6303808@e869f2a
 //   ),
 //   successK = <function1>
 // )
@@ -18502,7 +18502,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@3c1054ac
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@2038ad72
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -18515,12 +18515,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18788/0x00007f18b6e58000@546d2ac
+//       eval = zio.ZIO$$$Lambda$18606/0x00007f1bb71006b0@6a27b617
 //     ),
-//     successK = zio.ZIO$$$Lambda$19554/0x00007f18b70063c0@19323695
+//     successK = zio.ZIO$$$Lambda$19452/0x00007f1bb6322800@52b33253
 //   ),
-//   successK = zio.ZIO$$$Lambda$18792/0x00007f18b6e5a278@77236704,
-//   failureK = zio.ZIO$$Lambda$20346/0x00007f18b71b4b48@631501b6
+//   successK = zio.ZIO$$$Lambda$18609/0x00007f1bb7102928@2f7c0126,
+//   failureK = zio.ZIO$$Lambda$20244/0x00007f1bb57deeb0@16130483
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -18532,11 +18532,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18788/0x00007f18b6e58000@546d2ac
+//       eval = zio.ZIO$$$Lambda$18606/0x00007f1bb71006b0@6a27b617
 //     ),
-//     successK = zio.ZIO$$$Lambda$19554/0x00007f18b70063c0@102ad330
+//     successK = zio.ZIO$$$Lambda$19452/0x00007f1bb6322800@481a2716
 //   ),
-//   successK = zio.ZIO$$Lambda$20576/0x00007f18b7298b58@6b37894
+//   successK = zio.ZIO$$Lambda$20474/0x00007f1bb583def0@7227214b
 // )
 ```
 
@@ -23838,7 +23838,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@199b3669
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@5bad6055
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -23866,9 +23866,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$20028/0x00007f18b70e43d0@7d562c76
+//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
 //   ),
-//   successK = zio.ZIO$$$Lambda$20029/0x00007f18b70e4688@395c981a
+//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@b1de9e4
 // )
 ```
 
@@ -23917,7 +23917,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@7f199f1e
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@742fe2df
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -23947,9 +23947,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$20028/0x00007f18b70e43d0@7d562c76
+//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
 //   ),
-//   successK = zio.ZIO$$$Lambda$20029/0x00007f18b70e4688@650534db
+//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@53d0a30a
 // )
 ```
 
@@ -23980,7 +23980,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@193eac3d
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@5e8bf91b
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -23995,9 +23995,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$20028/0x00007f18b70e43d0@7d562c76
+//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
 //   ),
-//   successK = zio.ZIO$$$Lambda$20029/0x00007f18b70e4688@5b182916
+//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@1c4d4ace
 // )
 ```
 
@@ -24041,7 +24041,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@38f2cf20
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@9c44c1b
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24058,9 +24058,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$20028/0x00007f18b70e43d0@7d562c76
+//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
 //   ),
-//   successK = zio.ZIO$$$Lambda$20029/0x00007f18b70e4688@2ac8aafe
+//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@9536a94
 // )
 ```
 
@@ -24092,7 +24092,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@397a4ae
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@42ce6f25
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -24109,9 +24109,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$20028/0x00007f18b70e43d0@7d562c76
+//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
 //   ),
-//   successK = zio.ZIO$$$Lambda$20029/0x00007f18b70e4688@338aca32
+//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@38326c2d
 // )
 ```
 
@@ -24143,7 +24143,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@65a0ed8
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@637c2c04
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -24174,9 +24174,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$20028/0x00007f18b70e43d0@7d562c76
+//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
 //   ),
-//   successK = zio.ZIO$$$Lambda$20029/0x00007f18b70e4688@6ab5549b
+//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@7cbaa915
 // )
 ```
 
@@ -24209,7 +24209,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@7da80406
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@4e73b88e
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24225,9 +24225,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$20028/0x00007f18b70e43d0@7d562c76
+//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
 //   ),
-//   successK = zio.ZIO$$$Lambda$20029/0x00007f18b70e4688@3859cc5c
+//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@268bf592
 // )
 ```
 
@@ -24258,7 +24258,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@43d2dc08
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@7570b71d
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -24285,9 +24285,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$20028/0x00007f18b70e43d0@7d562c76
+//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
 //   ),
-//   successK = zio.ZIO$$$Lambda$20029/0x00007f18b70e4688@2b6925e9
+//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@57da4be3
 // )
 ```
 
@@ -24307,7 +24307,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@142194a6
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@1b891695
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24330,9 +24330,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$20028/0x00007f18b70e43d0@7d562c76
+//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
 //   ),
-//   successK = zio.ZIO$$$Lambda$20029/0x00007f18b70e4688@5fb8e3a3
+//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@1cdfa228
 // )
 ```
 
@@ -24348,7 +24348,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@6e0fdf70
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@7043d8a0
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -24370,9 +24370,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$20028/0x00007f18b70e43d0@7d562c76
+//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
 //   ),
-//   successK = zio.ZIO$$$Lambda$20029/0x00007f18b70e4688@362fc803
+//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@5aaa1e1e
 // )
 ```
 
@@ -24388,7 +24388,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@7b16a987
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@6cd371d0
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -24408,9 +24408,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$20028/0x00007f18b70e43d0@7d562c76
+//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
 //   ),
-//   successK = zio.ZIO$$$Lambda$20029/0x00007f18b70e4688@69f3bbd4
+//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@5e6aceae
 // )
 ```
 
@@ -24428,7 +24428,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@10b4d169
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@65902eb1
 
 val example = {
   val scoped = ZIO.scoped {
@@ -24450,9 +24450,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$20028/0x00007f18b70e43d0@7d562c76
+//       eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
 //     ),
-//     successK = zio.ZIO$$$Lambda$20029/0x00007f18b70e4688@77a9edd8
+//     successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@3ee20bc
 //   ),
 //   successK = <function1>
 // )
@@ -28457,14 +28457,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@7616bce4
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@67a4ac3f
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@14ed26fe
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@47f83b36
 ```
 
 ### From ZIO
@@ -35191,9 +35191,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$20038/0x00007f18b70ec5b0@5f280e45
+//             onState = zio.ZIO$$$Lambda$19936/0x00007f1bb60415b0@588ec9e0
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$20046/0x00007f18b70f1c10@1a2a8bc4
+//           successK = zio.test.package$ZTest$$$Lambda$19944/0x00007f1bb6459e20@1d8c5c95
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -38183,7 +38183,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+52-ae2bb564-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+55-cd4ae9d5-SNAPSHOT"
 ```
 
 ### Example
@@ -50139,9 +50139,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$20028/0x00007f18b70e43d0@7d562c76
+//     eval = zio.Scope$$$Lambda$19926/0x00007f1bb62f9000@4d9d1a6c
 //   ),
-//   successK = zio.ZIO$$$Lambda$20029/0x00007f18b70e4688@5a64d90a
+//   successK = zio.ZIO$$$Lambda$19927/0x00007f1bb62f92b8@5d3b75aa
 // )
 ```
 
@@ -88886,9 +88886,2474 @@ sbt -Dquill.query.cacheDynamic=false
 
 ---
 
+## AsyncRedis
+
+`AsyncRedis` exposes the same commands as `Redis`, but each command returns as soon as it has been queued. This lets a program send many commands before it waits for any reply.
+
+### Return Types
+
+A command on `Redis` has type `IO[RedisError, A]`. The same command on `AsyncRedis` has type `UIO[IO[RedisError, A]]`. The outer effect queues the command and never fails. The inner effect waits for the reply:
+
+```scala
+type Redis      = GenRedis[GenRedis.Sync]
+type AsyncRedis = GenRedis[GenRedis.Async]
+```
+
+`Redis.local`, `Redis.singleNode` produce both services in one layer. `Redis.cluster` produces only `Redis`.
+
+### Pipelining Commands
+
+To send several commands, then wait for all the replies, queue each one and await the inner effects together:
+
+```scala
+import zio._
+import zio.redis._
+
+def writeAll(redis: AsyncRedis): IO[RedisError, Unit] =
+  for {
+    first  <- redis.set("a", 1L)
+    second <- redis.set("b", 2L)
+    third  <- redis.set("c", 3L)
+    _      <- first.zip(second).zip(third)
+  } yield ()
+```
+
+All three commands are on the wire before the first reply is awaited, which reduces round trips. Use `AsyncRedis` for bulk writes and `Redis` everywhere else.
+
+---
+
+## Cluster
+
+Redis Cluster spreads keys over several nodes by hashing each key to one of 16384 slots. ZIO Redis supports it through the `Redis.cluster` layer, which gives the same `Redis` service as a single node while routing every command to the node that owns its slot.
+
+### Building the Cluster Layer
+
+`Redis.cluster` requires a `CodecSupplier` and a `RedisClusterConfig`. The config lists one or more startup nodes as `RedisUri` values. The client contacts them in order, asks the first reachable node for the slot map with `CLUSTER SLOTS`, and then opens a connection to every master. To connect to a three-master cluster:
+
+```scala
+import zio._
+import zio.redis._
+
+val clusterConfig: ULayer[RedisClusterConfig] =
+  ZLayer.succeed(
+    RedisClusterConfig(
+      Chunk(
+        RedisUri("localhost", 7000),
+        RedisUri("localhost", 7001),
+        RedisUri("localhost", 7002)
+      )
+    )
+  )
+
+val redis: ZLayer[Any, RedisError, Redis] =
+  ZLayer.make[Redis](
+    clusterConfig,
+    ZLayer.succeed[CodecSupplier](CodecSupplier.utf8),
+    Redis.cluster
+  )
+```
+
+Listing several startup nodes is only about availability at start-up. If none of them can be reached, the layer fails with a `RedisError.IOError`. Once running, the client learns the other nodes from the cluster itself.
+
+### RedisClusterConfig
+
+`RedisClusterConfig` is a case class with the following fields:
+
+| Field              | Type                       | Default                  | Meaning                                         |
+| ------------------ | -------------------------- | ------------------------ | ----------------------------------------------- |
+| `addresses`        | `Chunk[RedisUri]`          | none                     | Startup nodes used to discover the cluster      |
+| `retry`            | `RetryClusterConfig`       | `RetryClusterConfig.Default` | Backoff used when a command has to be retried |
+| `requestQueueSize` | `Int`                      | `16`                     | Request queue size of each node connection      |
+| `auth`             | `Option[RedisConfig.Auth]` | `None`                   | Credentials used for every node                 |
+
+`RetryClusterConfig` has three fields: `base: Duration`, `factor: Double` and `maxRecurs: Int`. The default is `RetryClusterConfig(100.millis, 1.5, 5)`, which means an exponential backoff that starts at 100 milliseconds, grows by a factor of 1.5 and gives up after five retries. To use a faster and shorter policy together with authentication:
+
+```scala
+import zio._
+import zio.redis._
+
+val config: RedisClusterConfig =
+  RedisClusterConfig(
+    addresses = Chunk(RedisUri("redis-1.example.com:6379")),
+    retry = RetryClusterConfig(base = 50.millis, factor = 2.0, maxRecurs = 3),
+    auth = Some(RedisConfig.Auth("secret"))
+  )
+```
+
+### RedisUri
+
+`RedisUri` names a node by host and port, with optional `ssl`, `sni` and `verifyCertificate` settings. It is described in [Configuration](./configuration.md). A TLS node is written as follows:
+
+```scala
+import zio.redis._
+
+val secureNode: RedisUri = RedisUri("redis.example.com", 6380, ssl = true)
+```
+
+### Redirections
+
+A cluster may answer a command with a redirection. `RedisError.Moved(slot, address)` means the slot now lives on another node, and `RedisError.Ask(slot, address)` means the slot is being migrated and this one command should be sent to the target node. Application code does not need to handle either error, because the cluster executor behind `Redis.cluster` does it:
+
+| Situation                        | What the executor does                                                              |
+| -------------------------------- | ----------------------------------------------------------------------------------- |
+| Normal command                   | Hashes the first key with CRC16, picks the owning node and sends the command there  |
+| `Ask`                            | Sends `ASKING` followed by the command to the node named in the error               |
+| `Moved`                          | Reloads the slot map from the cluster, closes the old connections and resends       |
+| `IOError` or any cluster error   | Retries the whole attempt with the exponential backoff from `RetryClusterConfig`    |
+
+A command is retried at most `maxRecurs` times, and if it still fails the last error is returned to the caller. Commands without a key, such as `PING`, are sent to the node that owns slot 1.
+
+### CrossSlot Errors
+
+A command that touches several keys works only if all the keys hash to the same slot. Otherwise the cluster replies with `RedisError.CrossSlot`, which `Redis` surfaces as a failure. The executor routes by the first key only, so it cannot fix this for you. To force related keys into one slot, wrap a common part of each name in braces, which is called a hash tag. To write two keys that always share a slot:
+
+```scala
+import zio._
+import zio.redis._
+
+def copyProfile(redis: Redis): IO[RedisError, Long] =
+  redis.sAdd("{user:1}:friends", "ada") *> redis.sAdd("{user:1}:groups", "admins")
+```
+
+Only the text between the braces is hashed, so both keys land in the same slot.
+
+### Cluster Commands
+
+The commands below are methods on `Redis`, from the `Cluster` API trait. They are mostly useful for tooling and tests, since the executor already issues `ASKING` and `CLUSTER SLOTS` itself:
+
+| Method                    | Redis command           | Returns            |
+| ------------------------- | ----------------------- | ------------------ |
+| `Redis#slots`             | `CLUSTER SLOTS`         | `Chunk[Partition]` |
+| `Redis#asking`            | `ASKING`                | `Unit`             |
+| `Redis#setSlotImporting`  | `CLUSTER SETSLOT ... IMPORTING` | `Unit`     |
+| `Redis#setSlotMigrating`  | `CLUSTER SETSLOT ... MIGRATING` | `Unit`     |
+| `Redis#setSlotNode`       | `CLUSTER SETSLOT ... NODE`      | `Unit`     |
+| `Redis#setSlotStable`     | `CLUSTER SETSLOT ... STABLE`    | `Unit`     |
+
+`Slot`, `Partition`, `Node` and `SlotRange` live in `zio.redis.options.Cluster`. A `Partition` has a `slotRange`, a `master` node and its `slaves`, and each `Node` has an `id` and an `address`. To list the master of every slot range:
+
+```scala
+import zio._
+import zio.redis._
+
+def masters(redis: Redis): IO[RedisError, Chunk[String]] =
+  redis.slots.map(_.map(p => s"${p.slotRange.start}-${p.slotRange.end} -> ${p.master.address}"))
+```
+
+The integration test `ClusterSpec` calls `Redis#slots` against a six-node Docker cluster in the same way.
+
+### Limitations
+
+Pub/Sub is not available through `Redis.cluster`; `RedisSubscription` connects to a single node, as described in [Pub/Sub](./pub-sub.md). Every command is routed by its first key, so transactions and scripts that span slots must use hash tags.
+
+---
+
+## Codecs
+
+Every key, field and value that crosses the wire is encoded to bytes by a `BinaryCodec` from ZIO Schema. A `CodecSupplier` tells ZIO Redis which codec to use for a given `Schema`, and the `Redis` layers require one.
+
+### CodecSupplier
+
+`CodecSupplier` is a trait with a single method that returns a codec for any type that has a `Schema`:
+
+```scala
+trait CodecSupplier {
+  def get[A: Schema]: BinaryCodec[A]
+}
+```
+
+Two options are available: the built-in UTF-8 supplier and any ZIO Schema codec such as Protobuf.
+
+### The UTF-8 Supplier
+
+`CodecSupplier.utf8` writes primitives as their plain text form, which is what other Redis clients and `redis-cli` expect. It supports primitive types only. Decoding converts `Int`, `Long` and `Double` numerically and returns every other primitive as a `String`. Encoding a case class fails with a `RedisError.CodecError`:
+
+```scala
+import zio._
+import zio.redis._
+
+val supplier: ULayer[CodecSupplier] =
+  ZLayer.succeed[CodecSupplier](CodecSupplier.utf8)
+```
+
+### Protobuf and Other Codecs
+
+To store case classes, implement `CodecSupplier` with a ZIO Schema codec. This supplier uses Protobuf, from the `zio-schema-protobuf` dependency listed in [Getting Started](./getting-started.md):
+
+```scala
+import zio._
+import zio.redis._
+import zio.schema.{DeriveSchema, Schema}
+import zio.schema.codec.{BinaryCodec, ProtobufCodec}
+
+object ProtobufCodecSupplier extends CodecSupplier {
+  def get[A: Schema]: BinaryCodec[A] = ProtobufCodec.protobufCodec
+}
+```
+
+Any other ZIO Schema codec, such as JSON or Avro, plugs in the same way.
+
+### Storing Your Own Types
+
+With a structural codec in place, a case class only needs a `Schema`. To write and read a case class:
+
+```scala
+import zio._
+import zio.redis._
+import zio.schema.{DeriveSchema, Schema}
+
+final case class User(id: Long, name: String)
+
+object User {
+  implicit val schema: Schema[User] = DeriveSchema.gen[User]
+}
+
+def saveAndLoad(redis: Redis): IO[RedisError, Option[User]] =
+  for {
+    _    <- redis.set("user:1", User(1L, "Ada"))
+    user <- redis.get("user:1").returning[User]
+  } yield user
+```
+
+Keys use the codec too, so `redis.set("user:1", ...)` encodes the key `"user:1"` with the supplier. The same supplier must be used for writes and reads. Values written by one codec cannot be read by another.
+
+---
+
+## Connection
+
+Connection commands act on the connection that the `Redis` service uses, rather than on data. This page covers the six commands on `Redis` for authenticating, selecting a database, naming the connection and checking that the server is alive.
+
+### Authentication
+
+`Redis#auth` authenticates the connection. With one argument it sends a password, and with two it sends a username and password for the Redis ACL system. Both return `Unit` on success and fail with a `RedisError` when the credentials are wrong:
+
+```scala
+import zio._
+import zio.redis._
+
+def login(redis: Redis): IO[RedisError, Unit] =
+  redis.auth("app-user", "secret")
+```
+
+Most programs do not call `Redis#auth` themselves. When a `RedisConfig` has credentials, the library authenticates every connection it opens, including after a reconnect. See [Configuration](../configuration.md) for how to set them.
+
+### Choosing a Database
+
+`Redis#select` switches the connection to the database with the given zero-based index. New connections start on database `0`. The selected database belongs to the connection, so it is lost if the connection is replaced after a failure:
+
+```scala
+import zio._
+import zio.redis._
+
+def useDatabaseOne(redis: Redis): IO[RedisError, Unit] =
+  redis.select(1L)
+```
+
+### Naming the Connection
+
+A connection name makes the connection easy to find in `CLIENT LIST` output on the server. The following table lists the related commands:
+
+| Command               | Returns          | Purpose                                              |
+| --------------------- | ---------------- | ---------------------------------------------------- |
+| `Redis#clientSetName` | `Unit`           | Assigns a name to the connection                     |
+| `Redis#clientGetName` | `Option[String]` | Returns the name, or `None` if none was set          |
+| `Redis#clientId`      | `Long`           | Returns the connection ID, which never repeats       |
+
+The ID increases with each new connection, so a larger ID means a later connection. The following example names the connection and reads both values back:
+
+```scala
+import zio._
+import zio.redis._
+
+def describe(redis: Redis): IO[RedisError, (Option[String], Long)] =
+  for {
+    _    <- redis.clientSetName("billing-service")
+    name <- redis.clientGetName
+    id   <- redis.clientId
+  } yield (name, id)
+```
+
+### Checking the Server
+
+`Redis#ping` returns `"PONG"` when called without a message, and echoes the message back when given one. The parameter has a default of `None`, so `redis.ping()` needs the parentheses:
+
+```scala
+import zio._
+import zio.redis._
+
+def healthCheck(redis: Redis): IO[RedisError, Boolean] =
+  redis.ping().map(_ == "PONG")
+
+def echo(redis: Redis): IO[RedisError, String] =
+  redis.ping(Some("hello"))
+```
+
+### Option Types
+
+The only type in `options/Connection.scala` is `Address`, a case class with an `ip: InetAddress` and a `port: Int`. No command in this group takes or returns it, so application code does not use it.
+
+### Related Pages
+
+- [Configuration](../configuration.md) explains credentials, TLS and the connection settings.
+- [Error Handling](../error-handling.md) lists the errors raised, such as authentication failures.
+- [Keys](./keys.md) covers commands that act on data in the selected database.
+
+---
+
+## Geo
+
+The geo commands store longitude and latitude pairs in a sorted set and answer distance and radius queries over them. This page documents the eight geo commands and the option types they accept.
+
+All commands are methods on the `Redis` service. Keys and members are encoded with the configured [`CodecSupplier`](../codecs.md). See [Getting Started](../getting-started.md) for how to build the layer.
+
+### Commands
+
+The commands are grouped below by purpose:
+
+| Group     | Method                         | Redis Command                   | Result                |
+| --------- | ------------------------------ | ------------------------------- | --------------------- |
+| Add       | `Redis#geoAdd`                 | `GEOADD`                        | `Long`                |
+| Inspect   | `Redis#geoDist`                | `GEODIST`                       | `Option[Double]`      |
+| Inspect   | `Redis#geoHash`                | `GEOHASH`                       | `Chunk[Option[String]]` |
+| Inspect   | `Redis#geoPos`                 | `GEOPOS`                        | `Chunk[Option[LongLat]]` |
+| Search    | `Redis#geoRadius`              | `GEOSEARCH` (`FROMLONLAT`)      | `Chunk[GeoView]`      |
+| Search    | `Redis#geoRadiusByMember`      | `GEOSEARCH` (`FROMMEMBER`)      | `Chunk[GeoView]`      |
+| Store     | `Redis#geoRadiusStore`         | `GEOSEARCHSTORE` (`FROMLONLAT`) | `Long`                |
+| Store     | `Redis#geoRadiusByMemberStore` | `GEOSEARCHSTORE` (`FROMMEMBER`) | `Long`                |
+
+The search commands are sent as `GEOSEARCH` and `GEOSEARCHSTORE`, so they require Redis 6.2 or later. None of the commands uses `returning`, because the member name is always read back as a `String`.
+
+### Option Types
+
+The following types are available after `import zio.redis._`:
+
+| Type                  | Shape                                                                          | Used by                                  |
+| --------------------- | ------------------------------------------------------------------------------ | ---------------------------------------- |
+| `LongLat`             | `LongLat(longitude: Double, latitude: Double)`                                 | `geoAdd`, `geoPos`, `geoRadius` and more |
+| `RadiusUnit`          | `Meters`, `Kilometers`, `Feet` or `Miles`                                      | `geoDist` and every radius command       |
+| `WithCoord`           | Singleton `WithCoord`, adds the position to each result                        | `geoRadius`, `geoRadiusByMember`         |
+| `WithDist`            | Singleton `WithDist`, adds the distance from the center to each result         | `geoRadius`, `geoRadiusByMember`         |
+| `WithHash`            | Singleton `WithHash`, adds the raw geohash integer to each result              | `geoRadius`, `geoRadiusByMember`         |
+| `Count`               | `Count(count: Long)`                                                           | Radius commands                          |
+| `Order`               | `Order.Ascending` or `Order.Descending`                                        | Radius commands                          |
+| `Store`               | `Store(key: String)`, the destination key                                      | `StoreResults`, `StoreBoth`              |
+| `StoreDist`           | `StoreDist(key: String)`                                                       | `StoreDistances`, `StoreBoth`            |
+| `StoreOptions`        | `StoreResults`, `StoreDistances` or `StoreBoth`                                | `geoRadiusStore`, `geoRadiusByMemberStore` |
+| `GeoView`             | `GeoView(member, dist, hash, longLat)` where the last three are `Option`s      | Result of the search commands            |
+
+A `GeoView` only has the optional fields that were requested with `WithDist`, `WithHash` and `WithCoord`. The others are `None`.
+
+### Adding Members
+
+`Redis#geoAdd` takes a key and at least one pair of a `LongLat` and a member. It returns the number of new members added. The `LongLat` is built with the longitude first, then the latitude:
+
+```scala
+import zio._
+import zio.redis._
+
+def addCities(redis: Redis): IO[RedisError, Long] =
+  redis.geoAdd(
+    "cities",
+    (LongLat(13.361389, 38.115556), "Palermo"),
+    (LongLat(15.087269, 37.502669), "Catania")
+  )
+```
+
+### Inspecting Members
+
+`Redis#geoDist` returns the distance between two members, or `None` if either one is missing. The unit defaults to meters when `radiusUnit` is `None`:
+
+```scala
+import zio._
+import zio.redis._
+
+def distance(redis: Redis): IO[RedisError, Option[Double]] =
+  redis.geoDist("cities", "Palermo", "Catania", Some(RadiusUnit.Kilometers))
+```
+
+`Redis#geoPos` and `Redis#geoHash` return one entry per requested member, with `None` for members that do not exist:
+
+```scala
+import zio._
+import zio.redis._
+
+def positions(redis: Redis): IO[RedisError, (Chunk[Option[LongLat]], Chunk[Option[String]])] =
+  for {
+    pos    <- redis.geoPos("cities", "Palermo", "Catania")
+    hashes <- redis.geoHash("cities", "Palermo", "Catania")
+  } yield (pos, hashes)
+```
+
+### Searching by Radius
+
+`Redis#geoRadius` finds members within a radius of a coordinate, and `Redis#geoRadiusByMember` does the same around an existing member. Both accept the optional `withCoord`, `withDist`, `withHash`, `count` and `order` parameters, and return a `Chunk[GeoView]`:
+
+```scala
+import zio._
+import zio.redis._
+
+def nearby(redis: Redis): IO[RedisError, Chunk[GeoView]] =
+  redis.geoRadius(
+    "cities",
+    LongLat(15.0, 37.0),
+    200.0,
+    RadiusUnit.Kilometers,
+    withDist = Some(WithDist),
+    count = Some(Count(5)),
+    order = Some(Order.Ascending)
+  )
+```
+
+To search around a member that is already in the key, pass the member instead of a coordinate. Here the position is also returned:
+
+```scala
+import zio._
+import zio.redis._
+
+def aroundPalermo(redis: Redis): IO[RedisError, Chunk[(String, Option[LongLat])]] =
+  redis
+    .geoRadiusByMember("cities", "Palermo", 200.0, RadiusUnit.Kilometers, withCoord = Some(WithCoord))
+    .map(_.map(view => (view.member, view.longLat)))
+```
+
+### Storing Search Results
+
+`Redis#geoRadiusStore` and `Redis#geoRadiusByMemberStore` write the matches into another key and return how many members were stored. They take a `StoreOptions` value instead of the `with*` flags. Use `StoreResults` to store the matching members:
+
+```scala
+import zio._
+import zio.redis._
+
+def storeNearby(redis: Redis): IO[RedisError, Long] =
+  redis.geoRadiusStore(
+    "cities",
+    LongLat(15.0, 37.0),
+    200.0,
+    RadiusUnit.Kilometers,
+    StoreResults(Store("cities:nearby")),
+    count = Some(Count(10))
+  )
+```
+
+The `StoreDistances` variant stores the distances in a second key with `STOREDIST`, and `StoreBoth` stores the members and the distances in two keys. To store both, pass a `Store` and a `StoreDist`:
+
+```scala
+import zio._
+import zio.redis._
+
+def storeNearbyWithDistances(redis: Redis): IO[RedisError, Long] =
+  redis.geoRadiusStore(
+    "cities",
+    LongLat(15.0, 37.0),
+    200.0,
+    RadiusUnit.Kilometers,
+    StoreBoth(Store("cities:nearby"), StoreDist("cities:distances")),
+    count = Some(Count(10))
+  )
+```
+
+### Next Steps
+
+- [Sorted Sets](./sorted-sets.md) explains the structure that geo members are stored in, so commands such as `Redis#zRem` and `Redis#zCard` work on geo keys.
+- [Keys](./keys.md) covers expiry and deletion.
+
+---
+
+## Hashes
+
+A Redis hash maps field names to values under a single key, which makes it a good fit for objects and counters grouped by an owner. This page lists every hash command on `Redis` and shows how to call it.
+
+Keys, fields and values are encoded with the configured [`CodecSupplier`](../codecs.md). Commands that return user data end with `returning[A]`, as described in [Getting Started](../getting-started.md).
+
+### Command Overview
+
+| Purpose              | Commands                                                       |
+| -------------------- | -------------------------------------------------------------- |
+| Write fields         | `Redis#hSet`, `Redis#hSetNx`                                   |
+| Read fields          | `Redis#hGet`, `Redis#hmGet`, `Redis#hGetAll`                   |
+| Inspect a hash       | `Redis#hExists`, `Redis#hLen`, `Redis#hStrLen`                 |
+| List names or values | `Redis#hKeys`, `Redis#hVals`                                   |
+| Remove fields        | `Redis#hDel`                                                   |
+| Update numbers       | `Redis#hIncrBy`, `Redis#hIncrByFloat`                          |
+| Sample and iterate   | `Redis#hRandField`, `Redis#hScan`                              |
+
+### Writing Fields
+
+`Redis#hSet` takes one or more `(field, value)` pairs and returns the number of fields that were added. `Redis#hSetNx` sets a single field only when it does not exist yet and returns `true` if it wrote the value:
+
+```scala
+import zio._
+import zio.redis._
+
+def writeUser(redis: Redis): IO[RedisError, Boolean] =
+  for {
+    _     <- redis.hSet("user:1", "name" -> "Ada", "city" -> "London")
+    added <- redis.hSetNx("user:1", "name", "Grace")
+  } yield added
+```
+
+Here `added` is `false` because `name` already exists.
+
+### Reading Fields
+
+`Redis#hGet` returns an `Option` for one field, and `Redis#hmGet` returns a `Chunk[Option[V]]` with one entry per requested field, in order. `Redis#hGetAll` returns every pair as a `Map`, so `returning` takes two type parameters, the field type and the value type:
+
+```scala
+import zio._
+import zio.redis._
+
+def readUser(redis: Redis): IO[RedisError, Map[String, String]] =
+  for {
+    name  <- redis.hGet("user:1", "name").returning[String]
+    some  <- redis.hmGet("user:1", "name", "email").returning[String]
+    all   <- redis.hGetAll("user:1").returning[String, String]
+    _     <- ZIO.debug(s"name = $name, requested = $some")
+  } yield all
+```
+
+### Inspecting a Hash
+
+These commands answer questions about a hash without returning its data:
+
+| Method                       | Returns   | Meaning                                                  |
+| ---------------------------- | --------- | -------------------------------------------------------- |
+| `Redis#hExists(key, field)`  | `Boolean` | Whether the field exists                                 |
+| `Redis#hLen(key)`            | `Long`    | Number of fields                                         |
+| `Redis#hStrLen(key, field)`  | `Long`    | String length of the value, or zero if field or key is missing |
+
+To list the names or the values of a hash, use `Redis#hKeys` and `Redis#hVals`. Both return a `Chunk`:
+
+```scala
+import zio._
+import zio.redis._
+
+def describe(redis: Redis): IO[RedisError, (Chunk[String], Chunk[String])] =
+  for {
+    names  <- redis.hKeys("user:1").returning[String]
+    values <- redis.hVals("user:1").returning[String]
+  } yield (names, values)
+```
+
+### Removing Fields
+
+`Redis#hDel` removes one or more fields and returns how many were actually removed:
+
+```scala
+import zio._
+import zio.redis._
+
+def dropFields(redis: Redis): IO[RedisError, Long] =
+  redis.hDel("user:1", "city", "email")
+```
+
+### Updating Numbers
+
+`Redis#hIncrBy` adds a `Long` and `Redis#hIncrByFloat` adds a `Double` to a field. A missing field starts from zero, and the command returns the new value. Redis returns an error if the field holds a value of the wrong kind:
+
+```scala
+import zio._
+import zio.redis._
+
+def countVisit(redis: Redis): IO[RedisError, (Long, Double)] =
+  for {
+    visits <- redis.hIncrBy("stats", "visits", 1L)
+    score  <- redis.hIncrByFloat("stats", "score", 0.5)
+  } yield (visits, score)
+```
+
+### Sampling Random Fields
+
+`Redis#hRandField` has two overloads. The first returns one random field as an `Option`. The second takes a `count` and a `withValues` flag and returns a `Chunk`:
+
+| Overload                                          | Result type    |
+| ------------------------------------------------- | -------------- |
+| `hRandField(key)`                                 | `Option[V]`    |
+| `hRandField(key, count, withValues = false)`      | `Chunk[V]`     |
+
+A positive `count` returns at most that many distinct fields. A negative `count` returns exactly `abs(count)` fields and may repeat them. When `withValues` is `true`, fields and values are interleaved in the returned chunk, so both must decode to the same type `V`:
+
+```scala
+import zio._
+import zio.redis._
+
+def sample(redis: Redis): IO[RedisError, (Option[String], Chunk[String])] =
+  for {
+    one  <- redis.hRandField("user:1").returning[String]
+    many <- redis.hRandField("user:1", 2L, withValues = true).returning[String]
+  } yield (one, many)
+```
+
+### Scanning
+
+`Redis#hScan` iterates a hash with a cursor. Start with cursor `0` and pass the returned cursor into the next call until Redis returns `0` again. The optional `pattern` filters fields with a glob-style pattern, and `count` is a hint of type `Count` for how many entries to examine per call:
+
+```scala
+import zio._
+import zio.redis._
+
+def scanAll(redis: Redis): IO[RedisError, Chunk[(String, String)]] = {
+  def loop(cursor: Long, acc: Chunk[(String, String)]): IO[RedisError, Chunk[(String, String)]] =
+    redis.hScan("user:1", cursor, Some("n*"), Some(Count(100L))).returning[String, String].flatMap {
+      case (0L, items)   => ZIO.succeed(acc ++ items)
+      case (next, items) => loop(next, acc ++ items)
+    }
+
+  loop(0L, Chunk.empty)
+}
+```
+
+### Next Steps
+
+- [Strings](./strings.md) covers plain values and counters.
+- [Keys](./keys.md) covers expiry and deletion of the whole hash.
+- [Sets](./sets.md) covers unordered collections of unique members.
+
+---
+
+## HyperLogLog
+
+A HyperLogLog is a probabilistic structure that estimates how many distinct elements it has seen, using a small and fixed amount of memory. This page documents the three commands that ZIO Redis exposes for it.
+
+All commands are methods on the `Redis` service. Keys and elements are encoded with the configured [`CodecSupplier`](../codecs.md), so any type with a ZIO Schema `Schema` can be used for both. See [Getting Started](../getting-started.md) for how to build the layer.
+
+### Commands
+
+The commands are grouped below by purpose:
+
+| Method           | Redis Command | Result            | Purpose                                              |
+| ---------------- | ------------- | ----------------- | ---------------------------------------------------- |
+| `Redis#pfAdd`    | `PFADD`       | `Boolean`         | Adds elements to a HyperLogLog                       |
+| `Redis#pfCount`  | `PFCOUNT`     | `Long`            | Estimates the number of distinct elements            |
+| `Redis#pfMerge`  | `PFMERGE`     | `Unit`            | Merges several HyperLogLogs into a destination key   |
+
+None of these commands needs `returning`, because their results do not depend on a user type.
+
+### Adding Elements
+
+`Redis#pfAdd` takes a key and at least one element. It returns `true` if the internal registers of the HyperLogLog changed, and `false` otherwise:
+
+```scala
+import zio._
+import zio.redis._
+
+def trackVisitors(redis: Redis): IO[RedisError, Boolean] =
+  redis.pfAdd("visitors:today", "alice", "bob", "carol")
+```
+
+Adding an element that was already counted usually leaves the registers unchanged, so the result is `false` in that case.
+
+### Counting Elements
+
+`Redis#pfCount` returns the approximate number of distinct elements added to the key. When more than one key is given, it returns the approximate size of the union of all of them:
+
+```scala
+import zio._
+import zio.redis._
+
+def countVisitors(redis: Redis): IO[RedisError, (Long, Long)] =
+  for {
+    today <- redis.pfCount("visitors:today")
+    both  <- redis.pfCount("visitors:today", "visitors:yesterday")
+  } yield (today, both)
+```
+
+A key that does not exist counts as an empty HyperLogLog.
+
+### Merging HyperLogLogs
+
+`Redis#pfMerge` takes a destination key followed by at least one source key. It stores the union of the sources in the destination, and the sources are left untouched:
+
+```scala
+import zio._
+import zio.redis._
+
+def mergeVisitors(redis: Redis): IO[RedisError, Long] =
+  for {
+    _     <- redis.pfMerge("visitors:week", "visitors:today", "visitors:yesterday")
+    count <- redis.pfCount("visitors:week")
+  } yield count
+```
+
+### Next Steps
+
+- [Sets](./sets.md) store exact members when an approximation is not acceptable.
+- [Keys](./keys.md) covers expiry and deletion, which also apply to HyperLogLog keys.
+
+---
+
+## Keys
+
+Key commands work on keys regardless of the type of value they hold. This page lists every key command on the `Redis` service, grouped by purpose, with the option types they take.
+
+### Inspecting Keys
+
+These commands check whether keys exist and what they hold:
+
+| Command         | Result       | Description                                              |
+| --------------- | ------------ | -------------------------------------------------------- |
+| `Redis#exists`  | `Long`       | Counts how many of the given keys exist                  |
+| `Redis#typeOf`  | `RedisType`  | Returns the type of the value stored at a key            |
+| `Redis#randomKey` | `Option[A]` | Returns a random key, or `None` when the database is empty |
+| `Redis#touch`   | `Long`       | Updates the last access time of the given keys           |
+
+`Redis#exists` counts a key once for every time it is listed, so `exists("a", "a")` returns `2` when `a` exists. `Redis#typeOf` returns a `RedisType`, which has the cases `String`, `List`, `Set`, `SortedSet`, `Hash` and `Stream`. To check a key and branch on its type:
+
+```scala
+import zio._
+import zio.redis._
+
+def describe(redis: Redis): IO[RedisError, String] =
+  redis.typeOf("user:1").map {
+    case RedisType.Hash => "a hash"
+    case other          => s"something else: $other"
+  }
+```
+
+`Redis#randomKey` needs a result type like any command that returns a key. To pick any key:
+
+```scala
+import zio._
+import zio.redis._
+
+def anyKey(redis: Redis): IO[RedisError, Option[String]] =
+  redis.randomKey.returning[String]
+```
+
+### Deleting Keys
+
+Both commands take one key and any number of extra keys, and return how many were removed:
+
+| Command        | Result | Description                                                    |
+| -------------- | ------ | -------------------------------------------------------------- |
+| `Redis#del`    | `Long` | Removes the keys and frees their memory immediately            |
+| `Redis#unlink` | `Long` | Removes the keys and frees their memory in a background thread |
+
+`Redis#unlink` is the better choice for large values because it does not block the server. To delete several keys:
+
+```scala
+import zio._
+import zio.redis._
+
+def cleanup(redis: Redis): IO[RedisError, Long] =
+  redis.unlink("cache:a", "cache:b", "cache:c")
+```
+
+`Redis#flushall` deletes every key in every database. Its `sync` parameter defaults to `false`, which sends `ASYNC`, and `true` sends `SYNC`:
+
+```scala
+import zio._
+import zio.redis._
+
+def reset(redis: Redis): IO[RedisError, Unit] =
+  redis.flushall(sync = true)
+```
+
+### Expiration
+
+Expiry commands set, read and clear the time to live of a key:
+
+| Command            | Result     | Description                                         |
+| ------------------ | ---------- | --------------------------------------------------- |
+| `Redis#expire`     | `Boolean`  | Expires the key after a `Duration`, in seconds      |
+| `Redis#pExpire`    | `Boolean`  | Expires the key after a `Duration`, in milliseconds |
+| `Redis#expireAt`   | `Boolean`  | Expires the key at an `Instant`, in seconds         |
+| `Redis#pExpireAt`  | `Boolean`  | Expires the key at an `Instant`, in milliseconds    |
+| `Redis#persist`    | `Boolean`  | Removes the expiry from the key                     |
+| `Redis#ttl`        | `Duration` | Returns the remaining time to live, in seconds      |
+| `Redis#pTtl`       | `Duration` | Returns the remaining time to live, in milliseconds |
+
+The setters return `false` when the key does not exist, and `Redis#persist` returns `false` when the key has no expiry. To expire a key in an hour and read what is left:
+
+```scala
+import zio._
+import zio.redis._
+
+def expireInAnHour(redis: Redis): IO[RedisError, Duration] =
+  for {
+    _         <- redis.expire("session:1", 1.hour)
+    remaining <- redis.ttl("session:1")
+  } yield remaining
+```
+
+To expire a key at a fixed point in time with millisecond precision:
+
+```scala
+import zio._
+import zio.redis._
+import java.time.Instant
+
+def expireAtMidnight(redis: Redis, midnight: Instant): IO[RedisError, Boolean] =
+  redis.pExpireAt("daily:report", midnight)
+```
+
+### Renaming and Moving
+
+These commands change the name or location of a key:
+
+| Command          | Result    | Description                                                      |
+| ---------------- | --------- | ---------------------------------------------------------------- |
+| `Redis#rename`   | `Unit`    | Renames a key and overwrites the target; fails if the key is missing |
+| `Redis#renameNx` | `Boolean` | Renames a key only when the new name does not exist              |
+| `Redis#copy`     | `Boolean` | Copies a value to another key, optionally into another database  |
+| `Redis#move`     | `Boolean` | Moves a key to another database by index                         |
+
+`Redis#copy` takes two optional parameters: `database: Option[Long]` selects the target database, and `replace: Option[Replace]` overwrites an existing target. `Replace` is a single case object. To copy a key and overwrite the target:
+
+```scala
+import zio._
+import zio.redis._
+
+def duplicate(redis: Redis): IO[RedisError, Boolean] =
+  redis.copy("template", "instance", replace = Some(Replace))
+```
+
+### Searching and Scanning
+
+`Redis#keys` returns every key that matches a glob-style pattern, while `Redis#scan` walks the key space in small steps:
+
+| Command        | Result                   | Description                                       |
+| -------------- | ------------------------ | ------------------------------------------------- |
+| `Redis#keys`   | `Chunk[A]`               | Returns all keys matching a pattern               |
+| `Redis#scan`   | `(Long, Chunk[A])`       | Returns the next cursor and one batch of keys     |
+
+`Redis#keys` blocks the server while it scans everything, so prefer `Redis#scan` on large databases. `Redis#scan` takes a cursor and these optional parameters:
+
+| Parameter  | Type                | Effect                                         |
+| ---------- | ------------------- | ---------------------------------------------- |
+| `pattern`  | `Option[String]`    | Keeps only keys that match the pattern         |
+| `count`    | `Option[Count]`     | Hints how many keys to return per call         |
+| `type`     | `Option[RedisType]` | Keeps only keys that hold the given type       |
+
+Iteration starts with cursor `0` and ends when the server returns cursor `0`. To collect every hash key whose name starts with `user:`:
+
+```scala
+import zio._
+import zio.redis._
+
+def allUsers(redis: Redis): IO[RedisError, Chunk[String]] = {
+  def loop(cursor: Long, acc: Chunk[String]): IO[RedisError, Chunk[String]] =
+    redis
+      .scan(cursor, Some("user:*"), Some(Count(100L)), Some(RedisType.Hash))
+      .returning[String]
+      .flatMap { case (next, keys) =>
+        val all = acc ++ keys
+        if (next == 0L) ZIO.succeed(all) else loop(next, all)
+      }
+
+  loop(0L, Chunk.empty)
+}
+```
+
+### Sorting
+
+`Redis#sort` sorts a list, set or sorted set and returns the values. `Redis#sortStore` runs the same command but stores the result under a key and returns how many values it stored. Both take these parameters:
+
+| Parameter | Type                              | Effect                                                    |
+| --------- | --------------------------------- | --------------------------------------------------------- |
+| `by`      | `Option[String]`                  | Sorts by the values of external keys that match a pattern |
+| `limit`   | `Option[Limit]`                   | Takes `Limit(offset, count)` values from the sorted result |
+| `order`   | `Order`                           | `Order.Ascending` (default) or `Order.Descending`         |
+| `get`     | `Option[(String, List[String])]`  | Returns the values of external keys instead of the elements |
+| `alpha`   | `Option[Alpha]`                   | Sorts alphabetically instead of numerically               |
+
+`Redis#sortStore` takes an extra `storeAt: Store` after the key, where `Store(key)` names the target key. To sort a list of names alphabetically and keep the first ten:
+
+```scala
+import zio._
+import zio.redis._
+
+def topNames(redis: Redis): IO[RedisError, Chunk[String]] =
+  redis
+    .sort("names", limit = Some(Limit(0L, 10L)), order = Order.Descending, alpha = Some(Alpha))
+    .returning[String]
+```
+
+To store the sorted result under another key:
+
+```scala
+import zio._
+import zio.redis._
+
+def storeSorted(redis: Redis): IO[RedisError, Long] =
+  redis.sortStore("scores", Store("scores:sorted"))
+```
+
+### Serialization and Migration
+
+`Redis#dump` and `Redis#restore` copy a value as an opaque, Redis-specific byte string, and `Redis#migrate` moves keys to another server:
+
+| Command          | Result        | Description                                                  |
+| ---------------- | ------------- | ------------------------------------------------------------ |
+| `Redis#dump`     | `Chunk[Byte]` | Returns the serialized value of a key                        |
+| `Redis#restore`  | `Unit`        | Creates a key from a serialized value                        |
+| `Redis#migrate`  | `String`      | Transfers one or more keys to another instance               |
+
+`Redis#restore` takes the time to live as a `Long` in milliseconds, where `0` means no expiry, and these optional parameters:
+
+| Parameter  | Type                | Effect                                                  |
+| ---------- | ------------------- | ------------------------------------------------------- |
+| `replace`  | `Option[Replace]`   | Overwrites an existing key                              |
+| `absTtl`   | `Option[AbsTtl]`    | Treats the time to live as an absolute Unix time in ms  |
+| `idleTime` | `Option[IdleTime]`  | Sets the idle time, with `IdleTime(seconds)`            |
+| `freq`     | `Option[Freq]`      | Sets the access frequency, with `Freq(frequency)`       |
+
+To copy a value through a dump and restore it under another key:
+
+```scala
+import zio._
+import zio.redis._
+
+def cloneValue(redis: Redis): IO[RedisError, Unit] =
+  for {
+    bytes <- redis.dump("source")
+    _     <- redis.restore("target", 0L, bytes, replace = Some(Replace))
+  } yield ()
+```
+
+`Redis#migrate` takes the remote `host`, `port`, `key`, `destinationDb` and `timeout`. Its optional parameters are `auth: Option[Auth]`, `copy: Option[Copy]` and `replace: Option[Replace]`. `Auth(username, password)` carries an optional username. The last parameter, `keys: Option[(K, List[K])]`, has no default and must always be passed. To send one key to another server and keep the local copy:
+
+```scala
+import zio._
+import zio.redis._
+
+def migrateKey(redis: Redis): IO[RedisError, String] =
+  redis.migrate(
+    host = "replica.example.com",
+    port = 6379L,
+    key = "report",
+    destinationDb = 0L,
+    timeout = 5.seconds,
+    auth = Some(Auth(None, "secret")),
+    copy = Some(Copy),
+    keys = None
+  )
+```
+
+### Waiting for Replicas
+
+`Redis#wait_` blocks until previous writes reach a number of replicas, or until the timeout passes. The method name ends in an underscore because `wait` is reserved on `Object`. It returns how many replicas acknowledged the writes. A `Duration.Zero` timeout blocks forever. To wait for two replicas for at most a second:
+
+```scala
+import zio._
+import zio.redis._
+
+def replicated(redis: Redis): IO[RedisError, Long] =
+  for {
+    _        <- redis.set("important", "value")
+    replicas <- redis.wait_(2L, 1.second)
+  } yield replicas
+```
+
+---
+
+## Lists
+
+A Redis list is an ordered sequence of values that supports fast pushes and pops at both ends. This page lists every list command on `Redis`, together with the option types `Side`, `Position`, `Rank` and `ListMaxLen`.
+
+Keys and elements are encoded with the configured [`CodecSupplier`](../codecs.md). Commands that return elements end with `returning[A]`, as described in [Getting Started](../getting-started.md).
+
+### Command Overview
+
+| Purpose              | Commands                                                              |
+| -------------------- | --------------------------------------------------------------------- |
+| Push                 | `Redis#lPush`, `Redis#rPush`, `Redis#lPushX`, `Redis#rPushX`          |
+| Pop                  | `Redis#lPop`, `Redis#rPop`                                            |
+| Blocking pop         | `Redis#blPop`, `Redis#brPop`                                          |
+| Move between lists   | `Redis#lMove`, `Redis#blMove`                                         |
+| Read                 | `Redis#lIndex`, `Redis#lRange`, `Redis#lLen`                          |
+| Search               | `Redis#lPos`, `Redis#lPosCount`                                       |
+| Modify               | `Redis#lSet`, `Redis#lInsert`, `Redis#lRem`, `Redis#lTrim`            |
+
+### Option Types
+
+The option types come from `zio.redis._`:
+
+| Type         | Values or shape                          | Used by                                   |
+| ------------ | ---------------------------------------- | ----------------------------------------- |
+| `Side`       | `Side.Left`, `Side.Right`                | `Redis#lMove`, `Redis#blMove`             |
+| `Position`   | `Position.Before`, `Position.After`      | `Redis#lInsert`                           |
+| `Rank`       | `Rank(rank: Long)`                       | `Redis#lPos`, `Redis#lPosCount`           |
+| `ListMaxLen` | `ListMaxLen(count: Long)`                | `Redis#lPos`, `Redis#lPosCount`           |
+| `Count`      | `Count(count: Long)`                     | `Redis#lPosCount`                         |
+
+### Pushing and Popping
+
+`Redis#lPush` prepends and `Redis#rPush` appends. Both accept several elements, create the list if needed, and return the new length. `Redis#lPushX` and `Redis#rPushX` do the same but do nothing when the list does not exist. `Redis#lPop` and `Redis#rPop` remove one element and return an `Option`:
+
+```scala
+import zio._
+import zio.redis._
+
+def queue(redis: Redis): IO[RedisError, Option[String]] =
+  for {
+    _    <- redis.rPush("jobs", "a", "b", "c")
+    _    <- redis.lPushX("jobs", "urgent")
+    head <- redis.lPop("jobs").returning[String]
+  } yield head
+```
+
+### Blocking Pops
+
+`Redis#blPop` and `Redis#brPop` wait until one of the given lists has an element. The timeout is in a second parameter list, and a zero duration blocks indefinitely. The result is `Option[(K, V)]`, holding the key that supplied the element, or `None` when the timeout expires:
+
+```scala
+import zio._
+import zio.redis._
+
+def worker(redis: Redis): IO[RedisError, Option[(String, String)]] =
+  redis.blPop("high", "low")(5.seconds).returning[String]
+```
+
+### Moving Elements
+
+`Redis#lMove` atomically pops from one side of a source list and pushes onto one side of a destination list. `Redis#blMove` is the blocking form and takes a `timeout: Duration` as its last argument. Both return an `Option` with the moved element:
+
+```scala
+import zio._
+import zio.redis._
+
+def claim(redis: Redis): IO[RedisError, Option[String]] =
+  for {
+    _     <- redis.lMove("pending", "working", Side.Left, Side.Right).returning[String]
+    moved <- redis.blMove("pending", "working", Side.Left, Side.Right, 1.second).returning[String]
+  } yield moved
+```
+
+### Reading Elements
+
+`Redis#lIndex` returns the element at a zero-based index, where negative indices count from the tail. `Redis#lRange` takes a Scala `Range` and returns a `Chunk`. Redis treats `-1` as the last element, so `0 to -1` selects the whole list. `Redis#lLen` returns the length:
+
+```scala
+import zio._
+import zio.redis._
+
+def peek(redis: Redis): IO[RedisError, (Long, Option[String], Chunk[String])] =
+  for {
+    size  <- redis.lLen("jobs")
+    last  <- redis.lIndex("jobs", -1L).returning[String]
+    first <- redis.lRange("jobs", 0 to 9).returning[String]
+  } yield (size, last, first)
+```
+
+### Searching
+
+`Redis#lPos` returns the index of the first match as an `Option[Long]`. `Redis#lPosCount` takes a required `Count` and returns up to that many indexes as a `Chunk[Long]`. Both accept an optional `Rank` to select the nth match and an optional `ListMaxLen` to limit comparisons:
+
+```scala
+import zio._
+import zio.redis._
+
+def find(redis: Redis): IO[RedisError, (Option[Long], Chunk[Long])] =
+  for {
+    first <- redis.lPos("jobs", "b")
+    all   <- redis.lPosCount("jobs", "b", Count(10L), Some(Rank(1L)), Some(ListMaxLen(1000L)))
+  } yield (first, all)
+```
+
+### Modifying a List
+
+| Method                                          | Effect                                                               |
+| ----------------------------------------------- | -------------------------------------------------------------------- |
+| `Redis#lSet(key, index, element)`               | Replaces the element at an index                                     |
+| `Redis#lInsert(key, position, pivot, element)`  | Inserts next to the first `pivot`, returns the new length or `-1`    |
+| `Redis#lRem(key, count, element)`               | Removes matching elements and returns how many were removed          |
+| `Redis#lTrim(key, range)`                       | Keeps only the elements in the range                                 |
+
+For `Redis#lRem`, a positive `count` removes from the head, a negative one from the tail, and zero removes all matches. The `element` parameter is a `String`, not a generic value:
+
+```scala
+import zio._
+import zio.redis._
+
+def tidy(redis: Redis): IO[RedisError, Long] =
+  for {
+    _       <- redis.lSet("jobs", 0L, "first")
+    _       <- redis.lInsert("jobs", Position.After, "first", "second")
+    removed <- redis.lRem("jobs", 0L, "stale")
+    _       <- redis.lTrim("jobs", 0 to 99)
+  } yield removed
+```
+
+### Next Steps
+
+- [Sets](./sets.md) stores unique members without order.
+- [Streams](./streams.md) offers consumer groups for work queues.
+- [Keys](./keys.md) covers expiry for list keys.
+
+---
+
+## Scripting
+
+Redis can run Lua scripts on the server. A script runs atomically, so no other command executes while it runs. This page covers the seven scripting commands on `Redis`.
+
+The library has no `MULTI`, `EXEC`, `DISCARD` or `WATCH` commands and no transaction API, so atomic multi-step logic is written as a Lua script and run with `Redis#eval` or `Redis#evalSha`.
+
+### Running Scripts
+
+`Redis#eval` sends the script text, a `Chunk` of keys that the script reads through `KEYS`, and a `Chunk` of arguments that it reads through `ARGV`. The following table lists the commands that run scripts:
+
+| Command          | Purpose                                                  |
+| ---------------- | -------------------------------------------------------- |
+| `Redis#eval`     | Runs a script sent as text                               |
+| `Redis#evalSha`  | Runs a script already cached on the server, by its SHA1  |
+
+Both commands finish with `returning[R]`, but unlike the other commands they do not use a ZIO Schema `Schema`. They require an `Input[K]` for the keys, an `Input[A]` for the arguments and an `Output[R]` for the result, and the library provides no implicit instances of these. We define them ourselves from the public building blocks in `Input` and `Output`, such as `StringInput`, `LongInput`, `LongOutput`, `MultiStringOutput` and `ChunkOutput`.
+
+The following example defines the instances in an object and increments a counter only when it is below a limit. The script runs atomically, so concurrent callers cannot exceed the limit:
+
+```scala
+import zio._
+import zio.redis._
+
+object ScriptCodecs {
+  implicit val stringInput: Input[String] = Input.StringInput
+  implicit val longInput: Input[Long]     = Input.LongInput
+  implicit val longOutput: Output[Long]   = Output.LongOutput
+}
+
+import ScriptCodecs._
+
+val incrementBelowLimit: String =
+  """local current = tonumber(redis.call('GET', KEYS[1]) or '0')
+    |if current < tonumber(ARGV[1]) then
+    |  return redis.call('INCR', KEYS[1])
+    |end
+    |return -1""".stripMargin
+
+def increment(redis: Redis, limit: Long): IO[RedisError, Long] =
+  redis.eval(incrementBelowLimit, Chunk("counter"), Chunk(limit)).returning[Long]
+```
+
+The script's return value is converted by the `Output` you choose, so it must match the Lua type: a number needs `LongOutput`, a string `MultiStringOutput`, and a table `ChunkOutput` of an element output. A mismatch fails with a `RedisError`.
+
+### Caching Scripts
+
+Sending the whole script on every call wastes bandwidth. `Redis#scriptLoad` stores the script in the server's script cache and returns its SHA1 digest, which `Redis#evalSha` accepts in place of the text. The following example loads a script once and then runs it by digest:
+
+```scala
+import zio._
+import zio.redis._
+
+object ShaCodecs {
+  implicit val stringInput: Input[String]  = Input.StringInput
+  implicit val stringOutput: Output[String] = Output.MultiStringOutput
+}
+
+import ShaCodecs._
+
+def runCached(redis: Redis): IO[RedisError, String] =
+  for {
+    sha    <- redis.scriptLoad("return ARGV[1]")
+    result <- redis.evalSha(sha, Chunk.empty[String], Chunk("hello")).returning[String]
+  } yield result
+```
+
+The cache is not persistent. After a server restart or `Redis#scriptFlush`, `Redis#evalSha` fails with a `NOSCRIPT` error, so a program that relies on it should load the script again and retry.
+
+### Managing the Script Cache
+
+The following table lists the commands that manage the cache and running scripts:
+
+| Command                | Parameters                          | Returns          |
+| ---------------------- | ----------------------------------- | ---------------- |
+| `Redis#scriptLoad`     | `script: String`                    | The SHA1 digest  |
+| `Redis#scriptExists`   | `sha1: String, sha1s: String*`      | `Chunk[Boolean]` |
+| `Redis#scriptFlush`    | `mode: Option[FlushMode] = None`    | `Unit`           |
+| `Redis#scriptKill`     | none                                | `Unit`           |
+| `Redis#scriptDebug`    | `mode: DebugMode`                   | `Unit`           |
+
+`Redis#scriptExists` returns one `Boolean` per digest, in the order given. `Redis#scriptKill` stops the running script, and Redis refuses when the script has already written data. The following example flushes the cache only when a script is missing:
+
+```scala
+import zio._
+import zio.redis._
+
+def flushIfMissing(redis: Redis, sha: String): IO[RedisError, Unit] =
+  redis.scriptExists(sha).flatMap { found =>
+    ZIO.unless(found.forall(identity))(redis.scriptFlush(Some(FlushMode.Async))).unit
+  }
+```
+
+### Option Types
+
+`FlushMode` selects how `Redis#scriptFlush` clears the cache. When no mode is given, the server uses its default, which is synchronous:
+
+| Value             | Behavior                              |
+| ----------------- | ------------------------------------- |
+| `FlushMode.Async` | Flushes the cache in the background   |
+| `FlushMode.Sync`  | Flushes the cache and waits           |
+
+`DebugMode` configures the Lua debugger for scripts run afterwards with `Redis#eval`:
+
+| Value            | Behavior                                                       |
+| ---------------- | -------------------------------------------------------------- |
+| `DebugMode.Yes`  | Non-blocking debugging; changes made by the script are discarded |
+| `DebugMode.Sync` | Blocking debugging; changes made by the script are saved       |
+| `DebugMode.No`   | Turns debugging off                                            |
+
+The following example turns the debugger off:
+
+```scala
+import zio._
+import zio.redis._
+
+def stopDebugging(redis: Redis): IO[RedisError, Unit] =
+  redis.scriptDebug(DebugMode.No)
+```
+
+### Related Pages
+
+- [Keys](./keys.md) and [Strings](./strings.md) cover the commands a script usually calls.
+- [Error Handling](../error-handling.md) lists the errors raised by failing scripts.
+
+---
+
+## Sets
+
+A Redis set is an unordered collection of unique members. This page lists every set command on `Redis`, grouped by what it does.
+
+Members and keys are encoded with the configured [`CodecSupplier`](../codecs.md). Commands that return members end with `returning[A]`, as described in [Getting Started](../getting-started.md).
+
+### Command Overview
+
+| Purpose              | Commands                                                                |
+| -------------------- | ----------------------------------------------------------------------- |
+| Add and remove       | `Redis#sAdd`, `Redis#sRem`, `Redis#sPop`, `Redis#sMove`                 |
+| Inspect              | `Redis#sCard`, `Redis#sIsMember`, `Redis#sMembers`, `Redis#sRandMember` |
+| Combine, return      | `Redis#sUnion`, `Redis#sInter`, `Redis#sDiff`                           |
+| Combine, store       | `Redis#sUnionStore`, `Redis#sInterStore`, `Redis#sDiffStore`            |
+| Iterate              | `Redis#sScan`                                                           |
+
+### Adding and Removing Members
+
+`Redis#sAdd` and `Redis#sRem` accept one or more members. `Redis#sAdd` returns the number of members that were newly added, and `Redis#sRem` returns the number that were actually removed:
+
+```scala
+import zio._
+import zio.redis._
+
+def editTags(redis: Redis): IO[RedisError, (Long, Long)] =
+  for {
+    added   <- redis.sAdd("tags", "scala", "zio", "redis")
+    removed <- redis.sRem("tags", "redis", "missing")
+  } yield (added, removed)
+```
+
+`Redis#sMove(source, destination, member)` moves a member between two sets and returns `true` if the member was found in the source:
+
+```scala
+import zio._
+import zio.redis._
+
+def archive(redis: Redis): IO[RedisError, Boolean] =
+  redis.sMove("tags", "archived-tags", "zio")
+```
+
+### Inspecting a Set
+
+These commands read a set without changing it:
+
+| Method                              | Returns      | Meaning                                       |
+| ----------------------------------- | ------------ | --------------------------------------------- |
+| `Redis#sCard(key)`                  | `Long`       | Number of members, or zero if the key is missing |
+| `Redis#sIsMember(key, member)`      | `Boolean`    | Whether the member is in the set              |
+| `Redis#sMembers(key)`               | `Chunk[A]`   | All members                                   |
+
+To read the members and check one of them:
+
+```scala
+import zio._
+import zio.redis._
+
+def inspect(redis: Redis): IO[RedisError, (Long, Boolean, Chunk[String])] =
+  for {
+    size    <- redis.sCard("tags")
+    isScala <- redis.sIsMember("tags", "scala")
+    members <- redis.sMembers("tags").returning[String]
+  } yield (size, isScala, members)
+```
+
+### Random Members
+
+`Redis#sPop` removes random members, and `Redis#sRandMember` returns them without removing. Both take an optional `count: Option[Long]` and always return a `Chunk`, even when `count` is `None`:
+
+```scala
+import zio._
+import zio.redis._
+
+def pickWinners(redis: Redis): IO[RedisError, (Chunk[String], Chunk[String])] =
+  for {
+    peek   <- redis.sRandMember("entries", Some(2L)).returning[String]
+    winner <- redis.sPop("entries", Some(1L)).returning[String]
+  } yield (peek, winner)
+```
+
+### Combining Sets
+
+Each operation has two forms. The first returns the resulting members, and the second writes them to a destination key and returns the size of the new set:
+
+| Operation    | Returns members                   | Stores result                                        |
+| ------------ | --------------------------------- | ---------------------------------------------------- |
+| Union        | `Redis#sUnion(key, keys*)`        | `Redis#sUnionStore(destination, key, keys*)`         |
+| Intersection | `Redis#sInter(key, keys*)`        | `Redis#sInterStore(destination, key, keys*)`         |
+| Difference   | `Redis#sDiff(key, keys*)`         | `Redis#sDiffStore(destination, key, keys*)`          |
+
+`Redis#sDiff` subtracts every later set from the first one, so the order of keys matters. To compute set algebra over two sets:
+
+```scala
+import zio._
+import zio.redis._
+
+def combine(redis: Redis): IO[RedisError, (Chunk[String], Chunk[String], Long)] =
+  for {
+    both   <- redis.sInter("scala-devs", "zio-devs").returning[String]
+    onlyA  <- redis.sDiff("scala-devs", "zio-devs").returning[String]
+    stored <- redis.sUnionStore("all-devs", "scala-devs", "zio-devs")
+  } yield (both, onlyA, stored)
+```
+
+### Scanning
+
+`Redis#sScan` iterates the members with a cursor. Start from `0` and continue with the returned cursor until it is `0` again. The optional `pattern` is a glob-style filter and `count` is a `Count` hint:
+
+```scala
+import zio._
+import zio.redis._
+
+def scanTags(redis: Redis): IO[RedisError, Chunk[String]] = {
+  def loop(cursor: Long, acc: Chunk[String]): IO[RedisError, Chunk[String]] =
+    redis.sScan("tags", cursor, Some("s*"), Some(Count(50L))).returning[String].flatMap {
+      case (0L, items)   => ZIO.succeed(acc ++ items)
+      case (next, items) => loop(next, acc ++ items)
+    }
+
+  loop(0L, Chunk.empty)
+}
+```
+
+### Next Steps
+
+- [Sorted Sets](./sorted-sets.md) adds a score to every member.
+- [Lists](./lists.md) keeps insertion order and allows duplicates.
+- [Hashes](./hashes.md) stores field and value pairs.
+
+---
+
+## Sorted Sets
+
+A sorted set stores unique members, each with a floating point score, and keeps them ordered by score. This page documents the sorted set commands of ZIO Redis and the option types they accept.
+
+All commands are methods on the `Redis` service. Keys and members are encoded with the configured [`CodecSupplier`](../codecs.md). Commands that return members need `returning[A]`, as explained in [Getting Started](../getting-started.md).
+
+### Commands
+
+The commands are grouped below by purpose:
+
+| Group          | Methods                                                                                                  |
+| -------------- | -------------------------------------------------------------------------------------------------------- |
+| Add and update | `Redis#zAdd`, `Redis#zAddWithIncr`, `Redis#zIncrBy`                                                      |
+| Size and score | `Redis#zCard`, `Redis#zCount`, `Redis#zLexCount`, `Redis#zScore`, `Redis#zMScore`                        |
+| Rank           | `Redis#zRank`, `Redis#zRankWithScore`, `Redis#zRevRank`, `Redis#zRevRankWithScore`                       |
+| Range queries  | `Redis#zRange`, `Redis#zRangeWithScores`, `Redis#zRangeStore`                                            |
+| Random members | `Redis#zRandMember`, `Redis#zRandMemberWithScores`                                                       |
+| Remove         | `Redis#zRem`, `Redis#zRemRangeByLex`, `Redis#zRemRangeByRank`, `Redis#zRemRangeByScore`                  |
+| Pop            | `Redis#zPopMin`, `Redis#zPopMax`, `Redis#zmPopMin`, `Redis#zmPopMax`                                     |
+| Blocking pop   | `Redis#bzPopMin`, `Redis#bzPopMax`, `Redis#bZmPopMin`, `Redis#bZmPopMax`                                 |
+| Set algebra    | `Redis#zDiff`, `Redis#zDiffWithScores`, `Redis#zDiffStore`, `Redis#zInter`, `Redis#zInterWithScores`, `Redis#zInterStore`, `Redis#zInterCard`, `Redis#zUnion`, `Redis#zUnionWithScores`, `Redis#zUnionStore` |
+| Iteration      | `Redis#zScan`                                                                                            |
+
+The deprecated methods `Redis#zRevRangeWithScores`, `Redis#zRangeByScoreWithScores` and `Redis#zRevRangeByScoreWithScores`, and the overloads of `Redis#zRange` and `Redis#zRangeWithScores` that take a Scala `Range`, are replaced by the `SortedSetRange` versions described below.
+
+### Option Types
+
+The following types are available after `import zio.redis._`:
+
+| Type                | Shape                                                                       | Used by                                   |
+| ------------------- | --------------------------------------------------------------------------- | ----------------------------------------- |
+| `MemberScore[M]`    | `MemberScore(member: M, score: Double)`                                     | `zAdd` and every `WithScores` result      |
+| `RankScore`         | `RankScore(rank: Long, score: Double)`                                      | `zRankWithScore`, `zRevRankWithScore`     |
+| `Update`            | `SetExisting` (`XX`), `SetNew` (`NX`), `SetLessThan` (`LT`), `SetGreaterThan` (`GT`) | `zAdd`, `zAddWithIncr`            |
+| `Changed`           | Singleton `Changed`, makes the result count changed members                 | `zAdd`, `zAddWithIncr`                    |
+| `Increment`         | Singleton `Increment`, makes `ZADD` act like `ZINCRBY`                      | `zAddWithIncr`                            |
+| `Aggregate`         | `Aggregate.Sum`, `Aggregate.Min` or `Aggregate.Max`                         | `zInter*`, `zUnion*`                      |
+| `Limit`             | `Limit(offset: Long, count: Long)`                                          | `zRange`, `zRangeWithScores`, `zRangeStore` |
+| `Count`             | `Count(count: Long)`                                                        | `zScan`                                   |
+| `SortedSetRange`    | `Range`, `ScoreRange` or `LexRange`                                         | `zRange`, `zRangeWithScores`, `zRangeStore` |
+
+`SortedSetRange` has three cases, and each one carries its own bound types:
+
+| Case                                  | Bound types                                                                                   | Queries by |
+| ------------------------------------- | --------------------------------------------------------------------------------------------- | ---------- |
+| `SortedSetRange.Range(min, max)`      | `RangeMinimum(value: Long)`, `RangeMaximum.Inclusive(value)`, `RangeMaximum.Exclusive(value)`  | Rank       |
+| `SortedSetRange.ScoreRange(min, max)` | `ScoreMinimum.Closed`, `ScoreMinimum.Open`, `ScoreMinimum.Infinity`, `ScoreMaximum.Closed`, `ScoreMaximum.Open`, `ScoreMaximum.Infinity` | Score |
+| `SortedSetRange.LexRange(min, max)`   | `LexMinimum.Closed`, `LexMinimum.Open`, `LexMinimum.UnboundedNegative`, `LexMinimum.UnboundedPositive`, and the same four on `LexMaximum` | Lexicographic order |
+
+`Closed` includes the bound and `Open` excludes it. `ScoreMinimum.Infinity` means `-inf` and `ScoreMaximum.Infinity` means `+inf`. For lexicographic bounds, `UnboundedNegative` is `-` and `UnboundedPositive` is `+`.
+
+### Adding and Updating Members
+
+`Redis#zAdd` adds members with scores and returns the number of new members. The optional `update` parameter restricts the write, and `change` makes the result count every member whose score changed:
+
+```scala
+import zio._
+import zio.redis._
+
+def addScores(redis: Redis): IO[RedisError, Long] =
+  redis.zAdd("leaderboard", Some(Update.SetNew), Some(Changed))(
+    MemberScore("alice", 120.0),
+    MemberScore("bob", 95.5)
+  )
+```
+
+`Redis#zAddWithIncr` adds the given score to the existing one and returns the new score, or `None` if an `update` condition aborted the write. `Redis#zIncrBy` does the same with a whole number increment and always returns the new score:
+
+```scala
+import zio._
+import zio.redis._
+
+def bumpScores(redis: Redis): IO[RedisError, (Option[Double], Double)] =
+  for {
+    a <- redis.zAddWithIncr("leaderboard")(Increment, MemberScore("alice", 10.0))
+    b <- redis.zIncrBy("leaderboard", 5L, "bob")
+  } yield (a, b)
+```
+
+### Size, Score and Rank
+
+The size and score commands answer questions without returning members. `Redis#zCount` takes a Scala `Range` of whole number scores, and `Redis#zLexCount` takes a `SortedSetRange.LexRange`:
+
+```scala
+import zio._
+import zio.redis._
+
+def sizes(redis: Redis): IO[RedisError, (Long, Long, Long)] =
+  for {
+    total   <- redis.zCard("leaderboard")
+    inScore <- redis.zCount("leaderboard", 0 to 100)
+    inLex   <- redis.zLexCount("names", SortedSetRange.LexRange(LexMinimum.Closed("a"), LexMaximum.Open("n")))
+  } yield (total, inScore, inLex)
+```
+
+`Redis#zScore` returns the score of one member, and `Redis#zMScore` returns one optional score per member. Its first argument is the sorted set key, followed by the members, and all of them share the single type `K`. The rank commands return `None` for a missing member, and the `Rev` variants count from the highest score:
+
+```scala
+import zio._
+import zio.redis._
+
+def lookups(redis: Redis): IO[RedisError, (Option[Double], Option[Long], Option[RankScore])] =
+  for {
+    score <- redis.zScore("leaderboard", "alice")
+    rank  <- redis.zRank("leaderboard", "alice")
+    both  <- redis.zRevRankWithScore("leaderboard", "alice")
+  } yield (score, rank, both)
+```
+
+### Range Queries
+
+`Redis#zRange` and `Redis#zRangeWithScores` take a `SortedSetRange`, an optional `rev` flag and an optional `Limit`. The first returns members, and the second returns `MemberScore` values. To read the top three members by rank, with scores:
+
+```scala
+import zio._
+import zio.redis._
+
+def topThree(redis: Redis): IO[RedisError, Chunk[MemberScore[String]]] =
+  redis
+    .zRangeWithScores(
+      "leaderboard",
+      SortedSetRange.Range(RangeMinimum(0L), RangeMaximum.Inclusive(2L)),
+      rev = true
+    )
+    .returning[String]
+```
+
+To query by score and page through the matches, use `SortedSetRange.ScoreRange` with a `Limit`:
+
+```scala
+import zio._
+import zio.redis._
+
+def byScore(redis: Redis): IO[RedisError, Chunk[String]] =
+  redis
+    .zRange(
+      "leaderboard",
+      SortedSetRange.ScoreRange(ScoreMinimum.Closed(50.0), ScoreMaximum.Infinity),
+      limit = Some(Limit(0L, 10L))
+    )
+    .returning[String]
+```
+
+When `rev` is `true`, the bounds are still given as minimum then maximum, and the library reorders them for score and lexicographic queries. To copy a range into another key, use `Redis#zRangeStore`, which returns the size of the destination:
+
+```scala
+import zio._
+import zio.redis._
+
+def copyRange(redis: Redis): IO[RedisError, Long] =
+  redis.zRangeStore(
+    "leaderboard:top",
+    "leaderboard",
+    SortedSetRange.Range(RangeMinimum(0L), RangeMaximum.Inclusive(9L)),
+    rev = true
+  )
+```
+
+### Random Members
+
+`Redis#zRandMember(key)` returns an `Option` of one member. The overload with a `count` returns a `Chunk`, and `Redis#zRandMemberWithScores` includes the scores. A negative count allows repeated members:
+
+```scala
+import zio._
+import zio.redis._
+
+def sample(redis: Redis): IO[RedisError, (Option[String], Chunk[MemberScore[String]])] =
+  for {
+    one  <- redis.zRandMember("leaderboard").returning[String]
+    many <- redis.zRandMemberWithScores("leaderboard", 3L).returning[String]
+  } yield (one, many)
+```
+
+### Removing Members
+
+The remove commands return the number of members removed. `Redis#zRemRangeByRank` takes a Scala `Range`, `Redis#zRemRangeByScore` takes a `SortedSetRange.ScoreRange`, and `Redis#zRemRangeByLex` takes a `SortedSetRange.LexRange`:
+
+```scala
+import zio._
+import zio.redis._
+
+def prune(redis: Redis): IO[RedisError, Long] =
+  for {
+    a <- redis.zRem("leaderboard", "bob", "carol")
+    b <- redis.zRemRangeByRank("leaderboard", 0 to 1)
+    c <- redis.zRemRangeByScore("leaderboard", SortedSetRange.ScoreRange(ScoreMinimum.Infinity, ScoreMaximum.Open(10.0)))
+  } yield a + b + c
+```
+
+### Popping Members
+
+`Redis#zPopMin` and `Redis#zPopMax` remove members from a single key and return them with their scores. `Redis#zmPopMin` and `Redis#zmPopMax` take several keys and pop from the first non-empty one, returning that key together with the popped members. The `count` is the first parameter list:
+
+```scala
+import zio._
+import zio.redis._
+
+def popLowest(redis: Redis): IO[RedisError, Option[(String, Chunk[MemberScore[String]])]] =
+  redis.zmPopMin(Some(2L))("queue:high", "queue:low").returning[String]
+```
+
+### Blocking Pops
+
+The blocking variants wait until a member is available or the `timeout` expires. `Redis#bzPopMin` and `Redis#bzPopMax` return the key and a single `MemberScore`, and `Redis#bZmPopMin` and `Redis#bZmPopMax` mirror `zmPopMin` and `zmPopMax` with a timeout. All of them return `None` when the timeout expires:
+
+```scala
+import zio._
+import zio.redis._
+
+def nextJob(redis: Redis): IO[RedisError, Option[(String, MemberScore[String])]] =
+  redis.bzPopMin(5.seconds, "queue:high", "queue:low").returning[String]
+```
+
+### Set Algebra
+
+The set algebra commands combine several sorted sets. Each family has a plain form that returns members, a `WithScores` form that returns `MemberScore` values, and a `Store` form that writes into a destination key and returns its size. `Redis#zDiff` has no weights or aggregate, while `Redis#zInter` and `Redis#zUnion` accept both, and `Redis#zInterCard` only counts. The weights have the type `Option[::[Double]]`, a non-empty list with one weight per input key:
+
+```scala
+import zio._
+import zio.redis._
+
+def combine(redis: Redis): IO[RedisError, (Chunk[MemberScore[String]], Long, Long)] =
+  for {
+    inter <- redis
+               .zInterWithScores("scores:a", "scores:b")(Some(Aggregate.Max), Some(::(2.0, List(1.0))))
+               .returning[String]
+    union <- redis.zUnionStore("scores:all", "scores:a", "scores:b")(None, Some(Aggregate.Sum))
+    card  <- redis.zInterCard(Some(100L))("scores:a", "scores:b")
+  } yield (inter, union, card)
+```
+
+Note that `Redis#zInter` takes `aggregate` before `weights`, while `Redis#zUnion` and `Redis#zUnionStore` take `weights` before `aggregate`. `Redis#zDiffStore` takes the destination first, then the source keys.
+
+### Iterating
+
+`Redis#zScan` walks a sorted set in batches. Start with cursor `0L`, and continue with the returned cursor until it is `0L` again. The optional `pattern` filters members, and `count` is a hint for the batch size:
+
+```scala
+import zio._
+import zio.redis._
+
+def scanAll(redis: Redis, cursor: Long = 0L): IO[RedisError, Chunk[MemberScore[String]]] =
+  redis.zScan("leaderboard", cursor, Some("a*"), Some(Count(100L))).returning[String].flatMap {
+    case (0L, batch)   => ZIO.succeed(batch)
+    case (next, batch) => scanAll(redis, next).map(batch ++ _)
+  }
+```
+
+### Next Steps
+
+- [Geo](./geo.md) builds on sorted sets to store coordinates.
+- [Sets](./sets.md) covers unordered unique members.
+- [Keys](./keys.md) covers expiry and deletion for sorted set keys.
+
+---
+
+## Streams
+
+A Redis stream is an append-only log of entries, each made of an ID and a set of field-value pairs. This page covers the 32 stream commands on `Redis`, from appending and reading entries to consumer groups, claiming and trimming.
+
+Stream IDs have the form `<milliseconds>-<sequence>`. Pass `"*"` to `Redis#xAdd` to let the server generate the ID, and use `"-"` and `"+"` as the smallest and largest possible IDs in range queries.
+
+Every command here takes the key, group, consumer and ID as values with a ZIO Schema `Schema`, which are encoded by the [`CodecSupplier`](../codecs.md). In the examples they are plain `String`s.
+
+### Appending Entries
+
+`Redis#xAdd` appends an entry made of one or more field-value pairs. The result type is the type of the generated ID, so we finish with `returning[A]`, and the result is `None` when `noMakeStream` is set and the stream does not exist:
+
+```scala
+import zio._
+import zio.redis._
+
+def addClick(redis: Redis): IO[RedisError, Option[String]] =
+  redis.xAdd("clicks", "*")("page" -> "/home", "user" -> "42").returning[String]
+```
+
+The following table lists the commands that append entries:
+
+| Command                  | Purpose                                                           |
+| ------------------------ | ----------------------------------------------------------------- |
+| `Redis#xAdd`             | Appends an entry                                                  |
+| `Redis#xAddWithMaxLen`   | Appends an entry and trims the stream to at most `count` entries  |
+| `Redis#xAddWithMinId`    | Appends an entry and evicts entries with an ID lower than `minId` |
+
+`Redis#xAddWithMaxLen` and `Redis#xAddWithMinId` take the same `approximate` and `limit` parameters, described under [Trimming Streams](#capped-streams). The following example keeps roughly the latest 1000 entries:
+
+```scala
+import zio._
+import zio.redis._
+
+def addCapped(redis: Redis): IO[RedisError, Option[String]] =
+  redis
+    .xAddWithMaxLen("clicks", "*", count = 1000L, approximate = true)("page" -> "/home")
+    .returning[String]
+```
+
+### Reading Entries
+
+Range queries return the entries between two IDs, inclusive. They return `StreamEntries[I, K, V]`, which is a `Chunk[StreamEntry[I, K, V]]`, where `StreamEntry` holds an `id` and a `fields` map:
+
+| Command             | Purpose                                                      |
+| ------------------- | ------------------------------------------------------------ |
+| `Redis#xRange`      | Returns entries from `start` to `end`, optionally `count`    |
+| `Redis#xRevRange`   | Returns entries from `end` down to `start`, optionally `count` |
+| `Redis#xLen`        | Returns the number of entries                                |
+| `Redis#xDel`        | Deletes entries by ID and returns how many were deleted      |
+
+Note that `Redis#xRevRange` takes `end` before `start`. The following example reads the ten oldest entries:
+
+```scala
+import zio._
+import zio.redis._
+
+def firstTen(redis: Redis): IO[RedisError, StreamEntries[String, String, String]] =
+  redis.xRange("clicks", "-", "+", 10L).returning[String, String]
+```
+
+`Redis#xRead` reads from one or more streams, starting after the given ID in each. Pass `"0-0"` to read from the beginning, or `"$"` together with `block` to wait for entries that arrive later. It returns `StreamChunks[SK, I, K, V]`, a `Chunk[StreamChunk]` with the stream `name` and its `entries`:
+
+```scala
+import zio._
+import zio.redis._
+
+def waitForNew(redis: Redis): IO[RedisError, StreamChunks[String, String, String, String]] =
+  redis.xRead(count = Some(10L), block = Some(5.seconds))("clicks" -> "$").returning[String, String]
+```
+
+### Capped Streams
+
+A stream grows without bound unless it is capped. The trimming commands and options use `CappedStreamType` internally, with the cases `MaxLenApprox`, `MaxLenExact`, `MinIdApprox` and `MinIdExact`. Public methods expose the same choice through plain parameters.
+
+| Command                  | Trims by                          |
+| ------------------------ | --------------------------------- |
+| `Redis#xTrimWithMaxLen`  | Number of entries (`threshold`)   |
+| `Redis#xTrimWithMinId`   | Smallest ID to keep (`threshold`) |
+
+Both commands take `approximate: Boolean = false` and `limit: Option[Long] = None`. With `approximate = true`, Redis may keep slightly more entries than requested, which is cheaper, and `limit` bounds the work done per call. Both return the number of entries removed:
+
+```scala
+import zio._
+import zio.redis._
+
+def trim(redis: Redis): IO[RedisError, Long] =
+  redis.xTrimWithMaxLen("clicks", threshold = 10000L, approximate = true, limit = Some(100L))
+```
+
+### Consumer Groups
+
+A consumer group lets several consumers share the work of reading one stream. Redis delivers each entry to one consumer of the group and remembers it in the group's pending entries list until the consumer acknowledges it.
+
+The following table lists the commands that manage groups and consumers:
+
+| Command                          | Purpose                                                       |
+| -------------------------------- | ------------------------------------------------------------- |
+| `Redis#xGroupCreate`             | Creates a group that starts after the given ID                |
+| `Redis#xGroupCreateLastEntry`    | Creates a group that starts after the current last entry      |
+| `Redis#xGroupSetId`              | Moves the group's last delivered ID                           |
+| `Redis#xGroupSetIdLastEntry`     | Moves the group's last delivered ID to the last entry         |
+| `Redis#xGroupDestroy`            | Deletes a group and returns whether it existed                |
+| `Redis#xGroupCreateConsumer`     | Creates a consumer and returns whether it was created         |
+| `Redis#xGroupDelConsumer`        | Deletes a consumer and returns how many pending entries it had |
+
+`Redis#xGroupCreate` and `Redis#xGroupCreateLastEntry` accept `mkStream: Boolean = false`, which creates the stream when it does not exist, and `entriesRead: Option[Long] = None`. The `*LastEntry` variants pass `"$"` for you. The following example creates a group on a new stream and registers a consumer:
+
+```scala
+import zio._
+import zio.redis._
+
+def setUp(redis: Redis): IO[RedisError, Boolean] =
+  redis.xGroupCreate("orders", "billing", "0-0", mkStream = true) *>
+    redis.xGroupCreateConsumer("orders", "billing", "worker-1")
+```
+
+### The Stream Reading Flow
+
+The usual flow with a consumer group has four steps. A producer appends entries with `Redis#xAdd`. A consumer calls `Redis#xReadGroup` with the ID `">"`, which asks for entries never delivered to any consumer of the group. After handling an entry, the consumer calls `Redis#xAck`. Entries that were never acknowledged are recovered with `Redis#xPending`, `Redis#xClaim` or `Redis#xAutoClaim`.
+
+`Redis#xReadGroup` takes `count`, `block` and `noAck`. With `noAck = true` entries are not added to the pending list, so no acknowledgement is needed. If you pass an ID such as `"0"` instead of `">"`, Redis returns the consumer's own pending entries.
+
+`Redis#xAck` takes a group and one or more IDs and returns how many entries were acknowledged. The following example reads a batch, handles each entry and acknowledges it:
+
+```scala
+import zio._
+import zio.redis._
+
+def consume(redis: Redis): IO[RedisError, Unit] =
+  for {
+    chunks <- redis
+                .xReadGroup("billing", "worker-1", count = Some(10L), block = Some(2.seconds))("orders" -> ">")
+                .returning[String, String]
+    _      <- ZIO.foreachDiscard(chunks.flatMap(_.entries)) { entry =>
+                ZIO.debug(s"handling ${entry.id}: ${entry.fields}") *>
+                  redis.xAck("orders", "billing", entry.id)
+              }
+  } yield ()
+```
+
+### Recovering Pending Entries
+
+When a consumer crashes, its entries stay in the pending list. The following table lists the commands that inspect and take over pending entries:
+
+| Command                         | Purpose                                                          |
+| ------------------------------- | ---------------------------------------------------------------- |
+| `Redis#xPending` (group only)   | Returns a `PendingInfo` summary                                  |
+| `Redis#xPending` (with range)   | Returns a `Chunk[PendingMessage]` for a range of IDs             |
+| `Redis#xClaim`                  | Transfers named entries to a consumer and returns them           |
+| `Redis#xClaimWithJustId`        | Same, but returns only the IDs                                   |
+| `Redis#xAutoClaim`              | Scans the pending list and claims idle entries, returning them   |
+| `Redis#xAutoClaimWithJustId`    | Same, but returns only the IDs                                   |
+
+`PendingInfo` holds `total`, the `first` and `last` pending IDs and a `consumers` map of pending counts. Each `PendingMessage` holds `id`, `owner`, `lastDelivered` and `counter`. The ranged `Redis#xPending` also accepts `consumer: Option[SC]` and `idle: Option[Duration]` to filter the result:
+
+```scala
+import zio._
+import zio.redis._
+
+def inspect(redis: Redis): IO[RedisError, (PendingInfo, Chunk[PendingMessage])] =
+  for {
+    summary <- redis.xPending("orders", "billing")
+    details <- redis.xPending("orders", "billing", "-", "+", 10L, Some("worker-1"), Some(1.minute))
+  } yield (summary, details)
+```
+
+`Redis#xClaim` takes the `minIdleTime` an entry must have exceeded, plus the optional `idle`, `time`, `retryCount`, `force` and `lastId` parameters that set the new delivery state. `Redis#xAutoClaim` takes `minIdleTime` and an optional `count`, and the `start` ID in the second parameter list. It returns a `StreamClaimedEntries` with `streamId`, the `entries` and the `deletedIds`. The `WithJustId` variant returns a `StreamClaimedIdChunk` with `streamId`, `claimedIds` and `deletedIds`. Use the `streamId` as the next `start`:
+
+```scala
+import zio._
+import zio.redis._
+
+def takeOver(redis: Redis): IO[RedisError, StreamClaimedEntries[String, String, String, String]] =
+  redis
+    .xAutoClaim("orders", "billing", "worker-2", 5.minutes, count = Some(Count(10L)))("0-0")
+    .returning[String, String, String]
+```
+
+### Stream Information
+
+The info commands return typed summaries instead of raw replies:
+
+| Command                      | Returns                                                           |
+| ---------------------------- | ----------------------------------------------------------------- |
+| `Redis#xInfoStream`          | `StreamInfo[I, K, V]` with length, last ID, first and last entry  |
+| `Redis#xInfoStreamFull`      | `FullStreamInfo[I, K, V]` with entries, groups and consumers      |
+| `Redis#xInfoGroups`          | `Chunk[StreamGroupsInfo]`                                         |
+| `Redis#xInfoConsumers`       | `Chunk[StreamConsumersInfo]`                                      |
+
+`Redis#xInfoStreamFull` has an overload that takes `count: Long` to limit the number of entries and pending records reported. The `FullStreamInfo` and its `ConsumerGroups`, `Consumers`, `GroupPel` and `ConsumerPel` types live in `StreamInfoWithFull`. The following example prints the lag of each group:
+
+```scala
+import zio._
+import zio.redis._
+
+def lags(redis: Redis): IO[RedisError, Chunk[(String, Long)]] =
+  redis.xInfoGroups("orders").map(_.map(g => g.name -> g.lag))
+```
+
+### Option Types
+
+The following table summarizes the types from `options/Streams.scala` that appear in command signatures and results:
+
+| Type                                   | Used by                                         |
+| -------------------------------------- | ----------------------------------------------- |
+| `StreamEntry[I, K, V]`                 | `id` and `fields: Map[K, V]` of one entry       |
+| `StreamChunk[N, I, K, V]`              | Entries of one stream read by `xRead`           |
+| `StreamClaimedEntries[SI, I, K, V]`    | Result of `xAutoClaim`                          |
+| `StreamClaimedIdChunk[SI, I]`          | Result of `xAutoClaimWithJustId`                |
+| `PendingInfo`, `PendingMessage`        | Results of `xPending`                           |
+| `StreamInfo`, `StreamGroupsInfo`, `StreamConsumersInfo` | Results of the `xInfo*` commands |
+
+`XGroupCommand`, `WithForce`, `WithJustId`, `MkStream`, `NoMkStream`, `NoAck`, `LastId` and `WithEntriesRead` encode the command arguments for you and are not needed in application code.
+
+### Related Pages
+
+- [Lists](./lists.md) offer a simpler queue when consumer groups are not needed.
+- [Codecs](../codecs.md) explains how keys, fields and values are encoded.
+- [Error Handling](../error-handling.md) lists the errors raised, such as `NOGROUP` when a group does not exist.
+
+---
+
+## Strings
+
+Strings are the simplest Redis value: a byte sequence that can hold text, a number or an encoded case class. This page lists every string command on the `Redis` service, grouped by purpose, with the option types they take.
+
+### Reading and Writing Values
+
+The basic commands read and write one key at a time. Methods that return user data, such as `Redis#get`, finish with `returning[A]`, as explained in [Getting Started](../getting-started.md):
+
+| Command           | Result                | Description                                                  |
+| ----------------- | --------------------- | ------------------------------------------------------------ |
+| `Redis#get`       | `Option[A]`           | Returns the value of a key, or `None` when it does not exist |
+| `Redis#getDel`    | `Option[A]`           | Returns the value of a key and deletes the key               |
+| `Redis#getSet`    | `Option[A]`           | Sets a new value and returns the old one                     |
+| `Redis#set`       | `Boolean`             | Sets a value, with optional expiry and condition             |
+| `Redis#setGet`    | `Option[V]`           | Like `set`, and returns the old value in the same call       |
+| `Redis#setNx`     | `Boolean`             | Sets a value only when the key does not exist                |
+| `Redis#append`    | `Long`                | Appends to a value and returns the new length                |
+| `Redis#strLen`    | `Long`                | Returns the length of a value                                |
+| `Redis#getRange`  | `Option[A]`           | Returns the substring selected by a Scala `Range`            |
+| `Redis#setRange`  | `Long`                | Overwrites part of a value from an offset                    |
+
+To write a value and read it back:
+
+```scala
+import zio._
+import zio.redis._
+
+def readWrite(redis: Redis): IO[RedisError, Option[String]] =
+  for {
+    _     <- redis.set("greeting", "hello")
+    _     <- redis.append("greeting", ", world")
+    value <- redis.get("greeting").returning[String]
+  } yield value
+```
+
+`Redis#getSet` and `Redis#getDel` return the previous value through `returning`, while `Redis#setGet` fixes the result type to the value type `V`. To replace a value and keep the old one:
+
+```scala
+import zio._
+import zio.redis._
+
+def swap(redis: Redis): IO[RedisError, Option[String]] =
+  redis.setGet("token", "new-token")
+```
+
+### Conditional Writes and Expiry
+
+`Redis#set` and `Redis#setGet` share the same optional parameters:
+
+| Parameter    | Type               | Effect                                                  |
+| ------------ | ------------------ | ------------------------------------------------------- |
+| `expireTime` | `Option[Duration]` | Sets a time to live, sent to Redis in milliseconds      |
+| `update`     | `Option[Update]`   | Sets the key only if it exists or only if it is missing |
+| `keepTtl`    | `Option[KeepTtl]`  | Keeps the time to live the key already has              |
+
+`Update` has four cases. `Update.SetExisting` sends `XX` and `Update.SetNew` sends `NX`. The remaining cases, `Update.SetLessThan` and `Update.SetGreaterThan`, are shared with other commands and are not valid for `SET`. `KeepTtl` is a single case object.
+
+`Redis#set` returns `false` when the condition prevents the write. To store a value only if the key is missing, and keep it for ten minutes:
+
+```scala
+import zio._
+import zio.redis._
+
+def acquire(redis: Redis): IO[RedisError, Boolean] =
+  redis.set("lock:job", "owner-1", Some(10.minutes), Some(Update.SetNew))
+```
+
+To overwrite a value without touching its expiry:
+
+```scala
+import zio._
+import zio.redis._
+
+def refresh(redis: Redis): IO[RedisError, Boolean] =
+  redis.set("session", "v2", keepTtl = Some(KeepTtl))
+```
+
+Dedicated commands combine a write with an expiry in one call:
+
+| Command         | Result    | Description                                           |
+| --------------- | --------- | ----------------------------------------------------- |
+| `Redis#setEx`   | `Unit`    | Sets a value that expires after a `Duration`          |
+| `Redis#pSetEx`  | `Unit`    | Sets a value that expires after a `Duration`, in ms   |
+| `Redis#setNx`   | `Boolean` | Sets a value only when the key does not exist         |
+
+### Reading with an Expiry
+
+`Redis#getEx` reads a value and changes its time to live in one step. It has three overloads:
+
+| Overload                                  | Effect                                               |
+| ----------------------------------------- | ---------------------------------------------------- |
+| `getEx(key, expire, expireTime)`          | Sets a relative expiry with an `Expire` and `Duration` |
+| `getEx(key, expiredAt, timestamp)`        | Sets an absolute expiry with an `ExpiredAt` and `Instant` |
+| `getEx(key, persist)`                     | Removes the expiry when `persist` is `true`          |
+
+`Expire` selects the unit of the relative form: `Expire.SetExpireSeconds` sends `EX` and `Expire.SetExpireMilliseconds` sends `PX`. `ExpiredAt` does the same for the absolute form: `ExpiredAt.SetExpireAtSeconds` sends `EXAT` and `ExpiredAt.SetExpireAtMilliseconds` sends `PXAT`.
+
+To read a value and extend its lifetime, then read it and make it permanent:
+
+```scala
+import zio._
+import zio.redis._
+
+def touchAndPersist(redis: Redis): IO[RedisError, Option[String]] =
+  for {
+    _     <- redis.getEx("session", Expire.SetExpireSeconds, 30.minutes).returning[String]
+    value <- redis.getEx("session", persist = true).returning[String]
+  } yield value
+```
+
+### Multiple Keys
+
+The multi-key commands take at least one key or pair, followed by any number of extra ones:
+
+| Command         | Result                 | Description                                         |
+| --------------- | ---------------------- | --------------------------------------------------- |
+| `Redis#mGet`    | `Chunk[Option[A]]`     | Returns the values of several keys                  |
+| `Redis#mSet`    | `Unit`                 | Sets several key-value pairs at once                |
+| `Redis#mSetNx`  | `Boolean`              | Sets all pairs only if none of the keys exist       |
+
+`Redis#mGet` returns one entry per key, in order, with `None` for missing keys. To set two keys and read them back:
+
+```scala
+import zio._
+import zio.redis._
+
+def multi(redis: Redis): IO[RedisError, Chunk[Option[String]]] =
+  for {
+    _      <- redis.mSet("a" -> "1", "b" -> "2")
+    values <- redis.mGet("a", "b", "missing").returning[String]
+  } yield values
+```
+
+### Counters
+
+Counters treat a value as a 64-bit integer, or as a float for `Redis#incrByFloat`. Redis creates a missing key with the value `0` before applying the change:
+
+| Command              | Result   | Description                              |
+| -------------------- | -------- | ---------------------------------------- |
+| `Redis#incr`         | `Long`   | Adds one and returns the new value       |
+| `Redis#incrBy`       | `Long`   | Adds a `Long` and returns the new value  |
+| `Redis#incrByFloat`  | `Double` | Adds a `Double` and returns the new value|
+| `Redis#decr`         | `Long`   | Subtracts one and returns the new value  |
+| `Redis#decrBy`       | `Long`   | Subtracts a `Long` and returns the new value |
+
+To count page views and add a fractional score:
+
+```scala
+import zio._
+import zio.redis._
+
+def counters(redis: Redis): IO[RedisError, (Long, Double)] =
+  for {
+    views <- redis.incr("page:views")
+    score <- redis.incrByFloat("page:score", 1.5)
+  } yield (views, score)
+```
+
+### Bit Operations
+
+Bit commands treat a string as an array of bits. `getBit` and `setBit` address one bit by its offset:
+
+| Command           | Result                  | Description                                            |
+| ----------------- | ----------------------- | ------------------------------------------------------ |
+| `Redis#getBit`    | `Long`                  | Returns the bit at an offset                           |
+| `Redis#setBit`    | `Boolean`               | Sets or clears the bit at an offset, returns the old bit |
+| `Redis#bitCount`  | `Long`                  | Counts bits set to 1, optionally within a `Range`      |
+| `Redis#bitPos`    | `Long`                  | Finds the first set or cleared bit, optionally in a `BitPosRange` |
+| `Redis#bitOp`     | `Long`                  | Applies a `BitOperation` to source keys and stores the result |
+| `Redis#bitField`  | `Chunk[Option[Long]]`   | Runs one or more `BitFieldCommand` values              |
+
+`BitOperation` has the cases `AND`, `OR`, `XOR` and `NOT`. `BitPosRange(start, end)` takes a start offset and an optional end offset.
+
+To track daily visits per user and combine two days:
+
+```scala
+import zio._
+import zio.redis._
+
+def visits(redis: Redis): IO[RedisError, Long] =
+  for {
+    _     <- redis.setBit("visits:mon", 7L, value = true)
+    _     <- redis.setBit("visits:tue", 7L, value = true)
+    _     <- redis.bitOp(BitOperation.AND, "visits:both", "visits:mon", "visits:tue")
+    count <- redis.bitCount("visits:both")
+  } yield count
+```
+
+`Redis#bitCount` accepts a Scala `Range`, and `Redis#bitPos` accepts a `BitPosRange`. To restrict both to the first bytes of a key:
+
+```scala
+import zio._
+import zio.redis._
+
+def inFirstBytes(redis: Redis): IO[RedisError, (Long, Long)] =
+  for {
+    ones  <- redis.bitCount("flags", Some(0 to 3))
+    first <- redis.bitPos("flags", bit = true, Some(BitPosRange(0L, Some(3L))))
+  } yield (ones, first)
+```
+
+#### Bit Fields
+
+`Redis#bitField` treats a string as a sequence of integers of any width. It takes one `BitFieldCommand` and any number of further ones, and returns one `Option[Long]` per command:
+
+| Type                           | Fields                                  | Description                                  |
+| ------------------------------ | --------------------------------------- | -------------------------------------------- |
+| `BitFieldCommand.BitFieldGet`  | `type`, `offset`                        | Reads an integer                             |
+| `BitFieldCommand.BitFieldSet`  | `type`, `offset`, `value`               | Writes an integer                            |
+| `BitFieldCommand.BitFieldIncr` | `type`, `offset`, `increment`           | Adds to an integer                           |
+| `BitFieldCommand.BitFieldOverflow` | `Fail`, `Sat`, `Wrap`               | Selects overflow behavior for later commands |
+
+The integer type is a `BitFieldType`, either `BitFieldType.UnsignedInt(size)` or `BitFieldType.SignedInt(size)`. To write and increment an unsigned 8-bit counter with saturating overflow:
+
+```scala
+import zio._
+import zio.redis._
+import zio.redis.BitFieldCommand._
+
+def bitFields(redis: Redis): IO[RedisError, Chunk[Option[Long]]] =
+  redis.bitField(
+    "counters",
+    BitFieldSet(BitFieldType.UnsignedInt(8), 0, 250L),
+    BitFieldOverflow.Sat,
+    BitFieldIncr(BitFieldType.UnsignedInt(8), 0, 10L)
+  )
+```
+
+### Longest Common Subsequence
+
+`Redis#lcs` compares the values of two keys. It takes an optional `LcsQueryType` and returns an `Lcs`:
+
+| `LcsQueryType`                                | Result                                              |
+| --------------------------------------------- | --------------------------------------------------- |
+| none                                          | `Lcs.PlainLcs(lcs)` with the common subsequence     |
+| `LcsQueryType.Len`                            | `Lcs.Length(length)` with its length                |
+| `LcsQueryType.Idx(minMatchLength, withMatchLength)` | `Lcs.Matches(matches, length)` with match ranges |
+
+Each `Match` holds two `MatchIdx(start, end)` ranges and, when `withMatchLength` is set, a `matchLength`. `minMatchLength` defaults to `1` and `withMatchLength` to `false`. To print the length of the shared text:
+
+```scala
+import zio._
+import zio.redis._
+
+def commonLength(redis: Redis): IO[RedisError, Long] =
+  redis.lcs("key1", "key2", Some(LcsQueryType.Len)).map {
+    case Lcs.Length(length)   => length
+    case Lcs.PlainLcs(lcs)    => lcs.length.toLong
+    case Lcs.Matches(_, size) => size
+  }
+```
+
+---
+
+## Configuration(Zio-redis)
+
+`Redis.singleNode` connects to the server described by a `RedisConfig`; `Redis.local` uses `RedisConfig.Local`. This page lists every setting and shows how to supply it.
+
+### RedisConfig
+
+`RedisConfig` is a case class with the following fields:
+
+| Field               | Type                       | Default                | Meaning                                              |
+| ------------------- | -------------------------- | ---------------------- | ---------------------------------------------------- |
+| `host`              | `String`                   | none                   | Server host name                                     |
+| `port`              | `Int`                      | none                   | Server port                                          |
+| `sni`               | `Option[String]`           | `None`                 | Server name sent during the TLS handshake            |
+| `ssl`               | `Boolean`                  | `false`                | Whether to connect over TLS                          |
+| `verifyCertificate` | `Boolean`                  | `true`                 | Whether to verify the server certificate             |
+| `requestQueueSize`  | `Int`                      | `16`                   | Size of the queue of requests waiting to be sent     |
+| `auth`              | `Option[RedisConfig.Auth]` | `None`                 | Credentials, sent when the connection opens          |
+
+`RedisConfig.Local` is `RedisConfig("localhost", 6379)`.
+
+### Connecting to a Server
+
+To connect to a named host and supply the config as a layer:
+
+```scala
+import zio._
+import zio.redis._
+
+val config: ULayer[RedisConfig] =
+  ZLayer.succeed(RedisConfig("redis.example.com", 6379))
+
+val redis: ZLayer[Any, RedisError.IOError, Redis] =
+  ZLayer.make[Redis](
+    config,
+    ZLayer.succeed[CodecSupplier](CodecSupplier.utf8),
+    Redis.singleNode
+  )
+```
+
+### Authentication and TLS
+
+To authenticate with a password, set `auth` to a `RedisConfig.Auth`. Add a `username` when the server uses ACL users. To use TLS, set `ssl = true`:
+
+```scala
+import zio._
+import zio.redis._
+
+val secure: RedisConfig =
+  RedisConfig(
+    host = "redis.example.com",
+    port = 6380,
+    ssl = true,
+    auth = Some(RedisConfig.Auth("secret", Some("app-user")))
+  )
+```
+
+Set `verifyCertificate = false` only for development servers with self-signed certificates.
+
+### RedisUri
+
+`RedisUri` identifies a node by host and port. It is used by `RedisClusterConfig` to list cluster addresses, and it renders as `redis://host:port` (or `rediss://` when TLS is on). The companion offers several `apply` overloads:
+
+```scala
+import zio.redis._
+
+val plain  = RedisUri("localhost", 6379)
+val parsed = RedisUri("localhost:6379")
+val tls    = RedisUri("redis.example.com:6380", ssl = true)
+```
+
+`RedisUri.apply` with a `"host:port"` string splits on `:`, so it does not accept IPv6 literals or full `redis://` URLs.
+
+---
+
+## Error Handling(Zio-redis)
+
+Every command fails with a `RedisError`. This page lists its cases and shows how to recover from them.
+
+### The RedisError Hierarchy
+
+`RedisError` is a sealed trait, so pattern matches over it are checked for exhaustiveness. Its cases are:
+
+| Case                                  | Meaning                                                               |
+| ------------------------------------- | --------------------------------------------------------------------- |
+| `ProtocolError(message)`              | The server sent a reply the client cannot interpret                   |
+| `CodecError(message)`                 | A value could not be encoded or decoded                               |
+| `WrongType(message)`                  | A command ran against a key holding another type                      |
+| `BusyGroup(message)`                  | A stream consumer group already exists                                |
+| `NoGroup(message)`                    | A stream consumer group does not exist                                |
+| `NoScript(message)`                   | A script SHA is not in the script cache                               |
+| `NotBusy(message)`                    | `scriptKill` ran while no script was executing                        |
+| `IOError(exception)`                  | The connection failed                                                 |
+| `CommandNameNotFound(message)`        | The command is unknown to the client                                  |
+| `CrossSlot(message)`                  | A cluster command touched keys in different slots                     |
+| `Moved(slot, address)`                | A cluster slot lives on another node                                  |
+| `Ask(slot, address)`                  | A cluster slot is being migrated to another node                      |
+| `InvalidPubSubCommand(command)`       | A command is not valid on a subscription connection                   |
+| `SubscriptionStreamAlreadyClosed(key)`| A subscription stream was used after it closed                        |
+
+`Moved` and `Ask` extend `ClusterRedisError`. The cluster executor handles them itself; see [Cluster](./cluster.md). The last two cases extend `PubSubError`; see [Pub/Sub](./pub-sub.md).
+
+### Recovering From Errors
+
+Because the error channel is a plain ZIO error, the usual combinators apply. To treat a type clash as a missing value:
+
+```scala
+import zio._
+import zio.redis._
+
+def safeGet(redis: Redis, key: String): IO[RedisError, Option[String]] =
+  redis.get(key).returning[String].catchSome {
+    case RedisError.WrongType(_) => ZIO.none
+  }
+```
+
+To retry connection failures with a backoff:
+
+```scala
+import zio._
+import zio.redis._
+
+def resilientGet(redis: Redis, key: String): IO[RedisError, Option[String]] =
+  redis.get(key).returning[String].retry(
+    Schedule.exponential(100.millis) && Schedule.recurs(3) && Schedule.recurWhile[RedisError] {
+      case _: RedisError.IOError => true
+      case _                     => false
+    }
+  )
+```
+
+---
+
+## Getting Started(Zio-redis)
+
+ZIO Redis exposes every Redis command as a method on the `Redis` service. This page shows how to build the `Redis` layer, run a first program, and read results back with `returning`.
+
+### Installation
+
+To use ZIO Redis, add the following to `build.sbt`. The example also uses the Protobuf codec from ZIO Schema:
+
+```scala
+libraryDependencies ++= Seq(
+  "dev.zio" %% "zio-redis"           % "1.3.2",
+  "dev.zio" %% "zio-schema-protobuf" % "1.9.0"
+)
+```
+
+### The Redis Service
+
+The library defines two service types, both built from the same layers:
+
+| Type         | Command return type              | Use it to                           |
+| ------------ | -------------------------------- | ----------------------------------- |
+| `Redis`      | `IO[RedisError, A]`              | Run commands one after another      |
+| `AsyncRedis` | `UIO[IO[RedisError, A]]`         | Send commands without waiting       |
+
+Most programs only need `Redis`. See [AsyncRedis](./async-redis.md) for the second one.
+
+### Building the Layer
+
+A `Redis` layer needs a [`CodecSupplier`](./codecs.md) and a connection. The following layers create it:
+
+| Layer                | Requires                              | Connects to                                |
+| -------------------- | ------------------------------------- | ------------------------------------------ |
+| `Redis.local`        | `CodecSupplier`                       | `localhost:6379`                           |
+| `Redis.singleNode`   | `CodecSupplier` and `RedisConfig`     | The single server described by the config  |
+| `Redis.cluster`      | `CodecSupplier` and `RedisClusterConfig` | A Redis Cluster (see [Cluster](./cluster.md)) |
+
+To use the built-in UTF-8 codec supplier against a local server:
+
+```scala
+import zio._
+import zio.redis._
+
+val layer: ZLayer[Any, RedisError.IOError, Redis] =
+  ZLayer.succeed[CodecSupplier](CodecSupplier.utf8) >>> Redis.local
+```
+
+### Running a First Program
+
+The program below stores a value with an expiry and reads it back. Commands such as `Redis#set` and `Redis#get` are methods on the service, so we obtain it with `ZIO.service`:
+
+```scala
+import zio._
+import zio.redis._
+
+object FirstProgram extends ZIOAppDefault {
+  val program: ZIO[Redis, RedisError, Unit] =
+    for {
+      redis <- ZIO.service[Redis]
+      _     <- redis.set("greeting", "hello", Some(1.minute))
+      value <- redis.get("greeting").returning[String]
+      _     <- ZIO.debug(s"greeting = $value")
+    } yield ()
+
+  def run =
+    program.provide(Redis.local, ZLayer.succeed[CodecSupplier](CodecSupplier.utf8))
+}
+```
+
+### Choosing the Return Type
+
+Redis stores bytes, so ZIO Redis cannot know which type a value should decode to. Commands that return user data therefore return a builder, and we finish the call with `returning[A]`, where `A` has a ZIO Schema `Schema`:
+
+```scala
+import zio._
+import zio.redis._
+
+def readCounter(redis: Redis): IO[RedisError, Option[Long]] =
+  redis.get("counter").returning[Long]
+```
+
+Calling `redis.get("counter")` without `returning` does not compile. The compiler reports "Use `returning[A]` to specify method's return type".
+
+Keys, field names and values are all encoded with the `CodecSupplier`, so the same codec must be used to write and to read a value.
+
+### Next Steps
+
+- [Configuration](./configuration.md) explains `RedisConfig`, `RedisUri`, authentication and TLS.
+- [Codecs](./codecs.md) explains how values are encoded.
+- [Error Handling](./error-handling.md) lists every `RedisError`.
+
+---
+
+## How to Cache Values With a Time to Live
+
+This guide shows how to use Redis as a cache that expires entries automatically, and how to load a missing entry on demand. It assumes a `Redis` layer as described in [Getting Started](./getting-started.md).
+
+### Store a Value With an Expiry
+
+To store a value that Redis deletes after one minute, pass an expiry to `Redis#set`:
+
+```scala
+import zio._
+import zio.redis._
+
+def cachePage(redis: Redis, url: String, html: String): IO[RedisError, Boolean] =
+  redis.set(s"page:$url", html, Some(1.minute))
+```
+
+The result is `true` when Redis stored the value. `Redis#setEx` is an equivalent command with the key, the expiry and the value as positional arguments.
+
+### Read the Remaining Lifetime
+
+To see how long an entry has left, call `Redis#ttl`. It returns a `Duration`:
+
+```scala
+import zio._
+import zio.redis._
+
+def remaining(redis: Redis, url: String): IO[RedisError, Duration] =
+  redis.ttl(s"page:$url")
+```
+
+### Load on a Cache Miss
+
+To return the cached value when it exists and otherwise compute and store it, combine `Redis#get` with `Redis#set`:
+
+```scala
+import zio._
+import zio.redis._
+
+def cached[E](redis: Redis, key: String, ttl: Duration)(
+  load: => IO[E, String]
+): IO[Either[RedisError, E], String] =
+  redis.get(key).returning[String].mapError(Left(_)).flatMap {
+    case Some(hit) => ZIO.succeed(hit)
+    case None      =>
+      for {
+        value <- load.mapError(Right(_))
+        _     <- redis.set(key, value, Some(ttl)).mapError(Left(_))
+      } yield value
+  }
+```
+
+Two callers that miss at the same time both run `load`. To prevent that, guard the load with a lock as shown in [How to Build a Distributed Lock](./how-to-distributed-lock.md).
+
+### Invalidate an Entry
+
+To remove an entry before it expires, delete its key with `Redis#del`:
+
+```scala
+import zio._
+import zio.redis._
+
+def invalidate(redis: Redis, url: String): IO[RedisError, Long] =
+  redis.del(s"page:$url")
+```
+
+`Redis#del` returns the number of keys that existed.
+
+---
+
+## How to Build a Distributed Lock
+
+This guide builds a lock that several processes can use to take turns on a shared resource. It uses `Redis#set` with the "only if absent" option to acquire the lock and a Lua script to release it safely.
+
+### Acquire the Lock
+
+To take the lock, set a key only when it does not exist yet, and give it an expiry so that a crashed holder cannot block everyone forever. `Update.SetNew` maps to the `NX` option:
+
+```scala
+import zio._
+import zio.redis._
+
+def acquire(redis: Redis, name: String, owner: String, ttl: Duration): IO[RedisError, Boolean] =
+  redis.set(s"lock:$name", owner, Some(ttl), Some(Update.SetNew))
+```
+
+The result is `true` for the one caller that got the lock and `false` for everyone else. The `owner` value must be unique per holder, for example a random UUID.
+
+### Release the Lock
+
+A holder must delete the key only if it is still the owner. If the lock expired and another process took it, a plain `Redis#del` would release the other process's lock. A Lua script performs the check and the delete atomically. `Redis#eval` needs an `Input` instance for the keys and arguments and an `Output` instance for the result, and the library does not provide implicit ones, so we declare an implicit `Input[String]` from `Input.StringInput` and an implicit `Output[Long]` from `Output.LongOutput`:
+
+```scala
+import zio._
+import zio.redis._
+import zio.redis.Input._
+import zio.redis.Output._
+
+implicit val stringInput: Input[String] = StringInput
+implicit val longOutput: Output[Long]   = LongOutput
+
+val releaseScript: String =
+  """if redis.call('get', KEYS[1]) == ARGV[1] then
+    |  return redis.call('del', KEYS[1])
+    |else
+    |  return 0
+    |end""".stripMargin
+
+def release(redis: Redis, name: String, owner: String): IO[RedisError, Boolean] =
+  redis
+    .eval(releaseScript, Chunk(s"lock:$name"), Chunk(owner))
+    .returning[Long]
+    .map(_ == 1L)
+```
+
+See [Scripting](./commands/scripting.md) for the full set of script commands.
+
+### Run an Effect Under the Lock
+
+To make sure the lock is always released, wrap the protected effect in `ZIO.acquireReleaseWith`. This version fails with `None` when the lock is already held:
+
+```scala
+import zio._
+import zio.redis._
+import zio.redis.Input._
+import zio.redis.Output._
+
+def withLock[R, A](redis: Redis, name: String, ttl: Duration)(
+  effect: ZIO[R, RedisError, A]
+): ZIO[R, RedisError, Option[A]] = {
+  implicit val stringInput: Input[String] = StringInput
+  implicit val longOutput: Output[Long]   = LongOutput
+
+  val release =
+    """if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"""
+
+  ZIO.randomWith(_.nextUUID).flatMap { token =>
+    val owner = token.toString
+    ZIO.acquireReleaseWith(
+      redis.set(s"lock:$name", owner, Some(ttl), Some(Update.SetNew))
+    )(acquired =>
+      ZIO
+        .when(acquired)(redis.eval(release, Chunk(s"lock:$name"), Chunk(owner)).returning[Long])
+        .ignore
+    ) {
+      case true  => effect.map(Some(_))
+      case false => ZIO.none
+    }
+  }
+}
+```
+
+Choose `ttl` longer than the longest the protected effect can run. A lock that expires early can be held by two processes at once, so this lock suits efficiency use cases such as avoiding duplicate work, not strict correctness guarantees.
+
+---
+
 ## Introduction to ZIO Redis
 
-[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-redis/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-redis_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-redis_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-redis_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-redis_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-redis-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-redis-docs_2.13) [![ZIO Redis](https://img.shields.io/github/stars/zio/zio-redis?style=social)](https://github.com/zio/zio-redis)
+[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-redis/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-redis_2.13.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-redis_2.13) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-redis_2.13%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-redis_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-redis_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-redis_2.13) [![ZIO Redis](https://img.shields.io/github/stars/zio/zio-redis?style=social)](https://github.com/zio/zio-redis)
 
 ### Introduction
 
@@ -88901,98 +91366,40 @@ instances.
 To use ZIO Redis, add the following line to your `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-redis" % "1.1.10"
+libraryDependencies += "dev.zio" %% "zio-redis" % "1.3.2"
 ```
 
-### Example
+### Features
 
-To execute our ZIO Redis effect, we should provide the `RedisExecutor` layer to that effect. To create this layer we
-should also provide the following layers:
+- **Type-safe commands.** Results are decoded to any type with a ZIO Schema `Schema`; see [Codecs](./codecs.md).
+- **All major command groups.** Strings, keys, hashes, lists, sets, sorted sets, streams, geo, HyperLogLog and scripting; see the command reference pages.
+- **Pub/Sub.** Subscriptions are exposed as ZIO streams; see [Pub/Sub](./pub-sub.md).
+- **Pipelining.** `AsyncRedis` sends commands without waiting for replies; see [AsyncRedis](./async-redis.md).
+- **Cluster support.** `Redis.cluster` follows slot redirections; see [Cluster](./cluster.md).
+- **Embedded server for tests.** See [Testing](./testing.md).
 
-- **RedisConfig** — Using default one, will connect to the `localhost:6379` Redis instance.
-- **BinaryCodec** — In this example, we are going to use the built-in `ProtobufCodec` codec from zio-schema project.
+### Quick Example
 
-To run this example we should put following dependencies in our `build.sbt` file:
-
-```scala
-libraryDependencies ++= Seq(
-  "dev.zio" %% "zio-redis" % "1.1.10",
-  "dev.zio" %% "zio-schema-protobuf" % "1.6.1"
-)
-```
+To run an effect that uses Redis, provide the `Redis` layer. It needs a `CodecSupplier` and, for a local server, nothing else. See [Getting Started](./getting-started.md) for the details:
 
 ```scala
 import zio._
 import zio.redis._
-import zio.schema._
-import zio.schema.codec._
 
-object ZIORedisExample extends ZIOAppDefault {
-  
-  object ProtobufCodecSupplier extends CodecSupplier {
-    def get[A: Schema]: BinaryCodec[A] = ProtobufCodec.protobufCodec
-  }
-  
-  val myApp: ZIO[Redis, RedisError, Unit] = 
+object QuickExample extends ZIOAppDefault {
+  val myApp: ZIO[Redis, RedisError, Unit] =
     for {
       redis <- ZIO.service[Redis]
-      _     <- redis.set("myKey", 8L, Some(1.minutes))
+      _     <- redis.set("myKey", 8L, Some(1.minute))
       v     <- redis.get("myKey").returning[Long]
-      _     <- Console.printLine(s"Value of myKey: $v").orDie
+      _     <- ZIO.debug(s"Value of myKey: $v")
       _     <- redis.hSet("myHash", ("k1", 6), ("k2", 2))
       _     <- redis.rPush("myList", 1, 2, 3, 4)
       _     <- redis.sAdd("mySet", "a", "b", "a", "c")
     } yield ()
 
-  override def run = 
-    myApp.provide(Redis.local, ZLayer.succeed[CodecSupplier](ProtobufCodecSupplier))
-}
-```
-
-### Testing
-
-To test you can use the embedded redis instance by adding to your build:
-
-```scala
-libraryDependencies := "dev.zio" %% "zio-redis-embedded" % "1.1.10"
-```
-
-Then you can supply `EmbeddedRedis.layer.orDie` as your `RedisConfig` and you're good to go!
-
-```scala
-import zio._
-import zio.redis._
-import zio.redis.embedded.EmbeddedRedis
-import zio.schema.{DeriveSchema, Schema}
-import zio.schema.codec.{BinaryCodec, ProtobufCodec}
-import zio.test._
-import zio.test.Assertion._
-import java.util.UUID
-
-object EmbeddedRedisSpec extends ZIOSpecDefault {
-  object ProtobufCodecSupplier extends CodecSupplier {
-    def get[A: Schema]: BinaryCodec[A] = ProtobufCodec.protobufCodec
-  }
-  
-  final case class Item private (id: UUID, name: String, quantity: Int)
-  object Item {
-    implicit val itemSchema: Schema[Item] = DeriveSchema.gen[Item]
-  }
-  
-  def spec = suite("EmbeddedRedis should")(
-    test("set and get values") {
-      for {
-        redis <- ZIO.service[Redis]
-        item   = Item(UUID.randomUUID, "foo", 2)
-        _     <- redis.set(s"item.${item.id.toString}", item)
-        found <- redis.get(s"item.${item.id.toString}").returning[Item]
-      } yield assert(found)(isSome(equalTo(item)))
-    }
-  ).provideShared(
-    EmbeddedRedis.layer,
-    ZLayer.succeed[CodecSupplier](ProtobufCodecSupplier),
-    Redis.singleNode
-  ) @@ TestAspect.silentLogging
+  def run =
+    myApp.provide(Redis.local, ZLayer.succeed[CodecSupplier](CodecSupplier.utf8))
 }
 ```
 
@@ -89003,6 +91410,354 @@ object EmbeddedRedisSpec extends ZIOSpecDefault {
   client library backed by ZIO, with excellent performance and extensive support for nearly all of Redis' features. He
   will explain the library design using the bottom-up approach - from communication protocol to public APIs. Finally, he
   will wrap the talk by demonstrating the client's usage and discussing its performance characteristics.
+
+---
+
+## Pub/Sub
+
+Redis Pub/Sub lets clients publish messages to named channels and lets other clients receive them as they arrive. ZIO Redis splits the feature in two: publishing is a command on `Redis`, and subscribing lives on a separate service, `RedisSubscription`.
+
+### Why Two Services
+
+A Redis connection that has issued `SUBSCRIBE` or `PSUBSCRIBE` is in subscription mode and may no longer be used for ordinary commands. For that reason `RedisSubscription` opens its own connection, built by its own layer, and `Redis` stays free for everything else. A program that both publishes and subscribes needs both layers:
+
+| Service             | Layer                           | Requires                          | Provides                                  |
+| ------------------- | ------------------------------- | --------------------------------- | ----------------------------------------- |
+| `Redis`             | `Redis.singleNode`              | `CodecSupplier` and `RedisConfig` | `publish` and the `pubSub*` introspection |
+| `RedisSubscription` | `RedisSubscription.singleNode`  | `CodecSupplier` and `RedisConfig` | `subscribe`, `pSubscribe` and friends     |
+
+`RedisSubscription.local` is the counterpart of `Redis.local` and connects to `localhost:6379`. There is no cluster variant of `RedisSubscription`. To build both services against one server:
+
+```scala
+import zio._
+import zio.redis._
+
+val layers: ZLayer[Any, RedisError.IOError, Redis with RedisSubscription] =
+  ZLayer.make[Redis with RedisSubscription](
+    ZLayer.succeed(RedisConfig.Local),
+    ZLayer.succeed[CodecSupplier](CodecSupplier.utf8),
+    Redis.singleNode,
+    RedisSubscription.singleNode
+  )
+```
+
+See [Configuration](./configuration.md) for `RedisConfig` and [Codecs](./codecs.md) for `CodecSupplier`.
+
+### Publishing
+
+`Redis#publish` posts a message to a channel and returns the number of clients that received it. The message can be any type with a `Schema`, and it is encoded with the `CodecSupplier`. To publish a string:
+
+```scala
+import zio._
+import zio.redis._
+
+def announce(redis: Redis): IO[RedisError, Long] =
+  redis.publish("news", "hello")
+```
+
+### Subscribing
+
+Every subscribe method returns a result builder. Calling `returning[R]` on it produces a `Stream[RedisError, ...]` of decoded messages, and the subscription starts when the stream is run. The following methods are available on `RedisSubscription`:
+
+| Method                             | Emits                               | Subscribes to           |
+| ---------------------------------- | ----------------------------------- | ----------------------- |
+| `RedisSubscription#subscribeSingle` | `R`                                 | one channel             |
+| `RedisSubscription#subscribe`       | `(String, R)`, keyed by channel     | one or more channels    |
+| `RedisSubscription#pSubscribe`      | `(String, R)`, keyed by channel     | one or more patterns    |
+
+The `*With` variants (`subscribeSingleWith`, `subscribeWith`, `pSubscribeWith`) additionally take `onSubscribe` and `onUnsubscribe` callbacks, described below. To receive the first three messages from a single channel:
+
+```scala
+import zio._
+import zio.redis._
+
+def firstThree(subscription: RedisSubscription): IO[RedisError, Chunk[String]] =
+  subscription.subscribeSingle("news").returning[String].take(3).runCollect
+```
+
+To listen to several channels at once and learn which channel each message came from:
+
+```scala
+import zio._
+import zio.redis._
+
+val printAll: ZIO[RedisSubscription, RedisError, Unit] =
+  ZIO.serviceWithZIO[RedisSubscription] { subscription =>
+    subscription
+      .subscribe("news", "weather")
+      .returning[String]
+      .foreach { case (channel, message) => ZIO.debug(s"$channel: $message") }
+  }
+```
+
+### Pattern Subscriptions
+
+`RedisSubscription#pSubscribe` takes glob-style patterns, such as `news.*`, and emits every message published to a matching channel. The first element of each pair is the name of the channel the message was published to, not the pattern. To log every message under the `news.` prefix:
+
+```scala
+import zio._
+import zio.redis._
+
+def watchNews(subscription: RedisSubscription): IO[RedisError, Unit] =
+  subscription
+    .pSubscribe("news.*")
+    .returning[String]
+    .foreach { case (channel, message) => ZIO.debug(s"$channel: $message") }
+```
+
+### Callbacks and Synchronization
+
+Publishing right after forking a subscriber is racy, because the subscription may not be active yet. The `*With` methods accept callbacks of type `PubSubCallback`, an alias for `(String, Long) => UIO[Unit]`. The callback receives the channel (or pattern) name and the number of subscriptions the connection now holds. Completing a `Promise` in `onSubscribe` is the way to wait for the subscription before publishing:
+
+```scala
+import zio._
+import zio.redis._
+
+def publishAfterSubscribed(redis: Redis, subscription: RedisSubscription): IO[RedisError, Option[String]] =
+  for {
+    ready <- Promise.make[Nothing, Unit]
+    fiber <- subscription
+               .subscribeSingleWith("news")(onSubscribe = (_, _) => ready.succeed(()).unit)
+               .returning[String]
+               .runHead
+               .fork
+    _     <- ready.await
+    _     <- redis.publish("news", "hello")
+    msg   <- fiber.join
+  } yield msg
+```
+
+The same pattern is used by the integration tests in `PubSubSpec`. Both callbacks default to a no-op.
+
+### Unsubscribing
+
+`RedisSubscription#unsubscribe` and `RedisSubscription#pUnsubscribe` take channel names or patterns, and with no arguments they remove every subscription of that kind. The streams of the removed subscriptions then end. To stop a listener from outside:
+
+```scala
+import zio._
+import zio.redis._
+
+def stopListening(subscription: RedisSubscription): IO[RedisError, Unit] =
+  subscription.unsubscribe("news") *> subscription.pUnsubscribe()
+```
+
+Interrupting a stream, for example with `take` or `interruptWhen`, also ends the consumer. Use `onUnsubscribe` to be notified when Redis confirms the removal.
+
+### Inspecting Pub/Sub State
+
+`Redis` offers the `PUBSUB` introspection commands. They run on the normal connection:
+
+| Method                  | Returns                                           |
+| ----------------------- | ------------------------------------------------- |
+| `Redis#pubSubChannels`  | `Chunk[String]` of active channels matching a pattern |
+| `Redis#pubSubNumSub`    | `Map[String, Long]` of subscriber counts per channel  |
+| `Redis#pubSubNumPat`    | `Long`, the number of active pattern subscriptions    |
+
+To print the number of subscribers of two channels:
+
+```scala
+import zio._
+import zio.redis._
+
+def countSubscribers(redis: Redis): IO[RedisError, Map[String, Long]] =
+  redis.pubSubNumSub("news", "weather")
+```
+
+### Errors
+
+Besides the usual `RedisError` cases, subscription streams can fail with `RedisError.InvalidPubSubCommand` and `RedisError.SubscriptionStreamAlreadyClosed`, both subtypes of `RedisError.PubSubError`. See [Error Handling](./error-handling.md) for the full list.
+
+---
+
+## Testing(Zio-redis)
+
+Tests that talk to Redis need a server. The `zio-redis-embedded` module starts a real Redis process for the duration of a test and shuts it down afterwards, so specs run without Docker or a pre-installed server.
+
+### Installation
+
+The embedded server is a separate artifact. To use it in your tests, add the following to `build.sbt`:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-redis-embedded" % "1.3.2" % Test
+```
+
+The module wraps the `embedded-redis` library, which launches a Redis binary that it ships, so no separate Redis installation is needed. Use the same version as `zio-redis`.
+
+### EmbeddedRedis
+
+`EmbeddedRedis.layer` has the type `ZLayer[Any, Throwable, RedisConfig]`. When the layer is built it finds a free TCP port, starts a Redis server on it and returns a `RedisConfig` for `localhost` and that port. When the layer's scope closes, the server is stopped. Because it produces a `RedisConfig`, it plugs directly into `Redis.singleNode`, which is described in [Configuration](./configuration.md).
+
+### Writing a Spec
+
+The spec below builds a `Redis` service on top of the embedded server and exercises it. The layer is provided with `provideShared`, so one server is started for the whole suite:
+
+```scala
+import zio._
+import zio.redis._
+import zio.redis.embedded.EmbeddedRedis
+import zio.test._
+
+object EmbeddedRedisSpec extends ZIOSpecDefault {
+  def spec: Spec[Any, Any] =
+    suite("EmbeddedRedis")(
+      test("stores and reads back a value") {
+        for {
+          redis <- ZIO.service[Redis]
+          _     <- redis.set("greeting", "hello")
+          value <- redis.get("greeting").returning[String]
+        } yield assertTrue(value.contains("hello"))
+      },
+      test("counts with incr") {
+        for {
+          redis <- ZIO.service[Redis]
+          one   <- redis.incr("counter")
+          two   <- redis.incr("counter")
+        } yield assertTrue(one == 1L, two == 2L)
+      }
+    ).provideShared(
+      EmbeddedRedis.layer,
+      ZLayer.succeed[CodecSupplier](CodecSupplier.utf8),
+      Redis.singleNode
+    ) @@ TestAspect.sequential
+}
+```
+
+`CodecSupplier.utf8` is enough for primitive values. To store case classes, supply a structural codec instead, as shown in [Codecs](./codecs.md).
+
+### Keeping Tests Independent
+
+All tests in a suite share one server, so data written by one test is visible to the next. There are two ways to avoid interference:
+
+- Use unique keys per test, for example by prefixing them with a random UUID from `Random.nextUUID`.
+- Call `Redis#flushall` at the start of each test, and run the suite with `TestAspect.sequential`.
+
+To clear the database before each test:
+
+```scala
+import zio._
+import zio.redis._
+import zio.redis.embedded.EmbeddedRedis
+import zio.test._
+
+object CleanSpec extends ZIOSpecDefault {
+  def spec: Spec[Any, Any] =
+    (suite("clean database")(
+      test("starts empty") {
+        for {
+          redis <- ZIO.service[Redis]
+          _     <- redis.set("key", "value")
+          keys  <- redis.keys("*").returning[String]
+        } yield assertTrue(keys.size == 1)
+      }
+    ) @@ TestAspect.before(ZIO.serviceWithZIO[Redis](_.flushall(sync = true))) @@ TestAspect.sequential
+  ).provideShared(
+      EmbeddedRedis.layer,
+      ZLayer.succeed[CodecSupplier](CodecSupplier.utf8),
+      Redis.singleNode
+    )
+}
+```
+
+### Testing Pub/Sub
+
+`RedisSubscription.singleNode` accepts the same `RedisConfig`, so the embedded server also works for subscription tests. Provide both layers from one `EmbeddedRedis.layer`, which `provideShared` shares between them. See [Pub/Sub](./pub-sub.md) for the services.
+
+### Limitations
+
+The embedded server is a single node. Tests of [Cluster](./cluster.md) behavior need a real cluster, which the library's own integration tests start with Docker Compose. The Redis version is whatever the embedded library ships, so it can differ from your production version.
+
+---
+
+## Tutorial: Build a Rate Limiter
+
+Welcome! In this tutorial we build a small rate limiter with ZIO Redis. By the end, you will have a service that allows at most a fixed number of requests per client in each time window, backed by a Redis counter that expires on its own.
+
+We assume a Redis server on `localhost:6379` and the dependency from [Getting Started](./getting-started.md).
+
+### How It Works
+
+The limiter uses one counter per client and window. Each request increments the counter. The first request in a window also gives the counter an expiry equal to the window length, so Redis deletes it when the window ends. A request is allowed while the counter is at most the limit:
+
+```
+request ──> INCR rate:alice ──> count == 1? ──yes──> EXPIRE rate:alice window
+                │
+                └──> count <= limit ? allow : reject
+```
+
+### Step 1: Describe the Limiter
+
+To keep the limiter independent of Redis, we start with a small service interface:
+
+```scala
+import zio._
+import zio.redis._
+
+trait RateLimiter {
+  def allow(clientId: String): IO[RedisError, Boolean]
+}
+```
+
+### Step 2: Implement It With INCR and EXPIRE
+
+`Redis#incr` creates the key with value `1` when it is missing and returns the new count. When the count is `1`, we set the expiry with `Redis#expire`:
+
+```scala
+final case class RedisRateLimiter(redis: Redis, limit: Long, window: Duration) extends RateLimiter {
+  def allow(clientId: String): IO[RedisError, Boolean] = {
+    val key = s"rate:$clientId"
+
+    for {
+      count <- redis.incr(key)
+      _     <- redis.expire(key, window).when(count == 1L)
+    } yield count <= limit
+  }
+}
+```
+
+### Step 3: Provide a Layer
+
+To make the limiter available to the rest of the program, we expose it as a layer:
+
+```scala
+object RateLimiter {
+  def layer(limit: Long, window: Duration): URLayer[Redis, RateLimiter] =
+    ZLayer.fromFunction((redis: Redis) => RedisRateLimiter(redis, limit, window): RateLimiter)
+}
+```
+
+### Step 4: Use It
+
+To run the limiter, we provide the `Redis` layer from [Getting Started](./getting-started.md) and call `RateLimiter#allow` repeatedly. With a limit of 3 per 10 seconds, the fourth call is rejected:
+
+```scala
+import zio._
+import zio.redis._
+
+object RateLimiterApp extends ZIOAppDefault {
+  val program: ZIO[RateLimiter, RedisError, Unit] =
+    ZIO.foreachDiscard(1 to 5) { i =>
+      ZIO.serviceWithZIO[RateLimiter](_.allow("alice")).flatMap { ok =>
+        ZIO.debug(s"request $i allowed: $ok")
+      }
+    }
+
+  def run =
+    program.provide(
+      RateLimiter.layer(limit = 3, window = 10.seconds),
+      Redis.local,
+      ZLayer.succeed[CodecSupplier](CodecSupplier.utf8)
+    )
+}
+```
+
+### A Known Weakness
+
+If the process fails between `Redis#incr` and `Redis#expire` on the first request, the counter never expires and the client stays blocked. To close that gap, move both steps into one Lua script; see [Scripting](./commands/scripting.md).
+
+### Next Steps
+
+- [How to Cache Values With a Time to Live](./how-to-cache-with-ttl.md)
+- [How to Build a Distributed Lock](./how-to-distributed-lock.md)
 
 ---
 
