@@ -1,0 +1,88 @@
+name: Deploy Website
+
+on:
+  # A published release also deploys the site, so zio.dev follows each release without a manual step.
+  release:
+    types: [published]
+  # Manual start: Actions tab, or `gh workflow run site.yml -R zio/zio --ref series/2.x`.
+  workflow_dispatch:
+
+# Pushes no longer deploy the site. The PR check that the website still builds is `build-website` in ci.yml.
+# The deploy only runs when someone starts this workflow, so a flaky test in the full CI cannot block it.
+permissions: {}
+
+# One production deploy at a time. A running deploy is never cancelled half-way through a push to gh-pages.
+concurrency:
+  group: deploy-website
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build website
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    # Only a release or a run on series/2.x reaches production: a manual run on another branch is refused here.
+    if: ${{ (github.event_name == 'release') || (github.ref == 'refs/heads/series/2.x') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Setup Java
+        uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version: 17
+          check-latest: true
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
+      - name: Install NodeJS
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.14.1
+      - name: Compile Docs
+        run: |
+          while true; do free -h; sleep 5; done &
+          sbt -v docs/mdoc
+      - name: Generate API Docs
+        run: sbt -v apiDocs
+      - name: Build The Website
+        working-directory: ./website
+        run: |
+          rm -Rf node_modules
+          yarn install
+          yarn test
+          yarn build
+      - name: Upload website build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: website-build
+          path: ./website/build
+          overwrite: true
+          retention-days: 7
+
+  deploy:
+    name: Deploy website to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Pushing the gh-pages branch needs write access to contents; nothing else in this job needs it.
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Download website build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: website-build
+          path: website-build
+      - name: Release to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4.9.0
+        with:
+          branch: gh-pages
+          folder: ./website-build

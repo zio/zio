@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@babel/plugin-transform-parameters": "^8.0.0",
-    "@bytebrain.ai/bytebrain-ui": "0.0.12",
+    "@bytebrain.ai/bytebrain-ui": "0.0.13",
     "@docusaurus/core": "^3.5.2",
     "@docusaurus/plugin-client-redirects": "^3.5.2",
     "@docusaurus/preset-classic": "^3.5.2",
@@ -24,7 +24,7 @@
     "@docusaurus/theme-search-algolia": "^3.5.2",
     "@mdx-js/react": "^3.0.1",
     "@phosphor-icons/react": "^2.1.10",
-    "@tailwindcss/postcss": "4.3.4",
+    "@tailwindcss/postcss": "4.3.5",
     "@zio.dev/izumi-reflect": "2026.10.2-c6971ad6b21d",
     "@zio.dev/zio-amqp": "1.0.1",
     "@zio.dev/zio-aws": "2025.2.9-b3c92258585e",
@@ -74,7 +74,7 @@
     "react-icons": "5.7.0",
     "react-markdown": "10.1.0",
     "remark-kroki-plugin": "0.1.1",
-    "tailwindcss": "4.3.4",
+    "tailwindcss": "4.3.5",
     "tone": "^15.1.22",
     "tslib": "^2.4.0"
   },

@@ -456,19 +456,9 @@ a {
     --bytebrain-offset-top: var(--ifm-navbar-height);
   }
 
-  /* Resize handles must sit above the panel: the panel is position: relative
-   (for its gradient edge) and comes later in the DOM, so it would paint over
-   the top-left corner handle and block resizing. */
-  .zio-chat .bytebrain-resize-handle {
-    z-index: 1;
-  }
-
-  /* Maximized view: full window height, centered, over the navbar. The site
-   Tailwind `.block !important` would turn the container back into block layout
-   (panel stuck to the left), so force flex here. Top is 0 and z-index sits above
-   the navbar (z-index 200), so the header buttons stay clickable. */
+  /* Maximized view: full window height, above the navbar (z-index 200), so
+   the header buttons stay clickable. */
   .zio-chat #container.bytebrain-maximized {
-    display: flex !important;
     top: 0 !important;
     z-index: 1000;
   }
@@ -880,4 +870,11 @@ html.homepage-snap .fp-section {
 
 .eco-category-other {
   --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx=%225%22 cy=%2212%22 r=%221.5%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%221.5%22/%3E%3Ccircle cx=%2219%22 cy=%2212%22 r=%221.5%22/%3E%3C/svg%3E");
+}
+
+/* ── Resources / Events: single centred column (no sidebars) ────────────── */
+html.docs-doc-id-resources\/index main .container > .row > .col,
+html.docs-doc-id-events\/index main .container > .row > .col {
+  max-width: 960px;
+  margin-inline: auto;
 }
