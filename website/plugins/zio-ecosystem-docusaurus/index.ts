@@ -108,7 +108,7 @@ function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
                 `${project.name}-sidebar`,
                 [
                   { type: 'link', label: '← ZIO Ecosystem', href: `/ecosystem/?eco-category=${categoryIdOf(project.name)}` },
-                  { ...project.category, collapsible: false, collapsed: false, items: itemsWithoutOwnPage(project.category) }
+                  { ...project.category, collapsible: false, collapsed: false, items: sidebarItemsOf(project) }
                 ]
               ])
             )
@@ -323,6 +323,22 @@ function mapConfig(config: SidebarItemConfig, prefix: string) {
           .map(item => mapConfig(item, prefix))
     }
   }
+}
+
+// Projects whose nested sidebar categories start expanded on their own sidebar.
+// Every other project keeps its nested categories collapsed.
+const expandedProjects = new Set(['zio-amqp'])
+
+function sidebarItemsOf(project: EcosystemProject): SidebarItemConfig[] {
+  const items = itemsWithoutOwnPage(project.category)
+  return expandedProjects.has(project.name) ? items.map(expandCategories) : items
+}
+
+function expandCategories(config: SidebarItemConfig): SidebarItemConfig {
+  if (typeof (config) === "string" || !isSidebarItemCategoryConfig(config)) {
+    return config
+  }
+  return { ...config, collapsed: false, items: config.items.map(expandCategories) }
 }
 
 export default zioEcosystemPlugin
