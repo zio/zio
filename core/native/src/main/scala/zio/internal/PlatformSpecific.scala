@@ -18,7 +18,7 @@ package zio.internal
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.{ConcurrentHashMap, ConcurrentLinkedDeque}
 import java.util.{Collections, WeakHashMap, Map => JMap, Set => JSet}
 
 private[zio] trait PlatformSpecific {
@@ -74,14 +74,8 @@ private[zio] trait PlatformSpecific {
   final def newWeakHashMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] =
     Collections.synchronizedMap(new WeakHashMap[A, B]())
 
-  final def newConcurrentMap[A, B]()(implicit unsafe: zio.Unsafe): JMap[A, B] =
-    new ConcurrentHashMap[A, B]()
-
-  final def newConcurrentWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
-    Collections.synchronizedSet(newWeakSet[A]())
-
-  final def newWeakSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
-    Collections.newSetFromMap(new WeakHashMap[A, java.lang.Boolean]())
+  final def newConcurrentLinkedDeque[A]()(implicit unsafe: zio.Unsafe): ConcurrentLinkedDeque[A] =
+    new ConcurrentLinkedDeque[A]()
 
   final def newConcurrentSet[A]()(implicit unsafe: zio.Unsafe): JSet[A] =
     ConcurrentHashMap.newKeySet[A]()
@@ -89,8 +83,7 @@ private[zio] trait PlatformSpecific {
   final def newConcurrentSet[A](initialCapacity: Int)(implicit unsafe: zio.Unsafe): JSet[A] =
     ConcurrentHashMap.newKeySet[A](initialCapacity)
 
-  private def blackhole(a: Any): Unit = {
-    val _ = a
-    ()
+  @inline private[this] def blackhole(any: Any): Unit = {
+    val _ = any
   }
 }
