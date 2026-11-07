@@ -17,7 +17,8 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.test.Assertion.Arguments.valueArgument
+import zio.test.diff.{Diff, DiffRenderer}
+import zio.test.internal.OptionalImplicit
 import zio.test.{ErrorMessage => M}
 
 trait AssertionVariants extends FieldExtractorPlatformSpecific {
@@ -66,7 +67,15 @@ trait AssertionVariants extends FieldExtractorPlatformSpecific {
     }
   }
 
-  def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
+  @deprecated("Kept for binary compatibility only. Do not use", "2.1.28")
+  def equalTo[A, B](expected: A, eql: Eql[A, B]): Assertion[B] =
+    equalTo(expected)(eql, OptionalImplicit.none, DiffRenderer.default)
+
+  def equalTo[A, B](expected: A)(implicit
+    eql: Eql[A, B],
+    diff: OptionalImplicit[Diff[A]],
+    renderer: DiffRenderer
+  ): Assertion[B] =
     Assertion[B](
       TestArrow
         .make[B, Boolean] { actual =>
@@ -76,13 +85,21 @@ trait AssertionVariants extends FieldExtractorPlatformSpecific {
             case (left, right)                             => left == right
           }
           TestTrace.boolean(result) {
-            if (expected.isInstanceOf[Product]) {
-              M.text(diffProduct(actual, expected))
-            } else {
-              M.pretty(actual) + M.equals + M.pretty(expected)
+            diff.value.filter(!_.isLowPriority).flatMap { diff =>
+              if (!result) scala.util.Try(diff.asInstanceOf[Diff[Any]].diff(expected, actual)).toOption
+              else None
+            } match {
+              case Some(diffResult) =>
+                M.diff(expected, actual, diffResult)(renderer)
+              case None =>
+                if (expected.isInstanceOf[Product]) {
+                  M.text(diffProduct(actual, expected))
+                } else {
+                  M.pretty(actual) + M.equals + M.pretty(expected)
+                }
             }
           }
         }
-        .withCode("equalTo", valueArgument(expected))
+        .withCode("equalTo", Assertion.Arguments.valueArgument(expected))
     )
 }
