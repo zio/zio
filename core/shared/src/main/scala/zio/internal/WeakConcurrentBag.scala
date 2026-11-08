@@ -23,8 +23,21 @@ import scala.annotation.tailrec
  * nursery and occassional garbage collection.
  */
 private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsAlive[A]) { self =>
+  private final class WeakEntry[T <: AnyRef](value: T) extends WeakReference[T](value) {
+    override val hashCode: Int = System.identityHashCode(value)
+    override def equals(that: Any): Boolean =
+      that match {
+        case other: WeakEntry[_] =>
+          (this eq other) || {
+            val v1 = this.get()
+            (v1 ne null) && (v1 eq other.get().asInstanceOf[AnyRef])
+          }
+        case _ => false
+      }
+  }
+
   private[this] def nCpu              = java.lang.Runtime.getRuntime.availableProcessors()
-  private[this] val nursery           = new PartitionedRingBuffer[WeakReference[A]](nCpu * 4, nurserySize, roundToPow2 = true)
+  private[this] val nursery           = new PartitionedRingBuffer[A](nCpu * 4, nurserySize, roundToPow2 = true)
   private[this] val nurseryActualSize = nursery.capacity
 
   private[this] val graduates = Platform.newConcurrentSet[WeakReference[A]](nurseryActualSize * 2)(Unsafe.unsafe)
@@ -59,12 +72,22 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
    * if necessary to make room.
    */
   final def add(a: A): Unit = {
-    val flushed = maybeFlushAndOffer(new WeakReference[A](a))
+    if (isAlive(a)) {
+      val flushed = maybeFlushAndOffer(a)
 
-    if (flushed.nonEmpty) {
-      addToLongTermStorage(flushed)
-      if (graduates.size() > nurseryActualSize) gc(false)
+      if (flushed.nonEmpty) {
+        addToLongTermStorage(flushed)
+        if (graduates.size() > nurseryActualSize) gc(false)
+      }
     }
+  }
+
+  /**
+   * Removes a graduated value from long-term storage if present.
+   */
+  final def remove(a: A): Unit = {
+    graduates.remove(new WeakEntry[A](a))
+    ()
   }
 
   /**
@@ -113,7 +136,7 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
    * @return
    *   the elements that were flushed from the partition
    */
-  private def maybeFlushAndOffer(a: WeakReference[A]): Chunk[WeakReference[A]] = {
+  private def maybeFlushAndOffer(a: A): Chunk[A] = {
     val queue = nursery.randomPartition(ThreadLocalRandom.current())
     if (!queue.offer(a)) {
       val flushed = queue.pollUpTo(queue.capacity >> 1)
@@ -123,13 +146,12 @@ private[zio] class WeakConcurrentBag[A <: AnyRef](nurserySize: Int, isAlive: IsA
     } else Chunk.empty
   }
 
-  private def addToLongTermStorage(chunk: Chunk[WeakReference[A]]): Unit = {
+  private def addToLongTermStorage(chunk: Chunk[A]): Unit = {
     var i    = 0
     val iter = chunk.chunkIterator
     while (iter.hasNextAt(i)) {
-      val ref   = iter.nextAt(i)
-      val value = ref.get()
-      if ((value ne null) && isAlive(value)) graduates.add(ref)
+      val value = iter.nextAt(i)
+      if ((value ne null) && isAlive(value)) graduates.add(new WeakEntry[A](value))
       i += 1
     }
   }
