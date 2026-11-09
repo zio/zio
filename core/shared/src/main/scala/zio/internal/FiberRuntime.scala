@@ -22,7 +22,6 @@ import zio.internal.SpecializationHelpers.SpecializeInt
 import zio.metrics.{Metric, MetricLabel}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Set => JavaSet}
 import scala.annotation.tailrec
@@ -36,13 +35,17 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   import FiberRuntime._
   import ZIO._
 
-  private var _lastTrace      = fiberId.location
-  private var _fiberRefs      = fiberRefs0
-  private var _runtimeFlags   = runtimeFlags0
-  private var _blockingOn     = FiberRuntime.notBlockingOn
-  private var _asyncContWith  = null.asInstanceOf[AsyncContWith]
-  private val running         = new AtomicBoolean(false)
-  private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
+  private var _lastTrace     = fiberId.location
+  private var _fiberRefs     = fiberRefs0
+  private var _runtimeFlags  = runtimeFlags0
+  private var _blockingOn    = FiberRuntime.notBlockingOn
+  private var _asyncContWith = null.asInstanceOf[AsyncContWith]
+  private val running        = new AtomicBoolean(false)
+
+  // Single-consumer mailbox. pollRelaxed is used on the synchronous run loop,
+  // where missing a message for one step is safe. poll and isEmpty are exact
+  // enough to park and to publish the fiber's exit. See FiberMailbox.
+  private val inbox           = new FiberMailbox()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
@@ -316,8 +319,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def drainQueueWhileRunning(cur0: ZIO.Erased): ZIO.Erased = {
-    var cur     = cur0
-    var message = inbox.poll()
+    var cur = cur0
+    // Relaxed on purpose: this runs before every effect, almost always empty.
+    // A message that is not visible yet is picked up on a later step, or by
+    // the isEmpty check before the fiber suspends.
+    var message = inbox.pollRelaxed()
 
     while (message ne null) {
       message match {
@@ -337,7 +343,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           assert(DisableAssertions, "It is illegal to have multiple concurrent run loops in a single fiber")
       }
 
-      message = inbox.poll()
+      message = inbox.pollRelaxed()
     }
 
     cur
