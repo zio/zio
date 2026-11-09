@@ -332,7 +332,7 @@ jobs:
         uses: actions/create-github-app-token@v3.3.0
         with:
           app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_SECRET }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
       - name: Create Pull Request to Update Docs
         uses: peter-evans/create-pull-request@v8.1.1
