@@ -19,7 +19,7 @@ docker compose up -d
 We also add the library to our project:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-amqp" % "1.0.1"
+libraryDependencies += "dev.zio" %% "zio-amqp" % "1.0.2"
 ```
 
 Now we can connect. `Amqp.connect` opens a connection, and `Amqp.createChannel` opens a channel on it. A channel is the object we use for every operation: declaring queues, publishing and consuming. Both are scoped resources, so `ZIO.scoped` closes them for us when the program ends, even if it fails.
@@ -86,7 +86,7 @@ The `publishTasks` function needs a `Channel`, so the complete program wraps it 
 
 ```scala
 //> using scala 2.13
-//> using dep dev.zio::zio-amqp:1.0.0
+//> using dep dev.zio::zio-amqp:1.0.1
 // Run from this folder:  scala-cli run Concept2PublishExample.scala
 // Or from the repository root:  sbt "zio-amqp-examples/runMain zio.amqp.examples.tutorial.Concept2PublishExample"
 
@@ -174,7 +174,7 @@ The envelope returns the tag as a plain `Long`, so we wrap it in `DeliveryTag` f
 
 ```scala
 //> using scala 2.13
-//> using dep dev.zio::zio-amqp:1.0.0
+//> using dep dev.zio::zio-amqp:1.0.1
 // Run from this folder:  scala-cli run Concept3ConsumeExample.scala
 // Or from the repository root:  sbt "zio-amqp-examples/runMain zio.amqp.examples.tutorial.Concept3ConsumeExample"
 
@@ -273,7 +273,7 @@ We now have all the pieces. The complete program declares a queue, starts two wo
 
 ```scala
 //> using scala 2.13
-//> using dep dev.zio::zio-amqp:1.0.0
+//> using dep dev.zio::zio-amqp:1.0.1
 // Run from this folder:  scala-cli run CompleteExample.scala
 // Or from the repository root:  sbt "zio-amqp-examples/runMain zio.amqp.examples.tutorial.CompleteExample"
 
