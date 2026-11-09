@@ -1,6 +1,7 @@
 const ecosystemRepos = {
+  'interop-cats': { repo: 'https://github.com/zio/interop-cats', branch: 'main' },
   'izumi-reflect': { repo: 'https://github.com/zio/izumi-reflect', branch: 'develop' },
-  'zio2-interop-cats2': { repo: 'https://github.com/zio/interop-cats', branch: 'main' },
+  'zio2-interop-cats2': { repo: 'https://github.com/zio/interop-cats', branch: 'zio2-interop-ce2' },
   'zio-amqp': { repo: 'https://github.com/zio/zio-amqp', branch: 'master' },
   'zio-aws': { repo: 'https://github.com/zio/zio-aws', branch: 'master' },
   'zio-bson': { repo: 'https://github.com/zio/zio-bson', branch: 'main' },
