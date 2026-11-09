@@ -6,7 +6,7 @@
 
 Let's enumerate some key features of this library:
 
-- **Support for Various Sources** — It can read flat or nested configurations. Thanks to `IndexedFlat`.
+- **Support for Various Sources** — It can read flat or nested configurations from HOCON, JSON, YAML, TOML, XML, maps, and more. Thanks to `IndexedFlat`.
 - **Automatic Document Generation** — It can auto-generate documentation of configurations.
 - **Automatic Derivation** — It has built-in support for automatic derivation of readers and writers for case classes and sealed traits.
 - **Type-level Constraints and Automatic Validation** — because it supports _Refined_ types, we can write type-level predicates which constrain the set of values described for data types.
@@ -22,6 +22,26 @@ In order to use this library, we need to add the following line in our `build.sb
 ```scala
 libraryDependencies += "dev.zio" %% "zio-config" % "<version>" 
 ```
+
+### Sources
+
+Add the modules you need for your config sources:
+
+```scala
+// HOCON / JSON
+libraryDependencies += "dev.zio" %% "zio-config-typesafe" % "<version>"
+
+// YAML
+libraryDependencies += "dev.zio" %% "zio-config-yaml" % "<version>"
+
+// TOML
+libraryDependencies += "dev.zio" %% "zio-config-toml" % "<version>"
+
+// XML (experimental)
+libraryDependencies += "dev.zio" %% "zio-config-xml" % "<version>"
+```
+
+See [Read from various Sources](https://zio.dev/zio-config/read-from-various-sources) for examples of each.
 
 # Quick Start
 

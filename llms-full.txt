@@ -2606,12 +2606,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20448/0x00007ff24220a7d8@1db919e1
+//   eval = zio.Ref$$$Lambda$20446/0x00007f412b1cfca8@27db1d16
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20448/0x00007ff24220a7d8@a467f71
+//   eval = zio.Ref$$$Lambda$20446/0x00007f412b1cfca8@5415ee8f
 // )
 
 sealed trait State
@@ -2622,7 +2622,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20448/0x00007ff24220a7d8@2a58d695
+//   eval = zio.Ref$$$Lambda$20446/0x00007f412b1cfca8@17466ab5
 // )
 ```
 
@@ -2639,7 +2639,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20448/0x00007ff24220a7d8@1f4fd360
+//   eval = zio.Ref$$$Lambda$20446/0x00007f412b1cfca8@1fed4f65
 // )
 ```
 
@@ -2651,7 +2651,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20448/0x00007ff24220a7d8@565aafef
+//   eval = zio.Ref$$$Lambda$20446/0x00007f412b1cfca8@4e269332
 // )
 ```
 
@@ -15760,25 +15760,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@5f50e898
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@690732a2
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@4f463d9e
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@6cf0567f
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@2be56ef0
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@fde369d
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-11-09T14:47:26.549568129Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-11-09T16:05:57.837305003Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@32b03628
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@4b39da45
 ```
 
 ### Construction / Creating Instances
@@ -16892,7 +16892,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20569/0x00007ff2418573f0@42d1df10
+//   eval = zio.Supervisor$$$Lambda$20567/0x00007f412b26ec50@2c869591
 // )
 ```
 
@@ -17721,7 +17721,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19583/0x00007ff24300bc58@6d10b589
+//     f = zio.ZIO$$$Lambda$19581/0x00007f412b0015d0@1fa04a45
 //   ),
 //   successK = <function1>
 // )
@@ -18502,7 +18502,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@36016903
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@660d8db2
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -18515,12 +18515,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18716/0x00007ff242e2e060@33a41faa
+//       eval = zio.ZIO$$$Lambda$18786/0x00007f412ae3e548@549431af
 //     ),
-//     successK = zio.ZIO$$$Lambda$19573/0x00007ff243006000@395b2050
+//     successK = zio.ZIO$$$Lambda$19571/0x00007f412aff2f98@10145b1d
 //   ),
-//   successK = zio.ZIO$$$Lambda$18719/0x00007ff242e2f6d0@6682ab4a,
-//   failureK = zio.ZIO$$Lambda$20365/0x00007ff242180580@33b6e533
+//   successK = zio.ZIO$$$Lambda$18792/0x00007f412ae3fbb8@73e8a837,
+//   failureK = zio.ZIO$$Lambda$20363/0x00007f412b1a4c10@3caf1046
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -18532,11 +18532,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18716/0x00007ff242e2e060@33a41faa
+//       eval = zio.ZIO$$$Lambda$18786/0x00007f412ae3e548@549431af
 //     ),
-//     successK = zio.ZIO$$$Lambda$19573/0x00007ff243006000@c05e063
+//     successK = zio.ZIO$$$Lambda$19571/0x00007f412aff2f98@3538c113
 //   ),
-//   successK = zio.ZIO$$Lambda$20595/0x00007ff2416ed498@1b88d84d
+//   successK = zio.ZIO$$Lambda$20593/0x00007f412b288b58@5de11764
 // )
 ```
 
@@ -23838,7 +23838,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@34fcdb9c
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@582d4e67
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -23866,9 +23866,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$20047/0x00007ff2430d9f80@50e1d1f3
+//     eval = zio.Scope$$$Lambda$20045/0x00007f412b0ccfe0@50d961ea
 //   ),
-//   successK = zio.ZIO$$$Lambda$20048/0x00007ff2430da238@6a13fa0
+//   successK = zio.ZIO$$$Lambda$20046/0x00007f412b0cd298@a6e8874
 // )
 ```
 
@@ -23917,7 +23917,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@12f637bb
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@6fb90dcc
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -23947,9 +23947,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$20047/0x00007ff2430d9f80@50e1d1f3
+//     eval = zio.Scope$$$Lambda$20045/0x00007f412b0ccfe0@50d961ea
 //   ),
-//   successK = zio.ZIO$$$Lambda$20048/0x00007ff2430da238@48e4e365
+//   successK = zio.ZIO$$$Lambda$20046/0x00007f412b0cd298@6f632f8b
 // )
 ```
 
@@ -23980,7 +23980,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@646da480
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@56ec39ca
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -23995,9 +23995,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$20047/0x00007ff2430d9f80@50e1d1f3
+//     eval = zio.Scope$$$Lambda$20045/0x00007f412b0ccfe0@50d961ea
 //   ),
-//   successK = zio.ZIO$$$Lambda$20048/0x00007ff2430da238@308b2575
+//   successK = zio.ZIO$$$Lambda$20046/0x00007f412b0cd298@62edce96
 // )
 ```
 
@@ -24041,7 +24041,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@16438fb1
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@e694b45
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24058,9 +24058,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$20047/0x00007ff2430d9f80@50e1d1f3
+//     eval = zio.Scope$$$Lambda$20045/0x00007f412b0ccfe0@50d961ea
 //   ),
-//   successK = zio.ZIO$$$Lambda$20048/0x00007ff2430da238@6032e09f
+//   successK = zio.ZIO$$$Lambda$20046/0x00007f412b0cd298@abe1ee8
 // )
 ```
 
@@ -24092,7 +24092,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@7a0bdd04
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@4cbeac13
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -24109,9 +24109,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$20047/0x00007ff2430d9f80@50e1d1f3
+//     eval = zio.Scope$$$Lambda$20045/0x00007f412b0ccfe0@50d961ea
 //   ),
-//   successK = zio.ZIO$$$Lambda$20048/0x00007ff2430da238@2baebd6
+//   successK = zio.ZIO$$$Lambda$20046/0x00007f412b0cd298@50834933
 // )
 ```
 
@@ -24143,7 +24143,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@62d34fd6
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@64fe797f
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -24174,9 +24174,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$20047/0x00007ff2430d9f80@50e1d1f3
+//     eval = zio.Scope$$$Lambda$20045/0x00007f412b0ccfe0@50d961ea
 //   ),
-//   successK = zio.ZIO$$$Lambda$20048/0x00007ff2430da238@5b5fe80f
+//   successK = zio.ZIO$$$Lambda$20046/0x00007f412b0cd298@48c67a71
 // )
 ```
 
@@ -24209,7 +24209,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@158eea85
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@12cb9e5f
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24225,9 +24225,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$20047/0x00007ff2430d9f80@50e1d1f3
+//     eval = zio.Scope$$$Lambda$20045/0x00007f412b0ccfe0@50d961ea
 //   ),
-//   successK = zio.ZIO$$$Lambda$20048/0x00007ff2430da238@2b01d33
+//   successK = zio.ZIO$$$Lambda$20046/0x00007f412b0cd298@2be8804a
 // )
 ```
 
@@ -24258,7 +24258,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@20c3428d
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@1598ff5f
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -24285,9 +24285,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$20047/0x00007ff2430d9f80@50e1d1f3
+//     eval = zio.Scope$$$Lambda$20045/0x00007f412b0ccfe0@50d961ea
 //   ),
-//   successK = zio.ZIO$$$Lambda$20048/0x00007ff2430da238@295d4335
+//   successK = zio.ZIO$$$Lambda$20046/0x00007f412b0cd298@618e5277
 // )
 ```
 
@@ -24307,7 +24307,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@3e1fb518
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@b05e83d
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24330,9 +24330,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$20047/0x00007ff2430d9f80@50e1d1f3
+//     eval = zio.Scope$$$Lambda$20045/0x00007f412b0ccfe0@50d961ea
 //   ),
-//   successK = zio.ZIO$$$Lambda$20048/0x00007ff2430da238@65e11f6c
+//   successK = zio.ZIO$$$Lambda$20046/0x00007f412b0cd298@1a006805
 // )
 ```
 
@@ -24348,7 +24348,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@6caf6f24
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@5dd16b35
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -24370,9 +24370,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$20047/0x00007ff2430d9f80@50e1d1f3
+//     eval = zio.Scope$$$Lambda$20045/0x00007f412b0ccfe0@50d961ea
 //   ),
-//   successK = zio.ZIO$$$Lambda$20048/0x00007ff2430da238@52c99593
+//   successK = zio.ZIO$$$Lambda$20046/0x00007f412b0cd298@6bba1e58
 // )
 ```
 
@@ -24388,7 +24388,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@4818da73
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@21bc5072
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -24408,9 +24408,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$20047/0x00007ff2430d9f80@50e1d1f3
+//     eval = zio.Scope$$$Lambda$20045/0x00007f412b0ccfe0@50d961ea
 //   ),
-//   successK = zio.ZIO$$$Lambda$20048/0x00007ff2430da238@30718517
+//   successK = zio.ZIO$$$Lambda$20046/0x00007f412b0cd298@50c61bfb
 // )
 ```
 
@@ -24428,7 +24428,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@7a03c114
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@61fdf667
 
 val example = {
   val scoped = ZIO.scoped {
@@ -24450,9 +24450,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$20047/0x00007ff2430d9f80@50e1d1f3
+//       eval = zio.Scope$$$Lambda$20045/0x00007f412b0ccfe0@50d961ea
 //     ),
-//     successK = zio.ZIO$$$Lambda$20048/0x00007ff2430da238@560ddd93
+//     successK = zio.ZIO$$$Lambda$20046/0x00007f412b0cd298@37e6e70
 //   ),
 //   successK = <function1>
 // )
@@ -28457,14 +28457,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@1d0704de
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@4475454
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@1fbf453f
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@1fb5b7db
 ```
 
 ### From ZIO
@@ -35191,9 +35191,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$20057/0x00007ff2430e62a0@5e0b4f9e
+//             onState = zio.ZIO$$$Lambda$20055/0x00007f412b0d5518@49f1e713
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$20065/0x00007ff2430eb9a0@1b09da3b
+//           successK = zio.test.package$ZTest$$$Lambda$20063/0x00007f412b0dab18@cf37049
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -38183,7 +38183,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+63-aff054d5-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+65-4a14173e-SNAPSHOT"
 ```
 
 ### Example
@@ -50139,9 +50139,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$20047/0x00007ff2430d9f80@50e1d1f3
+//     eval = zio.Scope$$$Lambda$20045/0x00007f412b0ccfe0@50d961ea
 //   ),
-//   successK = zio.ZIO$$$Lambda$20048/0x00007ff2430da238@46719261
+//   successK = zio.ZIO$$$Lambda$20046/0x00007f412b0cd298@26e305dd
 // )
 ```
 
@@ -62987,6 +62987,100 @@ object RefinedReadConfig extends App {
 
 ---
 
+## AWS Parameter Store
+
+AWS Systems Manager Parameter Store keeps configuration values under hierarchical names such as `/myapp/prod/db/url`. zio-config can read every parameter under one base path and expose them as a `ConfigProvider`, so the same `Config` descriptions you use for files and strings work with Parameter Store too.
+
+### Choosing a Module
+
+zio-config offers two modules for Parameter Store. They expose the same entry point, `ConfigProvider.fromParameterStore`, and differ only in the AWS client library underneath:
+
+| Module               | AWS client library             |
+| -------------------- | ------------------------------ |
+| `zio-config-aws`     | AWS SDK for Java v1            |
+| `zio-config-zio-aws` | `zio-aws`, a ZIO-native client |
+
+Both modules define classes in the same package, `zio.config.aws.parameterstore`, so add only one of them to a project. The examples below use `zio-config-aws`. To use the ZIO-native client instead, replace the module name in the dependency and follow the ZIO-native example further down.
+
+To add the SDK-based module to an sbt build:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-config-aws" % "4.1.2"
+```
+
+### Reading a Base Path
+
+`ConfigProvider.fromParameterStore` loads all parameters under the base path in one call, including parameters in nested paths. The base path prefix is removed from each name, and the remaining path segments become config keys separated by `/`. A parameter named `/myapp/prod/db/url` is therefore read as the key `db/url`. Pass the base path without a trailing slash, because the prefix removal expects exactly one `/` after the base path.
+
+To read the `url` and `port` values under `/myapp/prod/db`:
+
+```scala
+import zio._
+import zio.config._
+import zio.config.aws.parameterstore._
+
+final case class Database(url: String, port: Int)
+
+val databaseConfig: Config[Database] =
+  (Config.string("url") zip Config.int("port")).nested("db").map(pair => Database(pair._1, pair._2))
+```
+
+Next, build the provider from the base path and load the config from it:
+
+```scala
+val loadDatabase: ZIO[Any, Config.Error, Database] =
+  for {
+    provider <- ConfigProvider.fromParameterStore("/myapp/prod")
+    database <- provider.load(databaseConfig)
+  } yield database
+```
+
+The provider reads the parameters once, when `ConfigProvider.fromParameterStore` runs. Later changes in Parameter Store are not seen until you build a new provider.
+
+### Credentials and Region
+
+When you call `ConfigProvider.fromParameterStore` with only a base path, zio-config creates the client with `AWSSimpleSystemsManagementClientBuilder.defaultClient()`. That client follows the AWS default credential chain for credentials and region, so environment variables, a shared profile, and an instance role all work without code changes.
+
+To control the client yourself, pass a `Task` that builds an `AWSSimpleSystemsManagement` client as the second argument:
+
+```scala
+import com.amazonaws.services.simplesystemsmanagement.AWSSimpleSystemsManagementClientBuilder
+
+val withCustomClient: ZIO[Any, Config.Error, ConfigProvider] =
+  ConfigProvider.fromParameterStore(
+    "/myapp/prod",
+    ZIO.attempt(AWSSimpleSystemsManagementClientBuilder.standard().withRegion("us-east-1").build())
+  )
+```
+
+With the `zio-config-zio-aws` module, the caller provides an `Ssm` service instead. The following sketch builds the `Ssm` layer from the ZIO-native client and loads the same `databaseConfig`:
+
+```scala
+import zio._
+import zio.aws.core.config.AwsConfig
+import zio.aws.netty.NettyHttpClient
+import zio.aws.ssm.Ssm
+import zio.config._
+import zio.config.aws.parameterstore._
+
+val loadWithZioAws: ZIO[Any, Config.Error, Database] =
+  ZIO
+    .serviceWithZIO[Ssm] { ssm =>
+      ConfigProvider.fromParameterStore("/myapp/prod", ssm).flatMap(_.load(databaseConfig))
+    }
+    .provide(NettyHttpClient.default, AwsConfig.default, Ssm.live)
+```
+
+### Required Permissions
+
+The identity that runs the application needs `ssm:GetParametersByPath` on the base path, because the provider reads parameters recursively. The provider also requests decrypted values, so the identity needs `kms:Decrypt` on the KMS key that encrypts any `SecureString` parameters under that path.
+
+### Errors
+
+If an AWS call fails, `ConfigProvider.fromParameterStore` returns a `Config.Error` whose message contains the text of the original exception. Handle it like any other `Config.Error`, for example with `catchAll` or by logging it at startup.
+
+---
+
 ## Dive Into ZIO Config
 
 __Note that this documentation is for 1.x series. For newer versions, please refer to [docs](https://github.com/zio/zio-config/tree/master/docs) section in GitHub.__
@@ -63219,7 +63313,7 @@ val config: Config[Greeting] =
 
 Let's enumerate some key features of this library:
 
-- **Support for Various Sources** — It can read flat or nested configurations. Thanks to `IndexedFlat`.
+- **Support for Various Sources** — It can read flat or nested configurations from HOCON, JSON, YAML, TOML, XML, maps, and more. Thanks to `IndexedFlat`.
 - **Automatic Document Generation** — It can auto-generate documentation of configurations.
 - **Automatic Derivation** — It has built-in support for automatic derivation of readers and writers for case classes and sealed traits.
 - **Type-level Constraints and Automatic Validation** — because it supports _Refined_ types, we can write type-level predicates which constrain the set of values described for data types.
@@ -63235,6 +63329,26 @@ In order to use this library, we need to add the following line in our `build.sb
 ```scala
 libraryDependencies += "dev.zio" %% "zio-config" % "<version>" 
 ```
+
+#### Sources
+
+Add the modules you need for your config sources:
+
+```scala
+// HOCON / JSON
+libraryDependencies += "dev.zio" %% "zio-config-typesafe" % "<version>"
+
+// YAML
+libraryDependencies += "dev.zio" %% "zio-config-yaml" % "<version>"
+
+// TOML
+libraryDependencies += "dev.zio" %% "zio-config-toml" % "<version>"
+
+// XML (experimental)
+libraryDependencies += "dev.zio" %% "zio-config-xml" % "<version>"
+```
+
+See [Read from various Sources](https://zio.dev/zio-config/read-from-various-sources) for examples of each.
 
 ## Quick Start
 
@@ -63340,7 +63454,14 @@ Have a look at modules of zio-config to know about other integrations such as `a
 
 ## Read from various Sources
 
-zio-config supports various sources.
+zio-config supports various sources. Format-specific modules:
+
+| Source | Module | Import |
+| --- | --- | --- |
+| HOCON / JSON | `zio-config-typesafe` | `zio.config.typesafe._` |
+| YAML | `zio-config-yaml` | `zio.config.yaml._` |
+| TOML | `zio-config-toml` | `zio.config.toml._` |
+| XML (experimental) | `zio-config-xml` | `zio.config.xml.experimental._` |
 
 ```scala
 import zio._, Config._, ConfigProvider._
@@ -63425,42 +63546,106 @@ val jsonString =
 ConfigProvider.fromHoconString(jsonString)
 ```
 
-### Yaml FIle
+### Yaml
 
-Similar to Hocon source, we have `ConfigProvider.fromYamlString`
+To enable YAML source, bring in the `zio-config-yaml` module.
 
 ```scala
 import zio.config.yaml._
 
-ConfigProvider.fromYamlString
-
+ConfigProvider.fromYamlString(
+  """
+  port: 123
+  url: bla
+  region: useast
+  """
+)
 ```
+
+### Toml
+
+To enable TOML source, bring in the `zio-config-toml` module.
+
+```scala
+import zio.config.toml._
+
+ConfigProvider.fromTomlString(
+  """
+  port = 123
+  url = "bla"
+  region = "useast"
+  """
+)
+```
+
+You can also load from a file or path:
+
+```scala
+import zio.config.toml._
+
+ConfigProvider.fromTomlFile(new java.io.File("application.toml"))
+ConfigProvider.fromTomlPath(java.nio.file.Path.of("application.toml"))
+```
+
+TOML tables become nested keys, so the keys under a `[server]` table are read with `Config#nested`. TOML arrays become indexed keys, which `Config.listOf` reads as a list. To describe both, define a `Config` for a table that contains an array:
+
+```scala
+final case class TomlServer(host: String, ports: List[Int])
+
+val serverConfig: Config[TomlServer] =
+  (Config.string("host") zip Config.listOf("ports", Config.int))
+    .nested("server")
+    .map(pair => TomlServer(pair._1, pair._2))
+```
+
+Next, parse a TOML string that contains that table and load the config from it:
+
+```scala
+import zio.config.toml._
+
+val serverToml: ConfigProvider =
+  ConfigProvider.fromTomlString(
+    """
+    [server]
+    host = "localhost"
+    ports = [8080, 8443]
+    """
+  )
+
+val server: IO[Config.Error, TomlServer] = serverToml.load(serverConfig)
+```
+
+By default, commas inside a string value are not treated as list separators. Pass `enableCommaSeparatedValueAsList = true` to `fromTomlString`, `fromTomlFile`, or `fromTomlPath` to split such values on commas when they are read as lists.
 
 ### Xml String
 
-zio-config can read XML strings. Note that it's experimental with a dead simple native xml parser, 
-Currently it cannot XML comments, and has not been tested with complex data types, which will be fixed in the near future.
+zio-config can read XML strings through the experimental `zio-config-xml` module. The parser is small and native. It does not support XML comments, and it has not been tested with complex data types.
+
+Each attribute and each element's text becomes a key. The key path starts at the root tag, so `<config><aws region="us-east"/></config>` produces the key `config.aws.region`. An attribute and an element's text map to the same path, so `<database port="123">` and `<database><port>123</port></database>` both produce the key `config.database.port`. Repeated sibling elements with the same name produce the same key, so the last one wins. XML lists are not supported.
+
+To read the XML below, define a `Config` for each element and nest them under the root tag:
 
 ```scala
 import zio.config.xml.experimental._
 import zio.Config
+
+final case class Aws(region: String, account: String)
+
+object Aws {
+  val config: Config[Aws] = Config.string("region").zip(Config.string("account")).to[Aws]
+}
+
+final case class Database(port: Int, url: String)
+
+object Database {
+  val config: Config[Database] = Config.int("port").zip(Config.string("url")).to[Database]
+}
 
 final case class Configuration(aws: Aws, database: Database)
 
 object Configuration {
   val config: Config[Configuration] =
     Aws.config.nested("aws").zip(Database.config.nested("database")).to[Configuration].nested("config")
-
-  final case class Aws(region: String, account: String)
-
-  object Aws {
-    val config: Config[Aws] = Config.string("region").zip(Config.string("account")).to[Aws]
-  }
-  final case class Database(port: Int, url: String)
-
-  object Database {
-    val config: Config[Database] = Config.int("port").zip(Config.string("url")).to[Database]
-  }
 }
 
 val config =
@@ -63473,7 +63658,6 @@ val config =
      |""".stripMargin
 
 val parsed = ConfigProvider.fromYamlString(config).load(Configuration.config)
-
 ```
 
 #### Indexed Map, Array datatype, and a some implementation notes
@@ -63515,7 +63699,7 @@ val map =
   )
   
 
-ConfigProvider.fromMap(map).load(derivedConfig[Config])
+ConfigProvider.fromMap(map).load(deriveConfig[Config])
 
 ```
 
@@ -63559,6 +63743,28 @@ val result = provider.load(config)
     - Part 4: [Auto generate sample configurations of your application in Scala](https://www.youtube.com/watch?v=--mcs4HztJY&t=0s)
 
 PS: Note that the videos use older version of zio-config. However, if you are new to Scala, you can still learn a lot from these videos.
+
+---
+
+## What's New Since 4.0.6
+
+This page lists the user-visible changes made after the 4.0.6 release, grouped by release. Read it when you upgrade from 4.0.6 or earlier to a later 4.x version.
+
+### 4.1.0
+
+Version 4.1.0 fixes the cats module under Scala 3.9 and moves the Scala 3 build to the 3.9.0 compiler. It also updates the typesafe config library to 1.4.9 and snakeyaml-engine to 3.1.1. The project's CI no longer runs on JDK 11 and now runs on JDK 25.
+
+### 4.0.8
+
+Version 4.0.8 adds the `zio-config-toml` module, which reads TOML files and strings. The module provides `ConfigProvider.fromTomlString`, `fromTomlFile`, and `fromTomlPath`, plus `ZIO` variants of each. See [Read from various Sources](./read-from-various-sources.md) for examples.
+
+### 4.0.7
+
+Version 4.0.7 adds the `@kebabCaseLegacy` annotation for derived configs. It applies the older kebab-case rules, which split a key only at a lowercase-to-uppercase boundary. Under these rules `myValue123` becomes `my-value123`, and `QAndA` becomes `qand-a`. Use it to keep the key names of configs written before the default kebab-case rules changed.
+
+### After 4.1.0
+
+The `series/4.x` branch has dependency updates after the 4.1.0 release, including typesafe config 1.4.10 and snakeyaml-engine 3.2. These updates change the libraries that zio-config uses internally. They do not change the zio-config API.
 
 ---
 
@@ -75659,11 +75865,337 @@ sbt sampleApp/run
 
 ---
 
+## Error Handling(Zio-parser)
+
+Parsing and printing both report failures as values. This page explains the error types, how to name the parts of a grammar so errors say where they happened, and how to turn errors into readable messages.
+
+```scala
+import zio.Chunk
+import zio.parser.*
+import zio.parser.Parser.ParserError
+```
+
+### Error Types
+
+`parseString` and `parseChars` return `Either[StringParserError[Err], Value]`. A `StringParserError` holds the original `input` and a `ParserError[Err]`. `parseChunk` returns the `ParserError[Err]` directly. A `ParserError` has these cases:
+
+| Case                                  | Meaning                                                              |
+|---------------------------------------|----------------------------------------------------------------------|
+| `Failure(nameStack, position, failure)` | A syntax failed with your own error value of type `Err`            |
+| `UnknownFailure(nameStack, position)` | A failure without a custom value (only from `unsafe*` syntaxes)     |
+| `UnexpectedEndOfInput(nameStack)`     | The input ended before the syntax was complete                       |
+| `NotConsumedAll(nameStack, position)` | `Syntax.end` found input left over                                   |
+| `AllBranchesFailed(left, right)`      | Every alternative of a `\|` failed. Each branch's error is kept      |
+
+`nameStack` lists the names of the enclosing named syntaxes (see [Naming Syntaxes](#naming-syntaxes)). `position` is the index in the input.
+
+```scala
+val number: Syntax[String, Char, Char, Int] =
+  Syntax.digit.repeat.string.transform(_.toInt, _.toString)
+
+val pair: Syntax[String, Char, Char, (Int, Int)] =
+  number ~ Syntax.char(',') ~ number
+```
+
+A syntax stops as soon as it has parsed a value and does not look at the rest of the input. To require that everything is consumed, finish with `Syntax.end`:
+
+```scala
+val completePair: Syntax[String, Char, Char, (Int, Int)] = pair <~ Syntax.end
+```
+
+```scala
+pair.parseString("1;2")
+// res0: Either[StringParserError[String], Tuple2[Int, Int]] = Left(
+//   StringParserError(
+//     input = "1;2",
+//     error = Failure(nameStack = List(), position = 1, failure = "not ','")
+//   )
+// )
+pair.parseString("1,")
+// res1: Either[StringParserError[String], Tuple2[Int, Int]] = Left(
+//   StringParserError(input = "1,", error = UnexpectedEndOfInput(List()))
+// )
+pair.parseString("1,2 and more")
+// res2: Either[StringParserError[String], Tuple2[Int, Int]] = Right((1, 2))
+completePair.parseString("1,2 and more")
+// res3: Either[StringParserError[String], Tuple2[Int, Int]] = Left(
+//   StringParserError(
+//     input = "1,2 and more",
+//     error = NotConsumedAll(nameStack = List(), position = 3)
+//   )
+// )
+```
+
+You can match on the error like any other value:
+
+```scala
+pair.parseString("1;2") match {
+  case Left(StringParserError(_, ParserError.Failure(_, position, message))) =>
+    s"$message at $position"
+  case Left(other)  => other.toString
+  case Right(value) => value.toString
+}
+// res4: String = "not ',' at 1"
+```
+
+### Pretty Printing Errors
+
+`StringParserError#pretty` renders the error together with the relevant lines of the input and a caret under the failing position:
+
+```scala
+println(pair.parseString("1;2").left.map(_.pretty).merge)
+// 1;2
+//  ^
+// error: Failure at position 1: not ','
+//
+```
+
+Errors without a position, such as `UnexpectedEndOfInput` and `AllBranchesFailed`, are printed as a single line without the input. For a multi-line input only the lines around the error are shown.
+
+### Custom Error Types
+
+Most constructors default to a `String` error, and most also have a variant that takes your own failure value, for example `Syntax.char(c, failure)`, `Syntax.regex(regex, failure)` and `Syntax.filterChar(p, failure)`. Combine them with `mapError` to move to a richer error type:
+
+```scala
+enum ConfigError {
+  case BadNumber(text: String)
+  case Other(message: String)
+}
+
+val port: Syntax[ConfigError, Char, Char, Int] =
+  Syntax
+    .digit
+    .repeat
+    .string
+    .mapError(ConfigError.Other(_))
+    .transformEither[ConfigError, Int](
+      s => s.toIntOption.toRight(ConfigError.BadNumber(s)),
+      n => Right(n.toString)
+    )
+```
+
+```scala
+port.parseString("8080")
+// res6: Either[StringParserError[ConfigError], Int] = Right(8080)
+port.parseString("99999999999")
+// res7: Either[StringParserError[ConfigError], Int] = Left(
+//   StringParserError(
+//     input = "99999999999",
+//     error = Failure(
+//       nameStack = List(),
+//       position = 11,
+//       failure = BadNumber("99999999999")
+//     )
+//   )
+// )
+```
+
+`transformEither` and `filter` are the usual places to produce domain errors, while `transformOption` reports failures as `None`.
+
+### Naming Syntaxes
+
+Add a name to a syntax with `named` or its alias `??`. The name is pushed on the `nameStack` of any error raised inside, and `pretty` shows the chain:
+
+```scala
+val namedNumber = number ?? "number"
+val namedPair   = (namedNumber ~ Syntax.char(',') ~ namedNumber) ?? "pair"
+```
+
+```scala
+println(namedPair.parseString("1;2").left.map(_.pretty).merge)
+// 1;2
+//  ^
+// error: Failure at position 1: not ',' in pair
+//
+```
+
+### Errors from Alternatives
+
+With `|`, the parser tries each branch in order. If one succeeds, the failures of the earlier branches are discarded. If all fail, you get `AllBranchesFailed`, which `pretty` prints as `All branches failed: ... and ...`:
+
+```scala
+val boolean: Syntax[String, Char, Char, Boolean] =
+  Syntax.string("true", true) | Syntax.string("false", false)
+```
+
+```scala
+boolean.parseString("maybe") match {
+  case Left(StringParserError(_, ParserError.AllBranchesFailed(left, right))) =>
+    (left.getClass.getSimpleName, right.getClass.getSimpleName)
+  case other => other
+}
+// res9: Tuple2[String, String] | Either[StringParserError[String], Boolean] = (
+//   "Failure",
+//   "Failure"
+// )
+```
+
+### Backtracking and Errors
+
+By default a failing branch of `|` rewinds the input, so the next branch starts at the same position. `manualBacktracking` disables that rewind for a syntax and `backtrack` restores it at selected points. See [Building Syntaxes](syntax.md#backtracking).
+
+### Printing Errors
+
+The `Err` type is shared between the parser and the printer, and printing returns `Either[Err, ...]`. A printer fails when a `filter` condition does not hold, when a `transformTo` partial function does not cover a value, or when a `widen` finds no matching alternative:
+
+```scala
+Syntax.digit.filter[String, Char](_ != '0', "no zeros").printString('0')
+// res10: Either[String, String] = Left("no zeros")
+```
+
+Next: the [worked example](example-json.md).
+
+---
+
+## Example: a JSON Syntax
+
+This example builds a complete JSON syntax. One definition parses JSON text into a small AST and prints the AST back to text. It is adapted from the example in the library's tests.
+
+```scala
+import zio.Chunk
+import zio.parser.*
+```
+
+### The AST
+
+```scala
+sealed abstract class Json
+object Json {
+  final case class Obj(fields: Chunk[(String, Json)]) extends Json
+  final case class Arr(elements: Chunk[Json])         extends Json
+  final case class Bool(value: Boolean)               extends Json
+  final case class Str(value: String)                 extends Json
+  final case class Num(value: BigDecimal)             extends Json
+  case object Null                                    extends Json
+}
+```
+
+### Whitespace
+
+JSON allows any amount of whitespace between tokens. The parser accepts all of it, and the printer writes a single space:
+
+```scala
+val whitespace: Syntax[String, Char, Char, Char]  = Syntax.charIn(' ', '\t', '\r', '\n')
+val whitespaces: Syntax[String, Char, Char, Unit] = whitespace.*.asPrinted((), Chunk(' '))
+```
+
+### Scalar Values
+
+Every scalar syntax produces its own subtype of `Json`:
+
+```scala
+val nul: Syntax[String, Char, Char, Json.Null.type] =
+  Syntax.string("null", Json.Null)
+
+val bool: Syntax[String, Char, Char, Json.Bool] =
+  Syntax.string("true", Json.Bool(true)) | Syntax.string("false", Json.Bool(false))
+
+val quote: Syntax[String, Char, Char, Unit] = Syntax.char('"')
+
+val str: Syntax[String, Char, Char, Json.Str] =
+  (quote ~> Syntax.charNotIn('"').*.string <~ quote)
+    .transform(Json.Str.apply, (s: Json.Str) => s.value)
+
+val digits: Syntax[String, Char, Char, Chunk[Char]] = Syntax.digit.repeat
+
+val num: Syntax[String, Char, Char, Json.Num] =
+  (Syntax.char('-').? ~ digits ~ (Syntax.char('.') ~> digits).?).string
+    .transform(s => Json.Num(BigDecimal(s)), (n: Json.Num) => n.value.toString)
+```
+
+The string syntax does not handle escape sequences, to keep the example short.
+
+### Arrays and Objects
+
+Arrays and objects contain `Json` values, so these syntaxes are recursive. Define them as `lazy val`:
+
+```scala
+val listSep: Syntax[String, Char, Char, Unit] =
+  Syntax.char(',').surroundedBy(whitespaces)
+
+lazy val list: Syntax[String, Char, Char, Json.Arr] =
+  (Syntax.char('[') ~> json.repeatWithSep0(listSep) <~ Syntax.char(']'))
+    .transform(Json.Arr.apply, (arr: Json.Arr) => arr.elements)
+
+val keyValueSep: Syntax[String, Char, Char, Unit] =
+  Syntax.char(':').surroundedBy(whitespaces)
+
+lazy val keyValue: Syntax[String, Char, Char, (String, Json)] =
+  (str ~ keyValueSep ~ json).transform[(String, Json)](
+    { case (key, value) => (key.value, value) },
+    { case (key, value) => (Json.Str(key), value) }
+  )
+
+lazy val obj: Syntax[String, Char, Char, Json.Obj] =
+  (Syntax.char('{') ~> keyValue.repeatWithSep0(listSep).surroundedBy(whitespaces) <~ Syntax.char('}'))
+    .transform(Json.Obj.apply, (o: Json.Obj) => o.fields)
+```
+
+### Putting It Together
+
+`widen[Json]` turns each alternative into a `Syntax[..., Json]`. The parser tries them in order, and the printer uses the type of the value to find the alternative to print with:
+
+```scala
+lazy val json: Syntax[String, Char, Char, Json] =
+  (nul.widen[Json] | bool.widen[Json] | str.widen[Json] | num.widen[Json] |
+    list.widen[Json] | obj.widen[Json]) ?? "json"
+```
+
+### Parsing
+
+```scala
+val input = """{ "name": "zio-parser", "stars": [1, 2, 3], "stable": false, "next": null }"""
+// input: String = "{ \"name\": \"zio-parser\", \"stars\": [1, 2, 3], \"stable\": false, \"next\": null }"
+
+val parsed = json.parseString(input)
+// parsed: Either[StringParserError[String], Json] = Right(
+//   Obj(
+//     IndexedSeq(
+//       ("name", Str("zio-parser")),
+//       ("stars", Arr(IndexedSeq(Num(1), Num(2), Num(3)))),
+//       ("stable", Bool(false)),
+//       ("next", Null)
+//     )
+//   )
+// )
+```
+
+### Printing
+
+The same `json` value prints the AST back:
+
+```scala
+parsed.flatMap(json.printString(_))
+// res0: Either[StringParserError[String] | String, String] = Right(
+//   "{ \"name\" : \"zio-parser\" , \"stars\" : [1 , 2 , 3] , \"stable\" : false , \"next\" : null }"
+// )
+```
+
+Whitespace in the input is normalized, because `whitespaces` always prints a single space. Parsing the printed output gives the same AST:
+
+```scala
+parsed.flatMap(json.printString(_)).flatMap(json.parseString(_)) == parsed
+// res1: Boolean = true
+```
+
+You can also build a document by hand and print it:
+
+```scala
+json.printString(Json.Arr(Chunk(Json.Num(BigDecimal(1)), Json.Bool(true), Json.Null)))
+// res2: Either[String, String] = Right("[1 , true , null]")
+```
+
+### Errors
+
+Parse failures are reported like in any other syntax. Because `json` tries six alternatives, `AllBranchesFailed` carries one failure per branch. See [Error handling](errors.md) for how to read them.
+
+---
+
 ## Introduction to ZIO Parser
 
 Library for constructing parsers and pretty printers based on invertible syntax descriptions
 
-[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-parser/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-parser_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-parser_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-parser_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-parser_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-parser-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-parser-docs_2.13) [![ZIO Parser](https://img.shields.io/github/stars/zio/zio-parser?style=social)](https://github.com/zio/zio-parser)
+[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-parser/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-parser_3.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-parser_3) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-parser_3%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-parser_3/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-parser_3/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-parser_3) [![ZIO Parser](https://img.shields.io/github/stars/zio/zio-parser?style=social)](https://github.com/zio/zio-parser)
 
 ### Introduction
 
@@ -75674,11 +76206,577 @@ Library for constructing parsers and pretty printers based on invertible syntax 
 Start by adding `zio-parser` as a dependency to your project:
   
 ```scala
-libraryDependencies += "dev.zio" %% "zio-parser" % "0.1.9"
+libraryDependencies += "dev.zio" %% "zio-parser" % "0.1.12"
 ```
 
-[//]: # (TODO: Add example section)
-[//]: # (## Example)
+### Getting Started
+
+```scala
+import zio.parser.*
+```
+
+Declare your parsing syntax:
+
+```scala
+val digitSyntax: Syntax[String, Char, Char, Char] = Syntax.digit
+```
+
+Parse your string:
+
+```scala
+val result: Either[StringParserError[String], Char] = digitSyntax.parseString("1")
+// result: Either[StringParserError[String], Char] = Right('1')
+```
+
+Pretty print the parsing errors:
+
+```scala
+println(digitSyntax.parseString("Hello").left.map(_.pretty).merge)
+// Hello
+// ^
+// error: Failure at position 0: not a digit
+//
+```
+
+### Where to Go Next
+
+- [Building Syntaxes](syntax.md): primitives, sequencing, alternatives, repetition and mapping.
+- [Regex](regex.md): matching whole tokens efficiently.
+- [Printing and Invertible Syntaxes](printing.md): printing values back with the same syntax.
+- [Error Handling](errors.md): error types, naming syntaxes and pretty printing errors.
+- [Example: a JSON Syntax](example-json.md): a complete parser and printer.
+
+---
+
+## Printing and Invertible Syntaxes
+
+What sets ZIO Parser apart from most parser libraries is that the description of a grammar is *invertible*. The same `Syntax` value that parses a string can also print a value back to a string, so the two directions cannot drift apart.
+
+```scala
+import zio.Chunk
+import zio.parser.*
+```
+
+### Printing a Value
+
+Every `Syntax` has three printing methods:
+
+| Method                     | Result                    | Description                                      |
+|----------------------------|---------------------------|--------------------------------------------------|
+| `printString(value)`       | `Either[Err, String]`     | Prints to a `String` (requires `Out` to be `Char`) |
+| `print(value)`             | `Either[Err, Chunk[Out]]` | Prints to a `Chunk` of output elements           |
+| `print(value, target)`     | `Either[Err, Unit]`       | Writes to a [`Target`](#printing-to-a-target)    |
+
+```scala
+val number: Syntax[String, Char, Char, Int] =
+  Syntax.digit.repeat.string.transform(_.toInt, _.toString)
+
+val range: Syntax[String, Char, Char, (Int, Int)] =
+  number ~ Syntax.char('-') ~ number
+```
+
+```scala
+range.parseString("10-20")
+// res0: Either[StringParserError[String], Tuple2[Int, Int]] = Right((10, 20))
+range.printString((10, 20))
+// res1: Either[String, String] = Right("10-20")
+range.print((1, 2))
+// res2: Either[String, Chunk[Char]] = Right(IndexedSeq('1', '-', '2'))
+```
+
+### Round Trips
+
+For a well-formed syntax, parsing the printed output gives back the original value:
+
+```scala
+range.printString((3, 9)).flatMap(range.parseString(_))
+// res3: Either[String | StringParserError[String], Tuple2[Int, Int]] = Right(
+//   (3, 9)
+// )
+```
+
+### Writing Syntaxes That Print
+
+A parser only has to turn text into a value. A printer has to do the opposite, so every step that loses information on the way in needs a hint on how to restore it on the way out.
+
+#### Constant results
+
+`as(value)` maps a `Unit` syntax to a constant. When printing, the printer is given that constant and writes the original text again:
+
+```scala
+sealed trait Op
+case object Plus  extends Op
+case object Minus extends Op
+
+val op: Syntax[String, Char, Char, Op] =
+  Syntax.char('+').as(Plus: Op) | Syntax.char('-').as(Minus: Op)
+```
+
+`Syntax.char('+').as(Plus)` parses `+` into `Plus`, and when asked to print `Plus` it prints `+`. The printer compares the value it is given with `Plus`, so the second alternative is tried for `Minus`:
+
+```scala
+op.parseString("-")
+// res4: Either[StringParserError[String], Op] = Right(Minus)
+op.printString(Minus)
+// res5: Either[String, String] = Right("-")
+op.printString(Plus)
+// res6: Either[String, String] = Right("+")
+```
+
+#### Discarded results need a value to print
+
+A syntax whose result is thrown away, such as whitespace, has no value for the printer. `asPrinted(result, value)` says what to print instead:
+
+```scala
+val spaces: Syntax[String, Char, Char, Unit] =
+  Syntax.whitespace.repeat0.asPrinted((), Chunk(' '))
+
+val assignment: Syntax[String, Char, Char, (String, Int)] =
+  (Syntax.letter.repeat.string ~ Syntax.char('=').surroundedBy(spaces) ~ number)
+```
+
+```scala
+assignment.parseString("x   =   5")
+// res7: Either[StringParserError[String], Tuple2[String, Int]] = Right(
+//   ("x", 5)
+// )
+assignment.printString(("x", 5))
+// res8: Either[String, String] = Right("x = 5")
+```
+
+The parser accepts any amount of whitespace around `=`, and the printer produces exactly one space.
+
+#### Subtypes need `widen` or `transformTo`
+
+When a syntax produces a parent type but each alternative produces a subtype, the printer needs to find the alternative that fits a value. `widen[T]` does this with a runtime class check, and `transformTo` takes a partial function and an error for the values it does not cover:
+
+```scala
+sealed trait Shape
+final case class Circle(r: Int)         extends Shape
+final case class Square(side: Int)      extends Shape
+
+val circle: Syntax[String, Char, Char, Circle] =
+  (Syntax.string("circle ", ()) ~> number).transform(Circle.apply, _.r)
+
+val square: Syntax[String, Char, Char, Square] =
+  (Syntax.string("square ", ()) ~> number).transform(Square.apply, _.side)
+
+val shape: Syntax[String, Char, Char, Shape] =
+  circle.widen[Shape] | square.widen[Shape]
+```
+
+```scala
+shape.parseString("square 4")
+// res9: Either[StringParserError[String], Shape] = Right(Square(4))
+shape.printString(Circle(2))
+// res10: Either[String, String] = Right("circle 2")
+shape.printString(Square(7))
+// res11: Either[String, String] = Right("square 7")
+```
+
+#### Printing can fail
+
+Printing returns an `Either`. A syntax can reject values it cannot print, for example when a `filter` condition is not met or a `transformTo` partial function is not defined:
+
+```scala
+val small: Syntax[String, Char, Char, Int] =
+  number.filter[String, Int](_ < 100, "too big")
+```
+
+```scala
+small.printString(5)
+// res12: Either[String, String] = Right("5")
+small.printString(500)
+// res13: Either[String, String] = Left("too big")
+```
+
+### Printers on Their Own
+
+`Syntax` is a pair of a `Parser` and a `Printer`, available as `asParser` and `asPrinter`. A `Printer` can be used independently, for example for pretty printing a data structure that you never parse:
+
+```scala
+val printer: Printer[String, Char, Int] = number.asPrinter
+```
+
+```scala
+printer.printString(42)
+// res14: Either[String, String] = Right("42")
+```
+
+`Printer.printString(str)`, `Printer.char(c)` and `Printer.byValue` let you build printers by hand. Combine a `Parser` and a `Printer` into a syntax with `parser <=> printer`.
+
+### Printing to a Target
+
+`print(value, target)` writes the output elements to a `Target`. A `Target[Output]` is a small interface with `write`, and `capture`/`emit`/`drop` used by the printer internally for backtracking. ZIO Parser ships two implementations:
+
+- `zio.parser.target.ChunkTarget`, which accumulates the output in a `Chunk` and is used by `print`.
+- `zio.parser.target.ZStreamTarget`, which pushes the output into a `ZStream`.
+
+Next: [Error handling](errors.md).
+
+---
+
+## Regex
+
+Character-level syntaxes such as `Syntax.digit` or `Syntax.string` are built on top of `Regex`, a small model of regular expressions that ZIO Parser compiles to an efficient matcher. You can use it directly when you need to match a whole token in a single step instead of composing it from many small syntaxes.
+
+```scala
+import zio.Chunk
+import zio.parser.*
+```
+
+### Building a `Regex`
+
+`Regex` is not `java.util.regex.Pattern`. It is a set of combinators:
+
+| Combinator                              | Description                                                   |
+|-----------------------------------------|---------------------------------------------------------------|
+| `Regex.char(c)`, `Regex.string(s)`      | Match a character or a literal string                         |
+| `Regex.charIn(cs*)`, `Regex.charNotIn(cs*)` | Match a character in or not in a set                      |
+| `Regex.filter(p)`                       | Match one character that satisfies a predicate                |
+| `Regex.anyChar`, `Regex.anyDigit`, `Regex.anyLetter`, `Regex.anyAlphaNumeric`, `Regex.anyWhitespace` | Match one character of a class |
+| `Regex.digits`, `Regex.letters`, `Regex.alphaNumerics`, `Regex.whitespace` | Repeated classes (`whitespace` matches zero or more) |
+| `Regex.empty`                           | Matches the empty string                                      |
+| `a ~ b`                                 | `a` followed by `b`                                           |
+| `a \| b`                                | Either `a` or `b`                                             |
+| `a & b`                                 | Input matched by both `a` and `b`                             |
+| `a.atLeast(n)`, `a.atMost(n)`, `a.between(min, max)` | Repetition                                       |
+
+```scala
+val identifier: Regex =
+  Regex.anyLetter ~ (Regex.anyLetter | Regex.anyDigit | Regex.char('_')).atLeast(0)
+
+val hexByte: Regex =
+  Regex.charIn("0123456789abcdefABCDEF".toList*).between(2, 2)
+```
+
+A regex can be compiled and tested on its own:
+
+```scala
+val compiled = identifier.compile
+// compiled: Compiled = zio.parser.Regex$Parser$$anon$1@5b7aa0d1
+compiled.matches("user_42")
+// res0: Boolean = true
+compiled.matches("42user")
+// res1: Boolean = false
+```
+
+### Regex-based Syntaxes
+
+The `Syntax.regex*` constructors turn a `Regex` into a syntax. They differ in what the syntax results in:
+
+| Constructor                                      | Value          | Description                                                           |
+|--------------------------------------------------|----------------|-----------------------------------------------------------------------|
+| `Syntax.regex(regex, failure)`                   | `Chunk[Char]`  | The matched characters                                                |
+| `Syntax.regexChar(regex, failure)`               | `Char`         | The last matched character. Use it for regexes that match one character |
+| `Syntax.regexDiscard(regex, failure, printed)`   | `Unit`         | Discards the match. When printing, `printed` is written               |
+
+The `unsafeRegex`, `unsafeRegexChar` and `unsafeRegexDiscard` variants have no failure value and must only be used with regexes that cannot fail.
+
+```scala
+val identifierSyntax: Syntax[String, Char, Char, String] =
+  Syntax.regex(identifier, "not an identifier").string
+
+val whitespace: Syntax[Nothing, Char, Char, Unit] =
+  Syntax.unsafeRegexDiscard(Regex.whitespace, Chunk(' '))
+```
+
+```scala
+identifierSyntax.parseString("count_1")
+// res2: Either[StringParserError[String], String] = Right("count_1")
+identifierSyntax.parseString("1count")
+// res3: Either[StringParserError[String], String] = Left(
+//   StringParserError(
+//     input = "1count",
+//     error = Failure(
+//       nameStack = List(),
+//       position = 0,
+//       failure = "not an identifier"
+//     )
+//   )
+// )
+whitespace.parseString("   ")
+// res4: Either[StringParserError[Nothing], Unit] = Right(())
+whitespace.printString(())
+// res5: Either[Nothing, String] = Right(" ")
+```
+
+`whitespace` accepts any amount of whitespace when parsing, and prints a single space.
+
+When printing, the regex acts as a validator: a `Chunk[Char]` that the regex does not match makes the printer fail with the failure value.
+
+```scala
+Syntax.regex(identifier, "not an identifier").printString(Chunk.fromIterable("abc".toList))
+// res6: Either[String, String] = Right("abc")
+Syntax.regex(identifier, "not an identifier").printString(Chunk.fromIterable("1bc".toList))
+// res7: Either[String, String] = Left("not an identifier")
+```
+
+### Why Use Regexes?
+
+Each `Regex` is compiled once into a table-driven matcher that runs over the input in a tight loop. A syntax such as `Syntax.digit.repeat` is made of many parsing steps, while `Syntax.regex(Regex.digits, ...)` checks the whole token in one step. Prefer regexes for lexical tokens, like numbers, identifiers and whitespace, and combinators for structure.
+
+The built-in `Syntax.digit`, `Syntax.letter`, `Syntax.alphaNumeric` and `Syntax.whitespace` are themselves defined with `Syntax.regexChar`.
+
+Next: [Printing](printing.md).
+
+---
+
+## Building Syntaxes
+
+A `Syntax[Err, In, Out, Value]` describes a grammar once and gives you both directions: a parser that turns input into a `Value`, and a printer that turns a `Value` back into output. This page covers the combinators you use to build syntaxes.
+
+```scala
+import zio.Chunk
+import zio.parser.*
+```
+
+### The `Syntax` Type
+
+`Syntax` has four type parameters:
+
+| Parameter | Meaning                                                                        |
+|-----------|--------------------------------------------------------------------------------|
+| `Err`     | The custom error type, for example `String`                                    |
+| `In`      | The element type of the input stream. For text this is `Char`                  |
+| `Out`     | The element type of the printed stream. For text this is `Char`                |
+| `Value`   | The type of the parsed value, which is also the type of the value to be printed |
+
+Every syntax exposes its two halves as `asParser` and `asPrinter`, but you normally work with the syntax itself and call `parseString` or `printString` on it.
+
+### Primitives
+
+`Syntax` provides constructors for single characters, strings and common character classes:
+
+| Constructor                                | Value    | Description                                       |
+|--------------------------------------------|----------|---------------------------------------------------|
+| `Syntax.char(c)`                           | `Unit`   | Matches the exact character `c`                   |
+| `Syntax.charIn(cs)` / `Syntax.charNotIn(cs)` | `Char` | Matches a character in (or not in) the given set  |
+| `Syntax.notChar(c)`                        | `Char`   | Matches any character except `c`                  |
+| `Syntax.anyChar`                           | `Char`   | Matches any single character                      |
+| `Syntax.digit`                             | `Char`   | Matches a digit                                   |
+| `Syntax.letter`                            | `Char`   | Matches a letter                                  |
+| `Syntax.alphaNumeric`                      | `Char`   | Matches a letter or a digit                       |
+| `Syntax.whitespace`                        | `Char`   | Matches a whitespace character                    |
+| `Syntax.filterChar(p, failure)`            | `Char`   | Matches a character that satisfies `p`            |
+| `Syntax.string(s, value)`                  | `Result` | Matches the exact string `s` and results in `value` |
+| `Syntax.succeed(v)` / `Syntax.fail(e)`     |          | Always succeed with `v` / always fail with `e`    |
+| `Syntax.end`                               | `Unit`   | Succeeds only at the end of the input             |
+
+```scala
+val comma: Syntax[String, Char, Char, Unit]       = Syntax.char(',')
+val vowel: Syntax[String, Char, Char, Char]       = Syntax.charIn("aeiou")
+val trueSyntax: Syntax[String, Char, Char, Boolean] = Syntax.string("true", true)
+```
+
+```scala
+vowel.parseString("a")
+// res0: Either[StringParserError[String], Char] = Right('a')
+vowel.parseString("x")
+// res1: Either[StringParserError[String], Char] = Left(
+//   StringParserError(
+//     input = "x",
+//     error = Failure(
+//       nameStack = List(),
+//       position = 0,
+//       failure = "Not the expected character (a, e, i, o, u)"
+//     )
+//   )
+// )
+trueSyntax.parseString("true")
+// res2: Either[StringParserError[String], Boolean] = Right(true)
+```
+
+### Sequencing
+
+The `~` operator runs two syntaxes in order and combines their results into a tuple. Results of type `Unit` are dropped, so you do not end up with `Unit` entries in the tuple:
+
+```scala
+val pair: Syntax[String, Char, Char, (Char, Char)] =
+  Syntax.digit ~ comma ~ Syntax.letter
+```
+
+```scala
+pair.parseString("1,a")
+// res3: Either[StringParserError[String], Tuple2[Char, Char]] = Right(
+//   ('1', 'a')
+// )
+pair.printString(('1', 'a'))
+// res4: Either[String, String] = Right("1,a")
+```
+
+If you only care about one side, use `~>` to keep the right result or `<~` to keep the left result. The discarded side must be a `Syntax[..., Unit]`, because the printer has no value to give it:
+
+```scala
+val parenthesizedDigit: Syntax[String, Char, Char, Char] =
+  Syntax.char('(') ~> Syntax.digit <~ Syntax.char(')')
+```
+
+```scala
+parenthesizedDigit.parseString("(7)")
+// res5: Either[StringParserError[String], Char] = Right('7')
+parenthesizedDigit.printString('7')
+// res6: Either[String, String] = Right("(7)")
+```
+
+### Alternatives
+
+`|` (or `orElse`, or its alias `<>`) tries the left syntax first and falls back to the right one if it fails. Both sides must have the same value type. When the types differ, `orElseEither` (alias `<+>`) returns an `Either`:
+
+```scala
+val boolean: Syntax[String, Char, Char, Boolean] =
+  Syntax.string("true", true) | Syntax.string("false", false)
+
+val digitOrLetter: Syntax[String, Char, Char, Either[Char, Char]] =
+  Syntax.digit <+> Syntax.letter
+```
+
+```scala
+boolean.parseString("false")
+// res7: Either[StringParserError[String], Boolean] = Right(false)
+digitOrLetter.parseString("x")
+// res8: Either[StringParserError[String], Either[Char, Char]] = Right(
+//   Right('x')
+// )
+```
+
+When the alternatives are subtypes of a common type, `widen[T]` lifts each alternative to the parent type so they can be combined with `|`. The printer picks the first alternative that accepts the value. See the [worked example](example-json.md).
+
+### Repetition
+
+| Combinator                  | Result          | Description                                         |
+|-----------------------------|-----------------|-----------------------------------------------------|
+| `repeat` / `+`              | `Chunk[Value]`  | One or more times                                   |
+| `repeat0` / `*`             | `Chunk[Value]`  | Zero or more times                                  |
+| `atLeast(n)`                | `Chunk[Value]`  | At least `n` times                                  |
+| `repeatWithSep(sep)`        | `Chunk[Value]`  | One or more times, separated by `sep`               |
+| `repeatWithSep0(sep)`       | `Chunk[Value]`  | Zero or more times, separated by `sep`              |
+| `repeatUntil(stop)`         | `Chunk[Value]`  | Repeats until `stop` succeeds                       |
+| `optional` / `?`            | `Option[Value]` | Zero or one time                                    |
+
+`string` turns a repeated character syntax into a `String`:
+
+```scala
+val number: Syntax[String, Char, Char, String] = Syntax.digit.repeat.string
+val numbers: Syntax[String, Char, Char, Chunk[String]] = number.repeatWithSep(comma)
+val maybeSign: Syntax[String, Char, Char, Option[Unit]] = Syntax.char('-').optional
+```
+
+```scala
+number.parseString("2024")
+// res9: Either[StringParserError[String], String] = Right("2024")
+numbers.parseString("1,22,333")
+// res10: Either[StringParserError[String], Chunk[String]] = Right(
+//   IndexedSeq("1", "22", "333")
+// )
+numbers.printString(Chunk("4", "5", "6"))
+// res11: Either[String, String] = Right("4,5,6")
+maybeSign.parseString("")
+// res12: Either[StringParserError[String], Option[Unit]] = Right(None)
+```
+
+`Syntax.digit.repeat` has `Chunk[Char]` as its value type, and `.string` replaces it with the matched text. When printing, the whole string is written as is.
+
+### Surrounding Syntaxes
+
+`between(left, right)` and `surroundedBy(other)` wrap a syntax with `Unit` syntaxes and keep the inner result:
+
+```scala
+val quoted: Syntax[String, Char, Char, String] =
+  Syntax.notChar('"').repeat0.string.surroundedBy(Syntax.char('"'))
+
+val bracketed: Syntax[String, Char, Char, Chunk[String]] =
+  number.repeatWithSep0(comma).between(Syntax.char('['), Syntax.char(']'))
+```
+
+```scala
+quoted.parseString("\"hello\"")
+// res13: Either[StringParserError[String], String] = Right("hello")
+bracketed.parseString("[1,2,3]")
+// res14: Either[StringParserError[String], Chunk[String]] = Right(
+//   IndexedSeq("1", "2", "3")
+// )
+bracketed.printString(Chunk("1", "2"))
+// res15: Either[String, String] = Right("[1,2]")
+```
+
+### Mapping Values
+
+Because a syntax works in both directions, a mapping needs a function for each direction:
+
+| Combinator                       | Description                                                                                       |
+|----------------------------------|---------------------------------------------------------------------------------------------------|
+| `transform(to, from)`            | Maps the parsed value with `to`, and the value to print with `from`                               |
+| `transformEither(to, from)`      | Both functions can fail with an `Either`                                                          |
+| `transformOption(to, from)`      | Both functions can fail with an `Option`, and the error becomes `Option[Err]`                     |
+| `transformTo(to, from, failure)` | `from` is a `PartialFunction`. If it is not defined for a value, printing fails with `failure`    |
+| `asPrinted(result, value)`       | Always parses to `result`, and prints `value` when asked to print `result`                        |
+| `as(value)`                      | For `Unit` syntaxes: result in `value` when parsing                                               |
+| `of[CaseClass]` / `to[CaseClass]` | Converts a tuple result to a case class (and back for printing with `of`)                         |
+| `filter(p, failure)`             | Fails with `failure` when the value does not satisfy `p`                                          |
+
+```scala
+val int: Syntax[String, Char, Char, Int] =
+  number.transformEither[String, Int](
+    s => s.toIntOption.toRight("number out of range"),
+    n => Right(n.toString)
+  )
+
+final case class Point(x: Int, y: Int)
+
+val point: Syntax[String, Char, Char, Point] =
+  (int ~ comma ~ int).of[Point].between(Syntax.char('('), Syntax.char(')'))
+```
+
+```scala
+int.parseString("42")
+// res16: Either[StringParserError[String], Int] = Right(42)
+int.parseString("99999999999")
+// res17: Either[StringParserError[String], Int] = Left(
+//   StringParserError(
+//     input = "99999999999",
+//     error = Failure(
+//       nameStack = List(),
+//       position = 11,
+//       failure = "number out of range"
+//     )
+//   )
+// )
+point.parseString("(3,4)")
+// res18: Either[StringParserError[String], Point] = Right(Point(x = 3, y = 4))
+point.printString(Point(5, 6))
+// res19: Either[String, String] = Right("(5,6)")
+```
+
+### Recursive Syntaxes
+
+A syntax can refer to itself as long as the reference sits behind a `lazy val` (or a `def`). The `~`, `~>`, `<~`, `|` operators take their right-hand side by name, so the recursion is resolved lazily. For a full example see the [worked example](example-json.md).
+
+```scala
+lazy val nested: Syntax[String, Char, Char, Int] =
+  (Syntax.char('(') ~> nested <~ Syntax.char(')')).transform(_ + 1, _ - 1) |
+    Syntax.succeed(0)
+```
+
+```scala
+nested.parseString("((()))")
+// res20: Either[StringParserError[String], Int] = Right(3)
+```
+
+### Choosing the Parser Implementation
+
+`parseString` and `parseChars` take an optional `ParserImplementation`. The default, `ParserImplementation.Recursive`, is fast but uses the JVM stack for nested syntaxes. `ParserImplementation.StackSafe` is slower but does not overflow on deeply nested input:
+
+```scala
+nested.parseString("(((())))", ParserImplementation.StackSafe)
+// res21: Either[StringParserError[String], Int] = Right(4)
+```
+
+### Backtracking
+
+When a syntax fails after consuming input, the parser backtracks to where that syntax started, so that an alternative can try again from the same position. This automatic backtracking is on by default. `manualBacktracking` turns it off for a syntax, `autoBacktracking` turns it on again, and `backtrack` inserts an explicit backtracking point. Disabling it can make failures cheaper in grammars where you know which branch to take from the first character.
+
+Next: [Regex](regex.md), [Printing](printing.md), [Error handling](errors.md).
 
 ---
 
