@@ -119,6 +119,7 @@
       "id": "fp",
       "label": "Types & Abstractions",
       "official": [
+        "interop-cats",
         "izumi-reflect",
         "zio-constraintless",
         "zio-direct",
