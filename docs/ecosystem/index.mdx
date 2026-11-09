@@ -6,13 +6,172 @@ import Ecosystem from '@site/src/components/sections/Ecosystem';
 
 ZIO has a rich ecosystem of libraries and tools that enhance its capabilities and provide additional functionality. This ecosystem includes libraries for various purposes, such as web development, data processing, testing, and more.
 
-But it doesn't end there! If you need a comprehensive list of libraries and tools, you can find them in one of the following sections:
-
-- [Official libraries](officials/index.md), maintained by the ZIO team under the [ZIO Organization](https://github.com/zio).
-- [Community libraries](community/index.md), maintained by members of the ZIO community.
+Browse the libraries by purpose in the sidebar, or jump to the complete lists below: the [official libraries](#official-libraries), maintained by the ZIO team under the [ZIO Organization](https://github.com/zio), the [community libraries](#community-libraries), maintained by members of the ZIO community, and the [compatible libraries](#compatible-libraries) that work with ZIO.
 
 Below are some of the highlights from the official libraries:
 
 <Ecosystem  />
 
+## Official Libraries
 
+Official ZIO libraries are hosted in the [ZIO organization](https://github.com/zio/) on GitHub, and are generally maintained by core contributors to ZIO.
+
+### Development Status
+
+Each project in the ZIO organization namespace has a _Stage Badge_ which indicates the current status of that project:
+
+* **Production Ready** — The project is stable and already used in production. We can expect reliability for the implemented use cases.
+* **Development** — The project already has RC or milestone releases, but is still under active development. We should not expect full stability yet.
+* **Experimental** — The project is not yet released, but an important part of the work is already done.
+* **Research** — The project is at the design stage, with some sketches of work but nothing usable yet.
+* **Concept** — The project is just an idea, development hasn't started yet.
+* **Deprecated** — The project is not maintained anymore, and we don't recommend its usage.
+
+{/* BEGIN GENERATED: official libraries */}
+
+### Web & APIs
+
+- [ZIO HTTP](https://ziohttp.com) — A type-safe, composable, and feature-rich HTTP library built on top of ZIO.
+
+### Data Access
+
+- [ZIO DynamoDB](/zio-dynamodb/) — Simple, type-safe, and efficient access to AWS DynamoDB.
+- [ZIO Query](/zio-query/) — A library for writing optimized queries to data sources in a compositional style, with batching, pipelining, and caching.
+- [ZIO Quill](/zio-quill/) — A quoted domain-specific language for expressing queries in Scala and executing them as SQL or CQL.
+- [ZIO Redis](/zio-redis/) — A type-safe and performant ZIO-native Redis client.
+- [ZIO Rocksdb](/zio-rocksdb/) — A ZIO-based interface to RocksDB.
+
+### Messaging & Pipelines
+
+- [ZIO AMQP](/zio-amqp/) — A ZIO-based wrapper around the RabbitMQ client with a streaming interface to AMQP queues.
+- [ZIO Kafka](/zio-kafka/) — A purely functional, streams-based Kafka client for ZIO.
+- [ZIO SQS](/zio-sqs/) — A ZIO-powered client for AWS SQS, built on top of ZIO AWS.
+
+### Serialization & Formats
+
+- [ZIO Bson](/zio-bson/) — A BSON library with tight ZIO integration and native support for BSON types.
+- [ZIO JSON](/zio-json/) — A fast and secure JSON library with tight ZIO integration.
+- [ZIO Parser](/zio-parser/) — A library for constructing parsers and pretty printers from invertible syntax descriptions.
+- [ZIO Schema](/zio-schema/) — A library for modeling the schema of data structures as first-class values, enabling serialization, deserialization, and data migration.
+- [ZIO Streams Compress](/zio-streams-compress/) — A library that integrates compression algorithms and archive formats with ZIO Streams.
+
+### Observability
+
+- [ZIO Logging](/zio-logging/) — Simple logging for ZIO applications, with correlation, context, and pluggable backends.
+- [ZIO Metrics Connectors](/zio-metrics-connectors/) — Integrations between ZIO metrics and monitoring systems such as Prometheus and Datadog.
+- [ZIO Profiling](/zio-profiling/) — A collection of profilers for understanding the runtime behavior of ZIO programs.
+- [ZIO Telemetry](/zio-telemetry/) — Purely functional and type-safe clients for OpenTracing, OpenCensus, and OpenTelemetry.
+
+### Cloud & Infrastructure
+
+- [ZIO AWS](/zio-aws/) — A ZIO wrapper for all AWS services, built on the AWS Java SDK v2.
+- [ZIO FTP](/zio-ftp/) — A thin wrapper over (s)FTP clients for ZIO.
+- [ZIO Lambda](/zio-lambda/) — A ZIO-based AWS Custom Runtime compatible with GraalVM Native Image.
+- [ZIO S3](/zio-s3/) — A thin wrapper over the S3 async client for ZIO.
+
+### Config & App Wiring
+
+- [ZIO CLI](/zio-cli/) — A library for rapidly building powerful command-line applications powered by ZIO.
+- [ZIO Config](/zio-config/) — A ZIO-based library that extends ZIO's `Config` with support for various sources and automatic derivation.
+- [ZIO Process](/zio-process/) — A library for interacting with external processes and command-line programs, backed by ZIO Streams.
+
+### Resilience & Scaling
+
+- [ZIO Cache](/zio-cache/) — A library for optimizing the performance of an application by caching values.
+
+### Types & Abstractions
+
+- [Izumi Reflect](/izumi-reflect/) — A fast, lightweight, portable and efficient alternative to `TypeTag` from `scala-reflect`.
+- [ZIO 2.x Interop Cats 2.x](/zio2-interop-cats2/) — An interoperability layer that lets ZIO 2 work with Cats Effect 2 and its ecosystem.
+- [ZIO Constraintless](/zio-constraintless/) — A library for building programs as descriptions with maximum polymorphism and modularity, and zero abstraction leakage.
+- [ZIO Direct Style](/zio-direct/) — A library for writing ZIO programs in a direct, imperative style, based on the Monadless paradigm.
+- [ZIO Prelude](/zio-prelude/) — A lightweight, distinctly Scala take on functional abstractions, with tight ZIO integration.
+
+### Testing & Dev Tools
+
+- [ZIO IntelliJ](https://github.com/zio/zio-intellij) — A plugin for IntelliJ IDEA that brings enhancements when using ZIO in your projects.
+- [ZIO SBT](/zio-sbt/) — A collection of sbt plugins that simplify the development of ZIO projects.
+
+{/* END GENERATED: official libraries */}
+
+## Community Libraries
+
+In this section we are going to introduce some of the most important libraries that have first-class ZIO support from the community.
+
+If you know a useful library that has first-class ZIO support, please consider [submitting a pull request](https://github.com/zio/zio/pulls) to add it to this list.
+
+{/* BEGIN GENERATED: community libraries */}
+
+### Web & APIs
+
+- [Caliban](/ecosystem/community/caliban) — A purely functional library for creating GraphQL servers and clients in Scala.
+- [Tapir](/ecosystem/community/tapir) — A library to describe HTTP APIs, expose them as a server, consume them as a client, and document them automatically, with first-class ZIO support.
+- [ZIO gRPC](/ecosystem/community/zio-grpc) — A library for writing purely functional gRPC servers and clients with ZIO.
+
+### Data Access
+
+- [Decrel](/ecosystem/community/decrel) — A library for declarative programming using relations between data, with automatic batching, parallelization, and caching.
+- [Mongo4cats](/ecosystem/community/mongo4cats) — A functional and idiomatic interface for MongoDB, with a dedicated ZIO 2 module.
+- [TranzactIO](/ecosystem/community/tranzactio) — A ZIO wrapper for database access libraries, currently Doobie and Anorm.
+- [ZIO Elasticsearch](/ecosystem/community/zio-elasticsearch) — A type-safe and streaming-friendly ZIO-native Elasticsearch client.
+- [ZIO LMDB](/ecosystem/community/zio-lmdb) — An embedded, ACID, key-value database for ZIO, stored in a single file.
+- [ZIO MongoDB](/ecosystem/community/zio-mongodb) — A ZIO wrapper around the official MongoDB Java driver, with compile-time codecs and a type-safe query DSL.
+
+### Messaging & Pipelines
+
+- [tamer](/ecosystem/community/tamer) — A multi-functional Kafka connector for producing data, based on ZIO Kafka.
+- [ZIO Kinesis](/ecosystem/community/zio-kinesis) — A ZIO-based AWS Kinesis client for consuming and producing data.
+- [ZIO Spark](/ecosystem/community/zio-spark) — A functional wrapper around Spark that makes it work with ZIO and improves error management.
+
+### Serialization & Formats
+
+- [ZIO Apache Parquet](/ecosystem/community/zio-apache-parquet) — A ZIO-powered library for reading and writing Parquet files without running a Spark cluster.
+
+### Observability
+
+- [LogStage](/ecosystem/community/logstage) — A zero-cost structural logging framework for Scala and Scala.js.
+- [Tofu ZIO 2 Logging](/ecosystem/community/tofu-zio2-logging) — Logging integration of Tofu, a functional toolkit based on the tagless-final approach, with ZIO 2.
+
+### Cloud & Infrastructure
+
+- [Scala k8s](/ecosystem/community/scala-k8s) — A Kubernetes client, data models, and typesafe manifest generation for Scala, Scala.js, and Scala Native.
+- [ZIO K8s](/ecosystem/community/zio-k8s) — An idiomatic ZIO client for the Kubernetes API, with code generation for custom resources and operators.
+
+### Config & App Wiring
+
+- [Distage](/ecosystem/community/distage) — A compile-time safe, transparent, and debuggable dependency injection framework for pure FP Scala.
+
+### Resilience & Scaling
+
+- [Rezilience](/ecosystem/community/rezilience) — A ZIO-native fault tolerance library with policies for making asynchronous systems more resilient to failures.
+- [Shard](/ecosystem/community/shard) — A library for distributing entities across multiple servers and sending them messages by ID, without knowing their location. It is the successor of Shardcake.
+
+### Types & Abstractions
+
+- [Neotype](/ecosystem/community/neotype) — A friendly newtype library for Scala 3 with compile-time validation and integrations with ZIO JSON, ZIO Quill, ZIO Config, and ZIO Schema.
+
+### Testing & Dev Tools
+
+- [MUnit ZIO](/ecosystem/community/munit-zio) — An integration library between MUnit and ZIO.
+- [ZIO Test Akka HTTP](/ecosystem/community/zio-test-akka-http) — An Akka HTTP route test kit for ZIO Test.
+
+{/* END GENERATED: community libraries */}
+
+## Compatible Libraries
+
+List of ZIO compatible libraries:
+
+- [d4s](https://github.com/PlayQ/d4s) — "Dynamo DB Database done Scala way". A library that allows accessing the DynamoDB in a purely functional way
+- [Edomata](https://github.com/hnaderi/edomata) — Production ready event-driven automata for Scala, Scala.js and scala native
+- [elastic4s](https://github.com/sksamuel/elastic4s) — Elasticsearch Scala Client - Reactive, Non Blocking, Type Safe, HTTP Client
+- [Lepus](https://github.com/hnaderi/lepus) — Your principled, purely functional, non-blocking RabbitMQ client for scala, scala js and scala native built on top of fs2
+- [neotypes](https://github.com/neotypes/neotypes) — A Scala lightweight, type-safe & asynchronous driver for neo4j
+- [scanamo](https://github.com/scanamo/scanamo) — Simpler DynamoDB access for Scala
+- [sttp](https://github.com/softwaremill/sttp) — The Scala HTTP client you always wanted!
+- [doobie](https://github.com/tpolecat/doobie) — Functional JDBC layer for Scala.
+- [fs2](https://github.com/typelevel/fs2) — Compositional, streaming I/O library for Scala
+- [http4s](https://github.com/http4s/http4s) — A minimal, idiomatic Scala interface for HTTP
+- [Automorph](https://automorph.org) - RPC in a few lines of Scala code
+- [ldbc](https://github.com/takapi327/ldbc) — Pure functional JDBC layer for Scala 3 built on Cats Effect, usable with ZIO through the `ldbc-zio-interop` module
+- [Iron](https://github.com/iltotore/iron) — Strong type constraints for Scala 3, with the `iron-zio`, `iron-zio-json`, and `iron-zio-blocks-schema` modules for ZIO
+- [sttp-ai](https://github.com/softwaremill/sttp-ai) — A Scala toolkit for working with third-party LLMs such as OpenAI and Claude, with a ZIO backend

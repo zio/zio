@@ -1,0 +1,150 @@
+{
+  "categories": [
+    {
+      "id": "web",
+      "label": "Web & APIs",
+      "collapsed": false,
+      "official": [],
+      "external": [
+        {
+          "label": "ZIO HTTP",
+          "href": "https://ziohttp.com"
+        }
+      ],
+      "community": [
+        "caliban",
+        "tapir",
+        "zio-grpc"
+      ]
+    },
+    {
+      "id": "data",
+      "label": "Data Access",
+      "official": [
+        "zio-dynamodb",
+        "zio-quill",
+        "zio-query",
+        "zio-redis",
+        "zio-rocksdb"
+      ],
+      "community": [
+        "decrel",
+        "mongo4cats",
+        "tranzactio",
+        "zio-elasticsearch",
+        "zio-lmdb",
+        "zio-mongodb"
+      ]
+    },
+    {
+      "id": "messaging",
+      "label": "Messaging & Pipelines",
+      "official": [
+        "zio-amqp",
+        "zio-kafka",
+        "zio-sqs"
+      ],
+      "community": [
+        "tamer",
+        "zio-kinesis",
+        "zio-spark"
+      ]
+    },
+    {
+      "id": "serialization",
+      "label": "Serialization & Formats",
+      "official": [
+        "zio-bson",
+        "zio-json",
+        "zio-parser",
+        "zio-schema",
+        "zio-streams-compress"
+      ],
+      "community": [
+        "zio-apache-parquet"
+      ]
+    },
+    {
+      "id": "observability",
+      "label": "Observability",
+      "official": [
+        "zio-logging",
+        "zio-metrics-connectors",
+        "zio-profiling",
+        "zio-telemetry"
+      ],
+      "community": [
+        "logstage",
+        "tofu-zio2-logging"
+      ]
+    },
+    {
+      "id": "cloud",
+      "label": "Cloud & Infrastructure",
+      "official": [
+        "zio-aws",
+        "zio-ftp",
+        "zio-lambda",
+        "zio-s3"
+      ],
+      "community": [
+        "scala-k8s",
+        "zio-k8s"
+      ]
+    },
+    {
+      "id": "app",
+      "label": "Config & App Wiring",
+      "official": [
+        "zio-cli",
+        "zio-config",
+        "zio-process"
+      ],
+      "community": [
+        "distage"
+      ]
+    },
+    {
+      "id": "resilience",
+      "label": "Resilience & Scaling",
+      "official": [
+        "zio-cache"
+      ],
+      "community": [
+        "rezilience",
+        "shard"
+      ]
+    },
+    {
+      "id": "fp",
+      "label": "Types & Abstractions",
+      "official": [
+        "izumi-reflect",
+        "zio-constraintless",
+        "zio-direct",
+        "zio-prelude",
+        "zio2-interop-cats2"
+      ],
+      "community": [
+        "neotype"
+      ]
+    },
+    {
+      "id": "tooling",
+      "label": "Testing & Dev Tools",
+      "official": [
+        "zio-sbt"
+      ],
+      "external": [
+        {
+          "label": "ZIO IntelliJ",
+          "href": "https://github.com/zio/zio-intellij"
+        }
+      ],
+      "community": [
+        "munit-zio",
+        "zio-test-akka-http"
+      ]
+    }
+  ]
+}

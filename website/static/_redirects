@@ -1,2 +1,4 @@
 /zio-http      https://ziohttp.com         308
 /zio-http/*    https://ziohttp.com/:splat  308
+/zio-blocks    https://zioblocks.com         308
+/zio-blocks/*  https://zioblocks.com/:splat  308

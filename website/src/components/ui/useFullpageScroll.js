@@ -43,6 +43,8 @@ export default function useFullpageScroll(selector) {
 
     const onWheel = (e) => {
       if (e.ctrlKey) return; // pinch-zoom
+      // Over the chat widget the wheel belongs to the chat, not the page.
+      if (e.target.closest?.('.zio-chat')) return;
       const now = Date.now();
       if (now < lockUntil) {
         e.preventDefault();
@@ -77,6 +79,8 @@ export default function useFullpageScroll(selector) {
       if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) {
         return;
       }
+      // Keys pressed while focus is in the chat belong to the chat.
+      if (e.target.closest?.('.zio-chat')) return;
       const now = Date.now();
       if (now < lockUntil) return;
       const list = sections();

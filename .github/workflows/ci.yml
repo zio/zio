@@ -31,7 +31,7 @@ jobs:
       with:
         ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
     - name: Setup Java
-      uses: actions/setup-java@v6.0.1
+      uses: actions/setup-java@v6.1.0
       with:
         distribution: temurin
         java-version: 17
@@ -39,7 +39,7 @@ jobs:
     - name: Setup sbt
       uses: sbt/setup-sbt@v1
     - name: Cache scala dependencies
-      uses: coursier/cache-action@v8
+      uses: coursier/cache-action@v9
     - name: Lint code
       run: sbt "++2.13; check; ++3.3; check"
 
@@ -60,7 +60,7 @@ jobs:
           ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
           fetch-depth: 0
       - name: Setup Java
-        uses: actions/setup-java@v6.0.1
+        uses: actions/setup-java@v6.1.0
         with:
           distribution: temurin
           java-version: 17
@@ -68,7 +68,7 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
       - name: Cache scala dependencies
-        uses: coursier/cache-action@v8
+        uses: coursier/cache-action@v9
       - name: publishLocal 2.12
         if: ${{ startsWith(matrix.scala, '2.12.') }}
         run: sbt --client -v "++${{ matrix.scala }}; root212/Test/compile; root212/publishLocal"
@@ -93,7 +93,7 @@ jobs:
           ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
           fetch-depth: 0
       - name: Setup Java
-        uses: actions/setup-java@v6.0.1
+        uses: actions/setup-java@v6.1.0
         with:
           distribution: temurin
           java-version: 17
@@ -110,13 +110,19 @@ jobs:
       - name: Compile Docs
         run: |
           while true; do free -h; sleep 5; done &
-          sbt -v "docs/mdoc; docs/unidoc"
+          sbt -v docs/mdoc
+
+      # The API reference served at /api: the unified Scala 3 Scaladoc, copied into website/static/api. A separate sbt
+      # run from mdoc, so the two builds do not share one JVM heap.
+      - name: Generate API Docs
+        run: sbt -v apiDocs
 
       - name: Build The Website
         working-directory: ./website
         run: |
           rm -Rf node_modules
           yarn install 
+          yarn test
           yarn build 
 
       - name: Cache Website's Build Artifacts
@@ -157,7 +163,7 @@ jobs:
       with:
         ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
     - name: Setup Java
-      uses: actions/setup-java@v6.0.1
+      uses: actions/setup-java@v6.1.0
       with:
         distribution: temurin
         java-version: ${{ matrix.java }}
@@ -165,7 +171,7 @@ jobs:
     - name: Setup sbt
       uses: sbt/setup-sbt@v1
     - name: Cache scala dependencies
-      uses: coursier/cache-action@v8
+      uses: coursier/cache-action@v9
     - name: Run tests
       run: sbt -v ++${{ matrix.scala }} test${{ matrix.platform }}
     - name: Upload Test Results 2.12
@@ -220,7 +226,7 @@ jobs:
         with:
           ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
       - name: Setup Java
-        uses: actions/setup-java@v6.0.1
+        uses: actions/setup-java@v6.1.0
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
@@ -228,7 +234,7 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
       - name: Cache scala dependencies
-        uses: coursier/cache-action@v8
+        uses: coursier/cache-action@v9
       - name: Test on different JVM versions
         run: sbt -v testJVM
 
@@ -250,7 +256,7 @@ jobs:
         if: ${{ startsWith(matrix.platform, 'Native') }}
         run: sudo apt-get update && sudo apt-get install -y libgc-dev
       - name: Setup Java
-        uses: actions/setup-java@v6.0.1
+        uses: actions/setup-java@v6.1.0
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
@@ -258,7 +264,7 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
       - name: Cache scala dependencies
-        uses: coursier/cache-action@v8
+        uses: coursier/cache-action@v9
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@master
         with:
@@ -286,7 +292,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup Java
-        uses: actions/setup-java@v6.0.1
+        uses: actions/setup-java@v6.1.0
         with:
           distribution: temurin
           java-version: 17
@@ -301,26 +307,6 @@ jobs:
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           CI_RELEASE_MODE: 1 # Needed to enable optimizers
-
-  publish-website:
-    needs: [ci]
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.1
-        with:
-          fetch-depth: 0
-      - uses: actions/download-artifact@v8
-        with:
-          name: website-artifact
-          path: website-artifact
-
-      - name: Release to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4.9.0
-        with:
-          branch: gh-pages
-          folder: ./website-artifact
 
   update-docs:
     runs-on: ubuntu-latest
@@ -342,8 +328,8 @@ jobs:
           commit_message="Update $package_name to $package_version"
           git commit -m "$commit_message" || echo "No changes to commit"
       - name: Generate a token
-        id: generate-tokens
-        uses: actions/create-github-app-token@v3.2.0
+        id: generate-token
+        uses: actions/create-github-app-token@v3.3.0
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_SECRET }}

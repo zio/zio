@@ -1,0 +1,181 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin: 1rem 0 2rem;
+}
+
+.grid3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 996px) {
+  .grid3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .grid,
+  .grid3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1.5rem;
+  border-radius: 14px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  background: var(--ifm-card-background-color);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+[data-theme='dark'] .card {
+  border-color: var(--ifm-color-emphasis-300);
+  background: var(--ifm-background-color);
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-brand);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cardLink:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 30px var(--brand-shadow);
+    border-color: rgba(220, 38, 38, 0.35);
+  }
+}
+
+.cardLink:hover::before,
+.cardLink:has(.titleLink:focus-visible)::before {
+  opacity: 1;
+}
+
+.cardLink:has(.titleLink:focus-visible) {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.7rem;
+  border-radius: 999px;
+}
+
+.badgeFree {
+  color: #116a3a;
+  background: #dcf5e6;
+}
+
+.badgePaid {
+  color: #8a4b00;
+  background: #fdebd0;
+}
+
+[data-theme='dark'] .badgeFree {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.16);
+}
+
+[data-theme='dark'] .badgePaid {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.16);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.titleLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.titleLink:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Stretched link: the whole card is the click target. */
+.titleLink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.titleLink:focus-visible {
+  outline: none;
+}
+
+.body {
+  color: var(--ifm-color-emphasis-800);
+  line-height: 1.55;
+}
+
+.body p {
+  margin: 0 0 0.6rem;
+}
+
+.body p:last-child {
+  margin-bottom: 0;
+}
+
+/* Keep inline links in a plain card above the stretched-link layer. */
+.body a {
+  position: relative;
+}
+
+.cta {
+  margin-top: auto;
+  padding-top: 0.4rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--ifm-color-primary);
+}
+
+.banner {
+  margin: 1rem 0 2rem;
+  padding: 2rem;
+  border-radius: 18px;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.08), rgba(245, 158, 11, 0.1));
+}
+
+.bannerTitle {
+  margin: 0 0 0.6rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+}

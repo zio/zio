@@ -40,6 +40,13 @@
       "allowedVersions": "<4.0.0"
     },
     {
+      "description": "docusaurus-plugin-llms 0.6.1 aborts all LLM file generation (no llms.txt/llms-full.txt) when a page slug ends in .md, see docs/reference/fiber/fiber.md and docs/reference/stm/stm.md. Pin to 0.6.0 until fixed upstream or the slugs change.",
+      "matchPackageNames": [
+        "docusaurus-plugin-llms"
+      ],
+      "allowedVersions": "<0.6.1"
+    },
+    {
       "description": "Disable patch updates for non-ZIO npm packages",
       "matchPackageNames": [
         "^(?!@zio\\.dev\\/)"

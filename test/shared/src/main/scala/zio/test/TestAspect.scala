@@ -786,6 +786,38 @@ object TestAspect extends TimeoutVariants {
   val nativeOnly: TestAspectPoly =
     if (TestPlatform.isNative) identity else ignore
 
+  private lazy val isGraalVMNativeImage: Boolean =
+    java.lang.System.getProperty("org.graalvm.nativeimage.imagecode") != null
+
+  /**
+   * An aspect that runs tests on all platforms except GraalVM native-image.
+   */
+  def exceptGraalVMNativeImage: TestAspectPoly =
+    if (isGraalVMNativeImage) ignore else identity
+
+  /**
+   * An aspect that applies the specified aspect on all platforms except GraalVM
+   * native-image.
+   */
+  def exceptGraalVMNativeImage[LowerR, UpperR, LowerE, UpperE](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    if (isGraalVMNativeImage) identity else that
+
+  /**
+   * An aspect that applies the specified aspect on GraalVM native-image.
+   */
+  def graalVMNativeImage[LowerR, UpperR, LowerE, UpperE](
+    that: TestAspect[LowerR, UpperR, LowerE, UpperE]
+  ): TestAspect[LowerR, UpperR, LowerE, UpperE] =
+    if (isGraalVMNativeImage) that else identity
+
+  /**
+   * An aspect that only runs tests on GraalVM native-image.
+   */
+  def graalVMNativeImageOnly: TestAspectPoly =
+    if (isGraalVMNativeImage) identity else ignore
+
   /**
    * An aspect that repeats the test a default number of times, ensuring it is
    * stable ("non-flaky"). Stops at the first failure.

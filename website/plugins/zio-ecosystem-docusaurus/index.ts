@@ -8,7 +8,16 @@ import * as fs from 'fs'
  * Registers a CLI command called `generate-sidebar` that:
  * 1. Copies project files from ZIO npm packages into `./docs/`
  * 2. Aggregates sidebars from old-style and new-style projects
- * 3. Generates an `ecosystem-sidebar.js` file with merged and sorted configuration
+ * 3. Generates an `ecosystem-sidebar.js` file that groups every official and
+ *    community library into the purpose-based categories of
+ *    `ecosystem-categories.json`
+ * 4. Generates a `per-project-sidebars.js` file with one sidebar per project
+ *
+ * Each project's docs belong to exactly one sidebar (its own), so Docusaurus
+ * shows that sidebar on the project's pages. Official libraries appear in the
+ * ecosystem sidebar as `link` items, which point to a project without making
+ * its docs part of the ecosystem sidebar. Community libraries are single pages
+ * under `docs/ecosystem/community`, so they appear as `doc` items.
  *
  * @param context - Docusaurus plugin context
  * @param options - Plugin configuration options
@@ -35,43 +44,216 @@ function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
             }
           }
 
-          const result =
+          const projects: EcosystemProject[] =
             oldStyledZioProjects
               // If the sidebar is simple and doesn't have label
               .filter(e => (require(`@zio.dev/${e.routeBasePath}/${e.sidebarPath}`).sidebar[0] == "index"))
-              .map(project => {
-                return mapConfig(
+              .map(project => ({
+                name: project.routeBasePath,
+                category: mapConfig(
                   categoryTemplate(
                     project.name,
                     require(`@zio.dev/${project.routeBasePath}/${project.sidebarPath}`)
                       .sidebar
-                     .filter(e => e != "index")),
+                      .filter(e => e != "index")),
                   `${project.routeBasePath}/`
-                )
-              })
+                ) as SidebarItemCategoryConfig
+              }))
               .concat(
                 zioNpmProjects()
                   // If the sidebar has all the metadata including the label
                   .filter(e => {
                     return require(`@zio.dev/${e}/sidebars.js`).sidebar[0].label !== undefined;
                   })
-                  .map(project =>
-                    mapConfig(require(`@zio.dev/${project}/sidebars.js`).sidebar[0], `${project}/`)
-                  )
+                  .map(project => ({
+                    name: project,
+                    category: mapConfig(require(`@zio.dev/${project}/sidebars.js`).sidebar[0], `${project}/`) as SidebarItemCategoryConfig
+                  }))
               )
-              .sort((a, b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0)
+              .sort((a, b) => a.category.label < b.category.label ? -1 : a.category.label > b.category.label ? 1 : 0)
 
-          const content =
-            `const sidebar = ${JSON.stringify(result, null, '  ')}\nmodule.exports = sidebar`
+          // Plain links rather than `ref` items: a `ref` item takes its label
+          // from the doc's `sidebar_label` ("Introduction", "Getting Started")
+          // instead of the project name. A project with a single page gets no
+          // sidebar of its own, so it is a `doc` item, which makes the ecosystem
+          // sidebar the one shown on that page.
+          const officialLinks: Record<string, SidebarEntry> =
+            Object.fromEntries(
+              projects.map(project => [
+                project.name,
+                {
+                  label: project.category.label,
+                  item: isSinglePage(project.category)
+                    ? {
+                      type: 'doc',
+                      id: entryDocId(project.category),
+                      label: project.category.label,
+                      className: 'eco-tag eco-tag-official'
+                    }
+                    : {
+                      type: 'link',
+                      label: project.category.label,
+                      href: '/' + entryDocId(project.category).replace(/index$/, ''),
+                      className: 'eco-tag eco-tag-official'
+                    }
+                }
+              ])
+            )
 
-          fs.writeFile('ecosystem-sidebar.js', content, err => {
-            if (err) {
-              console.error(err);
-            }
-          });
+          const ecosystemSidebar = categorizedEcosystem(officialLinks)
+
+          const perProjectSidebars =
+            Object.fromEntries(
+              projects.filter(project => !isSinglePage(project.category)).map(project => [
+                `${project.name}-sidebar`,
+                [
+                  { type: 'link', label: '← ZIO Ecosystem', href: `/ecosystem/?eco-category=${categoryIdOf(project.name)}` },
+                  { ...project.category, collapsible: false, collapsed: false, items: sidebarItemsOf(project) }
+                ]
+              ])
+            )
+
+          writeSidebarFile('ecosystem-sidebar.js', ecosystemSidebar)
+          writeSidebarFile('per-project-sidebars.js', perProjectSidebars)
         })
     }
   }
+}
+
+type EcosystemProject = {
+  name: string
+  category: SidebarItemCategoryConfig
+}
+
+type SidebarEntry = { label: string, item: unknown }
+
+type CategoryConfig = {
+  id: string
+  label: string
+  collapsed?: boolean
+  official: string[]
+  external?: { label: string, href: string }[]
+  community: string[]
+}
+
+// The id of the category that lists a project in the ecosystem sidebar. The
+// "← ZIO Ecosystem" link of the project passes it along, so the ecosystem
+// sidebar opens with that category expanded (see
+// src/clientModules/ecosystem-sidebar.js).
+function categoryIdOf(project: string): string {
+  const categories: CategoryConfig[] =
+    JSON.parse(fs.readFileSync('ecosystem-categories.json', 'utf8')).categories
+  const category = categories.find(c => c.official.includes(project))
+  return category ? category.id : 'other'
+}
+
+// The title of a community library's page, used as its sidebar label so that
+// the entries of a category can be sorted next to the official ones.
+function communityLabel(docId: string): string {
+  const source = fs.readFileSync(`../docs/ecosystem/community/${docId}.md`, 'utf8')
+  const title = source.match(/^title:\s*"?([^"\n]+?)"?\s*$/m)
+  return title ? title[1] : docId
+}
+
+// Groups the libraries by purpose, as listed in `ecosystem-categories.json`.
+// A library that is not listed lands in "Other", so a new package or page
+// never disappears from the sidebar.
+function categorizedEcosystem(officialLinks: Record<string, SidebarEntry>) {
+  const categories: CategoryConfig[] =
+    JSON.parse(fs.readFileSync('ecosystem-categories.json', 'utf8')).categories
+
+  const communityDocs =
+    fs.readdirSync('../docs/ecosystem/community')
+      .filter(file => file.endsWith('.md') && file !== 'index.md')
+      .map(file => file.replace(/\.md$/, ''))
+
+  const listed = new Set(categories.flatMap(c => c.official))
+  const listedCommunity = new Set(categories.flatMap(c => c.community))
+
+  const all: CategoryConfig[] = categories.concat({
+    id: 'other',
+    label: 'Other',
+    official: Object.keys(officialLinks).filter(name => !listed.has(name)),
+    community: communityDocs.filter(doc => !listedCommunity.has(doc))
+  })
+
+  return all
+    .map(category => {
+      const entries: SidebarEntry[] =
+        category.official.map(name => officialLinks[name]).filter(entry => entry !== undefined)
+          .concat((category.external || []).map(link => ({
+            label: link.label,
+            item: { type: 'link', label: link.label, href: link.href, className: 'eco-tag eco-tag-official' }
+          })))
+          .concat(category.community.map(doc => ({
+            label: communityLabel(doc),
+            item: { type: 'doc', id: `ecosystem/community/${doc}`, label: communityLabel(doc), className: 'eco-tag eco-tag-community' }
+          })))
+          .sort((a, b) => a.label.localeCompare(b.label))
+
+      return { category, entries }
+    })
+    .filter(({ entries }) => entries.length > 0)
+    .map(({ category, entries }) => ({
+      type: 'category',
+      label: category.label,
+      className: `eco-category eco-category-${category.id}`,
+      collapsed: category.collapsed !== undefined ? category.collapsed : true,
+      items: entries.map(entry => entry.item)
+    }))
+}
+
+function writeSidebarFile(path: string, sidebar: unknown) {
+  const content =
+    `const sidebar = ${JSON.stringify(sidebar, null, '  ')}\nmodule.exports = sidebar`
+
+  fs.writeFile(path, content, err => {
+    if (err) {
+      console.error(err);
+    }
+  });
+}
+
+// The category of a project links to its own page, so listing that page again
+// among its items would show the same entry twice.
+function itemsWithoutOwnPage(category: SidebarItemCategoryConfig): SidebarItemConfig[] {
+  const own = category.link && category.link.type === "doc" ? (category.link as SidebarItemCategoryLinkDoc).id : undefined
+  return (category.items as SidebarItemConfig[]).filter(item => item !== own)
+}
+
+// Whether a project documents itself on one page, in which case it doesn't
+// need a sidebar of its own.
+function isSinglePage(config: SidebarItemConfig): boolean {
+  return leafDocCount(config) <= 1
+}
+
+function leafDocCount(config: SidebarItemConfig): number {
+  if (typeof (config) === "string") {
+    return 1
+  } else if (isSidebarItemCategoryConfig(config)) {
+    // The category's own landing page (its `link`) is a page too, even though
+    // it is not listed in `items`.
+    const ownPage = config.link && config.link.type === "doc" ? 1 : 0
+    return ownPage + (config.items as SidebarItemConfig[]).reduce((count, item) => count + leafDocCount(item), 0)
+  }
+  return 1
+}
+
+// The doc a project's entry in the ecosystem sidebar should open: the
+// category's own page if it has one, otherwise its first doc.
+function entryDocId(config: SidebarItemConfig): string | undefined {
+  if (typeof (config) === "string") {
+    return config
+  } else if (isSidebarItemCategoryConfig(config)) {
+    if (config.link && config.link.type === "doc") {
+      return (config.link as SidebarItemCategoryLinkDoc).id
+    }
+    for (const item of config.items as SidebarItemConfig[]) {
+      const id = entryDocId(item)
+      if (id) return id
+    }
+  }
+  return undefined
 }
 
 function zioNpmProjects(): string[] {
@@ -90,6 +272,8 @@ function zioNpmProjects(): string[] {
 function copy(srcDir: string, destDir: string) {
   const fs = require('fs-extra');
   try {
+    // Drop files left over from a previous package version
+    fs.removeSync(destDir)
     fs.copySync(srcDir, destDir, { overwrite: true || false })
   } catch (err) {
     console.error(err)
@@ -99,78 +283,8 @@ function copy(srcDir: string, destDir: string) {
 const oldStyledZioProjects =
   [
     {
-      name: 'Caliban Deriving',
-      routeBasePath: 'caliban-deriving',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Interop Monix',
-      routeBasePath: 'interop-monix',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Izumi Reflect',
-      routeBasePath: 'izumi-reflect',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Actors',
-      routeBasePath: 'zio-actors',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: "ZIO Akka Cluster",
-      routeBasePath: 'zio-akka-cluster',
-      sidebarPath: 'sidebars.js',
-    },
-    {
       name: 'ZIO AWS',
       routeBasePath: 'zio-aws',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: "ZIO Connect",
-      routeBasePath: 'zio-connect',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: "ZIO Deriving",
-      routeBasePath: 'zio-deriving',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Flow',
-      routeBasePath: 'zio-flow',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Interop Guava',
-      routeBasePath: 'zio-interop-guava',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Interop Scalaz',
-      routeBasePath: 'zio-interop-scalaz',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Interop Twitter',
-      routeBasePath: 'zio-interop-twitter',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Memberlist',
-      routeBasePath: 'zio-memberlist',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Meta',
-      routeBasePath: 'zio-meta',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO NIO',
-      routeBasePath: 'zio-nio',
       sidebarPath: 'sidebars.js',
     },
     {
@@ -192,11 +306,6 @@ const oldStyledZioProjects =
       name: 'ZIO SQS',
       routeBasePath: 'zio-sqs',
       sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Webhooks',
-      routeBasePath: 'zio-webhooks',
-      sidebarPath: 'sidebars.js',
     }
   ]
 
@@ -217,6 +326,22 @@ function mapConfig(config: SidebarItemConfig, prefix: string) {
           .map(item => mapConfig(item, prefix))
     }
   }
+}
+
+// Projects whose nested sidebar categories start expanded on their own sidebar.
+// Every other project keeps its nested categories collapsed.
+const expandedProjects = new Set(['zio-amqp'])
+
+function sidebarItemsOf(project: EcosystemProject): SidebarItemConfig[] {
+  const items = itemsWithoutOwnPage(project.category)
+  return expandedProjects.has(project.name) ? items.map(expandCategories) : items
+}
+
+function expandCategories(config: SidebarItemConfig): SidebarItemConfig {
+  if (typeof (config) === "string" || !isSidebarItemCategoryConfig(config)) {
+    return config
+  }
+  return { ...config, collapsed: false, items: config.items.map(expandCategories) }
 }
 
 export default zioEcosystemPlugin

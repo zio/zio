@@ -12,7 +12,7 @@ import scala.scalanative.sbtplugin.ScalaNativePlugin.autoImport.*
 object BuildHelper {
   val Scala212: String = "2.12.21"
   val Scala213: String = "2.13.18"
-  val Scala3: String   = "3.3.8"
+  val Scala3: String   = "3.3.9"
 
   val JdkReleaseVersion: String = "11"
 
@@ -209,6 +209,7 @@ object BuildHelper {
     name                     := s"$prjName",
     crossScalaVersions       := Seq(Scala212, Scala213, Scala3),
     ThisBuild / scalaVersion := Scala213,
+    javacOptions ++= Seq("--release", JdkReleaseVersion),
     scalacOptions ++= stdOptions ++ extraOptions(
       scalaVersion.value,
       optimize = isRelease || !isSnapshot.value,
