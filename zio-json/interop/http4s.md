@@ -6,7 +6,7 @@
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.zio" % "zio-json-interop-http4s" % "0.8.0"
+  "dev.zio" % "zio-json-interop-http4s" % "1.1.2"
 )
 ```
 

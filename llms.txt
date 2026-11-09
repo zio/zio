@@ -396,15 +396,21 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Configuration](https://zio.dev/zio-json/configuration.md): By default, the field names of a case class are used as the JSON fields, but it is easy to override this with an annotation `@jsonField`.
 - [Decoding](https://zio.dev/zio-json/decoding.md): Say we want to be able to read some JSON like
 - [Encoding](https://zio.dev/zio-json/encoding.md): Assume we want to encode this case class
-- [Getting Started with ZIO Json](https://zio.dev/index-17.md): [ZIO Json](https://github.com/zio/zio-json) is a fast and secure JSON library with tight ZIO integration.
+- [Getting Started with ZIO Json](https://zio.dev/zio-json/getting-started.md): Let's try a simple example of encoding and decoding JSON using ZIO JSON.
+- [Golden Testing](https://zio.dev/zio-json/golden-testing.md): Golden testing (snapshot testing) checks that the JSON produced by your encoder does not change unexpectedly.
+- [ZIO JSON](https://zio.dev/index-17.md): [ZIO Json](https://github.com/zio/zio-json) is a fast and secure JSON library with tight ZIO integration.
 - [Akka Http Interop](https://zio.dev/zio-json/interop/akka-http.md): An interop module is provided for [Akka Http 10.2.4](https://doc.akka.io/docs/akka-http/10.2.4/index.html)
+- [Enumeratum Interop](https://zio.dev/zio-json/interop/enumeratum.md): ```scala
 - [HTTP4s Interop](https://zio.dev/zio-json/interop/http4s.md): An interop module is provided for [HTTP4s v0.21](https://http4s.org/v0.21)
-- [Interop modules](https://zio.dev/zio-json/index.md): Integrations are provided several popular libraries, which are published as separate artifacts:
+- [Interop modules](https://zio.dev/zio-json/index.md): Integrations are provided for several popular libraries, which are published as separate artifacts:
 - [Refined Interop](https://zio.dev/zio-json/interop/refined.md): ```scala
 - [Scalaz 7.x Interop](https://zio.dev/zio-json/interop/scalaz-7x.md): ```scala
+- [JSON AST](https://zio.dev/zio-json/json-ast.md): The JSON AST is a tree of values that represents any JSON document, using the `zio.json.ast.Json` type.
 - [Manual Instances](https://zio.dev/zio-json/manual-instances.md): Sometimes it is easier to reuse an existing `JsonDecoder` rather than generate a new one. This can be accomplished using convenience methods on the...
 - [Performance](https://zio.dev/zio-json/performance.md): The following benchmarks are freely available to run on your hardware with `sbt "zioJsonJVM/jmh:run -prof gc"` and can be extended to include more ...
 - [Security](https://zio.dev/zio-json/security.md): A [Denial of Service](https://en.wikipedia.org/wiki/Denial-of-service_attack) (DOS) attack is a cyber-attack in which the perpetrator seeks to make...
+- [Streaming](https://zio.dev/zio-json/streaming.md): ZIO JSON can encode and decode values as [ZIO Streams](https://zio.dev/reference/stream/), so you can process large JSON documents, or many small d...
+- [YAML](https://zio.dev/zio-json/yaml.md): The `zio-json-yaml` module converts between YAML and any type that has a `JsonEncoder` or `JsonDecoder`.
 - [Avoiding chunk-breakers](https://zio.dev/zio-kafka/avoiding-chunk-breakers.md): ZIO streams are not just a simple sequence of elements. The elements are grouped into chunks, which makes many
 - [Tuning the consumer](https://zio.dev/zio-kafka/consumer-tuning.md): Zio-kafka's consumer can be tuned for:
 - [Consuming Kafka topics using ZIO Streams](https://zio.dev/zio-kafka/consuming-kafka-topics-using-zio-streams.md): You can stream data from Kafka using the `plainStream` method:
@@ -491,10 +497,15 @@ This file contains links to documentation sections following the llmstxt.org sta
 - [Piping](https://zio.dev/zio-process/piping.md): You can pipe the output of one process as the input to another. For example, if you want to return a list of all running
 - [Introduction to ZIO Profiling](https://zio.dev/index-25.md): ZIO Profiling is a collection of different profilers for better understanding the runtime behavior of ZIO programs.
 - [Resources](https://zio.dev/zio-profiling/resources.md): - [Causal Profiling for functional effects](https://youtu.be/rdETYUc8XyI) by Maxim Schuwalow (2021)
+- [Aspects](https://zio.dev/zio-query/aspects.md): An aspect changes how a query or a data source behaves without changing the code that defines it. ZIO Query has two kinds:
+- [CompletedRequestMap](https://zio.dev/zio-query/completed-request-map.md): A `CompletedRequestMap` is what a [data source](./creating-data-sources.md) returns from `runAll`: a mapping from each request it executed to the r...
 - [Creating Data Sources](https://zio.dev/zio-query/creating-data-sources.md): To construct a `ZQuery` that executes a request, you first need to create a `DataSource`. A `DataSource[R, A]` requires an environment `R` and is c...
 - [Creating Queries](https://zio.dev/zio-query/creating-queries.md): There are several ways to create a `ZQuery`. We've seen `ZQuery.fromRequest`, but you can also:
+- [DataSource Reference](https://zio.dev/zio-query/data-source-reference.md): Reference for building and transforming a DataSource: the fromFunction family, Batched, make, never, combinators and the ZQuery constructors that u...
+- [Error Handling](https://zio.dev/zio-query/error-handling.md): A `ZQuery[R, E, A]` can fail with a typed error `E`, die with a defect, or be interrupted, just like a `ZIO` effect. This page shows where those fa...
+- [How Batching, Pipelining, and Parallelism Work](https://zio.dev/zio-query/how-batching-works.md): ZIO Query reduces the number of calls to a data source by looking at how queries are composed. This page explains the three ideas behind that optim...
 - [Introduction to ZIO Query](https://zio.dev/index-26.md): [ZIO Query](https://github.com/zio/zio-query) is a library for writing optimized queries to data sources in a high-level compositional style. It ca...
-- [Running Queries](https://zio.dev/zio-query/running-queries.md): There are several ways to run a `ZQuery`:
+- [Running Queries and Caching](https://zio.dev/zio-query/running-queries.md): A `ZQuery` is only a description of work. To get a result, we convert it to a `ZIO` effect with one of three methods, and every one of them runs th...
 - [How to Contribute?](https://zio.dev/zio-quill/how-to-contribute.md): Instructions on how to contribute to Quill project.
 - [Additional Resources](https://zio.dev/zio-quill/additional-resources.md): In order to quickly start with Quill, we have setup some template projects:
 - [Quill Changelog](https://zio.dev/zio-quill/changelog.md): Starting from the versions superior v4.6.1, the release notes and changelog will be provided in the GitHub Releases of the project.

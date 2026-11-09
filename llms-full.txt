@@ -2606,12 +2606,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20447/0x00007f18e61ce000@5a831f70
+//   eval = zio.Ref$$$Lambda$20486/0x00007ff416224000@1d4b1298
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20447/0x00007f18e61ce000@6e3c2768
+//   eval = zio.Ref$$$Lambda$20486/0x00007ff416224000@4babf534
 // )
 
 sealed trait State
@@ -2622,7 +2622,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20447/0x00007f18e61ce000@6c87332e
+//   eval = zio.Ref$$$Lambda$20486/0x00007ff416224000@28b66101
 // )
 ```
 
@@ -2639,7 +2639,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20447/0x00007f18e61ce000@63ef04d4
+//   eval = zio.Ref$$$Lambda$20486/0x00007ff416224000@4818ba3f
 // )
 ```
 
@@ -2651,7 +2651,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20447/0x00007f18e61ce000@9b5df1c
+//   eval = zio.Ref$$$Lambda$20486/0x00007ff416224000@2fa60ec3
 // )
 ```
 
@@ -15760,25 +15760,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@490f32cb
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@64c059a5
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@4d43e5f
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@5df1580c
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@57ef3692
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@736f6d52
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-11-07T18:21:38.680340692Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-11-09T11:06:21.763590185Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@5d6c4a6f
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@3eb25700
 ```
 
 ### Construction / Creating Instances
@@ -16892,7 +16892,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20568/0x00007f18e57a6c50@71b9f775
+//   eval = zio.Supervisor$$$Lambda$20607/0x00007ff4160ffa58@52fe97bc
 // )
 ```
 
@@ -17721,7 +17721,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19582/0x00007f18e71a95d0@57af2799
+//     f = zio.ZIO$$$Lambda$19621/0x00007ff4170b8210@2011a1c1
 //   ),
 //   successK = <function1>
 // )
@@ -18502,7 +18502,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@63e517fe
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@1718b503
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -18515,12 +18515,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18805/0x00007f18e6fec000@73bf7112
+//       eval = zio.ZIO$$$Lambda$18775/0x00007ff416eddab8@5d027bc3
 //     ),
-//     successK = zio.ZIO$$$Lambda$19572/0x00007f18e719af98@e7c8427
+//     successK = zio.ZIO$$$Lambda$19611/0x00007ff4170a9cc0@184798d1
 //   ),
-//   successK = zio.ZIO$$$Lambda$18810/0x00007f18e6fee278@6627e098,
-//   failureK = zio.ZIO$$Lambda$20364/0x00007f18e5ea79f0@50c6a5cd
+//   successK = zio.ZIO$$$Lambda$18780/0x00007ff416ee4000@1d63829f,
+//   failureK = zio.ZIO$$Lambda$20403/0x00007ff416289bf0@1ae68f58
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -18532,11 +18532,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18805/0x00007f18e6fec000@73bf7112
+//       eval = zio.ZIO$$$Lambda$18775/0x00007ff416eddab8@5d027bc3
 //     ),
-//     successK = zio.ZIO$$$Lambda$19572/0x00007f18e719af98@9396059
+//     successK = zio.ZIO$$$Lambda$19611/0x00007ff4170a9cc0@505336c7
 //   ),
-//   successK = zio.ZIO$$Lambda$20594/0x00007f18e57dfa68@667cba9b
+//   successK = zio.ZIO$$Lambda$20633/0x00007ff4162afa68@1002b561
 // )
 ```
 
@@ -23838,7 +23838,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@597ba1bb
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@42488e04
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -23866,9 +23866,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
+//     eval = zio.Scope$$$Lambda$20085/0x00007ff4171819d0@312f03fc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@3d265692
+//   successK = zio.ZIO$$$Lambda$20086/0x00007ff417181c88@24d9f37a
 // )
 ```
 
@@ -23917,7 +23917,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@29bf0ba4
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@54f487d3
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -23947,9 +23947,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
+//     eval = zio.Scope$$$Lambda$20085/0x00007ff4171819d0@312f03fc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@445b48be
+//   successK = zio.ZIO$$$Lambda$20086/0x00007ff417181c88@55b3ac46
 // )
 ```
 
@@ -23980,7 +23980,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@4cc750c5
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@1ade1ab3
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -23995,9 +23995,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
+//     eval = zio.Scope$$$Lambda$20085/0x00007ff4171819d0@312f03fc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@6297d1a9
+//   successK = zio.ZIO$$$Lambda$20086/0x00007ff417181c88@69beb639
 // )
 ```
 
@@ -24041,7 +24041,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@66138669
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@19742ff8
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24058,9 +24058,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
+//     eval = zio.Scope$$$Lambda$20085/0x00007ff4171819d0@312f03fc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@57afc459
+//   successK = zio.ZIO$$$Lambda$20086/0x00007ff417181c88@1ce48280
 // )
 ```
 
@@ -24092,7 +24092,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@30f7ac03
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@7e9bb8f8
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -24109,9 +24109,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
+//     eval = zio.Scope$$$Lambda$20085/0x00007ff4171819d0@312f03fc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@55fb32cf
+//   successK = zio.ZIO$$$Lambda$20086/0x00007ff417181c88@5b2c1e31
 // )
 ```
 
@@ -24143,7 +24143,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@546e4e59
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@617db706
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -24174,9 +24174,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
+//     eval = zio.Scope$$$Lambda$20085/0x00007ff4171819d0@312f03fc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@130428e2
+//   successK = zio.ZIO$$$Lambda$20086/0x00007ff417181c88@1137838f
 // )
 ```
 
@@ -24209,7 +24209,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@1d46db61
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@1e79b06a
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24225,9 +24225,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
+//     eval = zio.Scope$$$Lambda$20085/0x00007ff4171819d0@312f03fc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@3b55dd01
+//   successK = zio.ZIO$$$Lambda$20086/0x00007ff417181c88@66d51505
 // )
 ```
 
@@ -24258,7 +24258,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@33339c14
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@396a52d6
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -24285,9 +24285,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
+//     eval = zio.Scope$$$Lambda$20085/0x00007ff4171819d0@312f03fc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@58e9d92d
+//   successK = zio.ZIO$$$Lambda$20086/0x00007ff417181c88@779476c4
 // )
 ```
 
@@ -24307,7 +24307,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@33f2bc4d
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@5763a115
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24330,9 +24330,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
+//     eval = zio.Scope$$$Lambda$20085/0x00007ff4171819d0@312f03fc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@62e0a18f
+//   successK = zio.ZIO$$$Lambda$20086/0x00007ff417181c88@7f6bc4da
 // )
 ```
 
@@ -24348,7 +24348,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@61594f8
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@14f75570
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -24370,9 +24370,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
+//     eval = zio.Scope$$$Lambda$20085/0x00007ff4171819d0@312f03fc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@b7ad395
+//   successK = zio.ZIO$$$Lambda$20086/0x00007ff417181c88@7906cbe
 // )
 ```
 
@@ -24388,7 +24388,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@be9be3f
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@56dd849c
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -24408,9 +24408,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
+//     eval = zio.Scope$$$Lambda$20085/0x00007ff4171819d0@312f03fc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@4849e97b
+//   successK = zio.ZIO$$$Lambda$20086/0x00007ff417181c88@4759ec8
 // )
 ```
 
@@ -24428,7 +24428,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@3821387d
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@1bb0d4f9
 
 val example = {
   val scoped = ZIO.scoped {
@@ -24450,9 +24450,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
+//       eval = zio.Scope$$$Lambda$20085/0x00007ff4171819d0@312f03fc
 //     ),
-//     successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@4d1572a4
+//     successK = zio.ZIO$$$Lambda$20086/0x00007ff417181c88@d6b6467
 //   ),
 //   successK = <function1>
 // )
@@ -28457,14 +28457,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@a7adda0
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@3cc9aa94
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@5d056fd7
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@7c3d86c8
 ```
 
 ### From ZIO
@@ -35191,9 +35191,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$20056/0x00007f18e63b5f20@7dea3c9e
+//             onState = zio.ZIO$$$Lambda$20095/0x00007ff41718dd20@5089dbb9
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$20064/0x00007f18e62d75a8@38e8ad47
+//           successK = zio.test.package$ZTest$$$Lambda$20103/0x00007ff417193508@158b4fcc
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -38183,7 +38183,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+57-1f87d74f-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+62-d61cf786-SNAPSHOT"
 ```
 
 ### Example
@@ -50139,9 +50139,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$20046/0x00007f18e63a5ae8@7d238710
+//     eval = zio.Scope$$$Lambda$20085/0x00007ff4171819d0@312f03fc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20047/0x00007f18e63a5da0@760e35ff
+//   successK = zio.ZIO$$$Lambda$20086/0x00007ff417181c88@3f302e9
 // )
 ```
 
@@ -66967,6 +66967,56 @@ Pineapple(Nil).toJson
 // res14: Either[String, Pineapple] = Right(value = Pineapple(leaves = List()))
 ```
 
+### jsonExclude
+
+Annotating a case class field with `@jsonExclude` leaves that field out of the encoded JSON. Use it for values that should stay in memory, such as secrets or cached data, and that must not be sent to other systems.
+
+```scala
+case class Session(user: String, @jsonExclude token: String)
+
+object Session {
+  implicit val codec: JsonCodec[Session] = DeriveJsonCodec.gen[Session]
+}
+```
+
+The encoder skips the excluded field:
+
+```scala
+Session("alice", "secret").toJson
+// res15: String = "{\"user\":\"alice\"}"
+```
+
+The decoder does not skip the field. If the JSON contains the field, its value is decoded:
+
+```scala
+"""{"user":"alice","token":"abc"}""".fromJson[Session]
+// res16: Either[String, Session] = Right(
+//   value = Session(user = "alice", token = "abc")
+// )
+```
+
+If the JSON does not contain the field, decoding fails unless the field has a default value:
+
+```scala
+"""{"user":"alice"}""".fromJson[Session]
+// res17: Either[String, Session] = Left(value = ".token(missing)")
+```
+
+To make the field optional when decoding, give it a default value. Like the default-value example in [Decoding](./decoding.md), the codec is defined outside the companion object:
+
+```scala
+case class SessionWithDefault(user: String, @jsonExclude token: String = "")
+
+implicit val sessionWithDefaultCodec: JsonCodec[SessionWithDefault] = DeriveJsonCodec.gen[SessionWithDefault]
+```
+
+```scala
+"""{"user":"alice"}""".fromJson[SessionWithDefault]
+// res18: Either[String, SessionWithDefault] = Right(
+//   value = SessionWithDefault(user = "alice", token = "")
+// )
+```
+
 ### @jsonDerive
 
 **Requires zio-json-macros**
@@ -67075,6 +67125,56 @@ Now we can parse JSON into our object
 // res0: Either[String, Banana] = Right(value = Banana(curvature = 0.5))
 ```
 
+#### Decoding from bytes
+
+JSON usually arrives as bytes rather than as text: an HTTP response body, a file, a Kafka record. A `Chunk[Byte]` can be decoded directly, without being copied into a `String` first.
+
+```scala
+import zio.Chunk
+
+val bytes: Chunk[Byte] = Chunk.fromArray("""{ "curvature": 0.5 }""".getBytes("UTF-8"))
+// bytes: Chunk[Byte] = IndexedSeq(
+//   123,
+//   32,
+//   34,
+//   99,
+//   117,
+//   114,
+//   118,
+//   97,
+//   116,
+//   117,
+//   114,
+//   101,
+//   34,
+//   58,
+//   32,
+//   48,
+//   46,
+//   53,
+//   32,
+//   125
+// )
+
+bytes.fromJson[Banana]
+// res1: Either[String, Banana] = Right(value = Banana(curvature = 0.5))
+```
+
+A bare `Array[Byte]` works the same way, and is not copied either.
+
+```scala
+"""{ "curvature": 0.5 }""".getBytes("UTF-8").fromJson[Banana]
+// res2: Either[String, Banana] = Right(value = Banana(curvature = 0.5))
+```
+
+The bytes are turned into characters as the parser consumes them, so peak memory is the chunk plus a constant. Going through `new String(chunk.toArray, UTF_8)` instead holds the chunk, an array copy of it and the `String` all at once, which matters once payloads get large.
+
+A chunk that is already backed by a single array — what `Chunk.fromArray` produces, and what an HTTP body handed over from Netty looks like — is read in place, with no copy at all. Other shapes, such as a body assembled from several network reads, are pulled through a small fixed window.
+
+The input is expected to be UTF-8, as [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259#section-8.1) requires for JSON interchange. Malformed input decodes to the replacement character, as `new String(bytes, UTF_8)` does. Errors are reported exactly as for the `CharSequence` variant.
+
+For payloads that do not fit in memory at all, use `JsonDecoder[A].decodeJsonStreamInput(stream)` to decode straight from a `ZStream[R, Throwable, Byte]`.
+
 #### Automatic Derivation and case class default field values
 
 If a case class field is defined with a default value and the field is not present or `null`, the default value will be used (or evaluated when it is a method).
@@ -67086,12 +67186,12 @@ case class Entity(id: Long, description: String = "", related: Seq[Entity] = Seq
 
 implicit val decoder: JsonDecoder[Entity] =
   DeriveJsonDecoder.gen[Entity]
-// decoder: JsonDecoder[Entity] = zio.json.DeriveJsonDecoder$$anon$1@744ae108
+// decoder: JsonDecoder[Entity] = zio.json.DeriveJsonDecoder$$anon$1@33691e5b
 ```
 
 ```scala
 """{ "id": 42, "related": null }""".fromJson[Entity]
-// res1: Either[String, Entity] = Right(
+// res3: Either[String, Entity] = Right(
 //   value = Entity(id = 42L, description = "", related = List())
 // )
 ```
@@ -67122,12 +67222,12 @@ object Fruit {
 
 ```scala
 """{ "Banana":{ "curvature":0.5 }}""".fromJson[Fruit]
-// res3: Either[String, Fruit] = Right(value = Banana(curvature = 0.5))
+// res5: Either[String, Fruit] = Right(value = Banana(curvature = 0.5))
 ```
 
 ```scala
 """{ "Apple": { "poison": false }}""".fromJson[Fruit]
-// res4: Either[String, Fruit] = Right(value = Apple(poison = false))
+// res6: Either[String, Fruit] = Right(value = Apple(poison = false))
 ```
 
 #### String-based union types (Enum)
@@ -67206,7 +67306,7 @@ and now the `JsonDecoder` for `FruitCount` just expects a raw `Int`.
 
 ```scala
 """3""".fromJson[FruitCount]
-// res5: Either[String, FruitCount] = Right(value = FruitCount(value = 3))
+// res7: Either[String, FruitCount] = Right(value = FruitCount(value = 3))
 ```
 
 Another use case is if we want to encode a `case class` as an array of values, rather than an object with named fields. Such an encoding is very efficient because the messages are smaller and require less processing, but are very strict schemas that cannot be upgraded.
@@ -67243,7 +67343,7 @@ we will get a compile time error because there is no `JsonDecoder[String Refined
 object Person {
   implicit val decoder: JsonDecoder[Person] = DeriveJsonDecoder.gen
 }
-// error: magnolia: could not find JsonDecoder.Typeclass for type eu.timepit.refined.api.Refined[String,eu.timepit.refined.collection.NonEmpty]
+// error: magnolia: could not find zio.json.DeriveJsonDecoder.Typeclass[eu.timepit.refined.api.Refined[String,eu.timepit.refined.collection.NonEmpty]]
 //     in parameter 'name' of product type MdocApp0.this.Person
 // 
 //   implicit val decoder: JsonDecoder[Person] = DeriveJsonDecoder.gen
@@ -67257,7 +67357,7 @@ import eu.timepit.refined
 
 implicit val decodeName: JsonDecoder[String Refined NonEmpty] =
   JsonDecoder[String].mapOrFail(refined.refineV[NonEmpty](_))
-// decodeName: JsonDecoder[Refined[String, NonEmpty]] = zio.json.JsonDecoder$$anon$4@44a2a185
+// decodeName: JsonDecoder[Refined[String, NonEmpty]] = zio.json.JsonDecoder$$anon$4@45c8a651
 ```
 
 Now the code compiles.
@@ -67446,12 +67546,12 @@ object Animal {
 And now, the Json decoder for Animal can handle both formats:
 ```scala
 """{"name": "Dog", "categories": "Warm-blooded, Mammal"}""".fromJson[Animal]
-// res13: Either[String, Animal] = Right(
+// res15: Either[String, Animal] = Right(
 //   value = Animal(name = "Dog", categories = List("Warm-blooded", "Mammal"))
 // )
 // >> Right(Animal(Dog,List(Warm-blooded, Mammal)))
 """{"name": "Snake", "categories": [ "Cold-blooded", "Reptile"]}""".fromJson[Animal]
-// res14: Either[String, Animal] = Right(
+// res16: Either[String, Animal] = Right(
 //   value = Animal(name = "Snake", categories = List("Cold-blooded", "Reptile"))
 // )
 // >>  Right(Animal(Snake,List(Cold-blooded, Reptile)))
@@ -67756,38 +67856,6 @@ FruitCount(3).toJson
 
 ## Getting Started with ZIO Json
 
-[ZIO Json](https://github.com/zio/zio-json) is a fast and secure JSON library with tight ZIO integration.
-
-@PROJECT_BADGES@
-
-### Introduction
-
-The goal of this project is to create the best all-round JSON library for Scala:
-
-- **Performance** to handle more requests per second than the incumbents, i.e. reduced operational costs.
-- **Security** to mitigate against adversarial JSON payloads that threaten the capacity of the server.
-- **Fast Compilation** no shapeless, no type astronautics.
-- **Future-Proof**, prepared for Scala 3 and next-generation Java.
-- **Simple** small codebase, concise documentation that covers everything.
-- **Helpful errors** are readable by humans and machines.
-- **ZIO Integration** so nothing more is required.
-
-### Installation
-
-In order to use this library, we need to add the following line in our `build.sbt` file:
-
-```scala
-libraryDependencies += "dev.zio" %% "zio-json" % "@VERSION@"
-```
-
-For cross-platform projects with Scala.js and Scala Native need to replace `%%` operator by `%%%`, 
-and optionally when using `java.time.ZoneId` and `java.time.ZonedDateTime` types need to add 
-the dependency on the latest version of Timezone DB:
-
-```scala
-libraryDependencies += "io.github.cquiroz" %%% "scala-java-time-tzdb" % "latest.integration"
-```
-
 ### Example
 
 Let's try a simple example of encoding and decoding JSON using ZIO JSON.
@@ -67970,7 +68038,7 @@ Almost all of the standard library data types are supported as fields on the cas
 
 **Scala 2**
 
-```scala mdoc:compile-only
+```scala
 import zio.json._
 
 sealed trait Fruit                   extends Product with Serializable
@@ -68030,11 +68098,158 @@ Extreme **performance** is achieved by decoding JSON directly from the input sou
 
 Best in class **security** is achieved with an aggressive *early exit* strategy that avoids costly stack traces, even when parsing malformed numbers. Malicious (and badly formed) payloads are rejected before finishing reading.
 
-**Fast compilation** and **future-proofing** is possible thanks to [Magnolia](https://propensive.com/opensource/magnolia/) which allows us to generate boilerplate in a way that will survive the exodus to Scala 3. `zio-json` is internally implemented using a [`java.io.Reader`](https://docs.oracle.com/en/java/javase/14/docs/api/java.base/java/io/Reader.html) / [`java.io.Writer`](https://docs.oracle.com/en/java/javase/14/docs/api/java.base/java/io/Writer.html)-like interface, which is making a comeback to center stage in Loom.
+**Fast compilation** and **future-proofing**: For Scala 2, derivation uses [Magnolia](https://propensive.com/opensource/magnolia/). For Scala 3, derivation uses native Scala 3 macros. `zio-json` is internally implemented using a [`java.io.Reader`](https://docs.oracle.com/en/java/javase/14/docs/api/java.base/java/io/Reader.html) / [`java.io.Writer`](https://docs.oracle.com/en/java/javase/14/docs/api/java.base/java/io/Writer.html)-like interface, which is making a comeback to center stage in Loom.
 
 **Simplicity** is achieved by using well-known software patterns and avoiding bloat. The only requirement to use this library is to know about Scala's encoding of typeclasses, described in [Functional Programming for Mortals](https://leanpub.com/fpmortals/read#leanpub-auto-functionality).
 
 **Helpful errors** are produced in the form of a [`jq`](https://stedolan.github.io/jq/) query, with a note about what went wrong, pointing to the exact part of the payload that failed to parse.
+
+---
+
+## Golden Testing
+
+Golden testing (snapshot testing) checks that the JSON produced by your encoder does not change unexpectedly.
+The first time a golden test runs, it generates sample values, encodes them, and stores the JSON in a file. Later runs generate new samples and compare them with the stored file. If the output differs, the test fails and writes the new output next to the stored file, so you can review the change.
+
+The `zio-json-golden` module provides the `goldenTest` function for [ZIO Test](https://zio.dev/reference/test/). It removes the need to write a hand-made expected string for each type.
+
+The module is available for the JVM only, and it is a test-scope dependency:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-json-golden" % "1.1.2" % Test
+```
+
+### Writing a Golden Test
+
+A golden test is a ZIO Test spec. The `goldenTest` function takes a `Gen` from ZIO Test for the type under test, and the type needs a `JsonEncoder` in scope.
+`DeriveGen` from `zio.test.magnolia` creates a generator for a case class automatically.
+
+We define the type with a codec in its companion object, and then write the spec:
+
+```scala
+import zio.json._
+import zio.test._
+import zio.test.magnolia.DeriveGen
+import zio.json.golden._
+
+case class Banana(curvature: Double)
+
+object Banana {
+  implicit val codec: JsonCodec[Banana] = DeriveJsonCodec.gen[Banana]
+}
+
+object BananaGoldenSpec extends ZIOSpecDefault {
+
+  def spec = suite("BananaGoldenSpec")(
+    goldenTest(DeriveGen[Banana])
+  )
+}
+```
+
+The test name is `golden test for <TypeName>`, and the type name is taken from the short name of the type.
+
+### Lifecycle of a Golden File
+
+The golden file is stored under `src/test/resources/golden/` in the module. The file name is the short type name with a JSON file extension, for example `src/test/resources/golden/Banana.json`. A golden file contains a JSON array with the encoded samples, and the default number of samples is 20.
+
+The test behaves differently depending on which files exist:
+
+- **No golden file exists:** the test creates `Banana_new.json` with the samples and fails with a message. To accept the output, remove the `_new` suffix from the file name and run the test again.
+- **The golden file exists and the output matches:** the test passes.
+- **The golden file exists and the output differs:** the test writes the new output to `Banana_changed.json` and fails. If the change is intended, copy the contents of `Banana_changed.json` over `Banana.json` and run the test again. If the change is not intended, the test has found a regression.
+
+Commit the golden files to your repository, because the tests depend on them.
+
+### Configuration
+
+`GoldenConfiguration` has two fields. `relativePath` is a sub-directory under `golden/`, and `sampleSize` is the number of values to generate. Its default values are an empty `relativePath` and a `sampleSize` of `20`.
+
+A `GoldenConfiguration` is looked up as an implicit value. Provide one in a local scope to change the settings for a single test:
+
+```scala
+import zio.json._
+import zio.test._
+import zio.test.magnolia.DeriveGen
+import zio.json.golden._
+
+case class Banana(curvature: Double)
+
+object Banana {
+  implicit val codec: JsonCodec[Banana] = DeriveJsonCodec.gen[Banana]
+}
+
+object BananaConfiguredSpec extends ZIOSpecDefault {
+
+  def spec = suite("BananaConfiguredSpec")(
+    {
+      implicit val config: GoldenConfiguration =
+        GoldenConfiguration.default.copy(relativePath = "fruit", sampleSize = 100)
+      goldenTest(DeriveGen[Banana])
+    }
+  )
+}
+```
+
+Set `relativePath` when two types have the same short name, because both golden files would otherwise be written to the same place. The `relativePath` option also keeps related files together, for example `golden/fruit/Banana.json`.
+
+### Sample Generation
+
+Golden tests compare the output of your encoder with samples from the generator, so the generator must return the same values on each run. Avoid generators that depend on the clock, the file system or other external state.
+
+Generators with a fixed range or a small set of cases are easier to review than generators with large ranges, because the golden file grows with `sampleSize`.
+
+### Locating the Module Root
+
+The module root is the directory that holds `src/test/resources/golden/`. By default, the test walks up from its classes to the enclosing `target/` directory, which matches the layout used by sbt 1.
+
+Build tools that place test classes somewhere else, such as sbt 2 under the build's root `target/out/`, must pass the module root with the `zio.json.golden.moduleRoot` system property:
+
+```scala
+// sbt 2, with `Test / fork := true`
+Test / javaOptions += s"-Dzio.json.golden.moduleRoot=${baseDirectory.value}"
+```
+
+### Common Mistakes
+
+If a golden file is edited by hand, the test compares the sample with the edited file. Change golden files only through the `_new` and `_changed` workflow above, so that the content always matches what the encoder produces.
+
+---
+
+## ZIO JSON
+
+[ZIO Json](https://github.com/zio/zio-json) is a fast and secure JSON library with tight ZIO integration.
+
+[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-json/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-json_2.13.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-json_2.13) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-json_2.13%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-json_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-json_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-json_2.13) [![ZIO JSON](https://img.shields.io/github/stars/zio/zio-json?style=social)](https://github.com/zio/zio-json)
+
+### Introduction
+
+The goal of this project is to create the best all-round JSON library for Scala:
+
+- **Performance** to handle more requests per second than the incumbents, i.e. reduced operational costs.
+- **Security** to mitigate against adversarial JSON payloads that threaten the capacity of the server.
+- **Fast Compilation** no shapeless, no type astronautics.
+- **Future-Proof**, prepared for Scala 3 and next-generation Java.
+- **Simple** small codebase, concise documentation that covers everything.
+- **Helpful errors** are readable by humans and machines.
+- **ZIO Integration** so nothing more is required.
+
+### Installation
+
+In order to use this library, we need to add the following line in our `build.sbt` file:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-json" % "1.1.2"
+```
+
+For cross-platform projects with Scala.js and Scala Native need to replace `%%` operator by `%%%`, 
+and optionally when using `java.time.ZoneId` and `java.time.ZonedDateTime` types need to add 
+the dependency on the latest version of Timezone DB:
+
+```scala
+libraryDependencies += "io.github.cquiroz" %%% "scala-java-time-tzdb" % "latest.integration"
+```
+
+Continue with the [Getting Started](getting-started.mdx) guide for a walkthrough of encoding and decoding JSON with ZIO JSON.
 
 ---
 
@@ -68098,6 +68313,106 @@ A fully working example [can be found here](https://github.com/hseeberger/akka-h
 
 ---
 
+## Enumeratum Interop
+
+### Installation
+
+```scala
+libraryDependencies ++= Seq(
+  "dev.zio" %% "zio-json-interop-enumeratum" % "1.1.2"
+)
+```
+
+### Imports
+
+Unlike other interop modules which require a `zio.json.interop.*` import (e.g. `import zio.json.interop.refined._`), the enumeratum integration lives in the `enumeratum` package itself. The traits are available directly via the standard enumeratum imports:
+
+```scala
+import enumeratum._         // for string enums (ZioJsonEnum, ZioJsonKeyEnum)
+import enumeratum.values._  // for value enums (IntZioJsonEnum, LongZioJsonEnum, etc.)
+```
+
+### String Enums
+
+Mix in `ZioJsonEnum` to get implicit `JsonEncoder` and `JsonDecoder` instances for your enum entries. Add `ZioJsonKeyEnum` if you also need to use them as JSON object keys.
+
+```scala
+import enumeratum._
+import zio.json._
+
+sealed trait ShirtSize extends EnumEntry
+
+case object ShirtSize extends Enum[ShirtSize] with ZioJsonEnum[ShirtSize] with ZioJsonKeyEnum[ShirtSize] {
+  case object Small  extends ShirtSize
+  case object Medium extends ShirtSize
+  case object Large  extends ShirtSize
+
+  val values = findValues
+}
+```
+
+```scala
+ShirtSize.Small.toJson
+// "Small"
+
+""""Large"""".fromJson[ShirtSize]
+// Right(Large)
+
+""""XLarge"""".fromJson[ShirtSize]
+// Left('XLarge' is not a member of enum ShirtSize)
+```
+
+Lowercase/uppercase encoders and decoders are also available:
+
+```scala
+implicit val enc: JsonEncoder[ShirtSize] = ZioJson.encoderLowercase(ShirtSize)
+implicit val dec: JsonDecoder[ShirtSize] = ZioJson.decoderLowercaseOnly(ShirtSize)
+```
+
+### Value Enums
+
+For value-based enums (`IntEnum`, `LongEnum`, `StringEnum`, etc.), mix in the corresponding trait:
+
+| Value Type | Trait                |
+|------------|----------------------|
+| `Int`      | `IntZioJsonEnum`     |
+| `Long`     | `LongZioJsonEnum`    |
+| `Short`    | `ShortZioJsonEnum`   |
+| `String`   | `StringZioJsonEnum`  |
+| `Char`     | `CharZioJsonEnum`    |
+| `Byte`     | `ByteZioJsonEnum`    |
+
+Each trait provides implicit `JsonEncoder`, `JsonDecoder`, `JsonFieldEncoder`, and `JsonFieldDecoder` instances.
+
+```scala
+import enumeratum.values._
+import zio.json._
+
+sealed abstract class LibraryItem(val value: Int, val name: String) extends IntEnumEntry
+
+case object LibraryItem extends IntEnum[LibraryItem] with IntZioJsonEnum[LibraryItem] {
+  case object Book     extends LibraryItem(value = 1, name = "book")
+  case object Movie    extends LibraryItem(value = 2, name = "movie")
+  case object Magazine extends LibraryItem(value = 3, name = "magazine")
+  case object CD       extends LibraryItem(value = 4, name = "cd")
+
+  val values = findValues
+}
+```
+
+```scala
+LibraryItem.Book.toJson
+// 1
+
+"3".fromJson[LibraryItem]
+// Right(Magazine)
+
+"999".fromJson[LibraryItem]
+// Left('999' is not a member of enum LibraryItem)
+```
+
+---
+
 ## HTTP4s Interop
 
 An interop module is provided for [HTTP4s v0.21](https://http4s.org/v0.21)
@@ -68106,7 +68421,7 @@ An interop module is provided for [HTTP4s v0.21](https://http4s.org/v0.21)
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.zio" % "zio-json-interop-http4s" % "0.8.0"
+  "dev.zio" % "zio-json-interop-http4s" % "1.1.2"
 )
 ```
 
@@ -68136,9 +68451,10 @@ A fully working example project [can be found here](https://github.com/zio/zio-j
 
 ## Interop modules
 
-Integrations are provided several popular libraries, which are published as separate artifacts:
+Integrations are provided for several popular libraries, which are published as separate artifacts:
 
 * [Akka Http](akka-http.md)
+* [Enumeratum](enumeratum.md)
 * [HTTP4s](http4s.md)
 * [Refined](refined.md)
 * [Scalaz 7.x](scalaz-7x.md)
@@ -68151,7 +68467,7 @@ Integrations are provided several popular libraries, which are published as sepa
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.zio" % "zio-json-interop-refined" % "0.8.0"
+  "dev.zio" % "zio-json-interop-refined" % "1.1.2"
 )
 ```
 
@@ -68191,7 +68507,7 @@ object Person {
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.zio" % "zio-json-interop-scalaz" % "0.8.0"
+  "dev.zio" % "zio-json-interop-scalaz" % "1.1.2"
 )
 ```
 
@@ -68206,6 +68522,305 @@ import scalaz._
 IList(1, 2, 3).toJson
 // res0: String = "[1,2,3]"
 ```
+
+---
+
+## JSON AST
+
+The JSON AST is a tree of values that represents any JSON document, using the `zio.json.ast.Json` type.
+Most code decodes JSON straight into domain types, but the AST is useful when the shape of the document is not known in advance, when you need to edit a document, or when you want to combine several documents.
+For navigating the AST with cursors, see [Cursors](./decoding.md#cursors) in the decoding guide.
+
+### The Json Type
+
+`Json` is a sealed type with six cases: `Json.Obj`, `Json.Arr`, `Json.Str`, `Json.Num`, `Json.Bool`, and `Json.Null`.
+Objects keep their fields in insertion order as a `Chunk` of key-value pairs.
+
+The cases can be constructed directly:
+
+```scala
+import zio.json._
+import zio.json.ast.{ Json, JsonCursor }
+
+val user: Json = Json.Obj(
+  "name"   -> Json.Str("Alice"),
+  "age"    -> Json.Num(30),
+  "admin"  -> Json.Bool(false),
+  "tags"   -> Json.Arr(Json.Str("ops"), Json.Str("dev")),
+  "avatar" -> Json.Null
+)
+// user: Json = Obj(
+//   fields = IndexedSeq(
+//     ("name", Str(value = "Alice")),
+//     ("age", Num(value = 30)),
+//     ("admin", Bool(value = false)),
+//     ("tags", Arr(elements = IndexedSeq(Str(value = "ops"), Str(value = "dev")))),
+//     ("avatar", null)
+//   )
+// )
+```
+
+`Json.Num` has constructors for `Int`, `Long`, `Float`, `Double`, `BigInt`, `BigDecimal` and `java.math.BigInteger`, so numbers keep their precision.
+
+### Converting Between Types and the AST
+
+Every `JsonEncoder` has a `toJsonAST` method that returns `Either[String, Json]`, and every `JsonDecoder` has a `fromJsonAST` method that goes from a `Json` value to a domain type. The `Json#as` method is the shortcut for decoding:
+
+```scala
+case class Person(name: String, age: Int)
+
+object Person {
+  implicit val codec: JsonCodec[Person] = DeriveJsonCodec.gen[Person]
+}
+```
+
+To encode a value into the AST, call `toJsonAST` on the value:
+
+```scala
+Person("Bob", 41).toJsonAST
+// res0: Either[String, Json] = Right(
+//   value = Obj(
+//     fields = IndexedSeq(("name", Str(value = "Bob")), ("age", Num(value = 41)))
+//   )
+// )
+```
+
+To decode an AST into a domain type, call `as` on the `Json` value:
+
+```scala
+user.as[Person]
+// res1: Either[String, Person] = Right(
+//   value = Person(name = "Alice", age = 30)
+// )
+```
+
+Decoding with `as` fails when the fields do not match, which lets you check the shape of a document:
+
+```scala
+Json.Obj("name" -> Json.Str("Carol")).as[Person]
+// res2: Either[String, Person] = Left(value = ".age(missing)")
+```
+
+### Reading Values
+
+The `Json#get` method takes a `JsonCursor` and returns the node at that location, with its type refined by the cursor. The `Obj#get` method reads one field by name, and `Obj#contains` checks whether a field exists:
+
+```scala
+user.asObject.map(_.get("name"))
+// res3: Option[Option[Json]] = Some(
+//   value = Some(value = Str(value = "Alice"))
+// )
+```
+
+Checking for a field that is not present returns `false` inside an `Option`:
+
+```scala
+user.asObject.map(_.contains("nickname"))
+// res4: Option[Boolean] = Some(value = false)
+```
+
+Each case has an `as*` method that returns an `Option` of the matching type, for example `asString`, `asNumber`, `asArray`, `asObject`, `asBoolean` and `asNull`:
+
+```scala
+user.get(JsonCursor.field("age")).map(_.asNumber).toOption.flatten
+// res5: Option[Json.Num] = Some(value = Num(value = 30))
+```
+
+### Transforming Values
+
+The `mapXxx` methods change one kind of node without touching the rest. For example, `mapObjectKeys` renames every key in an object:
+
+```scala
+user.mapObjectKeys(_.toUpperCase)
+// res6: Json = Obj(
+//   fields = IndexedSeq(
+//     ("NAME", Str(value = "Alice")),
+//     ("AGE", Num(value = 30)),
+//     ("ADMIN", Bool(value = false)),
+//     ("TAGS", Arr(elements = IndexedSeq(Str(value = "ops"), Str(value = "dev")))),
+//     ("AVATAR", null)
+//   )
+// )
+```
+
+`mapObjectValues` and `mapArrayValues` apply a function to each direct child:
+
+```scala
+user.mapObjectValues {
+  case Json.Num(value) => Json.Num(value.add(java.math.BigDecimal.ONE))
+  case other           => other
+}
+// res7: Json = Obj(
+//   fields = IndexedSeq(
+//     ("name", Str(value = "Alice")),
+//     ("age", Num(value = 31)),
+//     ("admin", Bool(value = false)),
+//     ("tags", Arr(elements = IndexedSeq(Str(value = "ops"), Str(value = "dev")))),
+//     ("avatar", null)
+//   )
+// )
+```
+
+The `transformDown` method walks the whole tree from the top and applies a function to every node. The `transformUp` method works from the bottom, so the function sees each node after its children were transformed.
+Use the `transformDownSome` and `transformUpSome` variants when the function only applies to some nodes. The following replaces every string with its upper-case form and leaves other values unchanged:
+
+```scala
+user.transformDownSome { case Json.Str(value) => Json.Str(value.toUpperCase) }
+// res8: Json = Obj(
+//   fields = IndexedSeq(
+//     ("name", Str(value = "ALICE")),
+//     ("age", Num(value = 30)),
+//     ("admin", Bool(value = false)),
+//     ("tags", Arr(elements = IndexedSeq(Str(value = "OPS"), Str(value = "DEV")))),
+//     ("avatar", null)
+//   )
+// )
+```
+
+To change a single node located by a cursor, use `transformAt`. It returns an `Either` because the cursor may not match the document:
+
+```scala
+user.transformAt(JsonCursor.field("age").isNumber)(age => Json.Num(age.value.add(java.math.BigDecimal.TEN)))
+// res9: Either[String, Json] = Right(
+//   value = Obj(
+//     fields = IndexedSeq(
+//       ("name", Str(value = "Alice")),
+//       ("age", Num(value = 40)),
+//       ("admin", Bool(value = false)),
+//       (
+//         "tags",
+//         Arr(elements = IndexedSeq(Str(value = "ops"), Str(value = "dev")))
+//       ),
+//       ("avatar", null)
+//     )
+//   )
+// )
+```
+
+### Deleting and Relocating Values
+
+The `delete` method removes the node at a cursor. The `relocate` method moves a node from one cursor to another, removing it from its old location:
+
+```scala
+user.delete(JsonCursor.field("avatar"))
+// res10: Either[String, Json] = Right(
+//   value = Obj(
+//     fields = IndexedSeq(
+//       ("name", Str(value = "Alice")),
+//       ("age", Num(value = 30)),
+//       ("admin", Bool(value = false)),
+//       (
+//         "tags",
+//         Arr(elements = IndexedSeq(Str(value = "ops"), Str(value = "dev")))
+//       )
+//     )
+//   )
+// )
+```
+
+Relocating `tags` to `avatar` replaces the `null` value there, and removes `tags` from its original location:
+
+```scala
+user.relocate(JsonCursor.field("tags"), JsonCursor.field("avatar"))
+// res11: Either[String, Json] = Right(
+//   value = Obj(
+//     fields = IndexedSeq(
+//       ("name", Str(value = "Alice")),
+//       ("age", Num(value = 30)),
+//       ("admin", Bool(value = false)),
+//       (
+//         "avatar",
+//         Arr(elements = IndexedSeq(Str(value = "ops"), Str(value = "dev")))
+//       )
+//     )
+//   )
+// )
+```
+
+### Combining Documents
+
+The `merge` method combines two values. When both values are objects, the result contains the fields of both, and the right-hand side wins when a key appears on both sides. When both values are arrays, their elements are merged. For any other combination, the right-hand side replaces the left:
+
+```scala
+val defaults: Json = Json.Obj("admin" -> Json.Bool(false), "locale" -> Json.Str("en"))
+// defaults: Json = Obj(
+//   fields = IndexedSeq(
+//     ("admin", Bool(value = false)),
+//     ("locale", Str(value = "en"))
+//   )
+// )
+val overrides: Json = Json.Obj("locale" -> Json.Str("de"))
+// overrides: Json = Obj(fields = IndexedSeq(("locale", Str(value = "de"))))
+
+defaults.merge(overrides)
+// res12: Json = Obj(
+//   fields = IndexedSeq(
+//     ("admin", Bool(value = false)),
+//     ("locale", Str(value = "de"))
+//   )
+// )
+```
+
+The `intersect` method keeps only the fields or elements that are present in both values. It returns an error for values that are not both objects or both arrays:
+
+```scala
+val left: Json  = Json.Obj("a" -> Json.Num(1), "b" -> Json.Num(2))
+// left: Json = Obj(
+//   fields = IndexedSeq(("a", Num(value = 1)), ("b", Num(value = 2)))
+// )
+val right: Json = Json.Obj("b" -> Json.Num(2), "c" -> Json.Num(3))
+// right: Json = Obj(
+//   fields = IndexedSeq(("b", Num(value = 2)), ("c", Num(value = 3)))
+// )
+
+left.intersect(right)
+// res13: Either[String, Json] = Right(
+//   value = Obj(fields = IndexedSeq(("b", Num(value = 2))))
+// )
+```
+
+### Folding Over a Document
+
+The `foldDown` and `foldUp` methods reduce the whole tree into one value. They visit every node, with `foldDownSome` and `foldUpSome` as the variants for partial functions. For example, to count the string values in a document:
+
+```scala
+user.foldDown(0) {
+  case (count, Json.Str(_)) => count + 1
+  case (count, _)           => count
+}
+// res14: Int = 3
+```
+
+### Rendering and Parsing
+
+The `toJson` extension on `Json` renders the AST as a compact string, and `toJsonPretty` renders it with indentation. The `fromJson[Json]` method parses a string into an AST:
+
+```scala
+user.toJsonPretty
+// res15: String = """{
+//   "name" : "Alice",
+//   "age" : 30,
+//   "admin" : false,
+//   "tags" : [
+//     "ops",
+//     "dev"
+//   ],
+//   "avatar" : null
+// }"""
+```
+
+Parsing a string into the AST uses the same `fromJson` method as domain types, with `Json` as the type:
+
+```scala
+"""{"id": 7, "ok": true}""".fromJson[Json]
+// res16: Either[String, Json] = Right(
+//   value = Obj(
+//     fields = IndexedSeq(("id", Num(value = 7)), ("ok", Bool(value = true)))
+//   )
+// )
+```
+
+For encoding and decoding in streams, see [Streaming](./streaming.md). For YAML, the AST is the intermediate form, as described in [YAML](./yaml.md).
 
 ---
 
@@ -68480,6 +69095,351 @@ circe  4529 ( 7456)  2037 (1533)
 This attack is very effective in schemas with lots of numbers, causing ops/sec to be halved with a 33% increase in memory usage.
 
 `zio-json` is resistant to a wide range of number based attacks because it uses a from-scratch number parser that will exit early when the number of bits of any number exceeds 256 bits.
+
+---
+
+## Streaming
+
+ZIO JSON can encode and decode values as [ZIO Streams](https://zio.dev/reference/stream/), so you can process large JSON documents, or many small documents, without loading everything into memory at once.
+The streaming API has three main forms: a single value as a stream of characters, a JSON array as a pipeline, and [JSON Lines](https://jsonlines.org/) (one value per line) as a pipeline.
+
+The streaming API is available for the JVM only. The JavaScript and Native platforms do not include these methods.
+
+### Encoding a Single Value as a Stream
+
+`JsonEncoder#encodeJsonStream` returns a `ZStream` of characters for one value:
+
+```scala
+import zio._
+import zio.stream._
+import zio.json._
+
+case class Event(id: Int, kind: String)
+
+object Event {
+  implicit val codec: JsonCodec[Event] = DeriveJsonCodec.gen[Event]
+}
+
+def runSync[A](zio: ZIO[Any, Throwable, A]): A =
+  Unsafe.unsafe { implicit unsafe =>
+    Runtime.default.unsafe.run(zio).getOrThrowFiberFailure()
+  }
+```
+
+To collect the characters into a `String`, run the stream:
+
+```scala
+val single: String =
+  runSync(JsonEncoder[Event].encodeJsonStream(Event(1, "created")).runCollect.map(_.mkString))
+// single: String = "{\"id\":1,\"kind\":\"created\"}"
+
+single
+// res0: String = "{\"id\":1,\"kind\":\"created\"}"
+```
+
+### Decoding a Single Value from a Stream
+
+`JsonDecoder#decodeJsonStream` reads one value from a stream of characters, and `JsonDecoder#decodeJsonStreamInput` reads one value from a stream of bytes with a charset (UTF-8 by default):
+
+```scala
+val decodedSingle: Event =
+  runSync(JsonDecoder[Event].decodeJsonStream(ZStream.fromIterable("""{"id": 2, "kind": "deleted"}""")))
+// decodedSingle: Event = Event(id = 2, kind = "deleted")
+
+decodedSingle
+// res1: Event = Event(id = 2, kind = "deleted")
+```
+
+Both methods expect exactly one value in the stream, and they may not consume the whole stream.
+
+### JSON Lines
+
+Use the JSON Lines format, one value per line, when you have a sequence of values that you want to process one at a time.
+`JsonEncoder#encodeJsonLinesPipeline` writes each value followed by a newline, and `JsonDecoder#decodeJsonPipeline` with `JsonStreamDelimiter.Newline` reads them back:
+
+```scala
+val events: ZStream[Any, Nothing, Event] =
+  ZStream(Event(1, "created"), Event(2, "updated"), Event(3, "deleted"))
+```
+
+The stream is encoded with the line-delimited pipeline:
+
+```scala
+val lines: String =
+  runSync(events.via(JsonEncoder[Event].encodeJsonLinesPipeline).runCollect.map(_.mkString))
+// lines: String = """{"id":1,"kind":"created"}
+// {"id":2,"kind":"updated"}
+// {"id":3,"kind":"deleted"}
+// """
+
+lines
+// res2: String = """{"id":1,"kind":"created"}
+// {"id":2,"kind":"updated"}
+// {"id":3,"kind":"deleted"}
+// """
+```
+
+Decoding the same text back into values uses the decoder pipeline:
+
+```scala
+val parsed: Chunk[Event] =
+  runSync(
+    ZStream
+      .fromIterable(lines)
+      .via(JsonDecoder[Event].decodeJsonPipeline(JsonStreamDelimiter.Newline))
+      .runCollect
+  )
+// parsed: Chunk[Event] = IndexedSeq(
+//   Event(id = 1, kind = "created"),
+//   Event(id = 2, kind = "updated"),
+//   Event(id = 3, kind = "deleted")
+// )
+
+parsed.toList
+// res3: List[Event] = List(
+//   Event(id = 1, kind = "created"),
+//   Event(id = 2, kind = "updated"),
+//   Event(id = 3, kind = "deleted")
+// )
+```
+
+### JSON Arrays
+
+`JsonEncoder#encodeJsonArrayPipeline` writes the values as a single JSON array, and `JsonDecoder#decodeJsonPipeline` with its default `JsonStreamDelimiter.Array` reads a JSON array one element at a time:
+
+```scala
+val array: String =
+  runSync(events.via(JsonEncoder[Event].encodeJsonArrayPipeline).runCollect.map(_.mkString))
+// array: String = "[{\"id\":1,\"kind\":\"created\"},{\"id\":2,\"kind\":\"updated\"},{\"id\":3,\"kind\":\"deleted\"}]"
+
+array
+// res4: String = "[{\"id\":1,\"kind\":\"created\"},{\"id\":2,\"kind\":\"updated\"},{\"id\":3,\"kind\":\"deleted\"}]"
+```
+
+Decoding that string with the default delimiter reads each element back:
+
+```scala
+val fromArray: Chunk[Event] =
+  runSync(
+    ZStream
+      .fromIterable(array)
+      .via(JsonDecoder[Event].decodeJsonPipeline())
+      .runCollect
+  )
+// fromArray: Chunk[Event] = IndexedSeq(
+//   Event(id = 1, kind = "created"),
+//   Event(id = 2, kind = "updated"),
+//   Event(id = 3, kind = "deleted")
+// )
+
+fromArray.toList
+// res5: List[Event] = List(
+//   Event(id = 1, kind = "created"),
+//   Event(id = 2, kind = "updated"),
+//   Event(id = 3, kind = "deleted")
+// )
+```
+
+Choose JSON Lines for logs and exported data that are written and read incrementally, because each line is a complete value. Choose the array form when the consumer expects a single JSON document.
+
+### Reading and Writing Files
+
+The `zio.json` package object provides helpers that combine these pipelines with file streams. They are available on the JVM only.
+
+`readJsonLinesAs` reads a file of JSON Lines into a stream of values of a type with a decoder, and `writeJsonLinesAs` writes a stream of values to a file as JSON Lines. There are overloads for `File`, `Path`, and `String`:
+
+```scala
+import zio._
+import zio.stream._
+import zio.json._
+import java.nio.file.Paths
+
+val path = Paths.get("events.jsonl")
+
+val write: RIO[Any, Unit] =
+  writeJsonLinesAs(path, ZStream(Event(1, "created"), Event(2, "deleted")))
+
+val read: ZStream[Any, Throwable, Event] =
+  readJsonLinesAs[Event](path)
+```
+
+`readJsonAs` and `writeJsonLines` work the same way with the JSON AST type `zio.json.ast.Json` instead of a domain type. `readJsonAs` reads JSON Lines, not a single JSON document, so use `fromJson` on the file contents when you want to read one document.
+
+### Errors
+
+Stream operations report failures in the error channel as a `Throwable`. A malformed value in the middle of a stream fails the stream at that point, and the values before it have already been emitted. If you want to skip malformed lines instead, handle the error in the stream, for example with `ZStream#catchAll`.
+
+---
+
+## YAML
+
+The `zio-json-yaml` module converts between YAML and any type that has a `JsonEncoder` or `JsonDecoder`.
+It goes through the [JSON AST](./json-ast.md): values are encoded to a `Json` value and then rendered as YAML, and YAML is parsed into a `Json` value before decoding.
+Because of this, the same codec that you use for JSON also works for YAML, and there is no separate YAML codec to write.
+
+The module is available for the JVM only, since it depends on [SnakeYAML](https://bitbucket.org/snakeyaml/snakeyaml).
+
+### Installation
+
+Add the module to your `build.sbt`:
+
+```scala
+libraryDependencies += "dev.zio" %% "zio-json-yaml" % "1.1.2"
+```
+
+### Encoding to YAML
+
+Importing `zio.json.yaml._` adds the `toYaml` extension method to any value that has a `JsonEncoder` in scope.
+We define a case class with a derived codec first:
+
+```scala
+import zio.json._
+import zio.json.ast.Json
+import zio.json.yaml._
+
+case class Person(name: String, age: Int, email: Option[String])
+
+object Person {
+  implicit val codec: JsonCodec[Person] = DeriveJsonCodec.gen[Person]
+}
+```
+
+Calling `toYaml` returns an `Either[String, String]`. The `email` field is `None`, so it is absent from the output:
+
+```scala
+Person("Alice", 30, None).toYaml().getOrElse("")
+// res0: String = """name: Alice
+// age: 30
+// """
+```
+
+`toYaml` also accepts a `Json` value directly, which is useful when you already have an AST:
+
+```scala
+Json.Obj("name" -> Json.Str("Alice"), "tags" -> Json.Arr(Json.Str("admin"), Json.Str("ops"))).toYaml().getOrElse("")
+// res1: String = """name: Alice
+// tags:
+//   - admin
+//   - ops
+// """
+```
+
+### Decoding from YAML
+
+The `String#fromYaml` extension method parses YAML and decodes the result with a `JsonDecoder`:
+
+```scala
+val yaml: String =
+  """name: Bob
+    |age: 41
+    |email: bob@example.com""".stripMargin
+// yaml: String = """name: Bob
+// age: 41
+// email: bob@example.com"""
+
+yaml.fromYaml[Person]
+// res2: Either[String, Person] = Right(
+//   value = Person(
+//     name = "Bob",
+//     age = 41,
+//     email = Some(value = "bob@example.com")
+//   )
+// )
+```
+
+If the input is not valid YAML, or the resulting structure does not match the decoder, `String#fromYaml` returns a `Left` with an error message:
+
+```scala
+"name: [unclosed".fromYaml[Person]
+// res3: Either[String, Person] = Left(
+//   value = """while parsing a flow sequence
+//  in 'reader', line 1, column 7:
+//     name: [unclosed
+//           ^
+// expected ',' or ']', but got <stream end>
+//  in 'reader', line 1, column 16:
+//     name: [unclosed
+//                    ^
+// """
+// )
+```
+
+### Options
+
+`YamlOptions` controls how YAML is rendered. `YamlOptions.default` is used when no options are given, and you can change individual settings with `copy`:
+
+```scala
+val nested: Json = Json.Obj(
+  "server" -> Json.Obj("host" -> Json.Str("localhost"), "port" -> Json.Num(8080)),
+  "debug"  -> Json.Null
+)
+// nested: Json = Obj(
+//   fields = IndexedSeq(
+//     (
+//       "server",
+//       Obj(
+//         fields = IndexedSeq(
+//           ("host", Str(value = "localhost")),
+//           ("port", Num(value = 8080))
+//         )
+//       )
+//     ),
+//     ("debug", null)
+//   )
+// )
+
+nested.toYaml(YamlOptions.default.copy(dropNulls = false, indentation = 4)).getOrElse("")
+// res4: String = """server:
+//     host: localhost
+//     port: 8080
+// debug: null
+// """
+```
+
+The most commonly used settings are:
+
+- `dropNulls` (default `true`): removes object fields whose value is `Json.Null`. Option fields that are `None` are controlled by the codec, not by this setting.
+- `indentation` (default `2`) and `sequenceIndentation` (default `2`): the number of spaces used for nested mappings and sequences.
+- `maxScalarWidth` (default `Some(80)`): long string scalars are split across lines. Set it to `None` to keep each scalar on one line.
+- `lineBreak`: the line separator. The default follows the platform.
+- `flowStyle`, `scalarStyle` and `keyStyle`: functions that choose the YAML presentation style for each value or key. They let you, for example, force flow style (`{a: 1}`) for small objects.
+- `nonPrintableStyle`: how strings that contain non-printable characters are written. The default escapes them, and `NonPrintableStyle.BINARY` writes them as base64 `!!binary` values.
+
+If you need an option that is not exposed by `YamlOptions`, use `newDumperOptions` to supply your own SnakeYAML `DumperOptions`.
+
+Strings that contain line breaks are written as literal block scalars (`|`) automatically, even when the `scalarStyle` is `PLAIN`.
+
+### Working with the YAML Node Tree
+
+The `toYamlAST` method returns the SnakeYAML `Node` tree instead of a string. Use it when you need to change the document before it is emitted:
+
+```scala
+val node = Person("Carol", 25, None).toYamlAST()
+// node: Either[String, org.yaml.snakeyaml.nodes.Node] = Right(
+//   value = <org.yaml.snakeyaml.nodes.MappingNode (tag=tag:yaml.org,2002:map, values={ key=<org.yaml.snakeyaml.nodes.ScalarNode (tag=tag:yaml.org,2002:str, value=name)>; value=<NodeTuple keyNode=<org.yaml.snakeyaml.nodes.ScalarNode (tag=tag:yaml.org,2002:str, value=name)>; valueNode=<org.yaml.snakeyaml.nodes.ScalarNode (tag=tag:yaml.org,2002:str, value=Carol)>> }{ key=<org.yaml.snakeyaml.nodes.ScalarNode (tag=tag:yaml.org,2002:str, value=age)>; value=<NodeTuple keyNode=<org.yaml.snakeyaml.nodes.ScalarNode (tag=tag:yaml.org,2002:str, value=age)>; valueNode=<org.yaml.snakeyaml.nodes.ScalarNode (tag=tag:yaml.org,2002:int, value=25)>> })>
+// )
+node.isRight
+// res5: Boolean = true
+```
+
+To go from a YAML string to a `Json` value without decoding into a domain type, use `String#fromYaml` with `Json` as the type:
+
+```scala
+"""items:
+  |  - 1
+  |  - true
+  |  - null""".stripMargin.fromYaml[Json]
+// res6: Either[String, Json] = Right(
+//   value = Obj(
+//     fields = IndexedSeq(
+//       (
+//         "items",
+//         Arr(elements = IndexedSeq(Num(value = 1), Bool(value = true), null))
+//       )
+//     )
+//   )
+// )
+```
 
 ---
 
@@ -69275,8 +70235,8 @@ See the [zio-kafka tutorial](tutorial.md) for a grand tour of the different ways
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-kafka"         % "3.8.1"
-libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "3.8.1" % Test
+libraryDependencies += "dev.zio" %% "zio-kafka"         % "4.0.0"
+libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "4.0.0" % Test
 ```
 
 Snapshots are available on Sonatype's snapshot repository https://oss.sonatype.org/content/repositories/snapshots.
@@ -69964,7 +70924,8 @@ In the example above `record.offset` represents the offset of the consumed recor
 the _next offset_. It represents the record's offset another consumer should continue from after a rebalance.
 Normally the _next offset_ is the offset of the consumed record `+ 1`. The difference can be a bit larger when Kafka
 placed some 'control records' on the partition. Since it is fine to consume control records multiple times (they are
-invisible), adding `1` to get the next offset is fine.
+invisible), adding `1` to get the next offset is fine. Since zio-kafka 3.9.0 it is also possible to get the exact
+next-offset with `record.nextOffset`.
 
 :::caution
 You should decide on what offset you want to persist per partition, either the _consumed offset_, or the _next offset_.
@@ -69980,7 +70941,8 @@ Unless there are good reasons to do otherwise, we recommend you persist the 'nex
 
 **Persisting the next offset**
 
-- Per partition, persist the offset `record.offset.offset + 1` (ideally persist `record.leaderEpoch` as well).
+- Per partition, persist the offset `record.offset.offset + 1`, or better yet: `record.nextOffset.offset()` (ideally
+  persist `record.nextOffset.leaderEpoch()` as well).
 - From your `OffsetRetrieval.External` implementation, return the persisted offset (ideally, also include the persisted
   leader-epoch).
 
@@ -81673,6 +82635,530 @@ The profiler output will be written to a file in the directory the JVM has been 
 
 ---
 
+## Aspects(Zio-query)
+
+An aspect changes how a query or a data source behaves without changing the code that defines it. ZIO Query has two kinds:
+
+- A `DataSourceAspect` transforms a [data source](./creating-data-sources.md) into another data source. Use it to run code around every call to a data source, for example to record metrics or to limit the size of a batch.
+- A `QueryAspect` transforms a `ZQuery` into another `ZQuery`. Use it to apply a `DataSourceAspect` to every data source used by a query, or to run code around a whole query.
+
+Aspects are values, so they can be defined once and applied to many queries or data sources. This page shows how to create them, how to apply them with `@@`, and how to use `Described`, which many aspects and data source combinators need.
+
+### Setting Up an Example
+
+The examples on this page use one request type and one data source that records the calls it receives, so that we can see what each aspect changes:
+
+```scala
+import zio._
+import zio.query._
+
+final case class GetUserName(id: Int) extends Request[Nothing, String]
+
+val log: Ref[Chunk[String]] =
+  Unsafe.unsafe(implicit unsafe => Ref.unsafe.make(Chunk.empty[String]))
+
+val userDataSource: DataSource[Any, GetUserName] =
+  DataSource.make[Any, GetUserName]("UserDataSource") { requests =>
+    log.update(_ :+ s"UserDataSource: ${requests.map(_.map(_.id).mkString("[", ", ", "]")).mkString(" ")}") *>
+      ZIO.succeed(
+        CompletedRequestMap.fromIterableWith(requests.flatten)(r => r, r => Exit.succeed(s"user-${r.id}"))
+      )
+  }
+
+def userName(id: Int): ZQuery[Any, Nothing, String] =
+  ZQuery.fromRequest(GetUserName(id))(userDataSource)
+
+def show[A](query: ZQuery[Any, Nothing, A]): Unit = {
+  val (result, calls) = Unsafe.unsafe { implicit unsafe =>
+    Runtime.default.unsafe.run(query.run <*> log.getAndSet(Chunk.empty)).getOrThrowFiberFailure()
+  }
+  println(s"result: $result")
+  calls.foreach(println)
+}
+```
+
+In the output, each pair of square brackets is one batch of requests that the data source receives. See [How Batching, Pipelining, and Parallelism Work](./how-batching-works.md) for how batches are formed.
+
+### Describing Values with `Described`
+
+Aspects and data source combinators often take a function or an effect together with a description of it. `Described[A]` pairs a value with a `String` description:
+
+```scala
+final case class Described[+A](value: A, description: String)
+```
+
+The description is used to build the identifier of the data source that the combinator returns. Two data sources are equal when their identifiers are equal, and ZIO Query uses that equality to decide which requests belong to the same data source (and so can be batched together). For this reason, values that are equal should have the same description, and values that are not equal should have different descriptions.
+
+The `?` syntax from `Described` adds a description to any value:
+
+```scala
+import zio.query.Described._
+
+val logBefore: Described[UIO[Unit]] =
+  log.update(_ :+ "before") ? "log before"
+
+val logAfter: Described[Unit => UIO[Unit]] =
+  ((_: Unit) => log.update(_ :+ "after")) ? "log after"
+```
+
+`Described` is also required by `DataSource#contramap`, `DataSource#contramapZIO`, `DataSource#eitherWith`, `DataSource#provideEnvironment` and `ZQuery#provideEnvironment`. For example, `provideEnvironment` removes the environment requirement of a data source by supplying a value for it, and the description of that value becomes part of the new data source's identifier:
+
+```scala
+val envDataSource: DataSource[Int, GetUserName] =
+  DataSource.make[Int, GetUserName]("EnvUserDataSource") { requests =>
+    ZIO.serviceWith[Int] { offset =>
+      CompletedRequestMap.fromIterableWith(requests.flatten)(r => r, r => Exit.succeed(s"user-${r.id + offset}"))
+    }
+  }
+
+val providedDataSource: DataSource[Any, GetUserName] =
+  envDataSource.provideEnvironment(ZEnvironment(100) ? "offset 100")
+```
+
+```scala
+providedDataSource.identifier
+// res0: String = "EnvUserDataSource.provideSomeEnvironment(_ => offset 100)"
+```
+
+:::warning
+`DataSource#contramap`, `contramapZIO` and `eitherWith` pass the results of the converted requests through unchanged. The query looks up the result of the original request, so these combinators work only when the converted request is equal to the original one. Otherwise the query dies with a `QueryFailure`.
+:::
+
+### Data Source Aspects
+
+#### Running Code Around a Data Source
+
+`DataSourceAspect.around` runs an effect before and an effect after every call to the data source's `runAll`. The result of the first effect is passed to the second one. Both are `Described`, and neither can fail. The effects are run with `ZIO.acquireReleaseWith`, so the second one runs even if the call is interrupted:
+
+```scala
+def around[R, A](
+  before: Described[ZIO[R, Nothing, A]]
+)(after: Described[A => ZIO[R, Nothing, Any]]): DataSourceAspect[R]
+```
+
+An aspect is applied to a data source with `DataSource#@@`:
+
+```scala
+val loggedDataSource: DataSource[Any, GetUserName] =
+  userDataSource @@ DataSourceAspect.around(logBefore)(logAfter)
+```
+
+The effects run once per call to the data source, not once per request. A query that fetches three users in parallel sends one call:
+
+```scala
+show(ZQuery.foreachPar(List(1, 2, 3))(id => ZQuery.fromRequest(GetUserName(id))(loggedDataSource)))
+// result: List(user-1, user-2, user-3)
+// before
+// UserDataSource: [1, 2, 3]
+// after
+```
+
+The aspect also changes the identifier of the data source. The new identifier is the old one followed by `@@ around(`, the description of the first effect, `)(`, the description of the second effect and `)`:
+
+```scala
+loggedDataSource.identifier
+// res2: String = "UserDataSource @@ around(log before)(log after)"
+```
+
+Because the identifier is different, requests sent to `loggedDataSource` are not batched together with requests sent to `userDataSource`.
+
+#### Limiting the Batch Size
+
+`DataSourceAspect.maxBatchSize(n)` splits every batch the data source receives into batches of at most `n` requests. It is the aspect form of `DataSource#batchN`:
+
+```scala
+val smallBatches: DataSource[Any, GetUserName] =
+  userDataSource @@ DataSourceAspect.maxBatchSize(2)
+```
+
+A data source that is limited to two requests receives five parallel requests as three batches, in one call to `runAll`:
+
+```scala
+show(ZQuery.foreachPar(List(1, 2, 3, 4, 5))(id => ZQuery.fromRequest(GetUserName(id))(smallBatches)))
+// result: List(user-1, user-2, user-3, user-4, user-5)
+// UserDataSource: [1, 2] [3, 4] [5]
+```
+
+The smaller batches are the sequential batches of the outer `Chunk` described in [Creating Data Sources](./creating-data-sources.md), so a data source that executes them one after another never has more than `n` requests in flight at a time. If `n` is less than 1, the data source dies with an `IllegalArgumentException` when it runs.
+
+#### Composing Data Source Aspects
+
+`DataSourceAspect#>>>` (or `andThen`) combines two aspects into one that applies the left aspect first and the right aspect to the result. In the following data source, the batches are split first, and then the log effects wrap the call:
+
+```scala
+val limitedAndLogged: DataSource[Any, GetUserName] =
+  userDataSource @@ (DataSourceAspect.maxBatchSize(2) >>> DataSourceAspect.around(logBefore)(logAfter))
+```
+
+```scala
+show(ZQuery.foreachPar(List(1, 2, 3))(id => ZQuery.fromRequest(GetUserName(id))(limitedAndLogged)))
+// result: List(user-1, user-2, user-3)
+// before
+// UserDataSource: [1, 2] [3]
+// after
+```
+
+`DataSourceAspect[R]` is a trait with a single method, `apply[R1 <: R, A](dataSource: DataSource[R1, A]): DataSource[R1, A]`, so you can also implement your own aspect.
+
+### Query Aspects
+
+A `QueryAspect` is applied to a query with `ZQuery#@@`. The ready-made aspects in `QueryAspect` come in two groups: aspects that apply a data source aspect to all data sources in a query, and one that runs code around the query itself.
+
+#### Applying Data Source Aspects to a Query
+
+Data sources are usually created in one place and used from many queries, so it is often easier to apply an aspect to a query than to every data source. `QueryAspect.fromDataSourceAspect` turns a `DataSourceAspect` into a `QueryAspect`. It is implemented with `ZQuery#mapDataSources`, which you can also call directly. The aspect is applied to every data source that the query uses:
+
+```scala
+val query: ZQuery[Any, Nothing, List[String]] =
+  ZQuery.foreachPar(List(1, 2, 3))(userName)
+```
+
+```scala
+show(query @@ QueryAspect.fromDataSourceAspect(DataSourceAspect.maxBatchSize(2)))
+// result: List(user-1, user-2, user-3)
+// UserDataSource: [1, 2] [3]
+```
+
+`QueryAspect` also has shortcuts for the two data source aspects from the previous section:
+
+| Query aspect                         | Equivalent                                                           |
+| ------------------------------------ | -------------------------------------------------------------------- |
+| `QueryAspect.maxBatchSize(n)`        | `QueryAspect.fromDataSourceAspect(DataSourceAspect.maxBatchSize(n))` |
+| `QueryAspect.aroundDataSource(b)(a)` | `QueryAspect.fromDataSourceAspect(DataSourceAspect.around(b)(a))`    |
+
+```scala
+show(query @@ QueryAspect.maxBatchSize(2))
+// result: List(user-1, user-2, user-3)
+// UserDataSource: [1, 2] [3]
+```
+
+```scala
+show(query @@ QueryAspect.aroundDataSource(logBefore)(logAfter))
+// result: List(user-1, user-2, user-3)
+// before
+// UserDataSource: [1, 2, 3]
+// after
+```
+
+#### Running Code Around a Query
+
+`QueryAspect.around` runs an effect before the query and an effect after it, using `ZQuery.acquireReleaseWith`. Unlike `aroundDataSource`, it wraps the query as a whole, not the calls to data sources, and its arguments are plain effects that do not need a description:
+
+```scala
+val logQuery: QueryAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
+  QueryAspect.around(log.update(_ :+ "query started"))(_ => log.update(_ :+ "query finished"))
+```
+
+```scala
+show(query @@ logQuery)
+// result: List(user-1, user-2, user-3)
+// query started
+// UserDataSource: [1, 2, 3]
+// query finished
+```
+
+#### Composing Query Aspects
+
+Like data source aspects, query aspects are composed with `>>>` (or `andThen`), and the left aspect is applied first:
+
+```scala
+show(query @@ (logQuery >>> QueryAspect.maxBatchSize(2)))
+// result: List(user-1, user-2, user-3)
+// query started
+// UserDataSource: [1, 2] [3]
+// query finished
+```
+
+### Summary
+
+| To...                                      | Use                                                                                                                       |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| Run code around calls to a data source     | `DataSourceAspect.around`, applied with `DataSource#@@`                                                                   |
+| Limit the batch size of a data source      | `DataSourceAspect.maxBatchSize` or `DataSource#batchN`                                                                    |
+| Apply these to all data sources in a query | `QueryAspect.aroundDataSource`, `QueryAspect.maxBatchSize`, `QueryAspect.fromDataSourceAspect` or `ZQuery#mapDataSources` |
+| Run code around a whole query              | `QueryAspect.around`, applied with `ZQuery#@@`                                                                            |
+| Combine aspects                            | `>>>` or `andThen`                                                                                                        |
+
+---
+
+## CompletedRequestMap
+
+A `CompletedRequestMap` is what a [data source](./creating-data-sources.md) returns from `runAll`: a mapping from each request it executed to the result of that request, an `Exit[E, A]`. This page explains how to build one, how to look results up in it, which methods are deprecated, and how `ZQuery.fromRequests` submits several requests to a data source at once.
+
+### Setting Up an Example
+
+The examples on this page use the following request types:
+
+```scala
+import zio._
+import zio.query._
+
+final case class GetUserName(id: Int) extends Request[String, String]
+final case class GetOrderCount(id: Int) extends Request[Nothing, Int]
+```
+
+### How a Query Reads the Map
+
+A `CompletedRequestMap` is keyed by requests, and the type of each entry is tied to its request: a `Request[E, A]` is always mapped to an `Exit[E, A]`. This lets one data source answer requests of different result types.
+
+After `runAll` returns, the query looks up the result of each request it submitted, using request equality. If the map has no entry for a request, the query dies with a `QueryFailure` that names the data source and the request. Make sure that the map has an entry for every request the data source received, and that each key is equal to the request the query submitted. Because requests are compared with `equals`, define them as case classes (or case objects).
+
+You can read a map with:
+
+| Method                      | Returns                                                           |
+| --------------------------- | ----------------------------------------------------------------- |
+| `lookup(request)`           | `Option[Exit[E, A]]`, the result of the request if there is one   |
+| `contains(request)`         | `Boolean`, whether the map has a result for the request           |
+| `requests`                  | `Set[Request[_, _]]`, all requests in the map                     |
+| `isEmpty`                   | `Boolean`, whether the map has no entries                         |
+
+### Creating a Map
+
+All constructors are in the `CompletedRequestMap` companion object.
+
+#### From a Single Result or Several Results
+
+`single` creates a map with one entry, `empty` creates a map with none, and `apply` takes entries as `(request, exit)` pairs:
+
+```scala
+val one: CompletedRequestMap =
+  CompletedRequestMap.single(GetUserName(1), Exit.succeed("Ann"))
+
+val several: CompletedRequestMap =
+  CompletedRequestMap(
+    GetUserName(1) -> Exit.succeed("Ann"),
+    GetUserName(2) -> Exit.fail("no such user")
+  )
+```
+
+```scala
+several.lookup(GetUserName(1))
+// res0: Option[Exit[String, String]] = Some(value = Success(value = "Ann"))
+several.lookup(GetUserName(2))
+// res1: Option[Exit[String, String]] = Some(
+//   value = Failure(
+//     cause = Fail(
+//       value = "no such user",
+//       trace = StackTrace(fiberId = None, stackTrace = IndexedSeq())
+//     )
+//   )
+// )
+several.lookup(GetUserName(3))
+// res2: Option[Exit[String, String]] = None
+several.contains(GetUserName(3))
+// res3: Boolean = false
+```
+
+All entries given to `apply` must have the same error and result types. Use `combine` (see below) to put results of requests with different types in one map.
+
+#### From a Collection
+
+Data sources usually get their results from a database or a remote service as a collection. The following constructors build a map from a collection in one pass:
+
+| Constructor                                           | Use when                                                                                      |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `fromIterable(iterable)`                              | you already have `(request, exit)` pairs                                                      |
+| `fromIterableWith(iterable)(toRequest, toExit)`       | you have your own values and functions that convert each of them to a request and to an `Exit` |
+| `fromIterableOption(iterable)`                        | each result is an `Exit[E, Option[A]]` and `None` means that the entry does not exist         |
+
+`fromIterableWith` avoids creating an intermediate collection of pairs. For example, a database query that returns rows of `(id, name)` can be turned into a map directly:
+
+```scala
+val rows: List[(Int, String)] = List(1 -> "Ann", 2 -> "Bob")
+
+val fromRows: CompletedRequestMap =
+  CompletedRequestMap.fromIterableWith(rows)(
+    row => GetUserName(row._1),
+    row => Exit.succeed(row._2)
+  )
+```
+
+`fromIterableOption` is for lookups that may find nothing. A pair whose result is `Exit.succeed(Some(a))` is stored as a success with `a`, a failure is stored as a failure, and a pair with `Exit.succeed(None)` is left out of the map. A request that is left out is not completed, so the query dies with a `QueryFailure` for it, unless another map that you combine with this one has a result for it:
+
+```scala
+val withMissing: CompletedRequestMap =
+  CompletedRequestMap.fromIterableOption(
+    List(
+      GetOrderCount(1) -> Exit.succeed(Some(10)),
+      GetOrderCount(2) -> Exit.succeed(None)
+    )
+  )
+```
+
+```scala
+withMissing.lookup(GetOrderCount(1))
+// res4: Option[Exit[Nothing, Int]] = Some(value = Success(value = 10))
+withMissing.contains(GetOrderCount(2))
+// res5: Boolean = false
+```
+
+#### Failing Several Requests at Once
+
+When a whole call fails, use `fail`, `failCause` or `die` to complete all requests of a batch with the same failure. Each takes a `Chunk` of requests and the error, the `Cause` or the `Throwable`:
+
+```scala
+val requests: Chunk[GetUserName] = Chunk(GetUserName(1), GetUserName(2))
+
+val failed: CompletedRequestMap =
+  CompletedRequestMap.fail(requests, "database is down")
+
+val failedWithCause: CompletedRequestMap =
+  CompletedRequestMap.failCause(requests, Cause.fail("database is down"))
+
+val died: CompletedRequestMap =
+  CompletedRequestMap.die(requests, new RuntimeException("bug"))
+```
+
+See [Error Handling](./error-handling.md) for what each kind of failure means for the query.
+
+#### Combining Maps
+
+`combine` merges an `Iterable` of maps into one. If several maps have an entry for the same request, the entry from the last map wins:
+
+```scala
+val combined: CompletedRequestMap =
+  CompletedRequestMap.combine(
+    List(
+      CompletedRequestMap.single(GetUserName(1), Exit.succeed("Ann")),
+      CompletedRequestMap.single(GetOrderCount(1), Exit.succeed(10)),
+      CompletedRequestMap.single(GetUserName(1), Exit.succeed("Anna"))
+    )
+  )
+```
+
+```scala
+combined.lookup(GetUserName(1))
+// res6: Option[Exit[String, String]] = Some(value = Success(value = "Anna"))
+combined.lookup(GetOrderCount(1))
+// res7: Option[Exit[Nothing, Int]] = Some(value = Success(value = 10))
+```
+
+#### From Parallel Collections of Requests and Results
+
+`CompletedRequestMap.unsafe` has constructors that take a `Chunk` of requests and a `Chunk` of results in the same order, which is the shape many batch APIs return. They skip the creation of intermediate pairs, which can improve performance:
+
+| Method                                                | Builds a map from                                                          |
+| ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| `unsafe.fromExits(requests, responses)`               | a `Chunk` of requests and a `Chunk` of `Exit`s                             |
+| `unsafe.fromSuccesses(requests, responses)`           | a `Chunk` of requests and a `Chunk` of successful values                   |
+| `unsafe.fromWith(requests, responses)(toRequest, toExit)` | two `Chunk`s of any element types and functions that convert them      |
+
+```scala
+val fromChunks: CompletedRequestMap =
+  CompletedRequestMap.unsafe.fromSuccesses(
+    Chunk(GetUserName(1), GetUserName(2)),
+    Chunk("Ann", "Bob")
+  )
+```
+
+These methods are called unsafe because they do not check that the two collections have the same size. They pair the elements by position and stop at the end of the shorter one. It is up to you to make sure that the nth result belongs to the nth request.
+
+### Deprecated Methods
+
+`++`, `insert` and `insertOption` are deprecated since version 0.7.0. A `CompletedRequestMap` created by the constructors above is built by filling one mutable map, which is fast. These three methods can't change that map without exposing the mutation, so each call copies all entries into a new immutable map. Code that builds a map by folding with `insert` or `++` over many requests does not benefit from the faster constructors, and each step costs time that grows with the size of the map.
+
+Replace them as follows:
+
+| Deprecated                                    | Replacement                                                                                              |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `map.insert(request, exit)`                   | `CompletedRequestMap.single(request, exit)`, or `fromIterable` for many entries, then `combine`          |
+| `map.insertOption(request, exit)`             | `CompletedRequestMap.fromIterableOption`                                                                 |
+| `map1 ++ map2`                                | `CompletedRequestMap.combine(List(map1, map2))`                                                          |
+| `list.foldLeft(empty)(_.insert(k, v))`        | `CompletedRequestMap.fromIterable` or `fromIterableWith`                                                 |
+
+The following two maps are equal in content. The second one is built in a single pass:
+
+```scala
+@scala.annotation.nowarn("cat=deprecation")
+val slow: CompletedRequestMap =
+  rows.foldLeft(CompletedRequestMap.empty) { case (map, (id, name)) =>
+    map.insert(GetUserName(id), Exit.succeed(name))
+  }
+
+val fast: CompletedRequestMap =
+  CompletedRequestMap.fromIterableWith(rows)(row => GetUserName(row._1), row => Exit.succeed(row._2))
+```
+
+### Submitting Several Requests at Once
+
+`ZQuery.fromRequest` submits one request to a data source. When you have many requests for the same data source, `ZQuery.fromRequests` takes a `Chunk` or a `List` of requests and returns a query for all their results, in the same collection type and in the same order as the requests:
+
+```scala
+def fromRequests[R, E, A, B](requests: Chunk[A])(dataSource: DataSource[R, A]): ZQuery[R, E, Chunk[B]]
+def fromRequests[R, E, A, B](requests: List[A])(dataSource: DataSource[R, A]): ZQuery[R, E, List[B]]
+```
+
+`fromRequestsWith` also takes a function that converts each element of the collection into a request, so you don't have to build the requests first:
+
+```scala
+def fromRequestsWith[R, E, In, A, B](as: Chunk[In], f: In => A)(dataSource: DataSource[R, A]): ZQuery[R, E, Chunk[B]]
+def fromRequestsWith[R, E, In, A, B](as: List[In], f: In => A)(dataSource: DataSource[R, A]): ZQuery[R, E, List[B]]
+```
+
+The requests are submitted as one batch, as with `ZQuery#zipBatched`, so the data source receives them together in one call. [How Batching, Pipelining, and Parallelism Work](./how-batching-works.md) explains what that means for the data source. To try them, the following data source answers `GetUserName` requests from a map and records the batches it receives:
+
+```scala
+val calls: Ref[Chunk[String]] =
+  Unsafe.unsafe(implicit unsafe => Ref.unsafe.make(Chunk.empty[String]))
+
+val userDataSource: DataSource[Any, GetUserName] =
+  DataSource.make[Any, GetUserName]("UserDataSource") { requests =>
+    calls.update(_ :+ requests.map(_.map(_.id).mkString("[", ", ", "]")).mkString(" ")) *>
+      ZIO.succeed(
+        CompletedRequestMap.fromIterableWith(requests.flatten)(
+          request => request,
+          request => if (request.id > 0) Exit.succeed(s"user-${request.id}") else Exit.fail("invalid id")
+        )
+      )
+  }
+
+def show[E, A](query: ZQuery[Any, E, A]): Unit = {
+  val (result, received) = Unsafe.unsafe { implicit unsafe =>
+    Runtime.default.unsafe.run(query.run.exit <*> calls.getAndSet(Chunk.empty)).getOrThrowFiberFailure()
+  }
+  println(s"result: $result")
+  println(s"calls: ${received.mkString(", ")}")
+}
+```
+
+```scala
+show(ZQuery.fromRequests(List(GetUserName(1), GetUserName(2), GetUserName(3)))(userDataSource))
+// result: Success(List(user-1, user-2, user-3))
+// calls: [1, 2, 3]
+```
+
+```scala
+show(ZQuery.fromRequestsWith(Chunk(3, 2, 1), GetUserName(_))(userDataSource))
+// result: Success(Chunk(user-3,user-2,user-1))
+// calls: [3, 2, 1]
+```
+
+If one of the requests fails, so does the query:
+
+```scala
+show(ZQuery.fromRequests(List(GetUserName(1), GetUserName(0)))(userDataSource))
+// result: Failure(Fail(invalid id,StackTrace.none))
+// calls: [1, 0]
+```
+
+#### Skipping the Cache
+
+Like `ZQuery.fromRequest`, `fromRequests` and `fromRequestsWith` use the query cache. `ZQuery.fromRequestUncached` is a variant of `ZQuery.fromRequest` that does not. A repeated request is sent to the data source again, instead of reusing the earlier result. In the output below, the first query sends the request to the data source twice and the second sends it once:
+
+```scala
+show(ZQuery.fromRequestUncached(GetUserName(1))(userDataSource) *> ZQuery.fromRequestUncached(GetUserName(1))(userDataSource))
+// result: Success(user-1)
+// calls: [1] [1]
+```
+
+```scala
+show(ZQuery.fromRequest(GetUserName(1))(userDataSource) *> ZQuery.fromRequest(GetUserName(1))(userDataSource))
+// result: Success(user-1)
+// calls: [1]
+```
+
+---
+
 ## Creating Data Sources
 
 To construct a `ZQuery` that executes a request, you first need to create a `DataSource`. A `DataSource[R, A]` requires an environment `R` and is capable of executing requests of type `A`. It is defined in terms of:
@@ -81680,7 +83166,7 @@ To construct a `ZQuery` that executes a request, you first need to create a `Dat
 - an `identifier` that uniquely identifies the data source
 - an effectual function `runAll` from a `Chunk[Chunk[A]]` of requests to a `CompletedRequestMap` of requests and results
 
-The outer `Chunk` represents batches of requests that must be performed sequentially. The inner `Chunk` represents a batch of requests that can be performed in parallel. This allows data sources to introspect on all the requests being executed and optimize the query.
+The outer `Chunk` represents batches of requests that must be performed sequentially. The inner `Chunk` represents a batch of requests that can be performed in parallel. This allows data sources to introspect on all the requests being executed and optimize the query. [How Batching, Pipelining, and Parallelism Work](./how-batching-works.md) shows which queries produce which batches.
 
 Let's consider `getUserNameById` from the previous example.
 
@@ -81731,7 +83217,11 @@ def getUserNameById(id: Int): ZQuery[Any, Throwable, String] =
   ZQuery.fromRequest(GetUserName(id))(UserDataSource)
 ```
 
-To run a `ZQuery`, simply use `ZQuery#run` which will return a `ZIO[R, E, A]`.
+To run a `ZQuery`, use `ZQuery#run`, which returns a `ZIO[R, E, A]`. [Running Queries and Caching](./running_queries.md) explains how results are cached and how to share a cache between runs.
+
+For the other ways to build a data source from a function, and for the combinators that transform one, see the [DataSource Reference](./data-source-reference.md).
+
+To run code around every call to a data source, or to limit its batch size, without changing its implementation, use [aspects](./aspects.md). The same page explains `Described`, which `DataSource#provideEnvironment` and other combinators require.
 
 ---
 
@@ -81743,11 +83233,929 @@ There are several ways to create a `ZQuery`. We've seen `ZQuery.fromRequest`, bu
 - create a query from an effect with `ZQuery.fromZIO`
 - combine multiple queries with `ZQuery.collectAllPar` and `ZQuery.foreachPar` and their sequential equivalents `ZQuery.collectAll` and `ZQuery.foreach`
 
+The choice between the parallel and the sequential combinators changes how requests are sent to data sources. See [How Batching, Pipelining, and Parallelism Work](./how-batching-works.md) for details.
+
 If you have a `ZQuery`, you can use:
 
 - `map` and `mapError` to modify the result or error type
 - `flatMap`, `zipWith`, or `zipWithPar` to combine it with other queries
 - `provide` and `provideSome` to eliminate some or all of its environmental requirements
+
+To execute a query, see [Running Queries and Caching](./running_queries.md).
+
+To recover from failures, convert errors to defects, or limit how long a query may run, see [Error Handling](./error-handling.md).
+
+---
+
+## DataSource Reference
+
+A `DataSource[R, A]` is the component of ZIO Query that talks to the outside world: it receives requests of type `A`, may use an environment `R`, and returns a `CompletedRequestMap` with one result per request. [Creating Data Sources](./creating-data-sources.md) walks through writing one by hand. This page lists every constructor and combinator, so you can pick the shortest one for your case. For how the requests of a query end up in batches, see [How Batching, Pipelining, and Parallelism Work](./how-batching-works.md).
+
+The shape of the type is:
+
+```scala
+trait DataSource[-R, -A] {
+  val identifier: String
+  def runAll(requests: Chunk[Chunk[A]])(implicit trace: Trace): ZIO[R, Nothing, CompletedRequestMap]
+}
+```
+
+The outer `Chunk` holds batches that must run one after another, and each inner `Chunk` holds requests that can run in parallel. A data source must return a result for every request it receives, otherwise the query dies with a `QueryFailure`. Most code does not implement `runAll` directly: the constructors below build the data source from a plain function.
+
+### Usage
+
+The following block defines a request type and a data source with `DataSource.fromFunctionBatchedZIO`, then queries it with four parallel lookups. The data source prints the size of each batch it receives, so we can see that the four lookups reach it as one call, and that the duplicate request is deduplicated:
+
+```scala
+import zio._
+import zio.query._
+
+case class GetUserName(id: Int) extends Request[Nothing, String]
+
+val users: DataSource[Any, GetUserName] =
+  DataSource.fromFunctionBatchedZIO[Any, Nothing, GetUserName, String]("users") { requests =>
+    Console.printLine(s"users received ${requests.size} requests").orDie.as(requests.map(r => s"user-${r.id}"))
+  }
+
+def runSync[A](query: ZQuery[Any, Nothing, A]): A =
+  Unsafe.unsafe { implicit unsafe =>
+    Runtime.default.unsafe.run(query.run).getOrThrowFiberFailure()
+  }
+```
+
+Now we query the data source with ids `1`, `2`, `2` and `3`:
+
+```scala
+runSync(ZQuery.foreachPar(List(1, 2, 2, 3))(id => ZQuery.fromRequest(GetUserName(id))(users)))
+// res1: List[String] = List("user-1", "user-2", "user-2", "user-3")
+```
+
+The data source received three requests, not four: identical requests (compared with `equals`, so use case classes) are sent once per query run, because the results are cached by default.
+
+### Choosing a Constructor
+
+All constructors take a `name` first. The name becomes the data source's `DataSource#identifier`, and it must be unique per data source, see [Identifier and Equality](#identifier-and-equality). The following table lists the constructors by what the function you provide receives and returns:
+
+| Constructor                                        | Your function                                 | Effectful | Can skip a request |
+| -------------------------------------------------- | --------------------------------------------- | --------- | ------------------ |
+| `DataSource.fromFunction`                          | `A => B`                                      | No        | No                 |
+| `DataSource.fromFunctionZIO`                       | `A => ZIO[R, E, B]`                           | Yes       | No                 |
+| `DataSource.fromFunctionOption`                    | `A => Option[B]`                              | No        | Yes                |
+| `DataSource.fromFunctionOptionZIO`                 | `A => ZIO[R, E, Option[B]]`                   | Yes       | Yes                |
+| `DataSource.fromFunctionBatched`                   | `Chunk[A] => Chunk[B]`                        | No        | No                 |
+| `DataSource.fromFunctionBatchedZIO`                | `Chunk[A] => ZIO[R, E, Chunk[B]]`             | Yes       | No                 |
+| `DataSource.fromFunctionBatchedOption`             | `Chunk[A] => Chunk[Option[B]]`                | No        | Yes                |
+| `DataSource.fromFunctionBatchedOptionZIO`          | `Chunk[A] => ZIO[R, E, Chunk[Option[B]]]`     | Yes       | Yes                |
+| `DataSource.fromFunctionBatchedWith`               | `Chunk[A] => Chunk[B]` and `B => Request`     | No        | No                 |
+| `DataSource.fromFunctionBatchedWithZIO`            | `Chunk[A] => ZIO[R, E, Chunk[B]]` and `B => Request` | Yes | No                 |
+| `DataSource.Batched.make`                          | `Chunk[A] => ZIO[R, Nothing, CompletedRequestMap]` | Yes  | Yes                |
+| `DataSource.make`                                  | `Chunk[Chunk[A]] => ZIO[R, Nothing, CompletedRequestMap]` | Yes | Yes         |
+
+Use the single-request functions (`DataSource.fromFunction`, `DataSource.fromFunctionZIO`, `DataSource.fromFunctionOption`, `DataSource.fromFunctionOptionZIO`) for tests and for backends that have no bulk operation. Use the batched functions when the backend can answer many requests in one call, which is the case ZIO Query exists to optimize. Use `DataSource.Batched.make` or `DataSource.make` when you need to build the `CompletedRequestMap` yourself.
+
+In the signatures below, `A` is the request type and `B` is the result type. The implicit evidence `A <:< Request[E, B]` ties them together, so the type parameters are normally spelled out on the constructor, as in the examples.
+
+### Creating Data Sources
+
+The constructors are grouped by how they receive requests: one at a time, as a batch, or as raw batches of batches.
+
+#### Functions of One Request
+
+`DataSource.fromFunction`, `DataSource.fromFunctionZIO`, `DataSource.fromFunctionOption` and `DataSource.fromFunctionOptionZIO` call your function once per request. The effectful variants run the calls with `ZIO.foreachPar`, so the requests of one batch are processed in parallel. The `Option` variants model lookups that may find nothing:
+
+```scala
+object DataSource {
+  def fromFunction[A, B](name: String)(f: A => B)(implicit ev: A <:< Request[Nothing, B]): DataSource[Any, A]
+  def fromFunctionZIO[R, E, A, B](name: String)(f: A => ZIO[R, E, B])(implicit ev: A <:< Request[E, B]): DataSource[R, A]
+  def fromFunctionOption[A, B](name: String)(f: A => Option[B])(implicit ev: A <:< Request[Nothing, B]): DataSource[Any, A]
+  def fromFunctionOptionZIO[R, E, A, B](name: String)(f: A => ZIO[R, E, Option[B]])(implicit ev: A <:< Request[E, B]): DataSource[R, A]
+}
+```
+
+A failing effect fails only its own request: the error becomes that request's result, and the other requests in the batch still succeed. A `None` leaves the request without a result, and a query that needs it dies with a `QueryFailure`, so use the `Option` variants only when a missing entry is a bug in the data source. The following block builds a pure data source and an effectful one that can fail:
+
+```scala
+case class User(id: Int, name: String)
+case class GetUser(id: Int) extends Request[String, User]
+
+val pure: DataSource[Any, GetUserName] =
+  DataSource.fromFunction[GetUserName, String]("pure")(request => s"user-${request.id}")
+
+val effectful: DataSource[Any, GetUser] =
+  DataSource.fromFunctionZIO[Any, String, GetUser, User]("effectful") { request =>
+    if (request.id > 0) ZIO.succeed(User(request.id, s"user-${request.id}"))
+    else ZIO.fail(s"invalid id ${request.id}")
+  }
+```
+
+Pick `DataSource.fromFunction` for tests and stubs: it needs no environment and no effects. Pick `DataSource.fromFunctionZIO` when each request needs a call to a service, for example an HTTP endpoint with no bulk variant. These constructors do not combine requests, so a database lookup per request still costs one round trip per request.
+
+#### Functions of a Batch of Requests
+
+`DataSource.fromFunctionBatched` and its variants hand your function the whole batch as a `Chunk[A]` and expect a result for every request. Results are matched to requests by position, so your function must return a chunk of the same size and in the same order. If the result is shorter, the requests without a result die with a `QueryFailure`. The four variants differ in whether the function is effectful and whether it may return `None` for a request:
+
+```scala
+object DataSource {
+  def fromFunctionBatched[A, B](name: String)(f: Chunk[A] => Chunk[B])(implicit ev: A <:< Request[Nothing, B]): DataSource[Any, A]
+  def fromFunctionBatchedZIO[R, E, A, B](name: String)(f: Chunk[A] => ZIO[R, E, Chunk[B]])(implicit ev: A <:< Request[E, B]): DataSource[R, A]
+  def fromFunctionBatchedOption[A, B](name: String)(f: Chunk[A] => Chunk[Option[B]])(implicit ev: A <:< Request[Nothing, B]): DataSource[Any, A]
+  def fromFunctionBatchedOptionZIO[R, E, A, B](name: String)(f: Chunk[A] => ZIO[R, E, Chunk[Option[B]]])(implicit ev: A <:< Request[E, B]): DataSource[R, A]
+}
+```
+
+If the effect of an effectful variant fails, every request in that batch fails with the same cause. The next block shows the typical use: one bulk query for all ids, with the result for an unknown id left out:
+
+```scala
+val knownUsers: Map[Int, String] = Map(1 -> "Ada", 2 -> "Grace")
+
+val bulk: DataSource[Any, GetUserName] =
+  DataSource.fromFunctionBatchedOption[GetUserName, String]("bulk") { requests =>
+    requests.map(request => knownUsers.get(request.id))
+  }
+```
+
+Pick these constructors when the backend has a bulk operation such as `SELECT ... WHERE id IN (...)` and returns results in request order. For the SQL case, where rows come back in arbitrary order, use the `With` variants below.
+
+#### Functions That Return Results in Any Order
+
+`DataSource.fromFunctionBatchedWith` and `DataSource.fromFunctionBatchedWithZIO` take a second function that maps each result back to the request it answers. Your batch function may then return results in any order, and no longer has to return one per request:
+
+```scala
+object DataSource {
+  def fromFunctionBatchedWith[A, B](name: String)(f: Chunk[A] => Chunk[B], g: B => Request[Nothing, B])(implicit ev: A <:< Request[Nothing, B]): DataSource[Any, A]
+  def fromFunctionBatchedWithZIO[R, E, A, B](name: String)(f: Chunk[A] => ZIO[R, E, Chunk[B]], g: B => Request[E, B])(implicit ev: A <:< Request[E, B]): DataSource[R, A]
+}
+```
+
+Here `g` takes a result of type `B` and returns the request that produced it. The following block answers `FindUser` requests with a list of users in reverse order, and `g` rebuilds each request from the user's id:
+
+```scala
+case class FindUser(id: Int) extends Request[Nothing, User]
+
+val unordered: DataSource[Any, FindUser] =
+  DataSource.fromFunctionBatchedWith[FindUser, User]("unordered")(
+    requests => requests.map(request => User(request.id, s"user-${request.id}")).reverse,
+    user => FindUser(user.id)
+  )
+```
+
+Pick the `With` variants when the backend returns rows keyed by id rather than in request order. The effectful variant fails every request of the batch if the effect fails.
+
+#### Building a Batched Data Source by Hand
+
+`DataSource.Batched` is a trait for data sources that process each batch of parallel requests in one call, and `DataSource.Batched.make` builds one from a function. Your function returns a `CompletedRequestMap` (see [CompletedRequestMap](./completed-request-map.md) for how to build one), so it controls the result of every request, including failures and omissions. You rarely need the trait directly: prefer the `fromFunction*` constructors, and fall back to `Batched.make` when they do not fit, for example when only some requests in a batch fail:
+
+```scala
+object DataSource {
+  trait Batched[-R, -A] extends DataSource[R, A] {
+    def run(requests: Chunk[A])(implicit trace: Trace): ZIO[R, Nothing, CompletedRequestMap]
+    final def runAll(requests: Chunk[Chunk[A]])(implicit trace: Trace): ZIO[R, Nothing, CompletedRequestMap]
+  }
+
+  object Batched {
+    def make[R, A](name: String)(f: Chunk[A] => ZIO[R, Nothing, CompletedRequestMap]): DataSource[R, A]
+  }
+}
+```
+
+`Batched` implements `runAll` for you: it calls `run` once per inner batch, in order, and skips requests that an earlier batch already completed. The next block builds a data source with `Batched.make` that answers known ids and fails the rest:
+
+```scala
+val manual: DataSource[Any, GetUser] =
+  DataSource.Batched.make[Any, GetUser]("manual") { requests =>
+    ZIO.succeed(
+      CompletedRequestMap.fromIterableWith(requests)(
+        request => request,
+        request =>
+          knownUsers.get(request.id) match {
+            case Some(name) => Exit.succeed(User(request.id, name))
+            case None       => Exit.fail(s"unknown user ${request.id}")
+          }
+      )
+    )
+  }
+```
+
+#### Introspecting Sequential Batches
+
+`DataSource.make` builds a data source from `runAll` itself. The function receives the `Chunk[Chunk[A]]` described above, so it sees the batches that must run sequentially and can optimize across them, for example by sending one query for all of them. Because it must produce the `CompletedRequestMap` itself, use it only when you need that view; `Batched` is enough otherwise:
+
+```scala
+object DataSource {
+  def make[R, A](name: String)(f: Chunk[Chunk[A]] => ZIO[R, Nothing, CompletedRequestMap]): DataSource[R, A]
+}
+```
+
+The following block flattens all batches into a single call:
+
+```scala
+val flattened: DataSource[Any, GetUserName] =
+  DataSource.make[Any, GetUserName]("flattened") { batches =>
+    ZIO.succeed(
+      CompletedRequestMap.fromIterableWith(batches.flatten)(
+        request => request,
+        request => Exit.succeed(s"user-${request.id}")
+      )
+    )
+  }
+```
+
+#### A Data Source That Never Answers
+
+`DataSource.never` is a `DataSource[Any, Any]` whose `runAll` never completes. Because of the contravariant type parameter, it can be used for any request type. It is useful in tests of timeouts, races and interruption:
+
+```scala
+object DataSource {
+  val never: DataSource[Any, Any]
+}
+```
+
+The next block queries it with a request, so the query never completes unless it is timed out or raced:
+
+```scala
+val hanging: ZQuery[Any, Nothing, String] =
+  ZQuery.fromRequest(GetUserName(1))(DataSource.never)
+```
+
+### Transforming Data Sources
+
+The following methods on `DataSource` return a new data source. Each one derives the new `DataSource#identifier` from the original, so data sources built with the same combinators and the same descriptions are equal. Functions passed to `contramap`, `contramapZIO`, `eitherWith` and `provideSomeEnvironment` are wrapped in `Described`, a pair of a value and a string description that ZIO Query uses to build the identifier (see [Aspects](./aspects.md#describing-values-with-described)). Wrap a function with `Described(f, "description")`, or with `f ? "description"` after `import zio.query.Described._`. Equal functions need the same description, and different functions need different ones.
+
+#### Limiting the Batch Size
+
+`batchN(n)` splits each batch into groups of at most `n` requests, which the underlying data source then receives one group after another. Use it when the backend limits the number of items per call, for example an SQL `IN` clause or an API that accepts up to 100 ids. A value of `n` below `1` makes the data source die with an `IllegalArgumentException` when it runs:
+
+```scala
+trait DataSource[-R, -A] {
+  def batchN(n: Int): DataSource[R, A]
+}
+```
+
+To cap the data source at two requests per call:
+
+```scala
+val capped: DataSource[Any, GetUserName] = users.batchN(2)
+```
+
+#### Changing the Request Type
+
+`contramap` and `contramapZIO` return a data source for requests of type `B`, by converting each `B` request into an `A` request first. `contramapZIO` takes an effectful conversion that cannot fail, and runs the conversions of a batch in parallel:
+
+```scala
+trait DataSource[-R, -A] {
+  final def contramap[B](f: Described[B => A]): DataSource[R, B]
+  final def contramapZIO[R1 <: R, B](f: Described[B => ZIO[R1, Nothing, A]]): DataSource[R1, B]
+}
+```
+
+:::warning[The Result Is Keyed by the Converted Request]
+The new data source returns the `CompletedRequestMap` of the original data source as is. A query looks up its result with the request it submitted, so the converted request must be equal to the submitted one, otherwise the query dies with a `QueryFailure`. Use `contramap` to normalize or enrich a request in a way that keeps it equal, for example to fill in a field.
+:::
+
+The following block shows the `?` syntax with a conversion that returns an equal request:
+
+```scala
+import zio.query.Described._
+
+val same: DataSource[Any, GetUserName] =
+  users.contramap(((request: GetUserName) => request) ? "same")
+```
+
+#### Routing Requests to Two Data Sources
+
+`eitherWith` combines two data sources into one for a request type `C`. The function sorts every request into `Left` for this data source or `Right` for the other one, and each side receives its own requests in parallel. The results of both are merged:
+
+```scala
+trait DataSource[-R, -A] {
+  final def eitherWith[R1 <: R, B, C](that: DataSource[R1, B])(f: Described[C => Either[A, B]]): DataSource[R1, C]
+}
+```
+
+Use it to route one request hierarchy to two backends. As with `contramap`, the request returned by `f` must equal the request it came from, which holds when `A` and `B` are subtypes of `C`. The following block routes the requests of a sealed hierarchy to separate data sources:
+
+```scala
+sealed trait UserRequest                  extends Request[Nothing, String]
+case class ByCache(id: Int)               extends UserRequest
+case class ByDatabase(id: Int)            extends UserRequest
+
+val cache: DataSource[Any, ByCache] =
+  DataSource.fromFunction[ByCache, String]("cache")(request => s"cached-${request.id}")
+
+val database: DataSource[Any, ByDatabase] =
+  DataSource.fromFunction[ByDatabase, String]("database")(request => s"stored-${request.id}")
+
+val routed: DataSource[Any, UserRequest] =
+  cache.eitherWith(database)(Described[UserRequest => Either[ByCache, ByDatabase]]({
+    case request: ByCache    => Left(request)
+    case request: ByDatabase => Right(request)
+  }, "byType"))
+```
+
+#### Racing Two Data Sources
+
+`race` sends the same requests to both data sources and returns the results of the first one that completes, interrupting the other safely. Use it for hedging between a fast and a slow replica:
+
+```scala
+trait DataSource[-R, -A] {
+  final def race[R1 <: R, A1 <: A](that: DataSource[R1, A1]): DataSource[R1, A1]
+}
+```
+
+The next block races a data source against `DataSource.never`, which always loses:
+
+```scala
+val raced: DataSource[Any, GetUserName] = users.race(DataSource.never)
+```
+
+#### Providing the Environment
+
+`provideEnvironment` removes the whole environment requirement of a data source, and `provideSomeEnvironment` replaces it with a smaller one by mapping the new environment to the original. The environment is passed as a `Described` value, in the same way as the functions above:
+
+```scala
+trait DataSource[-R, -A] {
+  final def provideEnvironment(r: Described[ZEnvironment[R]]): DataSource[Any, A]
+  final def provideSomeEnvironment[R0](f: Described[ZEnvironment[R0] => ZEnvironment[R]]): DataSource[R0, A]
+}
+```
+
+The following block defines a data source that needs a `Prefix` service and provides it, so the result needs no environment:
+
+```scala
+case class Prefix(value: String)
+
+val prefixed: DataSource[Prefix, GetUserName] =
+  DataSource.fromFunctionZIO[Prefix, Nothing, GetUserName, String]("prefixed") { request =>
+    ZIO.serviceWith[Prefix](prefix => s"${prefix.value}${request.id}")
+  }
+
+val ready: DataSource[Any, GetUserName] =
+  prefixed.provideEnvironment(Described(ZEnvironment(Prefix("user-")), "Prefix(user-)"))
+```
+
+#### Identifier and Equality
+
+`DataSource#identifier` is the name given to the constructor, and two data sources are equal when their identifiers are equal. `ZQuery` uses this equality to group requests: requests to equal data sources are batched together, so use one unique identifier per logical data source and do not reuse it for another one. `toString` returns the identifier.
+
+### Submitting Requests
+
+A `DataSource` is used through `ZQuery`. The constructors on `ZQuery` return a query that sends requests to the data source, and the optimizations of ZIO Query apply only to queries built with them.
+
+#### Single Requests
+
+`ZQuery.fromRequest` takes a request and a data source, both by name, and returns a query for the result. `DataSource#query` does the same from the data source side. The request is looked up in the cache first, so a repeated request within one run reaches the data source only once. `ZQuery.fromRequestUncached` skips the cache, so every occurrence reaches the data source:
+
+```scala
+object ZQuery {
+  def fromRequest[R, E, A, B](request: => A)(dataSource: => DataSource[R, A])(implicit ev: A <:< Request[E, B]): ZQuery[R, E, B]
+  def fromRequestUncached[R, E, A, B](request: => A)(dataSource: => DataSource[R, A])(implicit ev: A <:< Request[E, B]): ZQuery[R, E, B]
+}
+
+trait DataSource[-R, -A] {
+  final def query[E, A1 <: A, B](request: A1)(implicit ev: A1 <:< Request[E, B]): ZQuery[R, E, B]
+}
+```
+
+To submit a request in the three ways:
+
+```scala
+val viaFromRequest: ZQuery[Any, Nothing, String] = ZQuery.fromRequest(GetUserName(1))(users)
+val viaQuery: ZQuery[Any, Nothing, String]       = users.query(GetUserName(1))
+val viaUncached: ZQuery[Any, Nothing, String]    = ZQuery.fromRequestUncached(GetUserName(1))(users)
+```
+
+Use `ZQuery.fromRequestUncached` for requests whose answer may change during a run, such as reading a counter. Requests that are not cached are also not deduplicated.
+
+#### Many Requests at Once
+
+`ZQuery.fromRequests` submits a `Chunk` or a `List` of requests, and `DataSource#queryAll` does the same for a `Chunk`. The results come back in the order of the requests. All the requests are submitted together, so they reach the data source in one batch, without the cost of one query per element. `ZQuery.fromRequestsWith` takes values and a function that turns each value into a request, which saves building the intermediate collection:
+
+```scala
+object ZQuery {
+  def fromRequests[R, E, A, B](requests: Chunk[A])(dataSource: DataSource[R, A])(implicit ev: A <:< Request[E, B]): ZQuery[R, E, Chunk[B]]
+  def fromRequests[R, E, A, B](requests: List[A])(dataSource: DataSource[R, A])(implicit ev: A <:< Request[E, B]): ZQuery[R, E, List[B]]
+  def fromRequestsWith[R, E, In, A, B](as: Chunk[In], f: In => A)(dataSource: DataSource[R, A])(implicit ev: A <:< Request[E, B]): ZQuery[R, E, Chunk[B]]
+  def fromRequestsWith[R, E, In, A, B](as: List[In], f: In => A)(dataSource: DataSource[R, A])(implicit ev: A <:< Request[E, B]): ZQuery[R, E, List[B]]
+}
+
+trait DataSource[-R, -A] {
+  final def queryAll[E, A1 <: A, B](requests: Chunk[A1])(implicit ev: A1 <:< Request[E, B]): ZQuery[R, E, Chunk[B]]
+}
+```
+
+The following block fetches the names for a list of ids in one query:
+
+```scala
+runSync(ZQuery.fromRequestsWith(List(1, 2, 3), GetUserName(_))(users))
+// res3: List[String] = List("user-1", "user-2", "user-3")
+```
+
+When you already have all the requests, prefer `ZQuery.fromRequests` and `ZQuery.fromRequestsWith` to combining one `ZQuery.fromRequest` query per element with `ZQuery.foreachPar`, because they avoid building a query per request.
+
+---
+
+## Error Handling(Zio-query)
+
+A `ZQuery[R, E, A]` can fail with a typed error `E`, die with a defect, or be interrupted, just like a `ZIO` effect. This page shows where those failures come from when a query talks to a data source, what happens to the other requests in the same batch, and which `ZQuery` operators recover from each kind of failure, convert between them, or bound the time a query may take.
+
+### How Errors Flow
+
+Every request type declares its own error type, as in `Request[E, A]`. When a data source completes a request, it stores an `Exit[E, A]` for that request in the `CompletedRequestMap`, so each request succeeds or fails on its own. `ZQuery.fromRequest` turns that `Exit` into the result of the query, which is why the error type of a request becomes the error type of the query.
+
+The effect returned by `DataSource#runAll` has the error type `Nothing`: a data source reports problems for individual requests through the `CompletedRequestMap`, not by failing as a whole. Three situations can therefore make a query fail:
+
+| Situation                                              | Result in the query                      |
+| ------------------------------------------------------ | ---------------------------------------- |
+| The data source stores `Exit.fail(e)` for a request    | A failure of type `E`                    |
+| The data source stores `Exit.die(t)` for a request     | A defect                                 |
+| The data source returns no result for a request        | A defect: a [`QueryFailure`](#queryfailure-a-request-without-a-result) |
+
+### Setting Up an Example
+
+The examples on this page use one request type and three data sources. The request type fails with a `String` error. The first data source answers ids `1` and `2`, fails id `3` with a typed error, and fails id `4` with a defect. The second data source forgets to answer id `99`. The third counts how many times it is called.
+
+```scala
+import zio._
+import zio.query._
+
+final case class GetUser(id: Int) extends Request[String, String]
+
+val userDataSource: DataSource[Any, GetUser] =
+  DataSource.make[Any, GetUser]("UserDataSource") { requests =>
+    ZIO.succeed(
+      CompletedRequestMap.fromIterableWith(requests.flatten)(
+        r => r,
+        r =>
+          r.id match {
+            case 3     => Exit.fail("user 3 not found")
+            case 4     => Exit.die(new RuntimeException("connection reset"))
+            case other => Exit.succeed(s"user-$other")
+          }
+      )
+    )
+  }
+
+val forgetfulDataSource: DataSource[Any, GetUser] =
+  DataSource.make[Any, GetUser]("ForgetfulDataSource") { requests =>
+    ZIO.succeed(
+      CompletedRequestMap.fromIterableWith(requests.flatten.filter(_.id != 99))(r => r, r => Exit.succeed(s"user-${r.id}"))
+    )
+  }
+
+val calls: Ref[Int] = Unsafe.unsafe(implicit unsafe => Ref.unsafe.make(0))
+
+val countingDataSource: DataSource[Any, GetUser] =
+  DataSource.make[Any, GetUser]("CountingDataSource") { requests =>
+    calls.update(_ + 1) *> ZIO.succeed(
+      CompletedRequestMap.fromIterableWith(requests.flatten)(r => r, _ => Exit.fail("service unavailable"))
+    )
+  }
+
+def user(id: Int): ZQuery[Any, String, String] =
+  ZQuery.fromRequest(GetUser(id))(userDataSource)
+
+def run[E, A](query: ZQuery[Any, E, A]): Exit[E, A] =
+  Unsafe.unsafe(implicit unsafe => Runtime.default.unsafe.run(query.run.exit).getOrThrowFiberFailure())
+
+def describe[E, A](query: ZQuery[Any, E, A]): String =
+  run(query) match {
+    case Exit.Success(a) => s"success: $a"
+    case Exit.Failure(c) =>
+      c.failureOption
+        .map(e => s"failure: $e")
+        .orElse(c.dieOption.map(t => s"defect: ${t.getClass.getSimpleName}: ${t.getMessage}"))
+        .getOrElse("interrupted")
+  }
+```
+
+The `describe` helper runs a query and renders its outcome in one line, so that the output below stays short.
+
+### Typed Errors and Defects
+
+A request that the data source answers with `Exit.fail` fails the query with that error, and `Exit.die` makes the query die:
+
+```scala
+describe(user(1))
+// res0: String = "success: user-1"
+describe(user(3))
+// res1: String = "failure: user 3 not found"
+describe(user(4))
+// res2: String = "defect: RuntimeException: connection reset"
+```
+
+#### A Failing Request Does Not Fail Its Batch
+
+The requests in a batch are completed one by one, so a failing request does not change the results of the other requests in the same batch. To see this, we combine three requests with `ZQuery.foreachPar`, which sends them to the data source in one batch, and turn each result into an `Either` with `either`:
+
+```scala
+describe(ZQuery.foreachPar(List(1, 2, 3))(id => user(id).either))
+// res3: String = "success: List(Right(user-1), Right(user-2), Left(user 3 not found))"
+```
+
+Each request has its own result: ids `1` and `2` succeeded and id `3` failed. Without `either`, the first failure fails the whole `foreachPar` query:
+
+```scala
+describe(ZQuery.foreachPar(List(1, 2, 3))(user))
+// res4: String = "failure: user 3 not found"
+```
+
+### QueryFailure: A Request Without a Result
+
+A data source must provide a result for every request it receives. If it leaves a request out of the `CompletedRequestMap`, the query dies with a `QueryFailure`. The defect carries the data source and the request that was not completed, and its message names both:
+
+```scala
+val forgotten = ZQuery.fromRequest(GetUser(99))(forgetfulDataSource)
+// forgotten: ZQuery[Any, String, String] = zio.query.ZQuery@3c73b6c5
+
+describe(forgotten)
+// res5: String = "defect: QueryFailure: Data source ForgetfulDataSource did not complete request GetUser(99)."
+```
+
+A `QueryFailure` is a defect, not a typed error, so it does not appear in the error type of the query and `catchAll` does not recover from it. It signals a bug in the data source, not a condition that a caller is expected to handle.
+
+The only operator that is aware of `QueryFailure` is `optional`. It converts a query to one that returns `Some` if the data sources returned results for all requests and `None` otherwise. Typed errors and other defects still fail the query:
+
+```scala
+describe(forgotten.optional)
+// res6: String = "success: None"
+describe(user(1).optional)
+// res7: String = "success: Some(user-1)"
+describe(user(3).optional)
+// res8: String = "failure: user 3 not found"
+```
+
+:::note
+`DataSource.fromFunctionOption` and `DataSource.fromFunctionOptionZIO` construct data sources that may not provide results for all requests. Use `optional` on queries built from them.
+:::
+
+### Recovering from Errors
+
+The operators below follow the naming of `ZIO`. They differ in what they recover from: the `catchAll` family and the `fold`/`foldQuery`/`foldZIO` family handle typed errors only, while the `*Cause` variants also see defects.
+
+| Operator                                  | Handles                  | Recovers with                  |
+| ----------------------------------------- | ------------------------ | ------------------------------ |
+| `catchAll`                                | Typed errors             | A `ZQuery`                     |
+| `catchAllZIO`                             | Typed errors             | A `ZIO` effect                 |
+| `catchAllCause`                           | The whole `Cause`        | A `ZQuery`                     |
+| `catchAllCauseZIO`                        | The whole `Cause`        | A `ZIO` effect                 |
+| `fold`                                    | Typed errors and success | A pure value                   |
+| `foldQuery`                               | Typed errors and success | A `ZQuery`                     |
+| `foldZIO`                                 | Typed errors and success | A `ZIO` effect                 |
+| `foldCauseQuery`                          | The whole `Cause` and success | A `ZQuery`                |
+| `foldCauseZIO`                            | The whole `Cause` and success | A `ZIO` effect            |
+| `either`                                  | Typed errors and success | `Either[E, A]`, cannot fail    |
+| `optional`                                | `QueryFailure`           | `Option[A]`                    |
+
+#### Recovering with a Fallback Query
+
+`catchAll` takes a function from the error to a new query. The fallback query is a full query: it can issue requests of its own, and those requests are batched with the rest of the query:
+
+```scala
+describe(user(3).catchAll(_ => user(1)))
+// res9: String = "success: user-1"
+```
+
+`catchAll` handles only typed errors. A defect passes through unchanged:
+
+```scala
+describe(user(4).catchAll(_ => user(1)))
+// res10: String = "defect: RuntimeException: connection reset"
+```
+
+`catchAllCause` receives the whole `Cause`, so it can also recover from defects:
+
+```scala
+describe(user(4).catchAllCause(_ => user(1)))
+// res11: String = "success: user-1"
+```
+
+To recover with an effect instead of a query, use `catchAllZIO` or `catchAllCauseZIO`:
+
+```scala
+describe(user(3).catchAllZIO(error => ZIO.succeed(s"fallback after: $error")))
+// res12: String = "success: fallback after: user 3 not found"
+```
+
+#### Handling Both Outcomes
+
+`fold` handles failure and success in one step and produces a query that cannot fail. `foldQuery` and `foldZIO` do the same with a query or an effect, and `foldCauseQuery` and `foldCauseZIO` receive the whole `Cause` for the failure case:
+
+```scala
+describe(user(3).fold(error => s"failed: $error", name => s"found: $name"))
+// res13: String = "success: failed: user 3 not found"
+describe(user(4).foldCauseQuery(cause => ZQuery.succeed(s"died: ${cause.isDie}"), name => ZQuery.succeed(name)))
+// res14: String = "success: died: true"
+```
+
+`either` is the shortest way to make a failure visible as a value, as in the batch example above.
+
+### Working with the Full Cause
+
+`sandbox` moves the whole `Cause` into the error channel, so that typed errors and defects can be handled in one place with the ordinary operators. `unsandbox` is the inverse:
+
+```scala
+val sandboxed: ZQuery[Any, Cause[String], String] = user(4).sandbox
+// sandboxed: ZQuery[Any, Cause[String], String] = zio.query.ZQuery@192c64cb
+
+describe(sandboxed.mapError(cause => s"was a defect: ${cause.isDie}"))
+// res15: String = "failure: was a defect: true"
+describe(ZQuery.unsandbox(sandboxed))
+// res16: String = "defect: RuntimeException: connection reset"
+```
+
+`sandboxWith` applies a function to the sandboxed query and unsandboxes the result. It is useful for partial recovery from both errors and defects at once:
+
+```scala
+describe(user(4).sandboxWith[Any, String, String](_.catchAll(_ => ZQuery.succeed("recovered"))))
+// res17: String = "success: recovered"
+```
+
+### Converting Between Errors and Defects
+
+`mapError` and `mapErrorCause` transform the error or the whole `Cause` without changing success values. They do not prevent batching of the requests in the query.
+
+`orDie` turns a typed error into a defect. It requires the error type to be a `Throwable`; `orDieWith` takes a function that converts the error:
+
+```scala
+describe(user(3).orDieWith(message => new IllegalStateException(message)))
+// res18: String = "defect: IllegalStateException: user 3 not found"
+```
+
+`refineOrDie` keeps only the errors matched by a partial function and turns all others into defects. `refineOrDieWith` takes a function that converts the unmatched error to a `Throwable`:
+
+```scala
+val refined: ZQuery[Any, Int, String] =
+  user(3).refineOrDieWith { case message if message.endsWith("not found") => 404 }(new RuntimeException(_))
+// refined: ZQuery[Any, Int, String] = zio.query.ZQuery@7f7a8f7d
+
+describe(refined)
+// res19: String = "failure: 404"
+```
+
+`unrefine`, `unrefineTo` and `unrefineWith` go the other way: they move some defects of the query into the error channel.
+
+### Timeouts
+
+`timeout` returns `None` if the query does not complete within the given duration, and `Some` of the result otherwise. `timeoutFail` and `timeoutFailCause` fail with a given error or `Cause` instead, and `timeoutTo` produces a default value:
+
+```scala
+describe(ZQuery.never.timeout(100.millis))
+// res20: String = "success: None"
+describe(ZQuery.never.timeoutFail("took too long")(100.millis))
+// res21: String = "failure: took too long"
+describe(user(1).timeout(1.second))
+// res22: String = "success: Some(user-1)"
+```
+
+A timeout also prevents later requests of a timed-out query from being executed. The test suite `ZQuerySpec` checks that a query that times out while sleeping never sends its next request to the data source.
+
+#### Racing Two Queries
+
+`race` runs two queries and returns the result of the first one that succeeds, interrupting the other. If both fail, the failure `Cause` of the result combines the two:
+
+```scala
+describe(user(3).race(user(2)))
+// res23: String = "success: user-2"
+```
+
+### Retrying
+
+`ZQuery` has no `retry` operator. Because every call to `run` starts with its own cache, you can retry a whole query by retrying the effect that `run` returns:
+
+```scala
+val retried: ZIO[Any, String, String] =
+  ZQuery.fromRequest(GetUser(1))(countingDataSource).run.retry(Schedule.recurs(2))
+```
+
+```scala
+Unsafe.unsafe(implicit unsafe => Runtime.default.unsafe.run(retried.either).getOrThrowFiberFailure())
+// res24: Either[String, String] = Left(value = "service unavailable")
+
+Unsafe.unsafe(implicit unsafe => Runtime.default.unsafe.run(calls.get).getOrThrowFiberFailure())
+// res25: Int = 3
+```
+
+The data source was called three times: the first attempt and two retries.
+
+:::warning
+Within a single `run`, the result of a request is cached, including a failed result. Re-running the same request inside a query, for example with `catchAll(_ => sameQuery)`, returns the cached failure and does not call the data source again. To retry a request inside one run, use `uncached` on the retried part or retry the whole `run` as above.
+:::
+
+### Errors and the Environment
+
+A query that requires an environment fails like any other query when providing that environment fails. `provideLayer` builds the layer when the query runs and fails the query with the error of the layer if building it fails. The layer has to be wrapped in a `Described` value, which `?` creates from a description:
+
+```scala
+import Described._
+
+val failingLayer: ZLayer[Any, String, Int] = ZLayer.fromZIO(ZIO.fail("no connection"))
+// failingLayer: ZLayer[Any, String, Int] = Suspend(
+//   self = zio.ZLayer$$$Lambda$13503/0x00007f7ea6193ca0@78eb18c7
+// )
+
+val needsInt: ZQuery[Int, Nothing, Int] = ZQuery.service[Int]
+// needsInt: ZQuery[Int, Nothing, Int] = zio.query.ZQuery@54f0baa0
+
+describe(needsInt.provideLayer(failingLayer ? "failingLayer"))
+// res26: String = "failure: no connection"
+```
+
+`provideEnvironment` and `provideSomeEnvironment` also take `Described` values and eliminate the requirement without any chance of failure.
+
+---
+
+## How Batching, Pipelining, and Parallelism Work
+
+ZIO Query reduces the number of calls to a data source by looking at how queries are composed. This page explains the three ideas behind that optimization (batching, pipelining, and deduplication), which combinators trigger each one, and what a data source receives as a result.
+
+### Overview
+
+Every request in a query is submitted to a [data source](./creating-data-sources.md), and a data source receives its requests through `DataSource#runAll`, whose parameter is a `Chunk[Chunk[A]]`. The shape of that value is what the optimizations are about:
+
+```
+runAll(requests: Chunk[ Chunk[A], Chunk[A], ... ])
+              │          │
+              │          └─ a second batch: runs only after the first batch completes
+              └─ one batch: requests that can be performed in parallel
+```
+
+The outer `Chunk` holds batches that must be performed one after another. Each inner `Chunk` holds requests that can be performed at the same time. ZIO Query builds this value from the structure of the query:
+
+- **Batching** puts requests that can run in parallel into the same inner `Chunk`, so a data source can answer them with one call (for example, one SQL query with `WHERE id IN (...)`).
+- **Pipelining** puts requests that must run in sequence into one `DataSource#runAll` call as separate inner `Chunk`s, so a data source can still optimize across them (for example, send both in one network round trip).
+- **Deduplication** removes repeated requests, so the same request is sent to the data source only once while caching is enabled.
+
+The following table summarizes which combinators produce which behavior:
+
+| Composition                                         | Requests are                | Effects other than requests run |
+| --------------------------------------------------- | --------------------------- | ------------------------------- |
+| `ZQuery#zipPar` (`<&>`, `&>`, `<&`)                 | Batched                     | In parallel                     |
+| `ZQuery.foreachPar`, `ZQuery.collectAllPar`         | Batched                     | In parallel                     |
+| `ZQuery#zipBatched` (`<~>`, `~>`, `<~`)             | Batched                     | In sequence                     |
+| `ZQuery.foreachBatched`, `ZQuery.collectAllBatched` | Batched                     | In sequence                     |
+| `ZQuery#zip` (`<*>`, `*>`, `<*`)                    | Pipelined                   | In sequence                     |
+| `ZQuery.foreach`, `ZQuery.collectAll`               | Pipelined                   | In sequence                     |
+| `ZQuery#flatMap`                                    | Neither (one call per step) | In sequence                     |
+
+### Setting Up an Example
+
+To see what a data source receives, we need a data source that records its calls. The following code defines two request types, one data source for each, and a helper that runs a query and prints its result together with the calls the data sources received:
+
+```scala
+import zio._
+import zio.query._
+
+final case class GetUserName(id: Int)   extends Request[Nothing, String]
+final case class GetOrderCount(id: Int) extends Request[Nothing, Int]
+
+val calls: Ref[Chunk[String]] =
+  Unsafe.unsafe(implicit unsafe => Ref.unsafe.make(Chunk.empty[String]))
+
+def batches[A](requests: Chunk[Chunk[A]])(id: A => Int): String =
+  requests.map(_.map(id).mkString("[", ", ", "]")).mkString(" ")
+
+val userDataSource: DataSource[Any, GetUserName] =
+  DataSource.make[Any, GetUserName]("UserDataSource") { requests =>
+    calls.update(_ :+ s"UserDataSource: ${batches(requests)(_.id)}") *>
+      ZIO.succeed(
+        CompletedRequestMap.fromIterableWith(requests.flatten)(r => r, r => Exit.succeed(s"user-${r.id}"))
+      )
+  }
+
+val orderDataSource: DataSource[Any, GetOrderCount] =
+  DataSource.make[Any, GetOrderCount]("OrderDataSource") { requests =>
+    calls.update(_ :+ s"OrderDataSource: ${batches(requests)(_.id)}") *>
+      ZIO.succeed(
+        CompletedRequestMap.fromIterableWith(requests.flatten)(r => r, r => Exit.succeed(r.id * 10))
+      )
+  }
+
+def userName(id: Int): ZQuery[Any, Nothing, String] =
+  ZQuery.fromRequest(GetUserName(id))(userDataSource)
+
+def orderCount(id: Int): ZQuery[Any, Nothing, Int] =
+  ZQuery.fromRequest(GetOrderCount(id))(orderDataSource)
+
+def show[A](query: ZQuery[Any, Nothing, A]): Unit = {
+  val (result, received) = Unsafe.unsafe { implicit unsafe =>
+    Runtime.default.unsafe.run(query.run <*> calls.getAndSet(Chunk.empty)).getOrThrowFiberFailure()
+  }
+  println(s"result: $result")
+  received.sorted.foreach(println)
+}
+```
+
+In the output below, each pair of square brackets is one inner `Chunk`, that is, one batch of requests that can be performed in parallel. Several pairs in one line are sequential batches of the same `DataSource#runAll` call.
+
+### Batching
+
+Batching applies when queries are combined in parallel. To fetch three users with `ZQuery.foreachPar`:
+
+```scala
+show(ZQuery.foreachPar(List(1, 2, 3))(userName))
+// result: List(user-1, user-2, user-3)
+// UserDataSource: [1, 2, 3]
+```
+
+The data source receives one call, with all three requests in one batch. This is how ZIO Query avoids the N + 1 problem: the number of calls to the data source depends on the number of sequential steps in the query, not on the number of requests.
+
+Requests to different data sources are batched per data source, and the data sources run in parallel with each other. To combine a user lookup and an order lookup with `ZQuery#zipPar`:
+
+```scala
+show(userName(1) <&> orderCount(1))
+// result: (user-1,10)
+// OrderDataSource: [1]
+// UserDataSource: [1]
+```
+
+Each data source receives one call. Batching also works across larger queries: when parallel branches each contain their own `ZQuery#zip`, the requests of all branches join the same batch. To collect two branches that each fetch two users:
+
+```scala
+show(ZQuery.collectAllPar(List(userName(1).zip(userName(2)), userName(3).zip(userName(4)))))
+// result: List((user-1,user-2), (user-3,user-4))
+// UserDataSource: [1, 3] [4, 2]
+```
+
+The data source receives all four requests in one batch, even though each pair was written as a separate query.
+
+When a batch is too large for the data source, `DataSource#batchN` (or the `QueryAspect.maxBatchSize` aspect) limits how many requests run in parallel. See [Aspects](./aspects.md#limiting-the-batch-size).
+
+### Pipelining
+
+Pipelining applies when queries are combined sequentially with `ZQuery#zip` or a combinator derived from it. To fetch three users one after another with `ZQuery.foreach`:
+
+```scala
+show(ZQuery.foreach(List(1, 2, 3))(userName))
+// result: List(user-1, user-2, user-3)
+// UserDataSource: [1] [2] [3]
+```
+
+The data source still receives one call, but with three batches of one request each. The batches must run in order, but the data source sees all of them at the same time, so it can send them together, for example in one round trip. A data source that extends `DataSource.Batched` does not use this information: it receives the same call, but it runs `DataSource.Batched#run` once for each batch, in order.
+
+### Sequencing With `ZQuery#flatMap`
+
+When the second query depends on the result of the first, the requests cannot be known in advance. `ZQuery#flatMap` therefore starts a new step, and the data source receives one call for each step:
+
+```scala
+show(userName(1).flatMap(_ => userName(2)))
+// result: user-2
+// UserDataSource: [1]
+// UserDataSource: [2]
+```
+
+Compare this with `userName(1) *> userName(2)`, which has the same requests but does not use the first result to build the second query:
+
+```scala
+show(userName(1) *> userName(2))
+// result: user-2
+// UserDataSource: [1] [2]
+```
+
+A `ZQuery#flatMap` between two requests prevents them from being pipelined, while a `ZQuery#flatMap` on the last request does not.
+
+### Batching Sequential Queries
+
+Sometimes a query must run its effects in order, but its requests do not depend on each other. `ZQuery#zipBatched` (and its aliases `<~>`, `~>`, `<~`) runs effects sequentially and still batches the requests:
+
+```scala
+show(userName(1) <~> userName(2))
+// result: (user-1,user-2)
+// UserDataSource: [1, 2]
+```
+
+Both requests are in the same batch, so the data source can answer them with one call. Use `ZQuery.foreachBatched` and `ZQuery.collectAllBatched` for the collection versions.
+
+### Deduplication
+
+While caching is enabled, which is the default, a request that equals an earlier request in the same run is not sent again. To fetch the same user twice:
+
+```scala
+show(ZQuery.foreachPar(List(1, 1, 2))(userName))
+// result: List(user-1, user-1, user-2)
+// UserDataSource: [1, 2]
+```
+
+The data source receives each distinct request once. Equality is determined by `equals` on the request, so define requests as case classes. To send every request to the data source, disable caching with `ZQuery#uncached`:
+
+```scala
+show(ZQuery.foreachPar(List(1, 1, 2))(userName).uncached)
+// result: List(user-1, user-1, user-2)
+// UserDataSource: [1, 1, 2]
+```
+
+### Limiting Parallelism
+
+Combinators with `Par` in their name run effects in parallel. To set the maximum number of fibers a query can use, call `ZQuery#withParallelism`, or call `ZQuery#withParallelismUnbounded` to remove the limit.
+
+### Writing Queries That Optimize Well
+
+The optimizations apply only to requests built with `ZQuery.fromRequest` or one of its variants. An effect lifted with `ZQuery.fromZIO` is opaque to ZIO Query, even if it calls a database, so it is never batched, pipelined, or deduplicated.
+
+To get the most out of the optimizations:
+
+- Combine independent queries with `ZQuery#zipPar`, `ZQuery.foreachPar`, or `ZQuery.collectAllPar` rather than `ZQuery#flatMap`.
+- Use `ZQuery#flatMap` only when a later query needs the result of an earlier one.
+- Define each data source once, as a `val` or an `object`, because requests are grouped by data source.
+- Define requests as case classes so that equal requests are deduplicated.
 
 ---
 
@@ -81755,21 +84163,21 @@ If you have a `ZQuery`, you can use:
 
 [ZIO Query](https://github.com/zio/zio-query) is a library for writing optimized queries to data sources in a high-level compositional style. It can add efficient pipelining, batching, and caching to any data source. ZIO Query helps us dramatically reduce load on data sources and improve performance.
 
-[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-query/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-query_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-query_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-query_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-query_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-query-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-query-docs_2.13) [![ZIO Query](https://img.shields.io/github/stars/zio/zio-query?style=social)](https://github.com/zio/zio-query)
+[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-query/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-query_2.13.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-query_2.13) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-query_2.13%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-query_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-query_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-query_2.13) [![ZIO Query](https://img.shields.io/github/stars/zio/zio-query?style=social)](https://github.com/zio/zio-query)
 
 ### Introduction
 
 Some key features of ZIO Query:
 
-- **Batching** — ZIO Query detects parts of composite queries that can be executed in parallel without changing the semantics of the query.
-- **Pipelining** — ZIO Query detects parts of composite queries that can be combined together for fewer individual requests to the data source.
+- **Batching** — ZIO Query detects parts of composite queries that can be executed in parallel and combines their requests into a single batch for fewer individual requests to the data source, without changing the semantics of the query.
+- **Pipelining** — ZIO Query detects parts of composite queries that must be executed sequentially and passes their requests to the data source together, so that the data source can optimize across them.
 - **Caching** — ZIO Query can transparently cache read queries to minimize the cost of fetching the same item repeatedly in the scope of a query.
 
 Compared with Fetch, ZIO Query supports response types that depend on request types, does not require higher-kinded types and implicits, supports ZIO environment and statically typed errors, and has no dependencies except for ZIO.
 
 A `ZQuery[R, E, A]` is a purely functional description of an effectual query that may contain requests from one or more data sources, requires an environment `R`, and may fail with an `E` or succeed with an `A`.
 
-Requests that can be performed in parallel, as expressed by `zipWithPar` and combinators derived from it, will automatically be batched. Requests that must be performed sequentially, as expressed by `zipWith` and combinators derived from it, will automatically be pipelined. This allows for aggressive data source specific optimizations. Requests can also be deduplicated and cached.
+Requests that can be performed in parallel, as expressed by `zipWithPar` and combinators derived from it, will automatically be batched. Requests that must be performed sequentially, as expressed by `zipWith` and combinators derived from it, will automatically be pipelined. This allows for aggressive data source specific optimizations. Requests can also be deduplicated and cached. To learn how each combinator affects the calls a data source receives, see [How Batching, Pipelining, and Parallelism Work](./how-batching-works.md).
 
 This allows for writing queries in a high level, compositional style, with confidence that they will automatically be optimized. For example, consider the following query from a user service.
 
@@ -81815,7 +84223,7 @@ lazy val userQuery: ZQuery[Any, Nothing, List[String]] = for {
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-query" % "0.7.7"
+libraryDependencies += "dev.zio" %% "zio-query" % "0.7.9"
 ```
 
 ### Example
@@ -81875,13 +84283,203 @@ object ZQueryExample extends ZIOAppDefault {
 
 ---
 
-## Running Queries
+## Running Queries and Caching
 
-There are several ways to run a `ZQuery`:
+A `ZQuery` is only a description of work. To get a result, we convert it to a `ZIO` effect with one of three methods, and every one of them runs the query with a `Cache` that deduplicates requests. This page explains what each method does, how the cache interacts with batching, and when to share a cache between runs.
 
-- `runCache` runs the query using a given pre-populated cache. This can be useful for deterministically "replaying" a query without executing any new requests.
-- `runLog` runs the query and returns its result along with the cache containing a complete log of all requests executed and their results. This can be useful for logging or analysis of query execution.
-- `run` runs the query and returns its result.
+### Overview
+
+The three methods differ in who owns the cache:
+
+| Method                   | Cache                                      | Returns                 |
+| ------------------------ | ------------------------------------------ | ----------------------- |
+| `ZQuery#run`             | A new, empty cache created for this run    | `ZIO[R, E, A]`          |
+| `ZQuery#runCache(cache)` | The cache you pass in                      | `ZIO[R, E, A]`          |
+| `ZQuery#runLog`          | A new, empty cache that is returned to you | `ZIO[R, E, (Cache, A)]` |
+
+`ZQuery#run` is the right choice in most cases. `ZQuery#runCache` is for sharing or replaying results across runs, and `ZQuery#runLog` is for inspecting what a run executed.
+
+### Setting Up an Example
+
+To observe how often a data source is called, we need one that reports its calls. The following code defines a request type, a data source that prints the batches it receives, and a helper that runs an effect to completion:
+
+```scala
+import zio._
+import zio.query._
+
+final case class GetUserName(id: Int) extends Request[Nothing, String]
+
+val userDataSource: DataSource[Any, GetUserName] =
+  DataSource.make[Any, GetUserName]("UserDataSource") { requests =>
+    ZIO.succeed {
+      println(s"UserDataSource received: ${requests.map(_.map(_.id).mkString("[", ", ", "]")).mkString(" ")}")
+      CompletedRequestMap.fromIterableWith(requests.flatten)(r => r, r => Exit.succeed(s"user-${r.id}"))
+    }
+  }
+
+def userName(id: Int): ZQuery[Any, Nothing, String] =
+  ZQuery.fromRequest(GetUserName(id))(userDataSource)
+
+def exec[A](effect: ZIO[Any, Nothing, A]): A =
+  Unsafe.unsafe(implicit unsafe => Runtime.default.unsafe.run(effect).getOrThrowFiberFailure())
+```
+
+In the output, each pair of square brackets is one batch of requests. [How Batching, Pipelining, and Parallelism Work](./how-batching-works.md) explains how queries produce batches.
+
+### Running a Query
+
+`ZQuery#run` returns an effect that executes the query and produces its result. Each call to `ZQuery#run` creates a new empty cache, so the effect starts from scratch every time it is run:
+
+```scala
+val query = ZQuery.foreachPar(List(1, 2, 3))(userName)
+```
+
+Running it twice calls the data source twice:
+
+```scala
+exec(query.run)
+// UserDataSource received: [1, 2, 3]
+// res0: List[String] = List("user-1", "user-2", "user-3")
+
+exec(query.run)
+// UserDataSource received: [1, 2, 3]
+// res1: List[String] = List("user-1", "user-2", "user-3")
+```
+
+The data source is called once for each run. The cache lives only as long as the run, so results from the first run are not available to the second.
+
+### How the Cache Works
+
+While a query runs, every request built with `ZQuery.fromRequest` (or `ZQuery.fromRequests` and `ZQuery.fromRequestsWith`) is looked up in the cache before it reaches the data source. The cache is keyed by the request itself, using `equals` and `hashCode`, so requests should be case classes. For each new request, the cache stores a `Promise` that is completed with the result when the data source answers. A later equal request finds that promise and waits for it instead of calling the data source again.
+
+This has three consequences. First, equal requests in the same batch are sent to the data source once:
+
+```scala
+exec(ZQuery.foreachPar(List(1, 1, 2, 2))(userName).run)
+// UserDataSource received: [1, 2]
+// res2: List[String] = List("user-1", "user-1", "user-2", "user-2")
+```
+
+Second, equal requests in different steps of a query are answered from the cache, even when the second one depends on the first through `ZQuery#flatMap`:
+
+```scala
+exec(userName(1).flatMap(_ => userName(1)).run)
+// UserDataSource received: [1]
+// res3: String = "user-1"
+```
+
+Third, if a data source returns results for requests it did not receive, the cache stores them too. A later request for one of those results is answered without another call. Only requests built with `ZQuery.fromRequest` or one of its variants are cached. An effect lifted with `ZQuery.fromZIO` is never cached, whatever it does internally.
+
+### Disabling and Enabling Caching
+
+Caching is enabled by default. To send every request to the data source, even if an equal request was already sent, call `ZQuery#uncached`:
+
+```scala
+exec(ZQuery.foreachPar(List(1, 1, 2))(userName).uncached.run)
+// UserDataSource received: [1, 1, 2]
+// res4: List[String] = List("user-1", "user-1", "user-2")
+```
+
+Both copies of the request for user 1 reach the data source. Disabling caching applies only to the query it is called on, so we can disable it for one part of a larger query and leave the rest cached.
+
+To re-enable caching inside a part of a query where it was disabled, call `ZQuery#cached`. It has an effect only inside `ZQuery#uncached`, because caching is already enabled elsewhere. To skip the cache for a single request without wrapping a query, construct it with `ZQuery.fromRequestUncached` instead of `ZQuery.fromRequest`.
+
+Use these when a request must observe fresh data, for example a read that follows a write in the same query.
+
+### Inspecting a Run With runLog
+
+`ZQuery#runLog` runs the query with a new cache and returns that cache together with the result. Since the cache holds every request the run submitted and its outcome, it works as a log of the run:
+
+```scala
+val (log, result) = exec(userName(1).zipPar(userName(2)).runLog)
+```
+
+To read an entry from the log, call `Cache#get` with the request, giving the request's error and result types explicitly because the compiler cannot infer them from a case class. It fails with `()` if the request is not in the cache, and otherwise returns the `Promise` that holds the result:
+
+```scala
+exec(log.get[Nothing, String](GetUserName(1)).flatMap(_.await).orDieWith(_ => new NoSuchElementException))
+// res5: String = "user-1"
+
+exec(log.get[Nothing, String](GetUserName(99)).fold(_ => "not in cache", _ => "in cache"))
+// res6: String = "not in cache"
+```
+
+Use `ZQuery#runLog` in tests to assert which requests a query submitted, or in diagnostics to see what a slow query fetched. Because the log is a `Cache`, it can also be passed to `ZQuery#runCache`.
+
+### Sharing a Cache With runCache
+
+`ZQuery#runCache` runs a query with a cache you provide. To create one, call `Cache.empty`, or `Cache.empty(expectedNumOfElements)` to presize it when you know roughly how many requests it will hold. Running two queries with the same cache means the second one sees the results of the first:
+
+```scala
+val cache = exec(Cache.empty)
+```
+
+The first run fetches user 1 and the second run fetches only user 2:
+
+```scala
+exec(userName(1).runCache(cache))
+// UserDataSource received: [1]
+// res7: String = "user-1"
+
+exec(userName(1).zipPar(userName(2)).runCache(cache))
+// UserDataSource received: [2]
+// res8: (String, String) = ("user-1", "user-2")
+```
+
+The second run calls the data source only for user 2. The result for user 1 comes from the cache, which is also why a cache from `ZQuery#runLog` can be used to replay a query without executing any new requests:
+
+```scala
+exec(userName(1).zipPar(userName(2)).runCache(log))
+// res9: (String, String) = ("user-1", "user-2")
+```
+
+Nothing is printed, because the data source is never called.
+
+#### When to Share a Cache
+
+A shared cache keeps its entries for as long as the cache itself exists. The default cache has no eviction, no size limit, and no expiry, so sharing is a trade-off:
+
+- Share a cache across the runs that make up one logical operation, for example the several queries that handle one incoming request, so that they do not fetch the same data twice.
+- Share a cache to replay a recorded run deterministically in a test, with no data source calls.
+- Do not keep one cache for the lifetime of an application. Results become stale, and memory grows with every distinct request.
+
+To drop a stale entry from a shared cache, call `Cache#remove` with the request. The next equal request goes to the data source again:
+
+```scala
+exec(cache.remove(GetUserName(1)))
+
+exec(userName(1).runCache(cache))
+// UserDataSource received: [1]
+// res11: String = "user-1"
+```
+
+### Caching and Memoization
+
+The cache stores results of requests to data sources. It does not store the result of a query as a whole, so work done by `ZQuery.fromZIO` effects or by `ZQuery#map` is repeated each time a query value is used. When one query value is used in several places and its non-request work must run once, call `ZQuery#memoize`. It returns an effect that produces a query that computes at most once, including its failures:
+
+```scala
+val counter   = exec(Ref.make(0))
+val expensive = ZQuery.fromZIO(counter.updateAndGet(_ + 1))
+val memoized  = exec(expensive.memoize)
+```
+
+Using the memoized query twice yields the same value, while using the plain query twice runs its effect twice:
+
+```scala
+exec(memoized.zip(memoized).run)
+// res12: (Int, Int) = (1, 1)
+
+exec(counter.set(0))
+
+exec(expensive.zip(expensive).run)
+// res14: (Int, Int) = (1, 2)
+```
+
+The memoized query runs its effect once and the plain query runs it twice, whether or not caching is enabled. The counter is reset in between so that the two results are comparable.
+
+### Custom Caches
+
+`Cache` is a trait with four methods: `Cache#get`, `Cache#lookup`, `Cache#put`, and `Cache#remove`. `Cache.empty` returns an implementation backed by a concurrent hash map. To add eviction or expiry, implement `Cache` and pass the instance to `ZQuery#runCache`. `Cache#lookup` is the method the query runtime calls for every request. When the request is not in the cache, `Cache#lookup` returns a `Left` with a new `Promise` that the runtime completes with the result, and the cache must keep that promise so that later equal requests find it. When the request is in the cache, it returns a `Right` with the existing `Promise`.
 
 ---
 
@@ -92811,9 +95409,9 @@ _ZIO SBT_ contains multiple sbt plugins that are useful for ZIO projects. It pro
 Add the following lines to your `project/plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.8.7")
-addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.8.7")
-addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.8.7")
+addSbtPlugin("dev.zio" % "zio-sbt-ecosystem" % "0.8.8")
+addSbtPlugin("dev.zio" % "zio-sbt-ci"        % "0.8.8")
+addSbtPlugin("dev.zio" % "zio-sbt-website"   % "0.8.8")
 ```
 
 Then you can enable them by using the following code in your `build.sbt` file:
@@ -92929,7 +95527,7 @@ ZIO SBT CI plugin generates a default GitHub workflow that includes common CI ta
 To use ZIO SBT CI plugin, add the following lines to your `plugins.sbt` file:
 
 ```scala
-addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.8.7")
+addSbtPlugin("dev.zio" % "zio-sbt-ci" % "0.8.8")
 
 resolvers ++= Resolver.sonatypeOssRepos("public")
 ```
@@ -93347,7 +95945,7 @@ ZIO SBT Source is a Scala 2.13 + Scala 3 cross-compiled library that provides ut
 Add the following line to your `libraryDependencies` in `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.8.7"
+libraryDependencies += "dev.zio" %% "zio-sbt-source" % "0.8.8"
 ```
 
 #### Features

@@ -2,21 +2,21 @@
 
 > [ZIO Query](https://github.com/zio/zio-query) is a library for writing optimized queries to data sources in a high-level compositional style. It can add efficient pipelining, batching, and caching to any data source. ZIO Query helps us dramatically reduce load on data sources and improve performance.
 
-[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-query/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-query_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-query_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-query_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-query_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-query-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-query-docs_2.13) [![ZIO Query](https://img.shields.io/github/stars/zio/zio-query?style=social)](https://github.com/zio/zio-query)
+[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-query/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-query_2.13.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-query_2.13) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-query_2.13%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-query_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-query_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-query_2.13) [![ZIO Query](https://img.shields.io/github/stars/zio/zio-query?style=social)](https://github.com/zio/zio-query)
 
 ## Introduction
 
 Some key features of ZIO Query:
 
-- **Batching** — ZIO Query detects parts of composite queries that can be executed in parallel without changing the semantics of the query.
-- **Pipelining** — ZIO Query detects parts of composite queries that can be combined together for fewer individual requests to the data source.
+- **Batching** — ZIO Query detects parts of composite queries that can be executed in parallel and combines their requests into a single batch for fewer individual requests to the data source, without changing the semantics of the query.
+- **Pipelining** — ZIO Query detects parts of composite queries that must be executed sequentially and passes their requests to the data source together, so that the data source can optimize across them.
 - **Caching** — ZIO Query can transparently cache read queries to minimize the cost of fetching the same item repeatedly in the scope of a query.
 
 Compared with Fetch, ZIO Query supports response types that depend on request types, does not require higher-kinded types and implicits, supports ZIO environment and statically typed errors, and has no dependencies except for ZIO.
 
 A `ZQuery[R, E, A]` is a purely functional description of an effectual query that may contain requests from one or more data sources, requires an environment `R`, and may fail with an `E` or succeed with an `A`.
 
-Requests that can be performed in parallel, as expressed by `zipWithPar` and combinators derived from it, will automatically be batched. Requests that must be performed sequentially, as expressed by `zipWith` and combinators derived from it, will automatically be pipelined. This allows for aggressive data source specific optimizations. Requests can also be deduplicated and cached.
+Requests that can be performed in parallel, as expressed by `zipWithPar` and combinators derived from it, will automatically be batched. Requests that must be performed sequentially, as expressed by `zipWith` and combinators derived from it, will automatically be pipelined. This allows for aggressive data source specific optimizations. Requests can also be deduplicated and cached. To learn how each combinator affects the calls a data source receives, see [How Batching, Pipelining, and Parallelism Work](./how-batching-works.md).
 
 This allows for writing queries in a high level, compositional style, with confidence that they will automatically be optimized. For example, consider the following query from a user service.
 
@@ -62,7 +62,7 @@ lazy val userQuery: ZQuery[Any, Nothing, List[String]] = for {
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-query" % "0.7.7"
+libraryDependencies += "dev.zio" %% "zio-query" % "0.7.9"
 ```
 
 ## Example

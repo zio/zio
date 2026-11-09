@@ -2,7 +2,7 @@
 
 > ```scala
 > libraryDependencies ++= Seq(
->   "dev.zio" % "zio-json-interop-refined" % "0.8.0"
+>   "dev.zio" % "zio-json-interop-refined" % "1.1.2"
 > )
 > ```
 
@@ -10,7 +10,7 @@
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.zio" % "zio-json-interop-refined" % "0.8.0"
+  "dev.zio" % "zio-json-interop-refined" % "1.1.2"
 )
 ```
 

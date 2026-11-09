@@ -58,7 +58,8 @@ In the example above `record.offset` represents the offset of the consumed recor
 the _next offset_. It represents the record's offset another consumer should continue from after a rebalance.
 Normally the _next offset_ is the offset of the consumed record `+ 1`. The difference can be a bit larger when Kafka
 placed some 'control records' on the partition. Since it is fine to consume control records multiple times (they are
-invisible), adding `1` to get the next offset is fine.
+invisible), adding `1` to get the next offset is fine. Since zio-kafka 3.9.0 it is also possible to get the exact
+next-offset with `record.nextOffset`.
 
 :::caution
 You should decide on what offset you want to persist per partition, either the _consumed offset_, or the _next offset_.
@@ -74,7 +75,8 @@ Unless there are good reasons to do otherwise, we recommend you persist the 'nex
 
 **Persisting the next offset**
 
-- Per partition, persist the offset `record.offset.offset + 1` (ideally persist `record.leaderEpoch` as well).
+- Per partition, persist the offset `record.offset.offset + 1`, or better yet: `record.nextOffset.offset()` (ideally
+  persist `record.nextOffset.leaderEpoch()` as well).
 - From your `OffsetRetrieval.External` implementation, return the persisted offset (ideally, also include the persisted
   leader-epoch).
 

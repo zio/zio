@@ -32,6 +32,56 @@ Now we can parse JSON into our object
 // res0: Either[String, Banana] = Right(value = Banana(curvature = 0.5))
 ```
 
+### Decoding from bytes
+
+JSON usually arrives as bytes rather than as text: an HTTP response body, a file, a Kafka record. A `Chunk[Byte]` can be decoded directly, without being copied into a `String` first.
+
+```scala
+import zio.Chunk
+
+val bytes: Chunk[Byte] = Chunk.fromArray("""{ "curvature": 0.5 }""".getBytes("UTF-8"))
+// bytes: Chunk[Byte] = IndexedSeq(
+//   123,
+//   32,
+//   34,
+//   99,
+//   117,
+//   114,
+//   118,
+//   97,
+//   116,
+//   117,
+//   114,
+//   101,
+//   34,
+//   58,
+//   32,
+//   48,
+//   46,
+//   53,
+//   32,
+//   125
+// )
+
+bytes.fromJson[Banana]
+// res1: Either[String, Banana] = Right(value = Banana(curvature = 0.5))
+```
+
+A bare `Array[Byte]` works the same way, and is not copied either.
+
+```scala
+"""{ "curvature": 0.5 }""".getBytes("UTF-8").fromJson[Banana]
+// res2: Either[String, Banana] = Right(value = Banana(curvature = 0.5))
+```
+
+The bytes are turned into characters as the parser consumes them, so peak memory is the chunk plus a constant. Going through `new String(chunk.toArray, UTF_8)` instead holds the chunk, an array copy of it and the `String` all at once, which matters once payloads get large.
+
+A chunk that is already backed by a single array — what `Chunk.fromArray` produces, and what an HTTP body handed over from Netty looks like — is read in place, with no copy at all. Other shapes, such as a body assembled from several network reads, are pulled through a small fixed window.
+
+The input is expected to be UTF-8, as [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259#section-8.1) requires for JSON interchange. Malformed input decodes to the replacement character, as `new String(bytes, UTF_8)` does. Errors are reported exactly as for the `CharSequence` variant.
+
+For payloads that do not fit in memory at all, use `JsonDecoder[A].decodeJsonStreamInput(stream)` to decode straight from a `ZStream[R, Throwable, Byte]`.
+
 ### Automatic Derivation and case class default field values
 
 If a case class field is defined with a default value and the field is not present or `null`, the default value will be used (or evaluated when it is a method).
@@ -43,12 +93,12 @@ case class Entity(id: Long, description: String = "", related: Seq[Entity] = Seq
 
 implicit val decoder: JsonDecoder[Entity] =
   DeriveJsonDecoder.gen[Entity]
-// decoder: JsonDecoder[Entity] = zio.json.DeriveJsonDecoder$$anon$1@744ae108
+// decoder: JsonDecoder[Entity] = zio.json.DeriveJsonDecoder$$anon$1@33691e5b
 ```
 
 ```scala
 """{ "id": 42, "related": null }""".fromJson[Entity]
-// res1: Either[String, Entity] = Right(
+// res3: Either[String, Entity] = Right(
 //   value = Entity(id = 42L, description = "", related = List())
 // )
 ```
@@ -79,12 +129,12 @@ object Fruit {
 
 ```scala
 """{ "Banana":{ "curvature":0.5 }}""".fromJson[Fruit]
-// res3: Either[String, Fruit] = Right(value = Banana(curvature = 0.5))
+// res5: Either[String, Fruit] = Right(value = Banana(curvature = 0.5))
 ```
 
 ```scala
 """{ "Apple": { "poison": false }}""".fromJson[Fruit]
-// res4: Either[String, Fruit] = Right(value = Apple(poison = false))
+// res6: Either[String, Fruit] = Right(value = Apple(poison = false))
 ```
 
 ### String-based union types (Enum)
@@ -163,7 +213,7 @@ and now the `JsonDecoder` for `FruitCount` just expects a raw `Int`.
 
 ```scala
 """3""".fromJson[FruitCount]
-// res5: Either[String, FruitCount] = Right(value = FruitCount(value = 3))
+// res7: Either[String, FruitCount] = Right(value = FruitCount(value = 3))
 ```
 
 Another use case is if we want to encode a `case class` as an array of values, rather than an object with named fields. Such an encoding is very efficient because the messages are smaller and require less processing, but are very strict schemas that cannot be upgraded.
@@ -200,7 +250,7 @@ we will get a compile time error because there is no `JsonDecoder[String Refined
 object Person {
   implicit val decoder: JsonDecoder[Person] = DeriveJsonDecoder.gen
 }
-// error: magnolia: could not find JsonDecoder.Typeclass for type eu.timepit.refined.api.Refined[String,eu.timepit.refined.collection.NonEmpty]
+// error: magnolia: could not find zio.json.DeriveJsonDecoder.Typeclass[eu.timepit.refined.api.Refined[String,eu.timepit.refined.collection.NonEmpty]]
 //     in parameter 'name' of product type MdocApp0.this.Person
 // 
 //   implicit val decoder: JsonDecoder[Person] = DeriveJsonDecoder.gen
@@ -214,7 +264,7 @@ import eu.timepit.refined
 
 implicit val decodeName: JsonDecoder[String Refined NonEmpty] =
   JsonDecoder[String].mapOrFail(refined.refineV[NonEmpty](_))
-// decodeName: JsonDecoder[Refined[String, NonEmpty]] = zio.json.JsonDecoder$$anon$4@44a2a185
+// decodeName: JsonDecoder[Refined[String, NonEmpty]] = zio.json.JsonDecoder$$anon$4@45c8a651
 ```
 
 Now the code compiles.
@@ -403,12 +453,12 @@ object Animal {
 And now, the Json decoder for Animal can handle both formats:
 ```scala
 """{"name": "Dog", "categories": "Warm-blooded, Mammal"}""".fromJson[Animal]
-// res13: Either[String, Animal] = Right(
+// res15: Either[String, Animal] = Right(
 //   value = Animal(name = "Dog", categories = List("Warm-blooded", "Mammal"))
 // )
 // >> Right(Animal(Dog,List(Warm-blooded, Mammal)))
 """{"name": "Snake", "categories": [ "Cold-blooded", "Reptile"]}""".fromJson[Animal]
-// res14: Either[String, Animal] = Right(
+// res16: Either[String, Animal] = Right(
 //   value = Animal(name = "Snake", categories = List("Cold-blooded", "Reptile"))
 // )
 // >>  Right(Animal(Snake,List(Cold-blooded, Reptile)))
