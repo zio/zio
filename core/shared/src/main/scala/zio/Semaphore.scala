@@ -139,13 +139,18 @@ object Semaphore {
           private[zio] val zero = Reservation(ZIO.unit, ZIO.unit)
         }
 
+        private val reservation1: Reservation                      = Reservation(ZIO.unit, releaseN(1L)(Trace.empty))
+        private val rightReservation1: Right[Nothing, Reservation] = Right(reservation1)
+        private val someReservation1: Some[Reservation]            = Some(reservation1)
+
         def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
           if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
           else if (n == 0L) ZIO.succeed(Some(Reservation.zero))
           else
             ref.modify {
               case Right(permits) if permits >= n =>
-                Some(Reservation(ZIO.unit, releaseN(n))) -> Right(permits - n)
+                val res = if (n == 1L) someReservation1 else Some(Reservation(ZIO.unit, releaseN(n)))
+                res -> Right(permits - n)
               case other => None -> other
             }
 
@@ -155,15 +160,27 @@ object Semaphore {
           else if (n == 0L)
             ZIO.succeed(Reservation.zero)
           else
-            Promise.make[Nothing, Unit].flatMap { promise =>
-              ref.modify {
-                case Right(permits) if permits >= n =>
-                  Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
-                case Right(permits) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
-                case Left(queue) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
-              }
+            ref.modify {
+              case Right(permits) if permits >= n =>
+                val res = if (n == 1L) rightReservation1 else Right(Reservation(ZIO.unit, releaseN(n)))
+                res -> Right(permits - n)
+              case other =>
+                Left(other) -> other
+            }.flatMap {
+              case Right(reservation) =>
+                Exit.succeed(reservation)
+              case Left(_) =>
+                Promise.make[Nothing, Unit].flatMap { promise =>
+                  ref.modify {
+                    case Right(permits) if permits >= n =>
+                      val res = if (n == 1L) reservation1 else Reservation(ZIO.unit, releaseN(n))
+                      res -> Right(permits - n)
+                    case Right(permits) =>
+                      Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
+                    case Left(queue) =>
+                      Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
+                  }
+                }
             }
 
         def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
@@ -172,9 +189,12 @@ object Semaphore {
               queue
                 .find(_._1 == promise)
                 .fold(releaseN(n) -> Left(queue)) { case (_, permits) =>
-                  releaseN(n - permits) -> Left(queue.filter(_._1 != promise))
+                  val cleanup =
+                    if (n > permits) promise.interrupt *> releaseN(n - permits)
+                    else promise.interrupt
+                  cleanup -> Left(queue.filter(_._1 != promise))
                 }
-            case Right(permits) => ZIO.unit -> Right(permits + n)
+            case Right(permits) => Exit.unit -> Right(permits + n)
           }.flatten
 
         def releaseN(n: Long)(implicit trace: Trace): UIO[Any] = {
@@ -183,24 +203,27 @@ object Semaphore {
           def loop(
             n: Long,
             state: Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long],
-            acc: UIO[Any]
-          ): (UIO[Any], Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]) =
+            promises: List[Promise[Nothing, Unit]]
+          ): (List[Promise[Nothing, Unit]], Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]) =
             state match {
-              case Right(permits) => acc -> Right(permits + n)
+              case Right(permits) => promises -> Right(permits + n)
               case Left(queue) =>
                 queue.dequeueOption match {
-                  case None => acc -> Right(n)
+                  case None => promises -> Right(n)
                   case Some(((promise, permits), queue)) =>
                     if (n > permits)
-                      loop(n - permits, Left(queue), acc *> promise.succeedUnit)
+                      loop(n - permits, Left(queue), promise :: promises)
                     else if (n == permits)
-                      (acc *> promise.succeedUnit) -> Left(queue)
+                      (promise :: promises) -> Left(queue)
                     else
-                      acc -> Left((promise -> (permits - n)) +: queue)
+                      promises -> Left((promise -> (permits - n)) +: queue)
                 }
             }
 
-          ref.modify(loop(n, _, ZIO.unit)).flatten
+          ref.modify(loop(n, _, Nil)).flatMap {
+            case Nil      => Exit.unit
+            case promises => ZIO.foreachDiscard(promises.reverse)(_.succeedUnit)
+          }
         }
       }
   }
