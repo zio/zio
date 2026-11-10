@@ -1,67 +1,91 @@
-# ZIO AMQP
+# Introduction to izumi-reflect
 
-> ZIO AMQP is a ZIO-based wrapper around the [RabbitMQ Java client](https://www.rabbitmq.com/client-libraries/java-api-guide). It exposes queues as `ZStream`s of deliveries and serializes access to the underlying RabbitMQ channel, so concurrent fibers cannot corrupt it. Connections and channels are scoped resources: they are closed automatically when the `Scope` that owns them ends, even if the program fails or is interrupted.
+> [![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/izumi-reflect/workflows/CI/badge.svg) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fizumi-reflect_3%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/izumi-reflect_3/) [![izumi-reflect](https://img.shields.io/github/stars/zio/izumi-reflect?style=social)](https://github.com/zio/izumi-reflect)
 
-[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-amqp/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-amqp_2.13.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-amqp_2.13) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-amqp_2.13%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-amqp_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-amqp_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-amqp_2.13) [![ZIO AMQP](https://img.shields.io/github/stars/zio/zio-amqp?style=social)](https://github.com/zio/zio-amqp)
+# izumi-reflect
 
-## Installation
+> @quote: Looks a bit similar to TypeTag
 
-Add the following line to your `build.sbt` file:
+`izumi-reflect` is a fast, lightweight, portable and efficient alternative for `TypeTag` from `scala-reflect`.
 
-```scala
-libraryDependencies += "dev.zio" %% "zio-amqp" % "1.0.2"
+`izumi-reflect` is a lightweight model of Scala type system and provides a simulator of the important parts of the Scala typechecker.
+
+## Why `izumi-reflect`
+
+1. `izumi-reflect` compiles faster, runs a lot faster than `scala-reflect` and is fully immutable and [thread-safe](https://github.com/scala/bug/issues/10766),
+2. `izumi-reflect` supports Scala 2.12, 2.13 and **Scala 3**,
+3. `izumi-reflect` supports Scala.js and Scala Native,
+4. `izumi-reflect` works well with [GraalVM Native Image](https://www.graalvm.org/reference-manual/native-image/),
+5. `izumi-reflect` allows you to obtain tags for unapplied type constructors (`F[_]`) and combine them at runtime.
+
+## Credits
+
+`izumi-reflect` has been created by [Septimal Mind](https://7mind.io) to power [Izumi Project](https://github.com/7mind/izumi),
+as a replacement for `TypeTag` in reaction to a lack of confirmed information about the future of `scala-reflect`/`TypeTag` in Scala 3 ([Motivation](https://blog.7mind.io/lightweight-reflection.html)), and donated to ZIO.
+
+  
+  
+  
+
+## Limitations
+
+`izumi-reflect` model of the Scala type system is not 100% precise, but "good enough" for the vast majority of the usecases.
+
+Known limitations are:
+
+1. Recursive type bounds (F-bounded types) are not preserved and may produce false positives,
+2. Existential types, both written with wildcards and `forSome` may produce unexpected results, the support is limited,
+3. Path-Dependent Types are based on variable names and may cause unexpected results when variables with different names have the same type or vice-versa (vs. Scala compiler)
+4. This-Types such as `X.this.type` are ignored and identical to `X`
+5. `izumi-reflect` is less powerful than `scala-reflect`: it does not preserve fields and methods when it's not necessary for equality and subtype checks, it does not preserve code trees, internal compiler data structures, etc.
+6. There are some optimizations in place which reduce correctness, namely: subtype check for `scala.Matchable` will always return true, no distinction is made between `scala.Any` and `scala.AnyRef`,  no distinction is made between `scala.Nothing` and `scala.Null`. In other words, the library does not recognize that `Null` is not a subtype of `AnyVal`s.
+7. Lower bounds are not preserved in abstract higher-kinded type members which may produce false comparisons.
+8. Type and value members are not preserved in concrete types which may produce false comparisons with refined/structural types. (https://github.com/zio/izumi-reflect/issues/481)
+
+## Debugging
+
+Set [`-Dizumi.reflect.debug.macro.rtti=true`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.debug.macro.rtti:String(%22izumi.reflect.debug.macro.rtti%22)) to enable debug output during compilation when tags are constructed and at runtime when they are compared.
+
+```shell
+sbt -Dizumi.reflect.debug.macro.rtti=true
 ```
 
-ZIO AMQP depends on ZIO 2 and the RabbitMQ Java client, and is published for Scala 2.12, 2.13 and 3.
+To see debug output when compiling in Intellij, add the above flag to `VM options` in [Preferences -> Build, Execution, Deployment -> Compiler -> Scala Compiler -> Scala Compile Server](jetbrains://idea/settings?name=Build%2C+Execution%2C+Deployment--Compiler--Scala+Compiler--Scala+Compile+Server)
 
-## A First Program
+You may also set it in `.jvmopts` file during development. (`.jvmopts` properties will not apply to Intellij compile server, only to sbt)
 
-The program below connects to a broker on `localhost:5672` with the default `guest`/`guest` credentials, declares a queue, publishes one message to it, and consumes that message back. Both the connection and the channel are scoped resources, so `ZIO.scoped` closes them when the program ends:
+Set `-Dizumi.reflect.debug.macro.rtti.assertions=true` to enable additional assertions.
 
-```scala
-import zio._
-import zio.amqp._
-import zio.amqp.model._
+Other useful system properties are:
 
-val queue = QueueName("hello")
+- [`izumi.reflect.rtti.optimized.equals`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.optimized.equals:String(%22izumi.reflect.rtti.optimized.equals%22))
+- [`izumi.reflect.rtti.cache.compile`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.cache.compile:String(%22izumi.reflect.rtti.cache.compile%22))
 
-val program: ZIO[Any, Throwable, Unit] =
-  ZIO.scoped {
-    for {
-      connection <- Amqp.connect(AMQPConfig.default)
-      channel    <- Amqp.createChannel(connection)
-      _          <- channel.queueDeclare(queue)
-      _          <- channel.publish(ExchangeName(""), "Hello, AMQP!".getBytes, RoutingKey("hello"))
-      _          <- channel
-                      .consume(queue, ConsumerTag("first-program"))
-                      .mapZIO { delivery =>
-                        Console.printLine(new String(delivery.getBody)) *>
-                          channel.ack(DeliveryTag(delivery.getEnvelope.getDeliveryTag))
-                      }
-                      .take(1)
-                      .runDrain
-    } yield ()
-  }
-```
+# Talks
 
-Publishing to the default exchange (the empty name `ExchangeName("")`) with the queue's name as the routing key delivers the message straight to that queue. The `consume` stream stays open until it is completed, here by `take(1)`, which also cancels the consumer on the broker.
+* [Kit Langton — Scala 3 Macro Fun (Open Source Hackery)](https://www.youtube.com/watch?v=wsLhjqCKZuU)
+* [Pavel Shirshov — Izumi Reflect: Scala Type System Model](https://www.youtube.com/watch?v=ShRfzVz58OY)
 
-## Where to Go Next
+# See also
 
-If you are new to AMQP, start with the [tutorial](./tutorial-work-queue.md), which builds a producer and a pool of competing consumers step by step.
+## [`gzoller/scala-reflection`](https://github.com/gzoller/scala-reflection)
 
-For a specific task, pick a how-to guide:
+* Scala 3 only
+* No support for subtype checks
+* Type lambdas are not supported
+* _Preserves field information_
 
-- [Connect to a Broker](./how-to-connect.md)
-- [Acknowledge Messages](./how-to-acknowledge-messages.md)
-- [Limit Prefetch to Apply Back-Pressure](./how-to-limit-prefetch.md)
-- [Route Messages with Exchanges](./how-to-route-with-exchanges.md)
-- [Publish Durable Messages](./how-to-publish-durable-messages.md)
-- [Stop a Consumer](./how-to-stop-a-consumer.md)
-- [Test with Testcontainers](./how-to-test-with-testcontainers.md)
+## [`airframe-surface`](https://wvlet.org/airframe/docs/airframe-surface)
 
-To look up a type or method, use the reference pages:
+* Scala 2 and Scala 3
+* No support for subtype checks
+* _Preserves field information_
 
-- [`Amqp` and `AMQPConfig`](./reference/amqp.md): create connections and channels.
-- [`Channel`](./reference/channel.md): declare queues and exchanges, publish, consume and acknowledge.
-- [Model Types](./reference/model.md): `QueueName`, `ExchangeName`, `RoutingKey`, `ConsumerTag`, `DeliveryTag`, `AmqpUri` and `ExchangeType`.
+## And even more
+
+1. https://github.com/gaeljw/typetrees - a very basic type tag substitute for Scala 3
+2. https://stackoverflow.com/questions/75752812/is-there-a-simple-scala-3-example-of-how-to-use-quoted-type-as-replacement-for - discussion on StackOverflow
+3. https://contributors.scala-lang.org/t/scala-3-and-reflection/3627 - original discussion on Scala Contributors forum
+
+[Stage]: https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg
+[Stage-Page]: https://github.com/zio/zio/wiki/Project-Stages

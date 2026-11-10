@@ -1,35 +1,110 @@
-# ZIO JSON
+# ZIO FTP
 
-> [ZIO Json](https://github.com/zio/zio-json) is a fast and secure JSON library with tight ZIO integration.
+> [ZIO FTP](https://zio.dev) is a thin wrapper over (s)Ftp client for [ZIO](https://zio.dev).
 
-[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-json/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-json_2.13.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-json_2.13) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-json_2.13%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-json_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-json_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-json_2.13) [![ZIO JSON](https://img.shields.io/github/stars/zio/zio-json?style=social)](https://github.com/zio/zio-json)
-
-## Introduction
-
-The goal of this project is to create the best all-round JSON library for Scala:
-
-- **Performance** to handle more requests per second than the incumbents, i.e. reduced operational costs.
-- **Security** to mitigate against adversarial JSON payloads that threaten the capacity of the server.
-- **Fast Compilation** no shapeless, no type astronautics.
-- **Future-Proof**, prepared for Scala 3 and next-generation Java.
-- **Simple** small codebase, concise documentation that covers everything.
-- **Helpful errors** are readable by humans and machines.
-- **ZIO Integration** so nothing more is required.
+[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-ftp/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-ftp_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-ftp_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-ftp_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-ftp_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-ftp-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-ftp-docs_2.13) [![ZIO FTP](https://img.shields.io/github/stars/zio/zio-ftp?style=social)](https://github.com/zio/zio-ftp)
 
 ## Installation
 
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-json" % "1.1.2"
+libraryDependencies += "dev.zio" %% "zio-ftp" % "0.5.2" 
 ```
 
-For cross-platform projects with Scala.js and Scala Native need to replace `%%` operator by `%%%`, 
-and optionally when using `java.time.ZoneId` and `java.time.ZonedDateTime` types need to add 
-the dependency on the latest version of Timezone DB:
+## How to use it?
+
+* Imports
+```scala
+import zio.ftp._
+```
+
+* FTP
+```scala
+// FTP
+val unsecureSettings = UnsecureFtpSettings("127.0.0.1", 21, PasswordCredentials("foo", "bar"))
+
+//listing files
+Ftp.ls("/").runCollect.provideLayer(unsecure(unsecureSettings))
+```
+
+* FTPS
+```scala
+// FTPS
+val secureSettings = SecureFtpSettings("127.0.0.1", 21, PasswordCredentials("foo", "bar"))
+
+//listing files
+SFtp.ls("/").runCollect.provideLayer(secure(secureSettings))
+```
+
+* SFTP (support ssh key)
 
 ```scala
-libraryDependencies += "io.github.cquiroz" %%% "scala-java-time-tzdb" % "latest.integration"
+val sftpSettings = SecureFtpSettings("127.0.0.1", 22, PasswordCredentials("foo", "bar"))
+
+//listing files
+SFtp.ls("/").runCollect.provideLayer(secure(sftpSettings))
 ```
 
-Continue with the [Getting Started](getting-started.mdx) guide for a walkthrough of encoding and decoding JSON with ZIO JSON.
+## Example
+
+First we need an FTP server, so let's create one:
+
+```bash
+docker run -d \
+    -p 21:21 \
+    -p 21000-21010:21000-21010 \
+    -e USERS="one|1234" \
+    -e ADDRESS=localhost \
+    delfer/alpine-ftp-server
+```
+
+Now we can run the example:
+
+```scala
+import zio._
+import zio.stream._
+import zio.ftp._
+import zio.ftp.Ftp._
+
+import java.io.IOException
+
+object ZIOFTPExample extends ZIOAppDefault {
+
+  private val settings =
+    UnsecureFtpSettings("127.0.0.1", 21, PasswordCredentials("one", "1234"))
+
+  private val myApp: ZIO[Ftp, IOException, Unit] =
+    for {
+      _        <- Console.printLine("List of files at root directory:")
+      resource <- ls("/").runCollect
+      _        <- ZIO.foreach(resource)(e => Console.printLine(e.path))
+      path      = "~/file.txt"
+      _        <- upload(
+                    path,
+                    ZStream.fromChunk(
+                      Chunk.fromArray("Hello, ZIO FTP!\nHello, World!".getBytes)
+                    )
+                  )
+      file     <- readFile(path)
+                    .via(ZPipeline.utf8Decode)
+                    .runCollect
+      _        <- Console.printLine(s"Content of $path file:")
+      _        <- Console.printLine(file.mkString)
+    } yield ()
+
+  override def run = myApp.provideSomeLayer(unsecure(settings))
+}
+```
+
+## Support any commands?
+
+If you need a method which is not wrapped by the library, you can have access to underlying FTP client in a safe manner by using
+
+```scala
+import zio._
+
+trait FtpAccessors[+A] {
+  def execute[T](f: A => T): ZIO[Any, IOException, T]
+} 
+```

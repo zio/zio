@@ -1,143 +1,161 @@
-# Getting Started with ZIO Bson
+# Overview
 
-> [ZIO Bson](https://github.com/zio/zio-bson) is BSON library with tight ZIO integration.
+> [ZIO AWS](https://zio.dev/zio-aws) is AWS wrapper for [ZIO](https://zio.dev) for _all_ AWS services using the AWS Java SDK v2.
 
-[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-bson/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-bson_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-bson_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-bson_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-bson_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-bson-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-bson-docs_2.13) [![ZIO Bson](https://img.shields.io/github/stars/zio/zio-bson?style=social)](https://github.com/zio/zio-bson)
+[![Production Ready](https://img.shields.io/badge/Project%20Stage-Production%20Ready-brightgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-aws/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-aws-core_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-aws-core_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-aws-core_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-aws-core_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-aws-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-aws-docs_2.13) [![ZIO AWS](https://img.shields.io/github/stars/zio/zio-aws?style=social)](https://github.com/zio/zio-aws)
 
 ## Introduction
 
-The goal of this project is to create the best all-round BSON library for Scala:
+The goal is to have access to all AWS functionality for cases when only a simple, direct access is needed from a ZIO application, or to be used as a building block for higher level wrappers around specific services.
 
-- **Native BSON support** to avoid intermediate JSON conversions and support BSON types.
-- **Future-Proof**, prepared for Scala 3 and next-generation Java.
-- **Simple** small codebase, concise documentation that covers everything.
-- **Helpful errors** are readable by humans and machines.
-- **ZIO Integration** so nothing more is required.
+Key features of ZIO AWS:
+
+- Common configuration layer
+- ZIO module layer per AWS service
+- Wrapper for all operations on all services
+- HTTP service implementations for functional Scala HTTP libraries, injected through ZIO’s module system
+- ZStream wrapper around paginated operations
+- Service-specific extra configuration
+- More idiomatic Scala request and response types wrapping the Java classes
 
 ## Installation
 
-In order to use this library, we need to add the following lines in our `build.sbt` file:
-
-```scala
-libraryDependencies += "dev.zio" %% "zio-bson" % "1.0.11"
-libraryDependencies += "dev.zio" %% "zio-bson-magnolia" % "1.0.11"
-```
-
-## zio-schema support
-
-`zio-bson-magnolia` projects provides typeclass derivation only for `scala` `2.13`.
-You can use [zio-schema-bson](https://github.com/zio/zio-schema/) instead to get typeclass derivation on `scala` `2.12`, `2.13` and `3`.
+There are tones of artifacts [published](artifacts.md) for each AWS service. We can pick whichever services we need.
 
 ## Example
 
-All the following code snippets assume that the following imports have been declared
+The following example uses the _ElasticBeanstalk_ and _EC2_ APIs:
+
+> **Note**
+> 
+> See the [artifacts](artifacts.md) page for the latest release.
 
 ```scala
-import zio.bson._
-import zio.bson.BsonBuilder._
+libraryDependencies += "dev.zio" %% "zio-aws-core"             % "<version>"
+libraryDependencies += "dev.zio" %% "zio-aws-ec2"              % "<version>"
+libraryDependencies += "dev.zio" %% "zio-aws-elasticbeanstalk" % "<version>"
+libraryDependencies += "dev.zio" %% "zio-aws-netty"            % "<version>"
 ```
 
-### Declaring codecs
-
-Use `DeriveBsonCodec.derive` to get a codec for your case class or sealed trait:
+And here is the example code:
 
 ```scala
-import zio.bson.magnolia._
+import zio.aws.core.AwsError
+import zio.aws.core.config.AwsConfig
+import zio.aws.ec2.Ec2
+import zio.aws.ec2.model._
+import zio.aws.ec2.model.primitives._
+import zio.aws.elasticbeanstalk.ElasticBeanstalk
+import zio.aws.elasticbeanstalk.model._
+import zio.aws.elasticbeanstalk.model.primitives._
+import zio.aws.netty.NettyHttpClient
+import zio._
+import zio.stream._
 
-case class Banana(curvature: Double)
+object ZIOAWSExample extends ZIOAppDefault {
+  val program: ZIO[Ec2 & ElasticBeanstalk, AwsError, Unit] =
+    for {
+      appsResult <- ElasticBeanstalk.describeApplications(
+        DescribeApplicationsRequest(applicationNames = Some(List(ApplicationName("my-service"))))
+      )
+      app <- appsResult.getApplications.map(_.headOption)
+      _ <- app match {
+        case Some(appDescription) =>
+          for {
+            applicationName <- appDescription.getApplicationName
+            _ <- Console
+              .printLine(
+                s"Got application description for $applicationName"
+              )
+              .ignore
 
-object Banana {
-  implicit val codec: BsonCodec[Banana] = DeriveBsonCodec.derive
+            envStream = ElasticBeanstalk.describeEnvironments(
+              DescribeEnvironmentsRequest(applicationName =
+                Some(applicationName)
+              )
+            )
+
+            _ <- envStream.run(ZSink.foreach { env =>
+              env.getEnvironmentName.flatMap { environmentName =>
+                (for {
+                  environmentId <- env.getEnvironmentId
+                  _ <- Console
+                    .printLine(
+                      s"Getting the EB resources of $environmentName"
+                    )
+                    .ignore
+
+                  resourcesResult <-
+                    ElasticBeanstalk.describeEnvironmentResources(
+                      DescribeEnvironmentResourcesRequest(environmentId =
+                        Some(environmentId)
+                      )
+                    )
+                  resources <- resourcesResult.getEnvironmentResources
+                  _ <- Console
+                    .printLine(
+                      s"Getting the EC2 instances in $environmentName"
+                    )
+                    .ignore
+                  instances <- resources.getInstances
+                  instanceIds <- ZIO.foreach(instances)(_.getId)
+                  _ <- Console
+                    .printLine(
+                      s"Instance IDs are ${instanceIds.mkString(", ")}"
+                    )
+                    .ignore
+
+                  reservationsStream = Ec2.describeInstances(
+                    DescribeInstancesRequest(instanceIds = Some(instanceIds.map(id => zio.aws.ec2.model.primitives.InstanceId(ResourceId.unwrap(id)))))
+                  )
+                  _ <- reservationsStream.run(ZSink.foreach { reservation =>
+                    reservation.getInstances
+                      .flatMap { instances =>
+                        ZIO.foreach(instances) { instance =>
+                          for {
+                            id <- instance.getInstanceId
+                            typ <- instance.getInstanceType
+                            launchTime <- instance.getLaunchTime
+                            _ <- Console.printLine(s"  instance $id:").ignore
+                            _ <- Console.printLine(s"    type: $typ").ignore
+                            _ <- Console
+                              .printLine(
+                                s"    launched at: $launchTime"
+                              )
+                              .ignore
+                          } yield ()
+                        }
+                      }
+                  })
+                } yield ()).catchAll { error =>
+                  Console
+                    .printLineError(
+                      s"Failed to get info for $environmentName: $error"
+                    )
+                    .ignore
+                }
+              }
+            })
+          } yield ()
+        case None =>
+          ZIO.unit
+      }
+    } yield ()
+
+  override def run: URIO[ZIOAppArgs, ExitCode] = {
+    val httpClient = NettyHttpClient.default
+    val awsConfig = httpClient >>> AwsConfig.default
+    val aws = awsConfig >>> (Ec2.live ++ ElasticBeanstalk.live)
+
+    program
+      .provideLayer(aws)
+      .either
+      .flatMap {
+        case Left(error) =>
+          Console.printLineError(s"AWS error: $error").ignore.as(ExitCode.failure)
+        case Right(_) =>
+          ZIO.unit.as(ExitCode.success)
+      }
+  }
 }
-```
-
-### Converting to BsonValue
-
-To use values in `Filter` of `Update` expressions you can convert them to `BsonValue` this way:
-
-```scala
-"str".toBsonValue
-
-Banana(0.2).toBsonValue
-
-import org.bson._
-
-def method[T: BsonEncoder](value: T): BsonDocument = doc("key" -> value.toBsonValue)
-```
-
-### Creating CodecProvider
-
-To get `CodecProvider` for your `BsonCodec` use `zioBsonCodecProvider`:
-
-```scala
-val codecProvider = zioBsonCodecProvider[Banana]
-```
-
-### Parsing BsonValue
-
-In general `CodecProvider` should parse your case class without intermediate `BsonValue` representation.
-But you can parse `BsonValue` any way:
-
-```scala
-import BsonBuilder._
-
-val bsonVal: BsonValue = doc("curvature" -> double(0.2))
-
-bsonVal.as[Banana]
-```
-
-## Type Mappings
-
-See [Type Mappings](types.md) for the full list of supported Scala and Java types, their primary BSON types, and decoder fallbacks.
-
-## Errors
-
-Bad BSON will produce an error with path and contextual information
-
-```
-scala> doc("curvature" -> Array[Byte](1, 2, 3).toBsonValue).as[Banana]
-val res: Either[String,Banana] = Left(.curvature: Expected BSON type Double, but got BINARY.)
-```
-
-## Configuration
-
-You can configure typeclass derivation with annotations.
-
-```scala
-import zio.bson._
-import zio.bson.BsonBuilder._
-import zio.bson.magnolia._
-
-sealed trait Fruit
-
-object Fruit {
-  case class Banana(curvature: Double) extends Fruit
-  case class Apple(poison: Boolean) extends Fruit
-  
-  implicit val codec: BsonCodec[Fruit] = DeriveBsonCodec.derive
-}
-
-val bsonFruit = doc( "Banana" -> doc( "curvature" -> double(0.5) ))
-
-bsonFruit.as[Fruit]
-//Right(Banana(0.5))
-
-@bsonDiscriminator("$type")
-sealed trait FruitConfigured
-
-object FruitConfigured {
-  case class Banana(curvature: Double) extends FruitConfigured
-  @bsonHint("custom_type_name")
-  case class Apple(@bsonField("is_poisoned") poison: Boolean) extends FruitConfigured
-
-  implicit val codec: BsonCodec[FruitConfigured] = DeriveBsonCodec.derive
-}
-
-val bsonFruitConfigured = doc(
-  "$type" -> str("custom_type_name"),
-  "is_poisoned" -> bool(true)
-)
-
-bsonFruitConfigured.as[FruitConfigured]
-//Right(Apple(true))
 ```
