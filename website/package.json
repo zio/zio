@@ -83,7 +83,7 @@
     "webpackbar": "^7.0.0"
   },
   "resolutions": {
-    "cytoscape": "3.34.4",
+    "cytoscape": "3.35.0",
     "webpackbar": "^7.0.0"
   },
   "browserslist": {
