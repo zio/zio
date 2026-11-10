@@ -24,7 +24,6 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.{Set => JavaSet}
 import scala.annotation.tailrec
 
 final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, runtimeFlags0: RuntimeFlags)
@@ -43,7 +42,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   private var _asyncContWith  = null.asInstanceOf[AsyncContWith]
   private val running         = new AtomicBoolean(false)
   private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
-  private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
+  private var _children       = null.asInstanceOf[FiberSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
   private var _stack          = null.asInstanceOf[Array[Continuation]]
@@ -84,7 +83,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       )
   }
 
-  private[this] def childrenChunk(children: java.util.Set[Fiber.Runtime[?, ?]]): Chunk[Fiber.Runtime[_, _]] =
+  private[this] def childrenChunk(children: FiberSet[Fiber.Runtime[?, ?]]): Chunk[Fiber.Runtime[_, _]] =
     // may be executed by a foreign fiber (under Sync), hence we're risking a race over the _children variable being set back to null by a concurrent transferChildren call
     if (children eq null) Chunk.empty
     else {
@@ -568,11 +567,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    *
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
-  private def getChildren(): JavaSet[Fiber.Runtime[_, _]] = {
+  private def getChildren(): FiberSet[Fiber.Runtime[_, _]] = {
     // executed by the fiber itself, no risk of racing with transferChildren
     var children = _children
     if (children eq null) {
-      children = Platform.newConcurrentWeakSet[Fiber.Runtime[_, _]]()(Unsafe)
+      children = FiberSet.forFibers()
       _children = children
     }
     children
@@ -762,7 +761,10 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         ZIO
           .whileLoop(null ne curr)(curr.await(id.location))(_ => skip())(id.location)
       } else null
-    } else null
+    } else {
+      _children = null
+      null
+    }
 
   private[zio] def isAlive(): Boolean =
     _exitValue eq null
@@ -1366,7 +1368,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   }
 
   private def sendInterruptSignalToAllChildren(
-    children: JavaSet[Fiber.Runtime[_, _]]
+    children: FiberSet[Fiber.Runtime[_, _]]
   ): Boolean =
     if ((children eq null) || children.isEmpty) false
     else {
@@ -1397,6 +1399,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    */
   private def setExitValue(e: Exit[E, A]): Unit = {
     _exitValue = e
+    _children = null
 
     val runtimeMetricsEnabled = RuntimeFlags.runtimeMetrics(_runtimeFlags)
 
