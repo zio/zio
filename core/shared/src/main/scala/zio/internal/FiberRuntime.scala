@@ -572,7 +572,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     // executed by the fiber itself, no risk of racing with transferChildren
     var children = _children
     if (children eq null) {
-      children = Platform.newConcurrentWeakSet[Fiber.Runtime[_, _]]()(Unsafe)
+      children = FiberSet()
       _children = children
     }
     children
