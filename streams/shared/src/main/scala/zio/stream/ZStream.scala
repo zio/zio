@@ -204,7 +204,9 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
       case (handoff, sinkEndReason, sinkLeftovers, scheduleDriver, consumed, endAfterEmit) =>
         lazy val handoffProducer: ZChannel[Any, E1, Chunk[A], Any, Nothing, Nothing, Any] =
           ZChannel.readWithCause(
-            (in: Chunk[A]) => ZChannel.fromZIO(handoff.offer(Emit(in)).when(in.nonEmpty)) *> handoffProducer,
+            (in: Chunk[A]) =>
+              if (in.nonEmpty) ZChannel.fromZIO(handoff.offer(Emit(in))) *> handoffProducer
+              else ZChannel.fromZIO(ZIO.yieldNow) *> handoffProducer,
             (cause: Cause[E1]) => ZChannel.fromZIO(handoff.offer(Halt(cause))),
             (_: Any) => ZChannel.fromZIO(handoff.offer(End(UpstreamEnd)))
           )
@@ -257,16 +259,19 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
                 sinkEndReason.get.map {
                   case ScheduleEnd =>
                     ZChannel.unwrap {
-                      for {
-                        consumed      <- consumed.get
-                        sinkFiber     <- forkSink
-                        scheduleFiber <- timeout(Some(b)).forkIn(scope)
-                        toWrite        = c.fold[Chunk[Either[C, B]]](Chunk.single(Right(b)))(c => Chunk(Right(b), Left(c)))
-                      } yield
-                        if (consumed)
-                          ZChannel
-                            .write(toWrite) *> scheduledAggregator(sinkFiber, scheduleFiber, scope)
-                        else scheduledAggregator(sinkFiber, scheduleFiber, scope)
+                      val nextCycle =
+                        ZChannel.unwrap {
+                          for {
+                            sinkFiber     <- forkSink
+                            scheduleFiber <- timeout(Some(b)).forkIn(scope)
+                          } yield scheduledAggregator(sinkFiber, scheduleFiber, scope)
+                        }
+                      consumed.get.map { isConsumed =>
+                        if (isConsumed) {
+                          val toWrite = c.fold[Chunk[Either[C, B]]](Chunk.single(Right(b)))(c => Chunk(Right(b), Left(c)))
+                          ZChannel.write(toWrite) *> nextCycle
+                        } else nextCycle
+                      }
                     }
                   case UpstreamEnd =>
                     ZChannel.unwrap {
