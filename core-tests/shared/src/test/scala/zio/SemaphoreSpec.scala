@@ -87,6 +87,48 @@ object SemaphoreSpec extends ZIOBaseSpec {
         _            <- promise.succeed(())
         waitingEnd   <- semaphore.awaiting.repeatUntil(_ == 0)
       } yield assertTrue(waitingStart == 10, waitingEnd == 0)
+    } @@ timeout(10.seconds),
+    test("interruption of partially satisfied multi-permit waiter wakes subsequent waiters") {
+      for {
+        semaphore <- Semaphore.make(1L)
+        gate      <- Promise.make[Nothing, Unit]
+        woken     <- Promise.make[Nothing, Unit]
+        fiber1    <- semaphore.withPermits(2L)(ZIO.never).fork
+        _         <- semaphore.awaiting.repeatUntil(_ == 1L)
+        fiber2    <- semaphore.withPermit(woken.succeed(()) *> gate.await).fork
+        _         <- semaphore.awaiting.repeatUntil(_ == 2L)
+        _         <- fiber1.interrupt
+        _         <- woken.await
+        _         <- gate.succeed(())
+        _         <- fiber2.join
+        permits   <- semaphore.available
+        waiting   <- semaphore.awaiting
+      } yield assertTrue(permits == 1L, waiting == 0L)
+    } @@ timeout(10.seconds),
+    test("high contention single-permit semaphore preserves mutual exclusion and permit count") {
+      for {
+        semaphore <- Semaphore.make(1L)
+        counter   <- Ref.make(0L)
+        active    <- Ref.make(0L)
+        maxActive <- Ref.make(0L)
+        workers = ZIO.foreachParDiscard(1 to 8) { _ =>
+                    ZIO.replicateZIODiscard(250) {
+                      semaphore.withPermit {
+                        for {
+                          cur <- active.updateAndGet(_ + 1L)
+                          _   <- maxActive.update( math.max(_, cur))
+                          _   <- counter.update(_ + 1L)
+                          _   <- active.update(_ - 1L)
+                        } yield ()
+                      }
+                    }
+                  }
+        _       <- workers
+        total   <- counter.get
+        peak    <- maxActive.get
+        permits <- semaphore.available
+        waiting <- semaphore.awaiting
+      } yield assertTrue(total == 2000L, peak == 1L, permits == 1L, waiting == 0L)
     } @@ timeout(10.seconds)
   ) @@ exceptJS(nonFlaky)
 }

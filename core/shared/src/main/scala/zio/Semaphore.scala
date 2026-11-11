@@ -19,6 +19,7 @@ package zio
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.TSemaphore
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.collection.immutable.{Queue => ScalaQueue}
 
@@ -90,6 +91,17 @@ sealed trait Semaphore extends Serializable {
 
 object Semaphore {
 
+  private type WaitQueue = ScalaQueue[(Promise[Nothing, Unit], Long)]
+  private type State     = Either[WaitQueue, Long]
+
+  private val RightZero: State = Right(0L)
+  private val RightOne: State  = Right(1L)
+
+  @inline private def rightPermits(n: Long): State =
+    if (n == 0L) RightZero
+    else if (n == 1L) RightOne
+    else Right(n)
+
   /**
    * Creates a new `Semaphore` with the specified number of permits.
    */
@@ -99,18 +111,25 @@ object Semaphore {
   object unsafe {
     def make(permits: Long)(implicit unsafe: Unsafe): Semaphore =
       new Semaphore {
-        val ref = Ref.unsafe.make[Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]](Right(permits))
+        private val state = new AtomicReference[State](rightPermits(permits))
+
+        private val releaseOne: UIO[Unit] =
+          ZIO.succeed(releaseNSync(1L))(Trace.empty)
 
         def available(implicit trace: Trace): UIO[Long] =
-          ref.get.map {
-            case Left(_)        => 0L
-            case Right(permits) => permits
+          ZIO.succeed {
+            state.get() match {
+              case Left(_)        => 0L
+              case Right(permits) => permits
+            }
           }
 
         override def awaiting(implicit trace: Trace): UIO[Long] =
-          ref.get.map {
-            case Left(queue) => queue.size.toLong
-            case Right(_)    => 0L
+          ZIO.succeed {
+            state.get() match {
+              case Left(queue) => queue.size.toLong
+              case Right(_)    => 0L
+            }
           }
 
         def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
@@ -120,88 +139,179 @@ object Semaphore {
           withPermitsScoped(1L)
 
         def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
-          ZIO.acquireReleaseWith(reserve(n))(_.release)(_.acquire *> zio)
+          if (n < 0L)
+            ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+          else if (n == 0L)
+            zio
+          else
+            ZIO.uninterruptibleMask { restore =>
+              if (tryAcquireSync(n))
+                restore(zio).ensuring(releaseN(n))
+              else {
+                val promise = Promise.unsafe.make[Nothing, Unit](FiberId.None)(Unsafe.unsafe)
+                if (acquireOrEnqueue(n, promise))
+                  restore(zio).ensuring(releaseN(n))
+                else
+                  restore(promise.await).onError(_ => restore(promise, n)) *>
+                    restore(zio).ensuring(releaseN(n))
+              }
+            }
 
         def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
           ZIO.acquireRelease(reserve(n))(_.release).flatMap(_.acquire)
 
         override def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
-          ZIO.acquireReleaseWith(tryReserve(n)) {
-            case Some(reservation) => reservation.release
-            case _                 => Exit.unit
-          } {
-            case _: Some[?] => zio.asSome
-            case _          => Exit.none
-          }
+          if (n < 0L)
+            ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+          else if (n == 0L)
+            zio.asSome
+          else
+            ZIO.uninterruptibleMask { restore =>
+              if (tryAcquireSync(n))
+                restore(zio).asSome.ensuring(releaseN(n))
+              else
+                Exit.none
+            }
 
         case class Reservation(acquire: UIO[Unit], release: UIO[Any])
         object Reservation {
-          private[zio] val zero = Reservation(ZIO.unit, ZIO.unit)
+          private[zio] val zero = Reservation(Exit.unit, Exit.unit)
         }
 
+        @tailrec
+        private def tryAcquireSync(n: Long): Boolean =
+          state.get() match {
+            case current @ Right(permits) if permits >= n =>
+              if (state.compareAndSet(current, rightPermits(permits - n))) true
+              else tryAcquireSync(n)
+            case _ =>
+              false
+          }
+
+        @tailrec
+        private def acquireOrEnqueue(n: Long, promise: Promise[Nothing, Unit]): Boolean =
+          state.get() match {
+            case current @ Right(permits) =>
+              if (permits >= n) {
+                if (state.compareAndSet(current, rightPermits(permits - n))) true
+                else acquireOrEnqueue(n, promise)
+              } else {
+                if (state.compareAndSet(current, Left(ScalaQueue(promise -> (n - permits))))) false
+                else acquireOrEnqueue(n, promise)
+              }
+            case current @ Left(queue) =>
+              if (state.compareAndSet(current, Left(queue.enqueue(promise -> n)))) false
+              else acquireOrEnqueue(n, promise)
+          }
+
         def tryReserve(n: Long)(implicit trace: Trace): UIO[Option[Reservation]] =
-          if (n < 0) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
+          if (n < 0L) ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
           else if (n == 0L) ZIO.succeed(Some(Reservation.zero))
           else
-            ref.modify {
-              case Right(permits) if permits >= n =>
-                Some(Reservation(ZIO.unit, releaseN(n))) -> Right(permits - n)
-              case other => None -> other
+            ZIO.succeed {
+              if (tryAcquireSync(n)) Some(Reservation(Exit.unit, releaseN(n)))
+              else None
             }
 
         def reserve(n: Long)(implicit trace: Trace): UIO[Reservation] =
-          if (n < 0)
+          if (n < 0L)
             ZIO.die(new IllegalArgumentException(s"Unexpected negative `$n` permits requested."))
           else if (n == 0L)
             ZIO.succeed(Reservation.zero)
           else
-            Promise.make[Nothing, Unit].flatMap { promise =>
-              ref.modify {
-                case Right(permits) if permits >= n =>
-                  Reservation(ZIO.unit, releaseN(n)) -> Right(permits - n)
-                case Right(permits) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(ScalaQueue(promise -> (n - permits)))
-                case Left(queue) =>
-                  Reservation(promise.await, restore(promise, n)) -> Left(queue.enqueue(promise -> n))
+            ZIO.succeed {
+              if (tryAcquireSync(n))
+                Reservation(Exit.unit, releaseN(n))
+              else {
+                val promise = Promise.unsafe.make[Nothing, Unit](FiberId.None)(Unsafe.unsafe)
+                if (acquireOrEnqueue(n, promise))
+                  Reservation(Exit.unit, releaseN(n))
+                else
+                  Reservation(promise.await, restore(promise, n))
               }
             }
 
         def restore(promise: Promise[Nothing, Unit], n: Long)(implicit trace: Trace): UIO[Any] =
-          ref.modify {
-            case Left(queue) =>
-              queue
-                .find(_._1 == promise)
-                .fold(releaseN(n) -> Left(queue)) { case (_, permits) =>
-                  releaseN(n - permits) -> Left(queue.filter(_._1 != promise))
-                }
-            case Right(permits) => ZIO.unit -> Right(permits + n)
-          }.flatten
+          ZIO.succeed(restoreSync(promise, n))
 
-        def releaseN(n: Long)(implicit trace: Trace): UIO[Any] = {
+        @tailrec
+        private def restoreSync(promise: Promise[Nothing, Unit], n: Long): Unit =
+          state.get() match {
+            case current @ Right(permits) =>
+              if (!state.compareAndSet(current, rightPermits(permits + n)))
+                restoreSync(promise, n)
+            case current @ Left(queue) =>
+              queue.find(_._1 eq promise) match {
+                case Some((_, permits)) =>
+                  val filtered  = queue.filterNot(_._1 eq promise)
+                  val toRelease = n - permits
+                  val (toComplete, nextState) =
+                    releaseLoop(toRelease, if (filtered.isEmpty) RightZero else Left(filtered), Nil)
+                  if (state.compareAndSet(current, nextState))
+                    completeAll(toComplete)
+                  else
+                    restoreSync(promise, n)
+                case None =>
+                  val (toComplete, nextState) = releaseLoop(n, current, Nil)
+                  if (state.compareAndSet(current, nextState))
+                    completeAll(toComplete)
+                  else
+                    restoreSync(promise, n)
+              }
+          }
 
-          @tailrec
-          def loop(
-            n: Long,
-            state: Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long],
-            acc: UIO[Any]
-          ): (UIO[Any], Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]) =
-            state match {
-              case Right(permits) => acc -> Right(permits + n)
-              case Left(queue) =>
-                queue.dequeueOption match {
-                  case None => acc -> Right(n)
-                  case Some(((promise, permits), queue)) =>
-                    if (n > permits)
-                      loop(n - permits, Left(queue), acc *> promise.succeedUnit)
-                    else if (n == permits)
-                      (acc *> promise.succeedUnit) -> Left(queue)
-                    else
-                      acc -> Left((promise -> (permits - n)) +: queue)
-                }
+        def releaseN(n: Long)(implicit trace: Trace): UIO[Any] =
+          if (n == 1L) releaseOne
+          else if (n <= 0L) Exit.unit
+          else ZIO.succeed(releaseNSync(n))
+
+        @tailrec
+        private def releaseNSync(n: Long): Unit =
+          if (n > 0L) {
+            state.get() match {
+              case current @ Right(permits) =>
+                if (!state.compareAndSet(current, rightPermits(permits + n)))
+                  releaseNSync(n)
+              case current @ Left(_) =>
+                val (toComplete, nextState) = releaseLoop(n, current, Nil)
+                if (state.compareAndSet(current, nextState))
+                  completeAll(toComplete)
+                else
+                  releaseNSync(n)
             }
+          }
 
-          ref.modify(loop(n, _, ZIO.unit)).flatten
-        }
+        @tailrec
+        private def releaseLoop(
+          n: Long,
+          currentState: State,
+          acc: List[Promise[Nothing, Unit]]
+        ): (List[Promise[Nothing, Unit]], State) =
+          currentState match {
+            case Right(permits) =>
+              (acc, rightPermits(permits + n))
+            case Left(queue) =>
+              queue.dequeueOption match {
+                case None =>
+                  (acc, rightPermits(n))
+                case Some(((promise, permits), tail)) =>
+                  if (n > permits)
+                    releaseLoop(n - permits, Left(tail), promise :: acc)
+                  else if (n == permits)
+                    (promise :: acc, if (tail.isEmpty) RightZero else Left(tail))
+                  else
+                    (acc, Left((promise -> (permits - n)) +: tail))
+              }
+          }
+
+        private def completeAll(promises: List[Promise[Nothing, Unit]]): Unit =
+          promises match {
+            case Nil => ()
+            case p :: Nil =>
+              p.unsafe.done(Exit.unit)(Unsafe.unsafe)
+            case _ =>
+              promises.reverse.foreach(_.unsafe.done(Exit.unit)(Unsafe.unsafe))
+          }
       }
   }
 }
