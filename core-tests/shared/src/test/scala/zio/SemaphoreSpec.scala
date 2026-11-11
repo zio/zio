@@ -284,6 +284,42 @@ object SemaphoreSpec extends ZIOBaseSpec {
         after  <- sem.available.repeatUntil(_ == 1L)
       } yield assertTrue(after == 1L)
     } @@ timeout(10.seconds),
+    test("closing a scoped waiter's scope while it waits interrupts it") {
+      for {
+        sem      <- make(1L)
+        gate     <- Promise.make[Nothing, Unit]
+        scope    <- Scope.make
+        holder   <- sem.withPermit(gate.await).fork
+        _        <- sem.available.repeatUntil(_ == 0L)
+        waiter   <- scope.extend[Any](sem.withPermitScoped).fork
+        _        <- sem.awaiting.repeatUntil(_ == 1L)
+        _        <- scope.close(Exit.unit)
+        exit     <- waiter.await
+        awaiting <- sem.awaiting
+        _        <- gate.succeed(())
+        _        <- holder.join
+        after    <- sem.available
+      } yield assertTrue(exit.isInterrupted, awaiting == 0L, after == 1L)
+    } @@ timeout(10.seconds),
+    test("closing a scoped waiter's scope does not disturb the other waiters") {
+      for {
+        sem      <- make(1L)
+        gate     <- Promise.make[Nothing, Unit]
+        scope    <- Scope.make
+        holder   <- sem.withPermit(gate.await).fork
+        _        <- sem.available.repeatUntil(_ == 0L)
+        closed   <- scope.extend[Any](sem.withPermitScoped).fork
+        _        <- sem.awaiting.repeatUntil(_ == 1L)
+        live     <- sem.withPermit(ZIO.unit).fork
+        _        <- sem.awaiting.repeatUntil(_ == 2L)
+        _        <- scope.close(Exit.unit)
+        exit     <- closed.await
+        awaiting <- sem.awaiting
+        _        <- gate.succeed(())
+        _        <- holder.join *> live.join
+        after    <- sem.available
+      } yield assertTrue(exit.isInterrupted, awaiting == 1L, after == 1L)
+    } @@ timeout(10.seconds),
     stressTest(make, 1L, 8),
     stressTest(make, 3L, 8),
     stressTest(make, 1L, 32),
@@ -485,13 +521,23 @@ object SemaphoreSpec extends ZIOBaseSpec {
         val k      = 1L + random.nextInt(total.toInt)
         val yields = random.nextInt(3)
         val after  = random.nextInt(4)
-        random.nextInt(7) match {
+        random.nextInt(8) match {
           case 0 => sem.withPermits(k)(body(k, yields))
           case 1 => cut(sem.withPermits(k)(body(k, yields)), after)
           case 2 => sem.tryWithPermits(k)(body(k, yields))
           case 3 => ZIO.scoped(sem.withPermitsScoped(k) *> body(k, yields))
           case 4 => cut(ZIO.scoped(sem.withPermitsScoped(k) *> body(k, yields)), after)
           case 5 => cut(sem.tryWithPermits(k)(body(k, yields)), after)
+          case 6 =>
+            // Another fiber closes the scope wherever the acquisition is by
+            // then. The acquisition must end, by acquiring or by being
+            // interrupted, rather than hang. No body runs: once the scope is
+            // closed the permits are gone while it would still be running.
+            Scope.make.flatMap { scope =>
+              scope.extend[Any](sem.withPermitsScoped(k)).fork.flatMap { fiber =>
+                ZIO.yieldNow.repeatN(after) *> scope.close(Exit.unit) *> fiber.await
+              }
+            }
           case _ =>
             // A scope that outlives the wait: the waiter is abandoned first and
             // its scope closed later.

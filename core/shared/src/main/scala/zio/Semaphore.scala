@@ -76,7 +76,9 @@ sealed trait Semaphore extends Serializable {
 
   /**
    * Returns a scoped workflow that describes acquiring a permit as the
-   * `acquire` action and releasing it as the `release` action.
+   * `acquire` action and releasing it as the `release` action. If the scope is
+   * closed while the workflow is still waiting for the permit, the workflow is
+   * interrupted.
    */
   def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
 
@@ -90,7 +92,9 @@ sealed trait Semaphore extends Serializable {
 
   /**
    * Returns a scoped workflow that describes acquiring the specified number of
-   * permits and releasing them when the scope is closed.
+   * permits and releasing them when the scope is closed. If the scope is closed
+   * while the workflow is still waiting for the permits, the workflow is
+   * interrupted.
    */
   def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
 
@@ -164,11 +168,12 @@ object Semaphore {
   /**
    * A fiber waiting for `n` permits. All fields are guarded by the owning
    * semaphore's lock. `woken` is set when the semaphore resumes the waiter,
-   * either because it was granted its permits (fair) or because it should retry
-   * for them (unfair); `holding` is set once the waiter owns its permits;
-   * `cancelled` is set by the first `abandon`, which makes later ones no-ops
-   * and stops the waiter from taking permits. `prev` and `next` link the waiter
-   * into the semaphore's queue, and are both null while it is not in it.
+   * either because it was granted its permits (fair), because it should retry
+   * for them (unfair), or because its scope closed first; `holding` is set once
+   * the waiter owns its permits; `cancelled` is set by the first `abandon`,
+   * which makes later ones no-ops and stops the waiter from taking permits.
+   * `prev` and `next` link the waiter into the semaphore's queue, and are both
+   * null while it is not in it.
    */
   private final class Waiter(val n: Long) {
     var callback: ZIO[Any, Nothing, Unit] => Unit = null
@@ -350,14 +355,18 @@ object Semaphore {
       else
         ZIO.uninterruptibleMask { restore =>
           ZIO
-            .acquireRelease(ZIO.succeed(reserve(n)))(waiter => ZIO.succeed(undoReserve(waiter, n)))
+            .acquireRelease(ZIO.succeed(reserve(n))) { waiter =>
+              // The scope can close while its fiber still waits, so the
+              // finalizer wakes that fiber, which then ends interrupted.
+              ZIO.succeed(if (waiter eq null) release(n) else abandon(waiter, wakeOwner = true))
+            }
             .flatMap { waiter =>
               // The scope may outlive the wait, so a fiber that stops waiting
               // cleans up now rather than leaving its waiter for the finalizer.
               // Only the wait is interruptible, so there is no point at which
               // a waiter exists without this cleanup in place.
               if (waiter eq null) ZIO.unit
-              else restore(await(waiter)).onInterrupt(ZIO.succeed(abandon(waiter)))
+              else restore(await(waiter)).onInterrupt(ZIO.succeed(abandon(waiter, wakeOwner = false)))
             }
         }
 
@@ -422,17 +431,23 @@ object Semaphore {
     /**
      * Undoes a `reserve`: returns the permits it took, or cleans up its waiter.
      */
-    private[this] def undoReserve(waiter: Waiter, n: Long): Unit =
-      if (waiter eq null) release(n) else abandon(waiter)
+    private[this] def undoReserve(waiter: Waiter, n: Long)(implicit trace: Trace): Unit =
+      if (waiter eq null) release(n) else abandon(waiter, wakeOwner = false)
 
     /**
      * Cleans up after a waiter whose owner is done with it: a waiter still
      * queued is removed, one that holds permits returns them.
+     *
+     * `wakeOwner` is for a caller other than the owner, a scope closing while
+     * its fiber waits: unless the waiter holds its permits, the owner is woken
+     * and ends interrupted (see `suspend`) instead of waiting forever for a
+     * waiter nobody will grant.
      */
-    private[this] def abandon(waiter: Waiter): Unit = {
-      var first       = false
-      var holding     = false
-      var wasRetrying = false
+    private[this] def abandon(waiter: Waiter, wakeOwner: Boolean)(implicit trace: Trace): Unit = {
+      var first                                     = false
+      var holding                                   = false
+      var wasRetrying                               = false
+      var callback: ZIO[Any, Nothing, Unit] => Unit = null
       synchronized {
         if (!waiter.cancelled) {
           waiter.cancelled = true
@@ -442,9 +457,15 @@ object Semaphore {
             wasRetrying = retrying eq waiter
             if (wasRetrying) retrying = null
             unlink(waiter)
+            // A woken owner is already resuming and sees `cancelled` itself.
+            if (wakeOwner && !waiter.woken) {
+              waiter.woken = true
+              callback = waiter.callback
+            }
           }
         }
       }
+      if (callback ne null) callback(ZIO.interrupt)
       if (first) {
         // A fair waiter may have been blocking the ones behind it, so wake
         // again. An unfair queued waiter blocks nobody, since a wakeup considers
@@ -468,8 +489,8 @@ object Semaphore {
           val acquired = synchronized {
             if (retrying eq waiter) retrying = null
             if (waiter.cancelled) {
-              // Its owner has already cleaned up, so nothing would return
-              // permits taken now.
+              // Its scope has closed, so nothing would return permits taken
+              // now.
               cancelled = true
               false
             } else {
@@ -492,25 +513,32 @@ object Semaphore {
           // so pass the wakeup on: permits may be left for another waiter.
           if (hasWaiters) wakeOne()
           if (acquired) ZIO.unit
-          else if (cancelled) ZIO.never // as a cancelled fair waiter, which is never woken
+          else if (cancelled) ZIO.interrupt
           else await(waiter)
         }
 
     /**
-     * Suspends until the semaphore wakes the waiter. A wakeup that races with
-     * interruption is dropped, so the owner must call `abandon` afterwards.
+     * Suspends until the semaphore wakes the waiter, and ends interrupted if
+     * its scope closed before it was granted its permits. A wakeup that races
+     * with interruption is dropped, so the owner must call `abandon`
+     * afterwards.
      */
     private[this] def suspend(waiter: Waiter)(implicit trace: Trace): UIO[Unit] =
       ZIO.asyncMaybe[Any, Nothing, Unit] { callback =>
+        var closed = false
         val done = synchronized {
-          if (waiter.woken) true
-          else {
+          if (waiter.woken) {
+            closed = waiter.cancelled && !waiter.holding
+            true
+          } else {
             waiter.callback = callback
             false
           }
         }
         // No interrupt handler: `abandon` is the cleanup.
-        if (done) Some(Exit.unit) else None
+        if (!done) None
+        else if (closed) Some(ZIO.interrupt)
+        else Some(Exit.unit)
       }
 
     private[this] def wake(): Unit =
