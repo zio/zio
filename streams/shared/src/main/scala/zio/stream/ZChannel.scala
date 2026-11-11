@@ -654,7 +654,7 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   final def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
   )(implicit trace: Trace): ZChannel[Env1, InErr, InElem, InDone, OutErr1, OutElem2, OutDone] =
-    mapOutZIOPar[Env1, OutErr1, OutElem2](n, bufferSize = 16)(f)
+    mapOutZIOPar[Env1, OutErr1, OutElem2](n, bufferSize = math.min(math.max(16, n), 4096))(f)
 
   /**
    * Creates a channel that is like this channel but the given ZIO function gets
