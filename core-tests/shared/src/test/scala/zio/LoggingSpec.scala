@@ -92,6 +92,12 @@ object LoggingSpec extends ZIOBaseSpec {
           output <- ZTestLogger.logOutput
         } yield assertTrue(output.length == messages.length) &&
           assertTrue(output.map(_.message()).toSet == messages.map(_.toString).toSet)
+      },
+      test("printing a log entry does not overflow the stack") {
+        for {
+          _      <- ZIO.log("hello")
+          output <- ZTestLogger.logOutput
+        } yield assertTrue(output.head.toString.nonEmpty)
       }
     ) @@ TestAspect.silentLogging
 }
