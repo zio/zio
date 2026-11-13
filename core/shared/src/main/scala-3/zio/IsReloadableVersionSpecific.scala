@@ -128,7 +128,7 @@ private object IsReloadableMacros {
         TypeTree.of[A] :: Nil
 
     val cls = Symbol.newClass(
-      parent = Symbol.spliceOwner,
+      owner = Symbol.spliceOwner,
       name = s"_ZIOProxy_${tpe.typeSymbol.name}",
       parents = parents.map(_.tpe),
       decls = forwarders,

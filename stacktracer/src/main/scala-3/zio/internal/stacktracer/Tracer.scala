@@ -30,8 +30,8 @@ object Tracer {
 
     private[zio] def parseOrNull(trace: Type): ParsedTrace = TracerUtils.parse(trace)
 
-    def apply(location: String, file: String, line: Int): Type with Traced =
-      createTrace(location, file, line).asInstanceOf[Type with Traced]
+    def apply(location: String, file: String, line: Int): Type & Traced =
+      createTrace(location, file, line).asInstanceOf[Type & Traced]
   }
 
   private[internal] def createTrace(location: String, file: String, line: Int): String =
@@ -44,5 +44,5 @@ sealed trait Tracer {
   val empty: Type
   def unapply(trace: Type): Option[(String, String, Int)]
   private[zio] def parseOrNull(trace: Type): ParsedTrace
-  def apply(location: String, file: String, line: Int): Type with Tracer.Traced
+  def apply(location: String, file: String, line: Int): Type & Tracer.Traced
 }

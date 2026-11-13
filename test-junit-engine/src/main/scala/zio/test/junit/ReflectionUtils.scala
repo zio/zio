@@ -14,7 +14,7 @@ private[zio] object ReflectionUtils {
    * @return
    *   the optional companion object.
    */
-  def getCompanionObject(klass: Class[_]): Option[Any] =
+  def getCompanionObject(klass: Class[?]): Option[Any] =
     Try {
       (if (klass.getName.endsWith("$")) klass else getClass.getClassLoader.loadClass(klass.getName + "$"))
         .getDeclaredField("MODULE$")

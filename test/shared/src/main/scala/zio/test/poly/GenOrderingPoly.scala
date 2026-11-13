@@ -107,8 +107,10 @@ object GenOrderingPoly {
    * Provides evidence that instances of `Gen[List[T]]` and `Ordering[List[T]]`
    * exist for any type for which `Gen[T]` and `Ordering[T]` exist.
    */
-  def list(poly: GenOrderingPoly)(implicit trace: Trace): GenOrderingPoly =
-    GenOrderingPoly(Gen.listOf(poly.genT), ListOrdering(poly.ordT))
+  def list(poly: GenOrderingPoly)(implicit trace: Trace): GenOrderingPoly = {
+    implicit val ordT: Ordering[poly.T] = poly.ordT
+    GenOrderingPoly(Gen.listOf(poly.genT), ListOrdering[poly.T])
+  }
 
   /**
    * Provides evidence that instances of `Gen` and `Ordering` exist for longs.
@@ -148,8 +150,10 @@ object GenOrderingPoly {
    * `Ordering[Vector[T]]` exist for any type for which `Gen[T]` and
    * `Ordering[T]` exist.
    */
-  def vector(poly: GenOrderingPoly)(implicit trace: Trace): GenOrderingPoly =
-    GenOrderingPoly(Gen.vectorOf(poly.genT), VectorOrdering(poly.ordT))
+  def vector(poly: GenOrderingPoly)(implicit trace: Trace): GenOrderingPoly = {
+    implicit val ordT: Ordering[poly.T] = poly.ordT
+    GenOrderingPoly(Gen.vectorOf(poly.genT), VectorOrdering[poly.T])
+  }
 
   /**
    * Derives an `Ordering[List[A]]` given an `Ordering[A]`.
@@ -157,7 +161,7 @@ object GenOrderingPoly {
   private implicit def ListOrdering[A: Ordering]: Ordering[List[A]] = {
 
     @tailrec
-    def loop[A: Ordering](left: List[A], right: List[A]): Int =
+    def loop(left: List[A], right: List[A]): Int =
       (left, right) match {
         case (Nil, Nil) => 0
         case (Nil, _)   => -1

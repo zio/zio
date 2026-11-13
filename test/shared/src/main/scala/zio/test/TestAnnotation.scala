@@ -34,7 +34,7 @@ final class TestAnnotation[V] private (
 ) extends Serializable {
 
   override def equals(that: Any): Boolean = (that: @unchecked) match {
-    case that: TestAnnotation[_] => (identifier, tag) == ((that.identifier, that.tag))
+    case that: TestAnnotation[?] => (identifier, tag) == ((that.identifier, that.tag))
   }
 
   override lazy val hashCode: Int =
