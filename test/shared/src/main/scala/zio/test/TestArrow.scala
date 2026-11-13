@@ -12,7 +12,20 @@ import scala.util.control.TailCalls
 
 case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
-  lazy val result: TestTrace[Boolean] = TestArrow.run(arrow, Right(()))
+  /**
+   * Optional pre-computed trace. When set (via `TestResult.cached`), `result`
+   * returns it directly instead of running `arrow`, and composition operators
+   * propagate it so that side-effecting expressions captured at construction
+   * time are not re-executed.
+   *
+   * Default `None` for plain `TestResult(arrow)` construction, preserving the
+   * original lazy-run semantics for any user code that builds `TestResult`
+   * directly from an arrow.
+   */
+  protected def maybeCachedTrace: Option[TestTrace[Boolean]] = None
+
+  lazy val result: TestTrace[Boolean] =
+    maybeCachedTrace.getOrElse(TestArrow.run(arrow, Right(())))
 
   lazy val failures: Option[TestTrace[Boolean]] = TestTrace.prune(result, false)
 
@@ -20,11 +33,20 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
   def isSuccess: Boolean = failures.isEmpty
 
-  def &&(that: TestResult): TestResult = TestResult(arrow && that.arrow)
+  def &&(that: TestResult): TestResult =
+    TestResult.fromTrace(
+      arrow && that.arrow,
+      for { l <- self.maybeCachedTrace; r <- that.maybeCachedTrace } yield l && r
+    )
 
-  def ||(that: TestResult): TestResult = TestResult(arrow || that.arrow)
+  def ||(that: TestResult): TestResult =
+    TestResult.fromTrace(
+      arrow || that.arrow,
+      for { l <- self.maybeCachedTrace; r <- that.maybeCachedTrace } yield l || r
+    )
 
-  def unary_! : TestResult = TestResult(!arrow)
+  def unary_! : TestResult =
+    TestResult.fromTrace(!arrow, self.maybeCachedTrace.map(t => !t))
 
   def implies(that: TestResult): TestResult = !self || that
 
@@ -38,13 +60,63 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
   def ??(message: String): TestResult = self.label(message)
 
-  def label(message: String): TestResult = TestResult(arrow.label(message))
+  def label(message: String): TestResult =
+    TestResult.fromTrace(
+      arrow.label(message),
+      self.maybeCachedTrace.map(_.withCustomLabel(Some(message)))
+    )
 
   def setGenFailureDetails(details: GenFailureDetails): TestResult =
-    TestResult(arrow.setGenFailureDetails(details))
+    TestResult.fromTrace(
+      arrow.setGenFailureDetails(details),
+      self.maybeCachedTrace.map(_.withGenFailureDetails(Some(details)))
+    )
 }
 
 object TestResult {
+
+  /**
+   * Build a `TestResult` whose underlying `TestArrow` is run **once, eagerly**.
+   * The resulting `TestTrace` is stashed on the returned `TestResult` so that
+   * `result`/`failures` reuse it instead of running the arrow again. The
+   * original `arrow` is preserved on the returned value (so callers that
+   * inspect `tr.arrow` still see the structured tree built by the macros).
+   *
+   * Used by every `assertTrue` / `assert(...)(...)` entry point so that:
+   *
+   *   - Side-effecting expressions inside the assertion (e.g. `q.offer(1)`,
+   *     `alive.get`) are evaluated exactly once, at the call site — i.e.
+   *     *inside* the user's effect chain. That keeps any scope-managed
+   *     resources alive when the captured value is read.
+   *
+   *   - Composition (`&&`/`||`/`!`/`label`/...) propagates the cached trace, so
+   *     chained assertions never re-run the underlying arrow and the captured
+   *     side effects fire exactly once.
+   */
+  def cached(arrow: TestArrow[Any, Boolean]): TestResult = {
+    val trace = TestArrow.run(arrow, Right(()))
+    fromTrace(arrow, Some(trace))
+  }
+
+  /**
+   * Internal helper that wraps `arrow` with an optional pre-computed
+   * `cachedTrace`. When `cachedTrace` is `Some`, the returned `TestResult`
+   * short-circuits `result` to it and propagates it through composition. When
+   * `None`, falls back to the plain `TestResult(arrow)` constructor.
+   */
+  private[test] def fromTrace(
+    arrow: TestArrow[Any, Boolean],
+    cachedTrace: Option[TestTrace[Boolean]]
+  ): TestResult =
+    cachedTrace match {
+      case Some(t) =>
+        new TestResult(arrow) {
+          override protected val maybeCachedTrace: Option[TestTrace[Boolean]] = Some(t)
+        }
+      case None =>
+        TestResult(arrow)
+    }
+
   def allSuccesses(assert: TestResult, asserts: TestResult*): TestResult = asserts.foldLeft(assert)(_ && _)
 
   def allSuccesses(asserts: Iterable[TestResult])(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
