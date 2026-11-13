@@ -5667,8 +5667,50 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
     ): ZIO[R, E, B1] =
+      ZIO.clockWith { clock =>
+        val d = duration
+        // With the live clock we can put the timeout straight on the scheduler
+        // instead of forking a fiber that sleeps. Other clocks (e.g. TestClock)
+        // and non-positive durations keep using a sleeping fiber.
+        if ((clock eq Clock.ClockLive) && d > Duration.Zero) withScheduler(f, d)
+        else raceWithSleep(f, clock.sleep(d))
+      }
+
+    private def withScheduler[B1 >: B](f: A => B1, duration: Duration)(implicit trace: Trace): ZIO[R, E, B1] =
+      ZIO.withFiberRuntime[R, E, B1] { (parentFiber, parentStatus) =>
+        val childEff = ZIO.Grafter(parentFiber).applyOnExit(self)
+        val child =
+          ZIO.unsafe.makeChildFiber(trace, childEff, parentFiber, parentStatus.runtimeFlags, null)(Unsafe)
+        val start = child.startSuspended()(Unsafe)
+
+        ZIO.asyncInterrupt[R, E, B1](
+          { cb =>
+            val done = new java.util.concurrent.atomic.AtomicBoolean(false)
+
+            val cancelTimeout = Clock.globalScheduler.schedule(
+              () =>
+                if (done.compareAndSet(false, true))
+                  cb(child.interruptAs(parentFiber.id) *> child.inheritAll.as(b())),
+              duration
+            )(Unsafe)
+
+            child.addObserver { exit =>
+              if (done.compareAndSet(false, true)) {
+                cancelTimeout()
+                cb(child.inheritAll *> exit.mapExit(f))
+              }
+            }(Unsafe)
+
+            start(childEff)
+            Left(ZIO.succeed(cancelTimeout()))
+          },
+          child.id
+        )
+      }
+
+    private def raceWithSleep[B1 >: B](f: A => B1, sleep: UIO[Unit])(implicit trace: Trace): ZIO[R, E, B1] =
       ZIO.fiberIdWith { parentFiberId =>
-        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
+        self.raceFibersWith[R, Nothing, E, Unit, B1](sleep.interruptible)(
           (winner, loser) =>
             winner.await.flatMap { exit =>
               loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
