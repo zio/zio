@@ -2508,6 +2508,13 @@ object ZIOSpec extends ZIOBaseSpec {
 
         assertZIO(io.exit)(equalTo(Exit.failCause(expectedCause)))
       } @@ zioTag(errors),
+      test("fiber dies when the context of a failure cannot be collected") {
+        // `ZIO.fail` throws while adding the null annotations to the failure. The runtime used to
+        // handle that by running `ZIO.failCause` again, which threw the same way, forever.
+        val io = FiberRef.currentLogAnnotations.locally(null)(ZIO.fail(ExampleError))
+
+        assertZIO(io.exit)(dies(isSubtype[NullPointerException](anything)))
+      } @@ zioTag(errors) @@ timeout(10.seconds) @@ exceptJS,
       test("run preserves interruption status") {
         for {
           p    <- Promise.make[Nothing, Unit]

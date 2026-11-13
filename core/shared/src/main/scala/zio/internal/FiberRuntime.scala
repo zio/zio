@@ -462,7 +462,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           }
         } catch {
           case ex if nonFatal(ex) =>
-            effect = ZIO.failCause(Cause.die(ex))(_lastTrace)
+            effect = dieWithContext(ex)
           case fatal =>
             effect = handleFatalError(fatal)
         }
@@ -475,6 +475,30 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
       val supervisor = getSupervisor()
 
       if (supervisor ne Supervisor.none) supervisor.onSuspend(self)(Unsafe)
+    }
+  }
+
+  /**
+   * Turns a defect that escaped the run loop into a failure, with the context
+   * that `ZIO.failCause` adds.
+   *
+   * The failure is built here instead of by running `ZIO.failCause`: if
+   * collecting the context throws (e.g. because the class loader that loaded
+   * ZIO has been closed), that effect would throw back into `evaluateEffect`,
+   * which would run it again, forever.
+   *
+   * '''NOTE''': This method must be invoked by the fiber itself.
+   */
+  private def dieWithContext(defect: Throwable): Exit[Nothing, Nothing] = {
+    val cause = Cause.die(defect)
+    try {
+      val trace = generateStackTrace()
+      val refs  = getFiberRefs(false)
+      val spans = refs.getOrDefault(FiberRef.currentLogSpan)
+      val anns  = refs.getOrDefault(FiberRef.currentLogAnnotations)
+      Exit.Failure(cause.applyAll(trace, spans, anns))
+    } catch {
+      case t if nonFatal(t) => Exit.Failure(cause ++ Cause.die(t))
     }
   }
 
