@@ -2374,6 +2374,25 @@ object ZStreamSpec extends ZIOBaseSpec {
             assertZIO(ZStream(1, 2, 3, 4).groupedWithin(2, 10.seconds).runCollect)(
               equalTo(Chunk(Chunk(1, 2), Chunk(3, 4)))
             )
+          },
+          test("group based on time passed when infinite stream emits empty chunks (#8686)") {
+            Live.live {
+              val stream =
+                ZStream
+                  .fromIterable(Seq(1, 2))
+                  .forever
+                  .mapAccum(Set.empty[Int]) { (acc, i) =>
+                    if (acc.contains(i)) (acc, None)
+                    else (acc + i, Some(i))
+                  }
+                  .collectSome
+                  .groupedWithin(3, 100.millis)
+                  .take(1)
+
+              assertZIO(stream.runCollect.provideLayer(Runtime.disableFlags(RuntimeFlag.CooperativeYielding)))(
+                equalTo(Chunk(Chunk(1, 2)))
+              )
+            }
           }
         ),
         test("interleave") {
