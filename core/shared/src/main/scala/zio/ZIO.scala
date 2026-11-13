@@ -872,9 +872,13 @@ sealed trait ZIO[-R, +E, +A]
   final def ignoreLogged(implicit trace: Trace): URIO[R, Unit] =
     self.foldCauseZIO(
       cause =>
-        ZIO.logLevel(LogLevel.Debug) {
-          ZIO.logCause("An error was silently ignored because it is not anticipated to be useful", cause)
-        },
+        cause.failureOrCause.fold(
+          _ =>
+            ZIO.logLevel(LogLevel.Debug) {
+              ZIO.logCause("An error was silently ignored because it is not anticipated to be useful", cause)
+            },
+          Exit.failCause
+        ),
       _ => Exit.unit
     )
 

@@ -1392,6 +1392,17 @@ object ZIOSpec extends ZIOBaseSpec {
         assertZIO(ZIO.die(ExampleError).ignore.exit)(dies(equalTo(ExampleError)))
       } @@ zioTag(errors)
     ),
+    suite("ignoreLogged")(
+      test("return success as Unit") {
+        assertZIO(ZIO.succeed(11).ignoreLogged)(equalTo(()))
+      },
+      test("return failure as Unit") {
+        assertZIO(ZIO.fail(123).ignoreLogged)(equalTo(()))
+      } @@ zioTag(errors),
+      test("not catch throwable") {
+        assertZIO(ZIO.die(ExampleError).ignoreLogged.exit)(dies(equalTo(ExampleError)))
+      } @@ zioTag(errors)
+    ),
     suite("isFailure")(
       test("returns true when the effect is a failure") {
         assertZIO(ZIO.fail("fail").isFailure)(isTrue)
