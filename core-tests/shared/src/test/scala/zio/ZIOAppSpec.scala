@@ -80,6 +80,16 @@ object ZIOAppSpec extends ZIOBaseSpec {
         _     <- app.invoke(Chunk.empty)
         value <- ref2.get
       } yield assertTrue(value)
+    },
+    test("does not fail when root daemon fibers finish during shutdown") {
+      for {
+        app <- ZIO.succeed {
+                 new ZIOAppDefault {
+                   val run = ZIO.foreachDiscard(1 to 50)(_ => ZIO.never.forkDaemon)
+                 }
+               }
+        code <- app.invoke(Chunk.empty).exitCode: @nowarn("cat=deprecation")
+      } yield assertTrue(code == ExitCode.success)
     }
   )
 }
