@@ -42,7 +42,16 @@ object TextCodecPipelineSpec extends ZIOBaseSpec {
           case _ =>
             generated
         }
+      else if (bom == BOM.Utf16LE)
+        // The UTF-16LE BOM (FF FE) followed by a NUL char (00 00) is byte-for-byte
+        // the UTF-32LE BOM (FF FE 00 00), so `utfDecode` rightfully detects UTF-32LE.
+        // Drop leading NUL chars from the generated data to keep the input unambiguous.
+        dropLeadingUtf16Nuls(generated)
       else generated
+
+    def dropLeadingUtf16Nuls(bytes: Chunk[Byte]): Chunk[Byte] =
+      if (bytes.take(2) == Chunk[Byte](0, 0)) dropLeadingUtf16Nuls(bytes.drop(2))
+      else bytes
 
     check(byteGenerator, Gen.int(1, 1024)) { (generatedBytes, chunkSize) =>
       val originalBytes = fixIfGeneratedBytesBeginWithBom(generatedBytes)
