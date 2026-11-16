@@ -80,7 +80,10 @@ export const ecosystemProjects = [
       'Schema transformations and migrations',
     ],
     link: '/zio-schema',
-    icon: '🧬'
+    icon: {
+      light: '/img/ecosystem/zio-schema-mark-light.svg',
+      dark: '/img/ecosystem/zio-schema-mark-dark.svg'
+    }
   },
   {
     name: 'ZIO Config',
@@ -92,7 +95,10 @@ export const ecosystemProjects = [
       'Validation with detailed error reporting'
     ],
     link: '/zio-config',
-    icon: '⚙️'
+    icon: {
+      light: '/img/ecosystem/zio-config-mark-light.svg',
+      dark: '/img/ecosystem/zio-config-mark-dark.svg'
+    }
   },
   {
     name: 'ZIO Logging',
@@ -104,7 +110,10 @@ export const ecosystemProjects = [
       'Log correlation across async boundaries'
     ],
     link: '/zio-logging',
-    icon: '📝'
+    icon: {
+      light: '/img/ecosystem/zio-logging-mark-light.svg',
+      dark: '/img/ecosystem/zio-logging-mark-dark.svg'
+    }
   },
   {
     name: 'ZIO JSON',
@@ -116,7 +125,10 @@ export const ecosystemProjects = [
       'Human- and machine-readable error messages'
     ],
     link: '/zio-json',
-    icon: '📦'
+    icon: {
+      light: '/img/ecosystem/zio-json-mark-light.svg',
+      dark: '/img/ecosystem/zio-json-mark-dark.svg'
+    }
   },
   {
     name: 'ZIO Kafka',
@@ -128,6 +140,9 @@ export const ecosystemProjects = [
       'Custom serialization and deserialization support'
     ],
     link: '/zio-kafka',
-    icon: '📨'
+    icon: {
+      light: '/img/ecosystem/zio-kafka-mark-light.svg',
+      dark: '/img/ecosystem/zio-kafka-mark-dark.svg'
+    }
   }
 ];
