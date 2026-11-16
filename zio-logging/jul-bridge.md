@@ -1,17 +1,23 @@
 # java.util.logging bridge
 
 > It is possible to use `zio-logging` for included `java.util.logging` Loggers (do not confuse with `java.platform.logging`),
-> usually third-party non-ZIO libraries (most notable: OpenTelemetry used by ZIO-telemetry). To do so, import the `zio-logging-jul-bridge` module
-> ```scala
-> libraryDependencies += "dev.zio" %% "zio-logging-jul-bridge" % "2.5.3"
-> ```
-
-and use one of the `JULBridge` layers when setting up logging
+> usually third-party non-ZIO libraries (most notable: OpenTelemetry used by ZIO-telemetry). To do so, import the `zio-logging-jul-bridge` module:
 
 ```scala
+libraryDependencies += "dev.zio" %% "zio-logging-jul-bridge" % "2.5.4"
+```
+
+Then use one of the `JULBridge` layers when setting up logging. To provide the layer to a program:
+
+```scala
+import zio.ZIO
 import zio.logging.jul.bridge.JULBridge
 
-program.provideCustom(JULBridge.init())
+object BridgeApp extends zio.ZIOAppDefault {
+  override val bootstrap: zio.ZLayer[zio.ZIOAppArgs, Any, Any] = JULBridge.init()
+
+  override def run: zio.ZIO[Any, Any, zio.ExitCode] = zio.ZIO.logInfo("Program output").as(zio.ExitCode.success)
+}
 ```
 
 `JULBridge` layers:
@@ -22,34 +28,37 @@ program.provideCustom(JULBridge.init())
 Need for log filtering in JUL bridge: filtering in JUL is made on higher level than `jul-bridge` (on `Logger` level and not `Handler` level - which `JULBridge` is). Due to that the whole
 filtering in JUL is disabled and is implemented in JULBridge. This may cause degraded performance and much more logs when using other Handlers.
 
-JUL logger name is stored in log annotation with key `logger_name` (`zio.logging.loggerNameAnnotationKey`), following log format
+JUL logger name is stored in log annotation with key `logger_name` (`zio.logging.loggerNameAnnotationKey`), following log format:
 
 ```scala
-import zio.logging.jul.bridge.JULBridge
 import zio.logging.LoggerNameExtractor
 
-val loggerName = LoggerNameExtractor.loggerNameAnnotationOrTrace
+val loggerName       = LoggerNameExtractor.loggerNameAnnotationOrTrace
 val loggerNameFormat = loggerName.toLogFormat()
 ```
-may be used to get logger name from log annotation or ZIO Trace.
+This logger name extractor may be used to get logger name from log annotation or ZIO Trace.
 
-This logger name extractor is used by default in log filter, which applying log filtering by defined logger name and level:
+This logger name extractor is used by default in log filter, which applies log filtering by defined logger name and level:
 
 ```scala
+import zio.LogLevel
+import zio.logging.LogFilter
+
 val logFilterConfig = LogFilter.LogLevelByNameConfig(
   LogLevel.Info,
-  "zio.logging.jul  " -> LogLevel.Debug,
-  "JUL-LOGGER"        -> LogLevel.Warning
+  "zio.logging.jul" -> LogLevel.Debug,
+  "JUL-LOGGER"      -> LogLevel.Warning
 )
 
 val logFilter: LogFilter[String] = logFilterConfig.toFilter
 ```
 
-JUL bridge with custom logger can be setup:
+JUL bridge with a custom logger can be set up:
 
 ```scala
-import zio.logging.jul.bridge.JULBridge
+import zio.{ Runtime, ZLayer }
 import zio.logging.consoleJsonLogger
+import zio.logging.jul.bridge.JULBridge
 
 val logger = Runtime.removeDefaultLoggers >>> consoleJsonLogger() >+> JULBridge.init()
 ```
@@ -58,16 +67,14 @@ val logger = Runtime.removeDefaultLoggers >>> consoleJsonLogger() >+> JULBridge.
 
 You can find the source code [here](https://github.com/zio/zio-logging/tree/master/examples)
 
-### JUL bridge with JSON console logger
+### JUL Bridge with JSON Console Logger
 
-[//]: # (TODO: make snippet type-checked using mdoc)
+The following application logs through a JUL logger and a ZIO logger. The JUL logger name and the ZIO logger name appear in the JSON output, filtered by level:
 
 ```scala
-package zio.logging.example
-
 import zio.logging.jul.bridge.JULBridge
-import zio.logging.{ConsoleLoggerConfig, LogAnnotation, LogFilter, LogFormat, LoggerNameExtractor, consoleJsonLogger}
-import zio.{ExitCode, LogLevel, Runtime, Scope, ZIO, ZIOAppArgs, ZIOAppDefault, ZLayer}
+import zio.logging.{ ConsoleLoggerConfig, LogAnnotation, LogFilter, LogFormat, LoggerNameExtractor, consoleJsonLogger }
+import zio.{ ExitCode, LogLevel, Runtime, Scope, ZIO, ZIOAppArgs, ZIOAppDefault, ZLayer }
 
 import java.util.UUID
 

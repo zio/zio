@@ -2,29 +2,30 @@
 
 > The Simple Logging Facade for Java ([`SLF4J v1`](https://www.slf4j.org/) - working with JDK8) serves as a simple facade or abstraction for various logging frameworks (e.g. java.util.logging, logback, log4j).
 
-In order to use this logging backend, we need to add the following line in our build.sbt file:
+In order to use this logging backend, we need to add the following line to our build.sbt file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-logging-slf4j" % "2.5.3"
+libraryDependencies += "dev.zio" %% "zio-logging-slf4j" % "2.5.4"
 ```
 
->**_NOTE:_** SLF4J v1 implementation is similar to [v2](slf4j2.md), 
-however there are some differences, v1 using [MDC context](https://logback.qos.ch/manual/mdc.html), working with JDK8, 
-v2 using [key-value pairs](https://www.slf4j.org/manual.html#fluent), working with JDK9+. 
-It is recommended to use v2, as it is the latest version 
+>**_NOTE:_** SLF4J v1 implementation is similar to [v2](slf4j2.md),
+however there are some differences, v1 using [MDC context](https://logback.qos.ch/manual/mdc.html), working with JDK8,
+v2 using [key-value pairs](https://www.slf4j.org/manual.html#fluent), working with JDK9+.
+It is recommended to use v2, as it is the latest version
 and also there may be MDC (using [ThreadLocal](https://docs.oracle.com/javase/8/docs/api/java/lang/ThreadLocal.html)) issues,
 where in the case of parallel executions it can happen that MDC will be reset by different Fiber before the message is logged.
 
-Logger layer:
+To replace the default ZIO loggers with the `SLF4J` logger, combine `Runtime.removeDefaultLoggers` with `SLF4J.slf4j` in a logger layer:
 
 ```scala
+import zio.Runtime
 import zio.logging.backend.SLF4J
 
 val logger = Runtime.removeDefaultLoggers >>> SLF4J.slf4j
 ```
 
 Default `SLF4J` logger setup:
-* logger name (by default)  is extracted from `zio.Trace`
+* logger name (by default) is extracted from `zio.Trace`
     * for example, trace `zio.logging.example.Slf4jSimpleApp.run(Slf4jSimpleApp.scala:17)` will have `zio.logging.example.Slf4jSimpleApp` as logger name
     * NOTE: custom logger name may be set by `zio.logging.loggerName` aspect
 * all annotations (logger name and log marker name annotations are excluded) are placed into [MDC context](https://logback.qos.ch/manual/mdc.html)
@@ -32,15 +33,20 @@ Default `SLF4J` logger setup:
 
 See also [LogFormat and LogAppender](formatting-log-records.md#logformat-and-logappender)
 
-Custom logger name set by aspect:
+To set a custom logger name for a single effect, apply the `zio.logging.loggerName` aspect:
 
 ```scala
+import zio.ZIO
+
 ZIO.logInfo("Starting user operation") @@ zio.logging.loggerName("zio.logging.example.UserOperation")
 ```
 
-Log marker name set by aspect:
+To attach an SLF4J marker name to a single effect, apply the `SLF4J.logMarkerName` aspect:
 
 ```scala
+import zio.ZIO
+import zio.logging.backend.SLF4J
+
 ZIO.logInfo("Confidential user operation") @@ SLF4J.logMarkerName("CONFIDENTIAL")
 ```
 
@@ -48,16 +54,14 @@ ZIO.logInfo("Confidential user operation") @@ SLF4J.logMarkerName("CONFIDENTIAL"
 
 You can find the source code [here](https://github.com/zio/zio-logging/tree/master/examples)
 
-### SLF4J logger name and annotations
+### SLF4J Logger Name and Annotations
 
-[//]: # (TODO: make snippet type-checked using mdoc)
+The following application logs from two concurrent user operations. It sets a logger name and a log marker name with aspects, and it adds a `user` annotation and a trace ID:
 
 ```scala
-package zio.logging.example
-
 import zio.logging.LogAnnotation
 import zio.logging.backend.SLF4J
-import zio.{ ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, _ }
+import zio.{ ExitCode, Runtime, Scope, ZIO, ZIOAppArgs, ZIOAppDefault, ZIOAspect, ZLayer, _ }
 
 import java.util.UUID
 
@@ -85,7 +89,7 @@ object Slf4jSimpleApp extends ZIOAppDefault {
 }
 ```
 
-Logback configuration:
+Logback configuration, which filters out logs with the `CONFIDENTIAL` marker:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -116,16 +120,13 @@ Expected Console Output:
 12:16:22.598 [ZScheduler-Worker-14] [] INFO  zio.logging.example.Slf4jSimpleApp Done
 ```
 
-### Custom tracing annotation
+### Custom Tracing Annotation
 
-Following application has custom aspect `currentTracingSpanAspect` implementation which taking current span from `Tracing` service 
-which then is added to logs by log annotation.
+The following application has a custom aspect `currentTracingSpanAspect`, which takes the current span from a `Tracing` service and adds it to logs with a log annotation:
 
 ```scala
-package zio.logging.example
-
 import zio.logging.backend.SLF4J
-import zio.{ ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, _ }
+import zio.{ ExitCode, Runtime, Scope, ZIO, ZIOAppArgs, ZIOAppDefault, ZIOAspect, ZLayer, _ }
 
 import java.util.UUID
 
@@ -181,9 +182,11 @@ Expected Console Output:
 15:53:20.691 [ZScheduler-Worker-15] [] INFO  z.l.e.CustomTracingAnnotationApp Done
 ```
 
-## Feature changes
+## Feature Changes
+
+The following changes affect the logger name annotation of this backend.
 
 ### Version 2.2.0
 
-Deprecated log annotation with key `slf4j_logger_name` (`SLF4J.loggerNameAnnotationKey`) removed,
-only common log annotation with key `logger_name` (`zio.logging.loggerNameAnnotationKey`) for logger name is supported now.
+The deprecated log annotation with key `slf4j_logger_name` was removed.
+The common log annotation with key `logger_name` (`zio.logging.loggerNameAnnotationKey`) is now the only supported annotation for the logger name.

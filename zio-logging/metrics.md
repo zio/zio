@@ -1,17 +1,19 @@
 # Log Metrics
 
-> Log metrics collecting metrics related to ZIO logging (all `ZIO.log*` functions).
-> As ZIO core supporting multiple loggers, this logging metrics collector is implemented as specific `ZLogger`
-> which is responsible just for collecting metrics of all logs - `ZIO.log*` functions.
+> Log metrics collect metrics related to ZIO logging, counting every `ZIO.log*` call.
+> ZIO core supports multiple loggers, so this metrics collector is implemented as a specific `ZLogger`
+> that is responsible only for collecting metrics of `ZIO.log*` functions.
 
-The Metrics layer
+To add the metrics layer:
 
 ```scala
-val layer = zio.logging.logMetrics
+import zio.logging.logMetrics
+
+val layer = logMetrics
 ```
 
-will add a default metric named `zio_log_total` with the label `level` which will be
-incremented for each log message with the value of `level` being the corresponding log level label in lower case.
+This layer adds a default metric named `zio_log_total` with the label `level`. The metric increments for each log message,
+and the label value is the corresponding log level in lower case.
 
 Metrics:
 
@@ -24,10 +26,12 @@ Metrics:
 * `LogLevel.Trace` -> `trace`
 * `LogLevel.None` -> `off`
 
-Custom names for the metric and label can be set via:
+To choose your own metric and label names, call `logMetricsWith`:
 
 ```scala
-val layer = zio.logging.logMetricsWith("log_counter", "log_level")
+import zio.logging.logMetricsWith
+
+val customLayer = logMetricsWith("log_counter", "log_level")
 ```
 
 ## Examples
@@ -35,13 +39,12 @@ val layer = zio.logging.logMetricsWith("log_counter", "log_level")
 You can find the source
 code [here](https://github.com/zio/zio-logging/tree/master/examples)
 
-### Console logger with metrics
+### Console Logger with Metrics
 
-[//]: # (TODO: make snippet type-checked using mdoc)
+To print log lines and count them in the same program, install `consoleLogger` and `logMetrics` together,
+then read the Prometheus metrics from the publisher:
 
 ```scala
-package zio.logging.example
-
 import zio.logging.{ consoleLogger, logMetrics }
 import zio.metrics.connectors.MetricsConfig
 import zio.metrics.connectors.prometheus.{ PrometheusPublisher, prometheusLayer, publisherLayer }
@@ -68,7 +71,7 @@ object MetricsApp extends ZIOAppDefault {
 }
 ```
 
-Expected Console Output:
+Running this program prints the log lines followed by the metric values scraped from the publisher:
 
 ```
 timestamp=2023-03-15T08:44:39.93193+01:00  level=INFO thread=zio-fiber-6 message="Start"

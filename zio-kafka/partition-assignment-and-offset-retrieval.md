@@ -1,18 +1,20 @@
-# Partition Assignment And Offset Retrieval
+# Partition Assignment and Offset Retrieval
 
-> `zio-kafka` offers several ways to control which Kafka topics and partitions are assigned to your application.
+> Zio-kafka offers several ways to control which Kafka topics and partitions are assigned to your application.
 
-# Consumer partition assignment
+## Consumer partition assignment
 
 | Use case                                           | Method                                                  |
 |----------------------------------------------------|---------------------------------------------------------|
 | One or more topics, automatic partition assignment | `Subscription.topics("my_topic", "other_topic")`        |
-| Topics matching a pattern                          | `Subscription.pattern("topic.*")`                       |
+| Topics matching a pattern                          | `Subscription.pattern("topic.*".r)`                     |
 | Manual partition assignment                        | `Subscription.manual("my_topic" -> 1, "my_topic" -> 2)` |
 
 The example `Subscription.manual("my_topic" -> 1, "my_topic" -> 2)` subscribes to partitions `1` and `2` of topic `my_topic`.
 
-# Consumer starting offsets / offset retrieval
+`Subscription.pattern` also accepts a `java.util.regex.Pattern`. The overload that takes a `String`, `Subscription.pattern("topic.*")`, returns a `Task[Subscription]` that fails when the pattern is not a valid regular expression.
+
+## Consumer starting offsets / offset retrieval
 
 By default `zio-kafka` starts streaming a partition from the last committed offset for the active consumer group, or
 else the latest offset on the partition in case no offset has yet been committed.
@@ -24,15 +26,16 @@ with the data that is derived from the record of that offset. Although it is opt
 For more details about why leaderEpoch is important
 see https://www.confluent.io/blog/guide-to-consumer-offsets/#part-ii-in-depth-analysis-and-insights.
 
-| Use case                                                          | `OffsetRetrieval` method                                                              |
-|-------------------------------------------------------------------|---------------------------------------------------------------------------------------|
-| Offsets in Kafka, start at latest record if no offset committed   | `Auto()`                                                                              |
-| Offsets in Kafka, start at earliest record if no offset committed | `Auto(AutoOffsetStrategy.Earliest)`                                                   |
-| Offsets in Kafka, fail if no offset committed                     | `Auto(AutoOffsetStrategy.None)`                                                       |
-| External offset storage                                           | `External(getOffsets: Set[TopicPartition] => Task[Map[TopicPartition, OffsetEpoch]])` |
+| Use case                                                          | `OffsetRetrieval` method                                            |
+|-------------------------------------------------------------------|---------------------------------------------------------------------|
+| Offsets in Kafka, start at latest record if no offset committed   | `Auto()`                                                            |
+| Offsets in Kafka, start at earliest record if no offset committed | `Auto(AutoOffsetStrategy.Earliest)`                                 |
+| Offsets in Kafka, fail if no offset committed                     | `Auto(AutoOffsetStrategy.None)`                                     |
+| External offset storage                                           | `External(getOffsets, defaultStrategy = AutoOffsetStrategy.Latest)` |
 
-For external offset retrieval, the `getOffsets` function is called for each topic-partition that is assigned to the
-consumer, either via Kafka's rebalancing or via a manual assignment.
+`OffsetRetrieval` and `AutoOffsetStrategy` are defined in the `Consumer` companion object; bring them into scope with `import zio.kafka.consumer.Consumer._`.
+
+For external offset retrieval, the `getOffsets` function has type `Set[TopicPartition] => Task[Map[TopicPartition, OffsetEpoch]]`. It is called with the set of topic-partitions that are newly assigned to the consumer, either via Kafka's rebalancing or via a manual assignment. When the returned map has no entry for a topic-partition, consuming continues from the last committed offset. When the returned offset is out of range, or there is no committed offset to fall back to, `defaultStrategy` decides where consuming starts.
 
 Offset retrieval is configured via `ConsumerSettings.withOffsetRetrieval()`. You can find more details in the scaladocs
 of that method.

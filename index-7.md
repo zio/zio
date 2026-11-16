@@ -44,7 +44,7 @@ Known limitations are:
 
 ## Debugging
 
-Set [`-Dizumi.reflect.debug.macro.rtti=true`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.debug.macro.rtti:String(%22izumi.reflect.debug.macro.rtti%22)) to enable debug output during compilation when tags are constructed and at runtime when they are compared.
+Set [`-Dizumi.reflect.debug.macro.rtti=true`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.debug.macro.rtti:String(%22izumi.reflect.debug.macro.rtti%22)) to enable debug output at runtime when tags are compared and, on Scala 2, during compilation when tags are constructed. (Scala 3 macros have no debug output.)
 
 ```shell
 sbt -Dizumi.reflect.debug.macro.rtti=true
@@ -56,10 +56,10 @@ You may also set it in `.jvmopts` file during development. (`.jvmopts` propertie
 
 Set `-Dizumi.reflect.debug.macro.rtti.assertions=true` to enable additional assertions.
 
-Other useful system properties are:
+Other useful settings are:
 
-- [`izumi.reflect.rtti.optimized.equals`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.optimized.equals:String(%22izumi.reflect.rtti.optimized.equals%22))
-- [`izumi.reflect.rtti.cache.compile`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.cache.compile:String(%22izumi.reflect.rtti.cache.compile%22))
+- the system property [`izumi.reflect.rtti.optimized.equals`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.optimized.equals:String(%22izumi.reflect.rtti.optimized.equals%22))
+- the Scala 2 macro setting [`izumi.reflect.rtti.cache.compile`](https://javadoc.io/doc/dev.zio/izumi-reflect_2.13/latest/izumi/reflect/DebugProperties$.html#izumi.reflect.rtti.cache.compile:String(%22izumi.reflect.rtti.cache.compile%22)), passed to the compiler as `scalacOptions += "-Xmacro-settings:izumi.reflect.rtti.cache.compile=false"`
 
 # Talks
 

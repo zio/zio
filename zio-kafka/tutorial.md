@@ -1,4 +1,4 @@
-# Tutorial: How to Produce/Consume Data To/From Kafka Topics?
+# Tutorial: How to Produce/Consume Data to/from Kafka Topics
 
 > Kafka is a distributed, fault-tolerant, message-oriented event-store platform. It is used as a message broker for distributed applications. Zio-kafka is a library that provides a way to consume and produce data from Kafka topics, and it also supports the ability to have streaming consumers and producers.
 
@@ -15,24 +15,32 @@ $ git clone https://github.com/zio/zio-quickstarts.git
 $ cd zio-quickstarts/zio-quickstart-kafka
 ```
 
-And finally, run the application using sbt:
+Start a Kafka broker with the `docker-compose.yml` that ships with the project (see [Setting Up The Kafka Cluster](#setting-up-the-kafka-cluster) for what it contains):
+
+```bash
+$ docker compose up -d
+```
+
+Then run the application using sbt:
 
 ```bash
 $ sbt run
 ```
+
+The project contains several applications (`SimpleKafkaApp`, `StreamingKafkaApp` and `JsonStreamingKafkaApp`), so `sbt run` asks which one to start.
 
 ## Adding Dependencies to The Project
 
 In this tutorial, we will be using the following dependencies. So, let's add them to the `build.sbt` file:
 
 ```scala
-libraryDependencies += Seq(
-  "dev.zio" %% "zio"         % "2.1.25",
-  "dev.zio" %% "zio-streams" % "2.1.25",
-  "dev.zio" %% "zio-kafka"   % "3.3.0",
-  "dev.zio" %% "zio-json"    % "0.9.1"
+libraryDependencies ++= Seq(
+  "dev.zio" %% "zio-kafka" % "4.2.0",
+  "dev.zio" %% "zio-json"  % "1.1.2"
 )
 ```
+
+Zio-kafka depends on zio and zio-streams, so these two libraries are added to the project as well.
 
 1. **Zio-kafka** is a ZIO native client for Apache Kafka. It provides a high-level streaming API on top of the Java client. So we can produce and consume events using the declarative concurrency model of zio-streams.
 
@@ -44,16 +52,15 @@ libraryDependencies += Seq(
 
 Before we start, we need to set up a Kafka cluster. To start a kafka cluster for testing purposes we can use the following `docker-compose.yml` file:
 
-```docker-compose
+```yaml
 services:
   broker:
-    image: apache/kafka:3.9.0
+    image: apache/kafka:4.4.0
     container_name: broker
     ports:
       - "9092:9092"
     environment:
       KAFKA_NODE_ID: 1
-      KAFKA_BROKER_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092
@@ -91,9 +98,9 @@ To produce and consume data from Kafka, we need a way to serialize our data to a
 Here is the simplified definition of the `Serde` data type:
 
 ```scala
-trait Serde[-R, A] {
-  def deserialize(data: Array[Byte]): RIO[R, A]
-  def serialize(value: A)           : RIO[R, Array[Byte]]
+trait Serde[-R, A] extends Deserializer[R, A] with Serializer[R, A] {
+  def deserialize(topic: String, headers: Headers, data: Array[Byte]): RIO[R, A]
+  def serialize(topic: String, headers: Headers, value: A)           : RIO[R, Array[Byte]]
 }
 ```
 
@@ -104,13 +111,13 @@ The companion object of `Serde` trait contains a set of built-in serializers and
 - `Serde.short`
 - `Serde.float`
 - `Serde.double`
-- `Serde.boolean`
+- `Serde.bytes`
 - `Serde.string`
 - `Serde.byteArray`
 - `Serde.byteBuffer`
 - `Serde.uuid`
 
-In this example, the type of the `key` is `Int` and the type of the `value` is `String`. So we can use the `Serde.int` for the `key` and the `Serde.string` for the `value`.
+In this example, the type of the `key` is `Long` and the type of the `value` is `String`. So we can use the `Serde.long` for the `key` and the `Serde.string` for the `value`.
 
 ### 2. Creating a Producer
 
@@ -153,6 +160,11 @@ Notice how the type parameters of `produce` method ensure that the value's type,
 Here is a helper function that shows how we could use the `produce` method:
 
 ```scala
+import org.apache.kafka.clients.producer.RecordMetadata
+import zio._
+import zio.kafka.producer._
+import zio.kafka.serde._
+
 def produceRecord(producer: Producer, topic: String, key: Long, value: String): RIO[Any, RecordMetadata] =
   producer.produce[Any, Long, String](
     topic = topic,
@@ -170,18 +182,22 @@ Zio-kafka provides several ways to consume data from Kafka topics. In this examp
 The following helper function creates a ZIO workflow that if we run it, runs forever and consumes records from the given topic and prints them to the console, and then commits the offsets of the consumed records:
 
 ```scala
-def consumeAndPrintEvents(consumer: Consumer, groupId: String, topic: String, topics: String*): RIO[Any, Unit] =
-  consumer.consumeWith(
-    settings = ConsumerSettings(BOOSTRAP_SERVERS).withGroupId(groupId),
+import zio._
+import zio.kafka.consumer._
+import zio.kafka.serde._
+
+def consumeAndPrintEvents(bootstrapServers: List[String], groupId: String, topic: String, topics: String*): RIO[Any, Unit] =
+  Consumer.consumeWith(
+    settings = ConsumerSettings(bootstrapServers).withGroupId(groupId),
     subscription = Subscription.topics(topic, topics: _*),
     keyDeserializer = Serde.long,
-    valueDeserializer = Serde.string,
-  ) { (k, v) =>
-    Console.printLine(s"Consumed key: $k, value: $v").orDie
+    valueDeserializer = Serde.string
+  ) { record =>
+    Console.printLine(s"Consumed key: ${record.key}, value: ${record.value}").orDie
   }
 ```
 
-For performance reasons, records are always consumed in batches. The `consumeWith` method commits the offsets of consumed records, as soon all records of a batch have been processed.
+For performance reasons, records are always consumed in batches. `Consumer.consumeWith` commits the offsets of processed records in the background. Offsets of records that are processed while a commit is in progress are combined into the next commit. Commits that fail with a temporary error (a `RetriableCommitFailedException` or a commit timeout) are retried according to the `commitRetryPolicy` parameter (by default `Schedule.exponential(1.second) && Schedule.recurs(3)`). Any other commit failure, or a failure that remains after the retries, fails `consumeWith`.
 
 For more options see [consumer tuning](consumer-tuning.md).
 
@@ -262,17 +278,24 @@ trait Producer {
 Here is an example that uses `Producer.produceAll`:
 
 ```scala
-ZStream
-  .fromIterator(Iterator.from(0), maxChunkSize = 50)
-           // ZStream[Any, Throwable, Int]
-  .mapChunksZIO { chunk =>
-    chunk.map { i =>
-      new ProducerRecord(topic, key = i, value = s"record $i") 
-    }
-  }        // ZStream[Any, Throwable, ProducerRecord]
-  .via(producer.produceAll(Serde.int, Serde.string))
-           // ZStream[Any, Throwable, RecordMetadata]
-  .runDrain
+import org.apache.kafka.clients.producer.ProducerRecord
+import zio._
+import zio.kafka.producer._
+import zio.kafka.serde._
+import zio.stream._
+
+val topic              = "my-topic"
+val producer: Producer = ???
+
+val produceRecords: ZIO[Any, Throwable, Unit] =
+  ZStream
+    .fromIterator(Iterator.from(0), maxChunkSize = 50)
+             // ZStream[Any, Throwable, Int]
+    .map(i => new ProducerRecord(topic, i, s"record $i"))
+             // ZStream[Any, Throwable, ProducerRecord[Int, String]]
+    .via(producer.produceAll(Serde.int, Serde.string))
+             // ZStream[Any, Throwable, RecordMetadata]
+    .runDrain
 ```
 
 For performance reasons, method `produceAll` produces records in batches, every chunk of the input stream results in a batch. Once all acknowledges are received, the next batch is produced.
@@ -309,7 +332,8 @@ trait Consumer {
   def plainStream[R, K, V](
     subscription: Subscription,
     keyDeserializer: Deserializer[R, K],
-    valueDeserializer: Deserializer[R, V]
+    valueDeserializer: Deserializer[R, V],
+    bufferSize: Int = 4
   ): ZStream[R, Throwable, CommittableRecord[K, V]]
 }
 ```
@@ -317,6 +341,8 @@ trait Consumer {
 Parameter `subscription` indicates which topics and partitions should be consumed from. For example `Subscription.topics("events")` to consume from the `events` topic.
 
 Parameters `keyDeserializer` and `valueDeserializer` are the `Serde` that will be used to deserialize the raw record bytes to whatever type you want them to be in.
+
+Parameter `bufferSize` sets how many chunks of records the stream may buffer in memory (4 by default).
 
 To indicate that a record has been consumed successfully, and make sure that no other consumer in the same group will consume this record again (even when the application crashes and restarts), we need to commit the offset of the record. This is how it works: first get the `Offset` of the `CommittableRecord` with the `offset` method, then call `commit` on the returned `Offset`.
 
@@ -454,10 +480,11 @@ In zio-kafka all the built-in serializers/deserializers are instances of the `Se
 - Method `inmap` transforms the `Serde` with pure transformations from the source type to the target type and back.
 - Method `inmapZIO` transforms the `Serde` with effectful transformations from the source type to the target type and back. As it accepts effectful transformations, we can encode any parsing failure with a `ZIO` workflow.
 
-In this example, we use `inmap` to transform the build-in `Serde.long` to a `Serde[Any, Instant]`. The `inmap` method gets 2 pure functions, the first converts from `Long` to `Instant`, the second from `Instant` to `Long`:
+In this example, we use `inmap` to transform the built-in `Serde.long` to a `Serde[Any, Instant]`. The `inmap` method gets 2 pure functions, the first converts from `Long` to `Instant`, the second from `Instant` to `Long`:
 
 ```scala
 import java.time.Instant
+import zio.kafka.serde._
 
 val instantSerde: Serde[Any, Instant] =
   Serde.long.inmap[Instant](Instant.ofEpochMilli)(_.toEpochMilli)
@@ -609,7 +636,7 @@ object JsonStreamingKafkaApp extends ZIOAppDefault {
 
 In this tutorial we first learned how to create a producer and consumer for Kafka using the ZIO workflow with zio-kafka. Then we learned how to do the same with zio-streams. We also learned how to create a custom serializer and deserializer for the Kafka records and how to produce and consume JSON data using the zio-json library.
 
-All the source code associated with this article is available on the [ZIO Quickstart](http://github.com/zio/zio-quickstarts) project on GitHub.
+Runnable versions of these applications are in the [ZIO Quickstart](https://github.com/zio/zio-quickstarts) project on GitHub. Note that the quickstart may pin an older zio-kafka version than the one used on this page.
 
 More information:
 

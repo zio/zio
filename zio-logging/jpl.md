@@ -1,25 +1,24 @@
 # Java Platform/System Logger
 
-> [`Java Platform/System Logger`](https://openjdk.org/jeps/264) is logging API which was introduced in Java 9.
+> [`Java Platform/System Logger`](https://openjdk.org/jeps/264) is a logging API that was introduced in Java 9.
 
-In order to use this logging backend, we need to add the following line in our build.sbt file:
+In order to use this logging backend, we need to add the following line to our build.sbt file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-logging-jpl" % "2.5.3"
+libraryDependencies += "dev.zio" %% "zio-logging-jpl" % "2.5.4"
 ```
 
-Logger layer:
-
-[//]: # (TODO: make snippet type-checked using mdoc)
+To replace the default ZIO loggers with the `JPL` logger, combine `Runtime.removeDefaultLoggers` with `JPL.jpl` in a logger layer:
 
 ```scala
+import zio.Runtime
 import zio.logging.backend.JPL
 
 val logger = Runtime.removeDefaultLoggers >>> JPL.jpl
 ```
 
 Default `JPL` logger setup:
-* logger name (by default)  is extracted from `zio.Trace`
+* logger name (by default) is extracted from `zio.Trace`
     * for example, trace `zio.logging.example.JplSimpleApp.run(JplSimpleApp.scala:17)` will have `zio.logging.example.JplSimpleApp` as logger name
     * NOTE: custom logger name may be set by `zio.logging.loggerName` aspect
 * all annotations (logger name annotation is excluded) are placed at the beginning of log message
@@ -27,9 +26,11 @@ Default `JPL` logger setup:
 
 See also [LogFormat and LogAppender](formatting-log-records.md#logformat-and-logappender)
 
-Custom logger name set by aspect:
+To set a custom logger name for a single effect, apply the `zio.logging.loggerName` aspect:
 
 ```scala
+import zio.ZIO
+
 ZIO.logInfo("Starting user operation") @@ zio.logging.loggerName("zio.logging.example.UserOperation")
 ```
 
@@ -37,16 +38,14 @@ ZIO.logInfo("Starting user operation") @@ zio.logging.loggerName("zio.logging.ex
 
 You can find the source code [here](https://github.com/zio/zio-logging/tree/master/examples)
 
-### Java Platform/System logger name and annotations
+### Java Platform/System Logger Name and Annotations
 
-[//]: # (TODO: make snippet type-checked using mdoc)
+The following application runs two user operations concurrently. Each operation carries a `user` annotation, and both share a trace ID. The `zio.logging.loggerName` aspect sets the logger name for the operations:
 
 ```scala
-package zio.logging.example
-
 import zio.logging.LogAnnotation
 import zio.logging.backend.JPL
-import zio.{ ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, _ }
+import zio.{ ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, ZIOAspect, ZLayer, _ }
 
 import java.util.UUID
 
@@ -89,9 +88,11 @@ Oct 28, 2022 1:47:02 PM zio.logging.backend.JPL$$anon$1 $anonfun$closeLogEntry$1
 INFO: Done
 ```
 
-## Feature changes
+## Feature Changes
+
+The following changes affect the logger name annotation of this backend.
 
 ### Version 2.2.0
 
-Deprecated log annotation with key `jpl_logger_name` (`JPL.loggerNameAnnotationKey`) removed,
-only common log annotation with key `logger_name` (`zio.logging.loggerNameAnnotationKey`) for logger name is supported now.
+The deprecated log annotation with key `jpl_logger_name` was removed.
+The common log annotation with key `logger_name` (`zio.logging.loggerNameAnnotationKey`) is now the only supported annotation for the logger name.

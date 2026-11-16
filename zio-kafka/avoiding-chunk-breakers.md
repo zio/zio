@@ -1,4 +1,4 @@
-# Avoiding chunk-breakers
+# Avoiding Chunk-Breakers
 
 > ZIO streams are not just a simple sequence of elements. The elements are grouped into chunks, which makes many
 > operations faster. Zio-kafka helps with this by guaranteeing that all records (for a given partition), fetched together
@@ -10,8 +10,7 @@ Be careful when using `mapZIO`, `tap` and some other stream operators that break
 (or more precisely, the resulting stream has chunks with a single element). The throughput may be significantly lower
 than with the original chunking structure intact.
 
-Chunk-breaking operators can be found by looking at their scaladocs. Starting with zio-streams 2.1.17, these scaladocs
-contain the words `This combinator destroys the chunking structure`.
+Chunk-breaking operators can be found by looking at their scaladocs. Since zio-streams 2.1.17, the scaladocs of chunk-breaking operators such as `mapZIO`, `tap`, `buffer`, `mapZIOPar` and `flattenZIO` contain the words `This combinator destroys the chunking structure`.
 
 You can regain full throughput by processing all elements in a chunk together in one go. However, there is a catch: the
 order of processing changes. For example, given a stream with elements `a` and `b` in the same chunk, for
@@ -23,7 +22,7 @@ executed, but with the alternatives it _is_ executed. It is up to you to decide 
 
 _Available since zio-streams 2.1.17._
 
-The simplest alternative is the stream operator `mapZIOChunked`; it has the same signature as `mapZIO` .
+The simplest alternative is the stream operator `mapZIOChunked`; it has the same signature as `mapZIO`:
 
 ```scala
 def f(a: A): ZIO[R, E, B]
@@ -34,7 +33,7 @@ stream               // ZStream[R, E, A]
 
 ### Use `chunksWith`
 
-If you have a single processing step that needs to work on a chunk, you can use `chunksWith`.
+If you have a single processing step that needs to work on a chunk, you can use `chunksWith`:
 
 ```scala
 def f(a: A): ZIO[R, E, B]
@@ -49,7 +48,7 @@ stream             // ZStream[R, E, A]
 
 Use `chunks` when you have multiple processing steps that can all work on a chunk at a time. Since `chunks` exposes the
 chunking structure explicitly, the program can no longer accidentally break the chunking structure (unless
-`flattenChunks` is also used).
+`flattenChunks` is also used):
 
 ```scala
 def f(a: A): ZIO[R, E, B]
@@ -66,7 +65,7 @@ stream                                         // ZStream[R, E, A]
 
 _Available since zio-streams 2.1.17._
 
-Unlike `tap`, the `tapChunks` stream operator preserves the chunking structure and allows side effects per chunk.
+Unlike `tap`, the `tapChunks` stream operator preserves the chunking structure and allows side effects per chunk:
 
 ```scala
 stream                                                     // ZStream[R, E, A]

@@ -1,26 +1,29 @@
 # Testing
 
-> ZIO 2 test library has test logger implementation for testing:
+> ZIO Test provides a test logger that records log output, so tests can assert on it.
+> Add `zio-test` to the test scope of your build:
 
 ```scala
 libraryDependencies += "dev.zio" %% "zio-test" % ZioVersion % Test
 ```
 
-Test logger layer:
+The test logger layer is `ZTestLogger.default`. It replaces the default loggers and records each log entry,
+which `ZTestLogger.logOutput` returns. To install it with the default loggers removed:
 
 ```scala
-zio.test.ZTestLogger.default
+import zio.Runtime
+import zio.test.ZTestLogger
+
+val testLayer = Runtime.removeDefaultLoggers >>> ZTestLogger.default
 ```
 
-You can find the source code of examples [here](https://github.com/zio/zio-logging/tree/master/examples/src/test/scala/zio/logging/example)
+You can find the source code of examples [here](https://github.com/zio/zio-logging/tree/master/examples/core/shared/src/test/scala/zio/logging/example)
 
-Test example:
-
-[//]: # (TODO: make snippet type-checked using mdoc)
+A complete spec checks the message, level, trace id and annotations of each log entry.
+Each `ZIO.logInfo` call produces one entry, `ZIOAspect.annotated` adds a key-value annotation, and `LogAnnotation.TraceId`
+sets the trace id for the wrapped effect:
 
 ```scala
-package zio.logging.example
-
 import zio.logging.{ LogAnnotation, logContext }
 import zio.test.Assertion._
 import zio.test._

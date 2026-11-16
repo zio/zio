@@ -1,17 +1,22 @@
 # SLF4J v2 bridge
 
-> It is possible to use `zio-logging` for SLF4J loggers, usually third-party non-ZIO libraries. To do so, import  the `zio-logging-slf4j2-bridge` module for [SLF4J v2](https://www.slf4j.org/faq.html#changesInVersion200) (using JDK9+ module system ([JPMS](http://openjdk.java.net/projects/jigsaw/spec/)))
+> It is possible to use `zio-logging` for SLF4J loggers, usually third-party non-ZIO libraries. To do so, import the `zio-logging-slf4j2-bridge` module for [SLF4J v2](https://www.slf4j.org/faq.html#changesInVersion200) (using JDK9+ module system ([JPMS](http://openjdk.java.net/projects/jigsaw/spec/))):
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-logging-slf4j2-bridge" % "2.5.3"
+libraryDependencies += "dev.zio" %% "zio-logging-slf4j2-bridge" % "2.5.4"
 ```
 
-and use one of the `Slf4jBridge` layers when setting up logging:
+Then use one of the `Slf4jBridge` layers when setting up logging. To provide the layer to a program:
 
 ```scala
-import zio.logging.slf4j.Slf4jBridge
+import zio.ZIO
+import zio.logging.slf4j.bridge.Slf4jBridge
 
-program.provideCustom(Slf4jBridge.init())
+object BridgeApp extends zio.ZIOAppDefault {
+  override val bootstrap: zio.ZLayer[zio.ZIOAppArgs, Any, Any] = Slf4jBridge.init()
+
+  override def run: zio.ZIO[Any, Any, zio.ExitCode] = zio.ZIO.logInfo("Program output").as(zio.ExitCode.success)
+}
 ```
 
 `Slf4jBridge` layers:
@@ -25,20 +30,22 @@ Need for log filtering in slf4j bridge: libraries with slf4j loggers, may have c
 which using functions like [org.slf4j.Logger.isTraceEnabled()](https://github.com/qos-ch/slf4j/blob/master/slf4j-api/src/main/java/org/slf4j/Logger.java#L170).
 logging parts may contain message and log parameters construction, which may be expensive and degrade performance of application.
 
-SLF4J logger name is stored in log annotation with key `logger_name` (`zio.logging.loggerNameAnnotationKey`), following log format
+SLF4J logger name is stored in log annotation with key `logger_name` (`zio.logging.loggerNameAnnotationKey`), following log format:
 
 ```scala
-import zio.logging.slf4j.Slf4jBridge
 import zio.logging.LoggerNameExtractor
 
-val loggerName = LoggerNameExtractor.loggerNameAnnotationOrTrace
+val loggerName       = LoggerNameExtractor.loggerNameAnnotationOrTrace
 val loggerNameFormat = loggerName.toLogFormat()
 ```
-may be used to get logger name from log annotation or ZIO Trace. 
+This logger name extractor may be used to get logger name from log annotation or ZIO Trace.
 
-This logger name extractor is used by default in log filter, which applying log filtering by defined logger name and level:
+This logger name extractor is used by default in log filter, which applies log filtering by defined logger name and level:
 
 ```scala
+import zio.LogLevel
+import zio.logging.LogFilter
+
 val logFilterConfig = LogFilter.LogLevelByNameConfig(
   LogLevel.Info,
   "zio.logging.slf4j" -> LogLevel.Debug,
@@ -48,29 +55,29 @@ val logFilterConfig = LogFilter.LogLevelByNameConfig(
 val logFilter: LogFilter[String] = logFilterConfig.toFilter
 ```
 
-SLF4J bridge with custom logger can be setup:
+SLF4J bridge with a custom logger can be set up:
 
 ```scala
-import zio.logging.slf4j.Slf4jBridge
+import zio.{ Runtime, ZLayer }
 import zio.logging.consoleJsonLogger
+import zio.logging.slf4j.bridge.Slf4jBridge
 
 val logger = Runtime.removeDefaultLoggers >>> consoleJsonLogger() >+> Slf4jBridge.init()
 ```
 
-**NOTE:** You should either use `zio-logging-slf4j` to send all ZIO logs to an SLF4j provider (such as logback, log4j etc) OR `zio-logging-slf4j-bridge` to send all SLF4j logs to
+**NOTE:** You should either use `zio-logging-slf4j2` to send all ZIO logs to an SLF4J provider (such as logback, log4j etc) OR `zio-logging-slf4j2-bridge` to send all SLF4J logs to
 ZIO logging. Enabling both causes circular logging and makes no sense.
 
 ## Examples
 
 You can find the source code [here](https://github.com/zio/zio-logging/tree/master/examples)
 
-### SLF4J bridge with JSON console logger
+### SLF4J Bridge with JSON Console Logger
 
-[//]: # (TODO: make snippet type-checked using mdoc)
+The following application logs through an SLF4J logger and a ZIO logger. The SLF4J logger name and the ZIO logger name appear in the JSON output, filtered by level:
 
 ```scala
-package zio.logging.example
-
+import zio.logging.slf4j.bridge.Slf4jBridge
 import zio.logging.{ ConsoleLoggerConfig, LogAnnotation, LogFilter, LogFormat, LoggerNameExtractor, consoleJsonLogger }
 import zio.{ ExitCode, LogLevel, Runtime, Scope, ZIO, ZIOAppArgs, ZIOAppDefault, ZLayer }
 

@@ -1,59 +1,70 @@
 # Console Logger
 
-> logger layer with configuration from config provider:
+> The console logger writes formatted log lines to standard output. You can configure it from a `ConfigProvider` or from a `ConsoleLoggerConfig` value.
+
+To create a console logger layer that reads its configuration from a `ConfigProvider`, first define a provider with a `logger/filter/rootLevel` key:
 
 ```scala
-import zio.logging.consoleLogger
+import zio.logging.{ consoleLogger, ConsoleLoggerConfig, LogFilter, LogFormat }
 import zio.{ ConfigProvider, Runtime }
 
-val configProvider: ConfigProvider = ???
+val configProvider: ConfigProvider =
+  ConfigProvider.fromMap(Map("logger/filter/rootLevel" -> "DEBUG"), "/")
 
-val logger = Runtime.removeDefaultLoggers >>> Runtime.setConfigProvider(configProvider) >>> consoleLogger()
+val consoleLoggerFromProvider = Runtime.removeDefaultLoggers >>> Runtime.setConfigProvider(configProvider) >>> consoleLogger()
 ```
 
-logger layer with given configuration:
+To create a console logger layer from an explicit `ConsoleLoggerConfig`, pass the format and filter directly:
 
 ```scala
-import zio.logging.{ consoleLogger, ConsoleLoggerConfig }
+import zio.logging.{ consoleLogger, ConsoleLoggerConfig, LogFilter, LogFormat }
 import zio.Runtime
 
-val config: ConsoleLoggerConfig = ???
+val consoleConfig: ConsoleLoggerConfig =
+  ConsoleLoggerConfig(LogFormat.default, LogFilter.LogLevelByNameConfig.default)
 
-val logger = Runtime.removeDefaultLoggers >>> consoleLogger(config)
+val consoleLoggerFromConfig = Runtime.removeDefaultLoggers >>> consoleLogger(consoleConfig)
 ```
 
-there are other versions of console loggers:
-* `zio.logging.consoleJsonLogger` - output in json format
-* error console:
-  * `zio.logging.consoleErrLogger` - output in string format
-  * `zio.logging.consoleErrJsonLogger` - output in json format
+The module also provides other console logger layers:
+
+* `zio.logging.consoleJsonLogger` - writes log lines in JSON format
+* `zio.logging.consoleErrLogger` - writes log lines in string format to standard error
+* `zio.logging.consoleErrJsonLogger` - writes log lines in JSON format to standard error
 
 ## Configuration
 
-the configuration for console logger (`zio.logging.ConsoleLoggerConfig`) has the following configuration structure:
+The configuration for the console logger (`zio.logging.ConsoleLoggerConfig`) has the following structure. The default config path is `logger`:
 
 ```
 logger {
   # log format, default value: LogFormat.default
   format = "%label{timestamp}{%fixed{32}{%timestamp}} %label{level}{%level} %label{thread}{%fiberId} %label{message}{%message} %label{cause}{%cause}"
-  
+
   # log filter
   filter {
     # see filter configuration
     rootLevel = INFO
+
+    # log levels for specific logger names, default value: empty
+    mappings {
+      "zio.logging.example" = "DEBUG"
+    }
   }
 }
 ```
 
-see also [log format configuration](formatting-log-records.md#log-format-configuration) and [filter configuration](log-filter.md#configuration)
+See also [log format configuration](formatting-log-records.md#log-format-configuration) and [filter configuration](log-filter.md#configuration).
 
 ## Examples
 
-You can find the source code [here](https://github.com/zio/zio-logging/tree/master/examples)
+You can find the source code [here](https://github.com/zio/zio-logging/tree/master/examples).
+
+The following examples are complete applications from the example project. They depend on `zio-config-typesafe` and are not part of the library API. Each one is in `examples/core/jvm/src/main/scala/zio/logging/example/`.
 
 ### Colorful Console Logger With Log Filtering
 
-[//]: # (TODO: make snippet type-checked using mdoc)
+This example depends on the `PingService` and `LivePingService` classes from the example project, so it is not type-checked by mdoc. The `ConsoleColoredApp` example from `examples/core/jvm/src/main/scala/zio/logging/example/ConsoleColoredApp.scala` configures a highlighted format and a per-class log level from a HOCON string:
 
 ```scala
 package zio.logging.example
@@ -143,13 +154,11 @@ Expected console output:
 	at zio.ZIOCompanionVersionSpecific.$anonfun$attempt$1(ZIOCompanionVersionSpecific.scala:100)
 ```
 
-### JSON Console Logger 
+### JSON Console Logger
 
-[//]: # (TODO: make snippet type-checked using mdoc)
+The `ConsoleJsonApp` example from `examples/core/jvm/src/main/scala/zio/logging/example/ConsoleJsonApp.scala` writes JSON log lines and adds structured annotations to each log event:
 
 ```scala
-package zio.logging.example
-
 import zio.logging.{ LogAnnotation, consoleJsonLogger }
 import zio.{ ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, _ }
 
@@ -166,7 +175,7 @@ object ConsoleJsonApp extends ZIOAppDefault {
 
   val logFormat =
     "%label{timestamp}{%timestamp{yyyy-MM-dd'T'HH:mm:ssZ}} %label{level}{%level} %label{fiberId}{%fiberId} %label{message}{%message} %label{cause}{%cause} %label{name}{%name} %kvs"
-  
+
   val configProvider: ConfigProvider = ConfigProvider.fromMap(
     Map(
       "logger/format"           -> logFormat,

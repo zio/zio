@@ -5,20 +5,21 @@
 
 This page is also useful as a deep dive into producing to Kafka with data from other streaming sources.
 
-# Example application
+## Example application
 
 This is what the example application does:
 
-1. consumes messages from topic `topic_a`,
+1. consumes messages from topic `my-input-topic`,
 2. transforms the received records,
-3. produces the transformed records to topic `topic_b`,
+3. produces the transformed records to topic `my-output-topic`,
 4. commits the consumer offsets.
 
-The application uses the zio-kafka streaming APIs. We need to explicitly commit offsets; applications that use the
-streaming API process records asynchronously with the consumer, and therefore, committing offsets automatically is not
-possible.
+The application uses the zio-kafka streaming APIs. We need to explicitly commit offsets; applications that use the streaming API process records asynchronously with the consumer, and therefore, committing offsets automatically is not possible. See [offsets and committing](offsets-and-committing.md) for an overview of the ways to commit, and [Producer](producer.md) for the producer API.
+
+The application consumes, transforms, produces and commits in a single stream:
 
 ```scala
+import zio._
 import zio.kafka.consumer._
 import zio.kafka.producer._
 import zio.kafka.serde._
@@ -29,9 +30,9 @@ val consumerSettings: ConsumerSettings =
 val producerSettings: ProducerSettings =
   ProducerSettings(List("localhost:9092"))
 
-for {
+val app: ZIO[Scope, Throwable, Unit] = for {
   consumer <- Consumer.make(consumerSettings)
-  producer <- Producer.make(producerSettings, Serde.int, Serde.string)
+  producer <- Producer.make(producerSettings)
   _ <-
     consumer
       // Create a stream of records, consuming all records from a topic
@@ -53,7 +54,7 @@ for {
 
         // produce the chunk of records, when acked by kafka, commit the consumed offsets,
         // returning an empty chunk (`mapChunksZIO` requires this function to return a ZIO[Chunk])
-        producer.produceChunk[Any, Int, String](records) *>
+        producer.produceChunk(records, Serde.int, Serde.string) *>
           offsetBatch.commit.as(Chunk.empty)
       }
       .runDrain
@@ -88,9 +89,7 @@ cost of making the program more complex, we can increase throughput with per-par
 [consuming with more parallelism](consuming-kafka-topics-using-zio-streams.md#consuming-with-more-parallelism) for more
 details. On this page, we do not explore this optimization further.
 
-Zio-kafka's prefetching automatically adapts and is usually as good as it can be. Only for very small/large records, or
-for large amounts of topics, you may need to configure it better. Please see [consumer tuning](consumer-tuning.md) to find
-out how.
+Zio-kafka's prefetching automatically adapts and is usually as good as it can be. Only for very small/large records, or for large numbers of partitions, you may need to configure it better. Please see [consumer tuning](consumer-tuning.md) to find out how.
 
 ### Optimizing producer throughput
 
@@ -116,9 +115,21 @@ The following diagram compares the two approaches. The rectangles represent stre
 
 ![](producer-stream-seq-and-par.svg)
 
-And now in code. Replace the `mapChunksZIO` operator with the following code:
+And now in code. The `mapChunksZIO` operator is replaced with the following operators. In this snippet, `stream` stands for the stream that the `map` step of the example application returns:
 
 ```scala
+import zio._
+import zio.stream._
+import zio.kafka.consumer._
+import zio.kafka.producer._
+import zio.kafka.serde._
+import org.apache.kafka.clients.producer.ProducerRecord
+
+val producer: Producer = ???
+// The output of the `map` step in the example application
+val stream: ZStream[Any, Throwable, (ProducerRecord[Int, String], Offset)] = ???
+
+stream
   // Expose the chunking structure of the stream
   .chunks         // ZStream[_, _, Chunk[(ProducerRecord, Offset)]]
 
@@ -141,8 +152,7 @@ And now in code. Replace the `mapChunksZIO` operator with the following code:
   }               // ZStream[_, _, Unit]
 ```
 
-Method `producer.produceChunkAsync` returns a `Task[Task[]]`. The outer task completes when the records have been sent.
-Completion gives us the inner task, which completes when the acknowledgements are received.
+Method `Producer#produceChunkAsync` returns a `RIO[R, Task[Chunk[RecordMetadata]]]`. The outer effect completes when the records have been enqueued in the producer's internal buffer. Completion gives us the inner task, which completes when the broker acknowledges the records.
 
 In the code we use `buffer(4)` which allows the program to produce up to 4 extra chunk of records while awaiting
 acknowledgements.
@@ -152,7 +162,13 @@ acknowledgements.
 When commits are not needed, we can simplify the code a bit:
 
 ```scala
-val stream: ZStream[_, _, ProducerRecord] = ???
+import zio.stream._
+import zio.kafka.producer._
+import zio.kafka.serde._
+import org.apache.kafka.clients.producer.ProducerRecord
+
+val producer: Producer = ???
+val stream: ZStream[Any, Throwable, ProducerRecord[Int, String]] = ???
 
 stream
   // Expose the chunking structure of the stream
@@ -174,15 +190,24 @@ can put a high strain on the broker. Next up, we split off committing to its own
 `aggregateAsyncWithin`. See [consuming with zio-streams](consuming-kafka-topics-using-zio-streams.md) to learn how this
 works.
 
-Replace the part after `.buffer()` with:
+Replace the part after `ZStream#buffer` with the following operators. In this snippet, `buffered` stands for the stream that `buffer(4)` returns:
 
 ```scala
-  // Await acknowledgements for a chunk 
+import zio._
+import zio.stream._
+import zio.kafka.consumer._
+import org.apache.kafka.clients.producer.RecordMetadata
+
+// The output of `buffer(4)` in the previous section
+val buffered: ZStream[Any, Throwable, (Task[Chunk[RecordMetadata]], OffsetBatch)] = ???
+
+buffered
+  // Await acknowledgements for a chunk
   .mapZIO { case (await, offsetBatch) =>
     // 'await' is a ZIO, run it, and then return the offsets
     await.as(offsetBatch)
   }                   // ZStream[_, _, OffsetBatch]
-  .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
+  .aggregateAsyncWithin(Consumer.collectOffsetBatches, Schedule.fixed(100.millis))
                       // ZStream[_, _, OffsetBatch]
   .mapZIO(_.commit)   // ZStream[_, _, Unit]
 ```

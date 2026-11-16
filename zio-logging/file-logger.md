@@ -1,45 +1,55 @@
 # File Logger
 
-> logger layer with configuration from config provider:
+> The file logger writes formatted log lines to a file. It is available on the JVM and Native platforms only. You can configure it from a `ConfigProvider` or from a `FileLoggerConfig` value.
+
+To create a file logger layer that reads its configuration from a `ConfigProvider`, define the `logger/path` key and the other keys that the layer needs:
 
 ```scala
-import zio.logging.fileLogger
+import zio.logging.{ fileLogger, FileLoggerConfig, LogFilter, LogFormat }
 import zio.{ ConfigProvider, Runtime }
 
-val configProvider: ConfigProvider = ???
+val fileConfigProvider: ConfigProvider = ConfigProvider.fromMap(
+  Map("logger/path" -> "file:///tmp/console_app.log"),
+  "/"
+)
 
-val logger = Runtime.removeDefaultLoggers >>> Runtime.setConfigProvider(configProvider) >>> fileLogger()
+val fileLoggerFromProvider = Runtime.removeDefaultLoggers >>> Runtime.setConfigProvider(fileConfigProvider) >>> fileLogger()
 ```
 
-logger layer with given configuration:
+To create a file logger layer from an explicit `FileLoggerConfig`, pass the destination path, format and filter:
 
 ```scala
-import zio.logging.{ fileLogger, FileLoggerConfig }
+import zio.logging.{ fileLogger, FileLoggerConfig, LogFilter, LogFormat }
 import zio.Runtime
 
-val config: FileLoggerConfig = ???
+val fileConfig: FileLoggerConfig = FileLoggerConfig(
+  destination = java.nio.file.Paths.get("/tmp/console_app.log"),
+  format = LogFormat.default,
+  filter = LogFilter.LogLevelByNameConfig.default
+)
 
-val logger = Runtime.removeDefaultLoggers >>> fileLogger(config)
+val fileLoggerFromConfig = Runtime.removeDefaultLoggers >>> fileLogger(fileConfig)
 ```
 
-there are other versions of file loggers:
-* `zio.logging.fileJsonLogger` - output in json format
-* file async:
-    * `zio.logging.fileAsynLogger` - output in string format
-    * `zio.logging.fileAsyncJsonLogger` - output in json format
+The module also provides other file logger layers:
+
+* `zio.logging.fileJsonLogger` - writes log lines in JSON format
+* File async loggers, which write through a bounded queue on a background fiber:
+    * `zio.logging.fileAsyncLogger` - writes log lines in string format
+    * `zio.logging.fileAsyncJsonLogger` - writes log lines in JSON format
 
 ## Configuration
 
-the configuration for file logger (`zio.logging.FileLoggerConfig`) has the following configuration structure:
+The configuration for the file logger (`zio.logging.FileLoggerConfig`) has the following structure. The default config path is `logger`:
 
 ```
 logger {
   # log format, default value: LogFormat.default
   format = "%label{timestamp}{%fixed{32}{%timestamp}} %label{level}{%level} %label{thread}{%fiberId} %label{message}{%message} %label{cause}{%cause}"
-  
+
   # URI to file
   path = "file:///tmp/console_app.log"
-    
+
   # charset configuration, default value: UTF-8
   charset = "UTF-8"
 
@@ -48,12 +58,12 @@ logger {
 
   # if defined, buffered writer is used, with given buffer size
   # bufferedIOSize = 8192
-  
+
   # if defined, file log rolling policy is used
   rollingPolicy {
     type = TimeBasedRollingPolicy # time based file rolling policy based on date - currently only this one is supported
   }
-  
+
   # log filter
   filter {
     # see filter configuration
@@ -62,19 +72,17 @@ logger {
 }
 ```
 
-see also [log format configuration](formatting-log-records.md#log-format-configuration) and [filter configuration](log-filter.md#configuration)
+See also [log format configuration](formatting-log-records.md#log-format-configuration) and [filter configuration](log-filter.md#configuration).
 
 ## Examples
 
-You can find the source code [here](https://github.com/zio/zio-logging/tree/master/examples)
+You can find the source code [here](https://github.com/zio/zio-logging/tree/master/examples).
 
 
 
-[//]: # (TODO: make snippet type-checked using mdoc)
+The `FileApp` example from `examples/core/jvm/src/main/scala/zio/logging/example/FileApp.scala` loads its configuration from a HOCON string and writes to `/tmp`. It depends on `zio-config-typesafe` and is not part of the library API:
 
 ```scala
-package zio.logging.example
-
 import zio.config.typesafe.TypesafeConfigProvider
 import zio.logging.fileLogger
 import zio.{ Config, ConfigProvider, ExitCode, Runtime, Scope, ZIO, ZIOAppDefault, ZLayer }

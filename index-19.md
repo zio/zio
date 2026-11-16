@@ -1,4 +1,4 @@
-# Getting Started with ZIO Kafka
+# Introduction to ZIO Kafka
 
 > [ZIO Kafka](https://github.com/zio/zio-kafka) is a Kafka client for ZIO. It provides a purely functional, streams-based interface to the Kafka
 > client and integrates effortlessly with ZIO and zio-streams. Often zio-kafka programs have a _higher_ throughput than
@@ -15,142 +15,48 @@ Kafka has a mature Java client for producing and consuming events, but it has a 
 ## Features
 
 - Exposes the Java Kafka consumer, producer and admin clients with a ZIO based interface.
-- Consuming:
+- Consuming (see [Consumer](consumer.md)):
   - 2 APIs: streaming and ZIO workflow based
-  - supports custom deserialization
-  - process each partition in parallel for highest throughput
+  - supports [custom deserialization](serialization-and-deserialization.md)
+  - can process each partition in parallel for highest throughput
   - allows batched processing for highest throughput
   - configurable per partition pre-fetching (with back-pressure)
-  - the only async Kafka consumer [without duplicates](https://zio.dev/zio-kafka/preventing-duplicates) after a rebalance (as far as we know)
-  - very configurable
-  - automatic or manual starting offset
-  - supports external commits
+  - the only async Kafka consumer [without duplicates](preventing-duplicates.md) after a rebalance (as far as we know)
+  - very [configurable](consumer-tuning.md)
+  - automatic or manual [starting offset](partition-assignment-and-offset-retrieval.md)
+  - supports [external commits](offsets-and-committing.md)
   - retries after authentication/authorization errors
   - detects [silent authorization failures](detecting-authorization-failures.md) when a READ ACL is revoked at runtime
-  - exposes metrics
-  - diagnostics API
-- Producing:
+  - exposes [metrics](metrics.md)
+  - [diagnostics](diagnostics.md) API
+- Producing (see [Producer](producer.md)):
   - 2 APIs: streaming and ZIO workflow based
-  - supports custom serialization
+  - supports [custom serialization](serialization-and-deserialization.md)
   - allows for batches for highest throughput
   - optionally await broker acknowledgements
+  - supports [transactions](transactions.md)
   - optional retries after authentication/authorization errors
-  - exposes metrics
-- Admin API:
-  - exposes all the admin client methods with a ZIO based interface
+  - exposes [metrics](metrics.md)
+  - [diagnostics](diagnostics.md) API
+- [Admin API](admin-client.md):
+  - exposes most of the admin client methods with a ZIO based interface
   - safer than the wrapped java client by waiting for the operation to be done
-- Proper errors when broker expects SSL (no [OOM crashes](https://issues.apache.org/jira/browse/KAFKA-4090))
-- Test kit with embedded kafka broker
+- Proper errors when broker expects SSL (no [OOM crashes](https://issues.apache.org/jira/browse/KAFKA-4090)), see [Security](security.md)
+- [Test kit](writing-tests.md) with embedded kafka broker
 - Well documented
 - Community support via [Discord](https://discord.com/channels/629491597070827530/629497941719121960)
 - Commercial support via [Ziverge](https://www.ziverge.com)
 
-## Getting started
+## Installation
 
-See the [zio-kafka tutorial](tutorial.md) for a grand tour of the different ways you can use zio-kafka.
-
-In order to use this library, we need to add the following line in our `build.sbt` file:
+To use zio-kafka, add the following lines to your `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-kafka"         % "4.0.0"
-libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "4.0.0" % Test
+libraryDependencies += "dev.zio" %% "zio-kafka"         % "4.2.0"
+libraryDependencies += "dev.zio" %% "zio-kafka-testkit" % "4.2.0" % Test
 ```
 
-Snapshots are available on Sonatype's snapshot repository https://oss.sonatype.org/content/repositories/snapshots.
-[Browse here](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-kafka_3/) to find available versions.
-
-If you use `zio-kafka` 3.x, scala 3, `zio-kafka-testkit` and `embedded-kafka`, you also need to add the following to
-your `build.sbt` file:
-
-```scala
-excludeDependencies += "org.scala-lang.modules" % "scala-collection-compat_2.13"
-```
-
-## Example
-
-Let's write a simple Kafka producer and consumer using zio-kafka with zio-streams. Before everything, we need a running instance of Kafka. We can do that by saving the following docker-compose script in the `docker-compose.yml` file and run `docker compose up`:
-
-```docker-compose
-services:
-  broker:
-    image: apache/kafka:3.9.0
-    container_name: broker
-    ports:
-      - "9092:9092"
-    environment:
-      KAFKA_NODE_ID: 1
-      KAFKA_BROKER_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@broker:29093
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-```
-
-Now, we can run our ZIO Kafka Streaming application:
-
-```scala
-import zio._
-import zio.kafka.consumer._
-import zio.kafka.producer.{ Producer, ProducerSettings }
-import zio.kafka.serde._
-import zio.stream.ZStream
-
-object ReadmeExample extends ZIOAppDefault {
-
-  private val producerRun: ZIO[Any, Throwable, Unit] =
-    ZIO.scoped {
-      for {
-        producer <-
-          Producer.make(
-            ProducerSettings(List("localhost:9092"))
-          )
-        _ <- ZStream
-          .fromSchedule(Schedule.fixed(2.seconds))
-          .mapZIO(_ => Random.nextIntBetween(0, Int.MaxValue))
-          .mapZIO { random =>
-            producer.produce[Any, Long, String](
-              topic = "random-topic",
-              key = (random % 4).toLong,
-              value = random.toString,
-              keySerializer = Serde.long,
-              valueSerializer = Serde.string
-            )
-          }
-          .runDrain
-      } yield ()
-    }
-
-  private val consumerRun: ZIO[Any, Throwable, Unit] =
-    ZIO.scoped {
-      for {
-        consumer <-
-          Consumer.make(
-            ConsumerSettings(List("localhost:9092"))
-              .withGroupId("group")
-          )
-        _ <- consumer
-          .plainStream(Subscription.topics("random"), Serde.long, Serde.string)
-          .tap(r => Console.printLine(r.value))
-          .map(_.offset)
-          .aggregateAsyncWithin(Consumer.collectOffsets, Schedule.fixed(100.millis))
-          .mapZIO(_.commit)
-          .runDrain
-      } yield ()
-    }
-
-  override def run: ZIO[Any, Throwable, Unit] =
-    ZIO.raceFirst(producerRun, List(consumerRun))
-}
-```
-
-Read the [ZIO Kafka tutorial](tutorial.md) for a more gentle introduction.
+The [Getting Started](getting-started.md) page walks through running a local Kafka broker and writing a first producer and consumer. For a longer tour of the different ways you can use zio-kafka, read the [zio-kafka tutorial](tutorial.md).
 
 ## Documentation
 
@@ -161,6 +67,8 @@ If you are reading this from GitHub, the documentation can be found in
 [the docs folder](https://github.com/zio/zio-kafka/tree/master/docs).
 
 ## Resources
+
+The following articles, videos and example projects show zio-kafka in practice.
 
 ### Articles
 
@@ -185,7 +93,7 @@ If you are reading this from GitHub, the documentation can be found in
 - [ZIO Kafka with Scala: A Tutorial](https://www.youtube.com/watch?v=ExFjjczwwHs) by Rock the JVM (August 2021)
 - [ZIO WORLD - ZIO Kafka](https://www.youtube.com/watch?v=GECv1ONieLw) by Aleksandar Skrbic (March 2020) — Aleksandar Skrbic presented ZIO Kafka, a critical library for the modern Scala developer, which hides some of the complexities of Kafka.
 
-### Example projects
+### Example Projects
 
 - [Kafka BigQuery Express](https://github.com/adevinta/kafka-bigquery-express/) by Adevinta (November 2024) A production system to copy data from Kafka to BigQuery, safely and cost-effectively. (See also the video "Optimizing Data Transfer...".)
 - [zio-kafka-showcase](https://github.com/ScalaConsultants/zio-kafka-showcase) by Jorge Vásquez, Example project that demonstrates how to build Kafka based microservices with Scala and ZIO
@@ -207,12 +115,7 @@ Want to see your company here? [Submit a PR](https://github.com/zio/zio-kafka/ed
 Often, _zio-kafka programs consume with a higher throughput_ than programs that use the java-kafka client directly.
 Read on for the details.
 
-By default, zio-kafka programs process partitions in parallel. The default java-kafka client does not provide parallel
-processing. Of course, there is some overhead in buffering records and distributing them to the fibers that need them.
-On 2024-11-23, we estimated that zio-kafka consumes faster than the java-kafka client when processing takes more than
-~1.2ms per 1000 records. The precise time depends on many factors. Please
-see [this article](https://day-to-day-stuff.blogspot.com/2024/12/zio-kafka-faster-than-java-kafka.html) for more
-details.
+Zio-kafka makes it easy to process partitions in parallel: `Consumer.consumeWith` does so by default, and with the streaming API you can use `Consumer#partitionedStream` with `ZStream#flatMapPar`. The default java-kafka client does not provide parallel processing. Of course, there is some overhead in buffering records and distributing them to the fibers that need them. On 2024-11-23, we estimated that zio-kafka consumes faster than the java-kafka client when processing takes more than ~1.2ms per 1000 records. The precise time depends on many factors. Please see [this article](https://day-to-day-stuff.blogspot.com/2024/12/zio-kafka-faster-than-java-kafka.html) for more details.
 
 If you do not care for the convenient ZStream based API that zio-kafka brings, and latency is of absolute importance,
 using the java based Kafka client directly is still the better choice.

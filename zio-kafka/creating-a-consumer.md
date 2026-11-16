@@ -3,7 +3,7 @@
 > Create a consumer with `Consumer.make`, passing some `ConsumerSettings`:
 
 ```scala
-import zio.*
+import zio._
 import zio.kafka.consumer.{ Consumer, ConsumerSettings }
 
 val consumerSettings: ConsumerSettings =
@@ -13,10 +13,12 @@ val consumer: ZIO[Scope, Throwable, Consumer] =
 ```
 
 The consumer settings are not only used for passing properties to the underlying Kafka consumer. You can also configure
-zio-kafka features such as `rebalanceSafeCommits` (see [preventing duplicates](preventing-duplicates.md)), manual offset
+zio-kafka features such as `rebalanceSafeCommits` (see [preventing duplicates](preventing-duplicates.md)), external offset
 retrieval (see [offset retrieval](partition-assignment-and-offset-retrieval.md)), the pre-fetch strategy (see
 [consumer tuning](consumer-tuning.md)), and silent authorization failure detection
 (see [detecting authorization failures](detecting-authorization-failures.md)).
+
+For an overview of all consumer settings and operations, see the [Consumer](consumer.md) reference page.
 
 Notice that the consumer requires a `Scope` in the environment. When this scope closes, the consumer closes its
 connection with the Kafka cluster. A scope can be created with the `ZIO.scoped` method:
@@ -42,10 +44,10 @@ If your application uses the [ZIO service pattern](https://zio.dev/reference/ser
 be provided as a layer. Here's an example of how to construct a consumer layer:
 
 ```scala
-import zio.*
+import zio._
 import zio.kafka.consumer.{ Consumer, ConsumerSettings }
 
-val consumerLayer: Layer[Any, Throwable, Consumer] =
+val consumerLayer: ZLayer[Any, Throwable, Consumer] =
   ZLayer.scoped { // (1)
     val consumerSettings: ConsumerSettings =
       ConsumerSettings(List("localhost:9092")).withGroupId("group")
@@ -55,7 +57,7 @@ val consumerLayer: Layer[Any, Throwable, Consumer] =
 
 (1) By using `ZLayer.scoped`, the consumer is closed when the layer is no longer needed.
 
-## Consumer settings from a layer (zio-kafka 3.x)
+## Consumer settings from a layer
 
 If you wish to create the `ConsumerSettings` and the `Consumer` from a layer, you can use `Consumer.live`. It takes
 the consumer settings as a layer and produces a consumer.
@@ -63,23 +65,21 @@ the consumer settings as a layer and produces a consumer.
 The `provide` section of the main program could look like this:
 
 ```scala
-.provide(
-  consumerSettingsLayer,
-  Consumer.live
-)
+import zio._
+import zio.kafka.consumer.{ Consumer, ConsumerSettings }
+
+val consumerSettingsLayer: ULayer[ConsumerSettings] =
+  ZLayer.succeed(ConsumerSettings(List("localhost:9092")).withGroupId("group"))
+
+// Any program that needs a Consumer
+val program: ZIO[Consumer, Throwable, Unit] =
+  ZIO.serviceWithZIO[Consumer](_.listTopics()).unit
+
+val app: ZIO[Any, Throwable, Unit] =
+  program.provide(
+    consumerSettingsLayer,
+    Consumer.live
+  )
 ```
 
-## Consumer settings from a layer (zio-kafka 2.x)
-
-If you wish to create the `ConsumerSettings` and the `Consumer` from a layer, you can use `Consumer.live`. It takes
-the consumer settings and diagnostics settings as a layer and produces a consumer.
-
-The `provide` section of the main program could look like this:
-
-```scala
-.provide(
-  consumerSettingsLayer,
-  ZLayer.succeed(Consumer.NoDiagnostics),
-  Consumer.live
-)
-```
+In zio-kafka 2.x, `Consumer.live` also needed a diagnostics layer. Since zio-kafka 3.0, diagnostics are set with `ConsumerSettings.withDiagnostics` instead; see [migrating to zio-kafka 3](migrating-to-zio-kafka-3.md).
