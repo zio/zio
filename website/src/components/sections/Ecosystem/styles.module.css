@@ -95,6 +95,19 @@
   object-fit: contain;
 }
 
+/* Wide wordmarks (e.g. ZIO Kafka): the slot grows to fit the logo's width at a fixed height */
+.ecosystemCardIconWide {
+  width: auto;
+  height: auto;
+  min-height: 40px;
+}
+
+.ecosystemCardIconImgWide {
+  width: auto;
+  height: 32px;
+  max-width: none;
+}
+
 .ecosystemCardLogo {
   display: block;
   height: 48px;

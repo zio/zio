@@ -14,7 +14,7 @@ function ProjectIcon({ icon, name }) {
       <ThemedImage
         alt={`${name} logo`}
         sources={{ light: icon.light, dark: icon.dark }}
-        className={styles.ecosystemCardIconImg}
+        className={clsx(styles.ecosystemCardIconImg, icon.wide && styles.ecosystemCardIconImgWide)}
       />
     );
   }
@@ -73,7 +73,7 @@ export default function Ecosystem({ eyebrow, title, subtitle, children}) {
             <div key={idx} className={clsx('col col--4', styles.ecosystemCardCol)}>
               <div className={styles.ecosystemCard}>
                 <div className={styles.ecosystemCardHeader}>
-                  <div className={styles.ecosystemCardIcon}>
+                  <div className={clsx(styles.ecosystemCardIcon, project.icon?.wide && styles.ecosystemCardIconWide)}>
                     <ProjectIcon icon={project.icon} name={project.name} />
                   </div>
                   <h3>{project.name}</h3>
