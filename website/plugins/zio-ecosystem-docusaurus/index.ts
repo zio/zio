@@ -108,7 +108,7 @@ function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
                 `${project.name}-sidebar`,
                 [
                   { type: 'link', label: '← ZIO Ecosystem', href: `/ecosystem/?eco-category=${categoryIdOf(project.name)}` },
-                  { ...project.category, collapsible: false, collapsed: false, items: sidebarItemsOf(project) }
+                  { ...project.category, collapsible: false, collapsed: false, items: itemsWithoutOwnPage(project.category) }
                 ]
               ])
             )
@@ -313,35 +313,21 @@ function isSidebarItemCategoryConfig(item: SidebarItemConfig): item is SidebarIt
   return (item as SidebarItemCategoryConfig).items !== undefined
 }
 
+// Prefixes every doc id in a project's sidebar. A category keeps the project's
+// own `collapsed` setting; when the project doesn't set one, it starts collapsed.
 function mapConfig(config: SidebarItemConfig, prefix: string) {
   if (typeof (config) === "string") {
     return prefix + config
   } else if (isSidebarItemCategoryConfig(config)) {
     return {
       ...config,
-      collapsed: true,
+      collapsed: config.collapsed ?? true,
       link: config.link ? { ...config.link, 'id': prefix + (config.link as SidebarItemCategoryLinkDoc).id } : undefined,
       items:
         ((config as SidebarItemCategoryConfig).items as SidebarItemConfig[])
           .map(item => mapConfig(item, prefix))
     }
   }
-}
-
-// Projects whose nested sidebar categories start expanded on their own sidebar.
-// Every other project keeps its nested categories collapsed.
-const expandedProjects = new Set(['zio-amqp'])
-
-function sidebarItemsOf(project: EcosystemProject): SidebarItemConfig[] {
-  const items = itemsWithoutOwnPage(project.category)
-  return expandedProjects.has(project.name) ? items.map(expandCategories) : items
-}
-
-function expandCategories(config: SidebarItemConfig): SidebarItemConfig {
-  if (typeof (config) === "string" || !isSidebarItemCategoryConfig(config)) {
-    return config
-  }
-  return { ...config, collapsed: false, items: config.items.map(expandCategories) }
 }
 
 export default zioEcosystemPlugin
