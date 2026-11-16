@@ -5723,7 +5723,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
             }(Unsafe)
 
             start(effect)
-            Left(ZIO.succeed(cancelTimer()))
+            Left(ZIO.succeed { raceIndicator.set(true); cancelTimer() } *> child.interruptAs(parentFiber.id))
           },
           child.id
         )

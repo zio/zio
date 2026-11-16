@@ -4217,7 +4217,7 @@ object ZIOSpec extends ZIOBaseSpec {
         for {
           started <- Promise.make[Nothing, Unit]
           fin     <- Promise.make[Nothing, Unit]
-          fiber   <- (started.succeed(()) *> ZIO.never.onInterrupt(fin.succeed(()))).timeout(1.minute).fork
+          fiber   <- (started.succeed(()) *> ZIO.never).onInterrupt(fin.succeed(())).timeout(1.minute).fork
           _       <- started.await
           _       <- fiber.interrupt
           _       <- fin.await
