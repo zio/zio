@@ -140,6 +140,9 @@ export const ecosystemProjects = [
       'Custom serialization and deserialization support'
     ],
     link: '/zio-kafka',
-    icon: '📨'
+    icon: {
+      light: '/img/ecosystem/zio-kafka-mark-light.svg',
+      dark: '/img/ecosystem/zio-kafka-mark-dark.svg'
+    }
   }
 ];
