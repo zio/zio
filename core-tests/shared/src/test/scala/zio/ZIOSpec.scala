@@ -4208,10 +4208,10 @@ object ZIOSpec extends ZIOBaseSpec {
       },
       test("waits for an uninterruptible effect before timing out") {
         for {
-          start   <- Clock.nanoTime
-          result  <- ZIO.sleep(100.millis).uninterruptible.timeout(10.millis)
-          elapsed <- Clock.nanoTime.map(_ - start)
-        } yield assertTrue(result.isEmpty, elapsed >= 100.millis.toNanos)
+          done   <- Ref.make(false)
+          result <- (ZIO.sleep(100.millis) *> done.set(true)).uninterruptible.timeout(10.millis)
+          isDone <- done.get
+        } yield assertTrue(result.isEmpty, isDone)
       },
       test("interrupting the timed effect runs the finalizers of the child") {
         for {
