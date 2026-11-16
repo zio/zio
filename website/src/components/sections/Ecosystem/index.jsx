@@ -76,7 +76,7 @@ export default function Ecosystem({ eyebrow, title, subtitle, children}) {
                   <div className={clsx(styles.ecosystemCardIcon, project.icon?.wide && styles.ecosystemCardIconWide)}>
                     <ProjectIcon icon={project.icon} name={project.name} />
                   </div>
-                  <h3>{project.name}</h3>
+                  <h3 className={project.icon?.wide ? styles.ecosystemCardTitleHidden : undefined}>{project.name}</h3>
                 </div>
                 <p className={styles.ecosystemCardDescription}>{project.description}</p>
                 <ul className={styles.ecosystemCardFeatures}>

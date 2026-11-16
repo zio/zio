@@ -108,6 +108,16 @@
   max-width: none;
 }
 
+/* The wordmark already spells the name, so the heading is kept for screen readers only */
+.ecosystemCardTitleHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
 .ecosystemCardLogo {
   display: block;
   height: 48px;
