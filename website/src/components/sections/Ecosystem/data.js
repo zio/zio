@@ -141,8 +141,9 @@ export const ecosystemProjects = [
     ],
     link: '/zio-kafka',
     icon: {
-      light: '/img/ecosystem/zio-kafka-mark-light.svg',
-      dark: '/img/ecosystem/zio-kafka-mark-dark.svg'
+      light: '/img/ecosystem/zio-kafka-logo-light.svg',
+      dark: '/img/ecosystem/zio-kafka-logo-dark.svg',
+      wide: true
     }
   }
 ];
