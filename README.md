@@ -228,8 +228,8 @@ Copyright 2017 - 2024 John A. De Goes and the ZIO Contributors. All rights reser
 [Link-IsItMaintained]: http://isitmaintained.com/project/zio/zio "Average time to resolve an issue"
 [Link-Scaladoc]: https://javadoc.io/doc/dev.zio/zio_3/latest/zio/index.html
 [Link-Scaladex-page]: https://index.scala-lang.org/zio/zio/zio "Scaladex"
-[Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/dev/zio/zio_3/ "Sonatype Releases"
-[Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio_3/ "Sonatype Snapshots"
+[Link-SonatypeReleases]: https://central.sonatype.com/artifact/dev.zio/zio_3 "Sonatype Releases"
+[Link-SonatypeSnapshots]: https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio_3/ "Sonatype Snapshots"
 [Link-Ziverge]: https://ziverge.com "Ziverge"
 [Link-Scalac]: https://scalac.io "Scalac"
 [Link-SeptimalMind]: https://7mind.io "Septimal Mind"
