@@ -43,7 +43,7 @@ class ZIOTestDescriptor(
   parent: TestDescriptor,
   uniqueId: UniqueId,
   label: String,
-  testClass: Class[_],
+  testClass: Class[?],
   annotations: TestAnnotationMap
 ) extends AbstractTestDescriptor(uniqueId, label, ZIOTestSource(testClass, annotations)) {
   setParent(parent)

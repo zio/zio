@@ -395,7 +395,7 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
 
   override def equals(that: Any): Boolean =
     (self eq that.asInstanceOf[AnyRef]) || (that match {
-      case that: Seq[_] => self.corresponds(that)(_ == _)
+      case that: Seq[?] => self.corresponds(that)(_ == _)
       case _            => false
     })
 
@@ -1115,7 +1115,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
    */
   private final def toArrayOrNull[A1 >: A]: Array[A1] =
     if (self eq Chunk.Empty) null
-    else self.toArray(Chunk.classTagOf(self))
+    else {
+      implicit val ct: ClassTag[A1] = Chunk.classTagOf(self)
+      self.toArray[A1]
+    }
 }
 
 object Chunk extends ChunkFactory with ChunkPlatformSpecific {
@@ -1125,6 +1128,13 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    */
   override def apply[A](as: A*): Chunk[A] =
     if (as.size == 1) single(as.head) else fromIterable(as)
+
+  /**
+   * Helper method to allow us passing the classtag as an argument since this
+   * doesn't work with context bounds on Scala 3.9
+   */
+  @inline private def arrayOfDim[A](len: Int)(implicit ct: ClassTag[A]): Array[A] =
+    new Array(len)
 
   /*
    * Performs bitwise operations on boolean chunks returning a Chunk.BitChunk
@@ -1302,8 +1312,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    */
   def fromJavaIterable[A](iterable: java.lang.Iterable[A]): Chunk[A] = {
     val builder = ChunkBuilder.make[A]()
-    if (iterable.isInstanceOf[java.util.Collection[_]]) {
-      builder.sizeHint(iterable.asInstanceOf[java.util.Collection[_]].size())
+    if (iterable.isInstanceOf[java.util.Collection[?]]) {
+      builder.sizeHint(iterable.asInstanceOf[java.util.Collection[?]].size())
     }
     val iterator = iterable.iterator()
     while (iterator.hasNext()) {
@@ -1413,17 +1423,17 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
    */
   private[zio] def classTagOf[A](chunk: Chunk[A]): ClassTag[A] =
     chunk match {
-      case x: AppendN[_]            => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Arr[_]                => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Concat[_]             => x.classTag.asInstanceOf[ClassTag[A]]
-      case Empty                    => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
-      case x: PrependN[_]           => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Singleton[_]          => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Slice[_]              => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: Update[_]             => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: VectorChunk[_]        => x.classTag.asInstanceOf[ClassTag[A]]
-      case x: ChunkPackedBoolean[_] => x.classTag.asInstanceOf[ClassTag[A]]
-      case _: BitChunk[_]           => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
+      case x: AppendN[?]            => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: Arr[?]                => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: Concat[?]             => x.classTag.asInstanceOf[ClassTag[A]]
+      case _: Empty.type            => classTag[java.lang.Object].asInstanceOf[ClassTag[A]]
+      case x: PrependN[?]           => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: Singleton[?]          => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: Slice[?]              => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: Update[?]             => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: VectorChunk[?]        => x.classTag.asInstanceOf[ClassTag[A]]
+      case x: ChunkPackedBoolean[?] => x.classTag.asInstanceOf[ClassTag[A]]
+      case _: BitChunk[?]           => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
 
   sealed trait IsText[-T] {
@@ -2536,7 +2546,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       else {
         val oldArr = array
         val head   = f(oldArr(0))
-        var newArr = Array.ofDim[B](len)(Chunk.Tags.fromValue(head))
+        var newArr = arrayOfDim[B](len)(Chunk.Tags.fromValue(head))
         var i      = 1
         newArr(0) = head
         while (i < len) {
@@ -2613,7 +2623,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       else {
         val oldArr = array
         val head   = f(oldArr(0))
-        var newArr = Array.ofDim[B](len)(Chunk.Tags.fromValue(head))
+        var newArr = arrayOfDim[B](len)(Chunk.Tags.fromValue(head))
         var i      = 1
         newArr(0) = head
         while (i < len) {
@@ -2690,7 +2700,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       else {
         val oldArr = array
         val head   = f(oldArr(0))
-        var newArr = Array.ofDim[B](len)(Chunk.Tags.fromValue(head))
+        var newArr = arrayOfDim[B](len)(Chunk.Tags.fromValue(head))
         var i      = 1
         newArr(0) = head
         while (i < len) {
@@ -2767,7 +2777,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       else {
         val oldArr = array
         val head   = f(oldArr(0))
-        var newArr = Array.ofDim[B](len)(Chunk.Tags.fromValue(head))
+        var newArr = arrayOfDim[B](len)(Chunk.Tags.fromValue(head))
         var i      = 1
         newArr(0) = head
         while (i < len) {
@@ -2844,7 +2854,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       else {
         val oldArr = array
         val head   = f(oldArr(0))
-        var newArr = Array.ofDim[B](len)(Chunk.Tags.fromValue(head))
+        var newArr = arrayOfDim[B](len)(Chunk.Tags.fromValue(head))
         var i      = 1
         newArr(0) = head
         while (i < len) {
@@ -2921,7 +2931,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       else {
         val oldArr = array
         val head   = f(oldArr(0))
-        var newArr = Array.ofDim[B](len)(Chunk.Tags.fromValue(head))
+        var newArr = arrayOfDim[B](len)(Chunk.Tags.fromValue(head))
         var i      = 1
         newArr(0) = head
         while (i < len) {
@@ -2996,7 +3006,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       else {
         val oldArr = array
         val head   = f(oldArr(0))
-        var newArr = Array.ofDim[B](len)(Chunk.Tags.fromValue(head))
+        var newArr = arrayOfDim[B](len)(Chunk.Tags.fromValue(head))
         var i      = 1
         newArr(0) = head
         while (i < len) {
@@ -3075,7 +3085,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       else {
         val oldArr = array
         val head   = f(oldArr(0))
-        var newArr = Array.ofDim[B](len)(Chunk.Tags.fromValue(head))
+        var newArr = arrayOfDim[B](len)(Chunk.Tags.fromValue(head))
         var i      = 1
         newArr(0) = head
         while (i < len) {

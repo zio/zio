@@ -750,8 +750,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      *
      * }}}
      */
-    val tree: ULayer[Debug] =
-      ZLayer.succeed[Debug](Debug.Tree)(Tag[Debug], Tracer.newTrace)
+    val tree: ULayer[Debug] = {
+      implicit val tag: Tag[Debug] = Tag(EnvironmentTag.tagFromTagMacro)
+      implicit val trace: Trace    = Tracer.newTrace
+      ZLayer.succeed[Debug](Debug.Tree)
+    }
 
     /**
      * Including this layer in a call to a compile-time ZLayer constructor, such
@@ -781,8 +784,11 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      *
      * }}}
      */
-    val mermaid: ULayer[Debug] =
-      ZLayer.succeed[Debug](Debug.Mermaid)(Tag[Debug], Tracer.newTrace)
+    val mermaid: ULayer[Debug] = {
+      implicit val tag: Tag[Debug] = Tag(EnvironmentTag.tagFromTagMacro)
+      implicit val trace: Trace    = Tracer.newTrace
+      ZLayer.succeed[Debug](Debug.Mermaid)
+    }
   }
 
   /**

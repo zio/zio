@@ -1784,7 +1784,7 @@ object ZSTM {
        * Creates a function that can reset the journal.
        */
       private[ZSTM] def resetFn(): () => Unit = {
-        val currentNewValues = ZSTMUtils.newMutableMap[TRef[_], Any](map.size)
+        val currentNewValues = ZSTMUtils.newMutableMap[TRef[?], Any](map.size)
         val itCapture        = map.iterator
         while (itCapture.hasNext) {
           val (key, value) = itCapture.next()
@@ -1792,7 +1792,7 @@ object ZSTM {
         }
 
         () => {
-          val saved = ZSTMUtils.newMutableMap[TRef[_], Entry](map.size)
+          val saved = ZSTMUtils.newMutableMap[TRef[?], Entry](map.size)
           val it    = map.iterator
           while (it.hasNext) {
             val (key, value) = it.next()
@@ -1881,7 +1881,7 @@ object ZSTM {
        * journal
        */
       def checkAndMaybeCommit(value: TExit[E, A]) = {
-        val isSuccess      = value.isInstanceOf[TExit.Succeed[_]]
+        val isSuccess      = value.isInstanceOf[TExit.Succeed[?]]
         val analysis       = journal.analyze(attemptCommit = isSuccess && stateIsNull)
         val isJournalValid = analysis != JournalAnalysis.Invalid
         if (isJournalValid) {

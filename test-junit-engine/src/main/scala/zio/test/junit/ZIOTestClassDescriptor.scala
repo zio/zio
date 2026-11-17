@@ -32,7 +32,7 @@ import zio.test.junit.ReflectionUtils._
  * @param testClass
  *   The class representing the test.
  */
-class ZIOTestClassDescriptor(parent: TestDescriptor, uniqueId: UniqueId, val testClass: Class[_])
+class ZIOTestClassDescriptor(parent: TestDescriptor, uniqueId: UniqueId, val testClass: Class[?])
     extends AbstractTestDescriptor(uniqueId, testClass.getName.stripSuffix("$"), ZIOTestSource(testClass)) {
 
   setParent(parent)
@@ -49,7 +49,7 @@ class ZIOTestClassDescriptor(parent: TestDescriptor, uniqueId: UniqueId, val tes
     spec: Spec[R, E],
     description: TestDescriptor,
     path: Vector[String] = Vector.empty
-  ): ZIO[R with Scope, Any, Unit] =
+  ): ZIO[R & Scope, Any, Unit] =
     spec.caseValue match {
       case Spec.ExecCase(_, spec: Spec[R, E]) => traverse(spec, description, path)
       case Spec.LabeledCase(label, spec: Spec[R, E]) =>
@@ -78,8 +78,8 @@ class ZIOTestClassDescriptor(parent: TestDescriptor, uniqueId: UniqueId, val tes
         )
     }
 
-  lazy val scoped: ZIO[spec.Environment with TestEnvironment, Any, Unit] =
-    ZIO.scoped[spec.Environment with TestEnvironment](
+  lazy val scoped: ZIO[spec.Environment & TestEnvironment, Any, Unit] =
+    ZIO.scoped[spec.Environment & TestEnvironment](
       traverse(spec.spec, this)
     )
 

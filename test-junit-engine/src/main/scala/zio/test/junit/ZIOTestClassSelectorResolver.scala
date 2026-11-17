@@ -34,7 +34,7 @@ import scala.jdk.CollectionConverters._
  * JUnit 5 platform test class resolver for ZIO test implementation
  */
 class ZIOTestClassSelectorResolver extends SelectorResolver {
-  private val isSuitePredicate: Predicate[Class[_]] = { (testClass: Class[_]) =>
+  private val isSuitePredicate: Predicate[Class[?]] = { (testClass: Class[?]) =>
     // valid test class are ones directly extending ZIOSpecAbstract or whose companion object
     // extends ZIOSpecAbstract
     isPublic(testClass) && !isAbstract(testClass) && !isInnerClass(testClass) &&
@@ -46,7 +46,7 @@ class ZIOTestClassSelectorResolver extends SelectorResolver {
   private val alwaysTruePredicate: Predicate[String] = _ => true
 
   private def classDescriptorFunction(
-    testClass: Class[_]
+    testClass: Class[?]
   ): java.util.function.Function[TestDescriptor, Optional[ZIOTestClassDescriptor]] =
     (parentTestDescriptor: TestDescriptor) => {
       val suiteUniqueId =
@@ -63,7 +63,7 @@ class ZIOTestClassSelectorResolver extends SelectorResolver {
 
   private def addToParentFunction(
     context: SelectorResolver.Context
-  ): java.util.function.Function[Class[_], java.util.stream.Stream[Match]] = (aClass: Class[_]) => {
+  ): java.util.function.Function[Class[?], java.util.stream.Stream[Match]] = (aClass: Class[?]) => {
     context
       .addToParent(classDescriptorFunction(aClass))
       .map[java.util.stream.Stream[Match]](toMatch)

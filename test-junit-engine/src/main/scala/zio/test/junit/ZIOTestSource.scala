@@ -27,7 +27,7 @@ import org.junit.platform.engine.support.descriptor.{ClassSource, FilePosition, 
  * TestSource based on provided test class and optional annotations.
  */
 object ZIOTestSource {
-  def apply(testClass: Class[_], annotations: Option[TestAnnotationMap]): TestSource =
+  def apply(testClass: Class[?], annotations: Option[TestAnnotationMap]): TestSource =
     annotations
       .map(_.get(TestAnnotation.trace))
       .collect { case location :: _ =>
@@ -35,8 +35,8 @@ object ZIOTestSource {
       }
       .getOrElse(ClassSource.from(testClass))
 
-  def apply(testClass: Class[_]): TestSource = ZIOTestSource(testClass, None)
+  def apply(testClass: Class[?]): TestSource = ZIOTestSource(testClass, None)
 
-  def apply(testClass: Class[_], annotations: TestAnnotationMap): TestSource =
+  def apply(testClass: Class[?], annotations: TestAnnotationMap): TestSource =
     ZIOTestSource(testClass, Some(annotations))
 }

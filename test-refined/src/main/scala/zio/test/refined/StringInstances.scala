@@ -40,7 +40,7 @@ trait StringInstances {
   def endsWithStringNGen[R, S <: String, P](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char],
-    sizeGen: Gen[R, Int Refined P]
+    sizeGen: Gen[R, Refined[Int, P]]
   ): Gen[R, Refined[String, EndsWith[S]]] =
     sizeGen.flatMap(s => Gen.stringN(s.value)(charGen).map(v => Refined.unsafeApply(v + ws.value)))
 
@@ -57,7 +57,7 @@ trait StringInstances {
   def startsWithStringNGen[R, S <: String, P](implicit
     ws: Witness.Aux[S],
     charGen: Gen[R, Char],
-    sizeGen: Gen[R, Int Refined P]
+    sizeGen: Gen[R, Refined[Int, P]]
   ): Gen[R, Refined[String, StartsWith[S]]] =
     sizeGen.flatMap(s => Gen.stringN(s.value)(charGen).map(v => Refined.unsafeApply(ws.value + v)))
 
@@ -94,14 +94,14 @@ trait StringInstances {
   implicit def endsWithStringNDeriveGen[S <: String, P](implicit
     ws: Witness.Aux[S],
     deriveGenT: DeriveGen[Char],
-    deriveGenSize: DeriveGen[Int Refined P]
+    deriveGenSize: DeriveGen[Refined[Int, P]]
   ): DeriveGen[Refined[String, EndsWith[S]]] =
     DeriveGen.instance(endsWithStringNGen(ws, deriveGenT.derive, deriveGenSize.derive))
 
   implicit def startsWithStringNDeriveGen[S <: String, P](implicit
     ws: Witness.Aux[S],
     deriveGenT: DeriveGen[Char],
-    deriveGenSize: DeriveGen[Int Refined P]
+    deriveGenSize: DeriveGen[Refined[Int, P]]
   ): DeriveGen[Refined[String, StartsWith[S]]] =
     DeriveGen.instance(startsWithStringNGen(ws, deriveGenT.derive, deriveGenSize.derive))
 

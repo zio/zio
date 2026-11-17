@@ -54,7 +54,7 @@ package object zio
     def apply[A](implicit tag0: EnvironmentTag[A]): Tag[A] =
       new Tag[A] {
         def tag: zio.LightTypeTag           = tag0.tag
-        override def closestClass: Class[_] = tag0.closestClass
+        override def closestClass: Class[?] = tag0.closestClass
       }
   }
 

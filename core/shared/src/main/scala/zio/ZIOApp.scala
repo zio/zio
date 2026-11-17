@@ -63,7 +63,8 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
    * that executes the logic of both applications.
    */
   final def <>(that: ZIOApp)(implicit trace: Trace): ZIOApp = {
-    def combine[A: EnvironmentTag, B: EnvironmentTag]: EnvironmentTag[A with B] = EnvironmentTag[A with B]
+    def combine[A, B](implicit c1: EnvironmentTag[A], c2: EnvironmentTag[B]): EnvironmentTag[A with B] =
+      EnvironmentTag[A with B]
 
     ZIOApp(self.run.zipPar(that.run), self.bootstrap +!+ that.bootstrap)(
       combine[this.Environment, that.Environment](this.environmentTag, that.environmentTag)

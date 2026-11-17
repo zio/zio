@@ -13,7 +13,7 @@ object FromFunctionExample extends ZIOAppDefault {
 
   object Database {
     val live: ZLayer[DatabaseConfig, Nothing, Database] =
-      ZLayer.fromFunction(Database.apply _)
+      ZLayer.fromFunction(Database.apply(_))
   }
 
   final case class Analytics()
@@ -25,7 +25,7 @@ object FromFunctionExample extends ZIOAppDefault {
   final case class Users(database: Database, analytics: Analytics)
 
   object Users {
-    val live = ZLayer.fromFunction(Users.apply _)
+    val live = ZLayer.fromFunction(Users.apply(_, _))
   }
 
   final case class App(users: Users, analytics: Analytics) {
@@ -34,7 +34,7 @@ object FromFunctionExample extends ZIOAppDefault {
   }
 
   object App {
-    val live = ZLayer.fromFunction(App.apply _)
+    val live = ZLayer.fromFunction(App.apply(_, _))
   }
 
   def run =
