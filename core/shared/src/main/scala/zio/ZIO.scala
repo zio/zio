@@ -5667,23 +5667,89 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
     ): ZIO[R, E, B1] =
-      ZIO.fiberIdWith { parentFiberId =>
-        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
-          (winner, loser) =>
-            winner.await.flatMap { exit =>
-              loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
-            },
-          (winner, loser) =>
-            winner.await.flatMap {
-              case e: Exit.Failure[Nothing] =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
-              case _ =>
-                loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
-            },
-          null,
-          FiberScope.global
-        )
+      ZIO.withFiberRuntime[R, E, B1] { (parentFiber, parentStatus) =>
+        val clock = parentFiber.getFiberRef(DefaultServices.currentServices).get(Clock.tag)
+        if (clock eq Clock.ClockLive) scheduled(parentFiber, parentStatus.runtimeFlags, f, duration)
+        else raced(parentFiber.id, f, duration)
       }
+
+    /**
+     * Runs `self` in a single child fiber and registers the deadline directly
+     * on the global scheduler, instead of forking a second fiber that sleeps.
+     * Only used with `Clock.ClockLive`, whose `sleep` is backed by the same
+     * scheduler, so the timing semantics are unchanged. The duration is
+     * evaluated once, before the child fiber is created.
+     */
+    private def scheduled[B1 >: B](
+      parentFiber: Fiber.Runtime[?, ?],
+      flags: RuntimeFlags,
+      f: A => B1,
+      duration: Duration
+    )(implicit trace: Trace): ZIO[R, E, B1] = {
+      val parentFiberId = parentFiber.id
+      val graft         = ZIO.Grafter(parentFiber)
+      val childEff      = graft.applyOnExit(self)
+      val child         = ZIO.unsafe.makeChildFiber(trace, childEff, parentFiber, flags, null)(Unsafe)
+      val start         = child.startSuspended()(Unsafe)
+
+      ZIO.asyncInterrupt[R, E, B1](
+        { cb =>
+          val done   = new AtomicBoolean(false)
+          val cancel = new java.util.concurrent.atomic.AtomicReference[Scheduler.CancelToken](null)
+
+          def cancelTimer(): Unit = {
+            val token = cancel.get()
+            if (token ne null) { token(); () }
+          }
+
+          lazy val timedOut = child.interruptAs(parentFiberId) *> child.inheritAll.as(b())
+
+          child.addObserver { exit =>
+            if (done.compareAndSet(false, true)) {
+              cancelTimer()
+              cb(child.inheritAll *> exit.mapExit(f))
+            }
+          }(Unsafe)
+
+          start(childEff)
+
+          if (duration.isZero || duration.isNegative) {
+            if (done.compareAndSet(false, true)) Right(timedOut)
+            else Left(ZIO.unit)
+          } else {
+            if (!done.get()) {
+              val token = Clock.globalScheduler
+                .schedule(() => if (done.compareAndSet(false, true)) cb(timedOut), duration)(Unsafe)
+              cancel.set(token)
+              // The child may have completed before the token was published
+              if (done.get()) cancelTimer()
+            }
+
+            Left(ZIO.succeed(cancelTimer()) *> child.interruptAs(parentFiberId))
+          }
+        },
+        child.id
+      )
+    }
+
+    private def raced[B1 >: B](parentFiberId: FiberId, f: A => B1, duration: => Duration)(implicit
+      trace: Trace
+    ): ZIO[R, E, B1] =
+      self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
+        (winner, loser) =>
+          winner.await.flatMap { exit =>
+            loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
+          },
+        (winner, loser) =>
+          winner.await.flatMap {
+            case e: Exit.Failure[Nothing] =>
+              loser.interruptAs(parentFiberId) *> loser.inheritAll *> e
+            case _ =>
+              loser.interruptAs(parentFiberId) *> loser.inheritAll.as(b())
+          },
+        null,
+        FiberScope.global
+      )
   }
 
   final class Acquire[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
