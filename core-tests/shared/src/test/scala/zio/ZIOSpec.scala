@@ -2581,6 +2581,27 @@ object ZIOSpec extends ZIOBaseSpec {
           .flatMap(_.interrupt)
           .as(assertCompletes)
       } @@ TestAspect.withLiveClock @@ nonFlaky(10000),
+      test("timeout forks only a single child fiber") {
+        for {
+          supervisor <- Supervisor.track(false)
+          fibers     <- supervisor.value.timeout(1.second).supervised(supervisor)
+        } yield assert(fibers.map(_.length))(isSome(equalTo(1)))
+      } @@ TestAspect.withLiveClock,
+      test("timeout with zero duration returns None immediately") {
+        assertZIO(Live.live(ZIO.never.timeout(Duration.Zero)))(isNone)
+      },
+      test("timeout interrupts effect and runs finalizers before returning") {
+        for {
+          ref     <- Ref.make(false)
+          started <- Promise.make[Nothing, Unit]
+          res <- Live.live(
+                   (started.succeed(()) *> ZIO.never)
+                     .ensuring(ref.set(true))
+                     .timeout(10.millis)
+                 )
+          finalized <- ref.get
+        } yield assert(res)(isNone) && assert(finalized)(isTrue)
+      },
       test("catchAllCause") {
         val io =
           for {
