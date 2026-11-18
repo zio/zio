@@ -5,6 +5,46 @@ import zio.test.Assertion._
 
 object HubSpec extends ZIOBaseSpec {
 
+  /**
+   * A hub whose bulk `publishAll` rejects its first `failures` attempts,
+   * returning every value unplaced, simulating a competing publisher that
+   * claims the space freed by a concurrent `slide`.
+   *
+   * Only the members `unsafeSlidingPublish` actually calls are implemented.
+   */
+  final class FlakyPublishHub[A](failures: Int) extends zio.internal.Hub[A] {
+    private[this] var remaining: Int   = failures
+    private[this] var acceptedReversed = List.empty[A]
+
+    var publishAllCalls: Int = 0
+    var slideCalls: Int      = 0
+
+    def accepted: List[A] = acceptedReversed.reverse
+
+    val capacity: Int = 2
+
+    def publishAll[A1 <: A](as: Iterable[A1]): Chunk[A1] = {
+      publishAllCalls += 1
+      if (remaining > 0) {
+        remaining -= 1
+        Chunk.fromIterable(as)
+      } else {
+        acceptedReversed = as.toList.reverse ::: acceptedReversed
+        Chunk.empty
+      }
+    }
+
+    def slide(): Unit = slideCalls += 1
+
+    // the stub never actually holds values, so it always has room
+    def size(): Int = 0
+
+    def publish(a: A): Boolean                        = ???
+    def isEmpty(): Boolean                            = ???
+    def isFull(): Boolean                             = ???
+    def subscribe(): zio.internal.Hub.Subscription[A] = ???
+  }
+
   val smallInt: Gen[Any, Int] =
     Gen.small(Gen.const(_), 1)
 
@@ -440,6 +480,32 @@ object HubSpec extends ZIOBaseSpec {
             assert(values2.filter(_ < 0))(equalTo(as.map(-_)))
         }
       }
-    )
+    ),
+    suite("sliding strategy loses the publish race (i10885)")(
+      test("retries the unplaced values rather than dropping them") {
+        // Simulates a competing publisher that claims the space freed by the
+        // `slide` inside `unsafeSlidingPublish`: the first `failures` bulk
+        // publishes come back entirely unplaced. The loop must retry with
+        // exactly those values, or they are silently dropped.
+        val failures = 1000
+        val hub      = new FlakyPublishHub[Int](failures)
+        Hub.Strategy.Sliding[Int]().unsafeSlidingPublish(Chunk(1, 2, 3), hub)
+        assertTrue(
+          // capacity is 2, so 1 cannot survive the slide
+          hub.accepted == List(2, 3),
+          hub.publishAllCalls == failures + 1,
+          // the stub always reports room, so nothing ever needs sliding out
+          hub.slideCalls == 0
+        )
+      },
+      test("terminates when the first bulk publish succeeds") {
+        val hub = new FlakyPublishHub[Int](0)
+        Hub.Strategy.Sliding[Int]().unsafeSlidingPublish(Chunk(1, 2, 3), hub)
+        assertTrue(
+          hub.accepted == List(2, 3),
+          hub.publishAllCalls == 1
+        )
+      }
+    ) @@ TestAspect.timeout(30.seconds)
   )
 }

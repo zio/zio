@@ -16,7 +16,7 @@
 
 package zio
 
-import zio.internal.MutableConcurrentQueue
+import zio.internal.{MutableConcurrentQueue, Sync}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.atomic.AtomicBoolean
@@ -319,7 +319,7 @@ object Queue extends QueuePlatformSpecific {
       }
   }
 
-  private sealed abstract class Strategy[A] {
+  private[zio] sealed abstract class Strategy[A] {
     private[this] val draining = new AtomicBoolean(false)
 
     def handleSurplus(
@@ -381,7 +381,7 @@ object Queue extends QueuePlatformSpecific {
       }
   }
 
-  private object Strategy {
+  private[zio] object Strategy {
 
     final case class BackPressure[A]() extends Strategy[A] {
       private[this] val notifying = new AtomicBoolean(false)
@@ -496,28 +496,79 @@ object Queue extends QueuePlatformSpecific {
         queue: MutableConcurrentQueue[A],
         takers: ConcurrentDeque[Promise[Nothing, A]],
         isShutdown: AtomicBoolean
-      )(implicit trace: Trace): UIO[Boolean] = {
-        def unsafeSlidingOffer(as: Iterable[A]): Unit =
-          if (!as.isEmpty && queue.capacity > 0) {
-            val iterator = as.iterator
-            var a        = iterator.next()
-            var loop     = true
-            val empty    = null.asInstanceOf[A]
-            while (loop) {
-              queue.poll(empty)
-              val offered = queue.offer(a)
-              if (offered && iterator.hasNext) {
-                a = iterator.next()
-              } else if (offered && !iterator.hasNext) {
-                loop = false
-              }
-            }
-          }
-
+      )(implicit trace: Trace): UIO[Boolean] =
         ZIO.succeed {
-          unsafeSlidingOffer(as)
+          unsafeSlidingOffer(as, queue)
           unsafeCompleteTakers(queue, takers)
           true
+        }
+
+      /**
+       * Slides values into the queue, dropping the oldest values to make room
+       * for the new ones.
+       *
+       * Only the last `capacity` values can survive, so we take those and move
+       * them in bulk: on a `RingBuffer` each of `pollUpTo` and `offerAll`
+       * reserves its space with a single compare-and-set, rather than racing
+       * for one slot per value.
+       *
+       * We drop only the shortfall, the room the queue lacks, rather than one
+       * slot per value we still hold. Dropping `remaining.length` every round
+       * would evict whatever occupies those slots now, which on a retry round
+       * can be values a concurrent producer has already been told were
+       * accepted. `size` is approximate under concurrency, so the shortfall is
+       * a hint: too low costs another round, while too high destroys someone
+       * else's values, and we bias to the former.
+       *
+       * `offerAll` returns the values it could not place, which is what we
+       * retry with, never fewer, so a value is not dropped without being
+       * offered. If a whole round places nothing then a concurrent producer
+       * took the space we just freed, so hint that we are spinning.
+       *
+       * Exposed for testing.
+       */
+      private[zio] def unsafeSlidingOffer(as: Iterable[A], queue: MutableConcurrentQueue[A]): Unit = {
+        val capacity = queue.capacity
+        if (as.nonEmpty && capacity > 0) {
+          val chunk = Chunk.fromIterable(as)
+          if (chunk.length == 1) unsafeSlidingOfferOne(chunk(0), queue)
+          else {
+            var remaining = chunk.takeRight(capacity)
+            while (remaining.nonEmpty) {
+              unsafeDrop(queue, remaining.length - (capacity - queue.size()))
+              val surplus = queue.offerAll(remaining)
+              if (surplus.length == remaining.length) Sync.onSpinWait()
+              remaining = surplus
+            }
+          }
+        }
+      }
+
+      /**
+       * The single value case, which `offer` always takes. Going through the
+       * bulk path would allocate a slice and a surplus chunk to move one value,
+       * so poll and offer it directly.
+       */
+      private def unsafeSlidingOfferOne(a: A, queue: MutableConcurrentQueue[A]): Unit = {
+        val empty = null.asInstanceOf[A]
+        var loop  = true
+        while (loop) {
+          if (queue.size() >= queue.capacity) queue.poll(empty)
+          if (queue.offer(a)) loop = false
+          else Sync.onSpinWait()
+        }
+      }
+
+      /**
+       * Drops up to `n` values. `pollUpTo` would build a chunk of them only for
+       * it to be discarded, so poll them one at a time instead.
+       */
+      private def unsafeDrop(queue: MutableConcurrentQueue[A], n: Int): Unit = {
+        val empty = null.asInstanceOf[A]
+        var i     = n
+        while (i > 0) {
+          queue.poll(empty)
+          i -= 1
         }
       }
 
