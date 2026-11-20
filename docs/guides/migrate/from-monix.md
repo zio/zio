@@ -98,7 +98,9 @@ This guide replaces every pattern shown above with its ZIO 2.x equivalent, then 
 Add ZIO core and the streams module to `build.sbt`:
 
 ```scala
+// ZIO core (JVM, Scala.js, Scala Native)
 libraryDependencies += "dev.zio" %% "zio"        % "@VERSION@"
+// ZIO Streams
 libraryDependencies += "dev.zio" %% "zio-streams" % "@VERSION@"
 ```
 

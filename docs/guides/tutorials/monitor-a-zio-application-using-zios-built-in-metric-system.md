@@ -139,7 +139,9 @@ After adding the metrics to routes, it is time to serve the metrics as a RESTful
 In the following sections, we are going to utilize the `zio-metrics-connector` module from the ZIO ZMX project and also provide metrics as a REST API. So let's add the following dependency to our project:
 
 ```scala
+// ZIO Metrics connectors core
 libraryDependencies += "dev.zio" %% "zio-metrics-connectors"            % "@ZIO_METRICS_CONNECTORS_VERSION@"
+// Prometheus connector for ZIO Metrics
 libraryDependencies += "dev.zio" %% "zio-metrics-connectors-prometheus" % "@ZIO_METRICS_CONNECTORS_VERSION@"
 ```
 

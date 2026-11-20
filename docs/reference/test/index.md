@@ -18,10 +18,11 @@ In order to use ZIO Test, we need to add the following lines to our `build.sbt` 
 ````scala mdoc:passthrough
 
 println("""```scala""")
-println(s"""libraryDependencies ++= Seq(
-  "dev.zio" %% "zio-test"     % "${zio.BuildInfo.version.split('+').head}" % Test,
-  "dev.zio" %% "zio-test-sbt" % "${zio.BuildInfo.version.split('+').head}" % Test
-)""")
+println(s"""// ZIO Test: the test library (test scope)
+libraryDependencies += "dev.zio" %% "zio-test" % "${zio.BuildInfo.version.split('+').head}" % Test
+
+// ZIO Test sbt integration (test scope)
+libraryDependencies += "dev.zio" %% "zio-test-sbt" % "${zio.BuildInfo.version.split('+').head}" % Test""")
 println("""```""")
 ````
 
