@@ -13,9 +13,8 @@ In this tutorial, we will learn how to build a RESTful web service using ZIO. Th
 We need to add the following dependencies to our project:
 
 ```scala
-libraryDependencies ++= Seq(
-  "dev.zio"  %% "zio-http" % "3.0.0-RC6"
-)
+// ZIO HTTP: HTTP server and client (JVM)
+libraryDependencies += "dev.zio"  %% "zio-http" % "3.0.0-RC6"
 ```
 
 For this tutorial, we will be using the _[ZIO HTTP](https://ziohttp.com/)_ library, which is a library for building HTTP applications using ZIO.
