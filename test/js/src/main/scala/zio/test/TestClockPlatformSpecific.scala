@@ -17,7 +17,9 @@
 package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
-import zio.{Duration, Scheduler, Trace, UIO, Unsafe, ZIO}
+import zio.{Cause, Duration, FiberId, Scheduler, Trace, UIO, Unsafe, ZIO}
+
+import java.util.concurrent.atomic.AtomicBoolean
 
 private[test] trait TestClockPlatformSpecific { self: TestClock.Test =>
 
@@ -25,9 +27,19 @@ private[test] trait TestClockPlatformSpecific { self: TestClock.Test =>
     ZIO.runtime[Any].map { runtime =>
       new Scheduler.Internal {
         def schedule(runnable: Runnable, duration: Duration)(implicit unsafe: Unsafe): Scheduler.CancelToken = {
+          val cancelled = new AtomicBoolean(false)
           val fiber =
-            runtime.unsafe.fork(sleep(duration) *> ZIO.succeed(runnable.run()))
-          () => runtime.unsafe.run(fiber.interruptAs(zio.FiberId.None)).getOrThrowFiberFailure().isInterrupted
+            runtime.unsafe.fork(
+              (sleep(duration) *> ZIO.suspendSucceed {
+                if (cancelled.compareAndSet(false, true)) ZIO.succeed(runnable.run())
+                else ZIO.unit
+              }).interruptible
+            )
+          () =>
+            if (cancelled.compareAndSet(false, true)) {
+              fiber.unsafe.interrupt(Cause.interrupt(FiberId.None))(unsafe)
+              true
+            } else false
         }
       }
     }
