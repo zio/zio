@@ -139,7 +139,7 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
   protected[zio] def interruptRootFibers(mainFiberId: FiberId)(implicit trace: Trace): UIO[Unit] =
     for {
       roots <- Fiber.roots
-      _     <- Fiber.interruptAll(roots.view.filter(fiber => fiber.isAlive() && (fiber.id != mainFiberId)))
+      _     <- Fiber.interruptAll(roots.filter(fiber => fiber.isAlive() && (fiber.id != mainFiberId)))
     } yield ()
 }
 
