@@ -7,7 +7,8 @@ import * as fs from 'fs'
  *
  * Registers a CLI command called `generate-sidebar` that:
  * 1. Copies project files from ZIO npm packages into `./docs/`
- * 2. Aggregates sidebars from old-style and new-style projects
+ * 2. Aggregates the sidebars of all projects, whether a project's sidebar is a
+ *    single category or a flat list of items (see `projectCategory`)
  * 3. Generates an `ecosystem-sidebar.js` file that groups every official and
  *    community library into the purpose-based categories of
  *    `ecosystem-categories.json`
@@ -35,41 +36,12 @@ function zioEcosystemPlugin(context: LoadContext, options: PluginOptions) {
             copy(`node_modules/@zio.dev/${project}`, `./docs/${project}`)
           })
 
-          function categoryTemplate(name: string, items: SidebarItemConfig[]): SidebarItemCategoryConfig {
-            return {
-              type: 'category',
-              label: name,
-              link: { type: "doc", id: "index" },
-              items: items
-            }
-          }
-
           const projects: EcosystemProject[] =
-            oldStyledZioProjects
-              // If the sidebar is simple and doesn't have label
-              .filter(e => (require(`@zio.dev/${e.routeBasePath}/${e.sidebarPath}`).sidebar[0] == "index"))
+            zioNpmProjects()
               .map(project => ({
-                name: project.routeBasePath,
-                category: mapConfig(
-                  categoryTemplate(
-                    project.name,
-                    require(`@zio.dev/${project.routeBasePath}/${project.sidebarPath}`)
-                      .sidebar
-                      .filter(e => e != "index")),
-                  `${project.routeBasePath}/`
-                ) as SidebarItemCategoryConfig
+                name: project,
+                category: projectCategory(project, require(`@zio.dev/${project}/sidebars.js`).sidebar)
               }))
-              .concat(
-                zioNpmProjects()
-                  // If the sidebar has all the metadata including the label
-                  .filter(e => {
-                    return require(`@zio.dev/${e}/sidebars.js`).sidebar[0].label !== undefined;
-                  })
-                  .map(project => ({
-                    name: project,
-                    category: mapConfig(require(`@zio.dev/${project}/sidebars.js`).sidebar[0], `${project}/`) as SidebarItemCategoryConfig
-                  }))
-              )
               .sort((a, b) => a.category.label < b.category.label ? -1 : a.category.label > b.category.label ? 1 : 0)
 
           // Plain links rather than `ref` items: a `ref` item takes its label
@@ -218,7 +190,8 @@ function writeSidebarFile(path: string, sidebar: unknown) {
 // among its items would show the same entry twice.
 function itemsWithoutOwnPage(category: SidebarItemCategoryConfig): SidebarItemConfig[] {
   const own = category.link && category.link.type === "doc" ? (category.link as SidebarItemCategoryLinkDoc).id : undefined
-  return (category.items as SidebarItemConfig[]).filter(item => item !== own)
+  return (category.items as SidebarItemConfig[]).filter(item =>
+    item !== own && !(typeof item === "object" && item.type === "doc" && item.id === own))
 }
 
 // Whether a project documents itself on one page, in which case it doesn't
@@ -244,6 +217,8 @@ function leafDocCount(config: SidebarItemConfig): number {
 function entryDocId(config: SidebarItemConfig): string | undefined {
   if (typeof (config) === "string") {
     return config
+  } else if (!isSidebarItemCategoryConfig(config) && config.type === "doc") {
+    return config.id
   } else if (isSidebarItemCategoryConfig(config)) {
     if (config.link && config.link.type === "doc") {
       return (config.link as SidebarItemCategoryLinkDoc).id
@@ -280,34 +255,63 @@ function copy(srcDir: string, destDir: string) {
   }
 }
 
-const oldStyledZioProjects =
-  [
-    {
-      name: 'ZIO AWS',
-      routeBasePath: 'zio-aws',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Metrics Connectors',
-      routeBasePath: 'zio-metrics-connectors',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO Rocksdb',
-      routeBasePath: 'zio-rocksdb',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO S3',
-      routeBasePath: 'zio-s3',
-      sidebarPath: 'sidebars.js',
-    },
-    {
-      name: 'ZIO SQS',
-      routeBasePath: 'zio-sqs',
-      sidebarPath: 'sidebars.js',
-    }
-  ]
+// Display names that can't be derived from the package name by title-casing,
+// because they contain an acronym or a non-standard capitalization.
+const projectNames: Record<string, string> = {
+  'zio-amqp': 'ZIO AMQP',
+  'zio-aws': 'ZIO AWS',
+  'zio-bson': 'ZIO BSON',
+  'zio-json': 'ZIO JSON',
+  'zio-rocksdb': 'ZIO Rocksdb',
+  'zio-s3': 'ZIO S3',
+  'zio-sbt': 'ZIO SBT',
+  'zio-sqs': 'ZIO SQS'
+}
+
+// "zio-redis" -> "ZIO Redis"
+function projectName(project: string): string {
+  return projectNames[project] ||
+    project
+      .split('-')
+      .map(word => word === 'zio' ? 'ZIO' : word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
+}
+
+// Labels that describe a section of a project rather than the project itself.
+const genericLabels = ['Getting Started', 'Introduction', 'Overview']
+
+// Builds the category that lists a project in the ecosystem sidebar. A project
+// sidebar comes in one of these shapes:
+//
+// 1. a single category with a label, which is used as it is;
+// 2. a flat array that starts with the plain string "index";
+// 3. a flat array of strings, `doc` items (labeled or not), `link` items and
+//    categories, whose first item is the index page.
+//
+// A flat array (2 and 3) is wrapped in a category labeled with the project's
+// display name that links to the index page.
+function projectCategory(project: string, sidebar: SidebarItemConfig[]): SidebarItemCategoryConfig {
+  const prefix = `${project}/`
+  const first = sidebar[0]
+
+  if (sidebar.length === 1 && isSidebarItemCategoryConfig(first) && first.label !== undefined) {
+    const category = mapConfig(first, prefix) as SidebarItemCategoryConfig
+    // Some projects label their category "Getting Started"; the ecosystem
+    // sidebar needs the project's name.
+    return genericLabels.includes(category.label) ? { ...category, label: projectName(project) } : category
+  }
+
+  return mapConfig({
+    type: 'category',
+    label: projectName(project),
+    link: { type: 'doc', id: 'index' },
+    items: sidebar.filter(item => !isIndexPage(item))
+  }, prefix) as SidebarItemCategoryConfig
+}
+
+function isIndexPage(item: SidebarItemConfig): boolean {
+  return item === 'index' || (typeof item === 'object' && item.type === 'doc' && item.id === 'index')
+}
 
 function isSidebarItemCategoryConfig(item: SidebarItemConfig): item is SidebarItemCategoryConfig {
   return (item as SidebarItemCategoryConfig).items !== undefined
@@ -315,19 +319,26 @@ function isSidebarItemCategoryConfig(item: SidebarItemConfig): item is SidebarIt
 
 // Prefixes every doc id in a project's sidebar. A category keeps the project's
 // own `collapsed` setting; when the project doesn't set one, it starts collapsed.
-function mapConfig(config: SidebarItemConfig, prefix: string) {
+// Items that don't refer to a doc of the project, such as `link` items, are
+// passed through.
+function mapConfig(config: SidebarItemConfig, prefix: string): SidebarItemConfig {
   if (typeof (config) === "string") {
     return prefix + config
   } else if (isSidebarItemCategoryConfig(config)) {
     return {
       ...config,
       collapsed: config.collapsed ?? true,
-      link: config.link ? { ...config.link, 'id': prefix + (config.link as SidebarItemCategoryLinkDoc).id } : undefined,
+      link: config.link && config.link.type === "doc"
+        ? { ...config.link, 'id': prefix + (config.link as SidebarItemCategoryLinkDoc).id }
+        : config.link,
       items:
         ((config as SidebarItemCategoryConfig).items as SidebarItemConfig[])
           .map(item => mapConfig(item, prefix))
     }
+  } else if (config.type === "doc") {
+    return { ...config, id: prefix + config.id }
   }
+  return config
 }
 
 export default zioEcosystemPlugin
