@@ -150,6 +150,107 @@ object AssertionSpec extends ZIOBaseSpec {
         val expected: CharSequence = "test123"
         assert(probe)(equalTo(expected))
       } @@ failing,
+      test("equalTo must render diff when Diff instance is available") {
+        val actual   = "all my life I've been hunting for beans"
+        val expected = "all my life I've been searching for something"
+        assert(actual)(equalTo(expected))
+      } @@ TestAspect.failing[String] {
+        case TestFailure.Assertion(result, _) =>
+          val failures = FailureCase.fromTrace(result.failures.get, Chunk.empty)
+          val lines    = failures(0).errorMessage.lines.map(_.fragments.map(_.text).mkString)
+          val expectedDiff = zio.test.diff
+            .Diff[String]
+            .diff(
+              "all my life I've been searching for something",
+              "all my life I've been hunting for beans"
+            )
+            .render
+          lines.headOption.contains("There was a difference") &&
+          lines.mkString("\n").contains(expectedDiff)
+        case _ => false
+      },
+      test("equalTo must use custom Diff instance for product types when in scope") {
+        implicit val sampleUserDiff: zio.test.diff.Diff[SampleUser] =
+          (x: SampleUser, y: SampleUser) =>
+            zio.test.diff.DiffResult.Nested(
+              "SampleUser",
+              List(
+                Some("name") -> zio.test.diff.Diff[String].diff(x.name, y.name),
+                Some("age")  -> zio.test.diff.Diff[Int].diff(x.age, y.age)
+              )
+            )
+        val probe: SampleUser    = SampleUser("User", 42)
+        val expected: SampleUser = SampleUser("User", 50)
+        assert(probe)(equalTo(expected))
+      } @@ TestAspect.failing[String] {
+        case TestFailure.Assertion(result, _) =>
+          val failures = FailureCase.fromTrace(result.failures.get, Chunk.empty)
+          val lines    = failures(0).errorMessage.lines.map(_.fragments.map(_.text).mkString)
+          val expectedDiff = zio.test.diff.DiffResult
+            .Nested(
+              "SampleUser",
+              List(
+                Some("name") -> zio.test.diff.Diff[String].diff("User", "User"),
+                Some("age")  -> zio.test.diff.Diff[Int].diff(50, 42)
+              )
+            )
+            .render
+          lines.headOption.contains("There was a difference") &&
+          lines.mkString("\n").contains(expectedDiff)
+        case _ => false
+      },
+      test("equalTo must support pluggable DiffRenderer") {
+        implicit val customRenderer: zio.test.diff.DiffRenderer =
+          new zio.test.diff.DiffRenderer {
+            def render[A, B](expected: A, actual: B, diffResult: zio.test.diff.DiffResult): ErrorMessage =
+              ErrorMessage.text(s"custom-diff($expected, $actual, ${diffResult.hasDiff})")
+          }
+        val actual   = "all my life I've been hunting for beans"
+        val expected = "all my life I've been searching for something"
+        assert(actual)(equalTo(expected))
+      } @@ TestAspect.failing[String] {
+        case TestFailure.Assertion(result, _) =>
+          val failures    = FailureCase.fromTrace(result.failures.get, Chunk.empty)
+          val errorString = failures(0).errorMessage.lines(0).fragments(0).text
+          errorString == "custom-diff(all my life I've been searching for something, all my life I've been hunting for beans, true)"
+        case _ => false
+      },
+      test("equalTo must fall back to diffProduct when Diff is low-priority") {
+        implicit val lowPriSampleUserDiff: zio.test.diff.Diff[SampleUser] =
+          zio.test.diff.Diff.anyDiff[SampleUser]
+        val probe: SampleUser    = SampleUser("User", 42)
+        val expected: SampleUser = SampleUser("User", 50)
+        assert(probe)(equalTo(expected))
+      } @@ TestAspect.failing[String] {
+        case TestFailure.Assertion(result, _) =>
+          val failures    = FailureCase.fromTrace(result.failures.get, Chunk.empty)
+          val errorString = failures(0).errorMessage.lines(0).fragments(0).text
+          errorString == "SampleUser.age : expected '50' got '42'\n"
+        case _ => false
+      },
+      test("equalTo must fall back to diffProduct when Diff throws") {
+        implicit val throwingSampleUserDiff: zio.test.diff.Diff[SampleUser] =
+          (_: SampleUser, _: SampleUser) => throw new RuntimeException("boom")
+        val probe: SampleUser    = SampleUser("User", 42)
+        val expected: SampleUser = SampleUser("User", 50)
+        assert(probe)(equalTo(expected))
+      } @@ TestAspect.failing[String] {
+        case TestFailure.Assertion(result, _) =>
+          val failures    = FailureCase.fromTrace(result.failures.get, Chunk.empty)
+          val errorString = failures(0).errorMessage.lines(0).fragments(0).text
+          errorString == "SampleUser.age : expected '50' got '42'\n"
+        case _ => false
+      },
+      test("not(equalTo) must fail with standard equality message when values are equal") {
+        val value = "all my life I've been searching for something"
+        assert(value)(not(equalTo(value)))
+      } @@ TestAspect.failing[String] {
+        case TestFailure.Assertion(result, _) =>
+          val failures = FailureCase.fromTrace(result.failures.get, Chunk.empty)
+          val lines    = failures(0).errorMessage.lines.map(_.fragments.map(_.text).mkString)
+          lines.exists(_.contains("was equal to")) && !lines.exists(_.contains("There was"))
+        case _ => false
+      },
       test("exists must succeed when at least one element of iterable satisfy specified assertion") {
         assert(Seq(1, 42, 5))(exists(equalTo(42)))
       },

@@ -19,6 +19,8 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.{ErrorMessage => M}
 import zio.test.Assertion.Arguments.valueArgument
+import zio.test.diff.{Diff, DiffRenderer}
+import zio.test.internal.OptionalImplicit
 
 trait AssertionVariants {
   private def diffProduct[T](
@@ -65,10 +67,18 @@ trait AssertionVariants {
     }
   }
 
+  @deprecated("Kept for binary compatibility only. Do not use", "2.1.28")
+  @scala.annotation.targetName("equalTo")
+  final def equalToBinCompat[A](expected: A): Assertion[A] =
+    equalTo(expected)(OptionalImplicit.none, DiffRenderer.default)
+
   /**
    * Makes a new assertion that requires a value equal the specified value.
    */
-  final def equalTo[A](expected: A): Assertion[A] =
+  final def equalTo[A](expected: A)(implicit
+    diff: OptionalImplicit[Diff[A]],
+    renderer: DiffRenderer
+  ): Assertion[A] =
     Assertion[A](
       TestArrow
         .make[A, Boolean] { actual =>
@@ -78,10 +88,18 @@ trait AssertionVariants {
             case (left, right)                             => left == right
           }
           TestTrace.boolean(result) {
-            if (expected.isInstanceOf[Product]) {
-              M.text(diffProduct(actual, expected))
-            } else {
-              M.pretty(actual) + M.equals + M.pretty(expected)
+            diff.value.filter(!_.isLowPriority).flatMap { diff =>
+              if (!result) scala.util.Try(diff.asInstanceOf[Diff[Any]].diff(expected, actual)).toOption
+              else None
+            } match {
+              case Some(diffResult) =>
+                M.diff(expected, actual, diffResult)(renderer)
+              case None =>
+                if (expected.isInstanceOf[Product]) {
+                  M.text(diffProduct(actual, expected))
+                } else {
+                  M.pretty(actual) + M.equals + M.pretty(expected)
+                }
             }
           }
         }
