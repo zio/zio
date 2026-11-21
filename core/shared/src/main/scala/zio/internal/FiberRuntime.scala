@@ -22,7 +22,6 @@ import zio.internal.SpecializationHelpers.SpecializeInt
 import zio.metrics.{Metric, MetricLabel}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.{Set => JavaSet}
 import scala.annotation.tailrec
@@ -36,13 +35,17 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
   import FiberRuntime._
   import ZIO._
 
-  private var _lastTrace      = fiberId.location
-  private var _fiberRefs      = fiberRefs0
-  private var _runtimeFlags   = runtimeFlags0
-  private var _blockingOn     = FiberRuntime.notBlockingOn
-  private var _asyncContWith  = null.asInstanceOf[AsyncContWith]
-  private val running         = new AtomicBoolean(false)
-  private val inbox           = new ConcurrentLinkedQueue[FiberMessage]()
+  private var _lastTrace     = fiberId.location
+  private var _fiberRefs     = fiberRefs0
+  private var _runtimeFlags  = runtimeFlags0
+  private var _blockingOn    = FiberRuntime.notBlockingOn
+  private var _asyncContWith = null.asInstanceOf[AsyncContWith]
+  private val running        = new AtomicBoolean(false)
+
+  // Single-consumer mailbox. pollRelaxed is used on the synchronous run loop,
+  // where missing a message for one step is safe. poll and isEmpty are exact
+  // enough to park and to publish the fiber's exit. See FiberMailbox.
+  private val inbox           = new FiberMailbox()
   private var _children       = null.asInstanceOf[JavaSet[Fiber.Runtime[_, _]]]
   private var observers       = Nil: List[Exit[E, A] => Unit]
   private var runningExecutor = null.asInstanceOf[Executor]
@@ -279,7 +282,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
     // Maybe someone added something to the inbox between us checking, and us
     // giving up the drain. If so, we need to restart the draining, but only
     // if we beat everyone else to the restart:
-    if (!inbox.isEmpty && running.compareAndSet(false, true)) {
+    if (!inbox.isEmpty() && running.compareAndSet(false, true)) {
       if (evaluationSignal == EvaluationSignal.YieldNow) drainQueueLaterOnExecutor(true)
       else drainQueueOnCurrentThread(depth)
     }
@@ -316,8 +319,11 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
    * '''NOTE''': This method must be invoked by the fiber itself.
    */
   private def drainQueueWhileRunning(cur0: ZIO.Erased): ZIO.Erased = {
-    var cur     = cur0
-    var message = inbox.poll()
+    var cur = cur0
+    // Relaxed on purpose: this runs before every effect, almost always empty.
+    // A message that is not visible yet is picked up on a later step, or by
+    // the isEmpty check before the fiber suspends.
+    var message = inbox.pollRelaxed()
 
     while (message ne null) {
       message match {
@@ -337,7 +343,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
           assert(DisableAssertions, "It is illegal to have multiple concurrent run loops in a single fiber")
       }
 
-      message = inbox.poll()
+      message = inbox.pollRelaxed()
     }
 
     cur
@@ -441,7 +447,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
             val interruption = interruptAllChildren()
 
             if (interruption eq null) {
-              if (inbox.isEmpty) {
+              if (inbox.isEmpty()) {
                 finalExit = exit
 
                 if (supervisor ne Supervisor.none) supervisor.onEnd(finalExit, self)(Unsafe)
@@ -1494,7 +1500,7 @@ final class FiberRuntime[E, A](fiberId: FiberId.Runtime, fiberRefs0: FiberRefs, 
         // for spinning up the fiber if there were new messages added to
         // the inbox between the completion of the effect and the transition
         // to the not running state.
-        if (!inbox.isEmpty && running.compareAndSet(false, true)) {
+        if (!inbox.isEmpty() && running.compareAndSet(false, true)) {
           // If there are messages and the result is null, this is either a yield, or we need to resume the fiber
           // In either way, we can optimize by using attemptResumptionOnSameThread = true
           drainQueueLaterOnExecutor(result eq null)
