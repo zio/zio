@@ -6465,6 +6465,48 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
           }
         }
     }
+
+  @scala.annotation.nowarn("cat=deprecation")
+  private[zio] def render(zio: ZIO.Erased, maxDepth: Int = 3): String = {
+    def safeToString(a: Any): String =
+      try String.valueOf(a)
+      catch {
+        case scala.util.control.NonFatal(t) =>
+          s"<${t.getClass.getName}>"
+      }
+
+    if (zio eq null) "null"
+    else if (maxDepth <= 0) "..."
+    else
+      zio match {
+        case Sync(trace, _)               => s"Sync(trace=$trace)"
+        case WhileLoop(trace, _, _, _)    => s"WhileLoop(trace=$trace)"
+        case Stateful(trace, _)           => s"Stateful(trace=$trace)"
+        case GenerateStackTrace(trace)    => s"GenerateStackTrace(trace=$trace)"
+        case YieldNow(trace, forceAsync)  => s"YieldNow(trace=$trace, forceAsync=$forceAsync)"
+        case FlatMap(trace, first, _)     => s"FlatMap(trace=$trace, first=${render(first, maxDepth - 1)})"
+        case Mapped(trace, first, _)      => s"Mapped(trace=$trace, first=${render(first, maxDepth - 1)})"
+        case UpdateRuntimeFlags(trace, _) => s"UpdateRuntimeFlags(trace=$trace)"
+        case FoldZIO(trace, first, _, _)  => s"FoldZIO(trace=$trace, first=${render(first, maxDepth - 1)})"
+        case Async(trace, _, _)           => s"Async(trace=$trace)"
+        case within: UpdateRuntimeFlagsWithin[_, _, _] =>
+          within match {
+            case UpdateRuntimeFlagsWithin.Interruptible(trace, effect) =>
+              s"UpdateRuntimeFlagsWithin.Interruptible(trace=$trace, effect=${render(effect, maxDepth - 1)})"
+            case UpdateRuntimeFlagsWithin.Uninterruptible(trace, effect) =>
+              s"UpdateRuntimeFlagsWithin.Uninterruptible(trace=$trace, effect=${render(effect, maxDepth - 1)})"
+            case UpdateRuntimeFlagsWithin.Dynamic(trace, _, _) =>
+              s"UpdateRuntimeFlagsWithin.Dynamic(trace=$trace)"
+            case UpdateRuntimeFlagsWithin.DynamicNoBox(trace, _, _) =>
+              s"UpdateRuntimeFlagsWithin.DynamicNoBox(trace=$trace)"
+          }
+        case exit: Exit[_, _] =>
+          exit match {
+            case Exit.Success(value) => s"Exit.Success(value=${safeToString(value)})"
+            case Exit.Failure(cause) => s"Exit.Failure(cause=${safeToString(cause)})"
+          }
+      }
+  }
 }
 
 /**
