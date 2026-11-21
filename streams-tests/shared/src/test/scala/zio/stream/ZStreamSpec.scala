@@ -3005,6 +3005,58 @@ object ZStreamSpec extends ZIOBaseSpec {
               _     <- f.join
             } yield assertTrue(count == 0)
           } @@ TestAspect.jvmOnly @@ nonFlaky,
+          test("honors parallelism when bufferSize is smaller than n (#9339)") {
+            val parallelism = 32
+            val bufferSize  = 4
+            for {
+              latch1 <- CountdownLatch.make(parallelism)
+              _ <- Live.live(
+                     ZStream
+                       .range(0, parallelism)
+                       .mapZIOPar(parallelism, bufferSize)(_ => latch1.countDown *> latch1.await)
+                       .runDrain
+                   )
+              latch2 <- CountdownLatch.make(parallelism)
+              _ <- Live.live(
+                     ZStream
+                       .range(0, parallelism)
+                       .mapZIOPar(parallelism)(_ => latch2.countDown *> latch2.await)
+                       .runDrain
+                   )
+              reverseLatch <- CountdownLatch.make(3)
+              ordered <- Live.live(
+                           ZStream
+                             .range(0, 4)
+                             .mapZIOPar(4, 1) { i =>
+                               if (i == 0) reverseLatch.await.as(i)
+                               else reverseLatch.countDown.as(i)
+                             }
+                             .runCollect
+                         )
+              pulled       <- Ref.make(0)
+              firstEmitted <- Promise.make[Nothing, Unit]
+              releaseSink  <- Promise.make[Nothing, Unit]
+              consumer <- Live.live(
+                            ZStream
+                              .range(0, 1000)
+                              .rechunk(1)
+                              .tap(_ => pulled.update(_ + 1))
+                              .mapZIOPar(8, bufferSize)(ZIO.succeed(_))
+                              .tap(_ => firstEmitted.succeed(()) *> releaseSink.await)
+                              .runDrain
+                              .fork
+                          )
+              _           <- firstEmitted.await
+              _           <- Live.live(pulled.get.delay(1.milli)).repeatUntil(_ >= 8 + bufferSize)
+              _           <- ZIO.yieldNow.repeatN(50)
+              pulledCount <- pulled.get
+              _           <- releaseSink.succeed(())
+              _           <- consumer.join
+            } yield assertTrue(
+              ordered == Chunk(0, 1, 2, 3),
+              pulledCount <= 8 + bufferSize + 2
+            )
+          } @@ TestAspect.jvmOnly @@ TestAspect.timeout(10.seconds) @@ nonFlaky,
           test("accumulates parallel errors") {
             sealed abstract class DbError extends Product with Serializable
             case object Missing           extends DbError
