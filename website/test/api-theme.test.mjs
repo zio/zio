@@ -9,6 +9,7 @@ import {
   LOGO,
   NAV_LINKS,
   STYLESHEET,
+  VENDORED_SCRIPTS,
   breadcrumbsHtml,
   checkSideMenu,
   extensionless,
@@ -30,7 +31,11 @@ const config = require('../docusaurus.config.js');
 const PAGE =
   '<!DOCTYPE html><html data-pathToRoot="../../" data-rawLocation="zio/stream/ZStream" data-dynamicSideMenu="true"><head><meta charset="utf-8"></meta><title>ZStream</title>' +
   '<link rel="shortcut icon" type="image/x-icon" href="../../favicon.ico"></link><script type="text/javascript" src="../../scripts/theme.js"></script>' +
-  '<link rel="stylesheet" href="../../styles/theme/bundle.css"></link><script>var pathToRoot = "../../";</script></head>' +
+  '<link rel="stylesheet" href="../../styles/theme/bundle.css"></link><script>var pathToRoot = "../../";</script>' +
+  '<script type="text/javascript" src="https://d3js.org/d3.v6.min.js" defer="true"></script>' +
+  '<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/graphlib-dot@0.6.2/dist/graphlib-dot.min.js" defer="true"></script>' +
+  '<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/dagre-d3/0.6.1/dagre-d3.min.js" defer="true"></script>' +
+  '<script type="text/javascript" src="https://scastie.scala-lang.org/embedded.js" defer="true"></script></head>' +
   '<body><div id=""><div id="header" class="body-small"><div class="header-container-left"><a href="../../" class="logo-container">' +
   '<span class="project-name h300">ZIO</span></a><span onclick="dropdownHandler(event)" class="text-button with-arrow" id="dropdown-trigger">' +
   '<a><div class="projectVersion">2.1.26-SNAPSHOT</div></a></span><div id="version-dropdown" class="dropdown-menu"></div></div>' +
@@ -283,9 +288,23 @@ test('the API index sends /api to /api/ before anything loads', () => {
   assert.equal(run('/api/'), null);
 });
 
+test('the API pages load no script from another host', () => {
+  const html = themeApiPage(PAGE, { prompt: PROMPT });
+  assert.doesNotMatch(html, /<script[^>]+src="https?:/);
+  assert.doesNotMatch(html, /scastie/);
+  for (const local of Object.values(VENDORED_SCRIPTS)) {
+    assert.equal(count(html, `src="${local}" defer="true"`), 1);
+    // The pinned copy is in the folder theme-api.mjs publishes, next to its license.
+    const file = new URL(`../src/api-theme/${local.replace('/api/scripts/', '')}`, import.meta.url);
+    assert.ok(readFileSync(file).length > 0);
+    assert.ok(readFileSync(new URL('LICENSE', file)).length > 0);
+  }
+});
+
 test('a page whose markup no longer matches fails loudly', () => {
   assert.throws(() => themeApiPage(PAGE.replace('<div id="mobile-menu">', '<div id="menu">'), { prompt: PROMPT }), /header/);
   assert.throws(() => themeApiPage(PAGE.replace('<span id="mobile-theme-toggle"', '<span'), { prompt: PROMPT }), /mobile theme toggle/);
+  assert.throws(() => themeApiPage(PAGE.replace('d3js.org', 'example.org'), { prompt: PROMPT }), /d3js\.org/);
 });
 
 // Runs src/api-theme/theme.js against a minimal browser stand-in.

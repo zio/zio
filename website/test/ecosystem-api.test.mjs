@@ -22,6 +22,7 @@ import {
   navbarHtml,
   siteLinks,
   themeApiPage,
+  vendoredScripts,
 } from '../scripts/lib/api-theme.mjs';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
@@ -175,7 +176,11 @@ test('the ux.js patches apply, and fail loudly once their target is gone', () =>
 const SITE = librarySite({ lib: 'zio-json', title: 'ZIO JSON' });
 const PAGE =
   '<!DOCTYPE html><html data-pathToRoot="../../" data-rawLocation="zio/json/JsonCodec" data-dynamicSideMenu="true"><head><meta charset="utf-8"></meta>' +
-  '<link rel="shortcut icon" type="image/x-icon" href="../../favicon.ico"></link></head><body><div id=""><div id="header" class="body-small">' +
+  '<link rel="shortcut icon" type="image/x-icon" href="../../favicon.ico"></link>' +
+  '<script type="text/javascript" src="https://d3js.org/d3.v6.min.js" defer="true"></script>' +
+  '<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/graphlib-dot@0.6.2/dist/graphlib-dot.min.js" defer="true"></script>' +
+  '<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/dagre-d3/0.6.1/dagre-d3.min.js" defer="true"></script>' +
+  '<script type="text/javascript" src="https://scastie.scala-lang.org/embedded.js" defer="true"></script></head><body><div id=""><div id="header" class="body-small">' +
   '<span id="search-toggle"></span></div><div id="mobile-menu"><div class="mobile-menu-header body-small"><span class="mobile-menu-logo">' +
   '<span class="project-name h300">ZIO JSON</span></span><button id="mobile-menu-close" class="icon-button close"></button></div>' +
   '<span id="mobile-theme-toggle" class="mobile-menu-item mode"></span></div>' +
@@ -191,6 +196,16 @@ test("a library's API pages sit under Ecosystem in the navbar, with its own styl
   const html = themeApiPage(PAGE, { prompt: 'p', site: SITE });
   assert.ok(html.includes('<link rel="stylesheet" href="/zio-json/api/styles/zio-api.css"></head>'));
   assert.match(html, /za-mobile-link za-mobile-link--active" href="\/ecosystem\/"/);
+});
+
+test("a library's API pages load the diagram scripts from its own copy, and nothing from another host", () => {
+  const html = themeApiPage(PAGE, { prompt: 'p', site: SITE });
+  assert.doesNotMatch(html, /<script[^>]+src="https?:/);
+  assert.doesNotMatch(html, /scastie/);
+  for (const local of Object.values(vendoredScripts(SITE))) {
+    assert.match(local, /^\/zio-json\/api\/scripts\/vendor\//);
+    assert.equal(html.split(`src="${local}" defer="true"`).length - 1, 1);
+  }
 });
 
 test("a library's breadcrumbs lead back to its docs: Home > library > API > packages > page", () => {

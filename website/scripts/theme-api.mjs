@@ -5,7 +5,7 @@
 // The ecosystem libraries' API references, static/<lib>/api (scripts/build-ecosystem-api.mjs), get the same treatment
 // in build/<lib>/api, under the Ecosystem navbar item and with a breadcrumb back to the library's docs. Links from one
 // API site to another follow the nested types each site moves into folders.
-import { copyFile, mkdir, readdir, readFile, rm, rmdir, stat, writeFile } from 'node:fs/promises';
+import { cp, copyFile, mkdir, readdir, readFile, rm, rmdir, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -90,6 +90,7 @@ for (const { site, path, sourceDir, apiDir, menu, moves } of sites) {
   ])
     await writeFile(join(apiDir, file), rewrite(await readFile(join(sourceDir, file), 'utf8')));
   await copyFile(join(root, 'src', 'api-theme', 'api.css'), join(apiDir, 'styles', 'zio-api.css'));
+  await cp(join(root, 'src', 'api-theme', 'vendor'), join(apiDir, 'scripts', 'vendor'), { recursive: true });
   await copyFile(join(root, 'src', 'api-theme', 'theme.js'), join(apiDir, 'scripts', 'theme.js'));
   console.log(
     `theme-api: gave ${pages} pages of /${path}/ the site navbar, favicon and theme (${moves.size} nested types in folders)`,

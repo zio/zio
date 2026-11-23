@@ -32,6 +32,7 @@ ZIO JSON is a library that provides facilities for writing efficient JSON encode
 To use ZIO JSON, we need to add the following dependency to our `build.sbt` file:
 
 ```scala
+// ZIO JSON: JSON encoders, decoders and codecs
 libraryDependencies += "dev.zio" %% "zio-json" % "0.3.0-RC10"
 ```
 

@@ -113,6 +113,23 @@ const FONT_LINKS =
   `<link rel="stylesheet" href="${FONTS}">`;
 // docusaurus.config.js `favicon`, which Docusaurus serves from static/.
 export const FAVICON = '/img/favicon.png';
+// The scripts Scaladoc loads from other hosts for the inheritance diagrams, by the URL Scaladoc writes. Each is served
+// from /api/scripts/vendor instead (an ecosystem library's API from its own, see vendoredScripts), as a pinned copy kept in src/api-theme/vendor next to its license (theme-api.mjs
+// copies the folder).
+export const VENDORED_SCRIPTS = {
+  'https://d3js.org/d3.v6.min.js': '/api/scripts/vendor/d3/d3.v6.7.0.min.js',
+  'https://cdn.jsdelivr.net/npm/graphlib-dot@0.6.2/dist/graphlib-dot.min.js':
+    '/api/scripts/vendor/graphlib-dot/graphlib-dot.0.6.2.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/dagre-d3/0.6.1/dagre-d3.min.js':
+    '/api/scripts/vendor/dagre-d3/dagre-d3.0.6.1.min.js',
+};
+/** VENDORED_SCRIPTS for a site: each API site publishes its own copy, under its own scripts/vendor. */
+export const vendoredScripts = (site = CORE_SITE) =>
+  Object.fromEntries(Object.entries(VENDORED_SCRIPTS).map(([url, local]) => [url, local.replace(/^\/api\//, site.base)]));
+// Scaladoc's Run button for snippets, which none of the pages has (no snippet is marked runnable), is the only user of
+// this script.
+const SCASTIE_SCRIPT = 'https://scastie.scala-lang.org/embedded.js';
+const scriptTag = (url) => new RegExp(`<script [^>]*src="${url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*></script>`);
 const SCALADOC_FAVICON = /<link rel="shortcut icon"[^>]*>(?:<\/link>)?/;
 
 function replaceOnce(html, pattern, replacement, what) {
@@ -182,6 +199,10 @@ export function themeApiPage(html, { prompt, site = CORE_SITE, moves = new Map()
     'mobile theme toggle',
   );
   out = siteLinks(extensionlessLinks(out), moves);
+  // No script from another host: the diagram libraries come from the site's scripts/vendor, and the Scastie script goes.
+  for (const [url, local] of Object.entries(vendoredScripts(site)))
+    out = replaceOnce(out, scriptTag(url), (tag) => tag.replace(url, local), `script ${url}`);
+  out = replaceOnce(out, scriptTag(SCASTIE_SCRIPT), '', `script ${SCASTIE_SCRIPT}`);
   // No "Generated with Scaladoc" footer (Scaladoc writes one for wide screens and one at the end of the text for
   // narrow ones); the docs pages have none like it.
   const footers = out.match(FOOTER)?.length ?? 0;

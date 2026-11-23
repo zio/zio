@@ -33,8 +33,11 @@ ZIO has a migration rule named `Zio2Upgrade` which migrates a ZIO 1.x code base 
 4. After running scalafix, it's time to upgrade ZIO dependencies. If we are using one of the following dependencies, we need to bump them into the `2.x` version:
 
     ```scala
+    // ZIO core (JVM, Scala.js, Scala Native)
     libraryDependencies += "dev.zio" %% "zio"         % "2.0.0"
+    // ZIO Streams
     libraryDependencies += "dev.zio" %% "zio-streams" % "2.0.0"
+    // ZIO Test: the test library (test scope)
     libraryDependencies += "dev.zio" %% "zio-test"    % "2.0.0"
     ```
 
@@ -1973,6 +1976,7 @@ For reasons of backward compatibility, `ZManaged` won't actually be deleted, but
 So, if we have a lot of code that used `ZManaged` and we are not ready to deal with it right now we can still use the `ZManaged` data type and compile our code. We can add the `zio-managed` dependency into the `build.sbt` file:
 
 ```scala
+// ZIO managed resources (ZIO 1.x)
 libraryDependencies += "dev.zio" %% "zio-managed" % "<2.x version>"
 ```
 And then by adding `import zio.managed._` we can access all `ZManaged` capabilities including extension methods on ZIO data types. This helps us to compile the ZIO 1.x code base which uses the `ZManaged` data type. Then we can smoothly refactor it to use the `Scope` data type instead.

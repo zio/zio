@@ -106,6 +106,7 @@ This guide replaces every pattern shown above with its ZIO equivalent, and then 
 Add the ZIO core library to `build.sbt`:
 
 ```scala
+// ZIO core (JVM, Scala.js, Scala Native)
 libraryDependencies += "dev.zio" %% "zio" % "@VERSION@"
 ```
 
@@ -123,6 +124,7 @@ Assumed knowledge: familiarity with cats-effect 3.x (`IO`, `Resource`, `Fiber`, 
 If the codebase depends on cats-effect libraries that cannot be migrated immediately (doobie, http4s, fs2), add the interop module:
 
 ```scala
+// Cats Effect interop for ZIO
 libraryDependencies += "dev.zio" %% "zio-interop-cats" % "23.1.0.3"
 ```
 
