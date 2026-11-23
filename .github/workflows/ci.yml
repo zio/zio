@@ -117,12 +117,27 @@ jobs:
       - name: Generate API Docs
         run: sbt -v apiDocs
 
+      # The ecosystem libraries' API references (zioApiDocs in website/package.json), built from their published jars
+      # by `yarn build-ecosystem-api`, which needs Coursier. A built library is cached under its pinned version.
+      - name: Setup Coursier
+        uses: coursier/setup-action@v3
+        with:
+          apps: ''
+
+      - name: Cache Ecosystem API Docs
+        uses: actions/cache@v6
+        with:
+          path: website/.cache/ecosystem-api
+          key: ecosystem-api-${{ hashFiles('website/package.json', 'website/scripts/build-ecosystem-api.mjs', 'website/scripts/lib/*.mjs') }}
+          restore-keys: ecosystem-api-
+
       - name: Build The Website
         working-directory: ./website
         run: |
           rm -Rf node_modules
           yarn install 
           yarn test
+          yarn build-ecosystem-api
           yarn build 
 
       - name: Cache Website's Build Artifacts

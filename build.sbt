@@ -998,42 +998,14 @@ lazy val apiReference = project
           val docDir = (ScalaUnidoc / doc).value
           IO.delete(apiDir)
           IO.copyDirectory(docDir, apiDir)
-          // Scaladoc bugs in scripts/ux.js break navigation; patch them in place.
-          // Each patch fails the task once its target text is gone, so a Scaladoc upgrade that fixes (or rewrites) the
-          // script gets the patch reviewed instead of silently skipped.
-          val uxJsPatches = Seq(
-            // The dynamic side menu interpolates `baseUrl`, an array of path segments, straight into its links, so
-            // JavaScript joins it with commas: under /api every menu link becomes ",api/zio.html", which resolves against
-            // the current page and 404s. (At a site root the array is [""] and the bug is invisible.) Join it with "/".
-            "return `${baseUrl}/${loc.join(\"/\")}.html`;" ->
-              "return `${baseUrl.join(\"/\")}/${loc.join(\"/\")}.html`;",
-            // Same-origin link clicks are loaded in place with jQuery's `$.get`, and jQuery comes from code.jquery.com:
-            // when it fails to load, the click handler calls preventDefault and then throws "$ is not defined", so no link
-            // navigates. Use fetch, and fall back to a normal page load if the request fails (the never-settling promise
-            // keeps the in-place load from running then).
-            "$.get(href, function (data) {" ->
-              ("fetch(href).then((r) => (r.ok ? r.text() : Promise.reject(r)))" +
-                ".catch(() => { window.location.href = href; return new Promise(() => {}); })" +
-                ".then(function (data) {"),
-            // Back and Forward restore the page content but not the dynamic side menu, which keeps highlighting the page
-            // you left. Update it the way a link click does.
-            "  loadPageState(document, e.state);\n" ->
-              ("  const oldLoc = getRawLoc();\n" +
-                "  loadPageState(document, e.state);\n" +
-                "  if (dynamicSideMenu && updateMenu) updateMenu(oldLoc, getRawLoc());\n"),
-            // A URL naming a section (#attributes) rather than a member expands it with the member's toggle button, which
-            // a section does not have, so the page setup throws there and skips the rest (code highlighting included).
-            // Toggle the button only when there is one.
-            "btn.classList.toggle(\"expand\");\n        btn.classList.toggle(\"expanded\");" ->
-              "btn?.classList.toggle(\"expand\");\n        btn?.classList.toggle(\"expanded\");"
-          )
-          val uxJs = apiDir / "scripts" / "ux.js"
-          val patchedUxJs = uxJsPatches.foldLeft(IO.read(uxJs)) { case (src, (broken, fixed)) =>
-            if (!src.contains(broken))
-              sys.error(s"$uxJs no longer contains `$broken`: check whether Scaladoc fixed it and drop this patch")
-            src.replace(broken, fixed)
-          }
-          IO.write(uxJs, patchedUxJs)
+          // Scaladoc bugs in scripts/ux.js break navigation; patch them in place. The fixes live in
+          // website/scripts/lib/scaladoc-patches.mjs, shared with the ecosystem libraries' API pages
+          // (website/scripts/build-ecosystem-api.mjs). Each one fails once its target text is gone, so a Scaladoc upgrade
+          // that fixes (or rewrites) the script gets the patch reviewed instead of silently skipped.
+          val root     = (ThisBuild / baseDirectory).value
+          val patchCmd = Seq("node", "website/scripts/patch-scaladoc.mjs", apiDir.getAbsolutePath)
+          val patched  = scala.sys.process.Process(patchCmd, root).!
+          if (patched != 0) sys.error(s"${patchCmd.mkString(" ")} failed (exit code $patched)")
           Keys.streams.value.log.info(s"Copied the API docs from $docDir to $apiDir")
           apiDir
         }
