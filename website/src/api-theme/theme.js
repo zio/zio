@@ -68,13 +68,10 @@
 
   // The side menu's top level (the zio package) stays unfolded, like the categories of a docs sidebar. Scaladoc folds
   // the path of the page you leave on every in-place page load, top level included, so unfold it again after each one
-  // ("dynamicPageLoad", which also fires once the menu is first drawn), except when the reader folded it. Only a menu
-  // with one top-level entry: an ecosystem library's menu lists its packages and types at the top (see
-  // flattenSideMenu in scripts/lib/api-theme.mjs), and they stay folded like the sub-categories of a docs sidebar.
+  // ("dynamicPageLoad", which also fires once the menu is first drawn), except when the reader folded it.
   var foldedByReader = {};
   window.addEventListener('dynamicPageLoad', function () {
     var tops = document.querySelectorAll('#api-nav > .ni');
-    if (tops.length !== 1) return;
     for (var i = 0; i < tops.length; i++) {
       if (foldedByReader[tops[i].getAttribute('data-loc')]) continue;
       tops[i].classList.add('expanded');

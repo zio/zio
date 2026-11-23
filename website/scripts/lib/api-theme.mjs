@@ -349,43 +349,6 @@ export function relocatePage(html, { from, to, moves }) {
     .replace(`data-rawLocation="${from}"`, `data-rawLocation="${to}"`);
 }
 
-/**
- * An ecosystem library's side menu opened at the library's own package: while one package holds nearly all of the menu
- * (`MAIN_PACKAGE_SHARE` of its entries), the menu lists what is in that package instead, as a library's docs sidebar
- * lists its pages. zio-schema opens at zio.schema; zio-json at zio.json, past the package zio, whose one other entry
- * (the trait JsonPackagePlatformSpecific) joins the types of zio.json. The package pages stay a breadcrumb away.
- * Scaladoc's menu labels a package by its name less its parent's, so the main package's name is taken off the front of
- * every package name below it (zio.schema.codec -> codec).
- */
-export const MAIN_PACKAGE_SHARE = 0.9;
-
-export function flattenSideMenu(menu) {
-  const size = (item) => 1 + item.children.reduce((n, c) => n + size(c), 0);
-  let items = menu.api.children;
-  let main = null;
-  for (;;) {
-    const total = items.reduce((n, i) => n + size(i), 0);
-    const largest = items.filter((i) => i.kind === 'package').sort((a, b) => size(b) - size(a))[0];
-    if (!largest || size(largest) < MAIN_PACKAGE_SHARE * total) break;
-    main = largest;
-    // The other entries of this level join the main package's, the packages first, then the rest by name.
-    const others = items.filter((i) => i !== largest);
-    const merged = [...largest.children, ...others];
-    items = [
-      ...merged.filter((i) => i.kind === 'package'),
-      ...merged.filter((i) => i.kind !== 'package').sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)),
-    ];
-  }
-  if (!main) return menu;
-  const prefix = `${main.name}.`;
-  const rename = (item) => ({
-    ...item,
-    name: item.kind === 'package' && item.name.startsWith(prefix) ? item.name.slice(prefix.length) : item.name,
-    children: item.children.map(rename),
-  });
-  return { ...menu, api: { ...menu.api, children: items.map(rename) } };
-}
-
 /** The side menu with every moved page at its new location (the names, which the menu shows, stay). */
 export function relocateSideMenu(menu, moves) {
   const move = (item) => {

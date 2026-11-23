@@ -16,7 +16,6 @@ import { UX_JS_PATCHES, patchUxJs } from '../scripts/lib/scaladoc-patches.mjs';
 import {
   breadcrumbsHtml,
   checkSideMenu,
-  flattenSideMenu,
   folderIndexRedirect,
   librarySite,
   navbarHtml,
@@ -235,72 +234,4 @@ test("a library's API index sends /<lib>/api to /<lib>/api/, and its menu may ha
   assert.equal(checkSideMenu(menu, SITE), menu);
   assert.equal(checkSideMenu({ api: { children: [pkg('zio'), pkg('izumi')] } }, SITE).api.children.length, 2);
   assert.throws(() => checkSideMenu({ api: { children: [] } }, SITE), /no packages/);
-});
-
-test("a library's menu lists its root package's packages and types at the top, with their short names", () => {
-  const item = (name, kind, location, children = []) => ({ name, kind, location: location.split('/'), children });
-  const menu = {
-    docs: null,
-    api: {
-      name: 'ZIO Schema',
-      location: ['index'],
-      kind: null,
-      children: [
-        item('zio.schema', 'package', 'zio/schema', [
-          item('zio.schema.codec', 'package', 'zio/schema/codec', [
-            item('zio.schema.codec.json', 'package', 'zio/schema/codec/json'),
-            item('Codec', 'trait', 'zio/schema/codec/Codec'),
-          ]),
-          item('Schema', 'trait', 'zio/schema/Schema'),
-        ]),
-      ],
-    },
-  };
-  const flat = flattenSideMenu(menu);
-  const names = (items) => items.map((i) => (i.children.length ? [i.name, names(i.children)] : i.name));
-  assert.deepEqual(names(flat.api.children), [['codec', ['codec.json', 'Codec']], 'Schema']);
-  assert.deepEqual(flat.api.children[0].location, ['zio', 'schema', 'codec'], 'the pages stay where they are');
-  assert.equal(flat.api.name, 'ZIO Schema');
-  // Several roots of about the same size stay as they are.
-  const two = { api: { children: [item('zio', 'package', 'zio'), item('izumi', 'package', 'izumi')] } };
-  assert.equal(flattenSideMenu(two), two);
-});
-
-test("a library's menu opens at its main package, past a parent package that holds little else (zio-json)", () => {
-  const item = (name, kind, location, children = []) => ({ name, kind, location: location.split('/'), children });
-  const types = (pkg, names) => names.map((n) => item(n, 'class', `${pkg.replace(/\./g, '/')}/${n}`));
-  const menu = {
-    api: {
-      children: [
-        item('zio', 'package', 'zio', [
-          item('zio.json', 'package', 'zio/json', [
-            item('zio.json.ast', 'package', 'zio/json/ast', types('zio.json.ast', ['Json', 'JsonCursor'])),
-            item('zio.json.internal', 'package', 'zio/json/internal', types('zio.json.internal', ['Lexer'])),
-            ...types('zio.json', ['DecoderOps', 'EncoderOps', 'JsonCodec', 'JsonDecoder', 'JsonEncoder', 'JsonError']),
-            ...types('zio.json', ['JsonFieldDecoder', 'JsonFieldEncoder', 'JsonStreamDelimiter', 'jsonField']),
-          ]),
-          item('JsonPackagePlatformSpecific', 'trait', 'zio/JsonPackagePlatformSpecific'),
-        ]),
-      ],
-    },
-  };
-  const top = flattenSideMenu(menu).api.children;
-  assert.deepEqual(
-    top.map((i) => i.name),
-    ['ast', 'internal', 'DecoderOps', 'EncoderOps', 'JsonCodec', 'JsonDecoder', 'JsonEncoder', 'JsonError']
-      .concat(['JsonFieldDecoder', 'JsonFieldEncoder', 'JsonPackagePlatformSpecific', 'JsonStreamDelimiter', 'jsonField']),
-    'the stray trait of package zio joins the types of zio.json, by name',
-  );
-  // A subpackage that is a small part of the library (zio-query's zio.query.internal) is not opened.
-  const query = {
-    api: {
-      children: [
-        item('zio.query', 'package', 'zio/query', [
-          item('zio.query.internal', 'package', 'zio/query/internal', types('zio.query.internal', ['Continue'])),
-          ...types('zio.query', ['Cache', 'DataSource', 'Request', 'ZQuery']),
-        ]),
-      ],
-    },
-  };
-  assert.deepEqual(flattenSideMenu(query).api.children.map((i) => i.name), ['internal', 'Cache', 'DataSource', 'Request', 'ZQuery']);
 });
