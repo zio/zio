@@ -324,6 +324,120 @@ const config = {
             from: '/ecosystem/community/zio-amqp',
             to: '/zio-amqp',
           },
+          // zio-metrics-connectors: pages moved in the docs restructure (zio-metrics-connectors#301)
+          {
+            from: '/zio-metrics-connectors/metrics/index',
+            to: '/zio-metrics-connectors/how-it-works',
+          },
+          {
+            from: '/zio-metrics-connectors/metrics/metric-reference',
+            to: '/zio-metrics-connectors/reference/metric-reference',
+          },
+          {
+            from: '/zio-metrics-connectors/metrics/prometheus-client',
+            to: '/zio-metrics-connectors/reference/prometheus-client',
+          },
+          {
+            from: '/zio-metrics-connectors/metrics/statsd-client',
+            to: '/zio-metrics-connectors/reference/statsd-client',
+          },
+          {
+            from: '/zio-metrics-connectors/metrics/datadog-client',
+            to: '/zio-metrics-connectors/reference/datadog-client',
+          },
+          {
+            from: '/zio-metrics-connectors/metrics/micrometer-connector',
+            to: '/zio-metrics-connectors/reference/micrometer-connector',
+          },
+          {
+            from: '/zio-metrics-connectors/metrics/instrumentation-examples',
+            to: '/zio-metrics-connectors/how-to/instrument-an-application',
+          },
+          // zio-redis: pages moved in the docs restructure (zio-redis#1375)
+          {
+            from: '/zio-redis/async-redis',
+            to: '/zio-redis/concepts/async-redis',
+          },
+          {
+            from: '/zio-redis/cluster',
+            to: '/zio-redis/concepts/cluster',
+          },
+          {
+            from: '/zio-redis/codecs',
+            to: '/zio-redis/concepts/codecs',
+          },
+          {
+            from: '/zio-redis/error-handling',
+            to: '/zio-redis/concepts/error-handling',
+          },
+          {
+            from: '/zio-redis/pub-sub',
+            to: '/zio-redis/concepts/pub-sub',
+          },
+          {
+            from: '/zio-redis/configuration',
+            to: '/zio-redis/reference/configuration',
+          },
+          {
+            from: '/zio-redis/commands/connection',
+            to: '/zio-redis/reference/commands/connection',
+          },
+          {
+            from: '/zio-redis/commands/geo',
+            to: '/zio-redis/reference/commands/geo',
+          },
+          {
+            from: '/zio-redis/commands/hashes',
+            to: '/zio-redis/reference/commands/hashes',
+          },
+          {
+            from: '/zio-redis/commands/hyperloglog',
+            to: '/zio-redis/reference/commands/hyperloglog',
+          },
+          {
+            from: '/zio-redis/commands/keys',
+            to: '/zio-redis/reference/commands/keys',
+          },
+          {
+            from: '/zio-redis/commands/lists',
+            to: '/zio-redis/reference/commands/lists',
+          },
+          {
+            from: '/zio-redis/commands/scripting',
+            to: '/zio-redis/reference/commands/scripting',
+          },
+          {
+            from: '/zio-redis/commands/sets',
+            to: '/zio-redis/reference/commands/sets',
+          },
+          {
+            from: '/zio-redis/commands/sorted-sets',
+            to: '/zio-redis/reference/commands/sorted-sets',
+          },
+          {
+            from: '/zio-redis/commands/streams',
+            to: '/zio-redis/reference/commands/streams',
+          },
+          {
+            from: '/zio-redis/commands/strings',
+            to: '/zio-redis/reference/commands/strings',
+          },
+          {
+            from: '/zio-redis/tutorial-rate-limiter',
+            to: '/zio-redis/tutorials/rate-limiter',
+          },
+          {
+            from: '/zio-redis/how-to-cache-with-ttl',
+            to: '/zio-redis/how-to/cache-with-ttl',
+          },
+          {
+            from: '/zio-redis/how-to-distributed-lock',
+            to: '/zio-redis/how-to/distributed-lock',
+          },
+          {
+            from: '/zio-redis/testing',
+            to: '/zio-redis/how-to/test-with-embedded-redis',
+          },
         ],
       },
     ],

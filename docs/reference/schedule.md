@@ -181,6 +181,7 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 `Schedule` is part of the core `zio` module; no additional dependency is needed:
 
 ```scala
+// ZIO core (JVM, Scala.js, Scala Native)
 libraryDependencies += "dev.zio" %% "zio" % "@VERSION@"
 ```
 

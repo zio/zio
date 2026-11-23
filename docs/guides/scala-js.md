@@ -29,6 +29,7 @@ lazy val mylib = project
   .in(file("mylib"))
   .settings(
     scalaVersion := "2.13.18",
+    // ZIO core (JVM, Scala.js, Scala Native)
     libraryDependencies += "dev.zio" %% "zio" % "@VERSION@"
     // Publishes mylib_2.13.jar — no _sjs1 classifier, no Scala.js artifact
   )
@@ -39,6 +40,7 @@ lazy val webapp = project
   .enablePlugins(ScalaJSPlugin)
   .settings(
     scalaVersion := "2.13.18",
+    // ZIO core (JVM, Scala.js, Scala Native)
     libraryDependencies += "dev.zio" %%% "zio" % "@VERSION@",
     // This line causes a hard resolution failure at `sbt update`:
     // [error] not found: com.example:mylib_sjs1_2.13:0.1.0
@@ -94,6 +96,7 @@ lazy val root = (project in file("."))
   .settings(
     name := "my-app",
     scalaJSUseMainModuleInitializer := true,
+    // ZIO core (JVM, Scala.js, Scala Native)
     libraryDependencies += "dev.zio" %%% "zio" % "@VERSION@"
   )
 ```
@@ -233,13 +236,20 @@ lazy val root = (project in file("."))
     scalaJSLinkerConfig ~= (_.withModuleKind(ModuleKind.NoModule)),
     Compile / fastLinkJS / scalaJSLinkerOutputDirectory := baseDirectory.value / "app",
     Compile / fullLinkJS / scalaJSLinkerOutputDirectory := baseDirectory.value / "app",
-    libraryDependencies ++= Seq(
-      "dev.zio"      %%% "zio"          % "@VERSION@",
-      "dev.zio"      %%% "zio-json"     % "0.7.38",
-      "org.scala-js" %%% "scalajs-dom"  % "2.8.1",
-      "dev.zio"      %%% "zio-test"     % "@VERSION@" % Test,
-      "dev.zio"      %%% "zio-test-sbt" % "@VERSION@" % Test
-    ),
+    // ZIO core (JVM, Scala.js, Scala Native)
+    libraryDependencies += "dev.zio"      %%% "zio"          % "@VERSION@",
+
+    // ZIO JSON: JSON encoders, decoders and codecs
+    libraryDependencies += "dev.zio"      %%% "zio-json"     % "0.7.38",
+
+    // scalajs-dom: browser DOM bindings for Scala.js
+    libraryDependencies += "org.scala-js" %%% "scalajs-dom"  % "2.8.1",
+
+    // ZIO Test: the test library (test scope)
+    libraryDependencies += "dev.zio"      %%% "zio-test"     % "@VERSION@" % Test,
+
+    // ZIO Test sbt integration (test scope)
+    libraryDependencies += "dev.zio"      %%% "zio-test-sbt" % "@VERSION@" % Test,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   )
 ```
