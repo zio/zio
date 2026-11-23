@@ -1,7 +1,7 @@
 // Gives the Scaladoc pages in build/api the site's navbar, favicon, fonts, colour mode and side menu (see
 // lib/api-theme.mjs). Runs after `docusaurus build`. Each file is read from static/api, as `sbt apiDocs` wrote it, and
 // written over its copy in build/api, so running this again is safe. Without static/api there is nothing to do.
-import { copyFile, mkdir, readdir, readFile, rm, rmdir, stat, writeFile } from 'node:fs/promises';
+import { cp, copyFile, mkdir, readdir, readFile, rm, rmdir, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -58,6 +58,7 @@ if (!(await exists(sourceDir)) || !(await exists(apiDir))) {
   ])
     await writeFile(join(apiDir, file), rewrite(await readFile(join(sourceDir, file), 'utf8')));
   await copyFile(join(root, 'src', 'api-theme', 'api.css'), join(apiDir, 'styles', 'zio-api.css'));
+  await cp(join(root, 'src', 'api-theme', 'vendor'), join(apiDir, 'scripts', 'vendor'), { recursive: true });
   await copyFile(join(root, 'src', 'api-theme', 'theme.js'), join(apiDir, 'scripts', 'theme.js'));
   console.log(`theme-api: gave ${pages} API pages the site navbar, favicon and theme (${moves.size} nested types in folders)`);
 }
