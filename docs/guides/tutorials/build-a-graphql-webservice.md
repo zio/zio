@@ -17,10 +17,11 @@ The corresponding source code for this tutorial is available on [GitHub](https:/
 In this tutorial, we will build a GraphQL API using _Caliban_, and in order to serve it, we will use the _ZIO HTTP_ library. So let's install the necessary dependencies by putting the following lines in the _build.sbt_ file:
 
 ```sbt
-libraryDependencies ++= Seq(
-  "dev.zio"               %% "zio"              % "2.1.7",
-  "com.github.ghostdogpr" %% "caliban-quick"    % "2.8.1"
-)
+// ZIO core (JVM, Scala.js, Scala Native)
+libraryDependencies += "dev.zio"               %% "zio"              % "2.1.7"
+
+// Caliban GraphQL quick-start integration
+libraryDependencies += "com.github.ghostdogpr" %% "caliban-quick"    % "2.8.1"
 ```
 
 Now, we are ready to jump into the next section.
