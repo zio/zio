@@ -329,21 +329,40 @@ export function relocatePage(html, { from, to, moves }) {
 }
 
 /**
- * An ecosystem library's side menu without its root package: when the API has one package at its root (zio-schema's
- * zio.schema), its packages and types are listed at the top instead, as a library's docs sidebar lists its pages. The
- * package page itself stays a breadcrumb away. Scaladoc's menu labels a package by its name less its parent's, so the
- * root's name is taken off the front of every package name below it (zio.schema.codec -> codec).
+ * An ecosystem library's side menu opened at the library's own package: while one package holds nearly all of the menu
+ * (`MAIN_PACKAGE_SHARE` of its entries), the menu lists what is in that package instead, as a library's docs sidebar
+ * lists its pages. zio-schema opens at zio.schema; zio-json at zio.json, past the package zio, whose one other entry
+ * (the trait JsonPackagePlatformSpecific) joins the types of zio.json. The package pages stay a breadcrumb away.
+ * Scaladoc's menu labels a package by its name less its parent's, so the main package's name is taken off the front of
+ * every package name below it (zio.schema.codec -> codec).
  */
+export const MAIN_PACKAGE_SHARE = 0.9;
+
 export function flattenSideMenu(menu) {
-  const roots = menu.api.children;
-  if (roots.length !== 1 || roots[0].kind !== 'package') return menu;
-  const prefix = `${roots[0].name}.`;
+  const size = (item) => 1 + item.children.reduce((n, c) => n + size(c), 0);
+  let items = menu.api.children;
+  let main = null;
+  for (;;) {
+    const total = items.reduce((n, i) => n + size(i), 0);
+    const largest = items.filter((i) => i.kind === 'package').sort((a, b) => size(b) - size(a))[0];
+    if (!largest || size(largest) < MAIN_PACKAGE_SHARE * total) break;
+    main = largest;
+    // The other entries of this level join the main package's, the packages first, then the rest by name.
+    const others = items.filter((i) => i !== largest);
+    const merged = [...largest.children, ...others];
+    items = [
+      ...merged.filter((i) => i.kind === 'package'),
+      ...merged.filter((i) => i.kind !== 'package').sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)),
+    ];
+  }
+  if (!main) return menu;
+  const prefix = `${main.name}.`;
   const rename = (item) => ({
     ...item,
     name: item.kind === 'package' && item.name.startsWith(prefix) ? item.name.slice(prefix.length) : item.name,
     children: item.children.map(rename),
   });
-  return { ...menu, api: { ...menu.api, children: roots[0].children.map(rename) } };
+  return { ...menu, api: { ...menu.api, children: items.map(rename) } };
 }
 
 /** The side menu with every moved page at its new location (the names, which the menu shows, stay). */
