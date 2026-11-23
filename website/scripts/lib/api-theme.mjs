@@ -328,6 +328,24 @@ export function relocatePage(html, { from, to, moves }) {
     .replace(`data-rawLocation="${from}"`, `data-rawLocation="${to}"`);
 }
 
+/**
+ * An ecosystem library's side menu without its root package: when the API has one package at its root (zio-schema's
+ * zio.schema), its packages and types are listed at the top instead, as a library's docs sidebar lists its pages. The
+ * package page itself stays a breadcrumb away. Scaladoc's menu labels a package by its name less its parent's, so the
+ * root's name is taken off the front of every package name below it (zio.schema.codec -> codec).
+ */
+export function flattenSideMenu(menu) {
+  const roots = menu.api.children;
+  if (roots.length !== 1 || roots[0].kind !== 'package') return menu;
+  const prefix = `${roots[0].name}.`;
+  const rename = (item) => ({
+    ...item,
+    name: item.kind === 'package' && item.name.startsWith(prefix) ? item.name.slice(prefix.length) : item.name,
+    children: item.children.map(rename),
+  });
+  return { ...menu, api: { ...menu.api, children: roots[0].children.map(rename) } };
+}
+
 /** The side menu with every moved page at its new location (the names, which the menu shows, stay). */
 export function relocateSideMenu(menu, moves) {
   const move = (item) => {

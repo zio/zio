@@ -17,6 +17,7 @@ import {
   librarySite,
   nestedTypePaths,
   relocatePage,
+  flattenSideMenu,
   relocateSideMenu,
   themeApiPage,
 } from './lib/api-theme.mjs';
@@ -77,7 +78,12 @@ for (const { site, path, sourceDir, apiDir, menu, moves } of sites) {
     }
     pages++;
   }
-  await writeFile(join(apiDir, 'dynamicSideMenu.json'), JSON.stringify(relocateSideMenu(menu, moves)));
+  // zio's /api keeps its zio package as the one root, unfolded; a library lists what is in its root package.
+  const sideMenu = relocateSideMenu(menu, moves);
+  await writeFile(
+    join(apiDir, 'dynamicSideMenu.json'),
+    JSON.stringify(site === CORE_SITE ? sideMenu : flattenSideMenu(sideMenu)),
+  );
   for (const [file, rewrite] of [
     ['scripts/ux.js', extensionlessUxJs],
     ['scripts/searchData.js', (js) => extensionlessSearchData(js, moves)],

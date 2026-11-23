@@ -16,6 +16,7 @@ import { UX_JS_PATCHES, patchUxJs } from '../scripts/lib/scaladoc-patches.mjs';
 import {
   breadcrumbsHtml,
   checkSideMenu,
+  flattenSideMenu,
   folderIndexRedirect,
   librarySite,
   navbarHtml,
@@ -219,4 +220,33 @@ test("a library's API index sends /<lib>/api to /<lib>/api/, and its menu may ha
   assert.equal(checkSideMenu(menu, SITE), menu);
   assert.equal(checkSideMenu({ api: { children: [pkg('zio'), pkg('izumi')] } }, SITE).api.children.length, 2);
   assert.throws(() => checkSideMenu({ api: { children: [] } }, SITE), /no packages/);
+});
+
+test("a library's menu lists its root package's packages and types at the top, with their short names", () => {
+  const item = (name, kind, location, children = []) => ({ name, kind, location: location.split('/'), children });
+  const menu = {
+    docs: null,
+    api: {
+      name: 'ZIO Schema',
+      location: ['index'],
+      kind: null,
+      children: [
+        item('zio.schema', 'package', 'zio/schema', [
+          item('zio.schema.codec', 'package', 'zio/schema/codec', [
+            item('zio.schema.codec.json', 'package', 'zio/schema/codec/json'),
+            item('Codec', 'trait', 'zio/schema/codec/Codec'),
+          ]),
+          item('Schema', 'trait', 'zio/schema/Schema'),
+        ]),
+      ],
+    },
+  };
+  const flat = flattenSideMenu(menu);
+  const names = (items) => items.map((i) => (i.children.length ? [i.name, names(i.children)] : i.name));
+  assert.deepEqual(names(flat.api.children), [['codec', ['codec.json', 'Codec']], 'Schema']);
+  assert.deepEqual(flat.api.children[0].location, ['zio', 'schema', 'codec'], 'the pages stay where they are');
+  assert.equal(flat.api.name, 'ZIO Schema');
+  // Several roots (or a type at the root) stay as they are.
+  const two = { api: { children: [item('zio', 'package', 'zio'), item('izumi', 'package', 'izumi')] } };
+  assert.equal(flattenSideMenu(two), two);
 });
