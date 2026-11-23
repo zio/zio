@@ -91,7 +91,7 @@ function zioEcosystemPlugin(context, options) {
                     `${project.name}-sidebar`,
                     [
                         { type: 'link', label: '← ZIO Ecosystem', href: `/ecosystem/?eco-category=${categoryIdOf(project.name)}` },
-                        { ...project.category, collapsible: false, collapsed: false, items: itemsWithoutOwnPage(project.category) }
+                        { ...project.category, collapsible: false, collapsed: false, items: [...itemsWithoutOwnPage(project.category), ...apiReferenceItem(project.name)] }
                     ]
                 ]));
                 writeSidebarFile('ecosystem-sidebar.js', ecosystemSidebar);
@@ -162,6 +162,21 @@ function writeSidebarFile(path, sidebar) {
             console.error(err);
         }
     });
+}
+// The "API Reference" entry of a project's sidebar, when scripts/build-ecosystem-api.mjs has built the project's
+// Scaladoc into static/<project>/api (see `zioApiDocs` in package.json); none otherwise, so the sidebar never links an
+// API that is missing. The pages are plain HTML outside the Docusaurus router, so the entry is a plain link that loads
+// the page: a `link` item would hand it to the router, or, as `pathname://`, open it in a new tab as an external site.
+function apiReferenceItem(project) {
+    if (!fs.existsSync(`static/${project}/api/index.html`))
+        return [];
+    return [{
+            type: 'html',
+            value: `<a class="menu__link" href="/${project}/api/">API Reference</a>`,
+            // Not the default padding of an html item: the link draws its own, as a doc link does.
+            defaultStyle: false,
+            className: 'menu__list-item eco-api-reference'
+        }];
 }
 // The category of a project links to its own page, so listing that page again
 // among its items would show the same entry twice.

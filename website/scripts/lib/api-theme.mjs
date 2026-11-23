@@ -2,7 +2,8 @@ import { posix } from 'node:path';
 
 // Re-skins the Scaladoc pages under /api so they share the site's navbar, fonts and colour mode. Scaladoc is a separate
 // generator: `sbt apiDocs` copies its HTML into static/api, and Docusaurus publishes those files untouched, outside its
-// layout. scripts/theme-api.mjs applies `themeApiPage` to every page of build/api after `docusaurus build`.
+// layout. scripts/theme-api.mjs applies `themeApiPage` to every page of build/api after `docusaurus build`, and to the
+// ecosystem libraries' API references under /<lib>/api (scripts/build-ecosystem-api.mjs) the same way.
 
 // Icons, copied from the Docusaurus navbar so both bars draw the same marks.
 const ICONS = {
@@ -38,6 +39,22 @@ export const NAV_LINKS = [
   { label: 'GitHub repository', href: 'https://github.com/zio/zio', position: 'right', newTab: true, icon: 'github' },
 ];
 
+/**
+ * A Scaladoc site the theme skins: where it is served (`base`), which navbar item it belongs under (`current`), and,
+ * for an ecosystem library, the library's docs, which the breadcrumbs link back to (`docs: { href, label }`).
+ */
+export const CORE_SITE = { base: '/api/', current: 'API' };
+
+/** The site of an ecosystem library's API, from the zio-api.json scripts/build-ecosystem-api.mjs writes beside it. */
+export const librarySite = ({ lib, title }) => ({
+  base: `/${lib}/api/`,
+  current: 'Ecosystem',
+  docs: { href: `/${lib}/`, label: title },
+});
+
+/** NAV_LINKS with `current` as the current page. */
+export const navLinks = (current) => NAV_LINKS.map((l) => ({ ...l, current: l.label === current }));
+
 // The navbar logo of docusaurus.config.js: one image for both colour modes, and no title beside it.
 export const LOGO = { alt: 'ZIO', src: '/img/navbar_brand.png' };
 
@@ -58,9 +75,10 @@ const brandHtml = (cls) => `<a class="${cls}" href="/"><img class="za-logo" src=
  * `#mobile-menu-toggle` opens the mobile menu, and the version dropdown it wires at startup stays in the page, hidden
  * (its script throws without it).
  */
-export function navbarHtml({ prompt }) {
+export function navbarHtml({ prompt, site = CORE_SITE }) {
   const links = (position) =>
-    NAV_LINKS.filter((l) => l.position === position)
+    navLinks(site.current)
+      .filter((l) => l.position === position)
       .map((l) => linkHtml(l, 'za-navbar__link'))
       .join('');
   return (
@@ -86,6 +104,8 @@ const HEADER = /<div id="header"[\s\S]*?(?=<div id="mobile-menu">)/;
 const MOBILE_LOGO = /<span class="mobile-menu-logo">[\s\S]*?(?=<button id="mobile-menu-close")/;
 const MOBILE_THEME = '<span id="mobile-theme-toggle"';
 export const STYLESHEET = '/api/styles/zio-api.css';
+/** The theme's stylesheet of a site; theme-api.mjs copies it into each one. */
+export const stylesheet = (site) => `${site.base}styles/zio-api.css`;
 // The site font, Inter, as plugins/google-fonts adds it to every docs page.
 export const FONTS = 'https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=fallback';
 const FONT_LINKS =
@@ -109,19 +129,24 @@ const FOOTER = /<div id="footer"[^>]*>[\s\S]*?<div class="text-mobile">[\s\S]*?<
 
 /**
  * The docs breadcrumbs (Docusaurus' theme-doc-breadcrumbs markup, with za- classes because Scaladoc styles
- * .breadcrumbs) for a Scaladoc trail, given as its links `[{ href, label }]`: the home icon, then API for Scaladoc's
- * index entry, then the packages as the side menu shows them, and the current page last, not linked.
+ * .breadcrumbs) for a Scaladoc trail, given as its links `[{ href, label }]`: the home icon, the library's docs on an
+ * ecosystem library's site, then API for Scaladoc's index entry, then the packages as the side menu shows them, and the
+ * current page last, not linked.
  */
-export function breadcrumbsHtml(trail) {
+export function breadcrumbsHtml(trail, site = CORE_SITE) {
   const [, ...rest] = trail; // the first entry is Scaladoc's index page, shown as API
   const packages = rest.slice(0, -1);
   const items = [
     `<li class="za-breadcrumbs__item"><a aria-label="Home page" class="za-breadcrumbs__link" href="/">${HOME_ICON}</a></li>`,
   ];
+  if (site.docs)
+    items.push(
+      `<li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="${site.docs.href}"><span>${site.docs.label}</span></a></li>`,
+    );
   const current = rest.length ? rest[rest.length - 1] : null;
   items.push(
     current
-      ? '<li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/api/"><span>API</span></a></li>'
+      ? `<li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="${site.base}"><span>API</span></a></li>`
       : '<li class="za-breadcrumbs__item za-breadcrumbs__item--active"><span class="za-breadcrumbs__link">API</span></li>',
   );
   // As the side menu labels them: the top-level package in full (zio), the ones inside it by their last segment.
@@ -139,24 +164,24 @@ export function breadcrumbsHtml(trail) {
 
 /**
  * Puts the site navbar, breadcrumbs, favicon, font, stylesheet and mobile-menu links into one Scaladoc page, without its
- * footer.
+ * footer. `moves` (see siteLinks) are the nested-type pages of every API site, for the links between sites.
  */
-export function themeApiPage(html, { prompt }) {
-  let out = replaceOnce(html, HEADER, navbarHtml({ prompt }), 'header (#header before #mobile-menu)');
+export function themeApiPage(html, { prompt, site = CORE_SITE, moves = new Map() }) {
+  let out = replaceOnce(html, HEADER, navbarHtml({ prompt, site }), 'header (#header before #mobile-menu)');
   // The breadcrumbs move from above the columns to the top of the text column, where a docs page has them.
   const crumbs = CRUMBS.exec(out);
   if (!crumbs) throw new Error('Scaladoc page has no breadcrumbs; did a Scaladoc upgrade change its markup?');
   const trail = [...crumbs[1].matchAll(/<a href="([^"]*)">([^<]*)<\/a>/g)].map(([, href, label]) => ({ href, label }));
   out = out.replace(CRUMBS, '');
-  out = replaceOnce(out, CONTENT_START, (open) => open + breadcrumbsHtml(trail), 'content column');
+  out = replaceOnce(out, CONTENT_START, (open) => open + breadcrumbsHtml(trail, site), 'content column');
   out = replaceOnce(out, MOBILE_LOGO, brandHtml('mobile-menu-logo'), 'mobile menu logo');
   out = replaceOnce(
     out,
     MOBILE_THEME,
-    `<nav class="za-mobile-links">${NAV_LINKS.map((l) => linkHtml(l, 'za-mobile-link')).join('')}</nav>${MOBILE_THEME}`,
+    `<nav class="za-mobile-links">${navLinks(site.current).map((l) => linkHtml(l, 'za-mobile-link')).join('')}</nav>${MOBILE_THEME}`,
     'mobile theme toggle',
   );
-  out = extensionlessLinks(out);
+  out = siteLinks(extensionlessLinks(out), moves);
   // No "Generated with Scaladoc" footer (Scaladoc writes one for wide screens and one at the end of the text for
   // narrow ones); the docs pages have none like it.
   const footers = out.match(FOOTER)?.length ?? 0;
@@ -164,16 +189,22 @@ export function themeApiPage(html, { prompt }) {
   out = out.replace(FOOTER, '');
   // The site favicon instead of Scaladoc's own favicon.ico, with the markup the docs pages use.
   out = replaceOnce(out, SCALADOC_FAVICON, `<link rel="icon" href="${FAVICON}">`, 'favicon link');
-  return replaceOnce(out, '</head>', `${FONT_LINKS}<link rel="stylesheet" href="${STYLESHEET}"></head>`, '</head>');
+  return replaceOnce(out, '</head>', `${FONT_LINKS}<link rel="stylesheet" href="${stylesheet(site)}"></head>`, '</head>');
 }
 
 /**
  * Checks the side menu still has the one root the theme expects: the zio package, which Scaladoc labels in full
  * and which theme.js keeps unfolded, as a docs sidebar shows its categories. A new top-level package (a module outside
- * zio) would appear beside it; fail so the breadcrumbs and the stylesheet are reviewed for it.
+ * zio) would appear beside it; fail so the breadcrumbs and the stylesheet are reviewed for it. An ecosystem library's
+ * API may have any packages at its root (zio-json: zio; zio-schema: zio.schema), but at least one.
  */
-export function checkSideMenu(menu) {
+export function checkSideMenu(menu, site = CORE_SITE) {
   const roots = menu?.api?.children;
+  if (site !== CORE_SITE) {
+    if (!roots?.length || !roots.every((r) => r.kind === 'package'))
+      throw new Error(`the side menu of ${site.base} has no packages at its root; did a Scaladoc upgrade change it?`);
+    return menu;
+  }
   if (!roots || roots.length !== 1 || roots[0].name !== 'zio' || roots[0].kind !== 'package')
     throw new Error('dynamicSideMenu.json no longer has zio as its only API root; update checkSideMenu');
   return menu;
@@ -196,6 +227,20 @@ export function extensionless(url) {
 
 // A relative link: no scheme, not protocol- or root-relative (the site's own /… links and other sites keep theirs).
 const isRelative = (url) => !/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(url);
+
+/**
+ * Links to the site itself, as Scaladoc writes them for the types of another API site (its external mappings point
+ * at https://zio.dev/<lib>/api/): root-relative, so they stay on the site that serves the page (a deploy preview too),
+ * extensionless, and at the place `moves` gives the page (`/api/zio/Cause$$Fail` -> `/api/zio/Cause/Fail`; the keys
+ * and values are paths from the site root without `.html` or the leading slash).
+ */
+export function siteLinks(html, moves = new Map()) {
+  return html.replace(/href="https:\/\/zio\.dev\/([^"#]*)(#[^"]*)?"/g, (all, path, hash = '') => {
+    if (!path.endsWith('.html')) return all;
+    const page = decodeURIComponent(path.slice(0, -'.html'.length));
+    return `href="${extensionless(`/${moves.get(page) ?? page}.html${hash}`)}"`;
+  });
+}
 
 /** Drops `.html` from the relative links of a Scaladoc page. */
 export function extensionlessLinks(html) {
@@ -299,10 +344,10 @@ export function relocateSideMenu(menu, moves) {
  * when a file answers the path, and its matching ignores the trailing slash), so the page does it, first thing in
  * <head>.
  */
-export function folderIndexRedirect(html) {
+export function folderIndexRedirect(html, site = CORE_SITE) {
   const script =
     "<script>if(!location.pathname.endsWith('/'))location.replace(location.pathname+'/'+location.search+location.hash)</script>";
   if (!html.includes('<head>')) throw new Error('Scaladoc index page has no <head>');
   // The base makes the requests the browser starts while parsing, before the script has run, resolve against /api/ too.
-  return html.replace('<head>', `<head>${script}<base href="/api/">`);
+  return html.replace('<head>', `<head>${script}<base href="${site.base}">`);
 }
