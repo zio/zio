@@ -333,8 +333,8 @@ object Runtime extends RuntimePlatformSpecific {
             val deregisterHook = Platform.addShutdownHookScoped(finalizer)
 
             val shutdown = { () =>
-              deregisterHook()
-              finalizer()
+              try finalizer()
+              finally deregisterHook()
             }
             (acquire, shutdown)
           }
