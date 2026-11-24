@@ -19,6 +19,7 @@ package zio
 import zio.internal.{FiberRuntime, FiberScope, Platform}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.Future
 
 /**
@@ -326,11 +327,16 @@ object Runtime extends RuntimePlatformSpecific {
         Scope.make.flatMap { scope =>
           scope.extend(layer.toRuntime).map { acquire =>
             val finalizer = { () =>
-              if (scope.size > 0) default.unsafe.run(scope.close(Exit.unit).uninterruptible).getOrThrowFiberFailure()
-              ()
+              if (scope.size > 0)
+                default.unsafe.run(scope.close(Exit.unit).uninterruptible).getOrThrowFiberFailure()
             }
-            Platform.addShutdownHook(finalizer)
-            (acquire, finalizer)
+            val deregisterHook = Platform.addShutdownHookScoped(finalizer)
+
+            val shutdown = { () =>
+              deregisterHook()
+              finalizer()
+            }
+            (acquire, shutdown)
           }
         }
       }.getOrThrowFiberFailure()
