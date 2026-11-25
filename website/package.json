@@ -54,7 +54,7 @@
     "@zio.dev/zio-s3": "0.4.5",
     "@zio.dev/zio-sbt": "0.8.12",
     "@zio.dev/zio-schema": "1.9.2",
-    "@zio.dev/zio-sqs": "0.12.7",
+    "@zio.dev/zio-sqs": "0.12.8",
     "@zio.dev/zio-streams-compress": "3.0.1",
     "@zio.dev/zio-telemetry": "3.1.21",
     "@zio.dev/zio2-interop-cats2": "2023.1.23-571dabdd91f9",
@@ -84,7 +84,11 @@
     "zio-json": {},
     "zio-query": {},
     "zio-schema": {
-      "modules": ["zio-schema", "zio-schema-derivation", "zio-schema-json"]
+      "modules": [
+        "zio-schema",
+        "zio-schema-derivation",
+        "zio-schema-json"
+      ]
     }
   },
   "overrides": {
