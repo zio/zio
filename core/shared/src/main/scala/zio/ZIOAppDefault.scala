@@ -24,9 +24,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * Extend it with an object and define `run`; the object gets a `main` method
  * that runs `run`. It is a [[ZIOApp]] whose `Environment` is `Any` and whose
  * `bootstrap` layer is empty, so `run` uses the default services (`Clock`,
- * `Console`, `Random`, `System`), the command-line arguments through
- * `getArgs`, and a `Scope`. When `run` succeeds, the exit code is 0; when it
- * fails or dies, the cause is logged and the exit code is 1.
+ * `Console`, `Random`, `System`), the command-line arguments through `getArgs`,
+ * and a `Scope`. When `run` succeeds, the exit code is 0; when it fails or
+ * dies, the cause is logged and the exit code is 1.
  *
  * {{{
  * import zio.ZIOAppDefault
@@ -43,7 +43,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * }
  * }}}
  *
- * @see [[https://zio.dev/reference/core/zioapp/ ZIOApp]]
+ * @see
+ *   [[https://zio.dev/reference/core/zioapp/ ZIOApp]]
  */
 trait ZIOAppDefault extends ZIOApp {
 

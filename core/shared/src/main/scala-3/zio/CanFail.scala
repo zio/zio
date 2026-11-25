@@ -36,16 +36,16 @@ sealed abstract class CanFail[-E]
 
 /**
  * Provides `CanFail[E]` for every error type `E` except `Nothing`. When an
- * error handling operator is called on an effect that cannot fail, the
- * compiler reports that the operation is not needed.
+ * error handling operator is called on an effect that cannot fail, the compiler
+ * reports that the operation is not needed.
  */
 object CanFail extends CanFail[Any] with CanFailLowPriority {
 
   /**
-   * Provides `CanFail[E]` for an error type `E` that is not `Nothing`. On
-   * Scala 2 it matches every `E`, and the two ambiguous instances for
-   * `Nothing` make the search for `CanFail[Nothing]` fail; on Scala 3 it
-   * requires evidence that `E` is not `Nothing`.
+   * Provides `CanFail[E]` for an error type `E` that is not `Nothing`. On Scala
+   * 2 it matches every `E`, and the two ambiguous instances for `Nothing` make
+   * the search for `CanFail[Nothing]` fail; on Scala 3 it requires evidence
+   * that `E` is not `Nothing`.
    */
   inline given canFail[E](using inline ev: NotGiven[E =:= Nothing]): CanFail[E] = CanFail
 

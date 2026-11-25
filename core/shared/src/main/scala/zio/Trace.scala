@@ -20,8 +20,8 @@ import zio.internal.stacktracer.{ParsedTrace, Tracer}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * Constructors and helpers for `Trace`, the source location that ZIO records
- * in execution traces.
+ * Constructors and helpers for `Trace`, the source location that ZIO records in
+ * execution traces.
  */
 object Trace {
 
@@ -91,8 +91,8 @@ object Trace {
   }
 
   /**
-   * Extracts the location, file and line of a trace, or returns `None` when
-   * the trace cannot be parsed, as for `Trace.empty`.
+   * Extracts the location, file and line of a trace, or returns `None` when the
+   * trace cannot be parsed, as for `Trace.empty`.
    */
   def unapply(trace: Trace): Option[(String, String, Int)] = Tracer.instance.unapply(trace)
 

@@ -5,11 +5,11 @@ import zio.metrics.{Metric, MetricLabel}
 import scala.concurrent.ExecutionContext
 
 /**
- * A `ZIOAspect` transforms an effect into another effect of the same type,
- * for each environment `R`, error `E` and success `A` within its bounds (`R`
- * between `LowerR` and `UpperR`, and so on). Apply it with `ZIO#@@` and
- * compose two aspects with `>>>` or `@@`. The companion object holds aspects
- * for logging, retries, timeouts, parallelism and executors.
+ * A `ZIOAspect` transforms an effect into another effect of the same type, for
+ * each environment `R`, error `E` and success `A` within its bounds (`R`
+ * between `LowerR` and `UpperR`, and so on). Apply it with `ZIO#@@` and compose
+ * two aspects with `>>>` or `@@`. The companion object holds aspects for
+ * logging, retries, timeouts, parallelism and executors.
  *
  * {{{
  * val fetchPrice: Task[BigDecimal] = ZIO.attempt(BigDecimal("19.99"))
@@ -26,8 +26,8 @@ trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
   ): ZIO[R, E, A]
 
   /**
-   * Returns a new aspect that applies this aspect first and then `that` to
-   * the result; the same as `andThen`.
+   * Returns a new aspect that applies this aspect first and then `that` to the
+   * result; the same as `andThen`.
    */
   def >>>[
     LowerR1 >: LowerR,
@@ -58,8 +58,8 @@ trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
     self >>> that
 
   /**
-   * Returns a new aspect that applies this aspect first and then `that` to
-   * the result.
+   * Returns a new aspect that applies this aspect first and then `that` to the
+   * result.
    */
   def andThen[
     LowerR1 >: LowerR,

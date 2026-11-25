@@ -67,8 +67,8 @@ import scala.annotation.implicitNotFound
 trait IsReloadable[Service] {
 
   /**
-   * Returns a `Service` that forwards each call to the service that
-   * `scopedRef` holds at the time of the call.
+   * Returns a `Service` that forwards each call to the service that `scopedRef`
+   * holds at the time of the call.
    */
   def reloadable(scopedRef: ScopedRef[Service]): Service
 }

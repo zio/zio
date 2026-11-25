@@ -32,7 +32,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * }
  * }}}
  *
- * @see [[https://zio.dev/reference/core/zioapp/ ZIOApp]]
+ * @see
+ *   [[https://zio.dev/reference/core/zioapp/ ZIOApp]]
  */
 final case class ZIOAppArgs(getArgs: Chunk[String])
 

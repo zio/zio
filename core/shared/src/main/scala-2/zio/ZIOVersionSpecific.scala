@@ -86,10 +86,10 @@ final class ProvideSomeLayerPartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E,
     new ZIO.ProvideSomeLayer[R0, R, E, A](self)
 
   /**
-   * Builds the part of the environment that `R0` does not cover from the
-   * given layers, wiring them at compile time, and returns an effect that
-   * requires only `R0`. A missing layer is a compile error and an unused layer
-   * is a compile warning.
+   * Builds the part of the environment that `R0` does not cover from the given
+   * layers, wiring them at compile time, and returns an effect that requires
+   * only `R0`. A missing layer is a compile error and an unused layer is a
+   * compile warning.
    */
   def apply[E1 >: E](layer: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
     macro LayerMacros.provideSomeImpl[ZIO, R0, R, E1, A]

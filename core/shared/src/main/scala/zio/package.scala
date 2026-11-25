@@ -42,7 +42,10 @@ package object zio
    */
   type ZNothing <: Nothing
 
-  /** An effect that needs no environment, may fail with `E`, and succeeds with `A`. */
+  /**
+   * An effect that needs no environment, may fail with `E`, and succeeds with
+   * `A`.
+   */
   type IO[+E, +A] = ZIO[Any, E, A] // Succeed with an `A`, may fail with `E`        , no requirements.
 
   /**
@@ -51,16 +54,23 @@ package object zio
    */
   type Task[+A] = ZIO[Any, Throwable, A] // Succeed with an `A`, may fail with `Throwable`, no requirements.
 
-  /** An effect that needs `R`, may fail with a `Throwable`, and succeeds with `A`. */
+  /**
+   * An effect that needs `R`, may fail with a `Throwable`, and succeeds with
+   * `A`.
+   */
   type RIO[-R, +A] = ZIO[R, Throwable, A] // Succeed with an `A`, may fail with `Throwable`, requires an `R`.
 
-  /** An effect that needs no environment, cannot fail, and succeeds with `A`. */
+  /**
+   * An effect that needs no environment, cannot fail, and succeeds with `A`.
+   */
   type UIO[+A] = ZIO[Any, Nothing, A] // Succeed with an `A`, cannot fail              , no requirements.
 
   /** An effect that needs `R`, cannot fail, and succeeds with `A`. */
   type URIO[-R, +A] = ZIO[R, Nothing, A] // Succeed with an `A`, cannot fail              , requires an `R`.
 
-  /** A layer that needs `RIn`, may fail with a `Throwable`, and builds `ROut`. */
+  /**
+   * A layer that needs `RIn`, may fail with a `Throwable`, and builds `ROut`.
+   */
   type RLayer[-RIn, +ROut] = ZLayer[RIn, Throwable, ROut]
 
   /** A layer that needs `RIn`, cannot fail, and builds `ROut`. */

@@ -172,10 +172,9 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
     readFileInputStream(path.toString)
 
   /**
-   * Opens the file named `name` for reading and returns it as a
-   * `ZInputStream`. The file is closed when the `Scope` closes. Fails with an
-   * `IOException`, such as `java.io.FileNotFoundException`, when the file
-   * cannot be opened.
+   * Opens the file named `name` for reading and returns it as a `ZInputStream`.
+   * The file is closed when the `Scope` closes. Fails with an `IOException`,
+   * such as `java.io.FileNotFoundException`, when the file cannot be opened.
    */
   def readFileInputStream(
     name: => String
@@ -207,8 +206,8 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
       .map(_._2)
 
   /**
-   * Opens a connection to the URL written in `url` and returns its content as
-   * a `ZInputStream`, which is closed when the `Scope` closes. Fails with an
+   * Opens a connection to the URL written in `url` and returns its content as a
+   * `ZInputStream`, which is closed when the `Scope` closes. Fails with an
    * `IOException` when the connection cannot be opened. A malformed URL string
    * makes the effect die with a `java.net.MalformedURLException` instead of
    * failing.
@@ -233,11 +232,11 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
 
   /**
    * Writes `content` to the file at the given path, on the blocking executor,
-   * replacing what the file held and creating it when it does not exist. On
-   * the JVM and Scala Native it encodes the text with the platform's default
-   * charset and fails with an `IOException` when the file cannot be written.
-   * On Scala.js it needs Node.js: it writes the file with `fs.writeFileSync`
-   * as UTF-8, and fails with the error that Node.js throws.
+   * replacing what the file held and creating it when it does not exist. On the
+   * JVM and Scala Native it encodes the text with the platform's default
+   * charset and fails with an `IOException` when the file cannot be written. On
+   * Scala.js it needs Node.js: it writes the file with `fs.writeFileSync` as
+   * UTF-8, and fails with the error that Node.js throws.
    */
   def writeFile(path: => String, content: => String)(implicit trace: Trace): ZIO[Any, IOException, Unit] =
     ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(path)))(f =>
@@ -248,11 +247,11 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
 
   /**
    * Writes `content` to the file at the given path, on the blocking executor,
-   * replacing what the file held and creating it when it does not exist. On
-   * the JVM and Scala Native it encodes the text with the platform's default
-   * charset and fails with an `IOException` when the file cannot be written.
-   * On Scala.js it needs Node.js: it writes the file with `fs.writeFileSync`
-   * as UTF-8, and fails with the error that Node.js throws.
+   * replacing what the file held and creating it when it does not exist. On the
+   * JVM and Scala Native it encodes the text with the platform's default
+   * charset and fails with an `IOException` when the file cannot be written. On
+   * Scala.js it needs Node.js: it writes the file with `fs.writeFileSync` as
+   * UTF-8, and fails with the error that Node.js throws.
    */
   def writeFile(path: => Path, content: => String)(implicit
     trace: Trace,

@@ -81,11 +81,11 @@ private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
 
   /**
    * Writes `content` to the file at the given path, on the blocking executor,
-   * replacing what the file held and creating it when it does not exist. On
-   * the JVM and Scala Native it encodes the text with the platform's default
-   * charset and fails with an `IOException` when the file cannot be written.
-   * On Scala.js it needs Node.js: it writes the file with `fs.writeFileSync`
-   * as UTF-8, and fails with the error that Node.js throws.
+   * replacing what the file held and creating it when it does not exist. On the
+   * JVM and Scala Native it encodes the text with the platform's default
+   * charset and fails with an `IOException` when the file cannot be written. On
+   * Scala.js it needs Node.js: it writes the file with `fs.writeFileSync` as
+   * UTF-8, and fails with the error that Node.js throws.
    */
   def writeFile(file: => String, content: => String)(implicit trace: Trace): ZIO[Any, Throwable, Unit] = {
     import scalajs.js.Dynamic.{global => g}

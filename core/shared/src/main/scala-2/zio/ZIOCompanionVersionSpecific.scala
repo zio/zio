@@ -185,9 +185,8 @@ private[zio] trait ZIOCompanionVersionSpecific {
     ZIO.blocking(ZIO.attempt(effect)).fork.flatMap(_.join).onInterrupt(cancel)
 
   /**
-   * This function is the same as `attemptBlocking`, except that it only
-   * exposes `IOException`: any other exception becomes a defect, so the effect
-   * dies.
+   * This function is the same as `attemptBlocking`, except that it only exposes
+   * `IOException`: any other exception becomes a defect, so the effect dies.
    *
    * On Scala 3, `effect` runs with a given `Unsafe` in scope.
    */

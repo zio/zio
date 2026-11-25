@@ -79,10 +79,10 @@ private[zio] transparent trait ZIOVersionSpecific[-R, +E, +A] { self: ZIO[R, E, 
 final class ProvideSomePartiallyApplied[R0, -R, +E, +A](val self: ZIO[R, E, A]) extends AnyVal {
 
   /**
-   * Builds the part of the environment that `R0` does not cover from the
-   * given layers, wiring them at compile time, and returns an effect that
-   * requires only `R0`. A missing layer is a compile error and an unused layer
-   * is a compile warning.
+   * Builds the part of the environment that `R0` does not cover from the given
+   * layers, wiring them at compile time, and returns an effect that requires
+   * only `R0`. A missing layer is a compile error and an unused layer is a
+   * compile warning.
    */
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): ZIO[R0, E1, A] =
     ${ LayerMacros.provideSomeStaticImpl[R0, R, E1, A]('self, 'layer) }

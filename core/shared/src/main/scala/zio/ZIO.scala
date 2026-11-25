@@ -39,12 +39,16 @@ import scala.reflect.ClassTag
  * The three type parameters:
  *
  *   - `R` is the environment the workflow needs. `Any` means it needs nothing.
- *   - `E` is the type of the error it may fail with. `Nothing` means it cannot fail.
+ *   - `E` is the type of the error it may fail with. `Nothing` means it cannot
+ *     fail.
  *   - `A` is the type of the value it succeeds with.
  *
- * ZIO effects may informally be thought of as functions of the form `ZEnvironment[R] => Either[E, A]`.
+ * ZIO effects may informally be thought of as functions of the form
+ * `ZEnvironment[R] => Either[E, A]`.
  *
- * An effect is lazy: creating it runs nothing. It runs when a `Runtime` executes it (for example as the `run` effect of a `ZIOAppDefault`), and it runs again each time it is executed.
+ * An effect is lazy: creating it runs nothing. It runs when a `Runtime`
+ * executes it (for example as the `run` effect of a `ZIOAppDefault`), and it
+ * runs again each time it is executed.
  *
  * ZIO effects model resourceful interaction with the outside world, including
  * synchronous, asynchronous, concurrent, and parallel interaction.
@@ -53,7 +57,8 @@ import scala.reflect.ClassTag
  * which are lightweight, green threads that enable high scalability.
  *
  * To run an effect, you need a `Runtime`, which is capable of executing
- * effects. A runtime holds the environment, the fiber-local values (`FiberRefs`) and the runtime flags that the effects it runs start with.
+ * effects. A runtime holds the environment, the fiber-local values
+ * (`FiberRefs`) and the runtime flags that the effects it runs start with.
  *
  * {{{
  * final case class Config(port: Int)
@@ -137,7 +142,8 @@ sealed trait ZIO[-R, +E, +A]
     self.zipWithPar(that)((a, b) => zippable.zip(a, b))
 
   /**
-   * Sequences the specified effect after this effect, and succeeds with the value of this effect, discarding the value produced by `that`.
+   * Sequences the specified effect after this effect, and succeeds with the
+   * value of this effect, discarding the value produced by `that`.
    */
   final def <*[R1 <: R, E1 >: E, B](that: => ZIO[R1, E1, B])(implicit trace: Trace): ZIO[R1, E1, A] =
     self.flatMap(a => that.as(a))
@@ -303,7 +309,8 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Recovers from all errors.
    *
-   * The handler `h` receives each typed failure `E`. Defects (see `catchAllDefect`) and interruption are not recovered.
+   * The handler `h` receives each typed failure `E`. Defects (see
+   * `catchAllDefect`) and interruption are not recovered.
    *
    * {{{
    * def readConfig(path: String): IO[String, String] =
@@ -330,7 +337,10 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Recovers from all errors with provided Cause.
    *
-   * The handler `k` receives the full `Cause`: failures, defects, and interruption that this effect raises itself (for example with `ZIO.interrupt`). When the fiber is interrupted from outside while it is interruptible, `k` does not run.
+   * The handler `k` receives the full `Cause`: failures, defects, and
+   * interruption that this effect raises itself (for example with
+   * `ZIO.interrupt`). When the fiber is interrupted from outside while it is
+   * interruptible, `k` does not run.
    *
    * {{{
    * val risky: IO[String, Int] =
@@ -372,7 +382,8 @@ sealed trait ZIO[-R, +E, +A]
     catchSomeDefect { case t => h(t) }
 
   /**
-   * Recovers from all failures, the same as `catchAll`. The handler receives every `Throwable` this effect fails with, fatal ones included.
+   * Recovers from all failures, the same as `catchAll`. The handler receives
+   * every `Throwable` this effect fails with, fatal ones included.
    *
    * {{{
    * import java.io.IOException
@@ -507,7 +518,8 @@ sealed trait ZIO[-R, +E, +A]
 
   /**
    * Taps the effect, printing the result of calling `.toString` on the value.
-   * When the effect fails, dies or is interrupted, prints `<FAIL> ` followed by the `Cause` instead. Prints with `println`, not through `Console`.
+   * When the effect fails, dies or is interrupted, prints `<FAIL> ` followed by
+   * the `Cause` instead. Prints with `println`, not through `Console`.
    */
   final def debug(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.uninterruptibleMask { restore =>
@@ -521,7 +533,8 @@ sealed trait ZIO[-R, +E, +A]
    * Taps the effect, printing the result of calling `.toString` on the value.
    * Prefixes the output with the given message.
    *
-   * On success it prints `prefix: value`; when the effect fails, dies or is interrupted it prints `<FAIL> prefix: ` followed by the `Cause`.
+   * On success it prints `prefix: value`; when the effect fails, dies or is
+   * interrupted it prints `<FAIL> prefix: ` followed by the `Cause`.
    */
   final def debug(prefix: => String)(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.uninterruptibleMask { restore =>
@@ -628,7 +641,11 @@ sealed trait ZIO[-R, +E, +A]
     self <> ZIO.yieldNow *> eventually
 
   /**
-   * Returns an effect that runs this effect and succeeds with an [[zio.Exit]] describing how it completed: `Exit.Success` with the value, or `Exit.Failure` with the `Cause` of a failure, a defect, or an interruption raised by this effect itself (for example with `ZIO.interrupt`). It runs on the current fiber; nothing is forked.
+   * Returns an effect that runs this effect and succeeds with an [[zio.Exit]]
+   * describing how it completed: `Exit.Success` with the value, or
+   * `Exit.Failure` with the `Cause` of a failure, a defect, or an interruption
+   * raised by this effect itself (for example with `ZIO.interrupt`). It runs on
+   * the current fiber; nothing is forked.
    *
    * {{{
    * val captured: UIO[Exit[String, Int]] = ZIO.fail("timeout").exit
@@ -846,13 +863,16 @@ sealed trait ZIO[-R, +E, +A]
 
   /**
    * Returns a new effect that will pass the success value of this effect to the
-   * provided callback, and succeeds with `Some` of the callback's result. If this effect fails or dies, the cause is ignored and the result is `None`.
+   * provided callback, and succeeds with `Some` of the callback's result. If
+   * this effect fails or dies, the cause is ignored and the result is `None`.
    */
   final def forEachZIO[R1 <: R, E2, B](f: A => ZIO[R1, E2, B])(implicit trace: Trace): ZIO[R1, E2, Option[B]] =
     self.foldCauseZIO(_ => ZIO.none, a => f(a).map(Some(_)))
 
   /**
-   * Repeats this effect without end. The returned effect never succeeds: it stops only when this effect fails, dies, or the fiber is interrupted, and then completes with that cause.
+   * Repeats this effect without end. The returned effect never succeeds: it
+   * stops only when this effect fails, dies, or the fiber is interrupted, and
+   * then completes with that cause.
    *
    * {{{
    * def poll(counter: Ref[Int]): IO[String, Unit] =
@@ -942,7 +962,9 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.scopeWith(scope => self.forkIn(scope))
 
   /**
-   * Like fork, and runs `handler` in the forked fiber when it fails with an error `E`. The handler does not recover: the fiber still completes with the original failure.
+   * Like fork, and runs `handler` in the forked fiber when it fails with an
+   * error `E`. The handler does not recover: the fiber still completes with the
+   * original failure.
    */
   final def forkWithErrorHandler[R1 <: R](handler: E => URIO[R1, Any])(implicit
     trace: Trace
@@ -989,7 +1011,8 @@ sealed trait ZIO[-R, +E, +A]
    * but which also logs failures at the Debug level, just in case the failure
    * turns out to be important.
    *
-   * Unlike `ignore`, it also ignores defects: when this effect fails or dies, the `Cause` is logged and the returned effect succeeds with `()`.
+   * Unlike `ignore`, it also ignores defects: when this effect fails or dies,
+   * the `Cause` is logged and the returned effect succeeds with `()`.
    */
   final def ignoreLogged(implicit trace: Trace): URIO[R, Unit] =
     self.foldCauseZIO(
@@ -1090,7 +1113,8 @@ sealed trait ZIO[-R, +E, +A]
     }
 
   /**
-   * Runs this effect inside a new log span named `label`. Log messages written while it runs carry the span, as `label=<elapsed>ms`.
+   * Runs this effect inside a new log span named `label`. Log messages written
+   * while it runs carry the span, as `label=<elapsed>ms`.
    *
    * {{{
    * def parseRequest(line: String): UIO[Int] =
@@ -1187,7 +1211,12 @@ sealed trait ZIO[-R, +E, +A]
     }
 
   /**
-   * Runs this effect, then runs `success` with its value or `error` with its typed failure, and succeeds with `()`. When the cause holds a typed failure, `error` runs with the first one and the rest of the cause, defects included, is dropped. When the cause holds no typed failure (only defects or interruptions), neither callback runs and the returned effect fails with that cause repeated twice in sequence (`cause ++ cause`).
+   * Runs this effect, then runs `success` with its value or `error` with its
+   * typed failure, and succeeds with `()`. When the cause holds a typed
+   * failure, `error` runs with the first one and the rest of the cause, defects
+   * included, is dropped. When the cause holds no typed failure (only defects
+   * or interruptions), neither callback runs and the returned effect fails with
+   * that cause repeated twice in sequence (`cause ++ cause`).
    */
   final def onDone[R1 <: R](
     error: E => ZIO[R1, Nothing, Any],
@@ -1199,7 +1228,11 @@ sealed trait ZIO[-R, +E, +A]
     )
 
   /**
-   * Runs this effect, then runs `success` with its value or `error` with the full `Cause` when it fails, dies or is interrupted, and succeeds with `()` when the cause holds a typed failure, dropping any defects in it. When the cause holds no typed failure (only defects or interruptions), `error` runs and the returned effect then fails with that cause.
+   * Runs this effect, then runs `success` with its value or `error` with the
+   * full `Cause` when it fails, dies or is interrupted, and succeeds with `()`
+   * when the cause holds a typed failure, dropping any defects in it. When the
+   * cause holds no typed failure (only defects or interruptions), `error` runs
+   * and the returned effect then fails with that cause.
    */
   final def onDoneCause[R1 <: R](
     error: Cause[E] => ZIO[R1, Nothing, Any],
@@ -1214,7 +1247,8 @@ sealed trait ZIO[-R, +E, +A]
    * Runs the specified effect if this effect fails, providing the error to the
    * effect if it exists. The provided effect will not be interrupted.
    *
-   * `cleanup` receives the full `Cause`, and runs when this effect fails, dies or is interrupted. The returned effect then ends with the original cause.
+   * `cleanup` receives the full `Cause`, and runs when this effect fails, dies
+   * or is interrupted. The returned effect then ends with the original cause.
    */
   final def onError[R1 <: R](cleanup: Cause[E] => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
     onExit {
@@ -1234,13 +1268,20 @@ sealed trait ZIO[-R, +E, +A]
    * The `onExecutor` function composes with the innermost `onExecutor` taking
    * priority.
    *
-   * When this effect completes, the fiber may keep running the effects that follow on the same thread until its next yield or asynchronous boundary, and then returns to the executor it used before. With the `RuntimeFlag.EagerShiftBack` flag enabled, or inside an enclosing `onExecutor`, it shifts back right away.
+   * When this effect completes, the fiber may keep running the effects that
+   * follow on the same thread until its next yield or asynchronous boundary,
+   * and then returns to the executor it used before. With the
+   * `RuntimeFlag.EagerShiftBack` flag enabled, or inside an enclosing
+   * `onExecutor`, it shifts back right away.
    */
   final def onExecutor(executor: => Executor)(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.onExecutor(executor)(self)
 
   /**
-   * Executes the effect on the specified `ExecutionContext`, the same as `onExecutor` with an executor built from `ec`. Shifting back follows `onExecutor`: the fiber returns to its previous executor at its next yield, or right away with `RuntimeFlag.EagerShiftBack` enabled.
+   * Executes the effect on the specified `ExecutionContext`, the same as
+   * `onExecutor` with an executor built from `ec`. Shifting back follows
+   * `onExecutor`: the fiber returns to its previous executor at its next yield,
+   * or right away with `RuntimeFlag.EagerShiftBack` enabled.
    */
   final def onExecutionContext(ec: => ExecutionContext)(implicit trace: Trace): ZIO[R, E, A] =
     self.onExecutor(Executor.fromExecutionContext(ec))
@@ -1338,7 +1379,9 @@ sealed trait ZIO[-R, +E, +A]
    * Executes this effect and returns its value, if it succeeds, but otherwise
    * executes the specified effect.
    *
-   * `that` runs when this effect fails with a typed error, or is interrupted from inside (for example by `ZIO.interrupt`). When the cause contains a defect, `that` does not run and the returned effect dies with the defects.
+   * `that` runs when this effect fails with a typed error, or is interrupted
+   * from inside (for example by `ZIO.interrupt`). When the cause contains a
+   * defect, `that` does not run and the returned effect dies with the defects.
    *
    * {{{
    * val primary: IO[String, Int]   = ZIO.fail("primary down")
@@ -1387,7 +1430,11 @@ sealed trait ZIO[-R, +E, +A]
     orElse(Exit.succeed(a1))
 
   /**
-   * Exposes all parallel errors in a single call: when this effect fails, the typed failures in its cause are collected into a non-empty list, in the order the cause holds them, and the effect fails with that list. When the cause also contains defects or interruptions, those are dropped. When the cause has no typed failure, it is passed through unchanged.
+   * Exposes all parallel errors in a single call: when this effect fails, the
+   * typed failures in its cause are collected into a non-empty list, in the
+   * order the cause holds them, and the effect fails with that list. When the
+   * cause also contains defects or interruptions, those are dropped. When the
+   * cause has no typed failure, it is passed through unchanged.
    */
   final def parallelErrors[E1 >: E](implicit trace: Trace): ZIO[R, ::[E1], A] =
     self.foldCauseZIO(
@@ -1414,7 +1461,10 @@ sealed trait ZIO[-R, +E, +A]
     FiberRef.currentEnvironment.locallyWith(_ => r)(self.asInstanceOf[ZIO[Any, E, A]])
 
   /**
-   * Provides a layer to the ZIO effect: builds `layer` in a new scope, runs this effect with the layer's output as its environment, and closes the scope, releasing the layer's resources, when this effect completes. The returned effect needs only the layer's input `R0`.
+   * Provides a layer to the ZIO effect: builds `layer` in a new scope, runs
+   * this effect with the layer's output as its environment, and closes the
+   * scope, releasing the layer's resources, when this effect completes. The
+   * returned effect needs only the layer's input `R0`.
    *
    * {{{
    * final case class Config(port: Int)
@@ -1463,7 +1513,8 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Returns an effect that races this effect with the specified effect,
    * returning the first successful `A` from the faster side. If one effect
-   * succeeds, the other will be interrupted. When the first effect to finish fails, the race waits for the other one. If neither succeeds, then the
+   * succeeds, the other will be interrupted. When the first effect to finish
+   * fails, the race waits for the other one. If neither succeeds, then the
    * effect fails with both causes combined (`Cause.Both`).
    *
    * {{{
@@ -1505,7 +1556,10 @@ sealed trait ZIO[-R, +E, +A]
 
   /**
    * Returns an effect that races this effect with all the specified effects,
-   * yielding the value of the first effect to succeed with a value. The losers are interrupted one after another in a background fiber, and the result is returned without waiting for them to finish. If every effect fails, the returned effect fails with the cause of the last one to fail.
+   * yielding the value of the first effect to succeed with a value. The losers
+   * are interrupted one after another in a background fiber, and the result is
+   * returned without waiting for them to finish. If every effect fails, the
+   * returned effect fails with the cause of the last one to fail.
    */
   final def raceAll[R1 <: R, E1 >: E, A1 >: A](
     ios0: => Iterable[ZIO[R1, E1, A1]]
@@ -1577,8 +1631,9 @@ sealed trait ZIO[-R, +E, +A]
 
   /**
    * Returns an effect that races this effect with the specified effect,
-   * yielding the first result to succeed, as `Left` for this effect or `Right` for `that`. If neither effect succeeds, then the
-   * composed effect fails with both causes combined (`Cause.Both`).
+   * yielding the first result to succeed, as `Left` for this effect or `Right`
+   * for `that`. If neither effect succeeds, then the composed effect fails with
+   * both causes combined (`Cause.Both`).
    *
    * WARNING: The raced effect will safely interrupt the "loser", but will not
    * resume until the loser has been cleanly terminated. If early return is
@@ -1852,7 +1907,9 @@ sealed trait ZIO[-R, +E, +A]
    * for example), so that that `io.retry(Schedule.once)` means "execute `io`
    * and in case of failure, try again once".
    *
-   * Only typed failures are retried: a defect or an interruption ends the effect at once. When the schedule is done, the effect fails with the last error.
+   * Only typed failures are retried: a defect or an interruption ends the
+   * effect at once. When the schedule is done, the effect fails with the last
+   * error.
    *
    * {{{
    * def connect(attempts: Ref[Int]): IO[String, String] =
@@ -2511,20 +2568,27 @@ sealed trait ZIO[-R, +E, +A]
     ZIO.unlessZIODiscard(p)(self)
 
   /**
-   * Takes some defects and converts them into typed errors: when the cause contains a defect that `pf` matches, the effect fails with `pf` applied to the first such defect, and the rest of the cause is dropped. Other causes are kept unchanged.
+   * Takes some defects and converts them into typed errors: when the cause
+   * contains a defect that `pf` matches, the effect fails with `pf` applied to
+   * the first such defect, and the rest of the cause is dropped. Other causes
+   * are kept unchanged.
    */
   final def unrefine[E1 >: E](pf: PartialFunction[Throwable, E1])(implicit trace: Trace): ZIO[R, E1, A] =
     unrefineWith(pf)(identity)
 
   /**
-   * Takes the defects of type `E1` and converts them into typed errors, as `unrefine` does with a partial function that matches `E1`.
+   * Takes the defects of type `E1` and converts them into typed errors, as
+   * `unrefine` does with a partial function that matches `E1`.
    */
   final def unrefineTo[E1 >: E: ClassTag](implicit trace: Trace): ZIO[R, E1, A] =
     unrefine { case e: E1 => e }
 
   /**
-   * Takes some defects and converts them into typed errors, using the
-   * specified function to convert the `E` into an `E1`. When the cause contains a defect that `pf` matches, the effect fails with `pf` applied to the first such defect, and the rest of the cause is dropped; otherwise each typed failure is mapped with `f`.
+   * Takes some defects and converts them into typed errors, using the specified
+   * function to convert the `E` into an `E1`. When the cause contains a defect
+   * that `pf` matches, the effect fails with `pf` applied to the first such
+   * defect, and the rest of the cause is dropped; otherwise each typed failure
+   * is mapped with `f`.
    */
   final def unrefineWith[E1](
     pf: PartialFunction[Throwable, E1]
@@ -2570,7 +2634,9 @@ sealed trait ZIO[-R, +E, +A]
     new ZIO.UpdateServiceAt[R, E, A, Service](self)
 
   /**
-   * Submerges the `Exit` that this effect succeeds with: succeeds with its value when it is `Exit.Success`, or fails with its cause when it is `Exit.Failure`. The inverse operation of `exit`.
+   * Submerges the `Exit` that this effect succeeds with: succeeds with its
+   * value when it is `Exit.Success`, or fails with its cause when it is
+   * `Exit.Failure`. The inverse operation of `exit`.
    */
   final def unexit[E1 >: E, A2](implicit ev: A <:< Exit[E1, A2], trace: Trace): ZIO[R, E1, A2] =
     self.flatMap(exit => exit)
@@ -2894,11 +2960,10 @@ sealed trait ZIO[-R, +E, +A]
  * The companion of the `ZIO` type. It holds the constructors that create
  * effects from values, errors, side effects, callbacks and other data types
  * (`succeed`, `fail`, `attempt`, `fromEither`, `fromFuture`, ...), the
- * operators over collections of effects (`foreach`, `foreachPar`,
- * `collectAll`, ...), resource management (`acquireRelease`, `scoped`),
- * environment access (`service`, `serviceWithZIO`), logging (`log`,
- * `logSpan`, `logAnnotate`) and the fiber-level settings (`withParallelism`,
- * `uninterruptible`, ...).
+ * operators over collections of effects (`foreach`, `foreachPar`, `collectAll`,
+ * ...), resource management (`acquireRelease`, `scoped`), environment access
+ * (`service`, `serviceWithZIO`), logging (`log`, `logSpan`, `logAnnotate`) and
+ * the fiber-level settings (`withParallelism`, `uninterruptible`, ...).
  *
  * {{{
  * def checkAmount(amount: Int): IO[String, Int] =
@@ -2912,7 +2977,8 @@ sealed trait ZIO[-R, +E, +A]
  * // succeeds with 42
  * }}}
  *
- * @see [[https://zio.dev/reference/core/zio/ ZIO]]
+ * @see
+ *   [[https://zio.dev/reference/core/zio/ ZIO]]
  */
 object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific {
   private[zio] object unsafe {
@@ -3233,8 +3299,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Evaluate each effect in the structure from left to right, and collect the
    * results. For a parallel version, see `collectAllPar`.
    *
-   * The first effect that fails stops the evaluation, and the result fails
-   * with its error.
+   * The first effect that fails stops the evaluation, and the result fails with
+   * its error.
    *
    * {{{
    * val prices: UIO[List[Int]] = ZIO.collectAll(List(ZIO.succeed(120), ZIO.succeed(80)))
@@ -3687,8 +3753,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * Returns an effect that runs the first effect and in case of failure, runs
    * each of the specified effects in order until one of them succeeds. When
    * every effect fails, the result fails with the error of the last one. A
-   * defect or an interruption stops the search, and the result fails with
-   * that cause.
+   * defect or an interruption stops the search, and the result fails with that
+   * cause.
    */
   def firstSuccessOf[R, R1 <: R, E, A](
     zio: => ZIO[R, E, A],
@@ -4092,8 +4158,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   /**
    * Lifts an `Either` into a `ZIO` value.
    *
-   * The effect succeeds with the value of a `Right` and fails with the value
-   * of a `Left`.
+   * The effect succeeds with the value of a `Right` and fails with the value of
+   * a `Left`.
    *
    * {{{
    * val parsed: IO[String, Int] = ZIO.fromEither(Right(8080))
@@ -4144,8 +4210,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * The effect succeeds with the value of the future, or fails with the
    * exception it completes with. When the fiber is interrupted, the effect
    * stops waiting at once; the future keeps running, unless it is a
-   * `CancelableFuture`, which is cancelled. To stop a future between its
-   * steps, see `fromFutureInterrupt`.
+   * `CancelableFuture`, which is cancelled. To stop a future between its steps,
+   * see `fromFutureInterrupt`.
    *
    * {{{
    * import scala.concurrent.Future
@@ -4625,8 +4691,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     logAnnotateScoped(LogAnnotation(key, value))
 
   /**
-   * Adds the specified log annotations to every log entry written by this
-   * fiber until the scope closes, when the previous annotations are restored.
+   * Adds the specified log annotations to every log entry written by this fiber
+   * until the scope closes, when the previous annotations are restored.
    */
   def logAnnotateScoped(logAnnotation: => LogAnnotation, logAnnotations: LogAnnotation*)(implicit
     trace: Trace
@@ -5082,8 +5148,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   /**
    * Provides the services that `layer` produces to `zio`. The services `zio`
-   * needs beyond those (`RIn2`) and the inputs of the layer (`RIn`) stay in
-   * the environment of the returned effect.
+   * needs beyond those (`RIn2`) and the inputs of the layer (`RIn`) stay in the
+   * environment of the returned effect.
    */
   def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     zio: ZIO[ROut with RIn2, E, ROut2]
@@ -5105,10 +5171,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    * yielding the first result to complete, whether by success or failure. If
    * neither effect completes, then the composed effect will not complete.
    *
-   * The losers are interrupted, and the result is returned as soon as the
-   * first effect completes, without waiting for the losers' finalizers to
-   * finish. This differs from `ZIO#raceFirst`, which waits for the loser to
-   * terminate.
+   * The losers are interrupted, and the result is returned as soon as the first
+   * effect completes, without waiting for the losers' finalizers to finish.
+   * This differs from `ZIO#raceFirst`, which waits for the loser to terminate.
    */
   def raceFirst[R, R1 <: R, E, A](zio: ZIO[R, E, A], ios: Iterable[ZIO[R1, E, A]])(implicit
     trace: Trace
@@ -5165,8 +5230,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   /**
    * Replicates the given effect `n` times. If 0 or negative numbers are given,
-   * an empty `Iterable` will be returned. The effects are not run; the
-   * returned `Iterable` holds `n` references to the same effect.
+   * an empty `Iterable` will be returned. The effects are not run; the returned
+   * `Iterable` holds `n` references to the same effect.
    */
   def replicate[R, E, A](n: Int)(effect: ZIO[R, E, A])(implicit trace: Trace): Iterable[ZIO[R, E, A]] =
     Iterable.fill(n)(effect)
@@ -5476,9 +5541,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     ZIO.FlatMap(trace, ZIO.unit, (_: Any) => zio)
 
   /**
-   * Same as `suspendSucceed`, but passes an `Unsafe` value to the function
-   * that constructs the effect. The function runs each time the returned
-   * effect runs, and must not throw.
+   * Same as `suspendSucceed`, but passes an `Unsafe` value to the function that
+   * constructs the effect. The function runs each time the returned effect
+   * runs, and must not throw.
    */
   def suspendSucceedUnsafe[R, E, A](zio: Unsafe => ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.FlatMap(trace, ZIO.unit, (_: Any) => zio(Unsafe))
@@ -5537,8 +5602,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     taggedScoped(Set(tag) ++ tags.toSet)
 
   /**
-   * Adds the specified set of metric tags to every metric updated by this
-   * fiber until the scope closes, when the previous tags are restored.
+   * Adds the specified set of metric tags to every metric updated by this fiber
+   * until the scope closes, when the previous tags are restored.
    */
   def taggedScoped(tags: => Set[MetricLabel])(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
     FiberRef.currentTags.locallyScopedWith(_ ++ tags)
@@ -6098,8 +6163,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   }
 
   /**
-   * Adds the short-circuiting logical operators `&&` and `||` to an effect
-   * that produces a `Boolean`.
+   * Adds the short-circuiting logical operators `&&` and `||` to an effect that
+   * produces a `Boolean`.
    */
   implicit final class ZIOBooleanOps[R, E](private val self: ZIO[R, E, Boolean]) extends AnyVal {
 
@@ -6179,10 +6244,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZIO[R, E, A]) extends AnyVal {
 
     /**
-     * Runs the effect with the service stored under `key` in the
-     * `Map[Key, Service]` of its environment replaced by `f(service)`. When the
-     * key is absent, the effect dies with a
-     * `java.util.NoSuchElementException`.
+     * Runs the effect with the service stored under `key` in the `Map[Key,
+     * Service]` of its environment replaced by `f(service)`. When the key is
+     * absent, the effect dies with a `java.util.NoSuchElementException`.
      */
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
@@ -6206,7 +6270,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   /** Provides the `CanFilter` instances. */
   object CanFilter {
-    private val instance: CanFilter[Any]                              = new CanFilter[Any] { def apply(t: NoSuchElementException): Any = t }
+    private val instance: CanFilter[Any] = new CanFilter[Any] { def apply(t: NoSuchElementException): Any = t }
 
     /**
      * The `CanFilter` instance for every error type that is a supertype of
@@ -6216,8 +6280,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   }
 
   /**
-   * Passed by `ZIO.transplant` to its function: it holds the fiber scope of
-   * the fiber that called `transplant`.
+   * Passed by `ZIO.transplant` to its function: it holds the fiber scope of the
+   * fiber that called `transplant`.
    */
   final class Grafter(private val scope: FiberScope) extends AnyVal { self =>
 
@@ -6326,8 +6390,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   final class WhenZIO[R, E](private val b: () => ZIO[R, E, Boolean]) extends AnyVal {
 
     /**
-     * Runs the condition, then runs `zio` and wraps its value in `Some` when
-     * it is `true`, or succeeds with `None` when it is `false`.
+     * Runs the condition, then runs `zio` and wraps its value in `Some` when it
+     * is `true`, or succeeds with `None` when it is `false`.
      */
     def apply[R1 <: R, E1 >: E, A](zio: => ZIO[R1, E1, A])(implicit trace: Trace): ZIO[R1, E1, Option[A]] =
       ZIO.suspendSucceed(b()).flatMap(b => if (b) zio.asSome else Exit.none)
@@ -6353,11 +6417,11 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   final class TimeoutTo[-R, +E, +A, +B](self: ZIO[R, E, A], b: () => B) {
 
     /**
-     * Races the effect against a timer of `duration`. When the effect
-     * completes first, the result is its value mapped with `f` (or its
-     * failure). When the timer fires first, the effect is interrupted and the
-     * result is `b`, returned once the interrupted effect has stopped and its
-     * finalizers have run.
+     * Races the effect against a timer of `duration`. When the effect completes
+     * first, the result is its value mapped with `f` (or its failure). When the
+     * timer fires first, the effect is interrupted and the result is `b`,
+     * returned once the interrupted effect has stopped and its finalizers have
+     * run.
      */
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
@@ -6402,9 +6466,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   final class Release[-R, +E, +A](acquire: () => ZIO[R, E, A], release: A => URIO[R, Any]) {
 
     /**
-     * Runs `acquire` uninterruptibly, then `use`, then `release` uninterruptibly
-     * whether `use` succeeds, fails or is interrupted, and returns the result of
-     * `use`.
+     * Runs `acquire` uninterruptibly, then `use`, then `release`
+     * uninterruptibly whether `use` succeeds, fails or is interrupted, and
+     * returns the result of `use`.
      */
     def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B])(implicit trace: Trace): ZIO[R1, E1, B] =
       acquireReleaseExitWith(acquire())((a: A, _: Exit[E1, B]) => release(a))(use)
@@ -6417,8 +6481,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   final class AcquireExit[-R, +E, +A](private val acquire: () => ZIO[R, E, A]) extends AnyVal {
 
     /**
-     * Sets the `release` function, which also receives the `Exit` of `use`,
-     * and returns a `ReleaseExit`, whose `apply` takes the `use` function.
+     * Sets the `release` function, which also receives the `Exit` of `use`, and
+     * returns a `ReleaseExit`, whose `apply` takes the `use` function.
      */
     def apply[R1 <: R, E1 >: E, B](
       release: (A, Exit[E1, B]) => URIO[R1, Any]
@@ -6470,7 +6534,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   final class EnvironmentWithZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
 
-    /** Returns an effect that runs the effect `f` builds from the environment. */
+    /**
+     * Returns an effect that runs the effect `f` builds from the environment.
+     */
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit trace: Trace): ZIO[R with R1, E, A] =
       FiberRef.currentEnvironment.getWith(env => f(env.asInstanceOf[ZEnvironment[R]]))
   }
@@ -6590,7 +6656,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
    */
   final class GetStateWithPartiallyApplied[S](private val dummy: Boolean = true) extends AnyVal {
 
-    /** Returns an effect that succeeds with `f` applied to the current state. */
+    /**
+     * Returns an effect that succeeds with `f` applied to the current state.
+     */
     def apply[A](f: S => A)(implicit tag: EnvironmentTag[S], trace: Trace): ZIO[ZState[S], Nothing, A] =
       ZIO.serviceWithZIO(_.get.map(f))
   }
@@ -6622,8 +6690,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
     /**
      * Runs `zio` with the annotations added to the current ones. An annotation
-     * replaces a current one with the same key. Each log entry written in
-     * `zio` carries them.
+     * replaces a current one with the same key. Each log entry written in `zio`
+     * carries them.
      */
     def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       FiberRef.currentLogAnnotations.locallyWith { stack =>
@@ -6670,9 +6738,9 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   /**
    * A `ZIOConstructor[Environment, Error, In]` knows how to construct a `ZIO`
    * value from an input of type `In`; `ZIO.from` uses it. This allows the type
-   * of the `ZIO` value constructed to depend on `In`. The constructed `ZIO` value is guaranteed not to
-   * require any services not included in `Environment` or to be able to fail in
-   * any ways not described by `Error`.
+   * of the `ZIO` value constructed to depend on `In`. The constructed `ZIO`
+   * value is guaranteed not to require any services not included in
+   * `Environment` or to be able to fail in any ways not described by `Error`.
    */
   sealed trait ZIOConstructor[-Environment, +Error, In] {
 
@@ -6981,8 +7049,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
     /**
      * Constructs a `ZIO[Any, Throwable, A]` from an `A`, with `ZIO.attempt`: a
-     * non-fatal exception thrown while computing the value becomes the
-     * failure.
+     * non-fatal exception thrown while computing the value becomes the failure.
      */
     implicit def AttemptConstructor[A]: WithOut[Any, Throwable, A, Any, Throwable, A] =
       new ZIOConstructor[Any, Throwable, A] {
@@ -7009,8 +7076,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
     /**
      * Constructs a `ZIO[Any, Nothing, A]` from an `A`, with `ZIO.succeed`.
-     * `AttemptConstructor` has a higher priority, so `ZIO.from(value)` picks
-     * it instead and returns a `ZIO[Any, Throwable, A]`.
+     * `AttemptConstructor` has a higher priority, so `ZIO.from(value)` picks it
+     * instead and returns a `ZIO[Any, Throwable, A]`.
      */
     implicit def SucceedConstructor[A]: WithOut[Any, Nothing, A, Any, Nothing, A] =
       new ZIOConstructor[Any, Nothing, A] {
@@ -7041,6 +7108,7 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
   private[zio] sealed abstract class Continuation {
     def trace: Trace
   }
+
   /** Runtime internal: builds the continuation frames of the fiber runtime. */
   object Continuation {
 
@@ -7184,8 +7252,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
 
   /**
    * Passed by `ZIO.withParallelismMask` and `ZIO.withParallelismUnboundedMask`
-   * to their function: `apply` runs an inner effect with the parallelism of
-   * the enclosing region.
+   * to their function: `apply` runs an inner effect with the parallelism of the
+   * enclosing region.
    */
   sealed trait ParallelismRestorer {
 
@@ -7260,8 +7328,8 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
       /**
        * Runs `zio` in a child scope whose finalizers run in parallel, at most
        * `n` at once. When the current scope already has a bounded parallel
-       * strategy, with any bound, `zio` runs in it unchanged; without a
-       * `Scope` in the environment, `zio` runs unchanged.
+       * strategy, with any bound, `zio` runs in it unchanged; without a `Scope`
+       * in the environment, `zio` runs unchanged.
        */
       def apply[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
         ZIO.environmentWithZIO[R] { environment =>
@@ -7404,9 +7472,13 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
  * An `Exit[E, A]` describes the result of executing an `IO` value. The result
  * is either succeeded with a value `A`, or failed with a `Cause[E]`.
  *
- * It has two cases: `Exit.Success` holds the value, and `Exit.Failure` holds the `Cause`, which records typed failures, defects and interruptions. `ZIO#exit` turns the outcome of an effect into an `Exit`, and `Fiber#await` succeeds with the `Exit` of a fiber.
+ * It has two cases: `Exit.Success` holds the value, and `Exit.Failure` holds
+ * the `Cause`, which records typed failures, defects and interruptions.
+ * `ZIO#exit` turns the outcome of an effect into an `Exit`, and `Fiber#await`
+ * succeeds with the `Exit` of a fiber.
  *
- * An `Exit` is also a `ZIO[Any, E, A]` that completes at once with its value or cause, so it can be used wherever an effect is expected.
+ * An `Exit` is also a `ZIO[Any, E, A]` that completes at once with its value or
+ * cause, so it can be used wherever an effect is expected.
  *
  * {{{
  * val exit: Exit[String, Int] = Exit.succeed(42)
@@ -7428,33 +7500,45 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   import Exit._
 
   /**
-   * Returns `that` when this exit succeeds. When this exit fails, returns its failure, combined in parallel (`&&`) with the cause of `that` when `that` also fails.
+   * Returns `that` when this exit succeeds. When this exit fails, returns its
+   * failure, combined in parallel (`&&`) with the cause of `that` when `that`
+   * also fails.
    */
   final def &>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipRightWith(self, that)(_ && _)
 
   /**
-   * Returns `that` when this exit succeeds. When this exit fails, returns its failure, combined sequentially (`++`) with the cause of `that` when `that` also fails.
+   * Returns `that` when this exit succeeds. When this exit fails, returns its
+   * failure, combined sequentially (`++`) with the cause of `that` when `that`
+   * also fails.
    */
   final def *>[E1 >: E, B](that: Exit[E1, B]): Exit[E1, B] = zipRightWith(self, that)(_ ++ _)
 
   /**
-   * Returns this exit's value when both exits succeed. Otherwise returns the failure of whichever exit failed; when both fail, their causes are combined in parallel (`&&`), this exit's cause first.
+   * Returns this exit's value when both exits succeed. Otherwise returns the
+   * failure of whichever exit failed; when both fail, their causes are combined
+   * in parallel (`&&`), this exit's cause first.
    */
   final def <&[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipRightWith(that, self)((l, r) => r && l)
 
   /**
-   * Zips the values of both exits into a tuple when both succeed. Otherwise returns the failure of whichever exit failed; when both fail, their causes are combined in parallel (`&&`).
+   * Zips the values of both exits into a tuple when both succeed. Otherwise
+   * returns the failure of whichever exit failed; when both fail, their causes
+   * are combined in parallel (`&&`).
    */
   final def <&>[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
     zipWith(that)(zippable.zip(_, _), _ && _)
 
   /**
-   * Returns this exit's value when both exits succeed. Otherwise returns the failure of whichever exit failed; when both fail, their causes are combined sequentially (`++`), this exit's cause first.
+   * Returns this exit's value when both exits succeed. Otherwise returns the
+   * failure of whichever exit failed; when both fail, their causes are combined
+   * sequentially (`++`), this exit's cause first.
    */
   final def <*[E1 >: E, B](that: Exit[E1, B]): Exit[E1, A] = zipRightWith(that, self)((l, r) => r ++ l)
 
   /**
-   * Zips the values of both exits into a tuple when both succeed. Otherwise returns the failure of whichever exit failed; when both fail, their causes are combined sequentially (`++`).
+   * Zips the values of both exits into a tuple when both succeed. Otherwise
+   * returns the failure of whichever exit failed; when both fail, their causes
+   * are combined sequentially (`++`).
    */
   final def <*>[E1 >: E, B](that: Exit[E1, B])(implicit zippable: Zippable[A, B]): Exit[E1, zippable.Out] =
     zipWith(that)(zippable.zip(_, _), _ ++ _)
@@ -7469,7 +7553,8 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     }
 
   /**
-   * Returns an option of the cause of failure: `Some(cause)` for an `Exit.Failure`, `None` for an `Exit.Success`.
+   * Returns an option of the cause of failure: `Some(cause)` for an
+   * `Exit.Failure`, `None` for an `Exit.Success`.
    */
   final def causeOption: Option[Cause[E]] =
     self match {
@@ -7484,7 +7569,8 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     }
 
   /**
-   * Returns `true` when this exit is a success whose value satisfies `p`, and `false` for a failure.
+   * Returns `true` when this exit is a success whose value satisfies `p`, and
+   * `false` for a failure.
    */
   final def exists(p: A => Boolean): Boolean =
     foldExit(_ => false, p)
@@ -7530,7 +7616,8 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     foldExitZIO(failure, success)
 
   /**
-   * Folds over the value or cause: returns `completed` applied to the value of a success, or `failed` applied to the cause of a failure.
+   * Folds over the value or cause: returns `completed` applied to the value of
+   * a success, or `failed` applied to the cause of a failure.
    *
    * {{{
    * val summary: String =
@@ -7548,7 +7635,8 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     }
 
   /**
-   * Returns the effect that `completed` builds from the value of a success, or the effect that `failed` builds from the cause of a failure.
+   * Returns the effect that `completed` builds from the value of a success, or
+   * the effect that `failed` builds from the cause of a failure.
    */
   final def foldExitZIO[R, E1, B](failed: Cause[E] => ZIO[R, E1, B], completed: A => ZIO[R, E1, B])(implicit
     trace: Trace
@@ -7559,13 +7647,16 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     }
 
   /**
-   * Returns an effect that runs `f` on the value of a success and succeeds with the `Exit` of that effect. For a failure, `f` does not run and the effect succeeds with this failure. The returned effect does not fail.
+   * Returns an effect that runs `f` on the value of a success and succeeds with
+   * the `Exit` of that effect. For a failure, `f` does not run and the effect
+   * succeeds with this failure. The returned effect does not fail.
    */
   final def foreach[R, E1 >: E, B](f: A => ZIO[R, E1, B])(implicit trace: Trace): ZIO[R, Nothing, Exit[E1, B]] =
     foldExit(c => Exit.succeed(failCause(c)), a => f(a).exit)
 
   /**
-   * Retrieves the `A` if succeeded, or else returns the result of applying `orElse` to the cause of the failure.
+   * Retrieves the `A` if succeeded, or else returns the result of applying
+   * `orElse` to the cause of the failure.
    */
   final def getOrElse[A1 >: A](orElse: Cause[E] => A1): A1 = self match {
     case s: Success[A] => s.value
@@ -7573,13 +7664,20 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   }
 
   /**
-   * Returns the value of a success. For a failure, throws one `Throwable` chosen from the cause (`Cause#squashTrace`): the first typed failure if there is one, otherwise a `java.lang.InterruptedException` if the fiber was interrupted, otherwise the first defect. The pretty-printed cause, including the stack trace of the caller, is added to the thrown `Throwable` as a suppressed exception.
+   * Returns the value of a success. For a failure, throws one `Throwable`
+   * chosen from the cause (`Cause#squashTrace`): the first typed failure if
+   * there is one, otherwise a `java.lang.InterruptedException` if the fiber was
+   * interrupted, otherwise the first defect. The pretty-printed cause,
+   * including the stack trace of the caller, is added to the thrown `Throwable`
+   * as a suppressed exception.
    */
   final def getOrThrow()(implicit ev: E <:< Throwable, unsafe: Unsafe): A =
     getOrElse(cause => throw cause.traced(externalStackTrace).squashTrace)
 
   /**
-   * Returns the value of a success. For a failure, throws a `FiberFailure` that wraps the whole cause, with the stack trace of the caller attached. Unlike `getOrThrow`, it works for any error type `E`.
+   * Returns the value of a success. For a failure, throws a `FiberFailure` that
+   * wraps the whole cause, with the stack trace of the caller attached. Unlike
+   * `getOrThrow`, it works for any error type `E`.
    */
   final def getOrThrowFiberFailure()(implicit unsafe: Unsafe): A =
     getOrElse(cause => throw FiberFailure(cause.traced(externalStackTrace)))
@@ -7603,7 +7701,8 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   }
 
   /**
-   * Determines if the result is a failure whose cause contains only interruptions, with no typed failure and no defect.
+   * Determines if the result is a failure whose cause contains only
+   * interruptions, with no typed failure and no defect.
    */
   final def isInterruptedOnly: Boolean = self match {
     case f: Failure[?] => f.cause.isInterruptedOnly
@@ -7656,7 +7755,8 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     }
 
   /**
-   * Replaces each typed failure in the cause of this exit with `e1`, the same as `orElseFailExit`. Defects and interruptions stay in the cause unchanged.
+   * Replaces each typed failure in the cause of this exit with `e1`, the same
+   * as `orElseFailExit`. Defects and interruptions stay in the cause unchanged.
    */
   override final def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E], trace: Trace): ZIO[Any, E1, A] =
     orElseFailExit(e1)
@@ -7677,7 +7777,10 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
   }
 
   /**
-   * Converts the `Exit` to a `scala.util.Try`: `Success` with the value, or `Failure` with one `Throwable` chosen from the cause (`Cause#squash`): the first typed failure, otherwise a `java.lang.InterruptedException` for an interruption, otherwise the first defect.
+   * Converts the `Exit` to a `scala.util.Try`: `Success` with the value, or
+   * `Failure` with one `Throwable` chosen from the cause (`Cause#squash`): the
+   * first typed failure, otherwise a `java.lang.InterruptedException` for an
+   * interruption, otherwise the first defect.
    */
   final def toTry(implicit ev: E <:< Throwable): scala.util.Try[A] =
     self match {
@@ -7686,7 +7789,8 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
     }
 
   /**
-   * Returns `Trace.empty`: an `Exit` value records no trace of its own. The stack traces of a failure are kept in its `Cause`.
+   * Returns `Trace.empty`: an `Exit` value records no trace of its own. The
+   * stack traces of a failure are kept in its `Cause`.
    */
   final def trace: Trace = Trace.empty
 
@@ -7759,17 +7863,19 @@ sealed trait Exit[+E, +A] extends ZIO[Any, E, A] { self =>
 }
 
 /**
- * Constructors for [[Exit]] values, its two cases `Success` and `Failure`, and functions that combine collections of exits.
+ * Constructors for [[Exit]] values, its two cases `Success` and `Failure`, and
+ * functions that combine collections of exits.
  */
 object Exit extends Serializable with ExitVersionSpecific {
 
   /**
    * The successful case of an [[Exit]], holding the value `value`.
    */
-  final case class Success[+A](value: A)        extends Exit[Nothing, A]
+  final case class Success[+A](value: A) extends Exit[Nothing, A]
 
   /**
-   * The failed case of an [[Exit]], holding the `cause` of the failure: typed failures, defects or interruptions.
+   * The failed case of an [[Exit]], holding the `cause` of the failure: typed
+   * failures, defects or interruptions.
    */
   final case class Failure[+E](cause: Cause[E]) extends Exit[E, Nothing]
 
@@ -7880,25 +7986,29 @@ object Exit extends Serializable with ExitVersionSpecific {
     Failure(cause)
 
   /**
-   * Flattens an exit of an exit: returns the inner exit when the outer one succeeds, or the outer failure otherwise.
+   * Flattens an exit of an exit: returns the inner exit when the outer one
+   * succeeds, or the outer failure otherwise.
    */
   def flatten[E, A](exit: Exit[E, Exit[E, A]]): Exit[E, A] =
     exit.flatMapExit(identity)
 
   /**
-   * Converts an `Either` to an exit: `Right` becomes a success and `Left` a typed failure.
+   * Converts an `Either` to an exit: `Right` becomes a success and `Left` a
+   * typed failure.
    */
   def fromEither[E, A](e: Either[E, A]): Exit[E, A] =
     e.fold(fail, succeed)
 
   /**
-   * Converts an `Option` to an exit: `Some` becomes a success, and `None` a typed failure with the error `()`.
+   * Converts an `Option` to an exit: `Some` becomes a success, and `None` a
+   * typed failure with the error `()`.
    */
   def fromOption[A](o: Option[A]): Exit[Unit, A] =
     o.fold[Exit[Unit, A]](fail(()))(succeed)
 
   /**
-   * Converts a `Try` to an exit: `Success` becomes a success, and `Failure` a typed failure with its `Throwable`.
+   * Converts a `Try` to an exit: `Success` becomes a success, and `Failure` a
+   * typed failure with its `Throwable`.
    */
   def fromTry[A](t: scala.util.Try[A]): Exit[Throwable, A] =
     t match {

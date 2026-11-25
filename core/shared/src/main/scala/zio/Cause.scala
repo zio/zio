@@ -37,8 +37,8 @@ import scala.runtime.AbstractFunction2
  *
  * `++` combines two causes in sequence and `&&` combines them in parallel.
  * Equality ignores traces, spans, annotations and `Stackless` wrappers: `&&` is
- * commutative and associative, `++` is associative, `++` distributes over
- * `&&`, and `Empty` is the identity of both.
+ * commutative and associative, `++` is associative, `++` distributes over `&&`,
+ * and `Empty` is the identity of both.
  *
  * {{{
  * val timeout: Cause[String] = Cause.fail("timeout")
@@ -55,7 +55,8 @@ import scala.runtime.AbstractFunction2
  * // true
  * }}}
  *
- * @see [[https://zio.dev/reference/core/cause/ Cause]]
+ * @see
+ *   [[https://zio.dev/reference/core/cause/ Cause]]
  */
 sealed abstract class Cause[+E] extends Product with Serializable { self =>
   import Cause._
@@ -695,9 +696,9 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
    * Squashes a `Cause` down to a single `Throwable`. It returns the first typed
    * failure when the cause has one. Otherwise, when the cause contains an
    * interruption, it returns a new `InterruptedException` whose message is
-   * `Interrupted by fibers: ` followed by the interrupting fiber ids (`#1, #2`).
-   * Otherwise it returns the first defect, and for a cause with no leaves it
-   * returns an `InterruptedException` with no message. An interruption is
+   * `Interrupted by fibers: ` followed by the interrupting fiber ids (`#1,
+   * #2`). Otherwise it returns the first defect, and for a cause with no leaves
+   * it returns an `InterruptedException` with no message. An interruption is
    * chosen over a defect when the cause has both.
    *
    * {{{
@@ -714,8 +715,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     squashWith(ev)
 
   /**
-   * Squashes a `Cause` down to a single `Throwable` like `squash`, converting
-   * a typed failure to a `Throwable` with `f`.
+   * Squashes a `Cause` down to a single `Throwable` like `squash`, converting a
+   * typed failure to a `Throwable` with `f`.
    */
   final def squashWith(f: E => Throwable): Throwable =
     failureOption.map(f) orElse
@@ -729,12 +730,11 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
       defects.headOption getOrElse (new InterruptedException)
 
   /**
-   * Squashes a `Cause` down to a single `Throwable`, chosen as `squash`
-   * chooses it. In addition, appends a new element to the suppressed
-   * exceptions of the `Throwable`, with this `Cause` "pretty printed" (in
-   * stackless mode) as the message. When the chosen `Throwable` is one the
-   * cause holds, that same object is changed, and each call adds one more
-   * suppressed exception to it.
+   * Squashes a `Cause` down to a single `Throwable`, chosen as `squash` chooses
+   * it. In addition, appends a new element to the suppressed exceptions of the
+   * `Throwable`, with this `Cause` "pretty printed" (in stackless mode) as the
+   * message. When the chosen `Throwable` is one the cause holds, that same
+   * object is changed, and each call adds one more suppressed exception to it.
    */
   final def squashTrace(implicit ev: E IsSubtypeOfError Throwable): Throwable =
     squashTraceWith(ev)
@@ -911,8 +911,8 @@ object Cause extends Serializable {
   val empty: Cause[Nothing] = Empty
 
   /**
-   * Creates a `Die` cause for the defect `defect`, with the stack trace
-   * `trace` (none by default).
+   * Creates a `Die` cause for the defect `defect`, with the stack trace `trace`
+   * (none by default).
    */
   def die(defect: Throwable, trace: StackTrace = StackTrace.none): Cause[Nothing] = Die(defect, trace)
 
@@ -929,8 +929,8 @@ object Cause extends Serializable {
   def interrupt(fiberId: FiberId, trace: StackTrace = StackTrace.none): Cause[Nothing] = Interrupt(fiberId, trace)
 
   /**
-   * Wraps `cause` in `Stackless(cause, false)`, so that `prettyPrint` shows
-   * the JVM stack frames of the `Throwable`s in it.
+   * Wraps `cause` in `Stackless(cause, false)`, so that `prettyPrint` shows the
+   * JVM stack frames of the `Throwable`s in it.
    */
   def stack[E](cause: Cause[E]): Cause[E] = Stackless(cause, false)
 
@@ -1019,9 +1019,10 @@ object Cause extends Serializable {
     ): Z =
       interruptCase(context, fiberId, stackTrace)
   }
+
   /**
-   * The folders that `Cause#size`, `Cause#isInterruptedOnly` and
-   * `Cause#filter` use.
+   * The folders that `Cause#size`, `Cause#isInterruptedOnly` and `Cause#filter`
+   * use.
    */
   object Folder {
 
@@ -1090,7 +1091,9 @@ object Cause extends Serializable {
       /** Returns `Cause.empty`. */
       def empty(context: Any): Cause[E] = Cause.empty
 
-      /** Returns the `Fail` leaf when `p` holds for it, otherwise `Cause.empty`. */
+      /**
+       * Returns the `Fail` leaf when `p` holds for it, otherwise `Cause.empty`.
+       */
       def failCase(context: Any, error: E, stackTrace: StackTrace): Cause[E] = {
         val c = Cause.Fail(error, stackTrace)
         if (p(c))
@@ -1099,7 +1102,9 @@ object Cause extends Serializable {
           Cause.empty
       }
 
-      /** Returns the `Die` leaf when `p` holds for it, otherwise `Cause.empty`. */
+      /**
+       * Returns the `Die` leaf when `p` holds for it, otherwise `Cause.empty`.
+       */
       def dieCase(context: Any, t: Throwable, stackTrace: StackTrace): Cause[E] = {
         val c = Cause.Die(t, stackTrace)
         if (p(c))
@@ -1314,8 +1319,8 @@ object Cause extends Serializable {
   }
 
   /**
-   * A defect: the effect died with the `Throwable` `value`, which its error type
-   * does not describe, at the stack trace `trace`.
+   * A defect: the effect died with the `Throwable` `value`, which its error
+   * type does not describe, at the stack trace `trace`.
    */
   sealed case class Die(value: Throwable, override val trace: StackTrace) extends Cause[Nothing] { self =>
     override def annotations: Map[String, String] = Map.empty
@@ -1361,7 +1366,9 @@ object Cause extends Serializable {
   /** Constructors for [[Cause.Interrupt]]. */
   object Interrupt extends AbstractFunction2[FiberId, StackTrace, Interrupt] {
 
-    /** Creates an `Interrupt` cause that also carries log spans and annotations. */
+    /**
+     * Creates an `Interrupt` cause that also carries log spans and annotations.
+     */
     def apply(
       fiberId0: FiberId,
       trace0: StackTrace,
@@ -1379,18 +1386,17 @@ object Cause extends Serializable {
    * `prettyPrint` and `unified` leave out the JVM stack frames of the
    * `Throwable`s in `cause`; when it is `false`, they include them. `unified`
    * keeps the flag for each cause it visits after this node (depth-first, left
-   * to right) until it meets another `Stackless`, so in
-   * `Then(Stackless(a, true), b)` and `Both(Stackless(a, true), b)` the frames
-   * of `b` are left out too. `prettyPrint` handles each parallel branch on its
-   * own, so there the flag reaches only the causes that follow in sequence.
-   * Equality ignores this wrapper. `Cause.stackless` and `Cause.stack` create
-   * it.
+   * to right) until it meets another `Stackless`, so in `Then(Stackless(a,
+   * true), b)` and `Both(Stackless(a, true), b)` the frames of `b` are left out
+   * too. `prettyPrint` handles each parallel branch on its own, so there the
+   * flag reaches only the causes that follow in sequence. Equality ignores this
+   * wrapper. `Cause.stackless` and `Cause.stack` create it.
    */
   final case class Stackless[+E](cause: Cause[E], stackless: Boolean) extends Cause[E] with CompositeCause[E]
 
   /**
-   * Two causes that happened in sequence: `left` first, then `right`, as when
-   * a finalizer fails after the effect it guards. `++` creates it.
+   * Two causes that happened in sequence: `left` first, then `right`, as when a
+   * finalizer fails after the effect it guards. `++` creates it.
    */
   final case class Then[+E](left: Cause[E], right: Cause[E]) extends Cause[E] with CompositeCause[E]
 

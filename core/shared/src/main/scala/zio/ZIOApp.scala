@@ -27,9 +27,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * An object that extends `ZIOApp` gets a `main` method. It builds the services
  * of `bootstrap`, then runs `run` with them, the command-line arguments (as
- * `ZIOAppArgs`) and a `Scope`. When `run` succeeds, the exit code is 0; when
- * it fails or dies, the cause is logged and the exit code is 1.
- * `<>` composes two apps into one that runs both.
+ * `ZIOAppArgs`) and a `Scope`. When `run` succeeds, the exit code is 0; when it
+ * fails or dies, the cause is logged and the exit code is 1. `<>` composes two
+ * apps into one that runs both.
  *
  * {{{
  * trait Inventory { def count(sku: String): UIO[Int] }
@@ -47,13 +47,16 @@ import java.util.concurrent.atomic.AtomicBoolean
  * }
  * }}}
  *
- * @see [[https://zio.dev/reference/core/zioapp/ ZIOApp]]
+ * @see
+ *   [[https://zio.dev/reference/core/zioapp/ ZIOApp]]
  */
 trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
   self =>
   private[zio] val shuttingDown = new AtomicBoolean(false)
 
-  /** The tag of `Environment`, which ZIO uses to build the app's environment. */
+  /**
+   * The tag of `Environment`, which ZIO uses to build the app's environment.
+   */
   implicit def environmentTag: EnvironmentTag[Environment]
 
   /**
