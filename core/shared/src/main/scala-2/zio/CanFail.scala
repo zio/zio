@@ -26,11 +26,26 @@ import scala.annotation.implicitAmbiguous
  */
 sealed abstract class CanFail[-E]
 
+/**
+ * Provides `CanFail[E]` for every error type `E` except `Nothing`. When an
+ * error handling operator is called on an effect that cannot fail, the
+ * compiler reports that the operation is not needed.
+ */
 object CanFail extends CanFail[Any] {
 
+  /**
+   * Provides `CanFail[E]` for an error type `E` that is not `Nothing`. On
+   * Scala 2 it matches every `E`, and the two ambiguous instances for
+   * `Nothing` make the search for `CanFail[Nothing]` fail; on Scala 3 it
+   * requires evidence that `E` is not `Nothing`.
+   */
   implicit def canFail[E]: CanFail[E] = CanFail
 
   // Provide multiple ambiguous values so an implicit CanFail[Nothing] cannot be found.
+  /**
+   * One of two ambiguous `CanFail[Nothing]` instances; together they make the
+   * search for `CanFail[Nothing]` fail with the error handling message.
+   */
   @implicitAmbiguous(
     "This error handling operation assumes your effect can fail. However, " +
       "your effect has Nothing for the error type, which means it cannot " +
@@ -39,5 +54,9 @@ object CanFail extends CanFail[Any] {
       "reference chart at: https://zio.dev/can_fail"
   )
   implicit val canFailAmbiguous1: CanFail[Nothing] = CanFail
+  /**
+   * One of two ambiguous `CanFail[Nothing]` instances; together they make the
+   * search for `CanFail[Nothing]` fail with the error handling message.
+   */
   implicit val canFailAmbiguous2: CanFail[Nothing] = CanFail
 }

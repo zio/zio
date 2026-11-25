@@ -4,12 +4,31 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.metrics.{Metric, MetricLabel}
 import scala.concurrent.ExecutionContext
 
+/**
+ * A `ZIOAspect` transforms an effect into another effect of the same type,
+ * for each environment `R`, error `E` and success `A` within its bounds (`R`
+ * between `LowerR` and `UpperR`, and so on). Apply it with `ZIO#@@` and
+ * compose two aspects with `>>>` or `@@`. The companion object holds aspects
+ * for logging, retries, timeouts, parallelism and executors.
+ *
+ * {{{
+ * val fetchPrice: Task[BigDecimal] = ZIO.attempt(BigDecimal("19.99"))
+ *
+ * val resilient: Task[BigDecimal] =
+ *   fetchPrice @@ ZIOAspect.retry(Schedule.recurs(3)) @@ ZIOAspect.logged("price")
+ * }}}
+ */
 trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
 
+  /** Applies this aspect to `zio`. */
   def apply[R >: LowerR <: UpperR, E >: LowerE <: UpperE, A >: LowerA <: UpperA](zio: ZIO[R, E, A])(implicit
     trace: Trace
   ): ZIO[R, E, A]
 
+  /**
+   * Returns a new aspect that applies this aspect first and then `that` to
+   * the result; the same as `andThen`.
+   */
   def >>>[
     LowerR1 >: LowerR,
     UpperR1 <: UpperR,
@@ -38,6 +57,10 @@ trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
   ): ZIOAspect[LowerR1, UpperR1, LowerE1, UpperE1, LowerA1, UpperA1] =
     self >>> that
 
+  /**
+   * Returns a new aspect that applies this aspect first and then `that` to
+   * the result.
+   */
   def andThen[
     LowerR1 >: LowerR,
     UpperR1 <: UpperR,
@@ -68,6 +91,7 @@ trait ZIOAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
     }
 }
 
+/** Predefined [[ZIOAspect]] values. */
 object ZIOAspect {
 
   /**
@@ -208,7 +232,8 @@ object ZIOAspect {
     }
 
   /**
-   * An aspect that times out effects.
+   * An aspect that times out effects: when an effect does not complete within
+   * `d`, it is interrupted and the result fails with `e`.
    */
   def timeoutFail[E1](e: => E1)(d: Duration): ZIOAspect[Nothing, Any, E1, Any, Nothing, Any] =
     new ZIOAspect[Nothing, Any, E1, Any, Nothing, Any] {

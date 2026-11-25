@@ -19,11 +19,21 @@ package zio
 import zio.internal.stacktracer.{ParsedTrace, Tracer}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * Constructors and helpers for `Trace`, the source location that ZIO records
+ * in execution traces.
+ */
 object Trace {
 
+  /** Creates a trace for the code location `location` at `file`:`line`. */
   def apply(location: String, file: String, line: Int): Trace =
     Tracer.instance(location, file, line)
 
+  /**
+   * Returns `true` when both traces point to the same file and line, whatever
+   * their locations (the class and method names). Returns `false` when either
+   * trace cannot be parsed, as for `Trace.empty`.
+   */
   def equalIgnoreLocation(left: Trace, right: Trace): Boolean = {
     val leftParsed = parseOrNull(left)
     if (leftParsed eq null) return false
@@ -39,8 +49,13 @@ object Trace {
     leftFile == rightFile && leftLine == rightLine
   }
 
+  /** The empty trace, which carries no location. */
   val empty: Trace = Tracer.instance.empty
 
+  /**
+   * Creates a trace from a Java stack trace element, with
+   * `className.methodName` as its location.
+   */
   def fromJava(stackTraceElement: StackTraceElement): Trace =
     Trace(
       stackTraceElement.getClassName + "." + stackTraceElement.getMethodName,
@@ -48,6 +63,11 @@ object Trace {
       stackTraceElement.getLineNumber
     )
 
+  /**
+   * Converts a trace to a Java stack trace element, splitting its location at
+   * the last `.` into a class name and a method name. Returns `None` when the
+   * trace cannot be parsed, as for `Trace.empty`.
+   */
   def toJava(trace: Trace): Option[StackTraceElement] = {
     val parsed = parseOrNull(trace)
     if (parsed eq null) None
@@ -70,6 +90,10 @@ object Trace {
     }
   }
 
+  /**
+   * Extracts the location, file and line of a trace, or returns `None` when
+   * the trace cannot be parsed, as for `Trace.empty`.
+   */
   def unapply(trace: Trace): Option[(String, String, Int)] = Tracer.instance.unapply(trace)
 
   private[zio] def parseOrNull(trace: Trace): ParsedTrace = Tracer.instance.parseOrNull(trace)

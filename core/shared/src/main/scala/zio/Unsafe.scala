@@ -23,19 +23,24 @@ package zio
  * always pure, total, and type-safe.
  *
  * {{{
- * import Unsafe.unsafe
- *
- * unsafe { ... }
+ * val answer: Exit[Nothing, Int] =
+ *   Unsafe.unsafe { implicit unsafe =>
+ *     Runtime.default.unsafe.run(ZIO.succeed(21 * 2))
+ *   }
+ * // Success(42)
  * }}}
  */
 sealed trait Unsafe extends Serializable
 
+/** The `Unsafe` value, and helpers that pass it to a function. */
 object Unsafe extends Unsafe with UnsafeVersionSpecific { self =>
   private[zio] val unsafe: Unsafe = self
 
+  /** Calls `f` with the `Unsafe` value and returns its result. */
   def unsafe[A](f: Unsafe => A): A =
     f(self)
 
+  /** Calls `f` with the `Unsafe` value and returns its result. Use `unsafe`. */
   @deprecated("use unsafe", "2.0.1")
   def unsafeCompat[A](f: Unsafe => A): A =
     f(self)

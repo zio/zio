@@ -2,20 +2,48 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * A type class that combines two values into one and flattens tuples: zipping
+ * a tuple `(A, B)` with a value `C` gives `(A, B, C)` rather than
+ * `((A, B), C)`, and a `Unit` value on either side is dropped. `ZIO#zip` and
+ * the other `zip` operators use it to compute their result type.
+ *
+ * {{{
+ * val order: UIO[(Int, String, Boolean)] =
+ *   ZIO.succeed(1001).zip(ZIO.succeed("pending")).zip(ZIO.succeed(true))
+ *
+ * val total: UIO[BigDecimal] = ZIO.unit.zip(ZIO.succeed(BigDecimal("42.50")))
+ * }}}
+ */
 trait Zippable[-A, -B] {
+
+  /** The type of the combined value. */
   type Out
+
+  /** Combines `left` and `right` into one value. */
   def zip(left: A, right: B): Out
+
+  /** Returns `true` when `zip` drops `left`, which is the case for `Unit`. */
   def discardsLeft: Boolean =
     false
+
+  /** Returns `true` when `zip` drops `right`, which is the case for `Unit`. */
   def discardsRight: Boolean =
     false
 }
 
+/**
+ * Instances of [[Zippable]]. The search tries them in this order: `Unit` on
+ * the left, `Unit` on the right, a tuple of 2 to 21 values on the left, and
+ * last any two values, which give a pair.
+ */
 object Zippable extends ZippableLowPriority1 {
 
+  /** A [[Zippable]] for `A` and `B` whose combined value has type `C`. */
   type Out[-A, -B, C] = Zippable[A, B] { type Out = C }
 
-  implicit def ZippableLeftIdentity[A]: Zippable.Out[Unit, A, A] =
+  /** Zips `()` with a value of type `A` into that value. */
+  implicit def ZippableLeftIdentity[A]:Zippable.Out[Unit, A, A] =
     Zippable.zippableLeftIdentity.asInstanceOf[Zippable.Out[Unit, A, A]]
 
   private val zippableLeftIdentity: Zippable.Out[Unit, Any, Any] =
@@ -28,12 +56,15 @@ object Zippable extends ZippableLowPriority1 {
     }
 }
 
+/** [[Zippable]] instances with a `Unit` on the right. */
 trait ZippableLowPriority1 extends ZippableLowPriority2 {
 
+  /** Zips a value of type `A` with `()` into that value. */
   implicit def ZippableRightIdentity[A]: Zippable.Out[A, Unit, A] =
     ZippableLowPriority1.zippableRightIdentity.asInstanceOf[Zippable.Out[A, Unit, A]]
 }
 
+/** Holds the shared instance behind `ZippableRightIdentity`. */
 object ZippableLowPriority1 {
   private val zippableRightIdentity: Zippable.Out[Any, Unit, Any] =
     new Zippable[Any, Unit] {
@@ -45,8 +76,10 @@ object ZippableLowPriority1 {
     }
 }
 
+/** [[Zippable]] instances that append a value to a tuple. */
 trait ZippableLowPriority2 extends ZippableLowPriority3 {
 
+  /** Zips a tuple of 2 values with a value `Z` into a tuple of 3, with `Z` last. */
   implicit def Zippable3[A, B, Z]: Zippable.Out[(A, B), Z, (A, B, Z)] =
     new Zippable[(A, B), Z] {
       type Out = (A, B, Z)
@@ -54,6 +87,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         (left._1, left._2, right)
     }
 
+  /** Zips a tuple of 3 values with a value `Z` into a tuple of 4, with `Z` last. */
   implicit def Zippable4[A, B, C, Z]: Zippable.Out[(A, B, C), Z, (A, B, C, Z)] =
     new Zippable[(A, B, C), Z] {
       type Out = (A, B, C, Z)
@@ -61,6 +95,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         (left._1, left._2, left._3, right)
     }
 
+  /** Zips a tuple of 4 values with a value `Z` into a tuple of 5, with `Z` last. */
   implicit def Zippable5[A, B, C, D, Z]: Zippable.Out[(A, B, C, D), Z, (A, B, C, D, Z)] =
     new Zippable[(A, B, C, D), Z] {
       type Out = (A, B, C, D, Z)
@@ -68,6 +103,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         (left._1, left._2, left._3, left._4, right)
     }
 
+  /** Zips a tuple of 5 values with a value `Z` into a tuple of 6, with `Z` last. */
   implicit def Zippable6[A, B, C, D, E, Z]: Zippable.Out[(A, B, C, D, E), Z, (A, B, C, D, E, Z)] =
     new Zippable[(A, B, C, D, E), Z] {
       type Out = (A, B, C, D, E, Z)
@@ -75,6 +111,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         (left._1, left._2, left._3, left._4, left._5, right)
     }
 
+  /** Zips a tuple of 6 values with a value `Z` into a tuple of 7, with `Z` last. */
   implicit def Zippable7[A, B, C, D, E, F, Z]: Zippable.Out[(A, B, C, D, E, F), Z, (A, B, C, D, E, F, Z)] =
     new Zippable[(A, B, C, D, E, F), Z] {
       type Out = (A, B, C, D, E, F, Z)
@@ -82,6 +119,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         (left._1, left._2, left._3, left._4, left._5, left._6, right)
     }
 
+  /** Zips a tuple of 7 values with a value `Z` into a tuple of 8, with `Z` last. */
   implicit def Zippable8[A, B, C, D, E, F, G, Z]: Zippable.Out[(A, B, C, D, E, F, G), Z, (A, B, C, D, E, F, G, Z)] =
     new Zippable[(A, B, C, D, E, F, G), Z] {
       type Out = (A, B, C, D, E, F, G, Z)
@@ -89,6 +127,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         (left._1, left._2, left._3, left._4, left._5, left._6, left._7, right)
     }
 
+  /** Zips a tuple of 8 values with a value `Z` into a tuple of 9, with `Z` last. */
   implicit def Zippable9[A, B, C, D, E, F, G, H, Z]
     : Zippable.Out[(A, B, C, D, E, F, G, H), Z, (A, B, C, D, E, F, G, H, Z)] =
     new Zippable[(A, B, C, D, E, F, G, H), Z] {
@@ -97,6 +136,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         (left._1, left._2, left._3, left._4, left._5, left._6, left._7, left._8, right)
     }
 
+  /** Zips a tuple of 9 values with a value `Z` into a tuple of 10, with `Z` last. */
   implicit def Zippable10[A, B, C, D, E, F, G, H, I, Z]
     : Zippable.Out[(A, B, C, D, E, F, G, H, I), Z, (A, B, C, D, E, F, G, H, I, Z)] =
     new Zippable[(A, B, C, D, E, F, G, H, I), Z] {
@@ -105,6 +145,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         (left._1, left._2, left._3, left._4, left._5, left._6, left._7, left._8, left._9, right)
     }
 
+  /** Zips a tuple of 10 values with a value `Z` into a tuple of 11, with `Z` last. */
   implicit def Zippable11[A, B, C, D, E, F, G, H, I, J, Z]
     : Zippable.Out[(A, B, C, D, E, F, G, H, I, J), Z, (A, B, C, D, E, F, G, H, I, J, Z)] =
     new Zippable[(A, B, C, D, E, F, G, H, I, J), Z] {
@@ -113,6 +154,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         (left._1, left._2, left._3, left._4, left._5, left._6, left._7, left._8, left._9, left._10, right)
     }
 
+  /** Zips a tuple of 11 values with a value `Z` into a tuple of 12, with `Z` last. */
   implicit def Zippable12[A, B, C, D, E, F, G, H, I, J, K, Z]
     : Zippable.Out[(A, B, C, D, E, F, G, H, I, J, K), Z, (A, B, C, D, E, F, G, H, I, J, K, Z)] =
     new Zippable[(A, B, C, D, E, F, G, H, I, J, K), Z] {
@@ -121,6 +163,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         (left._1, left._2, left._3, left._4, left._5, left._6, left._7, left._8, left._9, left._10, left._11, right)
     }
 
+  /** Zips a tuple of 12 values with a value `Z` into a tuple of 13, with `Z` last. */
   implicit def Zippable13[A, B, C, D, E, F, G, H, I, J, K, L, Z]
     : Zippable.Out[(A, B, C, D, E, F, G, H, I, J, K, L), Z, (A, B, C, D, E, F, G, H, I, J, K, L, Z)] =
     new Zippable[(A, B, C, D, E, F, G, H, I, J, K, L), Z] {
@@ -143,6 +186,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         )
     }
 
+  /** Zips a tuple of 13 values with a value `Z` into a tuple of 14, with `Z` last. */
   implicit def Zippable14[A, B, C, D, E, F, G, H, I, J, K, L, M, Z]
     : Zippable.Out[(A, B, C, D, E, F, G, H, I, J, K, L, M), Z, (A, B, C, D, E, F, G, H, I, J, K, L, M, Z)] =
     new Zippable[(A, B, C, D, E, F, G, H, I, J, K, L, M), Z] {
@@ -166,6 +210,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         )
     }
 
+  /** Zips a tuple of 14 values with a value `Z` into a tuple of 15, with `Z` last. */
   implicit def Zippable15[A, B, C, D, E, F, G, H, I, J, K, L, M, N, Z]
     : Zippable.Out[(A, B, C, D, E, F, G, H, I, J, K, L, M, N), Z, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, Z)] =
     new Zippable[(A, B, C, D, E, F, G, H, I, J, K, L, M, N), Z] {
@@ -193,6 +238,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         )
     }
 
+  /** Zips a tuple of 15 values with a value `Z` into a tuple of 16, with `Z` last. */
   implicit def Zippable16[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, Z]
     : Zippable.Out[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O), Z, (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, Z)] =
     new Zippable[(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O), Z] {
@@ -221,6 +267,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         )
     }
 
+  /** Zips a tuple of 16 values with a value `Z` into a tuple of 17, with `Z` last. */
   implicit def Zippable17[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Z]: Zippable.Out[
     (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P),
     Z,
@@ -253,6 +300,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         )
     }
 
+  /** Zips a tuple of 17 values with a value `Z` into a tuple of 18, with `Z` last. */
   implicit def Zippable18[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, Z]: Zippable.Out[
     (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q),
     Z,
@@ -286,6 +334,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         )
     }
 
+  /** Zips a tuple of 18 values with a value `Z` into a tuple of 19, with `Z` last. */
   implicit def Zippable19[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, Z]: Zippable.Out[
     (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R),
     Z,
@@ -320,6 +369,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         )
     }
 
+  /** Zips a tuple of 19 values with a value `Z` into a tuple of 20, with `Z` last. */
   implicit def Zippable20[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, Z]: Zippable.Out[
     (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S),
     Z,
@@ -355,6 +405,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         )
     }
 
+  /** Zips a tuple of 20 values with a value `Z` into a tuple of 21, with `Z` last. */
   implicit def Zippable21[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, Z]: Zippable.Out[
     (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T),
     Z,
@@ -391,6 +442,7 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
         )
     }
 
+  /** Zips a tuple of 21 values with a value `Z` into a tuple of 22, with `Z` last. */
   implicit def Zippable22[A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, Z]: Zippable.Out[
     (A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U),
     Z,
@@ -429,8 +481,10 @@ trait ZippableLowPriority2 extends ZippableLowPriority3 {
     }
 }
 
+/** The [[Zippable]] instance with the lowest priority. */
 trait ZippableLowPriority3 {
 
+  /** Zips any two values of types `A` and `B` into the pair `(A, B)`. */
   implicit def Zippable2[A, B]: Zippable.Out[A, B, (A, B)] =
     new Zippable[A, B] {
       type Out = (A, B)

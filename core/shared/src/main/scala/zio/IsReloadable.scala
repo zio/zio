@@ -35,19 +35,26 @@ import scala.annotation.implicitNotFound
  *   - `Service` should contain only ZIO methods or vals.
  *   - `Service` should not have any abstract type members.
  *
+ * On Scala 3, the derived instance (`IsReloadable.derived`) is marked
+ * `@experimental`.
+ *
  * @example
  *   {{{
+ *   // scala-2-only
  *   trait MyService { def foo: UIO[String] }
  *
  *   val service1: MyService = new MyService { def foo = ZIO.succeed("zio1") }
  *   val service2: MyService = new MyService { def foo = ZIO.succeed("zio2") }
- *   for {
- *     ref       <- ScopedRef.make(service1)
- *     reloadable = IsReloadable[MyService].reloadable(ref)
- *     res1      <- reloadable.foo
- *     _         <- ref.set(ZIO.succeed(service2))
- *     res2      <- reloadable.foo
- *   } yield assertTrue(res1 == "zio1" && res2 == "zio2")
+ *
+ *   val results: ZIO[Scope, Nothing, (String, String)] =
+ *     for {
+ *       ref       <- ScopedRef.make(service1)
+ *       reloadable = IsReloadable[MyService].reloadable(ref)
+ *       res1      <- reloadable.foo
+ *       _         <- ref.set(ZIO.succeed(service2))
+ *       res2      <- reloadable.foo
+ *     } yield (res1, res2)
+ *   // ("zio1", "zio2")
  *   }}}
  */
 @implicitNotFound(
@@ -58,9 +65,18 @@ import scala.annotation.implicitNotFound
     "\n  3. The type does not have any abstract type members."
 )
 trait IsReloadable[Service] {
+
+  /**
+   * Returns a `Service` that forwards each call to the service that
+   * `scopedRef` holds at the time of the call.
+   */
   def reloadable(scopedRef: ScopedRef[Service]): Service
 }
+
+/** Summons and derives [[IsReloadable]] instances. */
 object IsReloadable extends IsReloadableVersionSpecific {
+
+  /** Returns the implicit `IsReloadable[Service]`. */
   def apply[Service](implicit isReloadable: IsReloadable[Service]): IsReloadable[Service] =
     isReloadable
 }
