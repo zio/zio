@@ -39,9 +39,9 @@ val helloZIO: ZIO[Console, IOException, Unit] =
 //   trace = "repl.MdocSession.MdocApp0.helloZIO(commutativeboth.md:29)",
 //   first = Stateful(
 //     trace = "repl.MdocSession.MdocApp0.helloZIO(commutativeboth.md:29)",
-//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$17053/0x0000000804975840@650a72a5
+//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$18621/0x00007f348aede850@4162fb5f
 //   ),
-//   successK = zio.ZIO$$Lambda$17055/0x0000000804974040@2efa6013
+//   successK = zio.ZIO$$Lambda$18623/0x00007f348aee07e0@774754e6
 // )
 
 val zioHello: ZIO[Console, IOException, Unit] =
@@ -50,9 +50,9 @@ val zioHello: ZIO[Console, IOException, Unit] =
 //   trace = "repl.MdocSession.MdocApp0.zioHello(commutativeboth.md:33)",
 //   first = Stateful(
 //     trace = "repl.MdocSession.MdocApp0.zioHello(commutativeboth.md:33)",
-//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$17053/0x0000000804975840@49299a49
+//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$18621/0x00007f348aede850@708a6645
 //   ),
-//   successK = zio.ZIO$$Lambda$17055/0x0000000804974040@34ae8187
+//   successK = zio.ZIO$$Lambda$18623/0x00007f348aee07e0@3da7fcd6
 // )
 ```
 
@@ -69,9 +69,9 @@ val failZIO: ZIO[Console, IOException, Unit] =
 //   trace = "repl.MdocSession.MdocApp0.failZIO(commutativeboth.md:40)",
 //   first = Stateful(
 //     trace = "repl.MdocSession.MdocApp0.failZIO(commutativeboth.md:40)",
-//     onState = zio.ZIO$$$Lambda$17057/0x0000000804972840@7eb0fd9d
+//     onState = zio.ZIO$$$Lambda$18625/0x00007f348aee1b08@131e15e
 //   ),
-//   successK = zio.ZIO$$Lambda$17055/0x0000000804974040@3ed2f975
+//   successK = zio.ZIO$$Lambda$18623/0x00007f348aee07e0@372fce2
 // )
 
 val zioFail: ZIO[Console, IOException, (Unit, Unit)] =
@@ -80,9 +80,9 @@ val zioFail: ZIO[Console, IOException, (Unit, Unit)] =
 //   trace = "repl.MdocSession.MdocApp0.zioFail(commutativeboth.md:44)",
 //   first = Stateful(
 //     trace = "repl.MdocSession.MdocApp0.zioFail(commutativeboth.md:44)",
-//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$17053/0x0000000804975840@459d3c86
+//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$18621/0x00007f348aede850@5fc0e200
 //   ),
-//   successK = zio.ZIO$$Lambda$17055/0x0000000804974040@6c2d7c11
+//   successK = zio.ZIO$$Lambda$18623/0x00007f348aee07e0@4b4190f6
 // )
 ```
 
@@ -98,7 +98,7 @@ val helloZIOPar: ZIO[Console, IOException, Unit] =
 // helloZIOPar: ZIO[Console, IOException, Unit] = DynamicNoBox(
 //   trace = "repl.MdocSession.MdocApp0.helloZIOPar(commutativeboth.md:51)",
 //   update = 1L,
-//   f = zio.ZIO$$Lambda$17117/0x00000008049eb440@a4bbe1c
+//   f = zio.ZIO$$Lambda$18787/0x00007f348af758c8@14c81306
 // )
 ```
 
@@ -141,7 +141,7 @@ implicit val ListCommutativeBoth: CommutativeBoth[List] =
     def both[A, B](as: => List[A], bs: => List[B]): List[(A, B)] =
       as.zip(bs)
   }
-// ListCommutativeBoth: CommutativeBoth[List] = repl.MdocSession$MdocApp0$$anon$1@4244c06c
+// ListCommutativeBoth: CommutativeBoth[List] = repl.MdocSession$MdocApp0$$anon$1@50fb6cff
 ```
 
 Again we are not forking any fibers here but values from the left list and the right list have an equal opportunity to be included in the zipped list.

@@ -22,7 +22,7 @@ The `Equal` abstraction allows us to define what it means for two instances of a
 
 ### Ord
 
-The `Ord` abstraction builds on the `Equal` abstraction and describes a type that has a total ordering. Its fundamental representation is as a function `(A, A) => Ordering`, where `Ordering` can either be `LessThan`, `EqualTo` or `GreaterThan`.
+The `Ord` abstraction builds on the `Equal` abstraction and describes a type that has a total ordering. Its fundamental representation is as a function `(A, A) => Ordering`, where `Ordering` can either be `LessThan`, `Equals` or `GreaterThan`.
 
 The `Ord` abstraction serves much the same purpose as the `Ordering` type class from the Scala standard library, but it has improved type inference due to its use of variance. It also integrates with the other functional abstractions in ZIO Prelude, so for example defining an ordering for a type also defines a way of comparing instances of that type for equality that is by definition consistent with the ordering.
 
@@ -34,7 +34,7 @@ The `Hash` abstraction allows us to define our own way of hashing data types ins
 
 ### Debug
 
-The `Debug` abstraction describes a type that can be rendered for debugging purposes. Its fundamental representation is as a function `A => Repr`, where `A` is a structured representation of the value that supports rendering in various formats.
+The `Debug` abstraction describes a type that can be rendered for debugging purposes. Its fundamental representation is as a function `A => Repr`, where `Repr` is a structured representation of the value that supports rendering in various formats.
 
 The `Debug` abstraction allows us to define how a data type should be rendered, for example rendering an `Array` to display its values rather than just its memory location. The more structured representation also allows rendering in different formats, for example including fully qualified names in the rendering of the data type so the rendering is itself valid Scala code.
 
@@ -99,7 +99,7 @@ An identity element gives us a "starting point" for combining values that we kno
 
 ### Inverse
 
-The `Inverse` abstraction further builds on the `Identity` abstraction with the concept of an inverse to the combining operation.
+The `Inverse` abstraction further builds on the `Identity` abstraction, through `PartialInverse`, with the concept of an inverse to the combining operation.
 
 ```scala
 inverse(a, a) === identity

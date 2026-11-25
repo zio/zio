@@ -16,7 +16,7 @@ The steps are:
 Add the core module to your build:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-logging" % "2.5.4"
+libraryDependencies += "dev.zio" %% "zio-logging" % "2.5.5"
 ```
 
 The examples below use these imports:
@@ -32,7 +32,7 @@ import zio.logging.{ ConsoleLoggerConfig, LogAnnotation, LogFilter, LogFormat, c
 
 ## Choose the Log Fields
 
-We build a `LogFormat` where each field is wrapped in `LogFormat.label`. A label gives the field a JSON key. Without a label, the value is written as plain text, which cannot be read as a JSON field.
+We build a `LogFormat` where each field is wrapped in `LogFormat.label`. A label gives the field a JSON key. Text without a label is not lost, but all of it goes into one field named `text_content`, so a shipper cannot tell the parts apart. When the unlabelled text of a line is only spaces, such as the separators that `LogFormat#|-|` writes between labels, no `text_content` field is written. The following format labels every field:
 
 ```scala
 val jsonFormat: LogFormat =
@@ -54,7 +54,16 @@ Each part of this format maps to a JSON key:
 - `LogFormat.allAnnotations` writes every log annotation as its own key. An annotation's key is its name, such as `user_id` for `LogAnnotation.UserId`.
 - `LogFormat.spans` writes each active span as a key with its elapsed time, such as `"checkout":"12ms"`.
 
-The string values in the JSON are escaped, so a message that contains quotes or line breaks still produces one valid JSON object per line.
+String values in the JSON are escaped, so a message that contains quotes or line breaks still produces one valid JSON object per line. A few kinds of value are written differently:
+
+- A value that is itself a valid JSON object or array is embedded as JSON, not as a string. The `ConsoleJsonApp` example renders a `user` annotation as JSON, and the line contains `"user":{"first_name":"John","last_name":"Doe"}`.
+- When a value starts and ends with a double quote, those two quotes are removed. This is why `LogFormat.quoted(LogFormat.line)` from a text format still writes a plain JSON string, but it also removes the quotes from a message such as `"done"`.
+- A value made only of spaces is written as an empty string, `""`.
+- ANSI color codes from `LogFormat#color` and `LogFormat#highlight` are removed, so a colored format writes plain values. `LogFormat#fixed` still pads or cuts the value, so leave it out of JSON formats.
+
+:::caution
+Keep a JSON value in a label of its own. When one label holds both plain text and a JSON value, the JSON logger can write a value that is not valid JSON.
+:::
 
 ## Install the Console JSON Logger
 

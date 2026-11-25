@@ -1,9 +1,17 @@
 # Changelog
 
-> Note: this is a manually maintained list of important changes. Because of having auto-release from CI, this
-> list may not reflect _all_ changes immediately. Dependencies are continuously updated and are not documented here.
+> This is a manually maintained list of important changes. Releases are published automatically from CI, so this list may not show every change right away. Dependency updates are not listed.
 
-# Version history
+ZIO AWS versions have four parts, such as `7.59.2.5`. The first part is the ZIO AWS major version, the second and third parts are the minor and patch version of the AWS Java SDK the release is built on (here AWS SDK `2.59.2`), and the last part counts the releases built on that SDK version. The [Releases](https://github.com/zio/zio-aws/releases) page on GitHub lists every release.
+
+#### 7.41.17.2
+- `endpointOverride` in configuration must now start with `http://` or `https://`. A value without a scheme fails when the configuration is loaded, instead of causing a `NullPointerException` in the AWS SDK ([#626](https://github.com/zio/zio-aws/issues/626)).
+
+#### 7.31.77.7
+- Scala 2.12 is no longer published. ZIO AWS is published for Scala 2.13 and Scala 3.
+
+#### 7.30.15.2
+- New HTTP client module, `zio-aws-crt-http`, built on the AWS Common Runtime (CRT) HTTP client.
 
 #### 7.x.x.x
 - ZIO 2.0.18 introduced a `ZLayerAspect` which uses the same operator (`@@`) that ZIO AWS was using on layers, but it is not powerful enough to express this library's aspects. The new operator conflicts with the existing extension method, so starting from this version it has been renamed from `@@` to `@@@` to avoid the conflict. 
@@ -21,7 +29,7 @@
 - Exposed lower level pagination API calls beside the streaming ones
 - Using the `Optional` type instead of `Option` to reduce boilerplate
 
-See the [migration guide](overview_migration_guide) for more information.
+See the [migration guide](./migration_guide.md) for more information.
 
 #### 4.17.104.1
 - Migrated to `zio-config v2.0.0`

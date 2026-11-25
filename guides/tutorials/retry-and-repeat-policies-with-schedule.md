@@ -576,6 +576,7 @@ sbt "runMain schedulebasics.HttpRetryApp"
 `Schedule` is part of ZIO core and requires no extra dependency. Add ZIO core to your own project with:
 
 ```sbt
+// ZIO core (JVM, Scala.js, Scala Native)
 libraryDependencies += "dev.zio" %% "zio" % "2.1.27"
 ```
 

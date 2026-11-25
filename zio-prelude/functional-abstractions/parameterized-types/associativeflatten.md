@@ -47,9 +47,9 @@ val greet: ZIO[Random, Nothing, ZIO[Console, IOException, Unit]] =
 //   trace = "repl.MdocSession.MdocApp.greet(associativeflatten.md:23)",
 //   first = Stateful(
 //     trace = "repl.MdocSession.MdocApp.greet(associativeflatten.md:23)",
-//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$17053/0x0000000804975840@5b6966c1
+//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$18621/0x00007f348aede850@459a4da3
 //   ),
-//   successK = zio.ZIO$$Lambda$17101/0x00000008049d5040@40e884fc
+//   successK = zio.ZIO$$Lambda$18754/0x00007f348af47358@e0b5091
 // )
 ```
 
@@ -82,9 +82,9 @@ val greet: ZIO[Random with Console, IOException, Unit] =
 //     trace = "repl.MdocSession.MdocApp.<local MdocApp>.greet(associativeflatten.md:33)",
 //     first = Stateful(
 //       trace = "repl.MdocSession.MdocApp.<local MdocApp>.greet(associativeflatten.md:33)",
-//       onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$17053/0x0000000804975840@175ec8
+//       onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$18621/0x00007f348aede850@42d3a436
 //     ),
-//     successK = zio.ZIO$$Lambda$17101/0x00000008049d5040@50a19db9
+//     successK = zio.ZIO$$Lambda$18754/0x00007f348af47358@5c28797e
 //   ),
 //   successK = <function1>
 // )
@@ -103,7 +103,7 @@ val greet: ZIO[Random with Console, IOException, Unit] =
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.greet(associativeflatten.md:43)",
 //   first = Stateful(
 //     trace = "repl.MdocSession.MdocApp.<local MdocApp>.greet(associativeflatten.md:43)",
-//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$17053/0x0000000804975840@604c9635
+//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$18621/0x00007f348aede850@5941bfcd
 //   ),
 //   successK = <function1>
 // )
@@ -155,16 +155,19 @@ The `flatten` operator is so powerful because it allows the next value to be pro
 To see this, consider the following two `ZIO` workflows.
 
 ```scala
-val helloAssociativeBoth: ZIO[Console, IOException, Unit] =
-  console.putStrLn("What's your name?") *>
-    console.readLine *>
-    console.putStrLn(s"Hello! Welcome to ZIO!")
+import zio._
+import java.io.IOException
 
-val helloAssociativeFlatten: ZIO[Console, IOException, Unit] =
+val helloAssociativeBoth: ZIO[Any, IOException, Unit] =
+  Console.printLine("What's your name?") *>
+    Console.readLine *>
+    Console.printLine("Hello! Welcome to ZIO!")
+
+val helloAssociativeFlatten: ZIO[Any, IOException, Unit] =
   for {
-    _    <- console.putStrLn("What's your name?") *>
-    name <- console.readLine *>
-    _    <- console.putStrLn(s"Hello $name! Welcome to ZIO!")
+    _    <- Console.printLine("What's your name?")
+    name <- Console.readLine
+    _    <- Console.printLine(s"Hello $name! Welcome to ZIO!")
   } yield ()
 ```
 

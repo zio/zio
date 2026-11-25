@@ -32,9 +32,8 @@ scalaVersion := "2.13.10"
 name := "my-zio-project"
 version := "0.0.1"
 
-libraryDependencies ++= Seq(
-  "zio" %% "zio" % "2.0.5"
-)
+// ZIO core (JVM, Scala.js, Scala Native)
+libraryDependencies += "zio" %% "zio" % "2.0.5"
 ```
 
 3. Also, we need to specify the SBT version we want to use in the `project/build.properties` file:

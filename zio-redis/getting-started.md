@@ -4,12 +4,12 @@
 
 ## Installation
 
-To use ZIO Redis, add the following to `build.sbt`. The example also uses the Protobuf codec from ZIO Schema:
+`zio-redis` is added to your build as shown in [Installation](./index.md#installation). Examples that store case classes also use the Protobuf codec from ZIO Schema:
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.zio" %% "zio-redis"           % "1.3.2",
-  "dev.zio" %% "zio-schema-protobuf" % "1.9.0"
+  // Protobuf codec for ZIO Schema (JVM, Scala 2.12, 2.13, 3)
+  "dev.zio" %% "zio-schema-protobuf" % "1.9.1"
 )
 ```
 
@@ -17,22 +17,22 @@ libraryDependencies ++= Seq(
 
 The library defines two service types, both built from the same layers:
 
-| Type         | Command return type              | Use it to                           |
-| ------------ | -------------------------------- | ----------------------------------- |
-| `Redis`      | `IO[RedisError, A]`              | Run commands one after another      |
-| `AsyncRedis` | `UIO[IO[RedisError, A]]`         | Send commands without waiting       |
+| Type         | Command return type      | Use it to                      |
+| ------------ | ------------------------ | ------------------------------ |
+| `Redis`      | `IO[RedisError, A]`      | Run commands one after another |
+| `AsyncRedis` | `UIO[IO[RedisError, A]]` | Send commands without waiting  |
 
-Most programs only need `Redis`. See [AsyncRedis](./async-redis.md) for the second one.
+Most programs only need `Redis`. See [AsyncRedis](./concepts/async-redis.md) for the second one.
 
 ## Building the Layer
 
-A `Redis` layer needs a [`CodecSupplier`](./codecs.md) and a connection. The following layers create it:
+A `Redis` layer needs a [`CodecSupplier`](./concepts/codecs.md) and a connection. The following layers create it:
 
-| Layer                | Requires                              | Connects to                                |
-| -------------------- | ------------------------------------- | ------------------------------------------ |
-| `Redis.local`        | `CodecSupplier`                       | `localhost:6379`                           |
-| `Redis.singleNode`   | `CodecSupplier` and `RedisConfig`     | The single server described by the config  |
-| `Redis.cluster`      | `CodecSupplier` and `RedisClusterConfig` | A Redis Cluster (see [Cluster](./cluster.md)) |
+| Layer              | Requires                                 | Connects to                                            |
+| ------------------ | ---------------------------------------- | ------------------------------------------------------ |
+| `Redis.local`      | `CodecSupplier`                          | `localhost:6379`                                       |
+| `Redis.singleNode` | `CodecSupplier` and `RedisConfig`        | The single server described by the config              |
+| `Redis.cluster`    | `CodecSupplier` and `RedisClusterConfig` | A Redis Cluster (see [Cluster](./concepts/cluster.md)) |
 
 To use the built-in UTF-8 codec supplier against a local server:
 
@@ -84,6 +84,6 @@ Keys, field names and values are all encoded with the `CodecSupplier`, so the sa
 
 ## Next Steps
 
-- [Configuration](./configuration.md) explains `RedisConfig`, `RedisUri`, authentication and TLS.
-- [Codecs](./codecs.md) explains how values are encoded.
-- [Error Handling](./error-handling.md) lists every `RedisError`.
+- [Configuration](./reference/configuration.md) explains `RedisConfig`, `RedisUri`, authentication and TLS.
+- [Codecs](./concepts/codecs.md) explains how values are encoded.
+- [Error Handling](./concepts/error-handling.md) lists every `RedisError`.

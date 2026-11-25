@@ -9,6 +9,7 @@ To streamline the testing process, a custom JUnit runner is provided specificall
 By adding the necessary dependency definition to the build tool, developers can effortlessly incorporate the ZIO Test JUnit runner:
 
 ```scala
+// JUnit integration for ZIO Test (test scope)
 libraryDependencies += "dev.zio" %% "zio-test-junit" % zioVersion % "test"
 ```
 
@@ -67,6 +68,7 @@ class MySpec extends ZIOSpecDefault {
 To run the above test using `sbt test` we also need to add the following line to our `build.sbt`:
 
 ```scala
+// sbt JUnit test interface (test scope)
 libraryDependencies += "com.github.sbt" % "junit-interface" % "0.13.3" % Test
 ```
 

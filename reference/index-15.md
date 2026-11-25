@@ -9,6 +9,7 @@ When we access shared resources in a concurrent environment, we should choose a 
 In order to use this library, we need to add the following line in our `build.sbt` file:
 
 ```scala
+// ZIO concurrency primitives for synchronous code
 libraryDependencies += "dev.zio" %% "zio-concurrent" % "2.x.x"
 ```
 

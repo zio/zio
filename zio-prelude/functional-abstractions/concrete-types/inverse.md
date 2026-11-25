@@ -13,7 +13,11 @@ trait Identity[A] extends Associative[A] {
   def identity: A
 }
 
-trait Inverse[A] extends Identity[A] {
+trait PartialInverse[A] extends Identity[A] {
+  def inverseOption(left: => A, right: => A): Option[A]
+}
+
+trait Inverse[A] extends PartialInverse[A] {
   def inverse(left: => A, right: => A): A
 }
 ```
@@ -51,7 +55,7 @@ implicit val NaturalInverse: Inverse[Natural] =
     def inverse(left: => Natural, right: => Natural): Natural =
       Natural.minus(left, right)
   }
-// NaturalInverse: Inverse[Natural] = repl.MdocSession$MdocApp0$$anon$1@347e848c
+// NaturalInverse: Inverse[Natural] = repl.MdocSession$MdocApp0$$anon$1@6c67f0b7
 ```
 
 This also lets us define `Inverse` instances for other data types that we would not otherwise be able to. For example, what is the inverse of `Set(1, 2, 3)`?

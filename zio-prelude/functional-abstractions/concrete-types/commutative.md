@@ -12,7 +12,7 @@ trait Associative[A] {
 trait Commutative[A] extends Associative[A]
 ```
 
-The `Commutative` abstraction does not define any additional operators beyond the `combine` operator defined by `Associative`. However, it does provide additional structure to the `combine` operator.
+The `Commutative` abstraction does not define any additional abstract operators beyond the `combine` operator defined by `Associative`. It only adds a convenience method, `commute`, which returns an instance that combines its arguments in reverse order. More importantly, it provides additional structure to the `combine` operator.
 
 Specifically, it says that the `combine` operator is commutative in addition to being associative. This means that not only does the order of operations not matter, but the order in which we combine the values does not matter.
 

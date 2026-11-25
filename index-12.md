@@ -2,110 +2,122 @@
 
 > Rapidly build powerful command-line applications powered by ZIO
 
-[![Experimental](https://img.shields.io/badge/Project%20Stage-Experimental-yellowgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-cli/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-cli_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-cli_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-cli_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-cli_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-cli-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-cli-docs_2.13) [![ZIO CLI](https://img.shields.io/github/stars/zio/zio-cli?style=social)](https://github.com/zio/zio-cli)
+[![Experimental](https://img.shields.io/badge/Project%20Stage-Experimental-yellowgreen.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-cli/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-cli_2.13.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-cli_2.13) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-cli_2.13%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-cli_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-cli_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-cli_2.13) [![ZIO CLI](https://img.shields.io/github/stars/zio/zio-cli?style=social)](https://github.com/zio/zio-cli)
+
+## Introduction
+
+**ZIO CLI** turns a typed description of a command line into a working program. We describe the commands, options and arguments a program accepts, and ZIO CLI parses the user's input into Scala values, reports errors, and generates the help text from the same description.
+
+Key features of ZIO CLI:
+
+- **Typed options and arguments**: Text, numbers, booleans, dates, paths, enumerations and key-value pairs are parsed into Scala types.
+- **Commands and subcommands**: Programs such as `git remote add` are built from small commands that compose.
+- **Generated help**: The `--help` output, usage line and error messages come from the command description, so they never drift from the code.
+- **Built-in features**: Every app gets `--help`, an interactive `--wizard` mode and bash completion without extra code.
+- **Testing support**: The `zio-cli-testkit` module checks parsing and app behaviour inside ZIO Test.
+- **Cross-platform**: The library runs on the JVM, Scala.js and Scala Native.
 
 ## Installation
 
-To use **ZIO CLI**, we need to add the following to our `build.sbt` file:
+ZIO CLI is published for Scala 2.12, 2.13 and 3. To use it on the JVM, add the following to your `build.sbt` file:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-cli" % "0.7.4"
-```
-## Getting Started
-**ZIO CLI** allows to easily construct a CLI application. A CLI or Command-Line Interface is an application that allows the user to give instructions by means of pieces of text called commands. A command has the following structure
-```
-command param1 param2 ... paramN
-```
-where `command` is the name of the command and `param1`, `param2`, ..., `paramN` form a list of parameters depending on the command that determines the precise instruction to the CLI application.
-
-Given the case, a command itself might contain subcommands. This allows a better design of the command-line application and a more comfortable user experience.
-
-A command might include arguments and options.
-- Arguments are name-less and position-based parameters that the user specifies just by the position in the command. As an example, we can consider the widely used command-line application Git. One subcommand is `clone`. It creates a copy of an existing repository. An argument of `git clone` is `repository`. If the repository name is `https://github.com/zio/zio-cli.git`, we will use it in the following manner:
-```
-git clone https://github.com/zio/zio-cli.git
+// Commands, options, arguments, generated help, wizard mode and shell completion (JVM, Scala.js, Scala Native)
+libraryDependencies += "dev.zio" %% "zio-cli" % "0.8.3"
 ```
 
-- Options are named and position-independent parameters that are specified by writing the content after the name. The name is preceded by `--`. An option may have a shorter form called an alias. When the alias is used instead of the full name, only `-` is needed. An option of command `git clone` is `local`. It is a boolean option, so it is not necessary to write true or false after it: it will be true only if it appears. It is used in the following manner:
-```
-git clone --local
-```
-It also has an alias `-l`:
-```
-git clone -l
-```
-
-The description of the command `git clone`, taking only into account option `local` and argument `repository` will be
-```
-git clone [-l] <repository>
-```
-where `[]` implies that the option is optional and `<>` indicates an argument.
-
-### Difference between Args and Options
-Arguments and options are different due to the way the user specifies them. Arguments are not specified using its name, only by the position inside the command. On the other hand, options must be preceded by its name and `--` indicating that it is the name of an option. 
-
-Furthermore, a command-line application will represent them in different ways. Argument's name will be inside `<>` while an option will be preceded by `--`. In case that the option has a short form or alias, this will be preceded by `-`.
-
-### First ZIO CLI example
-
- This is done by defining `cliApp` value from `ZIOCliDefault` using `CliApp.make` and specifying a `Command` as parameter. A `Command[Model]` is a description of the commands of a CLI application that allows to specify which commands are valid and how to transform the input into an instance of `Model`. Then it is possible to implement the logic of the CLI application in terms of `Model`. As a sample we are going to create a command of Git. We are going to implement only command `git clone` with argument `repository` and option `local`.
+For Scala.js or Scala Native projects, use `%%%` instead:
 
 ```scala
+// Commands, options, arguments, generated help, wizard mode and shell completion (JVM, Scala.js, Scala Native)
+libraryDependencies += "dev.zio" %%% "zio-cli" % "0.8.3"
+```
+
+The [Getting Started](getting-started.md) page walks through a first program.
+
+## Modules
+
+Besides the core library, ZIO CLI has a module for tests and an sbt plugin.
+
+### Testing
+
+The testkit adds assertions and generators that check how commands parse their input and how apps behave. To use it on the JVM, add it as a test dependency:
+
+```scala
+// Assertions and generators for testing commands and apps with ZIO Test (JVM, Scala.js, Scala Native)
+libraryDependencies += "dev.zio" %% "zio-cli-testkit" % "0.8.3" % Test
+```
+
+For Scala.js or Scala Native projects, use `%%%` instead:
+
+```scala
+// Assertions and generators for testing commands and apps with ZIO Test (JVM, Scala.js, Scala Native)
+libraryDependencies += "dev.zio" %%% "zio-cli-testkit" % "0.8.3" % Test
+```
+
+The [Testing](testing.md) reference lists the assertions, and [How to test a CLI app](how-to-test-a-cli.md) shows them in use.
+
+### sbt Plugin
+
+The ZIO CLI sbt plugin is not published to Maven Central; the [sbt Plugin](sbt-plugin.md) page explains how to build it from source and what it provides.
+
+## Example
+
+The following program implements a small part of `git clone`, with one boolean option, one argument and help text for both:
+
+```scala
+import zio.Console.printLine
 import zio.cli._
 import zio.cli.HelpDoc.Span.text
-import zio.Console.printLine
 
-// object of your app must extend ZIOCliDefault
-object Sample extends ZIOCliDefault {
+object GitClone extends ZIOCliDefault {
 
-  /**
-   * First we define the commands of the Cli. To do that we need:
-   *    - Create command options
-   *    - Create command arguments
-   *    - Create help (HelpDoc) 
-   */
-  val options: Options[Boolean] = Options.boolean("local").alias("l")
-  val arguments: Args[String] = Args.text("repository")
-  val help: HelpDoc = HelpDoc.p("Creates a copy of an existing repository")
-  
-  val command: Command[(Boolean, String)] = Command("clone").subcommands(Command("clone", options, arguments).withHelp(help))
-  
-  // Define val cliApp using CliApp.make
+  val local: Options[Boolean] =
+    Options.boolean("local").alias("l") ?? "Clone from a repository on this machine."
+
+  val repository: Args[String] =
+    Args.text("repository") ?? "The repository to clone."
+
+  val cloneCommand: Command[(Boolean, String)] =
+    Command("clone", local, repository).withHelp("Creates a copy of an existing repository.")
+
   val cliApp = CliApp.make(
     name = "Sample Git",
     version = "1.1.0",
     summary = text("Sample implementation of git clone"),
-    command = command
-  ) {
-    // Implement logic of CliApp
-    case _ => printLine("executing git clone")
+    command = cloneCommand
+  ) { case (isLocal, repo) =>
+    printLine(s"Cloning $repo (local: $isLocal)")
   }
 }
 ```
-The output will be
-```
-   _____@       @           @        @   __@     @       @  ______@   _ @  __ @
-  / ___/@ ____ _@  ____ ___ @   ____ @  / /@ ___ @       @ / ____/@  (_)@ / /_@
-  \__ \ @/ __ `/@ / __ `__ \@  / __ \@ / / @/ _ \@       @/ / __  @ / / @/ __/@
- ___/ / / /_/ / @/ / / / / /@ / /_/ /@/ /  /  __/@       / /_/ /  @/ /  / /_  @
-/____/  \__,_/  /_/ /_/ /_/ @/ .___/ /_/   \___/ @       \____/   /_/   \__/  @
-        @       @           /_/      @     @     @       @        @     @     @
 
-Sample Git v1.1.0 -- Sample implementation of git clone
+Running the program with `-l https://github.com/zio/zio-cli.git` prints `Cloning https://github.com/zio/zio-cli.git (local: true)`. Running it with `--help` prints a banner with the app name, followed by help text generated from the description:
+
+```text
+Sample Git 1.1.0 -- Sample implementation of git clone
 
 USAGE
 
-  $ clone clone [(-l, --local)] <repository>
+  $ clone [(-l, --local)] <repository>
 
-COMMANDS
+DESCRIPTION
 
-  clone [(-l, --local)] <repository>  Creates a copy of an existing repository
+  Creates a copy of an existing repository.
+
+ARGUMENTS
+
+  <repository>
+    A user-defined piece of text.
+
+    The repository to clone.
+
+OPTIONS
+
+  (-l, --local)
+    A true or false value.
+
+    Clone from a repository on this machine.
+
+    This setting is optional. Default: 'false'.
 ```
-
-If there is a `CliApp`, you can run a command using its method `run` and passing parameters in a `List[String]`.
-
-## References
-
-- [10 Minute Command-Line Apps With ZIO CLI](https://www.youtube.com/watch?v=UeR8YUN4Tws) by Aiswarya Prakasan
-- [Hacking on ZIO-CLI](https://www.youtube.com/watch?v=HxPCXfnbg3U) by Adam Fraser and Kit Langton
-- [Behold! The Happy Path To Captivate Your Users With Stunning CLI Apps!](https://www.youtube.com/watch?v=0c3zbUq4lQo) by Jorge Vasquez

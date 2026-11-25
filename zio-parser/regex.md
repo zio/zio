@@ -36,7 +36,7 @@ A regex can be compiled and tested on its own:
 
 ```scala
 val compiled = identifier.compile
-// compiled: Compiled = zio.parser.Regex$Parser$$anon$1@5b7aa0d1
+// compiled: Compiled = zio.parser.Regex$Parser$$anon$1@2ab7c4e5
 compiled.matches("user_42")
 // res0: Boolean = true
 compiled.matches("42user")

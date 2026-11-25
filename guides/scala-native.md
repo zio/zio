@@ -16,7 +16,9 @@ lazy val myApp = project
   .in(file("my-app"))
   .settings(
     scalaVersion := "2.13.18",
+    // ZIO core (JVM, Scala.js, Scala Native)
     libraryDependencies += "dev.zio" %% "zio"        % "2.1.27",
+    // ZIO Streams
     libraryDependencies += "dev.zio" %% "zio-streams" % "2.1.27"
   )
 ```
@@ -47,7 +49,9 @@ You also need sbt 1.9 or later. Scala Native supports Scala 2.12, 2.13, and 3; t
 The ZIO dependencies use sbt-crossproject's `%%%` operator rather than `%%`. This operator resolves to `%%` on JVM and appends the `_native0.5` classifier on Scala Native, so the same `build.sbt` line covers both platforms:
 
 ```scala
+// ZIO core (JVM, Scala.js, Scala Native)
 libraryDependencies += "dev.zio" %%% "zio"        % "2.1.27"
+// ZIO Streams
 libraryDependencies += "dev.zio" %%% "zio-streams" % "2.1.27"
 ```
 
@@ -115,7 +119,9 @@ lazy val myApp = crossProject(JVMPlatform, NativePlatform)
   .settings(
     name         := "my-app",
     scalaVersion := "2.13.18",
+    // ZIO core (JVM, Scala.js, Scala Native)
     libraryDependencies += "dev.zio" %%% "zio"        % "2.1.27",
+    // ZIO Streams
     libraryDependencies += "dev.zio" %%% "zio-streams" % "2.1.27"
   )
   .nativeSettings(
@@ -229,9 +235,13 @@ lazy val myApp = crossProject(JVMPlatform, NativePlatform)
   .settings(
     name         := "my-app",
     scalaVersion := "2.13.18",
+    // ZIO core (JVM, Scala.js, Scala Native)
     libraryDependencies += "dev.zio" %%% "zio"         % "2.1.27",
+    // ZIO Streams
     libraryDependencies += "dev.zio" %%% "zio-streams"  % "2.1.27",
+    // ZIO Test: the test library (test scope)
     libraryDependencies += "dev.zio" %%% "zio-test"     % "2.1.27" % Test,
+    // ZIO Test sbt integration (test scope)
     libraryDependencies += "dev.zio" %%% "zio-test-sbt" % "2.1.27" % Test,
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   )
@@ -240,8 +250,11 @@ lazy val myApp = crossProject(JVMPlatform, NativePlatform)
     scalacOptions += "-P:scalanative:genStaticForwardersForNonTopLevelObjects",
     Test / fork := false,
     bspEnabled  := false,
+    // java.time API for Scala.js and Scala Native (test scope)
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time"      % "2.7.0" % Test,
+    // Time zone data for java.time on Scala.js and Scala Native (test scope)
     libraryDependencies += "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.7.0" % Test,
+    // Crypto support for Scala Native (test scope)
     libraryDependencies += "com.github.lolgab" %%% "scala-native-crypto"  % "0.3.0" % Test
   )
 ```

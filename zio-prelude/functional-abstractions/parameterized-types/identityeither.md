@@ -44,7 +44,7 @@ implicit val OptionIdentityEither: IdentityEither[Option] =
     val none: Option[Nothing] =
       None
   }
-// OptionIdentityEither: IdentityEither[Option] = repl.MdocSession$MdocApp0$$anon$1@6646477d
+// OptionIdentityEither: IdentityEither[Option] = repl.MdocSession$MdocApp0$$anon$1@62cc4389
 ```
 
 If we think of an `Option[A]` as representing either a success with a value of type `A` or a failure with no useful information, then the implementation of `none` is `None`. Combining any `Option[A]` with `None` with `orElseEither` won't change its result.
@@ -76,7 +76,7 @@ Having this `none` value can be useful in certain situations. For example, it ca
 
 However, supporting a `none` value requires allowing the possibility of that a value can fail without containing any errors, which is unattractive in many cases.
 
-For example, `ZIO` and most effect types such as `ZManaged` and `ZStream` do not have an `IdentityEither` instance defined for them because is they fail they always fail with a failure `E`. Otherwise when we used an error handling operator we would have to deal with the error as well as the possibility that there is a failure but no error at all.
+For example, `ZIO` and most effect types such as `ZStream` do not have an `IdentityEither` instance defined for them because if they fail they always fail with a failure `E`. Otherwise when we used an error handling operator we would have to deal with the error as well as the possibility that there is a failure but no error at all.
 
 Note that in the case of `ZIO` a workflow can also die with a cause that can potentially be `Cause.empty`, but since the associative operator `orElseEither` does not recover from `Die` failures that doesn't help us with our problem here.
 
@@ -90,7 +90,7 @@ implicit val ChunkIdentityEither: IdentityEither[Chunk] =
     val none: Chunk[Nothing] =
       Chunk.empty
   }
-// ChunkIdentityEither: IdentityEither[Chunk] = repl.MdocSession$MdocApp0$$anon$2@576a0071
+// ChunkIdentityEither: IdentityEither[Chunk] = repl.MdocSession$MdocApp0$$anon$2@53640213
 ```
 
 Here the identity element is just the empty chunk. If we think of running a collection as producing a set of values and then failing when the collection is empty, `none` is the collection that doesn't produce any values and fails immediately.

@@ -7,7 +7,7 @@ Snappy has several incompatible variants. Before you choose a format, read the [
 Add the module to your `build.sbt`:
 
 ```sbt
-libraryDependencies += "dev.zio" %% "zio-streams-compress-snappy" % "3.0.0"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-snappy" % "3.0.1"
 ```
 
 ## SnappyCompressor

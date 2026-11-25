@@ -17,8 +17,8 @@ trait IdentityBoth[F[_]] extends AssociativeBoth[F] {
 The `any` value must be an identity element with respect to the `both` operator, so that after removing unnecessary tuples the following property holds:
 
 ```scala
-fa <*> identity === fa
-identity <*> fa === fa
+fa <*> any === fa
+any <*> fa === fa
 ```
 
 This is the same as the laws for the `Identity` functional abstraction for concrete types except lifted into the context of parameterized types.
@@ -40,9 +40,9 @@ val helloUnit: ZIO[Console, IOException, Unit] =
 //   trace = "repl.MdocSession.MdocApp0.helloUnit(identityboth.md:31)",
 //   first = Stateful(
 //     trace = "repl.MdocSession.MdocApp0.helloUnit(identityboth.md:31)",
-//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$17053/0x0000000804975840@4b1db8d6
+//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$18621/0x00007f348aede850@77ce0ddf
 //   ),
-//   successK = zio.ZIO$$Lambda$17055/0x0000000804974040@8b9e48f
+//   successK = zio.ZIO$$Lambda$18623/0x00007f348aee07e0@6deb2bde
 // )
 
 val unitHello: ZIO[Console, IOException, Unit] =
@@ -51,9 +51,9 @@ val unitHello: ZIO[Console, IOException, Unit] =
 //   trace = "repl.MdocSession.MdocApp0.unitHello(identityboth.md:35)",
 //   first = Sync(
 //     trace = "",
-//     eval = zio.ZIO$$$Lambda$17034/0x0000000804960040@59e5877c
+//     eval = zio.ZIO$$$Lambda$18602/0x00007f348aecb250@3cd20a8b
 //   ),
-//   successK = zio.ZIO$$Lambda$17055/0x0000000804974040@7f984f9e
+//   successK = zio.ZIO$$Lambda$18623/0x00007f348aee07e0@3bf5483b
 // )
 ```
 

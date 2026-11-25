@@ -6,7 +6,7 @@ Its signature is:
 
 ```scala
 trait AssociativeEither[F[_]] {
-  def either(fa: => F[A], fb: => F[B]): F[Either[A, B]]
+  def either[A, B](fa: => F[A], fb: => F[B]): F[Either[A, B]]
 }
 
 trait CommutativeEither[F[_]] extends AssociativeEither[F]
@@ -39,10 +39,10 @@ val helloZIO: ZIO[Console, IOException, Either[Unit, Unit]] =
 //   trace = "repl.MdocSession.MdocApp.helloZIO(commutativeeither.md:15)",
 //   first = Stateful(
 //     trace = "repl.MdocSession.MdocApp.helloZIO(commutativeeither.md:15)",
-//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$17053/0x0000000804975840@7a648899
+//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$18621/0x00007f348aede850@2b907d46
 //   ),
-//   successK = zio.ZIO$$$Lambda$17041/0x0000000804965040@49c1fa09,
-//   failureK = zio.ZIO$$Lambda$17130/0x0000000804a15040@51fa8201
+//   successK = zio.ZIO$$$Lambda$18609/0x00007f348aece5b8@74db6c0a,
+//   failureK = zio.ZIO$$Lambda$18799/0x00007f348af76a78@5d0b0cf5
 // )
 
 val zioHello: ZIO[Console, IOException, Either[Unit, Unit]] =
@@ -51,10 +51,10 @@ val zioHello: ZIO[Console, IOException, Either[Unit, Unit]] =
 //   trace = "repl.MdocSession.MdocApp.zioHello(commutativeeither.md:19)",
 //   first = Stateful(
 //     trace = "repl.MdocSession.MdocApp.zioHello(commutativeeither.md:19)",
-//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$17053/0x0000000804975840@42a2c962
+//     onState = zio.FiberRef$unsafe$PatchFiber$$Lambda$18621/0x00007f348aede850@5c1d9ca5
 //   ),
-//   successK = zio.ZIO$$$Lambda$17041/0x0000000804965040@49c1fa09,
-//   failureK = zio.ZIO$$Lambda$17130/0x0000000804a15040@47cda1bd
+//   successK = zio.ZIO$$$Lambda$18609/0x00007f348aece5b8@74db6c0a,
+//   failureK = zio.ZIO$$Lambda$18799/0x00007f348af76a78@59745f77
 // )
 ```
 
@@ -77,14 +77,14 @@ val helloZIO: ZIO[Console, IOException, Either[Unit, Unit]] =
   Console.printLine("Hello").raceEither(Console.printLine("ZIO"))
 // helloZIO: ZIO[Console, IOException, Either[Unit, Unit]] = Stateful(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.helloZIO(commutativeeither.md:33)",
-//   onState = zio.ZIO$$Lambda$17135/0x0000000804a28040@7f183625
+//   onState = zio.ZIO$$Lambda$18804/0x00007f348af886a0@277b66fe
 // )
 
 val zioHello: ZIO[Console, IOException, Either[Unit, Unit]] =
   Console.printLine("ZIO").raceEither(Console.printLine("Hello"))
 // zioHello: ZIO[Console, IOException, Either[Unit, Unit]] = Stateful(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.zioHello(commutativeeither.md:37)",
-//   onState = zio.ZIO$$Lambda$17135/0x0000000804a28040@47b0e781
+//   onState = zio.ZIO$$Lambda$18804/0x00007f348af886a0@1a77b76c
 // )
 ```
 
@@ -119,7 +119,7 @@ implicit val SetCommutativeEither: CommutativeEither[Set] =
     def either[A, B](left: => Set[A], right: => Set[B]): Set[Either[A, B]] =
       left.map(Left(_)) ++ right.map(Right(_))
   }
-// SetCommutativeEither: CommutativeEither[Set] = repl.MdocSession$MdocApp$$anon$1@36d200f
+// SetCommutativeEither: CommutativeEither[Set] = repl.MdocSession$MdocApp$$anon$1@38d24d04
 ```
 
 In this case there is no actual concurrency going on but we are combining the left `Set` and right `Set`, wrapping their values in `Left` and `Right` respectively.
@@ -168,14 +168,14 @@ This is quite useful and typically has more domain specific names. For example t
 There is also an additional operator we can use for contravariant types called `eitherWithPar`.
 
 ```scala
-def orElseEitherWithPar[F[-_]: CommutativeEither : Contravariant, A, B, C](
+def eitherWithPar[F[-_]: CommutativeEither : Contravariant, A, B, C](
   left: => F[A],
   right: => F[B]
 )(f: C => Either[A, B]): F[C] =
   left.orElseEitherPar(right).contramap(f)
 ```
 
-This is like the `orElseEitherWith` defined on data types that have an `AssociativeEither` and `Contravariant` instance except it guarantees that the `F[A]` and `F[B]` values will be combined in a way that is commutative in addition to being associative.
+This is like the `eitherWith` defined on data types that have an `AssociativeEither` and `Contravariant` instance except it guarantees that the `F[A]` and `F[B]` values will be combined in a way that is commutative in addition to being associative.
 
 The `CommutativeEither` functional abstraction, along with the `CommutativeBoth` abstraction, describe the two fundamental ways of combining values in parallel. We can either run both values and return both their results, as in the `zipPar` operator on `ZIO`, or we can run both values and return either of their results, as in the `raceEither` operator on `ZIO`.
 

@@ -5,7 +5,7 @@
 Add the module to your `build.sbt`:
 
 ```sbt
-libraryDependencies += "dev.zio" %% "zio-streams-compress-lz4" % "3.0.0"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-lz4" % "3.0.1"
 ```
 
 ## Lz4Compressor

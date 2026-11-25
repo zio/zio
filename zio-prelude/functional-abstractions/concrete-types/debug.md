@@ -11,7 +11,7 @@ trait Debug[-A] {
 
 object Debug {
 
-  sealed trait Renderer
+  type Renderer = Repr => String
 
   sealed trait Repr {
     def render: String
@@ -20,7 +20,7 @@ object Debug {
 }
 ```
 
-`Repr` here is a data structure that captures the information needed to render a data type in a structured format so that it can be displayed in different ways. A `Renderer` is a data type that knows how to render a `Repr` to a particular string representation, for example using short names for readability or fully qualified names for using the rendered output as valid code.
+`Repr` here is a data structure that captures the information needed to render a data type in a structured format so that it can be displayed in different ways. A `Renderer` is a function that knows how to render a `Repr` to a particular string representation, for example using short names for readability or fully qualified names for using the rendered output as valid code.
 
 If we import `zio.prelude._` then we can use the `debug` operator on any data type with a `Debug` instance defined for it. We can also just use the `render` operator on any data type with a `Debug` instance defined for it to render it to a simple string representation.
 
@@ -60,7 +60,7 @@ sealed trait Repr
 object Repr {
   case class Int(value: scala.Int)           extends Repr
   case class Double(value: scala.Double)     extends Repr
-  case class Float(value: scala.Long)        extends Repr
+  case class Float(value: scala.Float)       extends Repr
   case class Long(value: scala.Long)         extends Repr
   case class Byte(value: scala.Byte)         extends Repr
   case class Char(value: scala.Char)         extends Repr

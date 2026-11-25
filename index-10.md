@@ -1,47 +1,45 @@
-# Getting Started with ZIO Bson
+# Introduction to ZIO BSON
 
-> [ZIO Bson](https://github.com/zio/zio-bson) is BSON library with tight ZIO integration.
+> [ZIO BSON](https://github.com/zio/zio-bson) is a BSON library for Scala that plugs into the MongoDB Java driver.
 
-[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-bson/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/nexus/r/https/oss.sonatype.org/dev.zio/zio-bson_2.13.svg?label=Sonatype%20Release)](https://oss.sonatype.org/content/repositories/releases/dev/zio/zio-bson_2.13/) [![Sonatype Snapshots](https://img.shields.io/nexus/s/https/oss.sonatype.org/dev.zio/zio-bson_2.13.svg?label=Sonatype%20Snapshot)](https://oss.sonatype.org/content/repositories/snapshots/dev/zio/zio-bson_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-bson-docs_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-bson-docs_2.13) [![ZIO Bson](https://img.shields.io/github/stars/zio/zio-bson?style=social)](https://github.com/zio/zio-bson)
+[![Development](https://img.shields.io/badge/Project%20Stage-Development-green.svg)](https://github.com/zio/zio/wiki/Project-Stages) ![CI Badge](https://github.com/zio/zio-bson/workflows/CI/badge.svg) [![Sonatype Releases](https://img.shields.io/maven-central/v/dev.zio/zio-bson_2.13.svg?label=Sonatype%20Release)](https://central.sonatype.com/artifact/dev.zio/zio-bson_2.13) [![Sonatype Snapshots](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fcentral.sonatype.com%2Frepository%2Fmaven-snapshots%2Fdev%2Fzio%2Fzio-bson_2.13%2Fmaven-metadata.xml&label=Sonatype%20Snapshot)](https://central.sonatype.com/repository/maven-snapshots/dev/zio/zio-bson_2.13/) [![javadoc](https://javadoc.io/badge2/dev.zio/zio-bson_2.13/javadoc.svg)](https://javadoc.io/doc/dev.zio/zio-bson_2.13) [![ZIO Bson](https://img.shields.io/github/stars/zio/zio-bson?style=social)](https://github.com/zio/zio-bson)
 
 ## Introduction
 
 The goal of this project is to create the best all-round BSON library for Scala:
 
 - **Native BSON support** to avoid intermediate JSON conversions and support BSON types.
-- **Future-Proof**, prepared for Scala 3 and next-generation Java.
-- **Simple** small codebase, concise documentation that covers everything.
-- **Helpful errors** are readable by humans and machines.
-- **ZIO Integration** so nothing more is required.
+- **Future-proof**, prepared for Scala 3 and next-generation Java.
+- **Simple**, with a small codebase and concise documentation that covers everything.
+- **Helpful errors** that are readable by humans and machines.
+- **ZIO types** such as `Chunk` and `NonEmptyChunk` have codecs out of the box.
 
 ## Installation
 
-In order to use this library, we need to add the following lines in our `build.sbt` file:
+To use ZIO BSON, add the following to the `build.sbt` file. The core module is published for Scala 2.12, 2.13 and 3, and the derivation module for Scala 2.13 and 3:
 
-```scala
-libraryDependencies += "dev.zio" %% "zio-bson" % "1.0.11"
-libraryDependencies += "dev.zio" %% "zio-bson-magnolia" % "1.0.11"
+```sbt
+libraryDependencies ++= Seq(
+  // Encoders, decoders, codecs and syntax (JVM)
+  "dev.zio" %% "zio-bson"          % "1.0.12",
+
+  // Automatic derivation of codecs for case classes and sealed traits (JVM)
+  "dev.zio" %% "zio-bson-magnolia" % "1.0.12"
+)
 ```
 
-## zio-schema support
+If we only write codecs by hand, `zio-bson` is enough.
 
-`zio-bson-magnolia` projects provides typeclass derivation only for `scala` `2.13`.
-You can use [zio-schema-bson](https://github.com/zio/zio-schema/) instead to get typeclass derivation on `scala` `2.12`, `2.13` and `3`.
+## Modules
+
+The `zio-schema-bson` module of the [zio-schema](https://github.com/zio/zio-schema/) project derives BSON codecs from a `Schema`. It is published by that project, not by this one, and it depends on `zio-bson`, so the types stay the same.
 
 ## Example
 
-All the following code snippets assume that the following imports have been declared
+To get a codec for a case class, derive it with `DeriveBsonCodec.derive`, then convert values to and from `BsonValue`:
 
 ```scala
 import zio.bson._
-import zio.bson.BsonBuilder._
-```
-
-### Declaring codecs
-
-Use `DeriveBsonCodec.derive` to get a codec for your case class or sealed trait:
-
-```scala
 import zio.bson.magnolia._
 
 case class Banana(curvature: Double)
@@ -49,95 +47,15 @@ case class Banana(curvature: Double)
 object Banana {
   implicit val codec: BsonCodec[Banana] = DeriveBsonCodec.derive
 }
+
+val bson = Banana(0.2).toBsonValue
+
+bson.as[Banana]
 ```
 
-### Converting to BsonValue
+## Where to Go Next
 
-To use values in `Filter` of `Update` expressions you can convert them to `BsonValue` this way:
-
-```scala
-"str".toBsonValue
-
-Banana(0.2).toBsonValue
-
-import org.bson._
-
-def method[T: BsonEncoder](value: T): BsonDocument = doc("key" -> value.toBsonValue)
-```
-
-### Creating CodecProvider
-
-To get `CodecProvider` for your `BsonCodec` use `zioBsonCodecProvider`:
-
-```scala
-val codecProvider = zioBsonCodecProvider[Banana]
-```
-
-### Parsing BsonValue
-
-In general `CodecProvider` should parse your case class without intermediate `BsonValue` representation.
-But you can parse `BsonValue` any way:
-
-```scala
-import BsonBuilder._
-
-val bsonVal: BsonValue = doc("curvature" -> double(0.2))
-
-bsonVal.as[Banana]
-```
-
-## Type Mappings
-
-See [Type Mappings](types.md) for the full list of supported Scala and Java types, their primary BSON types, and decoder fallbacks.
-
-## Errors
-
-Bad BSON will produce an error with path and contextual information
-
-```
-scala> doc("curvature" -> Array[Byte](1, 2, 3).toBsonValue).as[Banana]
-val res: Either[String,Banana] = Left(.curvature: Expected BSON type Double, but got BINARY.)
-```
-
-## Configuration
-
-You can configure typeclass derivation with annotations.
-
-```scala
-import zio.bson._
-import zio.bson.BsonBuilder._
-import zio.bson.magnolia._
-
-sealed trait Fruit
-
-object Fruit {
-  case class Banana(curvature: Double) extends Fruit
-  case class Apple(poison: Boolean) extends Fruit
-  
-  implicit val codec: BsonCodec[Fruit] = DeriveBsonCodec.derive
-}
-
-val bsonFruit = doc( "Banana" -> doc( "curvature" -> double(0.5) ))
-
-bsonFruit.as[Fruit]
-//Right(Banana(0.5))
-
-@bsonDiscriminator("$type")
-sealed trait FruitConfigured
-
-object FruitConfigured {
-  case class Banana(curvature: Double) extends FruitConfigured
-  @bsonHint("custom_type_name")
-  case class Apple(@bsonField("is_poisoned") poison: Boolean) extends FruitConfigured
-
-  implicit val codec: BsonCodec[FruitConfigured] = DeriveBsonCodec.derive
-}
-
-val bsonFruitConfigured = doc(
-  "$type" -> str("custom_type_name"),
-  "is_poisoned" -> bool(true)
-)
-
-bsonFruitConfigured.as[FruitConfigured]
-//Right(Apple(true))
-```
+- [Getting Started](./getting-started.md) walks through codecs, `BsonValue` conversion, the MongoDB driver and errors.
+- [Reference](./bson-encoder.md) pages describe the public types, the [type mappings](./types.md) and the [errors](./bson-errors.md).
+- [Tutorial: Store and Load a Case Class with MongoDB](./tutorial-store-and-load.md) builds a complete program.
+- [How-to guides](./how-to-use-with-mongodb-driver.md) answer one task each, such as renaming fields or writing a codec by hand.

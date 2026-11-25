@@ -5,7 +5,7 @@
 Add the module to your `build.sbt`:
 
 ```sbt
-libraryDependencies += "dev.zio" %% "zio-streams-compress-zstd" % "3.0.0"
+libraryDependencies += "dev.zio" %% "zio-streams-compress-zstd" % "3.0.1"
 ```
 
 ## ZstdCompressor

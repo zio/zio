@@ -24,7 +24,7 @@ The `either` operator corresponds to running the left value and if that fails ru
 
 To see this, we can observe that since the `either` operator must return an `Either[A, B]` we must choose on some basis whether to return the left value or the right value. Furthermore, we must choose on some consistent basis so that the order of operations does not matter.
 
-There are a couple of trivial ways we could do this, like always running the left value or always running the right value. However, the way we can do this that preserves information is to run the right value and then if it fails in some way to run the right value.
+There are a couple of trivial ways we could do this, like always running the left value or always running the right value. However, the way we can do this that preserves information is to run the left value and then if it fails in some way to run the right value.
 
 What it means to run the left value and then if it fails run the right value depends on the parameterized type.
 
@@ -46,22 +46,22 @@ Notice here that if the `left` workflow succeeds we never run the right workflow
 Other data types that model failure have similar implementations of the `orElseEither` operator. For example, here are the implementations of `orElseEither` for `Either` and `Option`.
 
 ```scala
-def orElseEither[E, A, B](left: => Either[E, A], => right: Either[E, B])]): Either[E, Either[A, B]] =
+def orElseEither[E, A, B](left: => Either[E, A], right: => Either[E, B]): Either[E, Either[A, B]] =
   left match {
-    case Left(e) =>
-      that match {
+    case Left(_) =>
+      right match {
         case Left(e)  => Left(e)
         case Right(b) => Right(Right(b))
       }
     case Right(a) => Right(Left(a))
   }
 
-def orElseEither[A, B](left: => Option[A], => right: Option[B])]): Option[Either[A, B]] =
+def orElseEither[A, B](left: => Option[A], right: => Option[B]): Option[Either[A, B]] =
   left match {
     case None =>
-      that match {
-        case None     => None
-        case Right(b) => Some(Right(b))
+      right match {
+        case None    => None
+        case Some(b) => Some(Right(b))
       }
     case Some(a) => Some(Left(a))
   }
@@ -81,7 +81,7 @@ implicit val ChunkAssociativeEither: AssociativeEither[Chunk] =
     def either[A, B](as: => Chunk[A], bs: => Chunk[B]): Chunk[Either[A, B]] =
       as.map(Left(_)) ++ bs.map(Right(_))
   }
-// ChunkAssociativeEither: AssociativeEither[Chunk] = repl.MdocSession$MdocApp0$$anon$1@481dea0f
+// ChunkAssociativeEither: AssociativeEither[Chunk] = repl.MdocSession$MdocApp0$$anon$1@44acddbc
 ```
 
 Here we are concatenating the two `Chunk` values, putting the elements from the left `Chunk` in a `Left` and the elements from the right `Chunk` in a `Right`. We can think of this as running the left `Chunk` until it fails by running out of elements and then running the right `Chunk`.
@@ -146,7 +146,7 @@ The `eitherWith` operator first converts input of type `C` into `Either[A, B]` v
 
 For example, if our data type was a `Predicate` the `eitherWith` operator could split incoming payloads into one of two types, sending them to the appropriate predicate for evaluation and then returning the results. Of course, if we can handle a payload with two types in this way we can also handle payloads with any number of cases by repeatedly applying the `eitherWith` operator.
 
-The `AssociativeEither` functional abstraction represents the second fundamental way of combining two values of a parameterized type. Whereas `AssociativeBoth` combines the `A` and `B` values into the sum type represented by `(A, B)`, `AssociativeEither` combines them into the product type represented by `Either[A, B]`.
+The `AssociativeEither` functional abstraction represents the second fundamental way of combining two values of a parameterized type. Whereas `AssociativeBoth` combines the `A` and `B` values into the product type represented by `(A, B)`, `AssociativeEither` combines them into the sum type represented by `Either[A, B]`.
 
 For existing data types the `orElseEither` operator and its variants tend to already be implemented, often with more domain specific names, so there isn't necessarily an immediate benefit if you are working with existing data types from ZIO or the Scala standard library.
 

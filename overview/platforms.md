@@ -17,10 +17,11 @@ ZIO supports Scala.js 1.0.
 While ZIO is a zero dependency library, some basic capabilities of the platform are assumed. In particular, due to the absence of implementations for certain `java.time` methods in Scala.js, users must bring their own `java.time` dependency. The one used by ZIO in its own internal test suites is [scala-java-time](https://github.com/cquiroz/scala-java-time). It can be added as a dependency like so:
 
 ```scala
-libraryDependencies ++= Seq(
-  "io.github.cquiroz" %%% "scala-java-time" % "2.2.0",
-  "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.0"
-)
+// java.time API for Scala.js and Scala Native (test scope)
+libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.2.0"
+
+// Time zone data for java.time on Scala.js and Scala Native (test scope)
+libraryDependencies += "io.github.cquiroz" %%% "scala-java-time-tzdb" % "2.2.0"
 ```
 
 Because of the single threaded execution model of Javascript, blocking operations are not supported on Scala.js. In addition, several other methods are not supported or are unsafe on Scala.js:

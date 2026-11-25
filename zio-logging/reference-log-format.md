@@ -8,20 +8,24 @@ The string form of the same DSL, such as `%timestamp{...}` and `%level`, is desc
 
 The companion object provides values and functions that write fixed text or wrap other formats. Each row lists one member of `LogFormat`.
 
-| Member                   | Signature                                                  | Description                                                            |
-| ------------------------ | ---------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `LogFormat.text`         | `def text(value: => String): LogFormat`                    | Writes the given string.                                               |
-| `LogFormat.space`        | `val space: LogFormat`                                     | Writes one space character.                                            |
-| `LogFormat.newLine`      | `val newLine: LogFormat`                                   | Writes the platform line separator.                                    |
-| `LogFormat.quote`        | `val quote: LogFormat`                                     | Writes one double quote character.                                     |
-| `LogFormat.quoted`       | `def quoted(inner: LogFormat): LogFormat`                  | Wraps `inner` in double quotes.                                        |
-| `LogFormat.bracketed`    | `def bracketed(inner: LogFormat): LogFormat`               | Wraps `inner` in square brackets.                                      |
-| `LogFormat.bracketStart` | `val bracketStart: LogFormat`                              | Writes `[`.                                                            |
-| `LogFormat.bracketEnd`   | `val bracketEnd: LogFormat`                                | Writes `]`.                                                            |
-| `LogFormat.label`        | `def label(label: => String, value: LogFormat): LogFormat` | Writes `label=value`, where `value` is the output of the inner format. |
-| `LogFormat.empty`        | `val empty: LogFormat`                                     | Writes nothing.                                                        |
+| Member                   | Signature                                                  | Description                                                                                                                 |
+| ------------------------ | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `LogFormat.text`         | `def text(value: => String): LogFormat`                    | Writes the given string. `value` is evaluated once, when the format is built.                                               |
+| `LogFormat.space`        | `val space: LogFormat`                                     | Writes one space character.                                                                                                 |
+| `LogFormat.newLine`      | `val newLine: LogFormat`                                   | Writes the platform line separator.                                                                                         |
+| `LogFormat.quote`        | `val quote: LogFormat`                                     | Writes one double quote character.                                                                                          |
+| `LogFormat.quoted`       | `def quoted(inner: LogFormat): LogFormat`                  | Wraps `inner` in double quotes.                                                                                             |
+| `LogFormat.bracketed`    | `def bracketed(inner: LogFormat): LogFormat`               | Wraps `inner` in square brackets.                                                                                           |
+| `LogFormat.bracketStart` | `val bracketStart: LogFormat`                              | Writes `[`.                                                                                                                 |
+| `LogFormat.bracketEnd`   | `val bracketEnd: LogFormat`                                | Writes `]`.                                                                                                                 |
+| `LogFormat.label`        | `def label(label: => String, value: LogFormat): LogFormat` | Writes `label=value`, where `value` is the output of the inner format. `label` is evaluated once, when the format is built. |
+| `LogFormat.empty`        | `val empty: LogFormat`                                     | Writes nothing.                                                                                                             |
 
 `LogFormat.label` writes its name as a key, then the inner format as the value. In plain text output the result looks like `level=INFO`. The JSON output uses the same name as a JSON key.
+
+:::note[By-name arguments are evaluated once]
+`LogFormat.text`, `LogFormat.label` and `LogFormat.timestamp(formatter)` take by-name parameters, but each evaluates its argument once, when the format value is built, not for every line. `LogFormat.text(java.lang.System.currentTimeMillis().toString)` writes the same number on every line. For a value computed per line, write that part with [`LogFormat.make`](#custom-formats-with-logformatmake).
+:::
 
 ## Composing Formats
 
@@ -33,11 +37,11 @@ The instance methods join formats together, add styling, or convert a format int
 | `LogFormat#concat`       | `final def concat(other: LogFormat): LogFormat`                  | Same as `+`, with an alphanumeric name.                                                                     |
 | `\|-\|`                  | `final def \|-\|(other: LogFormat): LogFormat`                   | Joins two formats with one space between them.                                                              |
 | `LogFormat#spaced`       | `final def spaced(other: LogFormat): LogFormat`                  | Same as `\|-\|`, with an alphanumeric name.                                                                 |
-| `LogFormat#color`        | `final def color(color: LogColor): LogFormat`                    | Wraps the output in the ANSI code for `LogFormat#color`, followed by the reset code.                                  |
+| `LogFormat#color`        | `final def color(color: LogColor): LogFormat`                    | Wraps the output in the ANSI code of `color`, followed by the reset code.                                   |
 | `LogFormat#highlight`    | `final def highlight: LogFormat`                                 | Colors the output by log level: ERROR red, WARN yellow, INFO cyan, DEBUG green, and all other levels white. |
 | `LogFormat#highlight`    | `final def highlight(fn: LogLevel => LogColor): LogFormat`       | Colors the output with the color that `fn` returns for the event's level.                                   |
 | `LogFormat#fixed`        | `final def fixed(size: Int): LogFormat`                          | Cuts the output to `size` characters, or pads it with spaces up to `size`. The output becomes plain text.   |
-| `LogFormat#filter`       | `final def filter[M >: String](filter: LogFilter[M]): LogFormat` | Writes the output only when `LogFormat#filter` accepts the event.                                                     |
+| `LogFormat#filter`       | `final def filter[M >: String](filter: LogFilter[M]): LogFormat` | Writes the output only when `filter` accepts the event.                                                     |
 | `LogFormat#toLogger`     | `final def toLogger: ZLogger[String, String]`                    | Converts the format into a text logger that returns the formatted line.                                     |
 | `LogFormat#toJsonLogger` | `final def toJsonLogger: ZLogger[String, String]`                | Converts the format into a logger that returns one JSON object per event.                                   |
 
@@ -75,10 +79,10 @@ val errorDetails: LogFormat =
 
 Two members write the current time at the moment the line is built. The time does not come from the event itself.
 
-| Member                | Signature                                                   | Description                                                                                    |
-| --------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `LogFormat.timestamp` | `val timestamp: LogFormat`                                  | Writes the time in ISO offset date-time format, from `DateTimeFormatter.ISO_OFFSET_DATE_TIME`. |
-| `LogFormat.timestamp` | `def timestamp(formatter: => DateTimeFormatter): LogFormat` | Writes the time with the given `java.time.format.DateTimeFormatter`.                           |
+| Member                | Signature                                                   | Description                                                                                                                                                    |
+| --------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LogFormat.timestamp` | `val timestamp: LogFormat`                                  | Writes the time in ISO offset date-time format, from `DateTimeFormatter.ISO_OFFSET_DATE_TIME`.                                                                 |
+| `LogFormat.timestamp` | `def timestamp(formatter: => DateTimeFormatter): LogFormat` | Writes the time with the given `java.time.format.DateTimeFormatter`. `formatter` is evaluated once, when the format is built; the time is read for every line. |
 
 The following example writes the time with a custom pattern:
 
@@ -138,7 +142,7 @@ Annotations are key and value pairs that the program attaches to log events. The
 | Member                     | Signature                                                 | Description                                                                                                          |
 | -------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `LogFormat.annotation`     | `def annotation(name: String): LogFormat`                 | Writes the string annotation with key `name`, if the event has it.                                                   |
-| `LogFormat.annotation`     | `def annotation[A](ann: LogAnnotation[A]): LogFormat`     | Same as `LogFormat.logAnnotation`.                                                                                             |
+| `LogFormat.annotation`     | `def annotation[A](ann: LogAnnotation[A]): LogFormat`     | Same as `LogFormat.logAnnotation`.                                                                                   |
 | `LogFormat.logAnnotation`  | `def logAnnotation[A](ann: LogAnnotation[A]): LogFormat`  | Writes the value of a typed `LogAnnotation` from the logger context, rendered with the annotation's `render` method. |
 | `LogFormat.anyAnnotation`  | `def anyAnnotation(name: String): LogFormat`              | Writes the string annotation `name` from the event. When the event lacks it, looks for `name` in the logger context. |
 | `LogFormat.annotations`    | `val annotations: LogFormat`                              | Writes every string annotation on the event.                                                                         |
@@ -146,7 +150,20 @@ Annotations are key and value pairs that the program attaches to log events. The
 | `LogFormat.logAnnotations` | `val logAnnotations: LogFormat`                           | Writes every typed annotation in the logger context.                                                                 |
 | `LogFormat.logAnnotations` | `def logAnnotations(excludeKeys: Set[String]): LogFormat` | Writes every typed annotation in the logger context, except the keys in `excludeKeys`.                               |
 | `LogFormat.allAnnotations` | `val allAnnotations: LogFormat`                           | Writes the string annotations on the event and the entries in the logger context.                                    |
-| `LogFormat.allAnnotations` | `def allAnnotations(excludeKeys: Set[String]): LogFormat` | Same as `LogFormat.allAnnotations`, except the keys in `excludeKeys` are skipped.                                              |
+| `LogFormat.allAnnotations` | `def allAnnotations(excludeKeys: Set[String]): LogFormat` | Same as `LogFormat.allAnnotations`, except the keys in `excludeKeys` are skipped.                                    |
+
+The annotation members differ in where they look, so choose by how the program sets the value:
+
+| The program sets the value with                                                  | Use                                     | Key in the output       |
+| -------------------------------------------------------------------------------- | --------------------------------------- | ----------------------- |
+| `ZIO.logAnnotate("key", "value")` or `ZIOAspect.annotated` (a string annotation) | `LogFormat.annotation("key")`           | `key`                   |
+| A typed `LogAnnotation`, such as `effect @@ LogAnnotation.UserId("u-1")`         | `LogFormat.logAnnotation(annotation)`   | the annotation's `name` |
+| Either of the two, and the format should not care which                          | `LogFormat.anyAnnotation("key")`        | `key`                   |
+| Many keys that you do not want to list one by one                                | `LogFormat.allAnnotations(excludeKeys)` | each annotation's key   |
+
+`LogFormat.anyAnnotation` is what the `%kv{key}` element of a format string uses, and `LogFormat.allAnnotations` without the logger name is what `%kvs` uses. See [Log Annotations](reference-log-annotations.md) for the two kinds of annotation.
+
+`LogFormat.allAnnotations` writes the string annotations first, then the logger context, and does not remove duplicate keys. When a string annotation and a `LogAnnotation` share a name, the key is written twice, which a JSON parser may reject or resolve by keeping only one of the values. Give the two kinds of annotation different names, or exclude one of them with `excludeKeys`.
 
 The logger name travels as the string annotation whose key is `zio.logging.loggerNameAnnotationKey`, which holds the value `logger_name`. To write every annotation except the logger name, pass that key to `LogFormat.allAnnotations`:
 
@@ -160,14 +177,100 @@ val withoutLoggerName: LogFormat = LogFormat.allAnnotations(Set(zio.logging.logg
 
 Two presets give ready-made formats. The `LogFormat.config` value reads a format from a configuration file.
 
-| Member              | Signature                                                                 | Description                                                                                                                              |
-| ------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `LogFormat.default` | `val default: LogFormat`                                                  | Writes the timestamp in a 32-character column, the level, the fiber thread name, the quoted message, and the cause when it is not empty. |
-| `LogFormat.colored` | `val colored: LogFormat`                                                  | Writes the same parts as `default`, with colors on the timestamp, level, thread, and message.                                            |
-| `LogFormat.config`  | `val config: Config[LogFormat]`                                           | Reads a format from a string in the configuration file, using the string form described in Formatting Log Records.                       |
-| `LogFormat.parse`   | `def parse(pattern: String): Either[Parser.ParserError[String], Pattern]` | Parses the string form into a `LogFormat.Pattern` tree. Most code uses `LogFormat.config` instead.                                                 |
+| Member              | Signature                       | Description                                                                                                                                                                                                                 |
+| ------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LogFormat.default` | `val default: LogFormat`        | Writes labelled parts separated by spaces: `timestamp=` with the time in a 32-character column, `level=`, `thread=` with the fiber name, `message=` with the quoted message, and `cause=` only when the cause is not empty. |
+| `LogFormat.colored` | `val colored: LogFormat`        | Writes the same labelled parts as `default`. The timestamp is blue and the thread is white; the level, the message and the cause are colored by log level, as `LogFormat#highlight` does.                                   |
+| `LogFormat.config`  | `val config: Config[LogFormat]` | Reads a format from a string in the configuration file, using the string form described in [Formatting Log Records](./formatting-log-records.md#log-format-configuration).                                                  |
+
+A line written with `LogFormat.default` looks like this:
+
+```text
+timestamp=2026-11-17T10:15:30.123456+01:00 level=INFO thread=zio-fiber-7 message="Order received"
+```
+
+:::caution[The default timestamp column is 32 characters]
+`LogFormat.default` and `LogFormat.colored` write the timestamp with `LogFormat#fixed(32)`. When the JDK clock has more than microsecond precision, the ISO timestamp is longer than 32 characters and the end of the time-zone offset is cut, as in `2026-11-17T10:15:30.915147744+03`. Shorter timestamps are padded with spaces.
+:::
+
+To keep the full offset, build the same layout with `LogFormat.timestamp` and no fixed width:
+
+```scala
+import java.time.format.DateTimeFormatter
+import zio.logging.{ LogFilter, LogFormat }
+import zio.logging.LogFormat._
+
+val fullTimestamp: LogFormat =
+  label("timestamp", timestamp(DateTimeFormatter.ISO_OFFSET_DATE_TIME)) |-|
+    label("level", level) |-|
+    label("thread", fiberId) |-|
+    label("message", quoted(line)) +
+    (space + label("cause", cause)).filter(LogFilter.causeNonEmpty)
+```
 
 The console and file logger configurations read their `format` key through `LogFormat.config`. See [Configuration Keys Reference](./reference-configuration.md) for the keys.
+
+## LogFormat.Pattern
+
+`LogFormat.Pattern` is the parsed form of a format string. Each element of the string form, such as `%level` or `%label{name}{...}`, becomes one case of the sealed trait `Pattern`, and `Pattern#toLogFormat` turns the tree into a `LogFormat`. The elements are listed in [Log Format Configuration](./formatting-log-records.md#log-format-configuration), and the rules for escaping and labels in [Pattern Syntax Rules](./formatting-log-records.md#pattern-syntax-rules).
+
+You rarely need `Pattern` directly, because `LogFormat.config` parses the string and converts it in one step. Use it when you want to validate a format string yourself, for example to report the parser error at startup, since `LogFormat.config` replaces the parser error with a generic message.
+
+| Member                     | Signature                                                                 | Description                                                                                                                               |
+| -------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `LogFormat.Pattern.parse`  | `def parse(pattern: String): Either[Parser.ParserError[String], Pattern]` | Parses the string form into a `Pattern` tree. `Parser` is `zio.parser.Parser`.                                                            |
+| `LogFormat.Pattern.config` | `val config: Config[Pattern]`                                             | Reads a string from the configuration and parses it, without converting it to a `LogFormat`.                                              |
+| `Pattern#toLogFormat`      | `def toLogFormat: LogFormat`                                              | Converts the pattern into the `LogFormat` it describes.                                                                                   |
+| `Pattern#isDefinedFilter`  | `def isDefinedFilter: Option[LogFilter[Any]]`                             | The filter that a `%label` around this pattern applies. It is `LogFilter.causeNonEmpty` for `%cause`, and `None` for most other elements. |
+
+The following example parses a format string and keeps the parser error, so that a startup check can print where the string is wrong:
+
+```scala
+import zio.logging.LogFormat
+
+val parsed: Either[String, LogFormat] =
+  LogFormat.Pattern
+    .parse("%timestamp %level [%fiberId] %name:%line %message %cause")
+    .left
+    .map(error => s"Invalid log format: $error")
+    .map(_.toLogFormat)
+```
+
+## LogColor
+
+`LogColor` is an ANSI color for `LogFormat#color` and for the function given to `LogFormat#highlight`. Its constructor is private, so the values below are the only colors.
+
+| Member             | Signature                      | Description                                                                                 |
+| ------------------ | ------------------------------ | ------------------------------------------------------------------------------------------- |
+| `LogColor.RED`     | `val RED: LogColor`            | Red.                                                                                        |
+| `LogColor.BLUE`    | `val BLUE: LogColor`           | Blue.                                                                                       |
+| `LogColor.YELLOW`  | `val YELLOW: LogColor`         | Yellow.                                                                                     |
+| `LogColor.CYAN`    | `val CYAN: LogColor`           | Cyan.                                                                                       |
+| `LogColor.GREEN`   | `val GREEN: LogColor`          | Green.                                                                                      |
+| `LogColor.MAGENTA` | `val MAGENTA: LogColor`        | Magenta.                                                                                    |
+| `LogColor.WHITE`   | `val WHITE: LogColor`          | White.                                                                                      |
+| `LogColor.RESET`   | `val RESET: LogColor`          | The reset code, which ends the current color. Use it for levels that should not be colored. |
+| `LogColor.config`  | `val config: Config[LogColor]` | Reads a color name from a string, in any case, such as `red` or `RED`.                      |
+
+`LogColor.config` accepts any case, but the `%color{...}` element of a format string accepts only upper-case names.
+
+The default highlighter of `LogFormat#highlight` writes FATAL in white. The following highlighter gives FATAL its own color and leaves TRACE uncolored:
+
+```scala
+import zio.LogLevel
+import zio.logging.{ LogColor, LogFormat }
+
+val levelColors: LogLevel => LogColor = {
+  case LogLevel.Fatal   => LogColor.MAGENTA
+  case LogLevel.Error   => LogColor.RED
+  case LogLevel.Warning => LogColor.YELLOW
+  case LogLevel.Info    => LogColor.CYAN
+  case LogLevel.Debug   => LogColor.GREEN
+  case _                => LogColor.RESET
+}
+
+val coloredLevel: LogFormat = LogFormat.level.fixed(5).highlight(levelColors)
+```
 
 ## Custom Formats With LogFormat.make
 
@@ -176,6 +279,8 @@ The console and file logger configurations read their `format` key through `LogF
 :::warning[Internal builder type]
 The first argument of the function is a `LogAppender`. The type is internal to the library, so you cannot name it in your own code, and its methods can change between releases. The builder is an advanced interface for writing a custom backend. Use the combinators on this page for ordinary formats.
 :::
+
+Choose `LogFormat.make` over the combinators in two cases: when a value must be computed for every line from something the members above do not read, such as the clock in another unit or the name of the current thread, and when a value must be rendered differently from the members above, such as the level in lower case. For text that never changes, `LogFormat.text` is simpler. For anything the members above already write, combine those members instead.
 
 The signature of `LogFormat.make` is:
 
@@ -195,7 +300,21 @@ def make(
 ): LogFormat
 ```
 
-For the string-based way to write output, and for a walkthrough of the builder, see [Formatting Log Records](./formatting-log-records.md).
+The following format writes the time as epoch milliseconds, which some log stores expect. The function runs for every line, so each line gets the current time. `LogFormat.text(System.currentTimeMillis().toString)` would instead repeat one fixed time, taken when the format is built, on every line:
+
+```scala
+import zio.logging.LogFormat
+
+val epochMillis: LogFormat =
+  LogFormat.make { (builder, _, _, _, _, _, _, _, _) =>
+    builder.appendNumeric(java.lang.System.currentTimeMillis())
+  }
+
+val epochLine: LogFormat =
+  LogFormat.label("ts", epochMillis) |-| LogFormat.label("level", LogFormat.level) |-| LogFormat.label("message", LogFormat.line)
+```
+
+Because the value is written with `LogAppender#appendNumeric`, the JSON loggers write `ts` as a JSON number, not as a string. For the string-based way to write output, and for a walkthrough of the builder, see [Formatting Log Records](./formatting-log-records.md#creating-a-custom-logformat) and [How to Write a Custom Log Format](how-to-custom-log-format.md).
 
 ## LogAppender Methods
 

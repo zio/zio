@@ -1,17 +1,26 @@
 # Getting Started
 
-> ZIO Process - a purely functional command and process library based on ZIO.
-> Here's list of contents available:
+> This page runs a first program with ZIO Process. To add the library to a project, copy the dependency block from the [Installation](./index.md#installation) section of the introduction.
 
-- **[Basics](basics.md)** — Creating a description of a command and transforming its output
- - **[Piping](piping.md)** — Creating a pipeline of commands
- - **[Interactive Processes](interactive-processes.md)** — Communicating with an interactive process
- - **[Other](other.md)** — Miscellaneous operations such as settings the working direction, inheriting I/O, etc.
+## A First Program
 
-## Installation
-
-Include ZIO Process in your project by adding the following to your `build.sbt`:
+To run an external program from a ZIO application, create a `Command`, run it, and print the result. The following app runs `echo` and prints its output:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-process" % "0.7.2"
+import zio._
+import zio.process._
+
+object HelloProcess extends ZIOAppDefault {
+  override def run: ZIO[Any, Any, Unit] =
+    for {
+      greeting <- Command("echo", "Hello from ZIO Process").string
+      _        <- Console.print(greeting)
+    } yield ()
+}
 ```
+
+`Command#string` runs the program and returns everything it wrote to standard output. Because the result is an ordinary ZIO effect, it can be combined with other effects, retried, or interrupted like any other.
+
+## Where to Go Next
+
+To understand what a `Command` is and when the program starts, read [Commands and Processes](./concepts/commands-and-processes.md). To learn by building something, follow the [Tutorial](./tutorial-disk-usage-report.md). To solve a specific task, start with [Run a Command and Read Its Output](./how-to-run-a-command-and-read-its-output.md). Every public type is listed in the [Command](./reference/command.md) reference.

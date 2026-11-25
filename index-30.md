@@ -10,46 +10,31 @@
 
 ZIO RocksDB covers the parts of the RocksDB API that an application touches most often:
 
-| Capability                          | Entry point                           | Guide                                       |
-| ----------------------------------- | ------------------------------------- | ------------------------------------------- |
-| Reading and writing keys            | `RocksDB`                             | This page                                   |
-| Typed keys and values               | `Serializer`, `Deserializer`, `Serde` | [Serialization](./serialization.md)         |
-| Scanning and range queries          | `RocksDB#newIterator`                 | [Iterators and Range Scans](./iterators.md) |
-| Atomic multi-key updates            | `TransactionDB`, `Transaction`        | [Transactions](./transactions.md)           |
-| Atomic batched writes without locks | `WriteBatch`, `RocksDB#write`         | [Write Batches](./write-batch.md)           |
+| Capability                          | Entry point                           | Guide                                             |
+| ----------------------------------- | ------------------------------------- | ------------------------------------------------- |
+| Reading and writing keys            | `RocksDB`                             | [Getting Started](./getting-started.md)           |
+| Typed keys and values               | `Serializer`, `Deserializer`, `Serde` | [Serialization](./serialization.md)               |
+| Scanning and range queries          | `RocksDB#newIterator`                 | [Iterators and Range Scans](./iterators.md)       |
+| Atomic multi-key updates            | `TransactionDB`, `Transaction`        | [Transactions](./transactions.md)                 |
+| Atomic batched writes without locks | `WriteBatch`, `RocksDB#write`         | [Write Batches](./write-batch.md)                 |
+| Column families                     | `RocksDB#createColumnFamily`          | [Column Families](./reference-column-families.md) |
 
 ## Installation
 
-To use the library, add the following line to `build.sbt`:
+ZIO RocksDB is a single artifact. Add it to `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-rocksdb" % "0.4.5"
+libraryDependencies ++= Seq(
+  // ZIO RocksDB: JVM only, because it wraps the native RocksDB Java API
+  "dev.zio" %% "zio-rocksdb" % "0.4.6"
+)
 ```
 
 The library is published for Scala 2.12, 2.13 and 3, requires ZIO 2, and runs on JDK 17 or newer. The native RocksDB binaries come with the `rocksdbjni` dependency, so no separate installation of RocksDB is needed.
 
 ## Getting Started
 
-Every operation in ZIO RocksDB takes and returns `Array[Byte]`, because that is what RocksDB stores. The examples below encode strings as UTF-8 by hand; to avoid this for richer types, see [Serialization](./serialization.md).
-
-### Opening a Database
-
-To open a database, build a `ZLayer` with `RocksDB.live`. The layer opens the database when the layer is built and closes it when the enclosing `Scope` ends, so the handle cannot leak. To create the database directory when it does not exist yet, pass an `Options` value with `setCreateIfMissing(true)`:
-
-```scala
-import org.rocksdb.Options
-import zio._
-import zio.rocksdb.RocksDB
-
-val database: ZLayer[Any, Throwable, RocksDB] =
-  RocksDB.live(new Options().setCreateIfMissing(true), "/tmp/zio-rocksdb-intro")
-```
-
-`RocksDB.live(path)` is a shorthand that opens the database with RocksDB's default options.
-
-### Reading, Writing and Deleting Keys
-
-Once a `RocksDB` layer is available, the accessor methods on the `RocksDB` companion object write, read and delete keys. `RocksDB.get` returns `None` when the key does not exist:
+A database is a `ZLayer`: `RocksDB.live` opens it when the layer is built and closes it when the enclosing `Scope` ends. Keys and values are `Array[Byte]`, and `RocksDB.get` returns `None` when the key does not exist:
 
 ```scala
 import java.nio.charset.StandardCharsets.UTF_8
@@ -63,12 +48,9 @@ object IntroExample extends ZIOAppDefault {
 
   private val program: ZIO[RocksDB, Throwable, Unit] =
     for {
-      _       <- RocksDB.put(key, value)
-      found   <- RocksDB.get(key)
-      _       <- Console.printLine(found.map(new String(_, UTF_8)))
-      _       <- RocksDB.delete(key)
-      missing <- RocksDB.get(key)
-      _       <- Console.printLine(missing.isEmpty)
+      _     <- RocksDB.put(key, value)
+      found <- RocksDB.get(key)
+      _     <- Console.printLine(found.map(new String(_, UTF_8)))
     } yield ()
 
   def run =
@@ -76,23 +58,8 @@ object IntroExample extends ZIOAppDefault {
 }
 ```
 
-All operations fail with `Throwable`, which is whatever RocksDB raised (a `RocksDBException` for most storage errors).
-
-### Reading Several Keys at Once
-
-To fetch many keys in one call, use `RocksDB.multiGetAsList`. The result list lines up positionally with the keys that were passed in, with `None` for each missing key:
-
-```scala
-import java.nio.charset.StandardCharsets.UTF_8
-import zio._
-import zio.rocksdb.RocksDB
-
-val lookup: ZIO[RocksDB, Throwable, List[Option[String]]] =
-  RocksDB
-    .multiGetAsList(List("a", "b", "c").map(_.getBytes(UTF_8)))
-    .map(_.map(_.map(new String(_, UTF_8))))
-```
+The [Getting Started](./getting-started.md) guide continues with typed values and scans.
 
 ## Where to Go Next
 
-The rest of the documentation builds on the layer and the accessor methods shown above. [Serialization](./serialization.md) explains how to store domain types instead of raw bytes, [Iterators and Range Scans](./iterators.md) shows how to read ranges of keys as a stream, [Transactions](./transactions.md) covers `TransactionDB` for atomic multi-key updates, and [Write Batches](./write-batch.md) shows how to apply several writes atomically without a transaction.
+[Getting Started](./getting-started.md) walks through a first program with typed values. The reference pages cover [the RocksDB service](./reference-rocksdb.md), [Column Families](./reference-column-families.md), [Serialization](./serialization.md), [Iterators and Range Scans](./iterators.md), [Transactions](./transactions.md), [the Transaction API](./reference-transaction-api.md) and [Write Batches](./write-batch.md). To learn by building, follow the [tutorial](./tutorial-user-store.md), and for a specific goal pick a [how-to guide](./how-to-use-column-families.md).

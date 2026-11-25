@@ -4,22 +4,14 @@
 
 ```scala
 import zio._
+import zio.cache.{Cache, Lookup}
 
-trait Lookup[-Key, -Environment, +Error, +Value]
-
-trait Cache[-Key, +Error, +Value] {
-  def get(k: Key): IO[Error, Value]
-}
-
-object Cache {
-
-  def make[Key, Environment, Error, Value](
-    capacity: Int,
-    timeToLive: Duration,
-    lookup: Lookup[Key, Environment, Error, Value]
-  ): ZIO[Environment, Nothing, Cache[Key, Error, Value]] =
-    ???
-}
+val cache: UIO[Cache[String, Nothing, Int]] =
+  Cache.make(
+    capacity = 100,
+    timeToLive = 10.minutes,
+    lookup = Lookup(key => ZIO.succeed(key.length))
+  )
 ```
 
 The most fundamental operator on a cache is `get`, which either returns the value in the cache if it exists or else computes a new value with the lookup function, puts it in the cache, and returns it.
@@ -88,16 +80,22 @@ The `keyBy` function only changes the key that the cache stores. The lookup func
 In addition to `get`, `Cache` provides a variety of other operators.
 
 ```scala
-trait Cache[-Key, +Error, +Value] {
-  def cacheStats: UIO[CacheStats]
-  def contains(key: Key): UIO[Boolean]
-  def entryStats(key: Key): UIO[Option[EntryStats]]
-  def invalidate(key: Key): UIO[Unit]
-  def invalidateAll: UIO[Unit]
-  def refresh(key: Key): IO[Error, Unit]
-  def size: UIO[Int]
-}
+import zio._
+import zio.cache.Cache
+
+def operators(cache: Cache[String, Nothing, Int]): UIO[Unit] =
+  for {
+    stats   <- cache.cacheStats
+    entry   <- cache.entryStats("key")
+    present <- cache.contains("key")
+    count   <- cache.size
+    _       <- ZIO.debug(s"$stats $entry $present $count")
+    _       <- cache.refresh("key")
+    _       <- cache.invalidate("key")
+    _       <- cache.invalidateAll
+  } yield ()
 ```
+
 The `refresh` operator is similar to `get`. The difference is `refresh` triggers a re-computation of the value without invalidating it. This allows any request to the associated key to be served while the value is being re-computed / retrieved by the lookup function. Note: `refresh` always triggers the lookup function, disregarding the last `Error`. 
 
 The `size` operator returns the current size of the cache. Under concurrent access the size should be regarded as only approximate since by the time we observe a given size the cache may have a different size based on concurrent insertions or removals.

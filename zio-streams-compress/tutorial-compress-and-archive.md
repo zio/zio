@@ -10,8 +10,8 @@ Add the two modules to your `build.sbt` file:
 
 ```sbt
 libraryDependencies ++= Seq(
-  "dev.zio" %% "zio-streams-compress-gzip" % "3.0.0",
-  "dev.zio" %% "zio-streams-compress-zip" % "3.0.0",
+  "dev.zio" %% "zio-streams-compress-gzip" % "3.0.1",
+  "dev.zio" %% "zio-streams-compress-zip" % "3.0.1",
 )
 ```
 

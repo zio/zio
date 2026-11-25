@@ -3,11 +3,14 @@
 > In order to use ZIO Test, we need to add the required configuration in our SBT settings:
 
 ```scala
-libraryDependencies ++= Seq(
-  "dev.zio" %% "zio-test"          % "2.1.27" % Test,
-  "dev.zio" %% "zio-test-sbt"      % "2.1.27" % Test,
-  "dev.zio" %% "zio-test-magnolia" % "2.1.27" % Test
-)
+// ZIO Test: the test library (test scope)
+libraryDependencies += "dev.zio" %% "zio-test" % "2.1.27" % Test
+
+// ZIO Test sbt integration (test scope)
+libraryDependencies += "dev.zio" %% "zio-test-sbt" % "2.1.27" % Test
+
+// ZIO Test derivation of test generators (test scope)
+libraryDependencies += "dev.zio" %% "zio-test-magnolia" % "2.1.27" % Test
 ```
 
 If our SBT version is older than 1.8.0, we also need to add the test framework manually:

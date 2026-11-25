@@ -10,20 +10,38 @@ instances.
 
 ## Installation
 
-To use ZIO Redis, add the following line to your `build.sbt`:
+ZIO Redis is published for Scala 2.12, 2.13 and 3 on the JVM (Java 17 or later). Add it to your `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-redis" % "1.3.2"
+libraryDependencies ++= Seq(
+  // ZIO Redis client (JVM)
+  "dev.zio" %% "zio-redis" % "1.3.3"
+)
+```
+
+Values are encoded and decoded by a `CodecSupplier`. The built-in `CodecSupplier.utf8` handles strings and numbers; to store case classes, add a ZIO Schema codec as described in [Codecs](./concepts/codecs.md).
+
+## Modules
+
+### Testing
+
+`zio-redis-embedded` starts a real Redis process for the duration of a test, so specs run without Docker or a pre-installed server. Use the same version as `zio-redis`. See [How to Test With Embedded Redis](./how-to/test-with-embedded-redis.md).
+
+```scala
+libraryDependencies ++= Seq(
+  // Embedded Redis server for tests (JVM)
+  "dev.zio" %% "zio-redis-embedded" % "1.3.3" % Test
+)
 ```
 
 ## Features
 
-- **Type-safe commands.** Results are decoded to any type with a ZIO Schema `Schema`; see [Codecs](./codecs.md).
-- **All major command groups.** Strings, keys, hashes, lists, sets, sorted sets, streams, geo, HyperLogLog and scripting; see the command reference pages.
-- **Pub/Sub.** Subscriptions are exposed as ZIO streams; see [Pub/Sub](./pub-sub.md).
-- **Pipelining.** `AsyncRedis` sends commands without waiting for replies; see [AsyncRedis](./async-redis.md).
-- **Cluster support.** `Redis.cluster` follows slot redirections; see [Cluster](./cluster.md).
-- **Embedded server for tests.** See [Testing](./testing.md).
+- **Type-safe commands.** Results are decoded to any type with a ZIO Schema `Schema`; see [Codecs](./concepts/codecs.md).
+- **All major command groups.** Strings, keys, hashes, lists, sets, sorted sets, streams, geo, HyperLogLog and scripting; see the [command reference](./reference/commands/strings.md) pages.
+- **Pub/Sub.** Subscriptions are exposed as ZIO streams; see [Pub/Sub](./concepts/pub-sub.md).
+- **Pipelining.** `AsyncRedis` sends commands without waiting for replies; see [AsyncRedis](./concepts/async-redis.md).
+- **Cluster support.** `Redis.cluster` follows slot redirections; see [Cluster](./concepts/cluster.md).
+- **Embedded server for tests.** See [How to Test With Embedded Redis](./how-to/test-with-embedded-redis.md).
 
 ## Quick Example
 
@@ -49,11 +67,3 @@ object QuickExample extends ZIOAppDefault {
     myApp.provide(Redis.local, ZLayer.succeed[CodecSupplier](CodecSupplier.utf8))
 }
 ```
-
-## Resources
-
-- [ZIO Redis](https://www.youtube.com/watch?v=yqFt3b3RBkI) by Dejan Mijic — Redis is one of the most commonly used
-  in-memory data structure stores. In this talk, Dejan will introduce ZIO Redis, a purely functional, strongly typed
-  client library backed by ZIO, with excellent performance and extensive support for nearly all of Redis' features. He
-  will explain the library design using the bottom-up approach - from communication protocol to public APIs. Finally, he
-  will wrap the talk by demonstrating the client's usage and discussing its performance characteristics.

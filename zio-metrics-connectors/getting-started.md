@@ -1,36 +1,16 @@
 # Getting Started
 
-> ZIO Metrics lets you observe everything that goes on in your ZIO application.
+> ZIO Metrics Connectors reports the metrics that ZIO records, both your own and those of the ZIO runtime and the JVM, to Prometheus, StatsD, Datadog, New Relic, or Micrometer. The core library keeps the metric state, and a connector reads it and sends or serves it. See [How It Works](how-it-works.md) for details, and [How to Report ZIO Runtime and JVM Metrics](how-to/report-runtime-and-jvm-metrics.md) for the runtime and JVM metrics.
 
-Tests are important for verifying the correctness of the code we write. However, when we go into production conditions
-are inevitably different than in testing. Still, we do need to know what is going on in our application in real time so
-that we can diagnose and address problems.
-
-Logging is part of the solution, but it is not enough. We either only log in certain areas, which are often not the
-areas where an issue actually occurs, or we log everywhere, significantly impacting application performance.
-
-Diagnostics and metrics are the other pieces of the puzzle, but there has not been a solution for integrating existing
-metrics backends with functional effect systems before, forcing users to develop their own workarounds. These solutions
-are not connected with the runtime of the effect system, so they have no ability to provide insights on what is going
-on at the level of the runtime such as the activity of individual fibers.
-
-ZIO Metrics solves this problem. ZIO Metrics can be added to any application with only a few lines of code and provides
-two types of insights:
-
-- **Diagnostics** — Diagnostics are pre-defined data on the behavior of the application as it is running directly by the
-  ZIO runtime, such as the number of fibers in the application, distribution of fiber lifetimes, and a breakdown of
-  reasons for fiber termination.
-- **[Metrics](metrics/metric-reference.md)** — Metrics are used-defined data, such as the number of times a certain
-  section of code was executed, that are tracked by ZIO Metrics and made available either directly or through third
-  party metrics solutions such as Prometheus, StatsD or Micrometer.
-
-See the corresponding sections for more information on how to use each of these pieces of functionality.
+To get started, add the dependencies from [Installation](#installation), then follow the [tutorial](tutorial/instrument-and-scrape.md).
 
 ## Installation
 
-Choose and include ZIO Metrics connector in your project by adding the following to your `build.sbt` (for example
-prometheus connector):
+Add the core library and the connector for your monitoring backend to your `build.sbt`. The [Introduction](index.md#installation)
+lists the dependency line for each module.
 
-```
-libraryDependencies += "dev.zio" %% "zio-metrics-connectors-prometheus" % "2.5.4"
-```
+## Next Steps
+
+- To instrument an application and see its metrics in Prometheus, follow the [tutorial](tutorial/instrument-and-scrape.md).
+- To pick a connector, see [How to Choose a Connector](how-to/choose-a-connector.md).
+- To see how the connectors read the metrics, see [How It Works](how-it-works.md).

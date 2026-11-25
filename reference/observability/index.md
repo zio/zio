@@ -99,10 +99,11 @@ In more complex scenarios, we might want to add more structured information to t
 Using [ZIO Logging](https://zio.dev/zio-logging), we can define typed log annotations using the `LogAnnotation` class. So let's add required dependencies to the `build.sbt` file:
 
 ```scala
-libraryDependencies ++= Seq(
-  "dev.zio" %% "zio-logging" % "4.0.2",
-  "dev.zio" %% "zio-json"    % "0.7.38"
-)
+// ZIO Logging core
+libraryDependencies += "dev.zio" %% "zio-logging" % "4.0.2"
+
+// ZIO JSON: JSON encoders, decoders and codecs
+libraryDependencies += "dev.zio" %% "zio-json"    % "0.7.38"
 ```
 
 Now, let's assume we have a `User` case class:

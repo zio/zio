@@ -156,7 +156,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@498524bc
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@47a727ee
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -169,12 +169,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18892/0x0000781692da9d08@52cb9877
+//       eval = zio.ZIO$$$Lambda$18868/0x00007059eed330c0@634c0cad
 //     ),
-//     successK = zio.ZIO$$$Lambda$19656/0x0000781692f53518@509e8736
+//     successK = zio.ZIO$$$Lambda$19722/0x00007059eef0c788@131905ff
 //   ),
-//   successK = zio.ZIO$$$Lambda$18895/0x0000781692dabf80@2520512d,
-//   failureK = zio.ZIO$$Lambda$20448/0x0000781693105478@5dd50350
+//   successK = zio.ZIO$$$Lambda$18877/0x00007059eed35338@15c8811d,
+//   failureK = zio.ZIO$$Lambda$20514/0x00007059ee280690@ff9d02
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -186,11 +186,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18892/0x0000781692da9d08@52cb9877
+//       eval = zio.ZIO$$$Lambda$18868/0x00007059eed330c0@634c0cad
 //     ),
-//     successK = zio.ZIO$$$Lambda$19656/0x0000781692f53518@2c93fb35
+//     successK = zio.ZIO$$$Lambda$19722/0x00007059eef0c788@cff5dd8
 //   ),
-//   successK = zio.ZIO$$Lambda$20678/0x00007816931e85a8@1af4c7fb
+//   successK = zio.ZIO$$Lambda$20744/0x00007059ef02c868@7c6edb1b
 // )
 ```
 
@@ -199,6 +199,7 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 `Schedule` is part of the core `zio` module; no additional dependency is needed:
 
 ```scala
+// ZIO core (JVM, Scala.js, Scala Native)
 libraryDependencies += "dev.zio" %% "zio" % "2.1.27"
 ```
 

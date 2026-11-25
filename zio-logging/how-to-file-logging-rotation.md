@@ -13,12 +13,12 @@ The steps are:
 
 ## Prerequisites
 
-Add the core module to your build. The file logger is part of the JVM and Native artifact, and the examples below assume a JVM build:
+Add the core module and the Typesafe config module to your build. The file logger is part of the JVM and Native artifact, and the examples below assume a JVM build. The Typesafe config module belongs to ZIO Config, which has its own version numbers:
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.zio" %% "zio-logging"         % "2.5.4",
-  "dev.zio" %% "zio-config-typesafe" % "2.5.4"
+  "dev.zio" %% "zio-logging"         % "2.5.5",
+  "dev.zio" %% "zio-config-typesafe" % "4.1.2"
 )
 ```
 
@@ -142,7 +142,9 @@ The date comes from the local time zone of the JVM. The logger checks the date o
 The library does not delete old files. Its source contains no code that removes files, so keeping a fixed number of days needs a separate job, such as `logrotate` or a scheduled cleanup.
 
 :::warning
-The file logger ignores write errors. Each write is wrapped in a `try` block that drops any exception other than a `VirtualMachineError`. If the directory is missing or the disk is full, log lines disappear without an error in the application. Monitor the file, or check its size and modification time, to detect this.
+The file logger opens the file for the current date when its layer is built. If the directory is missing at that point, building the layer fails with a `java.io.FileNotFoundException` defect and the application does not start, so create the directory before the application starts.
+
+After startup, the file logger ignores write errors. Each write is wrapped in a `try` block that drops any exception other than a `VirtualMachineError`. If the disk fills up, or the directory is removed before the next day's file is opened, log lines disappear without an error in the application. Monitor the file, or check its size and modification time, to detect this.
 :::
 
 ## See also

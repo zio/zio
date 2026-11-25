@@ -1,89 +1,80 @@
-# Getting Started with ZIO
+# Getting Started
 
-> Get started with ZIO, a powerful functional effect system for Scala that enables asynchronous, concurrent, and parallel programming.
+> Add ZIO AWS to a project, call one AWS operation and run the program, end to end.
 
-## Installation
+This page takes you from an empty sbt project to a running program that calls AWS. It assumes you know basic Scala and ZIO effects and layers, and that AWS credentials are set up on your machine, for example with `aws configure`.
 
-Include ZIO in your project by adding the following to your `build.sbt` file:
+## Add the Dependencies
 
+A ZIO AWS program needs the core module, one HTTP client module and one module per AWS service. We use EC2 and the Netty client:
+
+```scala
+libraryDependencies ++= Seq(
+  "dev.zio" %% "zio-aws-core"  % "7.59.5.2",
+  "dev.zio" %% "zio-aws-netty" % "7.59.5.2",
+  "dev.zio" %% "zio-aws-ec2"   % "7.59.5.2"
+)
 ```
-libraryDependencies += "dev.zio" %% "zio" % "2.1.27"
-```
 
-## Main
+The [Installation](index.md#installation) section explains each module, and [Artifacts](artifacts.md) lists every AWS service module.
 
-Your application can extend `ZIOAppDefault`, which provides a complete runtime system and allows you to write your whole program using ZIO:
+## Call One Operation
+
+Each AWS service is a ZIO service, and each operation is a function on its companion object. We call EC2's `DescribeRegions`, which lists the regions EC2 offers:
 
 ```scala
 import zio._
-import zio.Console._
+import zio.aws.core.AwsError
+import zio.aws.core.config.AwsConfig
+import zio.aws.ec2.Ec2
+import zio.aws.ec2.model.DescribeRegionsRequest
+import zio.aws.netty.NettyHttpClient
 
-object MyApp extends ZIOAppDefault {
+val listRegions: ZIO[Ec2, AwsError, Unit] =
+  for {
+    response <- Ec2.describeRegions(DescribeRegionsRequest())
+    regions  <- response.getRegions
+    _ <- ZIO.foreachDiscard(regions) { region =>
+           region.getRegionName.flatMap(name => Console.printLine(name).orDie)
+         }
+  } yield ()
+```
 
-  def run = myAppLogic
+The request is a case class whose fields all have default values, so `DescribeRegionsRequest()` is a valid request. The response is a read-only wrapper around the Java SDK response. Its `getRegions` getter is a ZIO effect, because the field is optional in the AWS model: when the field is absent, the effect fails with an `AwsError` instead of returning `null`.
 
-  val myAppLogic =
-    for {
-      _    <- printLine("Hello! What is your name?")
-      name <- readLine
-      _    <- printLine(s"Hello, ${name}, welcome to ZIO!")
-    } yield ()
+Building `listRegions` makes no network call. The call happens when the effect runs.
+
+## Provide the Layers and Run
+
+`listRegions` needs an `Ec2` service. Three layers build it: the HTTP client, the common AWS configuration and the EC2 client itself. We provide all three and run the program as a `ZIOAppDefault`:
+
+```scala
+object ListRegionsApp extends ZIOAppDefault {
+  def run =
+    listRegions.provide(
+      NettyHttpClient.default,
+      AwsConfig.default,
+      Ec2.live
+    )
 }
 ```
-The `run` method should return a ZIO value which has all its errors handled,  
-which, in ZIO parlance, is an unexceptional ZIO value.  
 
-One way to do this is to invoke `fold` over a ZIO value, to get an unexceptional ZIO value.
-That requires two handler functions: `eh: E => B` (the error handler) and `ah: A => B` (the success handler).
+The `ZIO#provide` call builds the layers in dependency order: `NettyHttpClient.default` provides the `HttpClient`, `AwsConfig.default` uses it to provide `AwsConfig`, and `Ec2.live` uses that to build the EC2 client. The client is closed when the program ends.
 
-If `myAppLogic` fails, `eh` will be used to get from `e: E` to `b: B`;
-if it succeeds, `ah` will be used to get from `a: A` to `b: B`. 
+When you run the program, it prints one line per EC2 region, such as `eu-west-1`.
 
-`myAppLogic`, as folded above, produces an unexceptional ZIO value, with `B` being `Int`.  
-If `myAppLogic` fails, there will be a 1; if it succeeds, there will be a 0.
+## Where the Region and Credentials Come From
 
----
+`AwsConfig.default` sets neither the region nor the credentials, so the AWS SDK looks them up itself. It reads the `AWS_REGION` environment variable, the `aws.region` system property or the profile in `~/.aws/config`, and the same sources for credentials. If the program fails with an error about a missing region, set `AWS_REGION`:
 
-If you are integrating ZIO into an existing application, using dependency injection, or do not control your main function, then you can create a runtime system in order to execute your ZIO programs:
-
-```scala
-import zio._
-
-object IntegrationExample {
-  val runtime = Runtime.default
-
-  Unsafe.unsafe { implicit unsafe =>
-    runtime.unsafe.run(ZIO.attempt(println("Hello World!"))).getOrThrowFiberFailure()
-  }
-}
+```bash
+export AWS_REGION=eu-west-1
 ```
 
-Ideally, your application should have a _single_ runtime, because each runtime has its own resources (including thread pool and unhandled error reporter).
-
-## Console
-
-ZIO provides a [Console](../reference/services/console.md) service for interacting with the console.
-
-If you need to print text to the console, you can use `print` and `printLine`:
-
-```scala
-import zio._
-
-// Print without trailing line break
-Console.print("Hello World")
-
-// Print string and include trailing line break
-Console.printLine("Hello World")
-```
-
-If you need to read input from the console, you can use `readLine`:
-
-```scala
-import zio._
-
-val echo = Console.readLine.flatMap(line => Console.printLine(line))
-```
+To set the values in code or load them from a configuration file, see [Configure Credentials and Region](guide-configure-credentials-and-region.md).
 
 ## Next Steps
 
-Now that you've got ZIO installed and running, the next step is to learn about the [`ZIO` data type](summary.md).
+- Build a complete program step by step in the [tutorial](tutorial-first-program.md).
+- Learn what a generated service contains in the [Wrappers](wrappers.md) reference.
+- Handle failures with [Handle AWS Errors](guide-handle-errors.md).

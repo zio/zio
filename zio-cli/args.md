@@ -1,231 +1,214 @@
 # Args
 
-> The `Args` data type models command-line arguments. Arguments are name-less, position-based parameters passed to a command-line program that modify its behavior. For example, the Git CLI has a command named `git clone` that creates a copy of an existing repository. It has an argument called "repository" that represents the existing repository's path. To clone the **ZIO CLI** repository, it can be called this way:
-> ```
-> git clone https://github.com/zio/zio-cli.git
-> ```
-> where `https://github.com/zio/zio-cli.git` is the path of the repository.
+> `Args[A]` describes the positional arguments of a command: the values a user types without a name, such as the repository URL in `git clone https://github.com/zio/zio-cli.git`. An `Args[A]` is a description, not a parsed value. It says which arguments the command accepts and how to build an `A` from them, and a [`Command`](commands.md) uses it to parse the user's input.
 
-In **ZIO CLI**, Arguments are represented by instances of class `Args[_]`. `Args[A]` is a description of the process of constructing an instance of `A` from a valid input of the CLI. It is not yet a specified argument for the CLI. In other words, an `Args[A]` defines a collection of valid arguments for a command and a way to construct a value `A` from them.
+Arguments come after the command's [options](options.md). ZIO CLI stops reading options at the first token that is not an option, and a `--` token makes every later token an argument, even one that starts with `-`. [Options Come Before Arguments](parsing.md#options-come-before-arguments) describes the order in detail.
 
-## Construction of basic Args
-**ZIO CLI** offers a variety of methods to create basic `Args` that takes a string from the user as input and transform it into a value of the corresponding type. The benefit of using these methods is that it is automatically checked if they describe a value of the given type and, in that case, are transformed into it. In case of an invalid input, a `ValidationError` will be thrown. Note that each type has its own validation function.
+## Constructors
 
-An `Args` instance of a basic type carries a name attribute. This can be specified when being created, but it can also be skipped. In this last case, the name will be that of the type. An example with Boolean type:
+The `Args` companion object has one constructor per value type, plus constructors for enumerations, paths and commands without arguments.
+
+### Value Arguments
+
+Each value type has a named and an unnamed constructor. The named form takes the name shown in the help, and the unnamed form uses the value type's placeholder as its name. `Args.localDate` is the only constructor without an unnamed form.
+
+To declare a named integer argument and an unnamed one:
+
 ```scala
 import zio.cli._
 
-val name = "name"
-
-Args.bool(name) // Boolean Args with name
-Args.bool       // Boolean Args named "boolean"
+val count: Args[BigInt]    = Args.integer("count") // shown as <count>
+val anyNumber: Args[BigInt] = Args.integer         // shown as <integer>
 ```
 
-### Boolean Args
-Produces an `Args[Boolean]`. It accepts as input `true` or `false`, while other pieces of text are not valid.
-```scala
-Args.bool(name)
-```
-### Path Args
-They are used to produce an `Args[Path]`.
-- Produces `Args[java.nio.file.Path]`.
-```scala
-Args.file(name) // Used for a file
-```
-- Produces `Args[java.nio.file.Path]`.
-```scala
-Args.directory(name) // Used for a directory
-```
-By default, the `CliApp` accepts paths pointing to files or directories that might or not exist. If you need to work with one of them exclusively you can use the trait `Exists`:
-```scala
-// Path can point to both existing or non-existing files or directories
-Args.file(name, exists = Exists.Either)
-Args.directory(name, exists = Exists.Either)
+The value types and their constructors are `Args.text`, `Args.integer`, `Args.decimal`, `Args.bool`, `Args.duration`, `Args.instant`, `Args.localDate`, `Args.localDateTime`, `Args.localTime`, `Args.monthDay`, `Args.offsetDateTime`, `Args.offsetTime`, `Args.period`, `Args.year`, `Args.yearMonth`, `Args.zonedDateTime`, `Args.zoneId` and `Args.zoneOffset`. [Value Types](value-types.md) lists the Scala type, the placeholder and the accepted input of each one.
 
-// Path must point to existing files or directories
-Args.file(name, exists = Exists.Yes)
-Args.directory(name, exists = Exists.Yes)
+A value that cannot be converted fails with the value type's message, such as `ten is not a integer.`. A missing argument fails with `Missing argument <count>.`.
 
-// Path must point to non-existing files or directories
-Args.file(name, exists = Exists.Yes)
-Args.directory(name, exists = Exists.Yes)
-```
-### Text Args
-Produces an `Args[String]`.
-```scala
-Args.text(name)
-```
-### Numeric Args
-Numeric `Args` produce `BigInt` and `BigDecimal`, so they can represent numbers of arbitrary size and precision. Note that the CLI checks that the input really represents a number.
-- Produces `Args[BigDecimal]`.
-```scala
-Args.decimal(name)
-```
+### Enumeration Arguments
 
-- Produces `Args[BigInt]`.
-```scala
-Args.integer(name)
-```
+`Args.enumeration` accepts one of a fixed set of words. Each case is a pair of the word the user types and the value it stands for. `Args.enumeration(name)(cases*)` names the argument, and `Args.enumeration(cases*)` uses `choice` as the name.
 
-### Date/Time Args
-The following methods produce `Args` whose type parameter is a Date/Time type of the `java.time` library.
-- Produces `Args[java.time.Duration]`. The input must be a time-based amount of time in the ISO-8601 format, such as 'P1DT2H3M'.
-```scala
-Args.duration(name)
-```
-- Produces `Args[java.time.Instant]`. The input must be an instant in time in UTC format, such as 2007-12-03T10:15:30.00Z.
-```scala
-Args.instant(name)
-```
-- Produces `Args[java.time.LocalDate]`. The input must be a date in ISO_LOCAL_DATE format, such as 2007-12-03.
-```scala
-Args.localDate(name)
-```
-- Produces `Args[java.time.LocalDateTime]`. The input must be a date-time without a time-zone in the ISO-8601 format, such as 2007-12-03T10:15:30.
-```scala
-Args.localDateTime(name)
-```
-- Produces `Args[java.time.LocalTime]`. The input must be a time without a time-zone in the ISO-8601 format, such as 10:15:30.
-```scala
-Args.localTime(name)
-```
-- Produces `Args[java.time.MonthDay]`. The input must be a month-day in the ISO-8601 format such as 12-03.
-```scala
-Args.monthDay(name)
-```
-- Produces `Args[java.time.OffsetDateTime]`. The input must be a date-time with an offset from UTC/Greenwich in the ISO-8601 format, such as 2007-12-03T10:15:30+01:00.
-```scala
-Args.offsetDateTime(name)
-```
-- Produces `Args[java.time.OffsetTime]`. The input must be a time with an offset from UTC/Greenwich in the ISO-8601 format, such as 10:15:30+01:00.
-```scala
-Args.offsetTime(name)
-```
-- Produces `Args[java.time.Period]`. The input must be a date-based amount of time in the ISO-8601 format, such as 'P1Y2M3D'.
-```scala
-Args.period(name)
-```
-- Produces `Args[java.time.Year]`. The input must be a year in the ISO-8601 format, such as 2007.
-```scala
-Args.year(name)
-```
-- Produces `Args[java.time.YearMonth]`. The input must be a year-month in the ISO-8601 format, such as 2007-12.
-```scala
-Args.yearMonth(name)
-```
-- Produces `Args[java.time.ZonedDateTime]`. The input must be a date-time with a time-zone in the ISO-8601 format, such as 2007-12-03T10:15:30+01:00 Europe/Paris.
-```scala
-Args.zonedDateTime(name)
-```
-- Produces `Args[java.time.ZoneId]`. The input must be a time-zone ID, such as Europe/Paris.
-```scala
-Args.zoneId(name)
-```
-- Produces `Args[java.time.ZoneOffset]`. The input must be a time-zone offset from Greenwich/UTC, such as +02:00.
-```scala
-Args.zoneOffset(name)
-```
+To accept one of three log levels:
 
-## Combining and transforming Args
-When constructing a command, you can specify only one argument. Thus, to create more complex `Args` it is necessary to use the following methods of the trait `Args`:
-```scala
-trait Args[A] {
-  def ++[B](that: Args[B]): Args[(A, B)]              // Zip two args
-  def +[A1 >: A]: Args[::[A1]]                        // Requires a non-empty list of Args of type A1
-  def * : Args[List[A]]                               // Requires a list of Args of same type
-  def atLeast(min: Int): Args[List[A]]                // Requires a list of Args with at least min elements
-  def atMost(max: Int): Args[List[A]]                 // Requires a list of Args with at most max elements
-  def between(min: Int, max: Int): Args[List[A]]      // Requires a list of Args with a bound on the number of elements
-  def map[B](f: A => B): Args[B]                      // Applies a function f to the result of the Args
-  def ??(that: String): Args[A]                       // Adds a string to the HelpDoc of the Args
-}
-```
-
-### Adding Args
-Operator `++` can be used to zip two arguments. It can be use to chain two arguments in a tuple. For example, `git clone` command has arguments `<repository>` and `<directory>`. The argument of this command can be created in the following manner:
-```scala
-val cloneArgs = Args.text("repository") ++ Args.text("directory")
-```
-
-The output of the CLI help will be:
-```
-COMMANDS
-
-  clone <repository> <directory>
-```
-
-### Repeating Args
-If we need an argument a repeated number of times, we can use the following operators:
-- Method `*`
-
-It creates a new `Args` that accepts a list of arguments of the same type. There are no restrictions on length. Take into account that there is no limit, so if there are arguments or options after using this methods, the CLI app will not read them unless they are not valid!
-```scala
-// Accepts a list, possibly empty, of texts.
-Args.text.*
-```
-- Method `+`
-
-It works as method `*` but the list of arguments cannot be empty. Do not mistake with method `++`!
-
-- Method `between`
-
-It creates an argument accepting a list of arguments of the type before whose length must be between `min` and `max` parameters.
-```scala
-Args.text.between(2,5) // Creates an arguments accepting a list of String of length between 2 and 5.
-```
-- Method `atLeast`
-
-It creates an argument accepting a list of arguments of the type before whose length must be more than `min` parameter.
-```scala
-Args.text.atLeast(2) // Creates an arguments accepting a list of String of length more than 2.
-```
-
-- Method `atMost`
-
-It creates an argument accepting a list of arguments of the type before whose length must be less than `max`parameter
-```scala
-Args.text.atMost(5) // Creates an arguments accepting a list of String of length less than 5.
-```
-
-### Transforming Args
-Method `map` allows to transform the type parameter of `Args[A]`. It takes a function `f: A => B` as parameter that is applied when processing a user's input in a CLI app and returns `Args[B]`. This makes it easier to implement the business logic of a CLI app. For example, we will construct an `Args` that asks for a list of 12 decimals (one for each month) and a year. Then, it will create a new `Args` that store the year and the mean value in a custom type.
 ```scala
 import zio.cli._
 
-val data: Args[BigDecimal] = Args.decimal
-val args: Args[(List[BigDecimal], BigInt)] = data.between(12, 12) ++ Args.integer
+val level: Args[Int] = Args.enumeration("level")(("debug", 0), ("info", 1), ("warn", 2))
+```
 
-case class YearAndMean(year: BigInt, mean: BigDecimal)
+The word must match exactly, including its case. Any other word fails with `Expected one of the following cases: debug, info, warn`.
 
-val mappedArgs: Args[YearAndMean] = args.map {
-  case (months, year) => YearAndMean(year, months.sum/12)
+### Path Arguments
+
+`Args.file`, `Args.directory` and `Args.path` produce a `java.nio.file.Path`. `Args.file` and `Args.directory` take an `Exists` value that says whether the path must exist, and each has three forms: `(name, exists)`, `(exists)` without a name, and the unnamed value with `Exists.Either`. `Args.path(name)` and `Args.path` accept a file or a directory, existing or not.
+
+To require an existing file and accept any directory:
+
+```scala
+import zio.cli._
+
+val source = Args.file("source", exists = Exists.Yes)
+val target = Args.directory("target")
+```
+
+An existing path must also be of the right kind: `Args.file` rejects an existing directory, and `Args.directory` rejects an existing file. These constructors are not available on Scala.js. [Paths](value-types.md#paths) and [Platform Support](value-types.md#platform-support) give the full rules.
+
+### No Arguments
+
+`Args.none` is an `Args[Unit]` that consumes no input. A command built without arguments uses it, and it disappears from the command's value.
+
+To declare a command that takes no arguments:
+
+```scala
+import zio.cli._
+
+val status: Command[Boolean] = Command("status", Options.boolean("short"), Args.none)
+```
+
+### Arguments From a PrimType
+
+`Args.Single(pseudoName, primType, description)` wraps any `PrimType` directly. You rarely need it; it is for a value type that no constructor offers, such as a path that must exist but may be a file or a directory. [Custom Parameters From a PrimType](value-types.md#custom-parameters-from-a-primtype) shows an example.
+
+## Methods
+
+The `Args` trait has the following public methods:
+
+```scala
+sealed trait Args[+A] {
+  def ++[B](that: Args[B])(implicit zippable: Zippable[A, B]): Args[zippable.Out]
+
+  def * : Args[List[A]]
+  def +[A1 >: A]: Args[::[A1]]
+  def repeat: Args[List[A]]
+  def repeat1[A1 >: A]: Args[::[A1]]
+  def atLeast(min: Int): Args[List[A]]
+  def atMost(max: Int): Args[List[A]]
+  def between(min: Int, max: Int): Args[List[A]]
+
+  def map[B](f: A => B): Args[B]
+  def mapOrFail[B](f: A => Either[HelpDoc, B]): Args[B]
+  def mapTry[B](f: A => B): Args[B]
+
+  def ??(that: String): Args[A]
+
+  def helpDoc: HelpDoc
+  def synopsis: UsageSynopsis
+  def minSize: Int
+  def maxSize: Int
+  def uid: Option[String]
+  def validate(args: List[String], conf: CliConfig): IO[ValidationError, (List[String], A)]
 }
 ```
 
-### Adding help
-Method `??` allows adding information about an argument. The string is added after the current `HelpDoc` of the `Args`. We are going to create the `<repository>` argument of `git clone` to observe the effect of using `??`.
+`Args` has no `optional` or `withDefault`. To make an argument optional, accept at most one value with `Args#atMost` and take the first one with `Args#map`, as in `Args.text("name").atMost(1).map(_.headOption)`.
+
+### Combining Arguments With ++
+
+A command takes a single `Args` value, so we combine several arguments into one with `Args#++`. The arguments are read in the order they are combined. The result is a flat tuple: `a ++ b ++ c` is an `Args[(A, B, C)]`, not a nested pair, and `Unit` values such as `Args.none` disappear from it.
+
+To combine the two arguments of `git clone`:
 
 ```scala
-val repository = Args.text("repository")
-  
-/* HelpDoc of repository:
- *
- * <repository>
- *   A user-defined piece of text.
- * 
- */
+import zio.cli._
 
+val cloneArgs: Args[(String, String)] = Args.text("repository") ++ Args.text("directory")
 ```
-Now we add a description of the argument:
+
+The usage line of a command with these arguments shows them in order, as `<repository> <directory>`.
+
+### Repeating Arguments
+
+These methods turn an argument into a list of arguments of the same type:
+
+- `Args#*` (and its alias `Args#repeat`) accepts zero or more values.
+- `Args#+` (and its alias `Args#repeat1`) accepts one or more values and returns a non-empty list, `::[A]`.
+- `Args#atLeast(min)` accepts `min` or more values.
+- `Args#atMost(max)` accepts up to `max` values.
+- `Args#between(min, max)` accepts from `min` to `max` values.
+
+To accept one or more file names, and between two and five numbers:
 
 ```scala
-val repositoryWithHelp = repository ?? "Path of the repository to be cloned."
+import zio.cli._
 
-/* HelpDoc of repositoryWithHelp:
- *
- * <repository>
- *   A user-defined piece of text.
- * 
- *   Path of the repository to be cloned.
- */
+val files: Args[::[String]]       = Args.text("file").+
+val numbers: Args[List[BigInt]]   = Args.integer("n").between(2, 5)
 ```
+
+The help names the repetition rule, and the usage line shows the argument followed by `...`:
+
+```scala
+println(numbers.helpDoc.toPlaintext(color = false))
+// <n> 2 - 5
+//   An integer.
+// 
+//   This argument must be repeated at least 2 times and may be repeated up to 5 times.
+// 
+//
+```
+
+`Args#*`, `Args#+` and `Args#atLeast` are greedy: they take every remaining token. An argument combined after them never receives a value, so a required one fails with `Missing argument <name>.`. If a remaining token is not a valid value, the command fails with that value's error; the token is not left for a later argument. `Args#atMost` and `Args#between` stop at their maximum, so another argument can follow them once that many values are given. With fewer values, a remaining token that is not valid for the repeated argument fails the command instead of going to the next argument.
+
+:::caution
+Tokens left over after the last argument is filled are ignored, without an error. With `Args.text("name")`, the input `alice bob` gives `"alice"`, and `bob` is dropped; see [Leftover Words](parsing.md#leftover-words).
+:::
+
+### Transforming Values
+
+`Args#map` converts the parsed value with a function that cannot fail. To turn a text argument into an upper-case name:
+
+```scala
+import zio.cli._
+
+val shout: Args[String] = Args.text("name").map(_.toUpperCase)
+```
+
+`Args#mapOrFail` converts the value with a function that may reject it. The function returns `Right` with the new value, or `Left` with a `HelpDoc` that is shown to the user. To accept only positive counts:
+
+```scala
+val positive: Args[Int] =
+  Args.integer("count").mapOrFail { (n: BigInt) =>
+    if (n > 0) Right(n.toInt) else Left(HelpDoc.p("The count must be positive."))
+  }
+```
+
+`Args#mapTry` converts the value with a function that may throw. An exception becomes a validation error whose text is the exception's message. To parse a URI:
+
+```scala
+val uri: Args[java.net.URI] = Args.text("uri").mapTry(java.net.URI.create)
+```
+
+With the input `not a uri`, the user sees `Illegal character in path at index 3: not a uri`. [How to validate and convert a parameter's value](how-to-validate-input.md) compares these methods with their `Options` counterparts.
+
+### Adding Help With ??
+
+`Args#??` appends a paragraph to the help of an argument. To describe the repository argument:
+
+```scala
+import zio.cli._
+
+val repository = Args.text("repository") ?? "The repository to clone."
+```
+
+The help shows the description after the sentence for the value type:
+
+```scala
+println(repository.helpDoc.toPlaintext(color = false))
+// <repository>
+//   A user-defined piece of text.
+// 
+//   The repository to clone.
+// 
+//
+```
+
+On arguments combined with `Args#++`, `Args#??` appends the same paragraph to every argument, so call it on each argument before combining them.
+
+### Inspecting an Args
+
+`Args#helpDoc` returns the help as a [`HelpDoc`](helpdoc.md), and `Args#synopsis` returns the usage line. `Args#minSize` and `Args#maxSize` give the number of tokens the arguments accept, and `Args#uid` returns their names, such as `<repository>, <directory>`. `Args#validate` parses a list of tokens and returns the leftover tokens with the value; tests use it to check an `Args` without building a command.
+
+## How Args Are Represented
+
+`Args` is a sealed trait. Its cases are `Args.Empty` (the result of `Args.none`), `Args.Single` (one argument), `Args.Both` (the result of `Args#++`), `Args.Variadic` (the result of `Args#*`, `Args#+`, `Args#atLeast`, `Args#atMost` and `Args#between`) and `Args.Map` (the result of `Args#map` and the methods built on it). They are public, but you build arguments with the constructors and methods above instead of constructing the cases yourself.

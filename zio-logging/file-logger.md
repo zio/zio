@@ -42,9 +42,12 @@ The module also provides other file logger layers:
 
 The configuration for the file logger (`zio.logging.FileLoggerConfig`) has the following structure. The default config path is `logger`:
 
-```
+```hocon
 logger {
   # log format, default value: LogFormat.default
+  # The pattern below is approximately LogFormat.default. The default also puts the
+  # message in double quotes, and it writes the cause, with the space before it,
+  # only when the cause is not empty.
   format = "%label{timestamp}{%fixed{32}{%timestamp}} %label{level}{%level} %label{thread}{%fiberId} %label{message}{%message} %label{cause}{%cause}"
 
   # URI to file
@@ -72,7 +75,36 @@ logger {
 }
 ```
 
-See also [log format configuration](formatting-log-records.md#log-format-configuration) and [filter configuration](log-filter.md#configuration).
+See also [log format configuration](formatting-log-records.md#log-format-configuration) and [filter configuration](log-filter.md#configuration). Every key, with its type and default, is listed in [Configuration Keys Reference](reference-configuration.md#file-logger-keys).
+
+## Async File Loggers
+
+`zio.logging.fileAsyncLogger` and `zio.logging.fileAsyncJsonLogger` take the same `FileLoggerConfig`, or the same config path, as `fileLogger`. The difference is where the file write happens. The synchronous loggers write each line on the fiber that logs. The async loggers format and filter the line on that fiber, then put the write on a bounded queue of 1000 entries, and one background fiber takes the writes from the queue and performs them in order.
+
+Use an async logger when slow file writes would otherwise hold up the fibers that log, for example on a busy service writing to a slow disk. Keep the synchronous `fileLogger` when every line must reach the file before the program moves on.
+
+To create an async file logger layer from the `fileConfig` value above:
+
+```scala
+import zio.logging.fileAsyncLogger
+
+val fileAsyncLoggerFromConfig = Runtime.removeDefaultLoggers >>> fileAsyncLogger(fileConfig)
+```
+
+The queue changes what happens under load and at shutdown:
+
+- When the queue is full, the thread that logs blocks until the background fiber has written a line and freed a slot. The logger offers to the queue with `Runtime.default.unsafe.run`, so it blocks the underlying thread, not only the fiber.
+- The background fiber lives in the layer's scope. When that scope closes, for example when the application stops, the fiber is interrupted, and lines still in the queue are not written.
+
+## Flushing and Write Errors
+
+The file logger writes through a `java.io.Writer`, which holds written text in a buffer until it is flushed. The `autoFlushBatchSize` key sets how many lines are written between two flushes, and `bufferedIOSize` adds a `java.io.BufferedWriter` of that size in front of the file.
+
+The logger does not flush or close the writer when its layer's scope closes. With `autoFlushBatchSize` greater than `1`, the lines written since the last flush can therefore be lost when the application stops. Keep the default `autoFlushBatchSize = 1` when the last lines before a shutdown matter, such as the lines that explain a crash. With `autoFlushBatchSize = 1`, a `bufferedIOSize` does not hold lines back, because each flush also empties the buffered writer.
+
+Set `autoFlushBatchSize` to `1` or more. The config loader accepts `0`, but with `0` the flush step throws on every line, the error is swallowed, and the writer is never flushed.
+
+The logger opens the file when the layer is built. If the file cannot be opened at that point, for example because its directory does not exist, building the layer fails with a `java.io.FileNotFoundException` as a defect, not as a `Config.Error`, and the application does not start. After startup, the logger ignores write errors: it drops any exception other than a `VirtualMachineError`, and the line is lost without an error in the application.
 
 ## Examples
 

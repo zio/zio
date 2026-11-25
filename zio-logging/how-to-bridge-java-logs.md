@@ -8,15 +8,16 @@ The steps are:
 2. Install the SLF4J bridge with a filter from config.
 3. Install the SLF4J bridge with a filter in code.
 4. Install the JUL bridge, and install both bridges together.
+5. Check for conflicting logging modules.
 
 ## Prerequisites
 
-Add the bridge modules. The `slf4j2-bridge` module is for SLF4J v2 only. A separate v1 bridge module exists for SLF4J v1, and this guide does not cover it. Add both bridge modules to your build:
+Add the bridge modules. The `slf4j2-bridge` module is for SLF4J v2 (`slf4j-api` 2.x) only. For libraries on `slf4j-api` 1.7.x, use the [SLF4J v1 bridge](./slf4j1-bridge.md) module, `zio-logging-slf4j-bridge`, instead; its `Slf4jBridge` object has the same layers, so the steps below apply to it unchanged. All bridge modules require Java 17 or later. Add both bridge modules to your build:
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.zio" %% "zio-logging-slf4j2-bridge" % "2.5.4",
-  "dev.zio" %% "zio-logging-jul-bridge"    % "2.5.4"
+  "dev.zio" %% "zio-logging-slf4j2-bridge" % "2.5.5",
+  "dev.zio" %% "zio-logging-jul-bridge"    % "2.5.5"
 )
 ```
 
@@ -35,7 +36,7 @@ import zio.logging.slf4j.bridge.Slf4jBridge
 
 ## Install the SLF4J Bridge With a Filter From Config
 
-We install `Slf4jBridge.init()` next to the console logger. The bridge reads its level from the `logger.filter` path by default, which is the same filter the console logger uses. The `>+>` operator adds the bridge layer while keeping the logger layer available to it. The `Runtime.removeDefaultLoggers` call stops ZIO's default logger from writing the same lines a second time. The program looks like this:
+We install `Slf4jBridge.init()` next to the console logger. The bridge reads its level from the `logger.filter` path by default, which is the same filter the console logger uses. The order of the layers matters: when the bridge's layer is built, it captures the ZIO runtime with the loggers installed at that moment, and library logs, including those from threads that run no ZIO fiber, go to those loggers. The `>>>` and `>+>` operators build their left side first, so the console logger must stand to the left of the bridge. The `Runtime.removeDefaultLoggers` call stops ZIO's default logger from writing the same lines a second time. The program looks like this:
 
 ```scala
 object Slf4jFromConfigApp extends ZIOAppDefault {
@@ -48,7 +49,33 @@ object Slf4jFromConfigApp extends ZIOAppDefault {
 }
 ```
 
-`Slf4jBridge.init()` reads the filter from `logger.filter`. To read it from another path, pass the path as a `NonEmptyChunk[String]`, for example `Slf4jBridge.init(Slf4jBridge.logFilterConfigPath)`. The default path is available as the `Slf4jBridge.logFilterConfigPath` value. The config keys are the same as in [How to Set Log Levels Per Package From Config](./how-to-log-levels-from-config.md).
+`Slf4jBridge.init()` reads the filter from `logger.filter`, which is also available as the `Slf4jBridge.logFilterConfigPath` value. When the application keeps its logging settings under another key, pass the path as a `NonEmptyChunk[String]`. The following layer reads both the console logger's settings and the bridge's filter from under `app.logger`:
+
+```scala
+import zio.NonEmptyChunk
+
+val appPathLogging =
+  Runtime.removeDefaultLoggers >>>
+    consoleJsonLogger(NonEmptyChunk("app", "logger")) >+>
+    Slf4jBridge.init(NonEmptyChunk("app", "logger", "filter"))
+```
+
+The matching HOCON nests the usual `filter` block one level deeper:
+
+```hocon
+app {
+  logger {
+    filter {
+      rootLevel = INFO
+      mappings {
+        "com.example.thirdparty" = WARN
+      }
+    }
+  }
+}
+```
+
+The config keys are the same as in [How to Set Log Levels Per Package From Config](./how-to-log-levels-from-config.md).
 
 ## Install the SLF4J Bridge With a Filter in Code
 
@@ -91,7 +118,7 @@ object JulApp extends ZIOAppDefault {
 }
 ```
 
-The JUL bridge does its own level filtering. JUL normally filters at the logger level, so the bridge turns that off and applies the `LogFilter` itself. Other JUL handlers that are attached to the same logger may therefore receive more lines than before, and that can cost performance.
+Installing the JUL bridge resets the global JUL configuration. It calls `LogManager#readConfiguration` with the single setting `.level= ALL`, which removes every JUL handler and level configured before, including those from `logging.properties` and the default console handler, and then adds the bridge's handler to the root logger. From then on, JUL itself filters nothing: every JUL logger creates a record for every level, and the bridge's `LogFilter` decides alone what is kept. Any JUL handler added after the bridge receives records of every level. See [What Installing the Bridge Changes in JUL](./jul-bridge.md#what-installing-the-bridge-changes-in-jul) for details.
 
 ## Install Both Bridges Together
 
@@ -111,10 +138,19 @@ object BothBridgesApp extends ZIOAppDefault {
 }
 ```
 
+## Check for Conflicting Logging Modules
+
+A bridge reverses the direction of a backend, and SLF4J allows only one provider, so some module combinations do not work together. Before you ship, check the runtime classpath for these cases:
+
+- **The SLF4J backend and the SLF4J bridge together**: `zio-logging-slf4j2` with `zio-logging-slf4j2-bridge`, or `zio-logging-slf4j` with `zio-logging-slf4j-bridge`, send every line round in a loop.
+- **Another SLF4J provider next to the bridge**, such as `logback-classic`, `slf4j-simple` or `log4j-slf4j2-impl`: if SLF4J picks the other provider, building the bridge layer fails at startup with a `ClassCastException` defect. Remove the other provider, or with SLF4J 2.0.9 and later, choose the bridge with `-Dslf4j.provider=zio.logging.slf4j.bridge.ZioSLF4JServiceProvider`.
+- **The v1 bridge with `slf4j-api` 2.x**: SLF4J 2 ignores the v1 binding and discards library logs, although the bridge layer builds without an error. Use the v2 bridge.
+- **The JPL backend and the JUL bridge together**: the JDK's `System.Logger` writes to JUL by default, so the [JPL backend](./jpl.md) and the JUL bridge send every line round in a loop.
+
 ## See also
 
 - [SLF4J v2](./slf4j2.md) for sending ZIO logs to an SLF4J provider.
-- [SLF4J v2 Bridge](./slf4j2-bridge.md) for the full reference of the SLF4J bridge layers.
+- [SLF4J v2 Bridge](./slf4j2-bridge.md) and [SLF4J v1 Bridge](./slf4j1-bridge.md) for the full reference of the SLF4J bridge layers.
 - [JUL Bridge](./jul-bridge.md) for the full reference of the JUL bridge layers.
 - [How to Set Log Levels Per Package From Config](./how-to-log-levels-from-config.md) for the filter keys that the bridges read.
 - [How to Log JSON](./how-to-json-logs.md) for the JSON format these examples use.

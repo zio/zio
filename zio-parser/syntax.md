@@ -38,6 +38,9 @@ Every syntax exposes its two halves as `asParser` and `asPrinter`, but you norma
 | `Syntax.string(s, value)`                  | `Result` | Matches the exact string `s` and results in `value` |
 | `Syntax.succeed(v)` / `Syntax.fail(e)`     |          | Always succeed with `v` / always fail with `e`    |
 | `Syntax.end`                               | `Unit`   | Succeeds only at the end of the input             |
+| `Syntax.anyString`                         | `String` | Matches all the remaining input as a `String`     |
+| `Syntax.index`                            | `Int`    | Produces the current position in the input. Prints nothing          |
+| `Syntax.any[T]`                           | `T`      | Matches any single element of type `T`, for any input type         |
 
 ```scala
 val comma: Syntax[String, Char, Char, Unit]       = Syntax.char(',')
@@ -188,8 +191,12 @@ Because a syntax works in both directions, a mapping needs a function for each d
 | `transformTo(to, from, failure)` | `from` is a `PartialFunction`. If it is not defined for a value, printing fails with `failure`    |
 | `asPrinted(result, value)`       | Always parses to `result`, and prints `value` when asked to print `result`                        |
 | `as(value)`                      | For `Unit` syntaxes: result in `value` when parsing                                               |
-| `of[CaseClass]` / `to[CaseClass]` | Converts a tuple result to a case class (and back for printing with `of`)                         |
+| `of[CaseClass]`                  | Converts a tuple result to a case class, and back when printing                  |
 | `filter(p, failure)`             | Fails with `failure` when the value does not satisfy `p`                                          |
+| `unit(printed)`                  | Discards the parsed value and results in `Unit`. When printing, `printed` is written              |
+| `toList`                         | Converts a `Chunk[Item]` result to a `List[Item]`, and back when printing                         |
+| `flatten`                        | Joins a `Chunk[String]` result into one `String`, and prints the whole string as one element      |
+| `widenWith(narrow, failure)`     | Widens the value to a parent type. `narrow` is a `PartialFunction` that finds the subtype to print, and printing fails with `failure` where it is not defined |
 
 ```scala
 val int: Syntax[String, Char, Char, Int] =
@@ -224,6 +231,8 @@ point.printString(Point(5, 6))
 // res19: Either[String, String] = Right("(5,6)")
 ```
 
+The `of[CaseClass]` combinator works on both Scala 2 and Scala 3 for case classes. The conversion is a `TupleConversion`, which Scala 2 generates with a macro and Scala 3 derives from the case class's `Mirror`. The same conversion exists on the two halves: `to[CaseClass]` on a `Parser` and `from[CaseClass]` on a `Printer`.
+
 ## Recursive Syntaxes
 
 A syntax can refer to itself as long as the reference sits behind a `lazy val` (or a `def`). The `~`, `~>`, `<~`, `|` operators take their right-hand side by name, so the recursion is resolved lazily. For a full example see the [worked example](example-json.md).
@@ -246,6 +255,23 @@ nested.parseString("((()))")
 ```scala
 nested.parseString("(((())))", ParserImplementation.StackSafe)
 // res21: Either[StringParserError[String], Int] = Right(4)
+```
+
+## Debugging and Performance
+
+`debug(msg)` prints `msg` and the parsed value each time the syntax succeeds while parsing. It does not change printing, so use it to follow a grammar while you build it and remove it afterwards:
+
+```scala
+Syntax.digit.repeat.string.debug("digits").parseString("42")
+// digits: 42
+// res22: Either[StringParserError[String], String] = Right("42")
+```
+
+Syntaxes keep the names you add with `named` so errors can show where they happened. `strip` removes all name information from a syntax to make parsing faster, at the cost of less detailed failure messages. Apply it after the grammar works:
+
+```scala
+val fastNumber: Syntax[String, Char, Char, String] =
+  Syntax.digit.repeat.string.named("number").strip
 ```
 
 ## Backtracking

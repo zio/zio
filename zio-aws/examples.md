@@ -1,13 +1,13 @@
 # Examples
 
-> The following example uses the ElasticBeanstalk and EC2 APIs to print some info.
+> The following program combines two services, Elastic Beanstalk and EC2. It finds an Elastic Beanstalk application named `my-service`, streams its environments, reads the EC2 instance IDs behind each environment, and prints the type and launch time of each instance. It builds the layers by hand with `>>>` and `++`, and reports the failures of each environment without stopping the others:
 
 ```scala
 object Main extends ZIOAppDefault {
   val program: ZIO[Ec2 & ElasticBeanstalk, AwsError, Unit] =
     for {
       appsResult <- ElasticBeanstalk.describeApplications(
-        DescribeApplicationsRequest(applicationNames = Some(List(ApplicationName("my-service"))))
+        DescribeApplicationsRequest(applicationNames = List(ApplicationName("my-service")))
       )
       app <- appsResult.getApplications.map(_.headOption)
       _ <- app match {
@@ -22,7 +22,7 @@ object Main extends ZIOAppDefault {
 
             envStream = ElasticBeanstalk.describeEnvironments(
               DescribeEnvironmentsRequest(applicationName =
-                Some(applicationName)
+                applicationName
               )
             )
 
@@ -39,7 +39,7 @@ object Main extends ZIOAppDefault {
                   resourcesResult <-
                     ElasticBeanstalk.describeEnvironmentResources(
                       DescribeEnvironmentResourcesRequest(environmentId =
-                        Some(environmentId)
+                        environmentId
                       )
                     )
                   resources <- resourcesResult.getEnvironmentResources
@@ -57,7 +57,7 @@ object Main extends ZIOAppDefault {
                     .ignore
 
                   reservationsStream = Ec2.describeInstances(
-                    DescribeInstancesRequest(instanceIds = Some(instanceIds.map(id => zio.aws.ec2.model.primitives.InstanceId(ResourceId.unwrap(id)))))
+                    DescribeInstancesRequest(instanceIds = instanceIds.map(id => zio.aws.ec2.model.primitives.InstanceId(ResourceId.unwrap(id))))
                   )
                   _ <- reservationsStream.run(ZSink.foreach { reservation =>
                     reservation.getInstances

@@ -6,4 +6,5 @@
 
 ## Other
 
+- [Example programs](https://github.com/zio/zio-profiling/tree/master/examples) for both profilers
 - [Scaladoc](https://zio.github.io/zio-profiling/api/index.html)

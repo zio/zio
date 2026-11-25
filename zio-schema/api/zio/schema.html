@@ -1,0 +1,3281 @@
+<!DOCTYPE html><html data-pathToRoot="../" data-rawLocation="zio/schema" data-dynamicSideMenu="true"><head><meta charset="utf-8"></meta><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></meta><title>zio.schema</title><link rel="icon" href="/img/favicon.png"><script type="text/javascript" src="../scripts/theme.js"></script><script type="text/javascript" src="../scripts/searchData.js" defer="true"></script><script type="text/javascript" src="../scripts/scastieConfiguration.js" defer="true"></script><link rel="stylesheet" href="../styles/theme/bundle.css"></link><link rel="stylesheet" href="../styles/theme/components/bundle.css"></link><link rel="stylesheet" href="../styles/theme/components/button/bundle.css"></link><link rel="stylesheet" href="../styles/theme/layout/bundle.css"></link><link rel="stylesheet" href="../styles/dotty-icons.css"></link><link rel="stylesheet" href="../styles/filter-bar.css"></link><link rel="stylesheet" href="../styles/searchbar.css"></link><link rel="stylesheet" href="../styles/social-links.css"></link><link rel="stylesheet" href="../styles/versions-dropdown.css"></link><link rel="stylesheet" href="../styles/content-contributors.css"></link><script type="text/javascript" src="../hljs/highlight.pack.js" defer="true"></script><script type="text/javascript" src="../scripts/hljs-scala3.js" defer="true"></script><script type="text/javascript" src="../scripts/ux.js" defer="true"></script><script type="text/javascript" src="../scripts/common/component.js" defer="true"></script><script type="text/javascript" src="../scripts/common/utils.js" defer="true"></script><script type="text/javascript" src="../scripts/components/FilterBar.js" defer="true"></script><script type="text/javascript" src="../scripts/components/DocumentableList.js" defer="true"></script><script type="text/javascript" src="../scripts/components/Input.js" defer="true"></script><script type="text/javascript" src="../scripts/components/FilterGroup.js" defer="true"></script><script type="text/javascript" src="../scripts/components/Filter.js" defer="true"></script><script type="text/javascript" src="../scripts/scaladoc-scalajs.js" defer="true"></script><script type="text/javascript" src="../scripts/contributors.js" defer="true"></script><script type="text/javascript" src="/zio-schema/api/scripts/vendor/d3/d3.v6.7.0.min.js" defer="true"></script><script type="text/javascript" src="/zio-schema/api/scripts/vendor/graphlib-dot/graphlib-dot.0.6.2.min.js" defer="true"></script><script type="text/javascript" src="/zio-schema/api/scripts/vendor/dagre-d3/dagre-d3.0.6.1.min.js" defer="true"></script><script type="text/javascript" src="../scripts/data.js" defer="true"></script><script>var pathToRoot = "../";</script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=fallback"><link rel="stylesheet" href="/zio-schema/api/styles/zio-api.css"></head><body><div id=""><div id="header" class="za-navbar"><div class="za-navbar__left"><span id="mobile-menu-toggle" class="za-navbar__toggle" role="button" tabindex="0" aria-label="Toggle navigation bar"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"/></svg></span><a class="za-navbar__brand" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><span id="dropdown-trigger" hidden></span><div id="version-dropdown" hidden></div><a class="za-navbar__link" href="/overview/getting-started">Overview</a><a class="za-navbar__link" href="/reference/">Reference</a><a class="za-navbar__link" href="/api/">API</a><a class="za-navbar__link" href="/guides/">Guides</a><a class="za-navbar__link za-navbar__link--active" href="/ecosystem/" aria-current="page">Ecosystem</a><a class="za-navbar__link" href="/resources/">Resources</a><a class="za-navbar__link" href="/events/">Events</a></div><div class="za-navbar__right"><a class="za-navbar__link" href="/blog">Blog</a><a class="za-navbar__link za-navbar__link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a><button type="button" class="za-navbar__icon za-onboard" data-onboard-prompt="Fetch https://zio.dev/start.md and follow the instructions to set up my environment for ZIO development." title="Copy the prompt to onboard your coding agent to ZIO" aria-label="Copy the ZIO agent onboarding prompt to the clipboard"><svg class="za-onboard__idle" viewBox="0 0 576 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M9.4 86.6C-3.1 74.1-3.1 53.9 9.4 41.4s32.8-12.5 45.3 0l192 192c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L178.7 256 9.4 86.6zM256 416l288 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-288 0c-17.7 0-32-14.3-32-32s14.3-32 32-32z"/></svg><svg class="za-onboard__done" viewBox="0 0 448 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></svg></button><button type="button" class="za-navbar__icon za-mode" data-color-mode-toggle title="light mode" aria-label="Switch between dark and light mode (currently light mode)"><svg class="za-mode__light" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg class="za-mode__dark" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg></button><button type="button" id="search-toggle" class="za-search" title="Search the API" aria-label="Search the API"><svg width="20" height="20" class="za-search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"/><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="za-search__label">Search</span></button></div></div><div id="mobile-menu"><div class="mobile-menu-header body-small"><a class="mobile-menu-logo" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><button id="mobile-menu-close" class="icon-button close"></button></div><div class="mobile-menu-container body-medium"><input id="mobile-scaladoc-searchbar-input" class="scaladoc-searchbar-input" type="search" placeholder="Find anything"></input><nav class="za-mobile-links"><a class="za-mobile-link" href="/overview/getting-started">Overview</a><a class="za-mobile-link" href="/reference/">Reference</a><a class="za-mobile-link" href="/api/">API</a><a class="za-mobile-link" href="/guides/">Guides</a><a class="za-mobile-link za-mobile-link--active" href="/ecosystem/" aria-current="page">Ecosystem</a><a class="za-mobile-link" href="/resources/">Resources</a><a class="za-mobile-link" href="/events/">Events</a><a class="za-mobile-link" href="/blog">Blog</a><a class="za-mobile-link za-mobile-link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a></nav><span id="mobile-theme-toggle" class="mobile-menu-item mode"></span></div></div><span id="mobile-sidebar-toggle" class="floating-button"></span><div id="leftColumn" class="body-small"></div><div id="scaladoc-searchBar"></div><div id="main"><div id="content" class="body-medium"><div><nav class="za-breadcrumbs" aria-label="Breadcrumbs"><ul class="za-breadcrumbs__list"><li class="za-breadcrumbs__item"><a aria-label="Home page" class="za-breadcrumbs__link" href="/"><svg viewBox="0 0 24 24" class="za-breadcrumbs__home"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/zio-schema/"><span>ZIO Schema</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/zio-schema/api/"><span>API</span></a></li><li class="za-breadcrumbs__item za-breadcrumbs__item--active"><span class="za-breadcrumbs__link">schema</span></li></ul></nav><div class="cover-header">
+ <span class="icon"><span class="micon pa"></span></span>
+ <h1 class="h600 single">zio.schema</h1>
+</div>
+<div class="fqname body-large">
+ <span></span>
+</div>
+<div class="main-signature mono-small-block">
+ <div class="signature">
+  <span class="modifiers"></span><span class="kind"><span t="k">package </span></span><a href="schema" t="n" class="documentableName ">zio.schema</a>
+ </div>
+</div>
+<section id="members-list">
+ <h2 class="h500">Members list</h2>
+ <div class="documentableFilter">
+  <div class="filtersContainer"></div>
+  <input class="filterableInput" placeholder="Filter by any phrase" data-test-id="filterBarInput" type="search"><button class="clearButton label-only-button" data-test-id="filterBarClearButton">Clear all</button>
+ </div>
+ <div class="membersList expand">
+  <div class="tabs">
+   <div class="contents">
+    <section id="Packages">
+     <div data-togglable="packages" class="tab expand">
+      <div class="documentableList expand">
+       <div class="documentableList-expander">
+        <button class="icon-button show-content expand"></button>
+        <h3 class="groupHeader h400">Packages</h3>
+       </div>
+       <div class="documentableElement">
+        <div class="documentableElement-expander">
+         <div class="header monospace mono-medium">
+          <div class="signature">
+           <span class="modifiers"></span><span class="kind"><span t="k">package </span></span><a href="schema/annotation" t="n" class="documentableName ">zio.schema.annotation</a>
+          </div>
+         </div>
+        </div>
+       </div>
+       <div class="documentableElement">
+        <div class="documentableElement-expander">
+         <div class="header monospace mono-medium">
+          <div class="signature">
+           <span class="modifiers"></span><span class="kind"><span t="k">package </span></span><a href="schema/codec" t="n" class="documentableName ">zio.schema.codec</a>
+          </div>
+         </div>
+        </div>
+       </div>
+       <div class="documentableElement">
+        <div class="documentableElement-expander">
+         <div class="header monospace mono-medium">
+          <div class="signature">
+           <span class="modifiers"></span><span class="kind"><span t="k">package </span></span><a href="schema/diff" t="n" class="documentableName ">zio.schema.diff</a>
+          </div>
+         </div>
+        </div>
+       </div>
+       <div class="documentableElement">
+        <div class="documentableElement-expander">
+         <div class="header monospace mono-medium">
+          <div class="signature">
+           <span class="modifiers"></span><span class="kind"><span t="k">package </span></span><a href="schema/meta" t="n" class="documentableName ">zio.schema.meta</a>
+          </div>
+         </div>
+        </div>
+       </div>
+       <div class="documentableElement">
+        <div class="documentableElement-expander">
+         <div class="header monospace mono-medium">
+          <div class="signature">
+           <span class="modifiers"></span><span class="kind"><span t="k">package </span></span><a href="schema/validation" t="n" class="documentableName ">zio.schema.validation</a>
+          </div>
+         </div>
+        </div>
+       </div>
+      </div>
+     </div>
+    </section>
+    <section id="Type-members">
+     <div data-togglable="Type members" class="tab expand">
+      <div class="member-group-header">
+       <h3 data-togglable="Type members" class="h400">Type members</h3>
+      </div>
+      <section id="Classlikes">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Classlikes</h4>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/AccessorBuilder" t="n" class="documentableName ">AccessorBuilder</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/AccessorBuilder.scala#L3" target="_blank">AccessorBuilder.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/Append$" t="n" class="documentableName ">Append</a><span t="k"> extends </span><a href="schema/AppendLowPriority" t="t">AppendLowPriority</a></span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Append">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/CaseSet.scala#L107" target="_blank">CaseSet.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="schema/AppendLowPriority" t="n">AppendLowPriority</a>
+                </div>
+                <div>
+                 trait <a href="schema/AppendLowPriority2" t="n">AppendLowPriority2</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Append$" t="n">Append</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="sealed">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">sealed </span></span><span class="kind"><span t="k">trait </span></span><a href="schema/Append" t="n" class="documentableName ">Append</a>[<span t="k"></span><span data-unresolved-link="" t="t">EnumType</span>, <span t="k">-</span><span data-unresolved-link="" t="t">Left</span>, <span t="k">-</span><span data-unresolved-link="" t="t">Right</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Append$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/CaseSet.scala#L102" target="_blank">CaseSet.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/AppendLowPriority" t="n" class="documentableName ">AppendLowPriority</a><span t="k"> extends </span><a href="schema/AppendLowPriority2" t="t">AppendLowPriority2</a></span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/CaseSet.scala#L124" target="_blank">CaseSet.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="schema/AppendLowPriority2" t="n">AppendLowPriority2</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 object <a href="schema/Append$" t="n">Append</a>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/AppendLowPriority2" t="n" class="documentableName ">AppendLowPriority2</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/CaseSet.scala#L132" target="_blank">CaseSet.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="schema/AppendLowPriority" t="n">AppendLowPriority</a>
+                </div>
+                <div>
+                 object <a href="schema/Append$" t="n">Append</a>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="sealed">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">sealed </span></span><span class="kind"><span t="k">trait </span></span><a href="schema/CaseSet" t="n" class="documentableName ">CaseSet</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/CaseSet$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/CaseSet.scala#L8" target="_blank">CaseSet.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <span t="t">A</span> <a href="schema/CaseSet/$colon$plus$colon$" t="t">:+:</a> <span t="t">T</span>
+                </div>
+                <div>
+                 class <a href="schema/CaseSet/Cons" t="n">Cons</a>[<span t="t">A</span>, <span t="t">T</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/CaseSet/Empty" t="n">Empty</a>[<span t="t">Z</span>]
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/CaseSet" t="n">CaseSet</a>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/CaseSet$" t="n" class="documentableName ">CaseSet</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/CaseSet">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/CaseSet.scala#L28" target="_blank">CaseSet.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror$$Sum.html" t="n">Sum</a>
+                </div>
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror.html" t="n">Mirror</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/CaseSet$" t="n">CaseSet</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/Cons0$" t="n" class="documentableName ">Cons0</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/CaseSet.scala#L98" target="_blank">CaseSet.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Cons0$" t="n">Cons0</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/Derive$" t="n" class="documentableName ">Derive</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema-derivation/shared/src/main/scala-3/zio/schema/Derive.scala#L10" target="_blank">Derive.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Derive$" t="n">Derive</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/DeriveSchema$" t="n" class="documentableName ">DeriveSchema</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema-derivation/shared/src/main/scala-3/zio/schema/DeriveSchema.scala#L13" target="_blank">DeriveSchema.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/DeriveSchema$" t="n">DeriveSchema</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/Deriver$" t="n" class="documentableName ">Deriver</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Deriver">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema-derivation/shared/src/main/scala/zio/schema/Deriver.scala#L223" target="_blank">Deriver.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Deriver$" t="n">Deriver</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/Deriver" t="n" class="documentableName ">Deriver</a>[<span t="k"></span><span data-unresolved-link="" t="t">F</span>[<span t="t">_</span>]]<span t="k"> extends </span><a href="schema/VersionSpecificDeriver" t="t">VersionSpecificDeriver</a>[<span t="t">F</span>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Deriver builds type class instances based on a Schema.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Deriver builds type class instances based on a Schema.</p>
+              <p>The minimum set of methods to implement are:</p>
+              <ul>
+               <li><code>deriveRecord</code></li>
+               <li><code>deriveEnum</code></li>
+               <li><code>derivePrimitive</code></li>
+               <li><code>deriveOption</code></li>
+               <li><code>deriveSequence</code></li>
+               <li><code>deriveMap</code></li>
+               <li><code>deriveTransformedRecord</code> (for records with more than 22 fields)</li>
+              </ul>
+              <p>In addition to this more methods can be overridden to handle all the supported Schema types of zio-schema:</p>
+              <ul>
+               <li><code>deriveEither</code> (calls <code>deriveEnum</code> by default)</li>
+               <li><code>deriveSet</code> (calls <code>deriveSequence</code> by default)</li>
+               <li><code>deriveTupleN</code> (calls <code>deriveRecord</code> by default)</li>
+              </ul>
+              <p>The <code>cached</code> method converts this deriver to one that uses a cache of instances shared between macro invocations.</p>
+              <p>Each derive methods get an optional summoned implicit value of the derived type class. It is the deriver's decision whether to use the available instance (as a user defined customization for a given type) or not.</p>
+              <p>If the decision is to always accept a summoned value if there is any, use the <code>Deriver.AutoAcceptSummoned</code> trait which implements this automatically and only calls the trait's methods in case there is no available implicit for the actual type.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Deriver$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema-derivation/shared/src/main/scala/zio/schema/Deriver.scala#L39" target="_blank">Deriver.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="schema/VersionSpecificDeriver" t="n">VersionSpecificDeriver</a>[<span t="t">F</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Deriver" t="n">Deriver</a>[<span t="t">F</span>]
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/Differ$" t="n" class="documentableName ">Differ</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Differ">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/Differ.scala#L69" target="_blank">Differ.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Differ$" t="n">Differ</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/Differ" t="n" class="documentableName ">Differ</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Differ$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/Differ.scala#L32" target="_blank">Differ.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Differ" t="n">Differ</a>[<span t="t">A</span>]
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="sealed">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">sealed </span></span><span class="kind"><span t="k">trait </span></span><a href="schema/DynamicValue" t="n" class="documentableName ">DynamicValue</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/DynamicValue$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/DynamicValue.scala#L13" target="_blank">DynamicValue.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 class <a href="schema/DynamicValue/BothValue" t="n">BothValue</a>
+                </div>
+                <div>
+                 class <a href="schema/DynamicValue/Dictionary" t="n">Dictionary</a>
+                </div>
+                <div>
+                 class <a href="schema/DynamicValue/DynamicAst" t="n">DynamicAst</a>
+                </div>
+                <div>
+                 class <a href="schema/DynamicValue/Enumeration" t="n">Enumeration</a>
+                </div>
+                <div>
+                 class <a href="schema/DynamicValue/Error" t="n">Error</a>
+                </div>
+                <div>
+                 class <a href="schema/DynamicValue/LeftValue" t="n">LeftValue</a>
+                </div>
+                <div>
+                 object <a href="schema/DynamicValue/NoneValue$" t="n">NoneValue</a>
+                </div>
+                <div>
+                 class <a href="schema/DynamicValue/Primitive" t="n">Primitive</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <a href="schema/DynamicValue/Record" t="n">Record</a>
+                </div>
+                <div>
+                 class <a href="schema/DynamicValue/RightValue" t="n">RightValue</a>
+                </div>
+                <div>
+                 class <a href="schema/DynamicValue/Sequence" t="n">Sequence</a>
+                </div>
+                <div>
+                 class <a href="schema/DynamicValue/SetValue" t="n">SetValue</a>
+                </div>
+                <div>
+                 class <a href="schema/DynamicValue/Singleton" t="n">Singleton</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <a href="schema/DynamicValue/SomeValue" t="n">SomeValue</a>
+                </div>
+                <div>
+                 class <a href="schema/DynamicValue/Tuple" t="n">Tuple</a>
+                </div>
+                <span class="show-all-code show-content text-button h100">Show all</span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/DynamicValue" t="n">DynamicValue</a>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/DynamicValue$" t="n" class="documentableName ">DynamicValue</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/DynamicValue">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/DynamicValue.scala#L124" target="_blank">DynamicValue.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror$$Sum.html" t="n">Sum</a>
+                </div>
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror.html" t="n">Mirror</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/DynamicValue$" t="n">DynamicValue</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/Factory" t="n" class="documentableName ">Factory</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Useful to create factory methods.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Useful to create factory methods.</p>
+              <p>import Factory._ def createSomeTrait[A: Factory](deriver: Deriver[SomeTrait])(implicit schema: Schema[A]): SomeTrait[A] = implicitly[Factory[A]].derive<a href="deriver">SomeTrait</a></p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Factory$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema-derivation/shared/src/main/scala-3/zio/schema/Factory.scala#L12" target="_blank">Factory.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/Factory$" t="n" class="documentableName ">Factory</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Factory">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema-derivation/shared/src/main/scala-3/zio/schema/Factory.scala#L16" target="_blank">Factory.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Factory$" t="n">Factory</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="sealed">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">sealed </span></span><span class="kind"><span t="k">trait </span></span><a href="schema/Fallback" t="n" class="documentableName ">Fallback</a>[<span t="k">+</span><span data-unresolved-link="" t="t">A</span>, <span t="k">+</span><span data-unresolved-link="" t="t">B</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p><code>Fallback</code> represents an enriched <code>Either</code> type that can contain both a left and a right value. The left value represents the default value, that fallbacks to the right value when it is not found.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p><code>Fallback</code> represents an enriched <code>Either</code> type that can contain both a left and a right value. The left value represents the default value, that fallbacks to the right value when it is not found.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Fallback$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/Fallback.scala#L8" target="_blank">Fallback.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 class <a href="schema/Fallback/Both" t="n">Both</a>[<span t="t">A</span>, <span t="t">B</span>]
+                </div>
+                <div>
+                 class <a href="schema/Fallback/Left" t="n">Left</a>[<span t="t">A</span>, <span t="t">B</span>]
+                </div>
+                <div>
+                 class <a href="schema/Fallback/Right" t="n">Right</a>[<span t="t">A</span>, <span t="t">B</span>]
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Fallback" t="n">Fallback</a>[<span t="t">A</span>, <span t="t">B</span>]
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/Fallback$" t="n" class="documentableName ">Fallback</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Fallback">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/Fallback.scala#L55" target="_blank">Fallback.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror$$Sum.html" t="n">Sum</a>
+                </div>
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror.html" t="n">Mirror</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Fallback$" t="n">Fallback</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/FieldSet$" t="n" class="documentableName ">FieldSet</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/FieldSet">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/FieldSet.scala#L28" target="_blank">FieldSet.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror$$Sum.html" t="n">Sum</a>
+                </div>
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror.html" t="n">Mirror</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/FieldSet$" t="n">FieldSet</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="sealed">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">sealed </span></span><span class="kind"><span t="k">trait </span></span><a href="schema/FieldSet" t="n" class="documentableName ">FieldSet</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/FieldSet$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/FieldSet.scala#L8" target="_blank">FieldSet.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 class <span t="t">A</span> <a href="schema/FieldSet/$colon$times$colon$" t="t">:*:</a> <span t="t">T</span>
+                </div>
+                <div>
+                 object <a href="schema/FieldSet/Empty$" t="n">Empty</a>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/MutableSchemaBasedValueBuilder" t="n" class="documentableName ">MutableSchemaBasedValueBuilder</a>[<span t="k"></span><span data-unresolved-link="" t="t">Target</span>, <span t="k"></span><span data-unresolved-link="" t="t">Context</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Base trait for mutable builders producing a value based on a schema, such as codec decoders.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Base trait for mutable builders producing a value based on a schema, such as codec decoders.</p>
+              <p>The implementation is stack safe and consists of a series of invocations of the protected methods the trait defines. Maintaining the state of the builder, such as stream position etc. is the responsibility of the implementation class via mutable state.</p>
+              <p>The Target type parameter is the base type for the generated values - this in many cases can be Any but potentially could be used to track errors in value level as well - although failure in the context handler manipulation methods cannot be expressed this way.</p>
+              <p>The Context type parameter is a use-case dependent type that is managed in a stack during the execution of the builder. The implementation can generate new context values for the value's subtrees and it can be used to track local state required for gathering all information for the value to be created. The current context value is also propagated to any exception thrown so it can be used to provide detailed location information for decoder errors.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/MutableSchemaBasedValueBuilder$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/MutableSchemaBasedValueBuilder.scala#L30" target="_blank">MutableSchemaBasedValueBuilder.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="schema/SimpleMutableSchemaBasedValueBuilder" t="n">SimpleMutableSchemaBasedValueBuilder</a>[<span t="t">Target</span>]
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/MutableSchemaBasedValueBuilder$" t="n" class="documentableName ">MutableSchemaBasedValueBuilder</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/MutableSchemaBasedValueBuilder">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/MutableSchemaBasedValueBuilder.scala#L1194" target="_blank">MutableSchemaBasedValueBuilder.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/MutableSchemaBasedValueBuilder$" t="n">MutableSchemaBasedValueBuilder</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/MutableSchemaBasedValueProcessor" t="n" class="documentableName ">MutableSchemaBasedValueProcessor</a>[<span t="k"></span><span data-unresolved-link="" t="t">Target</span>, <span t="k"></span><span data-unresolved-link="" t="t">Context</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Base trait for mutable value processors, processing a value with a known schema. An example is protocol encoders.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Base trait for mutable value processors, processing a value with a known schema. An example is protocol encoders.</p>
+              <p>The implementation is stack safe and consists of invocations of a series of processXYZ methods, as well as built-in support for a context value which is handled in a stacked way.</p>
+              <p>Maintaining any global state (per process) such as stream writers etc. is the responsibility of the implementation class.</p>
+              <p>The Target type parameter is the base type for the process function's output value. In case the process is built entirely using side effects (such as calls to a mutable writer interface) this type can be Unit.</p>
+              <p>The Context type parameter is the use-case specific context type which is passed for each process invocation, and can be manipulated before each process call achieving a local state.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/MutableSchemaBasedValueProcessor.scala#L27" target="_blank">MutableSchemaBasedValueProcessor.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="schema/SimpleMutableSchemaBasedValueProcessor" t="n">SimpleMutableSchemaBasedValueProcessor</a>[<span t="t">Target</span>]
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/NameFormat$" t="n" class="documentableName ">NameFormat</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/NameFormat">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/NameFormat.scala#L5" target="_blank">NameFormat.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror$$Sum.html" t="n">Sum</a>
+                </div>
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror.html" t="n">Mirror</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/NameFormat$" t="n">NameFormat</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="sealed">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"><span t="k">sealed </span></span><span class="kind"><span t="k">trait </span></span><a href="schema/NameFormat" t="n" class="documentableName ">NameFormat</a><span t="k"> extends </span><a href="https://www.scala-lang.org/api/3.9.0/scala/Predef$.html#String-0" t="t">String</a> <span t="k">=&gt;</span> <a href="https://www.scala-lang.org/api/3.9.0/scala/Predef$.html#String-0" t="t">String</a></span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/NameFormat$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/NameFormat.scala#L3" target="_blank">NameFormat.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/Predef$.html#String-0" t="n">String</a> <span t="k">=&gt;</span> <a href="https://www.scala-lang.org/api/3.9.0/scala/Predef$.html#String-0" t="t">String</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 object <a href="schema/NameFormat/CamelCase$" t="n">CamelCase</a>
+                </div>
+                <div>
+                 class <a href="schema/NameFormat/Custom" t="n">Custom</a>
+                </div>
+                <div>
+                 object <a href="schema/NameFormat/Identity$" t="n">Identity</a>
+                </div>
+                <div>
+                 object <a href="schema/NameFormat/KebabCase$" t="n">KebabCase</a>
+                </div>
+                <div>
+                 object <a href="schema/NameFormat/PascalCase$" t="n">PascalCase</a>
+                </div>
+                <div>
+                 object <a href="schema/NameFormat/SnakeCase$" t="n">SnakeCase</a>
+                </div>
+                <span class="show-all-code show-content text-button h100">Show all</span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/Patch$" t="n" class="documentableName ">Patch</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Patch">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/Patch.scala#L48" target="_blank">Patch.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Patch$" t="n">Patch</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="sealed">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">sealed </span></span><span class="kind"><span t="k">trait </span></span><a href="schema/Patch" t="n" class="documentableName ">Patch</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Patch$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/Patch.scala#L30" target="_blank">Patch.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 class <a href="schema/Patch/BigDecimal" t="n">BigDecimal</a>
+                </div>
+                <div>
+                 class <a href="schema/Patch/BigInt" t="n">BigInt</a>
+                </div>
+                <div>
+                 class <a href="schema/Patch/Bool" t="n">Bool</a>
+                </div>
+                <div>
+                 class <a href="schema/Patch/Currency" t="n">Currency</a>
+                </div>
+                <div>
+                 class <a href="schema/Patch/EitherDiff" t="n">EitherDiff</a>[<span t="t">A</span>, <span t="t">B</span>]
+                </div>
+                <div>
+                 class <a href="schema/Patch/Fallback" t="n">Fallback</a>[<span t="t">A</span>, <span t="t">B</span>]
+                </div>
+                <div>
+                 class <a href="schema/Patch/Identical" t="n">Identical</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <a href="schema/Patch/LCS" t="n">LCS</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <a href="schema/Patch/NotComparable" t="n">NotComparable</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <a href="schema/Patch/Number" t="n">Number</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <a href="schema/Patch/Record" t="n">Record</a>[<span t="t">R</span>]
+                </div>
+                <div>
+                 class <a href="schema/Patch/SchemaMigration" t="n">SchemaMigration</a>
+                </div>
+                <div>
+                 class <a href="schema/Patch/Temporal" t="n">Temporal</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <a href="schema/Patch/Total" t="n">Total</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <a href="schema/Patch/Transform" t="n">Transform</a>[<span t="t">A</span>, <span t="t">B</span>]
+                </div>
+                <div>
+                 class <a href="schema/Patch/Tuple" t="n">Tuple</a>[<span t="t">A</span>, <span t="t">B</span>]
+                </div>
+                <div>
+                 class <a href="schema/Patch/ZonedDateTime" t="n">ZonedDateTime</a>
+                </div>
+                <span class="show-all-code show-content text-button h100">Show all</span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Patch" t="n">Patch</a>[<span t="t">A</span>]
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">class </span></span><a href="schema/ReflectionUtils" t="n" class="documentableName ">ReflectionUtils</a>[<span t="k"></span><span data-unresolved-link="" t="t">Q</span><span t="k"> &lt;: </span><a href="https://www.scala-lang.org/api/3.9.0/scala/quoted/Quotes.html" t="t">Quotes</a><span t="k"> &amp; </span><a href="schema#Singleton-0" t="t">Singleton</a>](<span t="k"></span><span t="k">val </span><span data-unresolved-link="" t="n">q</span>: <span data-unresolved-link="" t="t">Q</span>)
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema-derivation/shared/src/main/scala-3/zio/schema/ReflectionUtils.scala#L7" target="_blank">ReflectionUtils.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="sealed">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">sealed </span></span><span class="kind"><span t="k">trait </span></span><a href="schema/Schema" t="n" class="documentableName ">Schema</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>A <code>Schema[A]</code> describes the structure of some data type <code>A</code>, in terms of case classes, enumerations (sealed traits), collections, and various primitive types (including not only Scala's own primitive types, but enhanced with java.time and big integers / decimals).</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>A <code>Schema[A]</code> describes the structure of some data type <code>A</code>, in terms of case classes, enumerations (sealed traits), collections, and various primitive types (including not only Scala's own primitive types, but enhanced with java.time and big integers / decimals).</p>
+              <p>Schemas models the structure of data types as first class values, so they can be introspected, transformed, and combined using ordinary Scala code, without macros, metaprogramming, or codegen.</p>
+              <p>There are implicit schemas provided for all standard Scala types, and you can automatically derive schemas for your own data types by using <code>DeriveSchema.gen[A]</code>. Whether you write them by hand by using constructors and operators,</p>
+              <div class="snippet mono-small-block">
+               <pre><code class="language-"><span line-number="1" class=""><span class="tooltip-container"></span>final case class Person(name: String, age: Int)
+</span><span line-number="2" class=""><span class="tooltip-container"></span>object Person {
+</span><span line-number="3" class=""><span class="tooltip-container"></span> implicit val personSchema: Schema[Person] = DeriveSchema.gen[Person]
+</span><span line-number="4" class=""><span class="tooltip-container"></span>}
+</span></code></pre>
+               <div class="buttons"></div>
+              </div>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Schema$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/Schema.scala#L38" target="_blank">Schema.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="schema/Schema/Collection" t="n">Collection</a>[<span t="t">Col</span>, <span t="t">Elem</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Map" t="n">Map</a>[<span t="t">K</span>, <span t="t">V</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/NonEmptyMap" t="n">NonEmptyMap</a>[<span t="t">K</span>, <span t="t">V</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/NonEmptySequence" t="n">NonEmptySequence</a>[<span t="t">Col</span>, <span t="t">Elm</span>, <span t="t">I</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Sequence" t="n">Sequence</a>[<span t="t">Col</span>, <span t="t">Elem</span>, <span t="t">I</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Set" t="n">Set</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Dynamic" t="n">Dynamic</a>
+                </div>
+                <div>
+                 class <a href="schema/Schema/Either" t="n">Either</a>[<span t="t">A</span>, <span t="t">B</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/Enum" t="n">Enum</a>[<span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum1" t="n">Enum1</a>[<span t="t">A</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum10" t="n">Enum10</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum11" t="n">Enum11</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum12" t="n">Enum12</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum13" t="n">Enum13</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum14" t="n">Enum14</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum15" t="n">Enum15</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum16" t="n">Enum16</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum17" t="n">Enum17</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">A17</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum18" t="n">Enum18</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">A17</span>, <span t="t">A18</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum19" t="n">Enum19</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">A17</span>, <span t="t">A18</span>, <span t="t">A19</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum2" t="n">Enum2</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum20" t="n">Enum20</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">A17</span>, <span t="t">A18</span>, <span t="t">A19</span>, <span t="t">A20</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum21" t="n">Enum21</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">A17</span>, <span t="t">A18</span>, <span t="t">A19</span>, <span t="t">A20</span>, <span t="t">A21</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum22" t="n">Enum22</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">A17</span>, <span t="t">A18</span>, <span t="t">A19</span>, <span t="t">A20</span>, <span t="t">A21</span>, <span t="t">A22</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum3" t="n">Enum3</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum4" t="n">Enum4</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum5" t="n">Enum5</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum6" t="n">Enum6</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum7" t="n">Enum7</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum8" t="n">Enum8</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Enum9" t="n">Enum9</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/EnumN" t="n">EnumN</a>[<span t="t">Z</span>, <span t="t">C</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Fail" t="n">Fail</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Fallback" t="n">Fallback</a>[<span t="t">A</span>, <span t="t">B</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Lazy" t="n">Lazy</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Optional" t="n">Optional</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Primitive" t="n">Primitive</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/Record" t="n">Record</a>[<span t="t">R</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass0" t="n">CaseClass0</a>[<span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass1" t="n">CaseClass1</a>[<span t="t">A</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass10" t="n">CaseClass10</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass11" t="n">CaseClass11</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass12" t="n">CaseClass12</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass13" t="n">CaseClass13</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass14" t="n">CaseClass14</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass15" t="n">CaseClass15</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass16" t="n">CaseClass16</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass17" t="n">CaseClass17</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">A17</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass18" t="n">CaseClass18</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">A17</span>, <span t="t">A18</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass19" t="n">CaseClass19</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">A17</span>, <span t="t">A18</span>, <span t="t">A19</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass2" t="n">CaseClass2</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass20" t="n">CaseClass20</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">A17</span>, <span t="t">A18</span>, <span t="t">A19</span>, <span t="t">A20</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass21" t="n">CaseClass21</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">A17</span>, <span t="t">A18</span>, <span t="t">A19</span>, <span t="t">A20</span>, <span t="t">A21</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass22" t="n">CaseClass22</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">A10</span>, <span t="t">A11</span>, <span t="t">A12</span>, <span t="t">A13</span>, <span t="t">A14</span>, <span t="t">A15</span>, <span t="t">A16</span>, <span t="t">A17</span>, <span t="t">A18</span>, <span t="t">A19</span>, <span t="t">A20</span>, <span t="t">A21</span>, <span t="t">A22</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass3" t="n">CaseClass3</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass4" t="n">CaseClass4</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass5" t="n">CaseClass5</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass6" t="n">CaseClass6</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass7" t="n">CaseClass7</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass8" t="n">CaseClass8</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 trait <a href="schema/Schema/CaseClass9" t="n">CaseClass9</a>[<span t="t">A1</span>, <span t="t">A2</span>, <span t="t">A3</span>, <span t="t">A4</span>, <span t="t">A5</span>, <span t="t">A6</span>, <span t="t">A7</span>, <span t="t">A8</span>, <span t="t">A9</span>, <span t="t">Z</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/GenericRecord" t="n">GenericRecord</a>
+                </div>
+                <div>
+                 class <a href="schema/Schema/Transform" t="n">Transform</a>[<span t="t">A</span>, <span t="t">B</span>, <span t="t">I</span>]
+                </div>
+                <div>
+                 class <a href="schema/Schema/Tuple2" t="n">Tuple2</a>[<span t="t">A</span>, <span t="t">B</span>]
+                </div>
+                <span class="show-all-code show-content text-button h100">Show all</span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Schema" t="n">Schema</a>[<span t="t">A</span>]
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/Schema$" t="n" class="documentableName ">Schema</a><span t="k"> extends </span><a href="schema/SchemaPlatformSpecific" t="t">SchemaPlatformSpecific</a><span t="k">, </span></span><span class="signature-long"><a href="schema/SchemaEquality" t="t">SchemaEquality</a><span t="k">, </span><a href="schema/SchemaVersionSpecific" t="t">SchemaVersionSpecific</a></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/Schema">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/Schema.scala#L172" target="_blank">Schema.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="schema/SchemaVersionSpecific" t="n">SchemaVersionSpecific</a>
+                </div>
+                <div>
+                 trait <a href="schema/SchemaEquality" t="n">SchemaEquality</a>
+                </div>
+                <div>
+                 trait <a href="schema/SchemaPlatformSpecific" t="n">SchemaPlatformSpecific</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span class="show-all-code show-content text-button h100">Show all</span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Schema$" t="n">Schema</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/SchemaEquality" t="n" class="documentableName ">SchemaEquality</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/SchemaEquality.scala#L7" target="_blank">SchemaEquality.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 object <a href="schema/Schema$" t="n">Schema</a>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/SchemaOrdering$" t="n" class="documentableName ">SchemaOrdering</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/SchemaOrdering.scala#L9" target="_blank">SchemaOrdering.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/SchemaOrdering$" t="n">SchemaOrdering</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/SchemaPlatformSpecific" t="n" class="documentableName ">SchemaPlatformSpecific</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/jvm/src/main/scala/zio/schema/SchemaPlatformSpecific.scala#L3" target="_blank">SchemaPlatformSpecific.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 object <a href="schema/Schema$" t="n">Schema</a>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/SchemaSyntax" t="n" class="documentableName ">SchemaSyntax</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/syntax.scala#L5" target="_blank">syntax.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 object <a href="schema/syntax$" t="n">syntax</a>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/SchemaVersionSpecific" t="n" class="documentableName ">SchemaVersionSpecific</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala-3/zio/schema/SchemaVersionSpecific.scala#L6" target="_blank">SchemaVersionSpecific.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 object <a href="schema/Schema$" t="n">Schema</a>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/SimpleMutableSchemaBasedValueBuilder" t="n" class="documentableName ">SimpleMutableSchemaBasedValueBuilder</a>[<span t="k"></span><span data-unresolved-link="" t="t">Target</span>]<span t="k"> extends </span><a href="schema/MutableSchemaBasedValueBuilder" t="t">MutableSchemaBasedValueBuilder</a>[<span t="t">Target</span>, <a href="https://www.scala-lang.org/api/3.9.0/scala/Unit.html" t="t">Unit</a>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>A simpler version of SimpleMutableSchemaBasedValueBuilder without using any Context</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>A simpler version of SimpleMutableSchemaBasedValueBuilder without using any Context</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/MutableSchemaBasedValueBuilder.scala#L1210" target="_blank">MutableSchemaBasedValueBuilder.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="schema/MutableSchemaBasedValueBuilder" t="n">MutableSchemaBasedValueBuilder</a>[<span t="t">Target</span>, <a href="https://www.scala-lang.org/api/3.9.0/scala/Unit.html" t="t">Unit</a>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/SimpleMutableSchemaBasedValueProcessor" t="n" class="documentableName ">SimpleMutableSchemaBasedValueProcessor</a>[<span t="k"></span><span data-unresolved-link="" t="t">Target</span>]<span t="k"> extends </span><a href="schema/MutableSchemaBasedValueProcessor" t="t">MutableSchemaBasedValueProcessor</a>[<span t="t">Target</span>, <a href="https://www.scala-lang.org/api/3.9.0/scala/Unit.html" t="t">Unit</a>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>A simpler version of MutableSchemaBasedValueProcessor without using any Context</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>A simpler version of MutableSchemaBasedValueProcessor without using any Context</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/MutableSchemaBasedValueProcessor.scala#L1026" target="_blank">MutableSchemaBasedValueProcessor.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="schema/MutableSchemaBasedValueProcessor" t="n">MutableSchemaBasedValueProcessor</a>[<span t="t">Target</span>, <a href="https://www.scala-lang.org/api/3.9.0/scala/Unit.html" t="t">Unit</a>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/StandardType$" t="n" class="documentableName ">StandardType</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/StandardType">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/jvm/src/main/scala/zio/schema/StandardType.scala#L21" target="_blank">StandardType.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror$$Sum.html" t="n">Sum</a>
+                </div>
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror.html" t="n">Mirror</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/StandardType$" t="n">StandardType</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="sealed">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"><span t="k">sealed </span></span><span class="kind"><span t="k">trait </span></span><a href="schema/StandardType" t="n" class="documentableName ">StandardType</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]<span t="k"> extends </span><a href="https://www.scala-lang.org/api/3.9.0/scala/math/Ordering.html" t="t">Ordering</a>[<span t="t">A</span>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/StandardType$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/jvm/src/main/scala/zio/schema/StandardType.scala#L9" target="_blank">StandardType.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/math/Ordering.html" t="n">Ordering</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/math/PartialOrdering.html" t="n">PartialOrdering</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/math/Equiv.html" t="n">Equiv</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Serializable</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Comparator</span>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span class="show-all-code show-content text-button h100">Show all</span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 object <a href="schema/StandardType/BigDecimalType$" t="n">BigDecimalType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/BigIntegerType$" t="n">BigIntegerType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/BinaryType$" t="n">BinaryType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/BoolType$" t="n">BoolType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/ByteType$" t="n">ByteType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/CharType$" t="n">CharType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/CurrencyType$" t="n">CurrencyType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/DayOfWeekType$" t="n">DayOfWeekType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/DoubleType$" t="n">DoubleType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/DurationType$" t="n">DurationType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/FloatType$" t="n">FloatType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/InstantType$" t="n">InstantType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/IntType$" t="n">IntType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/LocalDateTimeType$" t="n">LocalDateTimeType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/LocalDateType$" t="n">LocalDateType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/LocalTimeType$" t="n">LocalTimeType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/LongType$" t="n">LongType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/MonthDayType$" t="n">MonthDayType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/MonthType$" t="n">MonthType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/OffsetDateTimeType$" t="n">OffsetDateTimeType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/OffsetTimeType$" t="n">OffsetTimeType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/PeriodType$" t="n">PeriodType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/ShortType$" t="n">ShortType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/StringType$" t="n">StringType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/UUIDType$" t="n">UUIDType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/UnitType$" t="n">UnitType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/YearMonthType$" t="n">YearMonthType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/YearType$" t="n">YearType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/ZoneIdType$" t="n">ZoneIdType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/ZoneOffsetType$" t="n">ZoneOffsetType</a>
+                </div>
+                <div>
+                 object <a href="schema/StandardType/ZonedDateTimeType$" t="n">ZonedDateTimeType</a>
+                </div>
+                <span class="show-all-code show-content text-button h100">Show all</span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/StandardType" t="n">StandardType</a>[<span t="t">A</span>]
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/TypeId$" t="n" class="documentableName ">TypeId</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/TypeId">trait</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/TypeId.scala#L13" target="_blank">TypeId.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror$$Sum.html" t="n">Sum</a>
+                </div>
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.9.0/scala/deriving/Mirror.html" t="n">Mirror</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/TypeId$" t="n">TypeId</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="sealed">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">sealed </span></span><span class="kind"><span t="k">trait </span></span><a href="schema/TypeId" t="n" class="documentableName ">TypeId</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Companion</dt>
+              <dd class="body-medium">
+               <a href="schema/TypeId$">object</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/TypeId.scala#L5" target="_blank">TypeId.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 class <a href="schema/TypeId/Nominal" t="n">Nominal</a>
+                </div>
+                <div>
+                 object <a href="schema/TypeId/Structural$" t="n">Structural</a>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/TypeId" t="n">TypeId</a>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="schema/VersionSpecificDeriver" t="n" class="documentableName ">VersionSpecificDeriver</a>[<span t="k"></span><span data-unresolved-link="" t="t">F</span>[<span t="t">_</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema-derivation/shared/src/main/scala-3/zio/schema/VersionSpecificDeriver.scala#L3" target="_blank">VersionSpecificDeriver.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Known subtypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="schema/Deriver" t="n">Deriver</a>[<span t="t">F</span>]
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/Deriver" t="n">Deriver</a>[<span t="t">F</span>]
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="schema/syntax$" t="n" class="documentableName ">syntax</a><span t="k"> extends </span><a href="schema/SchemaSyntax" t="t">SchemaSyntax</a></span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala/zio/schema/syntax.scala#L3" target="_blank">syntax.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="schema/SchemaSyntax" t="n">SchemaSyntax</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+              <dt class="body-small">Self type</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="schema/syntax$" t="n">syntax</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+      <section id="Types">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Types</h4>
+        </div>
+        <div class="documentableElement" id="Singleton-0">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">type </span></span><a href="schema#Singleton-0" t="n" class="documentableName ">Singleton</a> = <span data-unresolved-link="" t="t">Singleton</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala-3/zio/schema/package.scala#L4" target="_blank">package.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+     </div>
+    </section>
+    <section id="Extensions">
+     <div data-togglable="Extensions" class="tab expand">
+      <div class="member-group-header">
+       <h3 data-togglable="Extensions" class="h400">Extensions</h3>
+      </div>
+      <section id="Extensions">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Extensions</h4>
+        </div>
+        <div>
+         <span class="groupHeader"><span t="k">extension </span>[<span t="k"></span><span data-unresolved-link="" t="t">A</span><span t="k"> &lt;: </span><span data-unresolved-link="" t="t">C</span>, <span t="k"></span><span data-unresolved-link="" t="t">B</span><span t="k"> &lt;: </span><span data-unresolved-link="" t="t">C</span>, <span t="k"></span><span data-unresolved-link="" t="t">C</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">s</span>: <a href="schema/Schema/Fallback" t="t">Fallback</a>[<span data-unresolved-link="" t="t">A</span>, <span data-unresolved-link="" t="t">B</span>])</span>
+         <div class="documentableElement" id="merge-7a7" data-f-keywords="transparent,inline">
+          <div class="documentableElement-expander">
+           <button class="icon-button ar show-content"></button>
+           <div class="header monospace mono-medium">
+            <div class="signature">
+             <span class="modifiers"><span t="k">transparent inline </span></span><span class="kind"><span t="k">def </span></span><a href="schema#merge-7a7" t="n" class="documentableName ">merge</a>: <a href="schema/Schema" t="t">Schema</a>[<span data-unresolved-link="" t="t">C</span>]
+            </div>
+           </div>
+          </div>
+          <div class="docs">
+           <span class="modifiers"></span>
+           <div>
+            <div class="originInfo"></div>
+            <div class="memberDocumentation">
+             <div class="cover">
+              <div class="doc"></div>
+              <h2 class="h200">Attributes</h2>
+              <dl class="attributes attributes-small">
+               <dt class="body-small">Source</dt>
+               <dd class="body-medium">
+                <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala-3/zio/schema/package.scala#L7" target="_blank">package.scala</a>
+               </dd>
+              </dl>
+             </div>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div>
+         <span class="groupHeader"><span t="k">extension </span>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">s</span>: <a href="schema/Schema$" t="t">Schema</a>.<span t="k">type</span>)</span>
+         <div class="documentableElement" id="derived-b13" data-f-keywords="transparent,inline">
+          <div class="documentableElement-expander">
+           <button class="icon-button ar show-content"></button>
+           <div class="header monospace mono-medium">
+            <div class="signature">
+             <span class="modifiers"><span t="k">transparent inline </span></span><span class="kind"><span t="k">def </span></span><a href="schema#derived-b13" t="n" class="documentableName ">derived</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]: <a href="schema/Schema" t="t">Schema</a>[<span data-unresolved-link="" t="t">A</span>]
+            </div>
+           </div>
+          </div>
+          <div class="docs">
+           <span class="modifiers"></span>
+           <div>
+            <div class="originInfo"></div>
+            <div class="memberDocumentation">
+             <div class="cover">
+              <div class="doc"></div>
+              <h2 class="h200">Attributes</h2>
+              <dl class="attributes attributes-small">
+               <dt class="body-small">Source</dt>
+               <dd class="body-medium">
+                <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema-derivation/shared/src/main/scala-3/zio/schema/DeriveSchema.scala#L11" target="_blank">DeriveSchema.scala</a>
+               </dd>
+              </dl>
+             </div>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div>
+         <span class="groupHeader"><span t="k">extension </span>[<span t="k"></span><span data-unresolved-link="" t="t">A</span><span t="k"> &lt;: </span><span data-unresolved-link="" t="t">C</span>, <span t="k"></span><span data-unresolved-link="" t="t">C</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">s</span>: <a href="schema/Schema" t="t">Schema</a>[<span data-unresolved-link="" t="t">A</span>])</span>
+         <div class="documentableElement" id="orElse-ac3" data-f-keywords="transparent,inline">
+          <div class="documentableElement-expander">
+           <button class="icon-button ar show-content"></button>
+           <div class="header monospace mono-medium">
+            <div class="signature">
+             <span class="modifiers"><span t="k">transparent inline </span></span><span class="kind"><span t="k">def </span></span><a href="schema#orElse-ac3" t="n" class="documentableName ">orElse</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span><span t="k"> &lt;: </span><span data-unresolved-link="" t="t">C</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">s0</span>: <a href="schema/Schema" t="t">Schema</a>[<span data-unresolved-link="" t="t">B</span>]): <a href="schema/Schema" t="t">Schema</a>[<span data-unresolved-link="" t="t">C</span>]
+            </div>
+           </div>
+          </div>
+          <div class="docs">
+           <span class="modifiers"></span>
+           <div>
+            <div class="originInfo"></div>
+            <div class="memberDocumentation">
+             <div class="cover">
+              <div class="doc"></div>
+              <h2 class="h200">Attributes</h2>
+              <dl class="attributes attributes-small">
+               <dt class="body-small">Source</dt>
+               <dd class="body-medium">
+                <a href="https://github.com/zio/zio-schema/blob/v1.9.2/zio-schema/shared/src/main/scala-3/zio/schema/package.scala#L17" target="_blank">package.scala</a>
+               </dd>
+              </dl>
+             </div>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+     </div>
+    </section>
+   </div>
+  </div>
+ </div>
+</section></div><div id="toc" class="body-small"><div id="toc-container"><span class="toc-title h200">In this article</span><nav class="toc-nav"><ul class="toc-list"><li><a href="#members-list">Members list</a><ul><li><a href="#Packages">Packages</a></li><li><a href="#Type-members">Type members</a><ul><li><a href="#Classlikes">Classlikes</a></li><li><a href="#Types">Types</a></li></ul></li><li><a href="#Extensions">Extensions</a><ul><li><a href="#Extensions">Extensions</a></li></ul></li></ul></li></ul></nav></div></div></div></div></div></body></html>

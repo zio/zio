@@ -9,10 +9,11 @@
 In order to use ZIO Test, we need to add the following lines to our `build.sbt` file:
 
 ```scala
-libraryDependencies ++= Seq(
-  "dev.zio" %% "zio-test"     % "2.1.27" % Test,
-  "dev.zio" %% "zio-test-sbt" % "2.1.27" % Test
-)
+// ZIO Test: the test library (test scope)
+libraryDependencies += "dev.zio" %% "zio-test" % "2.1.27" % Test
+
+// ZIO Test sbt integration (test scope)
+libraryDependencies += "dev.zio" %% "zio-test-sbt" % "2.1.27" % Test
 ```
 
 For more details, including support for older sbt versions, the `zio-test-magnolia` module, and testing with live services, see the [Installation](installation.md) page.

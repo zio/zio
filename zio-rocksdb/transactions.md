@@ -76,7 +76,7 @@ val key = "key".getBytes("UTF-8")
 val syncedWrite: ZIO[TransactionDB, Throwable, Unit] =
   TransactionDB.atomically[Throwable, Unit](new WriteOptions().setSync(true))(Transaction.put(key, key))
 
-final case class Prefix(value: String)
+case class Prefix(value: String)
 
 val withService: ZIO[TransactionDB with Prefix, Throwable, Unit] =
   TransactionDB.atomically[Prefix, Throwable, Unit] {

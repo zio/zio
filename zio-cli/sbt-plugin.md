@@ -1,94 +1,103 @@
-# ZIO CLI SBT Plugin
+# ZIO CLI sbt Plugin
 
-> **ZIO CLI** offers an SBT plugin to provide some tasks to make generation and deployment of 
-> applications simple.
+> The `sbt-zio-cli` plugin is an sbt plugin in the **ZIO CLI** repository. It enables the [sbt-native-image](https://github.com/scalameta/sbt-native-image) plugin, sets a few native-image defaults, and adds one working task, `zioCliBuildNative`, which builds a native executable of your app. Its other tasks are placeholders that print `TODO: Not Implemented!`.
 
-## Overview
+For most builds, the published sbt-native-image plugin alone does the same job with fewer steps; see [How to package a CLI as a native binary](how-to-package-native-binary.md).
 
-## Current State
+## Availability
 
-The current functionality of the plugin offers:
+The plugin is not published to Maven Central or any other repository. To use it, publish it to your local Ivy repository from a clone of the ZIO CLI repository:
 
-### Native Images 
-This SBT plugin depends on and utilizes the 
-[sbt-native-image](https://github.com/scalameta/sbt-native-image) plugin. Tasks and settings
-related to building a native image map 1:1 to the upstream plugin.
+```bash
+git clone https://github.com/zio/zio-cli.git
+cd zio-cli
+sbt sbtZioCli/publishLocal
+```
 
-## Outstanding Action Items
-- [ ] Investigate if any cross versions are needed for different versions of SBT
-- [ ] Add remaining corresponding upstream configuration options to pass into the `sbt-native-image` plugin.
-- [ ] Implement `zioCliGenerateBashCompletion`, when ready.
-- [ ] Implement `zioCliGenerateZshCompletion`, when ready.
-- [ ] Implement `zioCliInstallCli`, when ready.
+The published module is `"zio.cli.sbt" % "sbt-zio-cli"`. It is compiled with Scala 2.12, so it is a plugin for sbt 1.x builds. The plugin has no fixed version: sbt derives it from the latest git tag and commit, for example `0.8.2+28-5b6890e2-SNAPSHOT`. Use the version that `publishLocal` prints in its log, or print it on its own with `sbt "show sbtZioCli/version"`.
 
-## Plugin Settings
+## Enabling the Plugin
 
-### zioCliMainClass: Option\[String\]
-The mainClass of the CLI App in the `Compile` scope. Defaults to `None`, and will need to be set.
+The plugin is an `AutoPlugin` named `ZIOCLIPlugin`. It is not triggered automatically, and enabling it also enables sbt-native-image's `NativeImagePlugin`. Add the locally published version to `project/plugins.sbt`, replacing the version with the one that `publishLocal` printed:
 
-### zioCliNativeImageOptions: Seq\[String\]
-A collection of arguments to pass the native-image builder to customize native image generation. Defaults to
 ```scala
-List(
-      "--allow-incomplete-classpath",
-      "--report-unsupported-elements-at-runtime",
-      "--initialize-at-build-time",
-      "--no-fallback"
-    )
+addSbtPlugin("zio.cli.sbt" % "sbt-zio-cli" % "0.8.2+28-5b6890e2-SNAPSHOT")
 ```
 
-### zioCliNativeImageReady: \(\) => Unit
-A side-effecting callback that is called the native image is ready. Defaults to
+`ZIOCLIPlugin` is defined in the root package and has no `autoImport` object, so sbt does not import its setting and task keys into `build.sbt`. Import them from the plugin object, then enable the plugin on the project that contains the app:
+
 ```scala
-() => {
-        println("ZIO CLI App Native Image Ready!")
-      } 
-```
+import ZIOCLIPlugin._
 
-## Plugin Tasks
-
-### zioCliBuildNative: Unit
-Sets mainClass in Compile, and attempts to run `nativeImage` with any applied `nativeImageOptions`. 
-Fires `zioCliNativeImageReady` on success.
-
-### zioCliGenerateBashCompletion: Unit
-Not currently implemented; prints `"TODO: Not Implemented!"`
-
-### zioCliGenerateZshCompletion: Unit
-Not currently implemented; prints `"TODO: Not Implemented!"`
-
-### zioCliInstallCli: Unit
-Not currently implemented; prints `"TODO: Not Implemented!"`
-
-## End User Project Setup
-
-There are several steps that are needed to use this in an end user project:
-
-### Locally Publishing the Plugin
-To compile and locally publish a copy of the SBT plugin, simply call  `publishLocal` on the `sbtZioCli` project. Example:
-```
-sbt> project sbtZioCli
-sbt> publishLocal
-```
-This will locally publish an artifact: `"zio.cli.sbt" % "sbt-zio-cli" % "0.0.0-SNAPSHOT"`
-
-### End User Project
-In your project, configure SBT to use the plugin by adding to `project/plugins.sbt`:
-```
-addSbtPlugin("zio.cli.sbt" % "sbt-zio-cli" % "0.0.0-SNAPSHOT")
-```
-
-Then, enable the plugin for your project in your `build.sbt` file. Example:
-```
 lazy val root = project
   .in(file("."))
   .enablePlugins(ZIOCLIPlugin)
   .settings(
-    CLIPlugin.zioCliMainClass := Some("zio.cli.YourApp")
+    Compile / mainClass := Some("com.example.GreetApp")
   )
 ```
 
-At this point, you should be able to build a native image of your application with the task:
+Without `import ZIOCLIPlugin._`, sbt reports the `zioCli*` keys as not found. The plugin object itself needs no import, because it is in the root package.
+
+## Settings and Tasks
+
+All keys are defined in the `ZIOCLIPluginKeys` trait, which `ZIOCLIPlugin` extends:
+
+```scala
+trait ZIOCLIPluginKeys {
+  lazy val zioCliMainClass: SettingKey[Option[String]]
+  lazy val zioCliNativeImageOptions: SettingKey[Seq[String]]
+  lazy val zioCliNativeImageReady: SettingKey[() => Unit]
+
+  lazy val zioCliBuildNative: TaskKey[Unit]
+  lazy val zioCliGenerateBashCompletion: TaskKey[Unit]
+  lazy val zioCliGenerateZshCompletion: TaskKey[Unit]
+  lazy val zioCliInstallCli: TaskKey[Unit]
+}
 ```
-sbt> zioCliBuildNative
+
+The settings configure the native-image build that `zioCliBuildNative` runs.
+
+### Settings
+
+The plugin sets these defaults on every project that enables it:
+
+| Setting                    | Type             | Default                                                                                                              | Effect                                                     |
+| -------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `zioCliMainClass`          | `Option[String]` | `None`                                                                                                               | None in 0.8.2; see the caution below                       |
+| `zioCliNativeImageOptions` | `Seq[String]`    | `--allow-incomplete-classpath`, `--report-unsupported-elements-at-runtime`, `--initialize-at-build-time`, `--no-fallback` | Copied into sbt-native-image's `nativeImageOptions`        |
+| `zioCliNativeImageReady`   | `() => Unit`     | Prints `ZIO CLI App Native Image Ready!`                                                                             | Copied into sbt-native-image's `nativeImageReady` callback |
+
+Because the plugin assigns `nativeImageOptions := zioCliNativeImageOptions.value`, the plugin's list replaces sbt-native-image's own default, which is empty. To add one option, append to the plugin's setting, for example `zioCliNativeImageOptions += "--verbose"`. A `nativeImageOptions` setting written later in your `build.sbt` overrides `zioCliNativeImageOptions` completely.
+
+:::caution
+In 0.8.2, `zioCliMainClass` does not choose the main class: `zioCliBuildNative` ignores it. sbt-native-image builds the class in `Compile / mainClass`, so set that setting instead, as in the example above. When the project has exactly one main class, sbt finds it on its own and neither setting is needed; with several main classes and no `Compile / mainClass`, the build stops with `no mainClass is specified`.
+:::
+
+### Tasks
+
+The plugin adds four tasks:
+
+| Task                           | Behaviour                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `zioCliBuildNative`            | Runs sbt-native-image's `nativeImage` task and returns nothing                                    |
+| `zioCliGenerateBashCompletion` | Prints `TODO: Not Implemented!` and does nothing else                                             |
+| `zioCliGenerateZshCompletion`  | Prints `TODO: Not Implemented!` and does nothing else                                             |
+| `zioCliInstallCli`             | Prints `TODO: Not Implemented!` and does nothing else                                             |
+
+`zioCliBuildNative` produces the same executable as `nativeImage`: it compiles the project, runs GraalVM `native-image` with the options above, writes the binary to `native-image/<project name>` under the project's target directory, logs its absolute path, and then calls the `zioCliNativeImageReady` callback. Run it from the sbt shell:
+
+```bash
+sbt zioCliBuildNative
 ```
+
+For shell completion, use the built-in `--shell-completion-script` option of the app instead; see [How to add Tab completion in bash](how-to-add-shell-completion.md).
+
+## sbt-native-image Keys
+
+Only the two settings above are forwarded to sbt-native-image. Every other sbt-native-image setting and task, such as `nativeImageVersion`, `nativeImageInstalled`, `nativeImageRun`, `nativeImageCopy` and `nativeImageRunAgent`, is available unchanged on a project that enables `ZIOCLIPlugin`. Those keys, how GraalVM is downloaded, and where the binary is written are described in [How to package a CLI as a native binary](how-to-package-native-binary.md). The plugin itself depends on sbt-native-image 0.5.0, so the defaults described there apply only when you also add sbt-native-image 0.6.0 to `project/plugins.sbt`.
+
+## See Also
+
+- [How to package a CLI as a native binary](how-to-package-native-binary.md) builds a native executable with sbt-native-image directly.
+- [How to add Tab completion in bash](how-to-add-shell-completion.md) generates a bash completion script from the app's built-in options.

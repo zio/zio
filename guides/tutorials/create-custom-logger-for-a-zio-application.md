@@ -108,7 +108,9 @@ SLF4J is a logging facade that decouples our application code from any underlyin
 So we can simply add this library to our project by adding the following dependencies to our `build.sbt` file:
 
 ```scala
+// ZIO Logging core
 libraryDependencies += "dev.zio" %% "zio-logging"       % "2.0.0"
+// Sends ZIO logs to SLF4J
 libraryDependencies += "dev.zio" %% "zio-logging-slf4j" % "2.0.0"
 ```
 
@@ -141,6 +143,7 @@ Oops! The SLF4J failed to find any binding in the classpath. To fix this, we nee
 The SLF4J has a simple binding that can be used by adding the `slf4j-simple` dependency to our `build.sbt` file:
 
 ```scala
+// SLF4J simple logging backend (example dependency)
 libraryDependencies += "org.slf4j" % "slf4j-simple" % "1.7.36"
 ```
 

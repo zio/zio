@@ -1,10 +1,37 @@
-# Migration guide
+# Migration Guide
 
-> There are some major changes compared to the ZIO 1 version (v3.x.x.x and v4.x.x.x). This section contains detailed information about what changed and how to modify existing code.
+> This page lists the changes that need code changes when upgrading ZIO AWS, newest first. The [Changelog](changelog.md) lists every important change.
 
-# Migration from v3.x.x.x
+## From 6.x to 7.x
 
-## New package names
+The operator that attaches an [aspect](aspects.md) to a service layer is renamed from `@@` to `@@@`. ZIO 2.0.18 added its own `@@` operator on layers for `ZLayerAspect`, which conflicted with the ZIO AWS operator. Replace each use:
+
+```scala
+// 6.x
+val ec2 = Ec2.live @@ callLogging
+
+// 7.x
+val ec2 = Ec2.live @@@ callLogging
+```
+
+The import stays `zio.aws.core.aspects._`.
+
+## From 5.x to 6.x
+
+ZIO AWS 6.x uses ZIO 2's built-in `Config` type and the config providers of ZIO Config 4.x. The descriptors in `zio.aws.core.config.descriptors` and in the HTTP client modules, such as `commonAwsConfig` and `nettyClientConfig`, are now `zio.Config` values instead of zio-config `ConfigDescriptor` values. Load them with `ZIO.config`, which reads from the `ConfigProvider` installed in the program:
+
+```scala
+val commonConfig: ZLayer[Any, Config.Error, CommonAwsConfig] =
+  ZLayer.fromZIO(ZIO.config(commonAwsConfig))
+```
+
+To read from HOCON, environment variables or other sources, install the matching ZIO Config provider, for example with `Runtime.setConfigProvider`. The [Configure Credentials and Region](guide-configure-credentials-and-region.md) guide shows a complete layer.
+
+## From 3.x and 4.x to 5.x
+
+There are some major changes compared to the ZIO 1 versions (3.x.x.x and 4.x.x.x). This section describes what changed and how to modify existing code.
+
+### New package names
 Previously the zio-aws packages had the root package `io.github.vigoo.zioaws`. By moving to the ZIO organisation this changed to be simply `zio.aws`. 
 
 So imports for something using the EC2 and ElasticBeanstalk APIs would change from:
@@ -31,7 +58,7 @@ import zio.aws.elasticbeanstalk.model.primitives._
 
 Some other changes to the imports may be necessary because of switching to the new service pattern of ZIO, described below.
 
-## New getter names
+### New getter names
 
 In previous version of zio-aws the generated models provided to ways to access fields:
 
@@ -69,7 +96,7 @@ for {
 } yield ()
 ```
 
-## New service pattern
+### New service pattern
 Previous versions were following the _ZIO module pattern 1.0_, so all the generated AWS services consisted of a type alias using `Has`, a trait called `Service` and a package object with the service's name. With ZIO 2 we no longer have `Has` and the recommended way to structure services was changed to the simple new service pattern, where each service is just a `trait` and one or more implementation classes, constructed by layers.
 
 In practice this means that:
@@ -79,7 +106,7 @@ In practice this means that:
 
 The new service pattern is also applied to the core services like `AwsConfig` and the http implementations.
 
-## Optional parameters
+### Optional parameters
 A very large part of the fields of AWS models are optional. These previously had the type `Option`, and although for extracting data from them the library already had the generated getters, constructing these data types still required wrapping most of the parameters in `Some(...)`. To reduce this boilerplate zio-aws now uses the `Optional` type instead of `Option`, which was first used in [zio-k8s](https://coralogix.github.io/zio-k8s/docs/overview/overview_resources#model). Now the two libraries share the same type which was moved to [zio-prelude](https://zio.github.io/zio-prelude/).
 
 The following example:
@@ -104,7 +131,7 @@ Kinesis.describeStreamConsumer(
 )
 ```
 
-## Newtypes
+### Newtypes
 Previously zio-aws generated simple Scala type aliases for primitive types in the AWS SDKs. For example the `TableName` type in `zio-aws-dynamodb` was just a type alias for `String`:
 
 ```scala
@@ -148,7 +175,7 @@ and if we need to convert them to the underlying primitive type we need to call 
 ResourceId.unwrap(id)
 ```
 
-## Aspects
+### Aspects
 zio-aws introduced `AwsCallAspect` soon after Adam Fraser's [talk](https://www.youtube.com/watch?v=gcqWdNwNEPg&t=2s) but it was a custom implementation, defined as:
 
 ```scala
@@ -170,7 +197,7 @@ type AwsCallAspect[-R] =
   ZIOAspect[Nothing, R, AwsError, AwsError, Nothing, Described[_]]
 ```
 
-### New built-in aspects
+#### New built-in aspects
 With ZIO 2 we have logging and metrics support built-in, so zio-aws now provides ready to use aspects for logging and monitoring AWS calls:
 
 ```scala
@@ -178,7 +205,7 @@ val callLogging: AwsCallAspect[Any]
 def callDuration(prefix: String, boundaries: MetricKeyType.Histogram.Boundaries): AwsCallAspect[Any]
 ```
 
-### Changes in defining aspects
+#### Changes in defining aspects
 The following example aspect uses `rezilience` to add circuit breaking for an AWS service:
 
 ```scala
@@ -212,8 +239,8 @@ The main differences:
 - requiring the implicit `Trace` 
 - the constraints on the error and result types are now expressed as type bounds because the ZIO aspect is more generic
 
-## New config library
+### New config library
 
-The 3.x series of zio-aws was using `zio-config 1.x`. The recently released 4.x series was using `zio-config 2.x` which is the ZIO 1 version of the config library's new API; The ZIO 2 version of zio-aws uses `zio-config 3.x` which is the same new config API but for ZIO 2.
+The 3.x series of zio-aws was using `zio-config 1.x`, and the 4.x series was using `zio-config 2.x`, the ZIO 1 version of the config library's new API. The 5.x series uses `zio-config 3.x`, the same API for ZIO 2.
 
-This means that coming from zio-aws 3.x requires upgrading to the new config API. For more information about the changes in zio-config, [see it's release notes](https://github.com/zio/zio-config/releases/tag/v2.0.0-RC1).
+Coming from zio-aws 3.x requires upgrading to the new config API. For more information about the changes in zio-config, [see its release notes](https://github.com/zio/zio-config/releases/tag/v2.0.0-RC1). Version 6.x changed the configuration again; see [From 5.x to 6.x](#from-5x-to-6x).

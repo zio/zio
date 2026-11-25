@@ -1,10 +1,6 @@
-# Functional Data Types in ZIO Prelude
+# Concepts
 
-> ZIO Prelude includes several data types to help us model our domains more accurately and solve common problems.
+> These pages explain the ideas behind ZIO Prelude. They answer "why" rather than "how". For tasks use the how-to guides, and for exact APIs use the reference.
 
-- **[Equivalence](equivalence.md)** - A description of an equivalence relationship between two data types.
-- **[NonEmptyList](nonemptylist.md)** - A list that is guaranteed to be non-empty to more accurately model situations where we know a collection has at least one element.
-- **[These](these.md)** - A data type that may either be a `Left` with an `A`, a `Right` with a `B`, or a `Both` with an `A` and a `B`, useful for modeling problems such as merging streams of data.
-- **[Validation](validation.md)** - A data type that may be either a success or an accumulation of one or more errors, allowing modeling multiple failures for applications such as data validation.
-- **[ZSet](zset.md)** - A generalization of a set that generalizes measures of "how many" of an element exist in a set, supporting multi-sets, "fuzzy" sets, and other data structures.
-- **[ZValidation](zvalidation.md)** - A generalization of `Validation` that allows maintaining a log of warnings in addition to accumulating errors.
+- [Design Principles](design-principles.md) - why the abstractions are small, lawful and orthogonal, and how that differs from the classic functor hierarchy.
+- [Scala Versions and Platforms](scala-versions-and-platforms.md) - what is the same and what differs across Scala 2.12, 2.13 and 3, and across JVM, Scala.js and Scala Native.

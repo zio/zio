@@ -96,7 +96,7 @@ The operators on `NonEmptyList` values are essentially the same as those on `Lis
 
 The main difference between a `NonEmptyList` and a `List` is that many operators are safe on `NonEmptyList` that are not safe on `List`.
 
-For example, we would generally not consider it a good practice to call `head` on a `List` because that could throw an exception. However, it is fine to call `head` on a `NonEmptyList` because it is always guaranteed to contain at most one value.
+For example, we would generally not consider it a good practice to call `head` on a `List` because that could throw an exception. However, it is fine to call `head` on a `NonEmptyList` because it is always guaranteed to contain at least one value.
 
 Similarly, we can use `reduceLeft` or `reduceRight` to reduce the elements of a `NonEmptyList` to a summary value even though this would not be safe to do on a `List` because we know there is always at least one element.
 

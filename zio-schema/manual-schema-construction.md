@@ -1,6 +1,6 @@
 # Manual Schema Construction
 
-> Assume we have a domain containing following models:
+> `DeriveSchema.gen` writes schemas for us, but we can also build them by hand from the case classes described in [Basic Building Blocks](basic-building-blocks.md), with every constructor listed in the [Schema Data Types](basic-building-blocks.md) reference. Hand-written schemas are useful when a type cannot be derived or when we want full control over names and identifiers. This page builds schemas for the following domain models:
 
 ```scala
 object Domain {
@@ -18,7 +18,7 @@ object Domain {
 }
 ```
 
-Let's begin by creating a schema for the `Person` data type:
+Let's begin by creating a schema for the `Person` data type with `Schema.CaseClass2`:
 
 ```scala
 import zio.schema._
@@ -36,7 +36,7 @@ object Person {
 }
 ```
 
-The next step is writing schema for `PaymentMethod`:
+The next step is writing a schema for the `PaymentMethod` sealed trait with `Schema.Enum2`, which needs one `Schema.Case` per subtype:
 
 ```scala
 import zio._
@@ -152,20 +152,19 @@ object Customer {
 }
 ```
 
-Now that we have written all the required schemas, we can proceed to create encoders and decoders (codecs) for each of our domain models. 
+Now that we have written all the required schemas, we can create encoders and decoders (codecs) for each of our domain models.
 
-Let's start with writing protobuf codecs. We need to add the following line to our `build.sbt`:
+Let's start with Protobuf codecs. We need to add the following line to our `build.sbt`:
 
 ```scala
-libraryDependencies += "dev.zio" %% "zio-schema-protobuf" % 1.7.5
+libraryDependencies += "dev.zio" %% "zio-schema-protobuf" % "1.9.2"
 ```
 
-Here's an example that demonstrates a roundtrip test for protobuf codecs:
+The following round trip encodes a `Customer` with the Protobuf codec and decodes it back to the same value:
 
 ```scala
 import zio.schema._
 import zio.schema.codec._
-import zio.schema.codec.ProtobufCodec._
 
 // Create a customer instance
 val customer =
@@ -181,7 +180,7 @@ val customerCodec: BinaryCodec[Customer] =
 // Encode the customer object
 val encodedCustomer: Chunk[Byte] = customerCodec.encode(customer)
 
-// Decode the byte array back to the person instance
+// Decode the bytes back to a customer instance
 val decodedCustomer: Either[DecodeError, Customer] =
   customerCodec.decode(encodedCustomer)
 

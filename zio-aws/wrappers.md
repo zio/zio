@@ -1,150 +1,176 @@
 # Wrappers
 
-> The live implementation depends on a core _AWS configuration layer_:
+> Reference for what each generated ZIO AWS service module contains: the service trait and its layers, the operation wrappers, StreamingOutputResult, and the model wrappers.
 
-# Client wrappers
+Every AWS service module, such as `zio-aws-ec2`, is generated from the AWS Java SDK's service model. All of them have the same shape, so this page describes the pattern with examples from a few services.
 
-### Service modules
-For each AWS Service the library defines a _ZIO service_ with wrapper functions for all the _operations_, a `live` 
-implementation calling the Java SDK and a `mock` implementation using [zio-mock](https://github.com/zio/zio-mock).
+## Service Modules
+
+Each module has a package `zio.aws.<service>` with a service trait and its companion object, a `model` package with the request, response and data types, and a `model.primitives` package with newtypes. For EC2 the service is `zio.aws.ec2.Ec2`:
 
 ```scala
-val live: ZLayer[AwsConfig, Throwable, Ec2]
-``` 
+trait Ec2 extends AspectSupport[Ec2] {
+  val api: Ec2AsyncClient
 
-The `AwsConfig` layer defines how each service's async Java client gets configured, including the http client which is
-provided by another layer `AwsConfig` is depending on.
+  def describeRegions(request: DescribeRegionsRequest): ZIO[Any, AwsError, DescribeRegionsResponse.ReadOnly]
+  // ... one method per operation
+}
+```
 
-Each module has accessor functions for _all operations_ of the given service.
+The `api` field is the AWS Java SDK's async client that the service wraps. Use it for SDK features that are not operations, such as waiters; the [Customize Clients and Call the AWS SDK Directly](guide-call-the-sdk-client-directly.md) guide shows how. `AspectSupport` lets [aspects](aspects.md) be attached to the service.
 
-### Operations
+### Layers
 
-For simple request-response operations the library generates a very light wrapper:
+The companion object builds the service. All three constructors depend on [`AwsConfig`](configuration.md):
+
+```scala
+object Ec2 {
+  val live: ZLayer[AwsConfig, Throwable, Ec2]
+  def customized(customization: Ec2AsyncClientBuilder => Ec2AsyncClientBuilder): ZLayer[AwsConfig, Throwable, Ec2]
+  def scoped(customization: Ec2AsyncClientBuilder => Ec2AsyncClientBuilder): ZIO[AwsConfig & Scope, Throwable, Ec2]
+}
+```
+
+`live` builds the client with the settings of `AwsConfig`. `customized(f)` builds the same client, but first applies `f` to the SDK client builder, after `AwsConfig` has configured it, so `f` can change any setting, including service-specific ones. `scoped(f)` does the same as `customized(f)` but returns a scoped `ZIO` instead of a layer, so you can build several clients and manage their lifetimes yourself. The client is closed when its layer or scope ends.
+
+While it builds a client, the service also:
+
+- Runs the SDK's future completions on the ZIO executor, so the code after an AWS call continues on a ZIO thread.
+- Asks the `HttpClient` for an HTTP/2 client for `kinesis` and `transcribestreaming`, the services generated with HTTP/2 support, and for an HTTP/1.1 client for every other service. See [Choose an HTTP Client](guide-choose-http-client.md).
+- Sets the region to `aws-global` for the global services `cloudfront`, `globalaccelerator`, `iam`, `networkmanager`, `organizations`, `route53`, `shield` and `waf`, before applying `f`.
+
+### Accessors
+
+The companion object also has one accessor per operation. An accessor calls the operation on the service from the environment, so it has the service in its `R` type:
+
+```scala
+object Ec2 {
+  def describeRegions(request: DescribeRegionsRequest): ZIO[Ec2, AwsError, DescribeRegionsResponse.ReadOnly]
+}
+```
+
+Use the accessors in code that has the service in its environment, and the trait's methods when you hold a service value, such as one built with `scoped`.
+
+## Operations
+
+The generator picks the wrapper shape from the operation's input and output. The signatures below are the accessors.
+
+### Request and Response
+
+A simple request-response operation returns a `ZIO` with the read-only response wrapper:
 
 ```scala
 def deleteVolume(request: DeleteVolumeRequest): ZIO[Ec2, AwsError, DeleteVolumeResponse.ReadOnly]
 ```
 
-For operations where either the input or the output or both are _byte streams_, a `ZStream` wrapper is generated:
+An operation without input has no parameter, and an operation without output returns `Unit`.
+
+### Byte Streams
+
+For operations whose input or output is a byte stream, the generator uses `ZStream[Any, AwsError, Byte]`:
 
 ```scala
 def getObject(request: GetObjectRequest): ZIO[S3, AwsError, StreamingOutputResult[Any, GetObjectResponse.ReadOnly, Byte]]
 def putObject(request: PutObjectRequest, body: ZStream[Any, AwsError, Byte]): ZIO[S3, AwsError, PutObjectResponse.ReadOnly]
 ```
 
-where the output is a stream packed together with additional response data:
+An input stream is sent with the length from the request's `contentLength` field, when the request has one. A streamed output comes in a `StreamingOutputResult`, described [below](#streamingoutputresult). The [Stream S3 Objects](guide-stream-s3-objects.md) guide uses both.
+
+### Event Streams
+
+For operations with event streams, the input or output is a `ZStream` of model types:
 
 ```scala
-case class StreamingOutputResult[R, Response, Item](
-  response: Response,
-  output: ZStream[R, AwsError, Item]
-)
+def startStreamTranscription(
+    request: StartStreamTranscriptionRequest,
+    input: ZStream[Any, AwsError, AudioStream]
+): ZStream[TranscribeStreaming, AwsError, TranscriptEvent.ReadOnly]
 ```
 
-For operations with _event streams_ a `ZStream` of a model type gets generated:
+The AWS call starts when the stream is pulled.
 
-```scala
-def startStreamTranscription(request: StartStreamTranscriptionRequest, input: ZStream[Any, AwsError, AudioStream]): ZStream[TranscribeStreaming, AwsError, TranscriptEvent.ReadOnly]
-```
+### Paginated Operations
 
-And for all operations that supports _pagination_, streaming wrappers gets generated:
+For operations that return their results in pages, the generator creates a streaming wrapper that requests the next page when the stream needs more items, and a `Paginated` variant that makes one call. The streaming wrapper has one of two shapes. Most paginated operations return a `ZStream` of the items:
 
 ```scala
 def scan(request: ScanRequest): ZStream[DynamoDb, AwsError, Map[AttributeName, AttributeValue.ReadOnly]]
+def scanPaginated(request: ScanRequest): ZIO[DynamoDb, AwsError, ScanResponse.ReadOnly]
 ```
 
-Note that for event streaming or paginating operations returning a `ZStream` the actual AWS call happens when the stream gets pulled.
-
-For use cases when calling the _paginating_ interface directly is necessary - for example when forwarding paginated results through a HTTP API, the library generates non-streaming wrappers as well for these methods.
-
-For example the DynamoDB `scan` method's non-streaming variant is defined as:
+For operations whose request and response both have a `NextToken` field, ZIO AWS pages through the results itself, following the next-page token. Other paginated operations use the AWS Java SDK's paginator. When the response of an operation that ZIO AWS pages itself has fields besides the items and the token, the first page is fetched right away, and the result is a `StreamingOutputResult` whose `response` is the first page's response and whose `output` is the stream of items from all pages:
 
 ```scala
-def scanPaginated(request: ScanRequest): ZIO[DynamoDb, ScanResponse.ReadOnly]
+def listSomething(request: ListSomethingRequest): ZIO[Svc, AwsError, StreamingOutputResult[Any, ListSomethingResponse.ReadOnly, Item.ReadOnly]]
 ```
 
-### Model wrappers
-For each model type a set of wrappers are generated, providing the following functionality:
+For operations that ZIO AWS pages itself, each page request is a separate AWS call that runs through the service's aspects; for operations that use the Java SDK paginator, the aspect runs once for the whole stream. Use the `Paginated` variant to forward pages through your own API, passing the next-page token yourself. The [Paginate and Stream Results](guide-paginate-and-stream.md) guide shows both.
 
-- Case classes with default parameter values instead of the _builder pattern_
-- [zio-prelude's newtype wrappers](https://zio.github.io/zio-prelude/docs/newtypes/) for primitive types
-- Automatic conversion to Scala collection types
-- ADTs instead of the Java enums 
-- ZIO getter functions to "get or fail" the optional model fields
-- Using zio-prelude's `Optional` type to eliminate boilerplate when constructing models with many optional fields
+## StreamingOutputResult
 
-The following example from the `zio-aws-elasticsearch` library shows how the generated case classes look like, to be used as input for the service operations:
+`StreamingOutputResult` pairs a response with a stream, for streamed downloads and for paginated operations whose response has extra fields:
 
 ```scala
-case class DescribePackagesFilter(name: Optional[DescribePackagesFilterName] = Optional.Absent, 
-                                  value: Optional[Iterable[primitives.DescribePackagesFilterValue]] = Optional.Absent) {
-    def buildAwsValue(): software.amazon.awssdk.services.elasticsearch.model.DescribePackagesFilter = {
-      import DescribePackagesFilter.zioAwsBuilderHelper.BuilderOps
-      software.amazon.awssdk.services.elasticsearch.model.DescribePackagesFilter
-        .builder()
-        .optionallyWith(name.map(value => value.unwrap))(_.name)
-        .optionallyWith(value.map(value => value.map { item => item: java.lang.String }.asJava))(_.value)
-        .build()
-    }
-
-    def asReadOnly: DescribePackagesFilter.ReadOnly = DescribePackagesFilter.wrap(buildAwsValue())
+case class StreamingOutputResult[R, Response, Item](
+    response: Response,
+    output: ZStream[R, AwsError, Item]
+) {
+  def mapResponse[Response2](f: Response => Response2): StreamingOutputResult[R, Response2, Item]
+  def mapOutput[I](f: ZStream[R, AwsError, Item] => ZStream[R, AwsError, I]): StreamingOutputResult[R, Response, I]
+  def provideEnvironment(r: ZEnvironment[R]): StreamingOutputResult[Any, Response, Item]
 }
 ```
 
-When processing the _results_ of the operations (either directly or though the `ZStream` wrappers), the AWS Java model types are wrapped
-by a _read-only wrapper interface_. The following example shows one from the `transcribe` module:
+`mapResponse` and `mapOutput` change one half and keep the other, and `provideEnvironment` provides the stream's environment. A downloaded byte stream reads the HTTP response body as it arrives, so run it once.
+
+## Model Wrappers
+
+For each model type, the generator creates:
+
+- A case class with default parameter values, used as input, instead of the SDK's builder
+- A `ReadOnly` trait, used for output, that wraps the SDK's immutable object
+- [ZIO Prelude newtypes](https://zio.dev/zio-prelude/newtypes/) in `model.primitives` for primitive values, such as S3's `BucketName` or `ObjectKey`
+- Scala collections instead of Java collections
+- A sealed trait with one case object per value instead of each Java enum
+- ZIO Prelude's `Optional` type for optional fields, which accepts a plain value or `Optional.Absent` in a constructor
+
+### Input Case Classes
+
+This example from `zio-aws-elasticsearch` shows a generated case class. Every optional field defaults to `Optional.Absent`, and `buildAwsValue()` builds the SDK object:
+
+```scala
+case class DescribePackagesFilter(
+    name: Optional[DescribePackagesFilterName] = Optional.Absent,
+    value: Optional[Iterable[primitives.DescribePackagesFilterValue]] = Optional.Absent
+) {
+  def buildAwsValue(): software.amazon.awssdk.services.elasticsearch.model.DescribePackagesFilter
+  def asReadOnly: DescribePackagesFilter.ReadOnly
+}
+```
+
+Newtypes are created with their `apply`, such as `ObjectKey("reports/2026.csv")`, and read back with the companion's `unwrap`, such as `ObjectKey.unwrap(key)`. Fields without a dedicated AWS type, such as EC2's region names and instance IDs, are plain Scala types.
+
+### Read-Only Wrappers
+
+Responses and the values inside them are read-only wrappers around the SDK objects. This example is from `zio-aws-transcribe`:
 
 ```scala
 object CreateMedicalVocabularyResponse {
-  private lazy val zioAwsBuilderHelper: BuilderHelper[software.amazon.awssdk.services.transcribe.model.CreateMedicalVocabularyResponse] = BuilderHelper.apply
-
   trait ReadOnly {
-    def editable: CreateMedicalVocabularyResponse = CreateMedicalVocabularyResponse(vocabularyNameValue.map(value => value), languageCodeValue.map(value => value), vocabularyStateValue.map(value => value), lastModifiedTimeValue.map(value => value), failureReasonValue.map(value => value))
+    def asEditable: CreateMedicalVocabularyResponse
     def vocabularyName: Optional[VocabularyName]
     def languageCode: Optional[LanguageCode]
-    def vocabularyState: Optional[VocabularyState]
-    def lastModifiedTime: Optional[DateTime]
-    def failureReason: Optional[FailureReason]
-    def getVocabularyName: ZIO[Any, AwsError, VocabularyName] = AwsError.unwrapOptionField("vocabularyName", vocabularyNameValue)
-    def getLanguageCode: ZIO[Any, AwsError, LanguageCode] = AwsError.unwrapOptionField("languageCode", languageCodeValue)
-    def getVocabularyState: ZIO[Any, AwsError, VocabularyState] = AwsError.unwrapOptionField("vocabularyState", vocabularyStateValue)
-    def getLastModifiedTime: ZIO[Any, AwsError, DateTime] = AwsError.unwrapOptionField("lastModifiedTime", lastModifiedTimeValue)
-    def getFailureReason: ZIO[Any, AwsError, FailureReason] = AwsError.unwrapOptionField("failureReason", failureReasonValue)
+    def getVocabularyName: ZIO[Any, AwsError, VocabularyName]
+    def getLanguageCode: ZIO[Any, AwsError, LanguageCode]
+    // ... one pair per field
   }
 
-  private class Wrapper(impl: software.amazon.awssdk.services.transcribe.model.CreateMedicalVocabularyResponse) extends CreateMedicalVocabularyResponse.ReadOnly {
-    // ... implements the ReadOnly interface by querying the underlying Java object
-  }
-
-  def wrap(impl: software.amazon.awssdk.services.transcribe.model.CreateMedicalVocabularyResponse): ReadOnly = new Wrapper(impl)
+  def wrap(impl: software.amazon.awssdk.services.transcribe.model.CreateMedicalVocabularyResponse): ReadOnly
 }
 ```
 
-As a large part of the models in the AWS SDK are defined as _optional_, the generated wrapper also contains ZIO accessor functions,
-which lift the option value to make it more comfortable to chain the AWS operations.
+Each field has two accessors. The plain one, such as `vocabularyName`, returns the `Optional` value. The `get`-prefixed one, such as `getVocabularyName`, is an effect that fails with [`FieldIsNone`](aws-error.md) when the field is absent, which makes it easy to chain AWS calls in a for-comprehension. `asEditable` copies the values into the case class, so you can change them and send them in a new request, and `wrap` turns an SDK object into the wrapper.
 
-### Mocks
-Each module also contains generated [_ZIO Test mocks_](https://github.com/zio/zio-mock) for the given service.
+## Testing
 
-The following example shows how to use them with the `zio-aws-athena` library:
-
-```scala
-val athena = AthenaMock.StartQueryExecution(
-  hasField(
-    "queryString",
-    (startQueryExecutionRequest: StartQueryExecutionRequest) =>
-      startQueryExecutionRequest.queryString,
-      equalTo(givenQuery)
-  ),
-  value(
-    StartQueryExecutionResponse.wrap(
-      software.amazon.awssdk.services.athena.model.StartQueryExecutionResponse
-        .builder()
-        .queryExecutionId(executionId)
-        build()
-    )
-  )
-)
-
-codeUsingAthena.provide(athena)
-```
+The library does not generate mock objects for the services. To test code that calls AWS, put the calls behind a small service of your own and provide a stub in tests. The [Test Code That Uses AWS](guide-test-code-with-stubs.md) guide shows the pattern.

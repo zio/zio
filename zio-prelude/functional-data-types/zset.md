@@ -83,7 +83,7 @@ Thus, `shoppingList("apples")` will return `2` and `shoppingList("eggs")` will r
 
 One simple way of combining sets is the union of two sets.
 
-The union of two sets contains all elements that appear in either set. If an element appears in both sets the measure of how many times it appears in the union will be the maximum of the two measures, as determined by an `Ord` defined on the measure type.
+The union of two sets contains all elements that appear in either set. If an element appears in both sets the measure of how many times it appears in the union will be the maximum of the two measures, as determined by a `Commutative` defined on the `Max` of the measure type.
 
 ```scala
 val left: ZSet[Int, Int] =
@@ -105,7 +105,7 @@ Here the result will be `ZSet(1 -> 2, 2 -> 3, 3 -> 4, 4 -> 4)` because all eleme
 
 Set intersection is another basic way of combining sets.
 
-The intersection of two sets only contains the elements that appear in both sets. If an element appears in both sets the measure of how many times it appears in the intersection will be the minimum of the two measures, as determined by an `Ord` defined on the measure type.
+The intersection of two sets only contains the elements that appear in both sets. If an element appears in both sets the measure of how many times it appears in the intersection will be the minimum of the two measures, as determined by a `Commutative` defined on the `Min` of the measure type.
 
 ```scala
 val left: ZSet[Int, Int] =

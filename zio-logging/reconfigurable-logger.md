@@ -1,6 +1,10 @@
 # Reconfigurable Logger
 
-> `ReconfigurableLogger` adds support for updating the logger configuration at application runtime.
+> `ReconfigurableLogger` is a `ZLogger` whose configuration and underlying logger can be replaced while the application runs. Every log call goes to the logger that is current at that moment, so a change takes effect on the next log line without a restart.
+
+There are two ways to change it. With `ReconfigurableLogger.make`, the logger pulls its configuration: it reloads the configuration on a schedule and rebuilds the underlying logger when the configuration has changed. With `ReconfigurableLogger.apply`, your own code pushes a new configuration and logger with `ReconfigurableLogger#set`, for example from an admin endpoint. For a task-oriented walk-through of both, see [How to Change Log Levels at Runtime](how-to-change-levels-at-runtime.md).
+
+## Reloading the Configuration on a Schedule
 
 To create a console logger layer that reloads its configuration from a `ConfigProvider` every 5 seconds, wrap [console logger](console-logger.md) construction in `ReconfigurableLogger.make`:
 
@@ -20,9 +24,100 @@ val reconfigurableLoggerLayer = Runtime.removeDefaultLoggers >>> Runtime.setConf
   .installUnscoped[Any]
 ```
 
-`ReconfigurableLogger.make` runs the load configuration function on the given `Schedule`. It recreates the logger when the loaded configuration changes.
+`ReconfigurableLogger.make` returns a `ZIO` that needs a `Scope`, because it starts a background fiber that reloads the configuration, and that fiber must stop when the logger is no longer used. The `installUnscoped` syntax turns this effect into a layer: the layer supplies the `Scope` itself, installs the logger for as long as the layer lives, and stops the reload fiber when the layer is released. The `install`, `installUnscoped` and `installScoped` helpers are described in [Logger Layers and Constructors Reference](reference-logger-layers.md).
 
-**NOTE:** Consider whether your application needs this feature, as it may affect performance (see [benchmarks](https://github.com/zio/zio-logging/blob/master/benchmarks/src/main/scala/zio/logging/FilterBenchmarks.scala)).
+## How `ReconfigurableLogger.make` Works
+
+`ReconfigurableLogger.make` is defined as follows:
+
+```scala
+object ReconfigurableLogger {
+  def make[R, E, M, O, C: Equal](
+    loadConfig: => ZIO[R, E, C],
+    makeLogger: (C, Option[ZLogger[M, O]]) => ZIO[R, E, ZLogger[M, O]],
+    updateLogger: Schedule[R, Any, Any] = Schedule.fixed(10.seconds)
+  ): ZIO[R with Scope, E, ReconfigurableLogger[M, O, C]]
+}
+```
+
+The type parameters are the environment `R` and error `E` of loading and building, the message type `M` and output type `O` of the logger, and the configuration type `C`. The function works in these steps:
+
+1. It runs `loadConfig` once and calls `makeLogger(config, None)` to build the first logger. If either fails, `ReconfigurableLogger.make` fails with that error.
+2. It forks a fiber in the scope that runs `loadConfig` again on the `updateLogger` schedule. The first reload happens after the schedule's first interval, not at startup, so with the default schedule the first reload is 10 seconds after the logger is built.
+3. On each reload, it compares the new configuration with the current one. Only when they differ does it call `makeLogger(newConfig, Some(currentLogger))` and switch to the new logger. When they are equal, nothing is rebuilt.
+
+The comparison uses the ZIO Prelude `Equal` instance for `C`, which is why `C` needs one. ZIO Logging provides `ConsoleLoggerConfig.equal`, `FileLoggerConfig.equal`, `LogFilter.LogLevelByNameConfig.equal` and `LogFilter.equal` (see [Configuration Keys Reference](reference-configuration.md#config-descriptors-and-equal-instances)). For a configuration type of your own, define an implicit `Equal`, for example `Equal.default` for a case class whose fields compare correctly with `==`.
+
+The second argument of `makeLogger` is the logger that is about to be replaced: `None` when the first logger is built, and `Some(previousLogger)` on every rebuild. Use it when the new logger can reuse something from the old one, or ignore it with `(config, _) =>` as in the example above.
+
+When the schedule ends, for example with `Schedule.recurs(3)`, the reloading stops and the last logger stays in place.
+
+:::caution
+Reloading stops at the first failure. If `loadConfig` or `makeLogger` fails during a reload, for example because the configuration source holds an invalid value for a moment, the reload fiber ends, the current logger stays in place, and later configuration changes are not picked up until the application restarts. Handle errors inside `loadConfig` and `makeLogger` if the reloading must survive them.
+
+The replaced logger is not closed either. A logger that holds a resource, such as a file logger with its open file, keeps that resource after it has been replaced.
+:::
+
+## Pushing a New Configuration
+
+`ReconfigurableLogger.apply` creates a reconfigurable logger with no reload fiber. It starts with the configuration and logger you pass, and your code replaces them by calling `ReconfigurableLogger#set`. Use it when the change comes from inside the application, such as an admin endpoint or a feature flag, rather than from a configuration source that can be polled. The trait has these members:
+
+```scala
+sealed trait ReconfigurableLogger[-Message, +Output, Config] extends ZLogger[Message, Output] {
+  def get: (Config, ZLogger[Message, Output])
+  def set[M <: Message, O >: Output](config: Config, logger: ZLogger[M, O]): Unit
+}
+
+object ReconfigurableLogger {
+  def apply[Message, Output, Config](
+    config: Config,
+    logger: ZLogger[Message, Output]
+  ): ReconfigurableLogger[Message, Output, Config]
+}
+```
+
+`ReconfigurableLogger#get` returns the current configuration and logger, and `ReconfigurableLogger#set` replaces both at once. Both are plain methods, not effects, and they work on an atomic reference, so they are safe to call from any fiber. A `get` followed by a `set` is not one atomic step, though: two fibers that update the logger at the same time can overwrite each other's change. `ReconfigurableLogger#set` does not compare configurations, so it needs no `Equal` instance.
+
+The following application installs a console logger that starts at the `INFO` level, exposes the `ReconfigurableLogger` as a service, and lowers the root level to `DEBUG` from inside the program:
+
+```scala
+import zio._
+import zio.logging.{ ConsoleLoggerConfig, ReconfigurableLogger, makeConsoleLogger }
+
+object LevelSwitchApp extends ZIOAppDefault {
+
+  type ConsoleReconfigurableLogger = ReconfigurableLogger[String, Any, ConsoleLoggerConfig]
+
+  val reconfigurableConsole: ZLayer[Any, Nothing, ConsoleReconfigurableLogger] =
+    ZLayer.scoped {
+      for {
+        initial <- makeConsoleLogger(ConsoleLoggerConfig.default)
+        logger   = ReconfigurableLogger[String, Any, ConsoleLoggerConfig](ConsoleLoggerConfig.default, initial)
+        _       <- ZIO.withLoggerScoped(logger)
+      } yield logger
+    }
+
+  def setRootLevel(level: LogLevel): URIO[ConsoleReconfigurableLogger, Unit] =
+    ZIO.serviceWithZIO[ConsoleReconfigurableLogger] { logger =>
+      val (config, _) = logger.get
+      val newConfig   = config.copy(filter = config.filter.withRootLevel(level))
+      makeConsoleLogger(newConfig).map(newLogger => logger.set(newConfig, newLogger))
+    }
+
+  override def run: ZIO[Any, Nothing, Unit] =
+    (for {
+      _ <- ZIO.logDebug("Not written: the root level is INFO")
+      _ <- setRootLevel(LogLevel.Debug)
+      _ <- ZIO.logDebug("Written: the root level is now DEBUG")
+    } yield ()).provideLayer(Runtime.removeDefaultLoggers >>> reconfigurableConsole)
+}
+```
+
+`ZIO.withLoggerScoped` adds the reconfigurable logger to the loggers of the layer's scope, and the layer also returns it as a service, so `setRootLevel` can reach it. The first `ZIO.logDebug` call is dropped by the `INFO` filter; after `ReconfigurableLogger#set`, the second one is written.
+
+## Performance
+
+Consider whether your application needs this feature, as it may affect performance (see [benchmarks](https://github.com/zio/zio-logging/blob/master/benchmarks/src/main/scala/zio/logging/FilterBenchmarks.scala)).
 
 ## Examples
 
@@ -32,9 +127,9 @@ You can find the source code [here](https://github.com/zio/zio-logging/tree/mast
 
 This example from `examples/core/jvm/src/main/scala/zio/logging/example/LoggerReconfigureApp.scala` reloads the logger configuration when the `logger.conf` file changes. It is an application, not library API.
 
-Configuration:
+The `logger.conf` configuration:
 
-```
+```hocon
 logger {
   format = "%highlight{%timestamp{yyyy-MM-dd'T'HH:mm:ssZ} %fixed{7}{%level} [%fiberId] %name:%line %message %kv{trace_id} %kv{user_id} %cause}"
   filter {
@@ -142,9 +237,9 @@ Logger configurations APIs:
   curl -u "admin:admin" --location --request PUT 'http://localhost:8080/example/logger/zio.logging.example' --header 'Content-Type: application/json' --data-raw '"WARN"'
  ```
 
-Configuration:
+The `logger.conf` configuration:
 
-```
+```hocon
 logger {
   format = "%highlight{%timestamp{yyyy-MM-dd'T'HH:mm:ssZ} %fixed{7}{%level} [%fiberId] %name:%line %message %kv{trace_id} %kv{user_id} %cause}"
   filter {
@@ -216,9 +311,9 @@ object ConfigurableLoggerApp extends ZIOAppDefault {
 }
 ```
 
-**NOTE:** `ConfigurableLogger` and `ApiHandlers` are currently implemented in examples.
-They may move into the official `zio-logging` implementation in the future, once there is an official stable `zio-http` release.
-If you want to use them in your app, copy them from the example project.
+:::note
+`ConfigurableLogger`, `LoggerConfigurer` and `ApiHandlers` live in the example project, not in the published `zio-logging` artifacts. If you want to use them in your app, copy them from the example project. For the same effect with the library alone, push a new configuration with `ReconfigurableLogger#set` as shown in [Pushing a New Configuration](#pushing-a-new-configuration).
+:::
 
 When the configuration for `logger/filter/mappings/zio.logging.example` changes from `DEBUG` to `WARN`, send the following request:
 

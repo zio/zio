@@ -7,12 +7,14 @@
 Depends on which version of Cats Effect we are using, we should pick the right version of `zio-interop-cats`. In this tutorial, whenever we're working with Cats Effect 2.x, we are using:
 
 ```scala
+// Cats Effect interop for ZIO
 libraryDependencies += "dev.zio" %% "zio-interop-cats" % "2.5.1.0"
 ```
 
 And whenever we are using Cats Effect 3.x instances, we are using:
 
 ```scala
+// Cats Effect interop for ZIO
 libraryDependencies += "dev.zio" %% "zio-interop-cats" % "3.1.1.0"
 ```
 

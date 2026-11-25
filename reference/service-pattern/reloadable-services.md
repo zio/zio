@@ -280,7 +280,8 @@ Please note that in the previous example, there was no need for manual service r
 To address this issue, the `ServiceReloader` has been developed as a solution. It is part of the `zio-macros` package. To utilize it, we need to include the following line in our `build.sbt` file:
 
 ```scala
-libraryDependencies ++= Seq("dev.zio" %% "zio-macros" % "<version>")
+// ZIO macros, which include the ServiceReloader (ZIO 1.x)
+libraryDependencies += "dev.zio" %% "zio-macros" % "<version>"
 ```
 
 The `ServiceReloader` serves as a registry for services, enabling dynamic reloading of services. By applying the `reloadable` operator on `ZLayer`, we can create a reloadable version of our service. Subsequently, we can simply invoke `ServiceLoader.reload` to initiate the reloading of the service. Let's explore the definition of the ServiceLoader trait:

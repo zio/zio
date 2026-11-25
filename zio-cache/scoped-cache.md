@@ -105,7 +105,7 @@ In addition to `ScopedCache#get`, `ScopedCache` provides these operators:
 - `ScopedCache#refresh` computes a new value with the lookup function and replaces the cached one. Concurrent calls to `ScopedCache#get` keep using the old value until the new one is ready, and the old resource is released once no caller uses it.
 - `invalidate` removes the value for a key from the cache. The resource is released after its last caller closes its scope.
 - `invalidateAll` removes all values from the cache.
-- `ScopedCache#contains` returns whether the cache holds a value for a key. Unlike `Cache#contains`, it does not check expiry: an expired value still counts until the background fiber removes it (see [Lifetime of Scoped Values](#lifetime-of-scoped-values)).
+- `ScopedCache#contains` returns whether the cache holds a value for a key. As with `Cache#contains`, an expired value does not count, even before the background fiber removes it (see [Lifetime of Scoped Values](#lifetime-of-scoped-values)).
 - `size` returns the approximate number of values in the cache. It counts expired values that the background fiber has not removed yet.
 - `cacheStats` returns a snapshot of the cache statistics. See [Cache Statistics](./cache-statistics.md).
 - `entryStats` returns the statistics of one entry. See [Entry Statistics](./entry-statistics.md).

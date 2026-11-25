@@ -1,6 +1,6 @@
 # NonEmptyForEach
 
-> `NomEmptyForEach[F]` describes a parameterized type `F[A]` that contains one or more values of type `A`.
+> `NonEmptyForEach[F]` describes a parameterized type `F[A]` that contains one or more values of type `A`.
 
 Its signature is:
 
@@ -11,7 +11,7 @@ trait ForEach[F[+_]] {
 
 trait NonEmptyForEach[F[+_]] extends ForEach[F] {
   def forEach1[G[+_]: AssociativeBoth : Covariant, A, B](fa: F[A])(f: A => G[B]): G[F[B]]
-  final def forEach[G[+_]: IdentityBoth: Covariant, A, B](fa: F[A])(f: A => G[B]): G[F[B]] =
+  override def forEach[G[+_]: IdentityBoth: Covariant, A, B](fa: F[A])(f: A => G[B]): G[F[B]] =
     forEach1(fa)(f)
 }
 
@@ -64,14 +64,14 @@ implicit val ListForEach: ForEach[List] =
         zipWith(f(a), gbs)(_ :: _)
       }
   }
-// ListForEach: ForEach[List] = repl.MdocSession$MdocApp$$anon$1@20557b40
+// ListForEach: ForEach[List] = repl.MdocSession$MdocApp$$anon$1@68a3a687
 
 implicit val NonEmptyListNonEmptyForEach: ForEach[NonEmptyList] =
   new NonEmptyForEach[NonEmptyList] {
     def forEach1[G[+_]: AssociativeBoth: Covariant, A, B](fa: NonEmptyList[A])(f: A => G[B]): G[NonEmptyList[B]] =
       fa.reduceMapRight(a => map(f(a))(NonEmptyList.single))((a, gbs) => zipWith(f(a), gbs)(NonEmptyList.cons))
   }
-// NonEmptyListNonEmptyForEach: ForEach[NonEmptyList] = repl.MdocSession$MdocApp$$anon$2@4bfe794b
+// NonEmptyListNonEmptyForEach: ForEach[NonEmptyList] = repl.MdocSession$MdocApp$$anon$2@7dee4f6c
 ```
 
 In our implementation of `ForEach` for `List` we needed to use the `succeed` operator to handle the case where the collection was empty, because in that case we had to be able to lift an empty collection into the context of `G`. The `succeed` operator requires an `IdentityBoth` instance because we have to be able to construct a neutral value of type `G` that we can then fill with the value we are lifting using the `map` operator.

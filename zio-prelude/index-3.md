@@ -1,393 +1,292 @@
-# New Types
+# Introduction
 
-> ZIO Prelude provides functionality for creating zero overhead new types to allow you to increase the type safety of your application without compromising performance or ergonomics.
+> ZIO Prelude features a next generation approach to functional abstractions. This approach is based on the following ideas:
 
-A common situation in domain modeling is that we have multiple types in our business domain with the same underlying representation in Scala. For example:
+1. **Algebraic** - Abstractions should describe fundamental algebraic properties.
+2. **Compositional** - These abstractions should describe properties that are orthogonal to each other, allowing definition of higher level abstractions as the composition of more basic ones.
+3. **Lawful** - Abstractions should be defined in terms of laws.
 
-```scala
-type AccountNumber  = Int
-type SequenceNumber = Int
-```
+The functional abstractions in ZIO Prelude can be broadly divided into two categories.
 
-This is not a great situation. We can easily mix up values that represent different types in our business domain, for example providing an `AccountNumber` where we are supposed to use a `SequenceNumber` or vice versa.
+- **[Abstractions For Concrete Types](concrete-types/index.md)** - These abstractions define properties of concrete types, such as `Int` and `String`, as well as ways of combining those values.
+- **[Abstractions For Parameterized Types](parameterized-types/index.md)** - These abstractions define properties of parameterized types such as `List` and `ZIO` and ways of combining them.
 
-The Scala compiler will not help us avoid bugs in these situations because from the perspective of the compiler `AccountNumber` and `SequenceNumber` are the same type, namely `Int`.
+As we will see, there is a deep symmetry between the abstractions defined on concrete and parameterized types, such as concepts of _associative operations_, _commutative operations_, and _identity_. This reflects the fundamental nature of these algebraic properties and their ability to unify what were previously separate concepts.
 
-To avoid this, we might be tempted to create a separate case class for each of these types like this:
+## Abstractions
 
-```scala
-final case class AccountNumber(value: Int)
-final case class SequenceNumber(value: Int)
-```
+An _abstraction_ describes some common structure that different data types share. In Scala, we can encode this using a trait that describes that common structure in terms of a set of operators as well as laws that those operators must follow.
 
-This is an improvement in type safety because `AccountNumber` and `SequenceNumber` are now separate types so providing an `AccountNumber` when we are supposed to use a `SequenceNumber` will result in a compilation error.
+For example, we can think of many data types that share the structure of having an associative combining operation. Integer addition is associative, as is string concatenation and list concatenation, among others.
 
-However, it comes with costs of its own. Every one of these account numbers and sequence numbers will now allocate an additional object, which can add up over the course of a large application with a complex domain model.
-
-We can try to minimize these allocations using techniques such as extending `AnyVal`, but these approaches can be extremely fragile and can actually result in worse performance than the original code if we are not careful.
-
-Let's see how ZIO Prelude helps us get the best of both worlds here.
-
-
-
-A new type in ZIO Prelude is a type that has the same underlying representation as another type at runtime but is a separate type at compile time.
-
-We create new types by creating an object that extends `Newtype` and specifying the type that our new type wraps. We then export that type by defining a new type alias that refers to the `Type` within our new object.
+We can describe this common structure using the `Associative` trait.
 
 ```scala
-import zio.prelude.Newtype
-
-object AccountNumber extends Newtype[Int]
-type AccountNumber = AccountNumber.Type
-
-object SequenceNumber extends Newtype[Int]
-type SequenceNumber = SequenceNumber.Type
-```
-
-The `AccountNumber` and `SequenceNumber` types are now completely distinct from the `Int` type at compile time, even though at runtime they are all `Int` values. 
-
-```scala
-val accountNumber: AccountNumber =
-  AccountNumber(1)
-// accountNumber: AccountNumber = 1
-
-val sequenceNumber: SequenceNumber =
-  SequenceNumber(2)
-// sequenceNumber: SequenceNumber = 2
-
-def lookup(accountNumber: AccountNumber, sequenceNumber: SequenceNumber) =
-  ???
-```
-
-We can see this if we try to supply an `AccountNumber` somewhere that a `SequenceNumber` is expected:
-
-```scala
-lookup(sequenceNumber, accountNumber)
-// error: type mismatch;
-//  found   : SequenceNumber
-//     (which expands to)  SequenceNumber.Type
-//  required: AccountNumber
-//     (which expands to)  AccountNumber.Type
-// error: type mismatch;
-//  found   : AccountNumber
-//     (which expands to)  AccountNumber.Type
-//  required: SequenceNumber
-//     (which expands to)  SequenceNumber.Type
-// lookup(sequenceNumber, accountNumber)
-//                        ^^^^^^^^^^^^^
-```
-
-This is great but how do we construct `AccountNumber` and `SequenceNumber` values and how do we access the underlying `Int` values to work with them?
-
-## Constructing New Types
-
-The easiest way to construct an instance of the new type is to use the `apply` method on the new type object.
-
-```scala
-val accountNumber: AccountNumber =
-  AccountNumber(1)
-// accountNumber: AccountNumber = 1
-```
-
-You can think of the new type object as being the "companion object" of the new type and it comes included with an `apply` method to make it easy for us to construct instances of the new type.
-
-If you want to construct a collection of values of the new type from values of the underlying type you can use the `wrapAll` operator.
-
-```scala
-import zio.Chunk
-
-val accountNumbers: Chunk[AccountNumber] =
-  AccountNumber.wrapAll(Chunk(3, 4, 5))
-// accountNumbers: Chunk[AccountNumber] = IndexedSeq(3, 4, 5)
-```
-
-The `wrapAll` operator is extremely efficient because it does not have to traverse the collection at all. Internally we know that `AccountNumber` and `Int` are the same type so we can freely convert a `Chunk[Int]` to a `Chunk[AccountNumber]` without having to traverse the collection.
-
-We can also define our own more specialized constructors for our new type in terms of `apply`, `wrap`, and `wrapAll`. The new type object provides a convenient place for us to do this.
-
-For example, we could define a simple constructor for an initial sequence number like this:
-
-```scala
-import zio.prelude.Newtype
-
-object SequenceNumber extends Newtype[Int] {
-  val initial: SequenceNumber =
-    SequenceNumber(0)
+trait Associative[A] {
+  def combine(left: => A, right: => A): A
 }
-type SequenceNumber = SequenceNumber.Type
-
-val initial: SequenceNumber =
-  SequenceNumber.initial
-// initial: SequenceNumber = 0
 ```
 
-This lets us construct instances of the new type in a very ergonomic way, where constructors for the new type are on the new type companion object just like constructors for any other type would be.
-
-## Deconstructing New Types
-
-In addition to constructing instances of the new type we want to be able to access the value underlying the new type to perform operations on it.
-
-We can do this using the `unwrap` operator on the new type companion object.
+We can then define various concrete values that extend this trait to describe how different data types share this common structure.
 
 ```scala
-val zero: Int =
-  SequenceNumber.unwrap(initial)
-// zero: Int = 0
-```
-
-We can also use the `unwrapAll` operator to convert a collection of values of the new type into the underlying type.
-
-```scala
-import zio.Chunk
-
-val sequenceNumbers: Chunk[SequenceNumber] =
-  SequenceNumber.wrapAll(Chunk(1, 2, 3))
-// sequenceNumbers: Chunk[SequenceNumber] = IndexedSeq(1, 2, 3)
-
-val ints: Chunk[Int] =
-  SequenceNumber.unwrapAll(sequenceNumbers)
-// ints: Chunk[Int] = IndexedSeq(1, 2, 3)
-```
-
-Again this is extremely efficient because we don't have to traverse the collection at all. Internally we know that a `Chunk[SequenceNumber]` is a `Chunk[Int]` so we can just immediately return the original collection unchanged.
-
-## Defining Operators On New Types
-
-By wrapping and unwrapping values of the new type we can define our own operators on new types.
-
-The easiest way to do this is by defining our operators as extension methods inside the new type companion object. These extension methods will automatically be available when we are working with instances of the new type.
-
-```scala
-import zio.prelude.Newtype
-
-object SequenceNumber extends Newtype[Int] {
-
-  implicit class SequenceNumberSyntax(private val self: SequenceNumber) extends AnyVal {
-    def next: SequenceNumber =
-      SequenceNumber.wrap(SequenceNumber.unwrap(self) + 1)
+val IntAssociative: Associative[Int] =
+  new Associative[Int] {
+    def combine(left: => Int, right: => Int): Int =
+      left + right
   }
-}
-type SequenceNumber = SequenceNumber.Type
-
-val sequenceNumber: SequenceNumber =
-  SequenceNumber(1)
-// sequenceNumber: SequenceNumber = 1
-
-val nextSequenceNumber: SequenceNumber =
-  sequenceNumber.next
-// nextSequenceNumber: SequenceNumber = 2
+// IntAssociative: Associative[Int] = repl.MdocSession$MdocApp$$anon$1@368026b6
 ```
 
-Notice that the `next` operator was available on `SequenceNumber` without having to do any imports because we defined it as an extension method within the `SequenceNumber` object.
+Note however that the signature of the trait is not sufficient to define the abstraction.
 
-The new type companion object is also a convenient place for other operators that we would normally define on the companion object of a type. For example, we could define a `continuous` operator that returns whether a collection of `SequenceNumber` values are continuous.
+The signature merely says that we must take two `A` values and return an `A` value. It doesn't say anything about what this combining operation is supposed to do with the value.
+
+With just that signature we could do anything we want in the implementation of `combine` such as subtracting one integer from the other, which is definitely not associative.
+
+```scala
+val IntNotAssociative: Associative[Int] =
+  new Associative[Int] {
+    def combine(left: => Int, right: => Int): Int =
+      left - right // don't do this
+  }
+// IntNotAssociative: Associative[Int] = repl.MdocSession$MdocApp$$anon$2@77c7707
+```
+
+This shows that abstractions are not meaningful without laws. Abstractions describe some common structure that is shared between different data types but without laws we don't know what this structure is supposed to be.
+
+In this case the law is that the combining operation must be associative, which we can write in pseudocode as.
+
+```scala
+(a <> b) <> c === a <> (b <> c)
+```
+
+Here `<>` represents the combining operation and `a`, `b`, and `c` represent any possible combination of values of the given type.
+
+Every abstraction in ZIO Prelude is described by a trait like the one above and is defined in terms of a set of laws.
+
+ZIO Prelude provides **instances for these abstractions** for a variety of types from ZIO and the Scala standard library. ZIO Prelude also provides **tools for testing** that instances of an abstraction satisfy the appropriate laws.
+
+## Using Abstractions
+
+There are several ways you can use the abstractions described in this library.
+
+The first and most direct, which actually does not require depending on ZIO Prelude at all, is to use these abstractions as inspiration for defining operators on your own data type.
+
+The common structure described by these abstractions exists independent of any library. You don't need ZIO Prelude to define an associative combining operation on your own data type.
+
+However, thinking about whether an associative combining operation exists for your data type, and what it would look like, can help you write better code.
+
+As a simple example, say you want to compute the average of values from some large data set, and you would like to split the work up between different concurrent processes or possibly even different nodes in a distributed network.
+
+Your first stab at the accumulator for the running average might look like this:
+
+```scala
+case class RunningAverage(value: Double)
+```
+
+However, if you think about it for a minute you will realize that this data type does not support an associative combining operation for combining two averages. This is going to be a serious problem because it means the result is not going to be well-defined if you combine averages from different processes or nodes.
+
+Thinking about the abstractions in ZIO Prelude you might come up with a representation like this:
+
+```scala
+case class RunningAverage(sum: Double, count: Int) { self =>
+  def average: Double =
+    sum / count
+  def combine(that: RunningAverage): RunningAverage =
+    RunningAverage(self.sum + that.sum, self.count + that.count)
+}
+
+object RunningAverage {
+  val empty: RunningAverage =
+    RunningAverage(0.0, 0)
+}
+```
+
+Now this data type does have an associative combining operation. In fact the combining operation is both associative and commutative and has an identity element.
+
+This will make it much easier for you to solve your problem because now the different processes or nodes can compute the averages for their partitions independently, and you can combine them in any order.
+
+And you didn't need to use any code from ZIO Prelude to do this. ZIO Prelude was hopefully just a good source of ideas of different algebraic properties that can exist and how they can be important.
+
+This is a great way to get started with functional abstractions. Your colleagues don't have to learn anything new, you just get to write better code because you are taking advantage of these algebraic properties.
+
+This is also the approach taken by ZIO ecosystem libraries.
+
+ZIO ecosystem libraries generally do not directly expose any functional abstractions but still expose a highly compositional interface because their design is based on algebraic properties like this. Users don't have to learn about these abstractions unless they want to, they just get to benefit from better library design.
+
+## Using Type Classes
+
+The second way you can use the abstractions in ZIO Prelude is by leveraging the _type classes_ defined in the library to take the boilerplate out of your own code.
+
+Type classes are a way of encoding functional abstractions in Scala and other programming languages. In the type class pattern, we take the same code as above but define the instances of the type class as `implicit`.
 
 ```scala
 import zio.Chunk
 
-object SequenceNumber extends Newtype[Int] {
-  def continuous(sequenceNumbers: Iterable[SequenceNumber]): Boolean =
-    SequenceNumber.unwrapAll(sequenceNumbers).foldLeft[(Option[Int], Boolean)]((None, true)) {
-      case ((None, continuous), current) => (Some(current), continuous)
-      case ((Some(previous), continuous), current) => (Some(current), continuous && current == previous + 1)
-    }._2
+trait Associative[A] {
+  def combine(left: => A, right: => A): A
 }
-type SequenceNumber = SequenceNumber.Type
 
-val sequenceNumbers: Chunk[SequenceNumber] =
-  Chunk(SequenceNumber(1), SequenceNumber(2), SequenceNumber(3))
-// sequenceNumbers: Chunk[SequenceNumber] = IndexedSeq(1, 2, 3)
+object Associative {
 
-val continuous: Boolean =
-  SequenceNumber.continuous(sequenceNumbers)
-// continuous: Boolean = true
+  implicit val IntAssociative: Associative[Int] =
+    new Associative[Int] {
+      def combine(left: => Int, right: => Int): Int =
+        left + right
+    }
+
+  implicit def ListAssociative[A]: Associative[List[A]] =
+    new Associative[List[A]] {
+      def combine(left: => List[A], right: => List[A]): List[A] =
+        left ::: right
+    }
+}
 ```
 
-Here `continuous` is an operator on a collection of sequence numbers so it didn't make sense to define it as an extension method on an individual sequence number. Defining it in the new type companion object makes it feel like an operator on the companion object of any ordinary data type.
+If the instance of the type class depends on other parameters, like the `A` in `ListAssociative` we define it as an `implicit def`. Otherwise, we define it as an `implicit val`.
 
-## Defining Instances Of Functional Abstractions For New Types
+We can think of the `implicit` keyword as associating the type `Int` with the value `IntAssociative`. So now if we ask the Scala compiler for the `Associative` instance for `Int` it will be able to find it.
 
-We can also define instances of functional abstractions for new types such as `Equal`, `Ord`, and `Associative`.
+In the type class pattern we also typically define extension methods that will be available on any data type for which an instance of the type class is defined.
 
-The new type companion object again provides a convenient place to define these instances and ensures that they will automatically be available so that we don't have to import them.
+```scala
+implicit final class AssociativeSyntax[A](private val self: A) {
+  def <>(that: => A)(implicit associative: Associative[A]): A =
+    associative.combine(self, that)
+}
+```
 
-Let's see how we can do this to define an `Equal` instance for `AccountNumber`:
+This machinery allows us to use the `<>` operator to combine values of any type as long as an `Associative` instance is defined for it.
+
+```scala
+val int: Int =
+  1 <> 2
+// int: Int = 3
+
+val list: List[Int] =
+  List(1, 2, 3) <> List(4, 5, 6)
+// list: List[Int] = List(1, 2, 3, 4, 5, 6)
+```
+
+Of course, we didn't really need all of this machinery to add two numbers or concatenate two lists, but where this pattern gets powerful is when we can use it to combine more complex data types in a principled way.
+
+For example, say we have an application where users can vote on content they are interested in learning more about. We might have a data structure to keep track of the number of votes for different topics like this.
+
+```scala
+final case class Topic(value: String)
+final case class Votes(value: Int)
+final case class VoteMap(map: Map[Topic, Votes])
+```
+
+A common thing we might want to do is combine two `VoteMap` values, for example if the user has a local copy of the `VoteMap` and we want to update it with a new batch of votes from the server.
+
+We could do that manually like this.
+
+```scala
+final case class Topic(value: String)
+
+final case class Votes(value: Int) { self =>
+  def combine(that: Votes): Votes =
+    Votes(self.value + that.value)
+}
+
+final case class VoteMap(map: Map[Topic, Votes]) { self =>
+  def combine(that: VoteMap): VoteMap =
+    VoteMap(that.map.foldLeft(self.map) { case (map, (topic, votes)) =>
+      map + (topic -> map.getOrElse(topic, Votes(0)).combine(votes))
+    })
+}
+```
+
+This isn't the worst, but it isn't really the kind of code we want to be writing. We want to be thinking about the logic of our application rather than how to combine maps.
+
+This is where ZIO Prelude can help.
+
+The way we're combining these maps actually follows a pattern. If a key is in a single map we include it in the combined map with its associated key and if a key is in both maps we include it in the combined map with the result of combining the values associated with that key.
+
+We might see that ourselves, but it would be hard to generalize that logic in a way that is worth factoring out. How often are we going to combine maps like this and what exactly does it mean to combine the keys?
+
+Let's look at how ZIO Prelude can help us clean this up.
 
 ```scala
 import zio.prelude._
 
-object AccountNumber extends Newtype[Int] {
-  implicit val AccountNumberEqual: Equal[AccountNumber] =
-    Equal.default
+case class Topic(value: String)
+
+case class Votes(value: Int)
+
+object Votes {
+  implicit val VotesAssociative: Associative[Votes] =
+    new Associative[Votes] {
+      def combine(left: => Votes, right: => Votes): Votes =
+        Votes(left.value + right.value)
+    }
 }
-type AccountNumber = AccountNumber.Type
 
-AccountNumber(1) === AccountNumber(1)
-// res4: Boolean = true
-AccountNumber(1) === AccountNumber(2)
-// res5: Boolean = false
-```
+case class VoteMap(map: Map[Topic, Votes])
 
-Attempting to compare two unrelated types results in a compilation error.
-
-```scala
-AccountNumber(1) === 1
-```
-
-This can be particularly useful because since the representations of the new type and the underlying types are the same at runtime, operators that are not strongly typed like `println` and `==` will not respect the difference between the new type and the underlying type. Using the functional abstractions in ZIO Prelude we can avoid this problem.
-
-## Subtypes
-
-When we use `Newtype` the new type we are creating is completely distinct from the underlying type. This can be useful when we want to "hide" the underlying representation of the new type except when we explicitly unwrap it.
-
-However, it can lead to boilerplate in some cases where we need to explicitly unwrap the new type or reimplement functionality that already exists on the underlying type.
-
-For example, say we want to test whether one `SequenceNumber` is after another. Right now this will not work:
-
-```scala
-import zio.prelude.Subtype
-
-object SequenceNumber extends Newtype[Int]
-type SequenceNumber = SequenceNumber.Type
-
-SequenceNumber(2) > SequenceNumber(1)
-```
-
-The `>` operator is defined on `Int` and as far as the Scala compiler is concerned `SequenceNumber` and `Int` are completely unrelated types. Of course we could unwrap each of our sequence numbers or define a new `>` operator on sequence numbers but here we are not taking advantage of the fact that we know that every `SequenceNumber` is an `Int`.
-
-We can fix this by extending `Subtype` instead of `Newtype` when creating our new type.
-
-```scala
-import zio.prelude.Subtype
-
-object SequenceNumber extends Subtype[Int]
-type SequenceNumber = SequenceNumber.Type
-
-SequenceNumber(2) > SequenceNumber(1)
-// res7: Boolean = true
-```
-
-Now `SequenceNumber` is a type that is different from `Int` but is still a subtype of `Int`.
-
-This means that we can use a `SequenceNumber` any time we need an `Int` and can use operators defined on `Int` on `SequenceNumber`. However, we still get the type safety of not being able to use an `Int` or `AccountNumber` when a `SequenceNumber` is expected.
-
-## Smart Newtypes
-
-So far, all the new types we have created have been distinct from the underlying types but have not imposed any additional constraints on the values that the underlying type can take. For example, the `SequenceNumber` above could in principle be any `Int` value, whether that is `42` or `-1`.
-
-In many cases that makes sense. We often want to use a new type to denote that this particular `Int` value represents a sequence number and shouldn't be confused with another `Int` value that represents an account number without imposing other constraints.
-
-However, in other cases we may want to restrict the values that the underlying type can take. For instance, perhaps a `SequenceNumber` should never be negative.
-
-We can model this in ZIO Prelude by extending `Newtype` and `Subtype`, just as before, and then defining an additional `def assertion` method that describes the constraints on the underlying value. (The syntax differs slightly between Scala 2 and 3 due to changes in the macro API).
-
-```scala
-import zio.prelude.{Subtype, Validation}
-import zio.prelude.Assertion._
-
-object SequenceNumber extends Subtype[Int] {
-
-  // Scala 2
-  override def assertion = assert { 
-    greaterThanOrEqualTo(0)
-  }
-  
-  // Scala 3
-  // override inline def assertion = 
-  //  greaterThanOrEqualTo(0)
+object VoteMap {
+  implicit val VoteMapAssociative: Associative[VoteMap] =
+    new Associative[VoteMap] {
+      def combine(left: => VoteMap, right: => VoteMap): VoteMap =
+        VoteMap(left.map <> right.map)
+    }
 }
-type SequenceNumber = SequenceNumber.Type
 ```
 
-Here we created a simple assertion that requires the value be equal to or greater than zero, but we can use much more complex assertions. For example, we could validate an `Email` with the `matches` assertion, which accept a `Regex`.
+All of that logic of combining the two maps just goes away!
 
-Now, when we construct new values using `apply`, they will be validated *at compile time*.
+ZIO Prelude knows that we can define an associative combining operation for any two values of type `Map[A, B]` as long as there is an associative combining operation for the `B` values. All we have to do is tell ZIO Prelude how to combine the `B` values, which in this case is quite simple, and it can do the rest.
+
+This is a great example of the practical value that ZIO Prelude can bring. It took this low level logic of how to combine these two maps and just handled it for us.
+
+## Using Generic Programming
+
+The third way you can use the abstractions in ZIO Prelude is by leveraging type classes to do generic programming at the level of these abstractions.
+
+For example, you might find yourself doing a lot of "map reduce" type operations on collections like this.
 
 ```scala
-val valid1: SequenceNumber = SequenceNumber(0)
-val valid2: SequenceNumber = SequenceNumber(42)
-
-val oops = SequenceNumber(-10)
-// Newtype Assertion Failed 
-// • -10 did not satisfy greaterThanOrEqualTo(0)
+def wordCount(lines: List[String]): Int =
+  lines.map(_.split(" ").length).sum
 ```
 
-Smart Newtypes can only be validated at compile-time when called with literals, such as `9000` or `"Fancy Pants"`. Attempting to wrap a variable or run-time value with `apply` will result in a compilation error warning you about this.
+You might like this way of working with collections and wonder how you can generalize it.
 
-When wrapping variables or run-time values, you can use the `make` or `makeAll` constructors, which will perform the validation at run-time instead.
+A first step could be to recognize that `sum` is just a particular combining operation that has an identity element. You could then use the `Identity` abstraction in ZIO Prelude to generalize over data types that support this kind of combining operation with an identity element.
 
 ```scala
-import zio.Chunk
-
-val a = 10
-// a: Int = 10
-val b = 11
-// b: Int = 11
-val c = 12
-// c: Int = 12
-
-val validatedSequenceNumber: Validation[String, SequenceNumber] =
-  SequenceNumber.make(a)
-// validatedSequenceNumber: Validation[String, SequenceNumber] = Success(
-//   log = IndexedSeq(),
-//   value = 10
-// )
-
-val validateSequenceNumbers: Validation[String, Chunk[SequenceNumber]] =
-  SequenceNumber.makeAll(Chunk(a, b, c))
-// validateSequenceNumbers: Validation[String, Chunk[SequenceNumber]] = Success(
-//   log = IndexedSeq(),
-//   value = IndexedSeq(10, 11, 12)
-// )
+def mapReduce[A, B](as: List[A])(f: A => B)(implicit identity: Identity[B]): B =
+  ???
 ```
 
-We can see that `make` and `makeAll` return a `Validation` that will either be a success with a valid instance of the newtype or a failure with a helpful error message indicating why a valid instance of the newtype could not be constructed.
+You might want to go even further though and generalize over the collection type. You can clearly implement a similar operator for a `Vector` or another collection type so how do you generalize over that?
 
-Note that the `wrap` operator, which bypasses the compile-time check, is `protected` and will only be accessible within the scope of the newtype object unless we choose to expose them. This allows us to skip the compile-time check when we need to, such as in implementing a `.next` method, which we know will be safe, even if the compiler does not.
+You could do that with ZIO Prelude's `ForEach` abstraction, which describes parameterized data types with some structure where the elements in the structure can be replaced while preserving the structure itself.
+
+Using this, you could rewrite your operator like so.
 
 ```scala
-import zio.prelude.{Subtype, Validation}
-import zio.prelude.Assertion._
-
-object SequenceNumber extends Subtype[Int] {
-  override def assertion = assert { 
-    greaterThanOrEqualTo(0)
-  }
-  
-  val initial: SequenceNumber =
-    SequenceNumber(0)
-    
-  implicit final class SequenceNumberOps(val self: SequenceNumber) extends AnyVal {
-    def next: SequenceNumber = 
-      wrap(self + 1)
-  }
-}
-type SequenceNumber = SequenceNumber.Type
+def mapReduce[F[+_]: ForEach, A, B: Identity](as: F[A])(f: A => B): B =
+  ???
 ```
 
-As another example, we might want to expose an `unsafeMake` operator for our users to allow them to construct instances of the newtype directly without going through `Validation`. As its name implies this places responsibility on the user to ensure that the underlying data is valid but could be necessary for performance or ergonomics in some situations.
+This example illustrates some of the benefits as well as the pitfalls of generic programming using type classes.
 
-We can do that quite easily like this:.
+If you want to do generic programming in terms of type classes, ZIO Prelude can go as far as you want to go.
+
+However, there is a definite trade off in these three snippets.
+
+The first one is overly specific but is understandable to any Scala programmer. The last one is beautiful and elegant if you understand the necessary concepts but incomprehensible otherwise.
+
+In addition, there is a danger in using type classes to do generic programming that we reinvent the wheel. The generalized "map reduce" operator we developed is just the existing `foldMap` operator from ZIO Prelude!
 
 ```scala
-import zio.prelude.{Subtype, Validation}
-import zio.prelude.Assertion._
-
-object SequenceNumber extends Subtype[Int] {
-  override def assertion = assert { 
-    greaterThanOrEqualTo(0)
-  }
-
-  def unsafeMake(n: Int): SequenceNumber =
-    SequenceNumber.wrap(n)
-}
-type SequenceNumber = SequenceNumber.Type
-
-val aTrustedInt = 1
-// aTrustedInt: Int = 1
-val sequenceNumber: SequenceNumber =
-  SequenceNumber.unsafeMake(aTrustedInt)
-// sequenceNumber: SequenceNumber = 1
+def mapReduce[F[+_]: ForEach, A, B: Identity](as: F[A])(f: A => B): B =
+  as.foldMap(f)
 ```
 
-Thus, Smart Newtypes give us full ability to implement our own operators and to expose whatever interface we want for our type, from validating input at compile-time, to using `Validation` at run-time, to allowing users to create instances of the refined newtype directly.
+This illustrates the risk that sufficiently general abstractions or operators are likely to already be defined by a functional programming library.
+
+None of this is meant to argue against this style of generic programming but merely to point out that it is one of several ways to use these functional abstractions and none of them are necessarily "better" than others. The right approach to using these abstractions is the one that works for you and your team.

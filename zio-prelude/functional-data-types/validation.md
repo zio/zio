@@ -257,11 +257,11 @@ By combining operators like `validateWith` and `flatMap` you can build complex v
 
 The final thing we want to be able to do with `Validation` values is extract them to access the success value or errors and do something with them. This also includes transforming `Validation` values into other data types that we may be interested in.
 
-The most basic way to do this is with the `fold` operator, which lets us provide functions specifying what we want to do with the success or failure.
+The most basic way to do this is with the `fold` operator, which lets us provide functions specifying what we want to do with the success or failure. The failure function receives all of the errors as a `NonEmptyChunk`.
 
 ```scala
 trait Validation[+E, +A] {
-  def fold[B](failure: E => B, success: A => B): B
+  def fold[B](failure: zio.NonEmptyChunk[E] => B, success: A => B): B
 }
 ```
 

@@ -1,139 +1,285 @@
 # Commands
 
-> A command is a piece of text representing a directive for a CLI application. This allows the user to communicate easily which task must perform the application. A popular CLI app is the Version Control System called Git. Commonly used commands of Git are among the following.
-> ```
-> git clone // Creates a copy of a repository
-> git add   // Adds modified or new files that will be committed after using git commit
-> ```
-> **ZIO CLI** uses class `Command[Model]` as a description of a CLI command. When using `CliApp.make`, it is needed to specify a `Command[Model]` instance. This parameter is parsed by `CliApp` to produce a collection of possible commands and transform a valid input from a user into an instance of type `Model`. Then you can implement the functionality of the CLI App using pattern matching on instances of `Model`.
+> A `Command[A]` describes one command of a command-line application: its name, its [options](options.md), its [arguments](args.md), and, optionally, its subcommands. When the user's input matches the command, the parser produces a value of type `A`. You pass a `Command` to `CliApp.make`, and the value it produces is handed to your program (see [CliApp and Running a CLI](cli-app.md)).
 
-### Subcommands
-A subcommand is a command that belongs to a larger command. Thus, it is possible for a command to have different subcommands. Subcommands can be used to better organize and design the functionality of a CLI app. Different subcommands can represent different types of task that a CLI can perform and give them a descriptive name. In the Git example above, `git` is the name of the command while `clone` or `add` are subcommands of `git`. As the functionality of `git clone` and `git add` are very different, it is better to use different subcommands. In the same way, it would be possible for a subcommand to have other subcommands.
+Git is a familiar example. In `git clone https://github.com/zio/zio-cli`, `git` is the top-level command, `clone` is a subcommand, and the URL is an argument of `clone`.
 
-### Basic construction
+## Creating a Command
 
-It's possible to create a `Command` using the `apply` method. You must always specify the name of the command that will be used
-in the CLI, but you can also specify options and/or arguments:
+`Command.apply` builds a command from a name and, optionally, `Options` and `Args`. It has four overloads:
+
+```scala
+object Command {
+  def apply(name: String): Command[Unit]
+  def apply[OptionsType](name: String, options: Options[OptionsType]): Command[OptionsType]
+  def apply[ArgsType](name: String, args: Args[ArgsType]): Command[ArgsType]
+  def apply[OptionsType, ArgsType](name: String, options: Options[OptionsType], args: Args[ArgsType]): Command[(OptionsType, ArgsType)]
+}
+```
+
+The result types above are simplified. Each overload takes an implicit `Reducable` that removes `Unit` from the value: a command without options produces only the arguments' value, a command without arguments produces only the options' value, and a command with both produces the tuple `(options, args)`. `Options.none` and `Args.none` stand for "no options" and "no arguments", so `Command("git", Options.none, Args.none)` is the same as `Command("git")`.
+
+The value type of each command follows from its options and arguments:
 
 ```scala
 import zio.cli._
+import java.nio.file.Path
 
-object Command {
-  def apply(name: String) = ???
-  def apply[ArgsType](name: String, args: Args[ArgsType]) = ???
-  def apply[OptionsType](name: String, options: Options[OptionsType]) = ???
-  def apply[OptionsType, ArgsType](name: String, options: Options[OptionsType], args: Args[ArgsType]) = ???
+val statusCmd: Command[Unit]             = Command("status")
+val commitCmd: Command[Boolean]          = Command("commit", Options.boolean("quiet"))
+val addCmd: Command[Path]                = Command("add", Args.file("path"))
+val cloneCmd: Command[(Boolean, String)] = Command("clone", Options.boolean("quiet"), Args.text("repository"))
+```
+
+The name is the word the user types. `CliApp` adds the name of the top-level command for you, so users of an app built from `Command("git")` type only what follows `git`.
+
+## Transforming the Value
+
+A command's raw value is often a tuple or `Unit`. These methods turn it into a type that fits your program:
+
+```scala
+trait Command[+A] {
+  def map[B](f: A => B): Command[B]
+  def as[B](b: => B): Command[B]
 }
 ```
-## Combining commands and transformations
-**ZIO CLI** also allows to combine different commands in a functional manner. This can be used for a cleaner design of the commands of a CLI app.
+
+### Command#map
+
+`Command#map` applies a function to the parsed value:
+
+```scala
+case class Clone(quiet: Boolean, repository: String)
+
+val cloneCommand: Command[Clone] = cloneCmd.map { case (quiet, repository) => Clone(quiet, repository) }
+```
+
+### Command#as
+
+`Command#as` replaces the value with a constant, which suits commands that carry no data:
+
+```scala
+case object Status
+
+val statusCommand: Command[Status.type] = statusCmd.as(Status)
+```
+
+To give every subcommand of an app one shared type, see [How to turn subcommands into one domain type](how-to-map-subcommands.md).
+
+## Adding a Description
+
+`Command#withHelp` sets the command's description:
+
+```scala
+trait Command[+A] {
+  def withHelp(help: String): Command[A]
+  def withHelp(help: HelpDoc): Command[A]
+}
+```
+
+A `String` is wrapped in a paragraph (`HelpDoc.p`). The description replaces any earlier one. It appears under `DESCRIPTION` in the command's help, and next to the command in its parent's `COMMANDS` list. On a command built with `Command#|`, `Command#withHelp` sets the same description on every alternative. On a command built with `Command#subcommands`, it sets the description of the parent.
+
+The help of a command with a description, an option and an argument looks like this:
+
+```scala
+val documentedClone: Command[(Boolean, String)] =
+  Command("clone", Options.boolean("quiet").alias("q"), Args.text("repository"))
+    .withHelp("Copies a repository.")
+```
+
+`Command#helpDoc` returns this help, which we render as plain text:
+
+```scala
+println(documentedClone.helpDoc.toPlaintext(color = false))
+// 
+// DESCRIPTION
+// 
+//   Copies a repository.
+// 
+// ARGUMENTS
+// 
+//   <repository>
+//     A user-defined piece of text.
+// 
+// OPTIONS
+// 
+//   (-q, --quiet)
+//     A true or false value.
+// 
+//     This setting is optional. Default: 'false'.
+// 
+//
+```
+
+See [Help Documentation](helpdoc.md) for building richer `HelpDoc` values.
+
+## Choosing Between Commands
+
+These methods combine two commands so that the user can type either one:
 
 ```scala
 trait Command[+A] {
   def |[A1 >: A](that: Command[A1]): Command[A1]
   def orElse[A1 >: A](that: Command[A1]): Command[A1]
   def orElseEither[B](that: Command[B]): Command[Either[A, B]]
-  def withHelp(help: HelpDoc): Command[A]
-  def withHelp(help: String): Command[A]
-  def subcommands[B](that: Command[B])
-  def subcommands[B](c1: Command[B], c2: Command[B], cs: Command[B]*)
-  def map[B](f: A => B): Command[B]
 }
 ```
 
-### Choosing between commands
-If we have more than one command, we can create a new `Command` that allows to choose between two commands using methods `|`, `orElse` and `orElseEither` as with `Options`. The difference between these three methods lies in the type parameter of the new `Command`. The user will be able to enter only the command that he wants, triggering the desired functionality.
-- Method `orElse`
+The parser tries the left command first. When the first word is not the left command's name, it tries the right one. If neither name matches, the input is rejected.
 
-`|` is just an alias for `orElse`. In the Git CLI, it is possible to choose between different commands. This can be realized using `orElse`.
-```scala
-import zio.cli._
-import java.nio.file.Path
+### Command#| and Command#orElse
 
-val gitAdd: Command[Unit] = Command("add")
-val gitClone: Command[Path] = Command("clone", Options.directory("directory"))
-
-val newCommand: Command[Any] = gitAdd orElse gitClone 
-```
-
-- Method `orElseEither`
-
-This method wraps the types in an `Either` class.
+`Command#orElse` is the same as `Command#|`. The value type is the common supertype of both commands:
 
 ```scala
-import zio.cli._
-import java.nio.file.Path
-
-val gitAdd: Command[Unit] = Command("add")
-val gitClone: Command[Path] = Command("clone", Options.directory("directory"))
-
-val newCommand: Command[Either[Unit, Path]] = gitAdd orElseEither gitClone 
+val addOrStatus: Command[Any] = addCmd | statusCmd
 ```
 
-### Adding Help Documentation
-Method `withHelp` returns a new command with the parameter `HelpDoc` or `String` as the `helpDoc` of the command.
+### Command#orElseEither
+
+`Command#orElseEither` keeps track of which command matched by wrapping the value in an `Either`:
 
 ```scala
-import zio.cli._
-import java.nio.file.Path
-
-val helpGit = "This is command git."
-val helpGitAdd = "Stages changes in the working repository."
-val helpGitClone = "Creates a copy of an existing repository."
-
-// Adding HelpDoc to Commands
-val gitCommand: Command[Unit] = Command("git").withHelp(helpGit)
-val gitAdd: Command[Unit] = Command("add").withHelp(helpGitAdd)
-val gitClone: Command[Path] = Command("clone", Options.directory("directory")).withHelp(helpGitClone)
-```
-The output that this HelpDoc produces is the following.
-```
-DESCRIPTION
-
-  This is command git.
-
-COMMANDS
-
-  - add                          Stages changes in the working repository.
-  - clone --directory directory  Creates a copy of an existing repository.
+val addOrClone: Command[Either[Path, (Boolean, String)]] = addCmd.orElseEither(cloneCmd)
 ```
 
-### Adding subcommands
-Method `subcommands` returns a new command with a new set of child commands.
+When a top-level command is built with `Command#|`, `CliApp` does not add any name before the input: the user types `add` or `status` first. Most apps instead put the alternatives under a parent command with `Command#subcommands`.
+
+## Subcommands
+
+`Command#subcommands` adds child commands to a parent:
 
 ```scala
-// Adds subcommands add and clone to command git
-val git: Command[Any] = gitCommand.subcommands(gitAdd, gitClone)
+trait Command[+A] {
+  def subcommands[B](that: Command[B])(implicit ev: Reducable[A, B]): Command[ev.Out]
+  def subcommands[B](c1: Command[B], c2: Command[B], cs: Command[B]*)(implicit ev: Reducable[A, B]): Command[ev.Out]
+}
 ```
 
-### Changing the type parameter
-`Command[_]` is a generic class. We can apply `map` to construct commands returning any custom type that helps us implement business logic. In this way, we can avoid using types as `Unit`, `Path`, `Any` or `Either` that are not very informative. For example, we can modify the type parameter of `git` to the trait `Git`. 
-```scala
-sealed trait Git
-case class Add() extends Git
-case class Clone(directory: Path) extends Git
+The second overload joins its arguments with `Command#|`, so the user picks exactly one child. The value combines the parent's value and the child's value with the same `Reducable` rule as `Command.apply`. When the parent has no options or arguments (a `Command[Unit]`), the value is the child's value. Otherwise it is the tuple `(parentValue, childValue)`.
 
-val customCommand: Command[Git] =
-  git.map {
-    case () => Add()
-    case directory: Path => Clone(directory)
+A parent without options gives the child's value directly:
+
+```scala
+val git: Command[Any] =
+  Command("git")
+    .withHelp("A tiny version control tool.")
+    .subcommands(Command("add", Args.file("path")).withHelp("Stages a file."), documentedClone)
+```
+
+A parent with options gives a tuple, and the parent's options go before the subcommand name, as in `git --verbose add file.txt`:
+
+```scala
+val verboseGit: Command[(Boolean, Any)] =
+  Command("git", Options.boolean("verbose")).subcommands(addCmd, cloneCmd)
+```
+
+A child can have subcommands of its own, which gives nested commands such as `git remote add`. The parent's help lists every subcommand with its usage and description:
+
+```scala
+println(git.helpDoc.toPlaintext(color = false))
+// 
+// DESCRIPTION
+// 
+//   A tiny version control tool.
+// 
+// COMMANDS
+// 
+//   - add <path>                          Stages a file.
+//   - clone [(-q, --quiet)] <repository>  Copies a repository.
+//
+```
+
+Parsing a command with subcommands follows these rules:
+
+- When the input names no subcommand, the result is the parent's help, as if the user had typed `--help`.
+- When the first word after the parent is not a subcommand, the input is rejected with `Invalid subcommand for git. Use one of 'add', 'clone'`.
+- When the input continues after a complete subcommand, the extra words are ignored.
+
+`--help` after a subcommand other than the first shows the first subcommand's help; see [Built-in Commands](built-in-commands.md#help).
+
+## Inspecting a Command
+
+These members describe a command without running it. `CliApp` uses them to print help and to parse input, and tests use them to check a command:
+
+```scala
+trait Command[+A] {
+  def helpDoc: HelpDoc
+  def synopsis: UsageSynopsis
+  def names: Set[String]
+  def getSubcommands: Map[String, Command[_]]
+  def parse(args: List[String], conf: CliConfig): IO[ValidationError, CommandDirective[A]]
+}
+```
+
+`Command#helpDoc` holds the sections that `--help` prints below the usage line: `DESCRIPTION`, `ARGUMENTS`, `OPTIONS` and, for a parent, `COMMANDS`. `Command#synopsis` is the usage line, described in [The Usage Line](cli-app.md#the-usage-line). `Command#names` returns the name of the command (for a command built with `Command#|`, the names of both alternatives). `Command#getSubcommands` maps each subcommand name to its command.
+
+### Command#parse
+
+`Command#parse` parses a list of words. Unlike `CliApp#run`, the list must start with the command's own name. The result is a `CommandDirective`:
+
+```scala
+sealed trait CommandDirective[+A] {
+  def map[B](f: A => B): CommandDirective[B]
+  def mapBuiltIn(f: BuiltInOption => BuiltInOption): CommandDirective[A]
+}
+object CommandDirective {
+  final case class BuiltIn(option: BuiltInOption)                   extends CommandDirective[Nothing]
+  final case class UserDefined[A](leftover: List[String], value: A) extends CommandDirective[A]
+
+  def builtIn(option: BuiltInOption): CommandDirective[Nothing]
+  def userDefined[A](leftover: List[String], value: A): CommandDirective[A]
+}
+```
+
+`UserDefined` carries the parsed value and any words the parser does not use. `BuiltIn` means the input asks for a [built-in command](built-in-commands.md) such as `--help`. A failure is a [`ValidationError`](validation-and-errors.md). `CommandDirective#map` changes the value of a `UserDefined` and leaves a `BuiltIn` unchanged, `CommandDirective#mapBuiltIn` changes the option of a `BuiltIn` and leaves a `UserDefined` unchanged, and `CommandDirective.builtIn` and `CommandDirective.userDefined` build the two cases with the wider type `CommandDirective`.
+
+To run the parser outside a ZIO program, we use a small helper:
+
+```scala
+import zio._
+
+def parse[A](command: Command[A], args: String*): CommandDirective[A] =
+  Unsafe.unsafe { implicit unsafe =>
+    Runtime.default.unsafe.run(command.parse(args.toList, CliConfig.default)).getOrThrowFiberFailure()
   }
 ```
 
-This makes possible to implement the business logic of our CLI app using directly a custom type. This can be of great use if we have employed various (`orElseEither`). We are going to implement another subcommand of Git using `orElseEither`.
+With the helper, we can parse a `clone` command line and an `add` command line:
+
 ```scala
-// new Git subcommand
-val gitBranch = Command("branch", Args.text("branch-name"))
-
-// new Git subclass
-case class Branch(branchName: String) extends Git
-
-val eitherCommand: Command[Either[Either[Unit, Path], String]] = gitAdd orElseEither gitClone orElseEither gitBranch
-val customEitherCommand: Command[Git] =
-  eitherCommand.map {
-    case Left(Left(_)) => Add()
-    case Left(Right(directory)) => Clone(directory)
-    case Right(branchName) => Branch(branchName)
-  }
+parse(git, "git", "clone", "-q", "https://github.com/zio/zio-cli")
+// res3: CommandDirective[Any] = UserDefined(
+//   leftover = List(),
+//   value = (true, "https://github.com/zio/zio-cli")
+// )
+parse(verboseGit, "git", "--verbose", "add", "build.sbt")
+// res4: CommandDirective[(Boolean, Any)] = UserDefined(
+//   leftover = List(),
+//   value = (true, build.sbt)
+// )
 ```
-In this example, we have transformed a rather cumbersome `Command[Either[Either[Unit, Path], String]]` into a `Command[Git]`.
+
+See [Testing CLI Applications](testing.md) for assertions built on `Command#parse`.
+
+### The -- Separator
+
+A `--` word ends the options. Every word after it goes to the arguments, even a word that looks like an option:
+
+```scala
+val echo: Command[(Boolean, List[String])] = Command("echo", Options.boolean("n"), Args.text("word").*)
+```
+
+Parsing the words after the separator shows that `-n` stays an argument:
+
+```scala
+parse(echo, "echo", "--", "-n", "hello")
+// res5: CommandDirective[(Boolean, List[String])] = UserDefined(
+//   leftover = List(),
+//   value = (false, List("-n", "hello"))
+// )
+```
+
+## How Commands Are Represented
+
+`Command` is a sealed trait. Its cases are `Command.Single` (a name, a description, options and arguments), `Command.Map` (the result of `Command#map`), `Command.OrElse` (the result of `Command#|`) and `Command.Subcommands` (the result of `Command#subcommands`). They are public, but you build commands with `Command.apply` and the methods above instead of constructing the cases yourself.

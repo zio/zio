@@ -28,7 +28,7 @@ implicit val IntAssociative: Associative[Int] =
     def combine(left: => Int, right: => Int): Int =
       left + right
   }
-// IntAssociative: Associative[Int] = repl.MdocSession$MdocApp$$anon$1@59ce9e30
+// IntAssociative: Associative[Int] = repl.MdocSession$MdocApp$$anon$1@57653e69
 ```
 
 In contrast, the `AssociativeBoth` abstraction describes a way of associatively combining two parameterized types.
@@ -49,7 +49,7 @@ implicit val ListAssociativeBoth: AssociativeBoth[List] =
     def both[A, B](left: => List[A], right: => List[B]): List[(A, B)] =
       left.flatMap(a => right.map(b => (a, b)))
   }
-// ListAssociativeBoth: AssociativeBoth[List] = repl.MdocSession$MdocApp$$anon$2@147352df
+// ListAssociativeBoth: AssociativeBoth[List] = repl.MdocSession$MdocApp$$anon$2@4922381d
 ```
 
 Notice how the `AssociativeBoth` instance is parameterized on `List` rather than a list of any specific type. This is important because it says the `ListAssociativeBoth` instance knows how to combine any two lists in an associative way, not just two lists of some specific type.
@@ -112,7 +112,7 @@ The `ForEach` abstraction is one of the most practically useful functional abstr
 
 The `NonEmptyForEach` abstraction further builds on `ForEach` to describe a parameterized type that contains one or more existing `A` values. For example, a `NonEmptyChunk` is guaranteed to contain at least one `A` value.
 
-Because a data type with a `NonEmptyForEach` instance must always contain at least one existing `A` value we can define certain operators for it that would not be safe to define for a data type that might not contain any `A` values. For example, we can define a `reduce` operator that reduces the collection to a summary value with an associative operator whereas with a `ForEach` instance we can only define a `fold` operator that also requires an identity value to handle the empty case.
+Because a data type with a `NonEmptyForEach` instance must always contain at least one existing `A` value we can define certain operators for it that would not be safe to define for a data type that might not contain any `A` values. For example, we can define a `reduce1` operator that reduces the collection to a summary value with an associative operator whereas with a `ForEach` instance we can only define a `fold` operator that also requires an identity value to handle the empty case.
 
 ## Combining Parameterized Types
 

@@ -1,165 +1,156 @@
-# Mapping DTO to Domain Object
+# How to Map a DTO to a Domain Object
 
-> When we write layered applications, where different layers are decoupled from each other, we need to transfer data between layers. For example, assume we have a layer that has `Person` data type and it receives JSON string of type `PersonDTO` from another layer. We need to convert `PersonDTO` to `Person` and maybe vice versa.
+> Describe a domain type as a transformation of a DTO schema, then decode DTO-shaped JSON straight into the domain type.
 
-One way to do this is to write codec for `PersonDTO` and convert the JSON String to the `PersonDTO` and then convert `PersonDTO` to `Person`. This approach is not very convenient and we need to write some boilerplate code. With ZIO Schema we can simplify this process and write a codec for `Person` that uses a specialized schema for `Person`, i.e. `personDTOMapperSchema`, which describes `Person` data type in terms of transformation from `PersonDTO` to `Person` and vice versa. With this approach, we can directly convert the JSON string to `Person` in one step:
+In this guide, we read a `Person` from JSON that arrives in the shape of a `PersonDTO`, a data transfer object (DTO) with different fields. We describe `Person` as a transformation of the `PersonDTO` schema once, and then use that one schema to decode DTO-shaped JSON straight into `Person`, to encode a `Person` back into the DTO shape, and to convert `PersonDTO` values that are already in memory.
+
+## The Problem
+
+Layered applications keep the types they send over the network apart from the types their business logic uses. A service might receive people as JSON in the shape of `PersonDTO`, with the name split into two fields and the birthday as a tuple, while its domain type `Person` holds one name and a `LocalDate`. Converting between the two takes a pair of hand-written functions:
 
 ```scala
-import zio._
-import zio.json.JsonCodec
-import zio.schema.codec.JsonCodec._
-import zio.schema.{DeriveSchema, Schema}
-
 import java.time.LocalDate
 
-object MainApp extends ZIOAppDefault {
+final case class PersonDTO(firstName: String, lastName: String, birthday: (Int, Int, Int))
+final case class Person(name: String, birthdate: LocalDate)
 
-  case class PersonDTO(
-                        firstName: String,
-                        lastName: String,
-                        birthday: (Int, Int, Int)
-                      )
+def toPerson(dto: PersonDTO): Person = {
+  val (year, month, day) = dto.birthday
+  Person(s"${dto.firstName} ${dto.lastName}", LocalDate.of(year, month, day))
+}
 
-  object PersonDTO {
-    implicit val schema: Schema[PersonDTO] = DeriveSchema.gen[PersonDTO]
-
-    implicit val codec: JsonCodec[PersonDTO] = jsonCodec[PersonDTO](schema)
-  }
-
-  case class Person(name: String, birthdate: LocalDate)
-
-  object Person {
-    implicit val schema: Schema[Person] = DeriveSchema.gen[Person]
-
-    val personDTOMapperSchema: Schema[Person] =
-      PersonDTO.schema.transform(
-        f = dto => {
-          val (year, month, day) = dto.birthday
-          Person(
-            dto.firstName + " " + dto.lastName,
-            birthdate = LocalDate.of(year, month, day)
-          )
-        },
-        g = (person: Person) => {
-          val fullNameArray = person.name.split(" ")
-          PersonDTO(
-            fullNameArray.head,
-            fullNameArray.last,
-            (
-              person.birthdate.getYear,
-              person.birthdate.getMonthValue,
-              person.birthdate.getDayOfMonth
-            )
-          )
-        }
-      )
-    implicit val codec: JsonCodec[Person] = jsonCodec[Person](schema)
-
-    val personDTOJsonMapperCodec: JsonCodec[Person] =
-      jsonCodec[Person](personDTOMapperSchema)
-  }
-
-  val json: String =
-    """
-      |{
-      |   "firstName": "John",
-      |   "lastName": "Doe",
-      |   "birthday": [[1981, 07], 13]
-      |}
-      |""".stripMargin
-
-  def run: zio.ZIO[Any, String, Any] =
-    for {
-      // Approach 1: Decode JSON String to PersonDTO and then Transform it into the Person object
-      personDTO <- ZIO.fromEither(JsonCodec[PersonDTO].decodeJson(json))
-      (year, month, day) = personDTO.birthday
-      person1 = Person(
-        name = personDTO.firstName + " " + personDTO.lastName,
-        LocalDate.of(year, month, day)
-      )
-      _ <- ZIO.debug(
-        s"person: $person1"
-      )
-
-      // Approach 2: Decode JSON string in one step into the Person object
-      person2 <- ZIO.fromEither(
-        JsonCodec[Person](Person.personDTOJsonMapperCodec).decodeJson(json)
-      )
-      _ <- ZIO.debug(
-        s"person: $person2"
-          )
-    } yield assert(person1 == person2)
+def toDTO(person: Person): PersonDTO = {
+  val names = person.name.split(" ")
+  PersonDTO(
+    names.head,
+    names.last,
+    (person.birthdate.getYear, person.birthdate.getMonthValue, person.birthdate.getDayOfMonth)
+  )
 }
 ```
 
-As we can see in the example above, the second approach is much simpler and more convenient than the first one.
+Every place that reads a person then needs two steps: decode a `PersonDTO` with a codec for the DTO, and remember to call `toPerson`. A codec derived for `Person` itself cannot help, because it expects the fields `name` and `birthdate`, not the fields of the DTO.
 
-The problem we solved in previous example is common in microservices architecture, where we transfer DTOs across the network. So we need to serialize and deserialize the data transfer objects.
+With ZIO Schema, the conversion becomes part of a schema for `Person`. Any codec built from that schema reads and writes the DTO shape and hands us a `Person` directly.
 
-In the next example, we will see how we can use schema migration, when we need to map data transfer object to domain object and vice versa. In this example, we do not require to serialize/deserialize any object, but the problem of mapping DTO to domain object persists.
+## Prerequisites
 
-In this example, similar to the previous one, we will define the schema for `Person` in terms of schema transformation from `PersonDTO` to `Person` and vice versa. The only difference is that we will utilize the `Schema#migrate` method to map `PersonDTO` to `Person`. This method returns `Either[String, PersonDTO => Either[String, Person]]`. If the migration is successful, we will receive `Right` with a function that converts `PersonDTO` to `Either[String, Person]`. Otherwise, if there is an error, we will receive `Left` along with an error message:
+The examples use the JSON codec, which also brings in schema derivation:
 
 ```scala
-import zio._
-import zio.schema.{DeriveSchema, Schema}
+libraryDependencies ++= Seq(
+  "dev.zio" %% "zio-schema"      % "1.9.2",
+  "dev.zio" %% "zio-schema-json" % "1.9.2"
+)
+```
 
+On Scala 2, schema derivation also needs `scala-reflect` at compile time, as the [Installation](../index.md#installation) section shows.
+
+## Defining the DTO and the Domain Type
+
+Both types get a derived schema in their companion objects:
+
+```scala
 import java.time.LocalDate
 
-object MainApp extends ZIOAppDefault {
+import zio.schema.{DeriveSchema, Schema}
+import zio.schema.codec.JsonCodec
 
-  case class PersonDTO(
-                        firstName: String,
-                        lastName: String,
-                        birthday: (Int, Int, Int)
-                      )
+final case class PersonDTO(firstName: String, lastName: String, birthday: (Int, Int, Int))
 
-  object PersonDTO {
-    implicit val schema: Schema[PersonDTO] = DeriveSchema.gen[PersonDTO]
-  }
+object PersonDTO {
+  implicit val schema: Schema[PersonDTO] = DeriveSchema.gen[PersonDTO]
+}
 
-  case class Person(name: String, birthdate: LocalDate)
+final case class Person(name: String, birthdate: LocalDate)
 
-  object Person {
-    implicit val schema: Schema[Person] = DeriveSchema.gen[Person]
-
-    val personDTOMapperSchema: Schema[Person] =
-      PersonDTO.schema.transform(
-        f = dto => {
-          val (year, month, day) = dto.birthday
-          Person(
-            dto.firstName + " " + dto.lastName,
-            birthdate = LocalDate.of(year, month, day)
-          )
-        },
-        g = (person: Person) => {
-          val fullNameArray = person.name.split(" ")
-          PersonDTO(
-            fullNameArray.head,
-            fullNameArray.last,
-            (
-              person.birthdate.getYear,
-              person.birthdate.getMonthValue,
-              person.birthdate.getDayOfMonth
-            )
-          )
-        }
-      )
-
-    def fromPersonDTO(p: PersonDTO): IO[String, Person] =
-      ZIO.fromEither(
-        PersonDTO.schema
-          .migrate(personDTOMapperSchema)
-          .flatMap(_(p))
-      )
-  }
-
-  def run: zio.ZIO[Any, String, Any] =
-    for {
-      personDTO <- ZIO.succeed(PersonDTO("John", "Doe", (1981, 7, 13)))
-      person <- Person.fromPersonDTO(personDTO)
-      _ <- ZIO.debug(s"person: $person")
-    } yield ()
-
+object Person {
+  implicit val schema: Schema[Person] = DeriveSchema.gen[Person]
 }
 ```
+
+## Describing Person in Terms of PersonDTO
+
+`Schema#transform` turns a schema for one type into a schema for another, given a function in each direction. Applied to the schema of `PersonDTO`, it gives a schema for `Person` that has the structure of the DTO:
+
+```scala
+val personFromDTO: Schema[Person] =
+  PersonDTO.schema.transform(
+    dto => {
+      val (year, month, day) = dto.birthday
+      Person(s"${dto.firstName} ${dto.lastName}", LocalDate.of(year, month, day))
+    },
+    (person: Person) => {
+      val names = person.name.split(" ")
+      PersonDTO(
+        names.head,
+        names.last,
+        (person.birthdate.getYear, person.birthdate.getMonthValue, person.birthdate.getDayOfMonth)
+      )
+    }
+  )
+```
+
+We keep `personFromDTO` as a plain value rather than an implicit one, so the derived `Person.schema` stays the default schema for `Person`, and we pass `personFromDTO` explicitly wherever the DTO shape is needed. The reverse function splits the name at spaces, so a name without a space becomes both the first and the last name. [Transforming Schemas](../operations/transforming-schemas.md) covers `Schema#transform` and `Schema#transformOrFail`, which lets a conversion fail with an error message.
+
+## Decoding DTO-Shaped JSON into Person
+
+In the JSON shape of `PersonDTO`, the three-element tuple appears as nested arrays, `[[year, month], day]`:
+
+```scala
+val json: String =
+  """{"firstName":"John","lastName":"Doe","birthday":[[1981,7],13]}"""
+```
+
+A JSON codec built from `personFromDTO` decodes this JSON straight into a `Person`:
+
+```scala
+JsonCodec.jsonCodec(personFromDTO).decodeJson(json)
+// res1: Either[String, Person] = Right(
+//   value = Person(name = "John Doe", birthdate = 1981-07-13)
+// )
+```
+
+The codec derived from `Person.schema` expects the fields of `Person`, so it rejects the same input:
+
+```scala
+JsonCodec.jsonCodec(Person.schema).decodeJson(json)
+// res2: Either[String, Person] = Left(value = ".name(missing)")
+```
+
+## Encoding Person in the DTO Shape
+
+The same schema works in the other direction. Encoding a `Person` with it applies the reverse function and writes the fields of the DTO:
+
+```scala
+println(
+  JsonCodec.jsonCodec(personFromDTO).encodeJson(Person("Jane Roe", LocalDate.of(1990, 1, 2)), None)
+)
+// {"firstName":"Jane","lastName":"Roe","birthday":[[1990,1],2]}
+```
+
+## Converting DTO Values in Memory
+
+When a `PersonDTO` value is already in memory, for example because another layer of the application passes it in, no codec is involved. `Schema#migrate` builds a conversion function from one schema to another. It returns a `Left` with an error message when the structures of the two schemas cannot be reconciled, and otherwise a function that converts each value:
+
+```scala
+val dtoToPerson: Either[String, PersonDTO => Either[String, Person]] =
+  PersonDTO.schema.migrate(personFromDTO)
+```
+
+Both schemas describe the same record structure, so the migration step changes nothing, and `personFromDTO` performs the mapping when it reads the result:
+
+```scala
+dtoToPerson.flatMap(convert => convert(PersonDTO("John", "Doe", (1981, 7, 13))))
+// res4: Either[String, Person] = Right(
+//   value = Person(name = "John Doe", birthdate = 1981-07-13)
+// )
+```
+
+[Schema Migration](../operations/schema-migration.md) explains how migrations handle schemas whose structures differ, such as an older version of a DTO.
+
+## Going Further
+
+- [Transforming Schemas](../operations/transforming-schemas.md) describes `Schema#transform`, `Schema#transformOrFail`, and related operations.
+- [JSON Codecs](../derivations/codecs/json.md) covers the JSON codec and its configuration.
+- [Combining Different Encoders](combining-different-encoders.md) uses the same schema with several codecs.
