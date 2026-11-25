@@ -29,12 +29,26 @@ import java.util.concurrent.locks.ReentrantLock
 import scala.runtime.BoxedUnit
 
 private[zio] trait ZIOPlatformSpecific[-R, +E, +A] { self: ZIO[R, E, A] =>
+
+  /**
+   * Starts this effect on a forked fiber and succeeds at once with a
+   * `CompletableFuture` that completes with the effect's value, or completes
+   * exceptionally with `squashTrace` of its cause. The forked fiber is a child
+   * of the calling fiber, so it is interrupted when the calling fiber ends, and
+   * the future then completes exceptionally with an `InterruptedException`.
+   * Cancelling the future does not interrupt the effect. Available on the JVM
+   * and Scala Native.
+   */
   def toCompletableFuture[A1 >: A](implicit
     ev: E IsSubtypeOfError Throwable,
     trace: Trace
   ): URIO[R, CompletableFuture[A1]] =
     toCompletableFutureWith(ev)
 
+  /**
+   * Like `toCompletableFuture`, but converts a typed failure to a `Throwable`
+   * with `f`.
+   */
   def toCompletableFutureWith[A1 >: A](f: E => Throwable)(implicit
     trace: Trace
   ): URIO[R, CompletableFuture[A1]] =
@@ -62,6 +76,9 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
    * Note that this adds significant overhead. For performance sensitive
    * applications consider using `attemptBlocking` or
    * `attemptBlockingCancelable`.
+   *
+   * On Scala.js it is the same as `attemptBlocking`, and no thread is
+   * interrupted.
    */
   def attemptBlockingInterrupt[A](effect: => A)(implicit trace: Trace): Task[A] =
     ZIO.uninterruptibleMask { restore =>
@@ -118,9 +135,25 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
       } yield a
     }
 
+  /**
+   * Reads the whole file at the given path into a `String`, on the blocking
+   * executor. On the JVM and Scala Native it decodes the bytes with the
+   * platform's default charset and fails with an `IOException` when the file
+   * cannot be read. On Scala.js it needs Node.js: it reads the file with
+   * `fs.readFileSync`, decodes it as UTF-8, and fails with the error that
+   * Node.js throws.
+   */
   def readFile(path: => Path)(implicit trace: Trace, d: DummyImplicit): ZIO[Any, IOException, String] =
     readFile(path.toString)
 
+  /**
+   * Reads the whole file at the given path into a `String`, on the blocking
+   * executor. On the JVM and Scala Native it decodes the bytes with the
+   * platform's default charset and fails with an `IOException` when the file
+   * cannot be read. On Scala.js it needs Node.js: it reads the file with
+   * `fs.readFileSync`, decodes it as UTF-8, and fails with the error that
+   * Node.js throws.
+   */
   def readFile(name: => String)(implicit trace: Trace): ZIO[Any, IOException, String] =
     ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(scala.io.Source.fromFile(name)))(s =>
       ZIO.attemptBlocking(s.close()).orDie
@@ -128,11 +161,22 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
       ZIO.attemptBlockingIO(s.mkString)
     }
 
+  /**
+   * Opens the file at `path` for reading and returns it as a `ZInputStream`.
+   * The file is closed when the `Scope` closes. Fails with an `IOException`,
+   * such as `java.io.FileNotFoundException`, when the file cannot be opened.
+   */
   def readFileInputStream(
     path: => Path
   )(implicit trace: Trace, d: DummyImplicit): ZIO[Scope, IOException, ZInputStream] =
     readFileInputStream(path.toString)
 
+  /**
+   * Opens the file named `name` for reading and returns it as a
+   * `ZInputStream`. The file is closed when the `Scope` closes. Fails with an
+   * `IOException`, such as `java.io.FileNotFoundException`, when the file
+   * cannot be opened.
+   */
   def readFileInputStream(
     name: => String
   )(implicit trace: Trace): ZIO[Scope, IOException, ZInputStream] =
@@ -145,6 +189,11 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
       )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
+  /**
+   * Opens a connection to `url` and returns its content as a `ZInputStream`,
+   * which is closed when the `Scope` closes. Fails with an `IOException` when
+   * the connection cannot be opened.
+   */
   def readURLInputStream(
     url: => URL
   )(implicit trace: Trace, d: DummyImplicit): ZIO[Scope, IOException, ZInputStream] =
@@ -157,11 +206,24 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
       )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
+  /**
+   * Opens a connection to the URL written in `url` and returns its content as
+   * a `ZInputStream`, which is closed when the `Scope` closes. Fails with an
+   * `IOException` when the connection cannot be opened. A malformed URL string
+   * makes the effect die with a `java.net.MalformedURLException` instead of
+   * failing.
+   */
   def readURLInputStream(
     url: => String
   )(implicit trace: Trace): ZIO[Scope, IOException, ZInputStream] =
     ZIO.succeed(new URL(url)).flatMap(readURLInputStream(_))
 
+  /**
+   * Opens `uri` for reading and returns its content as a `ZInputStream`, which
+   * is closed when the `Scope` closes. An absolute URI is opened as a URL, and
+   * fails with a `java.net.MalformedURLException` when no URL handler exists
+   * for its scheme (such as `urn:`); a relative URI is opened as a file path.
+   */
   def readURIInputStream(uri: => URI)(implicit trace: Trace): ZIO[Scope, IOException, ZInputStream] =
     for {
       uri        <- ZIO.succeed(uri)
@@ -169,6 +231,14 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
       is         <- if (isAbsolute) readURLInputStream(uri.toURL) else readFileInputStream(uri.toString)
     } yield is
 
+  /**
+   * Writes `content` to the file at the given path, on the blocking executor,
+   * replacing what the file held and creating it when it does not exist. On
+   * the JVM and Scala Native it encodes the text with the platform's default
+   * charset and fails with an `IOException` when the file cannot be written.
+   * On Scala.js it needs Node.js: it writes the file with `fs.writeFileSync`
+   * as UTF-8, and fails with the error that Node.js throws.
+   */
   def writeFile(path: => String, content: => String)(implicit trace: Trace): ZIO[Any, IOException, Unit] =
     ZIO.acquireReleaseWith(ZIO.attemptBlockingIO(new java.io.FileWriter(path)))(f =>
       ZIO.attemptBlocking(f.close()).orDie
@@ -176,12 +246,25 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
       ZIO.attemptBlockingIO(f.write(content))
     }
 
+  /**
+   * Writes `content` to the file at the given path, on the blocking executor,
+   * replacing what the file held and creating it when it does not exist. On
+   * the JVM and Scala Native it encodes the text with the platform's default
+   * charset and fails with an `IOException` when the file cannot be written.
+   * On Scala.js it needs Node.js: it writes the file with `fs.writeFileSync`
+   * as UTF-8, and fails with the error that Node.js throws.
+   */
   def writeFile(path: => Path, content: => String)(implicit
     trace: Trace,
     d: DummyImplicit
   ): ZIO[Any, IOException, Unit] =
     writeFile(path.toString, content)
 
+  /**
+   * Opens the file at `path` for writing, creating it or emptying it first, and
+   * returns it as a `ZOutputStream`. The file is closed when the `Scope`
+   * closes. Fails with an `IOException` when the file cannot be opened.
+   */
   def writeFileOutputStream(
     path: => String
   )(implicit trace: Trace): ZIO[Scope, IOException, ZOutputStream] =
@@ -194,6 +277,11 @@ private[zio] trait ZIOCompanionPlatformSpecific extends ZIOPlatformSpecificJVM {
       )(tuple => ZIO.attemptBlocking(tuple._1.close()).orDie)
       .map(_._2)
 
+  /**
+   * Opens the file at `path` for writing, creating it or emptying it first, and
+   * returns it as a `ZOutputStream`. The file is closed when the `Scope`
+   * closes. Fails with an `IOException` when the file cannot be opened.
+   */
   def writeFileOutputStream(
     path: => Path
   )(implicit trace: Trace, d: DummyImplicit): ZIO[Scope, IOException, ZOutputStream] =
