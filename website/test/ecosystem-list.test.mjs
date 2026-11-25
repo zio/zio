@@ -21,8 +21,16 @@ test('no API link for a library outside zioApiDocs, an external site, or a commu
 test('a line with an API link puts it between the docs link and the description', () => {
   assert.equal(
     libraryLine({ label: 'ZIO JSON', href: '/zio-json/', description: 'A fast JSON library.', api: '/zio-json/api/' }),
-    '- [ZIO JSON](/zio-json/) · [API](pathname:///zio-json/api/) — A fast JSON library.'
+    '- [ZIO JSON](/zio-json/) · <a href="/zio-json/api/">API</a> — A fast JSON library.'
   );
+});
+
+// A markdown link with pathname:// goes through Docusaurus' Link, which opens it in a new tab; an explicit <a> in MDX
+// is left as it is (MDX does not map it to a component), so it opens in the same tab, as the docs link next to it does.
+test('the API link is a plain <a>, not a pathname:// markdown link that would open a new tab', () => {
+  const line = libraryLine({ label: 'ZIO JSON', href: '/zio-json/', api: '/zio-json/api/' });
+  assert.doesNotMatch(line, /pathname:/);
+  assert.doesNotMatch(line, /target=/);
 });
 
 test('a line without an API link or a description is unchanged from before', () => {
