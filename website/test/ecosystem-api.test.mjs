@@ -184,6 +184,7 @@ const PAGE =
   '<span class="project-name h300">ZIO JSON</span></span><button id="mobile-menu-close" class="icon-button close"></button></div>' +
   '<span id="mobile-theme-toggle" class="mobile-menu-item mode"></span></div>' +
   '<div id="footer" class="body-small"><div class="left-container">Generated with</div><div class="text-mobile"></div></div>' +
+  '<span id="mobile-sidebar-toggle" class="floating-button"></span><div id="leftColumn" class="body-small"></div>' +
   '<div id="main"><div class="breadcrumbs container"><a href="../../index.html">ZIO JSON</a>/<a href="../../zio.html">zio</a>/' +
   '<a href="../json.html">zio.json</a>/<a href="JsonCodec.html">JsonCodec</a></div><div id="content" class="body-medium"><div>' +
   '<a href="https://zio.dev/api/zio/Cause$$Fail.html#m">Fail</a><a href="https://zio.dev/zio-schema/api/zio/schema/Schema.html">Schema</a>' +
