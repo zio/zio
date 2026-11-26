@@ -67,7 +67,9 @@ import scala.annotation.implicitNotFound
 trait IsReloadable[Service] {
 
   /**
-   * Returns a `Service` whose methods and vals that return a `ZIO` look up the service that `scopedRef` holds each time their effect runs, and call it. Other concrete members keep the implementation that `Service` defines.
+   * Returns a `Service` whose methods and vals that return a `ZIO` look up the
+   * service that `scopedRef` holds each time their effect runs, and call it.
+   * Other concrete members keep the implementation that `Service` defines.
    */
   def reloadable(scopedRef: ScopedRef[Service]): Service
 }

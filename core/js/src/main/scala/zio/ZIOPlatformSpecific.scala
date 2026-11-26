@@ -85,7 +85,9 @@ private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
    * JVM and Scala Native it encodes the text with the platform's default
    * charset and fails with an `IOException` when the file cannot be written. On
    * Scala.js it needs Node.js: it writes the file with `fs.writeFileSync` as
-   * UTF-8, and fails with a `js.JavaScriptException` that wraps the error Node.js throws. It loads the `fs` module with `require` when the method is called, before the effect runs.
+   * UTF-8, and fails with a `js.JavaScriptException` that wraps the error
+   * Node.js throws. It loads the `fs` module with `require` when the method is
+   * called, before the effect runs.
    */
   def writeFile(file: => String, content: => String)(implicit trace: Trace): ZIO[Any, Throwable, Unit] = {
     import scalajs.js.Dynamic.{global => g}
@@ -98,7 +100,10 @@ private[zio] trait ZIOCompanionPlatformSpecific { self: ZIO.type =>
    * executor. On the JVM and Scala Native it decodes the bytes with the
    * platform's default charset and fails with an `IOException` when the file
    * cannot be read. On Scala.js it needs Node.js: it reads the file with
-   * `fs.readFileSync`, decodes it as UTF-8, and fails with a `js.JavaScriptException` that wraps the error Node.js throws. It loads the `fs` module with `require` when the method is called, before the effect runs.
+   * `fs.readFileSync`, decodes it as UTF-8, and fails with a
+   * `js.JavaScriptException` that wraps the error Node.js throws. It loads the
+   * `fs` module with `require` when the method is called, before the effect
+   * runs.
    */
   def readFile(file: => String)(implicit trace: Trace): ZIO[Any, Throwable, String] = {
     import scalajs.js.Dynamic.{global => g}
