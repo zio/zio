@@ -1315,7 +1315,8 @@ object Fiber extends FiberPlatformSpecific {
     collectAll(fs).join.unit
 
   /**
-   * A fiber that never fails or succeeds.
+   * A fiber that never fails or succeeds. Interrupting it has no effect, so
+   * `await`, `join` and `interrupt` on it never complete.
    */
   val never: Fiber.Synthetic[Nothing, Nothing] =
     new Fiber.Synthetic[Nothing, Nothing] {
