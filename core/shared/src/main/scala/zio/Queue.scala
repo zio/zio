@@ -23,24 +23,57 @@ import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
 
 /**
- * A `Queue` is a lightweight, asynchronous queue into which values can be
- * enqueued and of which elements can be dequeued.
+ * A `Queue` is an asynchronous queue into which values can be enqueued and of
+ * which elements can be dequeued. Fibers `offer` values and `take` them in the
+ * order in which they were offered. `take` on an empty queue suspends the
+ * fiber until a value arrives.
+ *
+ * What `offer` does on a full queue depends on how the queue was made:
+ *   - `Queue.bounded` suspends the offering fiber until there is room (back
+ *     pressure).
+ *   - `Queue.dropping` drops the new value, and `offer` returns `false`.
+ *   - `Queue.sliding` drops the oldest value to make room for the new one.
+ *   - `Queue.unbounded` has a capacity of `Int.MaxValue`.
+ *
+ * `shutdown` interrupts the fibers suspended in `offer` and `take`. After it,
+ * the other operations, except `isShutdown`, `awaitShutdown` and `shutdown`,
+ * are interrupted.
+ *
+ * {{{
+ * val program: UIO[(Int, Chunk[Int])] =
+ *   for {
+ *     queue <- Queue.bounded[Int](2)
+ *     _     <- queue.offerAll(List(1, 2, 3)).fork // waits for room for 3
+ *     first <- queue.take
+ *     rest  <- queue.takeN(2)
+ *   } yield (first, rest)
+ * // (1,Chunk(2,3))
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/concurrency/queue/ Queue]]
  */
 sealed abstract class Queue[A] extends Dequeue.Internal[A] with Enqueue.Internal[A] {
 
   /**
-   * Checks whether the queue is currently empty.
+   * Checks whether the queue is currently empty. It is `true` while fibers
+   * are suspended in `take`, when `size` is negative.
    */
   override final def isEmpty(implicit trace: Trace): UIO[Boolean] =
     size.map(_ <= 0)
 
   /**
-   * Checks whether the queue is currently full.
+   * Checks whether the queue is currently full. It is `true` while fibers are
+   * suspended in `offer`, when `size` is greater than `capacity`.
    */
   override final def isFull(implicit trace: Trace): UIO[Boolean] =
     size.map(_ >= capacity)
 }
 
+/**
+ * Constructors for [[Queue]]: `bounded`, `dropping`, `sliding` and
+ * `unbounded`, each also available in `Queue.unsafe`.
+ */
 object Queue extends QueuePlatformSpecific {
   private val interruptAsNone = ZIO.interruptAs(FiberId.None)(Trace.empty)
 
@@ -50,6 +83,9 @@ object Queue extends QueuePlatformSpecific {
    * Makes a new bounded queue. When the capacity of the queue is reached, any
    * additional calls to `offer` will be suspended until there is more room in
    * the queue.
+   *
+   * The capacity is the requested one: it is not rounded. The returned effect
+   * dies when `requestedCapacity` is less than 1.
    *
    * @note
    *   when possible use only power of 2 capacities; this will provide better
@@ -68,7 +104,11 @@ object Queue extends QueuePlatformSpecific {
 
   /**
    * Makes a new bounded queue with the dropping strategy. When the capacity of
-   * the queue is reached, new elements will be dropped.
+   * the queue is reached, new elements will be dropped: `offer` returns
+   * `false` and `offerAll` returns the values it did not place.
+   *
+   * The capacity is the requested one: it is not rounded. The returned effect
+   * dies when `requestedCapacity` is less than 1.
    *
    * @note
    *   when possible use only power of 2 capacities; this will provide better
@@ -87,8 +127,12 @@ object Queue extends QueuePlatformSpecific {
 
   /**
    * Makes a new bounded queue with sliding strategy. When the capacity of the
-   * queue is reached, new elements will be added and the old elements will be
-   * dropped.
+   * queue is reached, new elements will be added and the oldest elements will
+   * be dropped. `offer` returns `true`. When `offerAll` gets more values than
+   * the capacity, the queue keeps the last ones.
+   *
+   * The capacity is the requested one: it is not rounded. The returned effect
+   * dies when `requestedCapacity` is less than 1.
    *
    * @note
    *   when possible use only power of 2 capacities; this will provide better
@@ -106,7 +150,7 @@ object Queue extends QueuePlatformSpecific {
     ZIO.fiberId.map(unsafe.sliding(requestedCapacity, _)(Unsafe.unsafe))
 
   /**
-   * Makes a new unbounded queue.
+   * Makes a new unbounded queue. Its `capacity` is `Int.MaxValue`.
    *
    * @tparam A
    *   type of the `Queue`
@@ -116,17 +160,37 @@ object Queue extends QueuePlatformSpecific {
   def unbounded[A](implicit trace: Trace): UIO[Queue[A]] =
     ZIO.fiberId.map(unsafe.unbounded(_)(Unsafe.unsafe))
 
+  /**
+   * Constructors that create a `Queue` outside of a ZIO effect. They need an
+   * implicit `Unsafe` value. `fiberId` is recorded as the fiber that
+   * `awaitShutdown` waits on.
+   */
   object unsafe {
 
+    /**
+     * Makes a new bounded queue with back pressure, outside of a ZIO effect.
+     * Throws when `requestedCapacity` is less than 1.
+     */
     def bounded[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
       createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.BackPressure(), fiberId)
 
+    /**
+     * Makes a new bounded queue with the dropping strategy, outside of a ZIO
+     * effect. Throws when `requestedCapacity` is less than 1.
+     */
     def dropping[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
       createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.Dropping(), fiberId)
 
+    /**
+     * Makes a new bounded queue with the sliding strategy, outside of a ZIO
+     * effect. Throws when `requestedCapacity` is less than 1.
+     */
     def sliding[A](requestedCapacity: Int, fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
       createQueue(MutableConcurrentQueue.bounded[A](requestedCapacity), Strategy.Sliding(), fiberId)
 
+    /**
+     * Makes a new unbounded queue outside of a ZIO effect.
+     */
     def unbounded[A](fiberId: FiberId)(implicit unsafe: Unsafe): Queue[A] =
       createQueue(MutableConcurrentQueue.unbounded[A], Strategy.Dropping(), fiberId)
 
@@ -536,13 +600,13 @@ object Queue extends QueuePlatformSpecific {
     p.unsafe.completeWith(Exit.succeed(a))(Unsafe)
 
   /**
-   * Offer items to the queue
+   * Offers items to the queue, returning the ones that did not fit.
    */
   private def unsafeOfferAll[A, B <: A](q: MutableConcurrentQueue[A], as: Iterable[B]): Chunk[B] =
     q.offerAll(as)
 
   /**
-   * Poll all items from the queue
+   * Polls all items from the queue.
    */
   private def unsafePollAll[A](q: MutableConcurrentQueue[A]): Chunk[A] =
     q.pollUpTo(Int.MaxValue)
@@ -559,7 +623,7 @@ object Queue extends QueuePlatformSpecific {
   }
 
   /**
-   * Poll n items from the queue
+   * Polls up to `max` items from the queue.
    */
   private def unsafePollN[A](q: MutableConcurrentQueue[A], max: Int): Chunk[A] =
     q.pollUpTo(max)

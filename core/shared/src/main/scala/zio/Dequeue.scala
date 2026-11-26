@@ -17,7 +17,8 @@
 package zio
 
 /**
- * A queue that can only be dequeued.
+ * A queue that can only be dequeued: the taking side of a [[Queue]], and the
+ * subscription that `Hub#subscribe` returns.
  */
 sealed trait Dequeue[+A] extends Serializable {
 
@@ -29,7 +30,9 @@ sealed trait Dequeue[+A] extends Serializable {
   def awaitShutdown(implicit trace: Trace): UIO[Unit]
 
   /**
-   * How many elements can hold in the queue
+   * The number of elements the queue can hold: the requested capacity for a
+   * bounded, dropping or sliding queue or hub, and `Int.MaxValue` for an
+   * unbounded one.
    */
   def capacity: Int
 
@@ -39,32 +42,44 @@ sealed trait Dequeue[+A] extends Serializable {
   def isShutdown(implicit trace: Trace): UIO[Boolean]
 
   /**
-   * Interrupts any fibers that are suspended on `offer` or `take`. Future calls
-   * to `offer*` and `take*` will be interrupted immediately.
+   * Shuts down the queue. On a `Queue`, it interrupts the fibers suspended in
+   * `offer` or `take`. On a `Hub`, it shuts down every subscription, which
+   * interrupts the fibers suspended in `take`, and frees the space that the
+   * subscriptions held, so publishers suspended by back pressure resume with
+   * `true`. On a hub subscription, it interrupts the fibers suspended in
+   * `take` on that subscription.
+   *
+   * After it, calls to `offer*`, `take*`, `poll` and `size` are interrupted
+   * immediately, while `isShutdown`, `awaitShutdown` and `shutdown` succeed.
    */
   def shutdown(implicit trace: Trace): UIO[Unit]
 
   /**
-   * Retrieves the size of the queue. This may be negative if fibers are
-   * suspended waiting for elements to be added to the queue or greater than the
-   * capacity if fibers are suspended waiting to add elements to the queue.
+   * Retrieves the size of the queue. For a `Queue`, this may be negative if
+   * fibers are suspended waiting for elements to be added to the queue or
+   * greater than the capacity if fibers are suspended waiting to add elements
+   * to the queue. For a `Hub`, it is the number of messages that the hub
+   * holds, and for a hub subscription the number of messages waiting to be
+   * taken. Interrupted when the queue is shut down.
    */
   def size(implicit trace: Trace): UIO[Int]
 
   /**
    * Removes the oldest value in the queue. If the queue is empty, this will
    * return a computation that resumes when an item has been added to the queue.
+   * The wait can be interrupted. Interrupted when the queue is shut down.
    */
   def take(implicit trace: Trace): UIO[A]
 
   /**
    * Removes all the values in the queue and returns the values. If the queue is
-   * empty returns an empty collection.
+   * empty returns an empty collection. It does not wait.
    */
   def takeAll(implicit trace: Trace): UIO[Chunk[A]]
 
   /**
-   * Takes up to max number of values in the queue.
+   * Takes up to `max` values from the queue, oldest first. It does not wait:
+   * it returns an empty `Chunk` when the queue is empty or `max` is 0 or less.
    */
   def takeUpTo(max: Int)(implicit trace: Trace): UIO[Chunk[A]]
 
@@ -84,6 +99,7 @@ sealed trait Dequeue[+A] extends Serializable {
    * Takes a number of elements from the queue between the specified minimum and
    * maximum. If there are fewer than the minimum number of elements available,
    * suspends until at least the minimum number of elements have been collected.
+   * Returns an empty `Chunk` right away when `max` is less than `min`.
    */
   final def takeBetween(min: Int, max: Int)(implicit trace: Trace): UIO[Chunk[A]] = {
     def takeRemainder(min: Int, max: Int, acc: Chunk[A]): UIO[Chunk[A]] =
@@ -109,7 +125,8 @@ sealed trait Dequeue[+A] extends Serializable {
     takeBetween(n, n)
 
   /**
-   * Take the head option of values in the queue.
+   * Takes the oldest value in the queue, in a `Some`, or returns `None` when
+   * the queue is empty. It does not wait.
    */
   def poll(implicit trace: Trace): UIO[Option[A]] =
     takeUpTo(1).map(_.headOption)
