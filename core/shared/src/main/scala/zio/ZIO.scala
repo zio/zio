@@ -966,9 +966,9 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Like fork, and runs `handler` in the forked fiber when it fails with an
    * error `E`. The handler does not recover: the fiber still completes with the
-   * original failure. When the cause holds no typed failure (for example only a
-   * defect), `handler` does not run and the fiber completes with that cause
-   * repeated twice in sequence (`cause ++ cause`).
+   * original failure. When the cause holds only defects (no typed failure and
+   * no interruption), `handler` does not run and the fiber completes with that
+   * cause repeated twice in sequence (`cause ++ cause`).
    */
   final def forkWithErrorHandler[R1 <: R](handler: E => URIO[R1, Any])(implicit
     trace: Trace
@@ -1289,7 +1289,8 @@ sealed trait ZIO[-R, +E, +A]
    * `onExecutor` with an executor built from `ec`. Shifting back follows
    * `onExecutor`: at its next yield the fiber continues on the executor of the
    * enclosing region (the runtime's default executor when there is none), or
-   * right away with `RuntimeFlag.EagerShiftBack` enabled.
+   * right away with `RuntimeFlag.EagerShiftBack` enabled or inside an enclosing
+   * `onExecutor`.
    */
   final def onExecutionContext(ec: => ExecutionContext)(implicit trace: Trace): ZIO[R, E, A] =
     self.onExecutor(Executor.fromExecutionContext(ec))
