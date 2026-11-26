@@ -4,13 +4,13 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.annotation.implicitNotFound
 
-@implicitNotFound("\nThis operator requires that the output type be a subtype of ${B}\nBut the actual type was ${A}.")
 /**
  * Evidence that the success type `A` of an effect is a subtype of `B`, which
  * also converts an `A` to a `B`. Operators that need a particular success type,
  * such as `ZIO#absolve` (an `Either`) or `ZIO#head` (a `Seq`), ask for it, and
  * the compiler names both types when it is missing.
  */
+@implicitNotFound("\nThis operator requires that the output type be a subtype of ${B}\nBut the actual type was ${A}.")
 sealed abstract class IsSubtypeOfOutput[-A, +B] extends (A => B) with Serializable
 
 /** Provides [[IsSubtypeOfOutput]] instances. */
@@ -26,13 +26,13 @@ object IsSubtypeOfOutput {
     instance.asInstanceOf[IsSubtypeOfOutput[Nothing, B]]
 }
 
-@implicitNotFound("\nThis operator requires that the error type be a subtype of ${B}\nBut the actual type was ${A}.")
 /**
  * Evidence that the error type `A` of an effect is a subtype of `B`, which also
  * converts an `A` to a `B`. Operators that need a particular error type, such
  * as `ZIO#orDie` or `Cause#squash` (a `Throwable`), ask for it, and the
  * compiler names both types when it is missing.
  */
+@implicitNotFound("\nThis operator requires that the error type be a subtype of ${B}\nBut the actual type was ${A}.")
 sealed abstract class IsSubtypeOfError[-A, +B] extends (A => B) with Serializable
 
 /** Provides [[IsSubtypeOfError]] instances. */

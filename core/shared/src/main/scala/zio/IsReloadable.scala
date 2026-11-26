@@ -27,6 +27,9 @@ import scala.annotation.implicitNotFound
  * [[zio.ScopedRef]]. The reloadable servservice allows the service to change
  * its behavior at runtime.
  *
+ * On Scala 3, the derived instance (`IsReloadable.derived`) is marked
+ * `@experimental`.
+ *
  * @note
  *   In order to successfully generate a reloadable service, the type `Service`
  *   must meet the following requirements:
@@ -34,9 +37,6 @@ import scala.annotation.implicitNotFound
  *     without any term parameters.
  *   - `Service` should contain only ZIO methods or vals.
  *   - `Service` should not have any abstract type members.
- *
- * On Scala 3, the derived instance (`IsReloadable.derived`) is marked
- * `@experimental`.
  *
  * @example
  *   {{{
@@ -54,7 +54,7 @@ import scala.annotation.implicitNotFound
  *       _         <- ref.set(ZIO.succeed(service2))
  *       res2      <- reloadable.foo
  *     } yield (res1, res2)
- *   // ("zio1", "zio2")
+ *   // (zio1,zio2)
  *   }}}
  */
 @implicitNotFound(
@@ -67,8 +67,7 @@ import scala.annotation.implicitNotFound
 trait IsReloadable[Service] {
 
   /**
-   * Returns a `Service` that forwards each call to the service that `scopedRef`
-   * holds at the time of the call.
+   * Returns a `Service` whose methods and vals that return a `ZIO` look up the service that `scopedRef` holds each time their effect runs, and call it. Other concrete members keep the implementation that `Service` defines.
    */
   def reloadable(scopedRef: ScopedRef[Service]): Service
 }
