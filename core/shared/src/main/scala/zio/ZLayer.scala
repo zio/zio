@@ -953,7 +953,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * object Spider { val live: URLayer[Fly, Spider] = ZLayer.fromFunction((fly: Fly) => new Spider(fly)) }
      * object Bear { val live: URLayer[Fly, Bear] = ZLayer.fromFunction((fly: Fly) => new Bear(fly)) }
      * object OldLady {
-     *   val live: URLayer[Spider with Bear, OldLady] =
+     *   val live: URLayer[Spider & Bear, OldLady] =
      *     ZLayer.fromFunction((spider: Spider, bear: Bear) => new OldLady(spider, bear))
      * }
      *
@@ -995,7 +995,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
      * object Spider { val live: URLayer[Fly, Spider] = ZLayer.fromFunction((fly: Fly) => new Spider(fly)) }
      * object Bear { val live: URLayer[Fly, Bear] = ZLayer.fromFunction((fly: Fly) => new Bear(fly)) }
      * object OldLady {
-     *   val live: URLayer[Spider with Bear, OldLady] =
+     *   val live: URLayer[Spider & Bear, OldLady] =
      *     ZLayer.fromFunction((spider: Spider, bear: Bear) => new OldLady(spider, bear))
      * }
      *
@@ -1100,7 +1100,7 @@ object ZLayer extends ZLayerCompanionVersionSpecific {
    * final case class SmtpConfig(host: String, port: Int)
    * final case class Mailer(config: SmtpConfig, sender: String)
    *
-   * val mailerLayer: ZLayer[SmtpConfig with String, Nothing, Mailer] =
+   * val mailerLayer: ZLayer[SmtpConfig & String, Nothing, Mailer] =
    *   ZLayer.fromFunction((config: SmtpConfig, sender: String) => Mailer(config, sender))
    * }}}
    */

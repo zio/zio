@@ -123,7 +123,7 @@ final class ZEnvironment[+R] private (
    * final case class Dog(name: String) extends Animal
    * final case class Cat(name: String) extends Animal
    *
-   * val pets: ZEnvironment[Dog with Cat] =
+   * val pets: ZEnvironment[Dog & Cat] =
    *   ZEnvironment.empty.add[Dog](Dog("Rex")).add[Cat](Cat("Tom"))
    *
    * val animal: Animal = pets.get[Animal]
@@ -317,7 +317,7 @@ final class ZEnvironment[+R] private (
    * a service of the same type, the one in `that` wins.
    *
    * {{{
-   * val defaults: ZEnvironment[Int with String] = ZEnvironment[Int, String](8080, "localhost")
+   * val defaults: ZEnvironment[Int & String] = ZEnvironment[Int, String](8080, "localhost")
    * val overrides: ZEnvironment[Int]            = ZEnvironment(9090)
    *
    * val port: Int = defaults.union[Int](overrides).get[Int]
@@ -620,7 +620,7 @@ object ZEnvironment {
      * ZEnvironment[Long](8080L))` is empty, so applying it adds no `Long`.
      *
      * {{{
-     * val before: ZEnvironment[Int with String] = ZEnvironment[Int, String](8080, "localhost")
+     * val before: ZEnvironment[Int & String] = ZEnvironment[Int, String](8080, "localhost")
      * val after: ZEnvironment[Int]              = ZEnvironment(9090)
      *
      * val patched = ZEnvironment.Patch.diff(before, after)(before)

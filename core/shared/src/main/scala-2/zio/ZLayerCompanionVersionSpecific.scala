@@ -40,7 +40,7 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    *
    * val engineLayer: ULayer[Engine] = ZLayer.succeed(Engine(150))
    * val wheelsLayer: ULayer[Wheels] = ZLayer.succeed(Wheels(4))
-   * val carLayer: URLayer[Engine with Wheels, Car] =
+   * val carLayer: URLayer[Engine & Wheels, Car] =
    *   ZLayer.fromFunction((engine: Engine, wheels: Wheels) => Car(engine, wheels))
    *
    * val layer: ULayer[Car] = ZLayer.make[Car](carLayer, wheelsLayer, engineLayer)
@@ -68,7 +68,7 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * final case class Car(engine: Engine, wheels: Wheels)
    *
    * val wheelsLayer: ULayer[Wheels] = ZLayer.succeed(Wheels(4))
-   * val carLayer: URLayer[Engine with Wheels, Car] =
+   * val carLayer: URLayer[Engine & Wheels, Car] =
    *   ZLayer.fromFunction((engine: Engine, wheels: Wheels) => Car(engine, wheels))
    *
    * val layer: URLayer[Engine, Car] = ZLayer.makeSome[Engine, Car](carLayer, wheelsLayer)
@@ -94,7 +94,7 @@ private[zio] trait ZLayerCompanionVersionSpecific {
    * final case class Wheels(count: Int)
    * class Car(wheels: Wheels, engine: Engine)
    *
-   * val carLayer: URLayer[Wheels with Engine, Car] = ZLayer.derive[Car]
+   * val carLayer: URLayer[Wheels & Engine, Car] = ZLayer.derive[Car]
    * }}}
    *
    * @see
