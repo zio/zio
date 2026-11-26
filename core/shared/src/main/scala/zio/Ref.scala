@@ -21,23 +21,38 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * A `Ref` is a purely functional description of a mutable reference. The
- * fundamental operations of a `Ref` are `set` and `get`. `set` sets the
- * reference to a new value. `get` gets the current value of the reference.
+ * A `Ref` is a purely functional description of a mutable reference that
+ * fibers can share. The fundamental operations of a `Ref` are `set` and `get`.
+ * `set` sets the reference to a new value. `get` gets the current value of the
+ * reference. `update` and `modify` change the value with a function, as one
+ * atomic step with respect to the other operations on the same `Ref`.
  *
- * By default, `Ref` is implemented in terms of compare and swap operations for
- * maximum performance and does not support performing effects within update
- * operations. If you need to perform effects within update operations you can
- * create a `Ref.Synchronized`, a specialized type of `Ref` that supports
- * performing effects within update operations at some cost to performance. In
- * this case writes will semantically block other writers, while multiple
- * readers can read simultaneously.
+ * A `Ref` created with `Ref.make` is implemented with compare-and-swap
+ * operations on an `AtomicReference`. When other fibers change the value
+ * between the read and the write, the update function is called again with
+ * the new value, so it can run more than once for one call and should have no
+ * side effects. To run effects within update operations, create a
+ * `Ref.Synchronized`, a `Ref` that runs its updates one at a time, at some
+ * cost to performance. Its writes wait for one another, while its `get` does
+ * not wait.
  *
- * NOTE: While `Ref` provides the functional equivalent of a mutable reference,
- * the value inside the `Ref` should normally be immutable since compare and
- * swap operations are not safe for mutable values that do not support
- * concurrent access. If you do need to use a mutable value `Ref.Synchronized`
- * will guarantee that access to the value is properly synchronized.
+ * The value inside a `Ref` should normally be immutable: the compare-and-swap
+ * operations do not protect a mutable value that is changed in place.
+ * `Ref.Synchronized` runs its updates one at a time, but its `get` can still
+ * return the mutable value while an update changes it.
+ *
+ * {{{
+ * val count: UIO[Int] =
+ *   for {
+ *     ref <- Ref.make(0)
+ *     _   <- ZIO.foreachParDiscard(1 to 100)(_ => ref.update(_ + 1))
+ *     n   <- ref.get
+ *   } yield n
+ * // 100
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/concurrency/ref/ Ref]]
  */
 sealed abstract class Ref[A] extends Serializable {
 
@@ -48,8 +63,21 @@ sealed abstract class Ref[A] extends Serializable {
 
   /**
    * Atomically modifies the `Ref` with the specified function, which computes a
-   * return value for the modification. This is a more powerful version of
-   * `update`.
+   * return value for the modification. `f` receives the current value and
+   * returns a pair: the first element is what `modify` returns and the second
+   * one is the new value. This is a more powerful version of `update`.
+   *
+   * On a `Ref` created with `Ref.make`, `f` can run more than once when other
+   * fibers change the value at the same time.
+   *
+   * {{{
+   * val ticket: UIO[String] =
+   *   for {
+   *     next <- Ref.make(41)
+   *     n    <- next.modify(n => (s"ticket-\$n", n + 1))
+   *   } yield n
+   * // ticket-41, and the Ref now holds 42
+   * }}}
    */
   def modify[B](f: A => (B, A))(implicit trace: Trace): UIO[B]
 
@@ -93,14 +121,17 @@ sealed abstract class Ref[A] extends Serializable {
   /**
    * Atomically modifies the `Ref` with the specified partial function, which
    * computes a return value for the modification if the function is defined on
-   * the current value otherwise it returns a default value. This is a more
-   * powerful version of `updateSome`.
+   * the current value. Otherwise it returns `default` and leaves the value
+   * unchanged. This is a more powerful version of `updateSome`.
    */
   def modifySome[B](default: B)(pf: PartialFunction[A, (B, A)])(implicit trace: Trace): UIO[B] =
     modify(v => pf.applyOrElse[A, (B, A)](v, _ => (default, v)))
 
   /**
    * Atomically modifies the `Ref` with the specified function.
+   *
+   * On a `Ref` created with `Ref.make`, `f` can run more than once when other
+   * fibers change the value at the same time.
    */
   def update(f: A => A)(implicit trace: Trace): UIO[Unit] =
     modify(v => ((), f(v)))
@@ -180,15 +211,27 @@ sealed abstract class Ref[A] extends Serializable {
 
 }
 
+/**
+ * Constructors for [[Ref]], and `Ref.Synchronized`, a `Ref` whose updates can
+ * run effects.
+ */
 object Ref extends Serializable {
 
   /**
-   * Creates a new `Ref` with the specified value.
+   * Creates a new `Ref` with the specified value. Each run of the returned
+   * effect evaluates `a` and creates a new `Ref`.
    */
   def make[A](a: => A)(implicit trace: Trace): UIO[Ref[A]] =
     ZIO.succeed(unsafe.make(a)(Unsafe))
 
+  /**
+   * Constructors that create a `Ref` outside of a ZIO effect. They need an
+   * implicit `Unsafe` value, which `Unsafe.unsafe` provides.
+   */
   object unsafe {
+    /**
+     * Creates a new `Ref` with the specified value, outside of a ZIO effect.
+     */
     def make[A](a: A)(implicit unsafe: Unsafe): Ref.Atomic[A] = new Atomic[A](a)
   }
 
@@ -199,33 +242,63 @@ object Ref extends Serializable {
    * value of the reference.
    *
    * Unlike an ordinary `Ref`, a `Ref.Synchronized` allows performing effects
-   * within update operations, at some cost to performance. Writes will
-   * semantically block other writers, while multiple readers can read
-   * simultaneously.
+   * within update operations (`modifyZIO`, `updateZIO` and the other `*ZIO`
+   * methods), at some cost to performance. It runs its writes one at a time:
+   * `set` and every update, including the pure ones inherited from `Ref`, wait
+   * for the write in progress to finish, so the update function runs once per
+   * call. `get` does not wait: while an update is in progress it returns the
+   * value from before that update. When the effect of an update fails or is
+   * interrupted, the value is left unchanged.
+   *
+   * {{{
+   * def fetchName(id: Int): UIO[String] = ZIO.succeed(s"user-\$id")
+   *
+   * val names: UIO[List[(Int, String)]] =
+   *   for {
+   *     cache <- Ref.Synchronized.make(Map.empty[Int, String])
+   *     _ <- ZIO.foreachParDiscard(List(1, 2, 1)) { id =>
+   *            cache.updateZIO { m =>
+   *              if (m.contains(id)) ZIO.succeed(m)
+   *              else fetchName(id).map(name => m + (id -> name))
+   *            }
+   *          }
+   *     m <- cache.get
+   *   } yield m.toList.sortBy(_._1)
+   * // List((1,user-1), (2,user-2))
+   * }}}
+   *
+   * @see
+   *   [[https://zio.dev/reference/concurrency/refsynchronized/ Ref.Synchronized]]
    */
   sealed abstract class Synchronized[A] extends Ref[A] {
 
     /**
-     * Reads the value from the `Ref`.
+     * Reads the value from the `Ref`. It does not wait for an update in
+     * progress: it returns the value from before that update.
      */
     def get(implicit trace: Trace): UIO[A]
 
     /**
-     * Atomically modifies the `Ref.Synchronized` with the specified function,
-     * which computes a return value for the modification. This is a more
-     * powerful version of `update`.
+     * Atomically modifies the `Ref.Synchronized` with the specified effectful
+     * function, which computes a return value for the modification. The effect
+     * returns a pair: the first element is the result and the second one is
+     * the new value. When the effect fails, `modifyZIO` fails with the same
+     * error; when it fails or is interrupted, the value is left unchanged. This
+     * is a more powerful version of `updateZIO`.
      */
     def modifyZIO[R, E, B](f: A => ZIO[R, E, (B, A)])(implicit trace: Trace): ZIO[R, E, B]
 
     /**
      * Writes a new value to the `Ref`, with a guarantee of immediate
-     * consistency (at some cost to performance).
+     * consistency (at some cost to performance). It waits for an update in
+     * progress to finish first.
      */
     def set(a: A)(implicit trace: Trace): UIO[Unit]
 
     /**
      * Writes a new value to the `Ref` without providing a guarantee of
-     * immediate consistency.
+     * immediate consistency. It waits for an update in progress to finish
+     * first.
      */
     def setAsync(a: A)(implicit trace: Trace): UIO[Unit]
 
@@ -246,14 +319,19 @@ object Ref extends Serializable {
     ): ZIO[R, E, A] =
       modifyZIO(v => pf.applyOrElse[A, ZIO[R, E, A]](v, ZIO.succeed(_)).map(result => (v, result)))
 
+    /**
+     * Atomically modifies the `Ref.Synchronized` with the specified function,
+     * which computes a return value for the modification. It waits for an
+     * update in progress to finish first, and calls `f` once.
+     */
     final def modify[B](f: A => (B, A))(implicit trace: Trace): UIO[B] =
       modifyZIO(a => ZIO.succeed(f(a)))
 
     /**
      * Atomically modifies the `Ref.Synchronized` with the specified function,
      * which computes a return value for the modification if the function is
-     * defined in the current value otherwise it returns a default value. This
-     * is a more powerful version of `updateSome`.
+     * defined on the current value. Otherwise it returns `default` and leaves
+     * the value unchanged. This is a more powerful version of `updateSomeZIO`.
      */
     def modifySomeZIO[R, E, B](default: B)(pf: PartialFunction[A, ZIO[R, E, (B, A)]])(implicit
       trace: Trace
@@ -294,6 +372,9 @@ object Ref extends Serializable {
       modifyZIO(v => pf.applyOrElse[A, ZIO[R, E, A]](v, ZIO.succeed(_)).map(result => (result, result)))
   }
 
+  /**
+   * Constructors for `Ref.Synchronized`.
+   */
   object Synchronized {
     private[zio] abstract class Internal[A] extends Synchronized[A]
 
@@ -303,7 +384,15 @@ object Ref extends Serializable {
     def make[A](a: => A)(implicit trace: Trace): UIO[Synchronized[A]] =
       ZIO.succeed(unsafe.make(a)(Unsafe))
 
+    /**
+     * Constructors that create a `Ref.Synchronized` outside of a ZIO effect.
+     * They need an implicit `Unsafe` value.
+     */
     object unsafe {
+      /**
+       * Creates a new `Ref.Synchronized` with the specified value, outside of
+       * a ZIO effect.
+       */
       def make[A](a: A)(implicit unsafe: Unsafe): Synchronized[A] = {
         val ref       = Ref.unsafe.make(a)
         val semaphore = Semaphore.unsafe.make(1)
