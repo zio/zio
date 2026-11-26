@@ -29,8 +29,24 @@ import scala.collection.immutable.{Queue => ScalaQueue}
  * in the acquiring fiber being suspended until the specified number of permits
  * become available.
  *
- * If you need functionality that `Semaphore` doesnt' provide, use a
- * [[TSemaphore]] and define it in a [[zio.stm.ZSTM]] transaction.
+ * {{{
+ * def fetch(id: Int): UIO[String] = ZIO.succeed(s"page-\$id")
+ *
+ * val pages: UIO[List[String]] =
+ *   for {
+ *     semaphore <- Semaphore.make(permits = 2)
+ *     results <- ZIO.foreachPar((1 to 5).toList) { id =>
+ *                  semaphore.withPermit(fetch(id)) // at most 2 at a time
+ *                }
+ *   } yield results
+ * // List(page-1, page-2, page-3, page-4, page-5)
+ * }}}
+ *
+ * If you need functionality that `Semaphore` doesn't provide, use a
+ * [[zio.stm.TSemaphore]] and define it in a [[zio.stm.ZSTM]] transaction.
+ *
+ * @see
+ *   [[https://zio.dev/reference/concurrency/semaphore/ Semaphore]]
  */
 sealed trait Semaphore extends Serializable {
 
@@ -40,21 +56,24 @@ sealed trait Semaphore extends Serializable {
   def available(implicit trace: Trace): UIO[Long]
 
   /**
-   * Returns the number of tasks currently waiting for permits. The default
+   * Returns the number of fibers currently waiting for permits. The default
    * implementation returns 0.
    */
   def awaiting(implicit trace: Trace): UIO[Long] = ZIO.succeed(0L)
 
   /**
    * Executes the effect, acquiring a permit if available and releasing it after
-   * execution. Returns `None` if no permits were available.
+   * execution. Returns `None` if no permits were available. It does not wait
+   * for a permit.
    */
   final def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
     tryWithPermits(1L)(zio)
 
   /**
    * Executes the effect, acquiring `n` permits if available and releasing them
-   * after execution. Returns `None` if no permits were available.
+   * after execution. Returns `None`, without waiting, if fewer than `n` permits
+   * were available. With `n` equal to 0 it runs the effect. Dies with an
+   * `IllegalArgumentException` when `n` is negative.
    */
   def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
     ZIO.none
@@ -62,7 +81,8 @@ sealed trait Semaphore extends Serializable {
   /**
    * Executes the specified workflow, acquiring a permit immediately before the
    * workflow begins execution and releasing it immediately after the workflow
-   * completes execution, whether by success, failure, or interruption.
+   * completes execution, whether by success, failure, or interruption. When no
+   * permit is available, it waits for one, and the wait can be interrupted.
    */
   def withPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 
@@ -76,27 +96,42 @@ sealed trait Semaphore extends Serializable {
    * Executes the specified workflow, acquiring the specified number of permits
    * immediately before the workflow begins execution and releasing them
    * immediately after the workflow completes execution, whether by success,
-   * failure, or interruption.
+   * failure, or interruption. With `n` equal to 0 it runs the workflow without
+   * waiting. Dies with an `IllegalArgumentException` when `n` is negative.
    */
   def withPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 
   /**
    * Returns a scoped workflow that describes acquiring the specified number of
-   * permits and releasing them when the scope is closed.
+   * permits and releasing them when the scope is closed. Dies with an
+   * `IllegalArgumentException` when `n` is negative.
    */
   def withPermitsScoped(n: Long)(implicit trace: Trace): ZIO[Scope, Nothing, Unit]
 
 }
 
+/**
+ * Constructors for [[Semaphore]].
+ */
 object Semaphore {
 
   /**
-   * Creates a new `Semaphore` with the specified number of permits.
+   * Creates a new `Semaphore` with the specified number of permits. The number
+   * is not checked: with a negative number, `available` returns it and
+   * `withPermit` waits.
    */
   def make(permits: => Long)(implicit trace: Trace): UIO[Semaphore] =
     ZIO.succeed(unsafe.make(permits)(Unsafe.unsafe))
 
+  /**
+   * Constructors that create a `Semaphore` outside of a ZIO effect. They need
+   * an implicit `Unsafe` value.
+   */
   object unsafe {
+    /**
+     * Creates a new `Semaphore` with the specified number of permits, outside
+     * of a ZIO effect.
+     */
     def make(permits: Long)(implicit unsafe: Unsafe): Semaphore =
       new Semaphore {
         val ref = Ref.unsafe.make[Either[ScalaQueue[(Promise[Nothing, Unit], Long)], Long]](Right(permits))
