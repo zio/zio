@@ -81,24 +81,63 @@
     "tslib": "^2.4.0"
   },
   "zioApiDocs": {
+    "zio-amqp": {},
+    "zio-bson": {
+      "modules": ["zio-bson", "zio-bson-magnolia"]
+    },
     "zio-cache": {},
+    "zio-cli": {
+      "modules": ["zio-cli", "zio-cli-testkit"]
+    },
     "zio-config": {
       "modules": ["zio-config", "zio-config-magnolia", "zio-config-typesafe", "zio-config-yaml", "zio-config-refined"]
     },
+    "zio-constraintless": {},
+    "zio-direct": {
+      "modules": ["zio-direct", "zio-direct-pure", "zio-direct-streams"]
+    },
+    "zio-dynamodb": {
+      "modules": ["zio-dynamodb", "zio-dynamodb-json", "zio-dynamodb-ce", "zio-dynamodb-future"]
+    },
+    "zio-ftp": {},
     "zio-json": {},
     "zio-kafka": {
       "modules": ["zio-kafka", "zio-kafka-testkit"]
     },
+    "zio-lambda": {
+      "modules": ["zio-lambda", "zio-lambda-event", "zio-lambda-response"]
+    },
     "zio-logging": {
       "modules": ["zio-logging", "zio-logging-slf4j2", "zio-logging-slf4j2-bridge", "zio-logging-jul-bridge"]
     },
+    "zio-metrics-connectors": {
+      "modules": [
+        "zio-metrics-connectors",
+        "zio-metrics-connectors-prometheus",
+        "zio-metrics-connectors-statsd",
+        "zio-metrics-connectors-datadog",
+        "zio-metrics-connectors-newrelic",
+        "zio-metrics-connectors-micrometer"
+      ]
+    },
+    "zio-parser": {},
     "zio-prelude": {
       "modules": ["zio-prelude", "zio-prelude-magnolia"]
     },
+    "zio-process": {},
+    "zio-profiling": {
+      "modules": ["zio-profiling", "zio-profiling-jmh"]
+    },
     "zio-query": {},
+    "zio-redis": {
+      "modules": ["zio-redis", "zio-redis-embedded"]
+    },
+    "zio-rocksdb": {},
+    "zio-s3": {},
     "zio-schema": {
       "modules": ["zio-schema", "zio-schema-derivation", "zio-schema-json"]
     },
+    "zio-sqs": {},
     "zio-streams-compress": {
       "modules": [
         "zio-streams-compress-core",
@@ -111,6 +150,9 @@
         "zio-streams-compress-lz4",
         "zio-streams-compress-snappy"
       ]
+    },
+    "zio-telemetry": {
+      "modules": ["zio-opentelemetry", "zio-opentelemetry-zio-logging", "zio-opentracing", "zio-opencensus"]
     }
   },
   "overrides": {
