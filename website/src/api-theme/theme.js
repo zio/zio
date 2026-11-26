@@ -38,6 +38,41 @@
   }
 
   apply();
+
+  // The announcement bar (scripts/lib/api-theme.mjs, addAnnouncementBar), with the docs pages' rules: Docusaurus keeps
+  // "docusaurus.announcement.dismiss" and the id of the bar it applies to in localStorage, so a bar closed on any page of
+  // the site stays closed, and a bar with a new id shows again. The data-announcement-bar-initially-dismissed attribute
+  // hides it before the first paint (api.css), as on the docs pages.
+  var BAR_DISMISS = 'docusaurus.announcement.dismiss';
+  var BAR_ID = 'docusaurus.announcement.id';
+  var docRoot = document.documentElement;
+  var barId = docRoot.getAttribute('data-za-announcement-id');
+  var barDismissed = false;
+  if (barId) {
+    try {
+      if (localStorage.getItem(BAR_ID) !== barId) {
+        localStorage.setItem(BAR_ID, barId);
+        localStorage.setItem(BAR_DISMISS, 'false');
+      }
+      barDismissed = localStorage.getItem(BAR_DISMISS) === 'true';
+    } catch (e) {}
+    docRoot.setAttribute('data-announcement-bar-initially-dismissed', String(barDismissed));
+  }
+
+  // The bar scrolls away with the page, as on a docs page, while the navbar and the sidebar are fixed (api.css): they
+  // sit under the part of the bar still in view (--za-announcement-offset), then at the top. Called right after the bar
+  // is drawn, so the navbar starts under it without a jump, and on every scroll and resize.
+  function placeAnnouncement() {
+    var bar = barId && !barDismissed ? document.querySelector('.za-announcement') : null;
+    var inView = bar ? Math.max(0, bar.offsetHeight - (window.scrollY || 0)) : 0;
+    docRoot.style.setProperty('--za-announcement-offset', inView + 'px');
+  }
+  window.zaPlaceAnnouncement = placeAnnouncement;
+  if (barId) {
+    window.addEventListener('scroll', placeAnnouncement, { passive: true });
+    window.addEventListener('resize', placeAnnouncement);
+  }
+
   // Another tab (a docs page, say) changed the mode.
   window.addEventListener('storage', function (e) {
     if (e.key === KEY) {
@@ -56,6 +91,17 @@
         window.scrollTo.apply(window, arguments);
       };
     apply();
+    var close = document.querySelector('.za-announcement__close');
+    if (close)
+      close.addEventListener('click', function () {
+        barDismissed = true;
+        try {
+          localStorage.setItem(BAR_DISMISS, 'true');
+        } catch (e) {}
+        docRoot.setAttribute('data-announcement-bar-initially-dismissed', 'true');
+        placeAnnouncement();
+      });
+    placeAnnouncement();
     var toggles = document.querySelectorAll('[data-color-mode-toggle], #mobile-theme-toggle');
     for (var i = 0; i < toggles.length; i++) {
       toggles[i].addEventListener('click', function () {

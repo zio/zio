@@ -20,9 +20,12 @@ import {
   relocateSideMenu,
   themeApiPage,
 } from './lib/api-theme.mjs';
+import { createRequire } from 'node:module';
 import { PROMPT } from '../src/components/ui/OnboardAgentButton/prompt.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
+// The docs pages' announcement bar, shown on the API pages too (lib/api-theme.mjs, addAnnouncementBar).
+const ANNOUNCEMENT = createRequire(import.meta.url)('../docusaurus.config.js').themeConfig?.announcementBar;
 const exists = (p) => stat(p).then(() => true, () => false);
 
 async function* htmlFiles(dir) {
@@ -68,7 +71,7 @@ for (const { site, path, sourceDir, apiDir, menu, moves } of sites) {
     const to = moves.get(from) ?? from;
     const page = relocatePage(await readFile(file, 'utf8'), { from, to, moves });
     await mkdir(dirname(join(apiDir, `${to}.html`)), { recursive: true });
-    const themed = themeApiPage(page, { prompt: PROMPT, site, moves: allMoves });
+    const themed = themeApiPage(page, { prompt: PROMPT, site, moves: allMoves, announcement: ANNOUNCEMENT });
     await writeFile(join(apiDir, `${to}.html`), to === 'index' ? folderIndexRedirect(themed, site) : themed);
     if (to !== from) {
       // Docusaurus copied the page to its old place; only the new one is published. Drop folders left empty.
