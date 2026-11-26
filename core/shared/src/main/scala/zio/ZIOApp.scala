@@ -24,13 +24,45 @@ import java.util.concurrent.atomic.AtomicBoolean
  * An entry point for a ZIO application that allows sharing layers between
  * applications. For a simpler version that uses the default ZIO environment see
  * `ZIOAppDefault`.
+ *
+ * An object that extends `ZIOApp` gets a `main` method. It builds the services
+ * of `bootstrap`, then runs `run` with them, the command-line arguments (as
+ * `ZIOAppArgs`) and a `Scope`. When `run` succeeds, the exit code is 0; when it
+ * fails or dies, the cause is logged and the exit code is 1. `<>` composes two
+ * apps into one that runs both.
+ *
+ * {{{
+ * trait Inventory { def count(sku: String): UIO[Int] }
+ *
+ * object InventoryApp extends ZIOApp {
+ *   type Environment = Inventory
+ *
+ *   val environmentTag: EnvironmentTag[Inventory] = EnvironmentTag[Inventory]
+ *
+ *   val bootstrap: ZLayer[ZIOAppArgs, Any, Inventory] =
+ *     ZLayer.succeed(new Inventory { def count(sku: String): UIO[Int] = ZIO.succeed(12) })
+ *
+ *   def run: ZIO[Inventory with ZIOAppArgs with Scope, Any, Any] =
+ *     ZIO.serviceWithZIO[Inventory](_.count("SKU-1001")).flatMap(n => Console.printLine(s"In stock: \$n"))
+ * }
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/core/zioapp/ ZIOApp]]
  */
 trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
   self =>
   private[zio] val shuttingDown = new AtomicBoolean(false)
 
+  /**
+   * The tag of `Environment`, which ZIO uses to build the app's environment.
+   */
   implicit def environmentTag: EnvironmentTag[Environment]
 
+  /**
+   * The services that `bootstrap` builds and that `run` can use, besides
+   * `ZIOAppArgs` and `Scope`.
+   */
   type Environment
 
   /**
@@ -41,26 +73,38 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
 
   /**
    * The main function of the application, which can access the command-line
-   * arguments through the `args` helper method of this class. If the provided
-   * effect fails for any reason, the cause will be logged, and the exit code of
-   * the application will be non-zero. Otherwise, the exit code of the
-   * application will be zero.
+   * arguments through the `getArgs` helper method of this class. If the
+   * provided effect fails for any reason, the cause will be logged, and the
+   * exit code of the application will be non-zero (1). Otherwise, the exit code
+   * of the application will be zero, whatever value the effect succeeds with,
+   * even an `ExitCode`; call `exit` to end with another code. An interruption
+   * that comes from the app shutting down is not logged.
    */
   def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Any]
 
   /**
-   * The time that the application will wait for finalizers to run before
-   * exiting.
+   * The time that the application waits, after a shutdown signal such as
+   * `SIGINT` interrupts `run`, for the finalizers to finish before the process
+   * exits. The default, `Duration.Infinity`, waits until they finish, and a
+   * zero or negative duration does not wait. When the time runs out, the app
+   * prints a warning and the process exits.
    *
-   * '''NOTE''': This is currently used only for JVM & ScalaNative applications
+   * It is used on the JVM only: on Scala.js and Scala Native the app installs
+   * no shutdown hook, so this value has no effect.
    */
   def gracefulShutdownTimeout: Duration = Duration.Infinity
 
+  /**
+   * The runtime that `main` runs the app on: `Runtime.default` unless
+   * overridden. `bootstrap` can change its settings further.
+   */
   def runtime: Runtime[Any] = Runtime.default
 
   /**
    * Composes this [[ZIOApp]] with another [[ZIOApp]], to yield an application
-   * that executes the logic of both applications.
+   * that executes the logic of both applications. The two `run` effects run in
+   * parallel, so when one fails the other is interrupted, and the app's
+   * `bootstrap` combines both `bootstrap` layers.
    */
   final def <>(that: ZIOApp)(implicit trace: Trace): ZIOApp = {
     def combine[A: EnvironmentTag, B: EnvironmentTag]: EnvironmentTag[A with B] = EnvironmentTag[A with B]
@@ -79,6 +123,11 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
 
   /**
    * A helper function to exit the application with the specified exit code.
+   *
+   * On the JVM and Scala Native it calls `System.exit` at once, so the
+   * finalizers of `run` do not run; it does nothing when the app is already
+   * exiting, and on the JVM it does nothing inside an unforked sbt run. On
+   * Scala.js it sets `process.exitCode` and does not stop the program.
    */
   final def exit(code: ExitCode)(implicit trace: Trace): UIO[Unit] =
     ZIO.succeed(exitUnsafe(code)(Unsafe))
@@ -143,6 +192,10 @@ trait ZIOApp extends ZIOAppPlatformSpecific with ZIOAppVersionSpecific {
     } yield ()
 }
 
+/**
+ * Constructors for [[ZIOApp]] values, and `Proxy`, which turns such a value
+ * into a runnable object.
+ */
 object ZIOApp {
   private val installedSignals = new java.util.concurrent.atomic.AtomicBoolean(false)
 
@@ -151,14 +204,18 @@ object ZIOApp {
    * ZIO application as a value into a runnable application.
    */
   class Proxy(val app: ZIOApp) extends ZIOApp {
+
+    /** The environment of `app`. */
     type Environment = app.Environment
 
+    /** Returns the `bootstrap` layer of `app`. */
     final def bootstrap: ZLayer[ZIOAppArgs, Any, Environment] =
       app.bootstrap
 
     override final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Any] =
       app.run
 
+    /** Returns the environment tag of `app`. */
     implicit final def environmentTag: EnvironmentTag[Environment] =
       app.environmentTag
   }

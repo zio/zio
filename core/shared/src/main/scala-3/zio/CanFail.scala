@@ -34,7 +34,19 @@ import scala.util.NotGiven
 )
 sealed abstract class CanFail[-E]
 
+/**
+ * Provides `CanFail[E]` for every error type `E` except `Nothing`. When an
+ * error handling operator is called on an effect that cannot fail, the compiler
+ * reports that the operation is not needed.
+ */
 object CanFail extends CanFail[Any] with CanFailLowPriority {
+
+  /**
+   * Provides `CanFail[E]` for an error type `E` that is not `Nothing`. On Scala
+   * 2 it matches every `E`, and the two ambiguous instances for `Nothing` make
+   * the search for `CanFail[Nothing]` fail; on Scala 3 it requires evidence
+   * that `E` is not `Nothing`.
+   */
   inline given canFail[E](using inline ev: NotGiven[E =:= Nothing]): CanFail[E] = CanFail
 
   @targetName("canFail")
@@ -45,5 +57,9 @@ object CanFail extends CanFail[Any] with CanFailLowPriority {
 private[zio] transparent trait CanFailLowPriority { self: CanFail.type =>
   // In some extremely extremely rare case the type inference prior to macro expansion doesn't work,
   // so we need a non-inlined low priority as a fallback
+  /**
+   * A lower-priority, non-inline fallback for `canFail`: it also provides
+   * `CanFail[E]` when `E` is not `Nothing`.
+   */
   implicit def canFailLowPriority[E](implicit ev: NotGiven[E =:= Nothing]): CanFail[E] = self
 }
