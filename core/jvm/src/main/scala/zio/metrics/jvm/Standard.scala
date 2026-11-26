@@ -9,6 +9,29 @@ import java.lang.reflect.Method
 import java.nio.charset.StandardCharsets
 import scala.util.{Failure, Success, Try}
 
+/**
+ * The standard process metrics of the JVM. Each one is a gauge.
+ *
+ * @param cpuSecondsTotal
+ *   `process_cpu_seconds_total`: the CPU time that the process has used, in
+ *   seconds
+ * @param processStartTime
+ *   `process_start_time_seconds`: the start time of the JVM, in seconds since
+ *   the Unix epoch
+ * @param openFdCount
+ *   `process_open_fds`: the number of open file descriptors. The layer polls it
+ *   only when the operating system bean has `getOpenFileDescriptorCount`.
+ * @param maxFdCount
+ *   `process_max_fds`: the maximum number of open file descriptors. The layer
+ *   polls it only when the operating system bean has
+ *   `getMaxFileDescriptorCount`.
+ * @param virtualMemorySize
+ *   `process_virtual_memory_bytes`: the virtual memory size, in bytes, read
+ *   from `/proc/self/status` on Linux only
+ * @param residentMemorySize
+ *   `process_resident_memory_bytes`: the resident memory size, in bytes, read
+ *   from `/proc/self/status` on Linux only
+ */
 final case class Standard(
   cpuSecondsTotal: PollingMetric[Any, Throwable, MetricState.Gauge],
   processStartTime: PollingMetric[Any, Throwable, MetricState.Gauge],
@@ -18,6 +41,9 @@ final case class Standard(
   residentMemorySize: Gauge[Double]
 )
 
+/**
+ * The layer that collects the standard process metrics.
+ */
 object Standard {
   private class MXReflection(getterName: String, obj: PlatformManagedObject) {
     private val cls: Class[_ <: PlatformManagedObject] = obj.getClass
@@ -85,6 +111,10 @@ object Standard {
       }
     }
 
+  /**
+   * A layer that updates the standard process metrics on the `updateMetrics`
+   * schedule of [[JvmMetricsSchedule]], until the layer's scope closes.
+   */
   val live: ZLayer[JvmMetricsSchedule, Throwable, Standard] =
     ZLayer.scoped {
       for {

@@ -11,8 +11,19 @@ import javax.management.{Notification, NotificationEmitter, NotificationListener
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
+/**
+ * The garbage collection listener that counts the bytes allocated in each JVM
+ * memory pool, and the garbage collector beans of the JVM. The listener is
+ * registered only with the beans that are a `NotificationEmitter`. After each
+ * collection, the listener adds the growth of each pool's used memory since the
+ * previous collection and during this one to the counter
+ * `jvm_memory_pool_allocated_bytes_total`, tagged with `pool`.
+ */
 final case class MemoryAllocation(listener: NotificationListener, garbageCollectorMXBeans: List[GarbageCollectorMXBean])
 
+/**
+ * The layer that collects the memory allocation metric.
+ */
 object MemoryAllocation {
 
   /**
@@ -70,6 +81,12 @@ object MemoryAllocation {
     }
   }
 
+  /**
+   * A layer that registers the allocation listener with each garbage collector
+   * bean that emits notifications, and removes it when the layer's scope
+   * closes. The counter is updated after garbage collections, not on a
+   * schedule.
+   */
   val live: ZLayer[Any, Throwable, MemoryAllocation] =
     ZLayer.scoped {
       ZIO

@@ -17,14 +17,25 @@ package zio.metrics
 
 import zio.Unsafe
 
+/**
+ * A metric key together with the state of the metric for that key, as found in
+ * a snapshot of the metrics (`ZIO.metrics`).
+ */
 final case class MetricPair[Type <: MetricKeyType { type Out = Out0 }, Out0](
   metricKey: MetricKey[Type],
   metricState: MetricState[Out0]
 )
 
+/**
+ * Type aliases for [[MetricPair]].
+ */
 object MetricPair {
   private type Lossy[Out0] = MetricPair[MetricKeyType { type Out = Out0 }, Out0]
 
+  /**
+   * A metric pair whose metric type is not known statically, as found in a
+   * snapshot.
+   */
   type Untyped = Lossy[Any]
 
   private[zio] def make[Type <: MetricKeyType](

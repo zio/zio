@@ -12,13 +12,32 @@ import scala.annotation.tailrec
  * with the changes described by the patch.
  *
  * A `Differ` can be used to construct a `FiberRef` supporting compositional
- * updates using the `FiberRef.makePatch` constructor.
+ * updates using the `FiberRef.makePatch` constructor. When forked fibers join,
+ * their changes are merged as patches rather than replaced: with `Differ.set`,
+ * two fibers that each add a different element both leave their element in the
+ * joined value, while with `Differ.update` the last fiber to join wins.
  *
  * The `Differ` companion object contains constructors for `Differ` values for
- * common data types such as `Chunk`, `Map`, and `Set``. In addition, `Differ`
+ * common data types such as `Chunk`, `Map`, and `Set`. In addition, `Differ`
  * values can be transformed using the `transform` operator and combined using
  * the `orElseEither` and `zip` operators. This allows creating `Differ` values
  * for arbitrarily complex data types compositionally.
+ *
+ * {{{
+ * val differ = Differ.set[Int]
+ *
+ * val patch   = differ.diff(Set(1, 2, 3), Set(2, 3, 4))
+ * val updated = differ.patch(patch)(Set(1, 2, 3))
+ * // Set(2, 3, 4)
+ *
+ * val add2   = differ.diff(Set(1), Set(1, 2))
+ * val add3   = differ.diff(Set(1), Set(1, 3))
+ * val merged = differ.patch(differ.combine(add2, add3))(Set(1))
+ * // Set(1, 2, 3)
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/guides/compositional-fiberref-updates-with-differ/ Compositional FiberRef updates with Differ]]
  */
 trait Differ[Value, Patch] extends Serializable { self =>
 
@@ -33,7 +52,11 @@ trait Differ[Value, Patch] extends Serializable { self =>
 
   /**
    * Constructs a patch describing the updates to a value from an old value and
-   * a new value.
+   * a new value. For the `chunk`, `map`, `set` and `update` differs, and the
+   * differs built from them with `zip` and `orElseEither`, applying the result
+   * to `oldValue` with `patch` returns `newValue`, and diffing a value with
+   * itself returns `empty`. A differ built with `transform` returns `newValue`
+   * only when its two functions are inverses of each other.
    */
   def diff(oldValue: Value, newValue: Value): Patch
 
@@ -64,7 +87,9 @@ trait Differ[Value, Patch] extends Serializable { self =>
 
   /**
    * Combines this differ and the specified differ to produce a differ that
-   * knows how to diff the sum of their values.
+   * knows how to diff the sum of their values. Two `Left` values are diffed
+   * with this differ and two `Right` values with `that`; a change from `Left`
+   * to `Right`, or back, produces a patch that sets the new value.
    */
   final def orElseEither[Value2, Patch2](
     that: Differ[Value2, Patch2]
@@ -91,6 +116,8 @@ trait Differ[Value, Patch] extends Serializable { self =>
   /**
    * Transforms the type of values that this differ knows how to differ using
    * the specified functions that map the new and old value types to each other.
+   * `f` converts a `Value` to a `Value2` and `g` converts a `Value2` back to a
+   * `Value`; the patch type stays the same.
    */
   final def transform[Value2](f: Value => Value2, g: Value2 => Value): Differ[Value2, Patch] =
     new Differ[Value2, Patch] {
@@ -121,6 +148,11 @@ trait Differ[Value, Patch] extends Serializable { self =>
     }
 }
 
+/**
+ * Constructors for [[Differ]] values: `chunk`, `map`, `set`, `environment`,
+ * `runtimeFlags`, `supervisor` and `update`, plus the patch types that they
+ * produce.
+ */
 object Differ {
 
   /**
@@ -235,10 +267,12 @@ object Differ {
     }
 
   /**
-   * Constructs a differ that just diffs two values by returning a function that
-   * sets the value to the new value. This differ does not support combining
-   * multiple updates to the value compositionally and should only be used when
-   * there is no compositional way to update them.
+   * Constructs a differ that diffs two values by returning a function that sets
+   * the value to the new value, or `empty` (the identity function) when the two
+   * values are equal. Combining two patches composes the functions, so the
+   * second patch wins. This differ does not support combining multiple updates
+   * to the value compositionally and should only be used when there is no
+   * compositional way to update them.
    */
   def update[A]: Differ[A, A => A] =
     new Differ[A, A => A] {
@@ -263,7 +297,8 @@ object Differ {
     /**
      * Applies a chunk patch to a chunk of values to produce a new chunk of
      * values which represents the original chunk of values updated with the
-     * changes described by this patch.
+     * changes described by this patch. Throws an `IndexOutOfBoundsException`
+     * when the patch updates an index that `oldValue` does not have.
      */
     def apply(oldValue: Chunk[Value])(differ: Differ[Value, Patch]): Chunk[Value] = {
 
@@ -295,11 +330,16 @@ object Differ {
       AndThen(self, that)
   }
 
+  /**
+   * Constructors for [[Differ.ChunkPatch]] values.
+   */
   object ChunkPatch {
 
     /**
      * Constructs a chunk patch from a new and old chunk of values and a differ
-     * for the values.
+     * for the values. The patch updates each index that both chunks have and
+     * whose values differ, then drops the extra old values or appends the extra
+     * new ones.
      */
     def diff[Value, Patch](oldValue: Chunk[Value], newValue: Chunk[Value])(
       differ: Differ[Value, Patch]
@@ -348,8 +388,9 @@ object Differ {
 
     /**
      * Applies a map patch to a map of keys and values to produce a new map of
-     * keys and values values which represents the original map of keys and
-     * values updated with the changes described by this patch.
+     * keys and values which represents the original map of keys and values
+     * updated with the changes described by this patch. An update to a key that
+     * `oldValue` does not contain leaves the map unchanged for that key.
      */
     def apply(oldValue: Map[Key, Value])(differ: Differ[Value, Patch]): Map[Key, Value] = {
 
@@ -381,11 +422,15 @@ object Differ {
       AndThen(self, that)
   }
 
+  /**
+   * Constructors for [[Differ.MapPatch]] values.
+   */
   object MapPatch {
 
     /**
      * Constructs a map patch from a new and old map of keys and values and a
-     * differ for the values.
+     * differ for the values. The patch adds the new keys, updates the keys
+     * whose values differ and removes the keys that `newValue` does not have.
      */
     def diff[Key, Value, Patch](oldValue: Map[Key, Value], newValue: Map[Key, Value])(
       differ: Differ[Value, Patch]
@@ -432,7 +477,9 @@ object Differ {
 
     /**
      * Applies an or patch to a value to produce a new value which represents
-     * the original value updated with the changes described by this patch.
+     * the original value updated with the changes described by this patch. An
+     * update for the `Left` side leaves a `Right` value unchanged, and the
+     * other way round.
      */
     def apply(
       oldValue: Either[Value, Value2]
@@ -478,6 +525,9 @@ object Differ {
 
   }
 
+  /**
+   * Constructors for [[Differ.OrPatch]] values.
+   */
   object OrPatch {
 
     /**
@@ -563,10 +613,15 @@ object Differ {
       AndThen(self, that)
   }
 
+  /**
+   * Constructors for [[Differ.SetPatch]] values.
+   */
   object SetPatch {
 
     /**
-     * Constructs a set patch from a new set of values.
+     * Constructs a set patch from an old and a new set of values. The patch
+     * adds the elements that only `newValue` has and removes the elements that
+     * only `oldValue` has.
      */
     def diff[A](oldValue: Set[A], newValue: Set[A]): SetPatch[A] =
       if (oldValue == newValue) Empty()

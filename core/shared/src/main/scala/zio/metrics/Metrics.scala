@@ -4,16 +4,33 @@ import zio.{IO, Trace, UIO}
 
 import java.io.IOException
 
+/**
+ * A snapshot of the metrics recorded by the application, as returned by
+ * `ZIO.metrics`: one [[MetricPair]] for each metric key.
+ *
+ * {{{
+ * import zio._
+ *
+ * val report: UIO[String] =
+ *   for {
+ *     _        <- Metric.counter("jobs_done").increment
+ *     snapshot <- ZIO.metrics
+ *     text     <- snapshot.prettyPrint
+ *   } yield text
+ * }}}
+ */
 final case class Metrics private[zio] (metrics: Set[MetricPair.Untyped]) {
 
   /**
-   * Gets all current metrics in pretty debug view.
+   * Gets all current metrics in pretty debug view: one line per metric in this
+   * snapshot, sorted by name, with the name and description, the tags and the
+   * state. An empty snapshot gives the empty string.
    */
   def prettyPrint(implicit trace: Trace): UIO[String] =
     zio.System.lineSeparator.map(renderMetrics(metrics, _))
 
   /**
-   * Dumps all current metrics to the console.
+   * Dumps all current metrics to the console, in the format of `prettyPrint`.
    */
   def dump(implicit trace: Trace): IO[IOException, Unit] =
     prettyPrint.flatMap(zio.Console.printLine(_))
