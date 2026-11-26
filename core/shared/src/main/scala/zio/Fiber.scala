@@ -35,8 +35,9 @@ import zio.internal.WeakConcurrentBag
  * constructors such as `Fiber.succeed` or `Fiber.fromFuture`, build a
  * [[Fiber.Synthetic]] fiber out of other fibers or values.
  *
- * `join` waits for the result and succeeds or fails like the fiber did; it also
- * merges the fiber's `FiberRef` values into the joining fiber. `await` waits
+ * `join` waits for the result and succeeds or fails like the fiber did; when
+ * the fiber succeeds, it also merges the fiber's `FiberRef` values into the
+ * joining fiber. `await` waits
  * for the result as an [[Exit]] and never fails. `interrupt` stops the fiber,
  * runs its finalizers, and waits until it has ended. Prefer the higher-level
  * operators (`zipPar`, `race`, `foreachPar`, ...) when they fit: they fork,
@@ -177,7 +178,7 @@ sealed abstract class Fiber[+E, +A] { self =>
    * each `FiberRef`'s `join` function, as `join` does when the fiber succeeds.
    * It does not wait for the fiber to finish: on a running fiber it takes the
    * values the fiber has at that moment. The fiber's runtime flags are merged
-   * too, except for its interruptibility.
+   * too, except for its interruptibility and its wind-down mode.
    *
    * {{{
    * val program: UIO[Int] =
@@ -550,10 +551,13 @@ sealed abstract class Fiber[+E, +A] { self =>
    * even when this one has already failed. When both fail, the causes are
    * combined in parallel (`&&`). Interrupting the returned fiber sends the
    * interruption to this fiber and then to that one, and then waits for both;
-   * their finalizers can run concurrently. `join` and `inheritAll` merge the
-   * `FiberRef` values of that fiber first and of this fiber second, so for a
-   * `FiberRef` made with the default `join` function the value of this fiber
-   * wins.
+   * their finalizers can run concurrently.
+   *
+   * `join` and `inheritAll` merge the `FiberRef` values of that fiber first and
+   * of this fiber second. A fiber's value is merged only for the `FiberRef`s it
+   * changed, so for a `FiberRef` made with the default `join` function, the
+   * value of this fiber wins when both fibers changed it, and the value of that
+   * fiber is kept when only that one changed it.
    *
    * {{{
    * val program: UIO[String] =
@@ -895,10 +899,10 @@ object Fiber extends FiberPlatformSpecific {
   }
 
   /**
-   * A synthetic fiber is not a separate computation: it is created from a pure
-   * value or an [[Exit]] (`Fiber.succeed`, `Fiber.done`), from a future
-   * (`Fiber.fromFuture`), or by combining existing fibers (`zip`, `orElse`,
-   * `map`, `Fiber.collectAll`).
+   * A synthetic fiber has no fiber of its own on the ZIO runtime: it is created
+   * from a pure value or an [[Exit]] (`Fiber.succeed`, `Fiber.done`), from a
+   * future (`Fiber.fromFuture`), or by combining existing fibers (`zip`,
+   * `orElse`, `map`, `Fiber.collectAll`).
    */
   sealed abstract class Synthetic[+E, +A] extends Fiber.Internal[E, A] {}
 
@@ -1308,8 +1312,10 @@ object Fiber extends FiberPlatformSpecific {
    * Joins all fibers: awaits every fiber, then succeeds when all of them
    * succeeded, and merges their `FiberRef` values into the joining fiber. When
    * some fibers fail, it fails with their causes combined in parallel (`&&`). A
-   * fiber that was interrupted makes the result an "inner interruption", which
-   * `catchAllCause` can recover from but `catchAll` cannot.
+   * fiber that was interrupted adds an "inner interruption" to that cause,
+   * which `catchAllCause` can recover from. When interruptions are the only
+   * failures, `catchAll` cannot recover; when another fiber also failed with a
+   * typed error, `catchAll` catches that error.
    *
    * @param fs
    *   `Iterable` of fibers to be joined
