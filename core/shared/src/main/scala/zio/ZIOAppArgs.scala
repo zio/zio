@@ -19,11 +19,31 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A service that contains command-line arguments of an application.
+ *
+ * Each [[ZIOApp]] provides it to `run`, built from the arguments passed to
+ * `main`.
+ *
+ * {{{
+ * object GreeterApp extends ZIOAppDefault {
+ *   def run =
+ *     ZIOAppArgs.getArgs.flatMap { args =>
+ *       Console.printLine("Hello, " + args.headOption.getOrElse("guest") + "!")
+ *     }
+ * }
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/core/zioapp/ ZIOApp]]
  */
 final case class ZIOAppArgs(getArgs: Chunk[String])
 
+/** Accessors and layers for [[ZIOAppArgs]]. */
 object ZIOAppArgs {
 
+  /**
+   * Returns the command-line arguments from the `ZIOAppArgs` service in the
+   * environment.
+   */
   def getArgs(implicit trace: Trace): ZIO[ZIOAppArgs, Nothing, Chunk[String]] =
     ZIO.serviceWith(_.getArgs)
 

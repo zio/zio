@@ -28,10 +28,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.1
-        with:
-          fetch-depth: 0
+      # sbt-dynver computes the docs' VERSION (build.sbt `mdocVariables`) with `git describe`, so the build needs the
+      # history of the deployed commit and the release tags. `fetch-depth: 0` would also download every other branch,
+      # including the whole gh-pages history; fetching only this commit and the tags avoids that.
+      - name: Fetch history and tags of the deployed commit
+        run: git fetch --unshallow --tags --no-recurse-submodules origin "$GITHUB_SHA"
       - name: Setup Java
-        uses: actions/setup-java@v6.1.0
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: 17
@@ -85,10 +88,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      # A shallow checkout is enough: the deploy action fetches the tip of gh-pages itself (`--depth=1`).
+      # A full checkout would also download the whole gh-pages history, about four minutes per deploy.
       - name: Checkout
         uses: actions/checkout@v7.0.1
-        with:
-          fetch-depth: 0
       - name: Download website build artifact
         uses: actions/download-artifact@v8
         with:

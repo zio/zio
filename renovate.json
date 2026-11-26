@@ -29,6 +29,8 @@
       "matchPackageNames": [
         "@zio.dev/**"
       ],
+      "groupName": "Official ZIO Ecosystem docs",
+      "separateMajorMinor": false,
       "ignoreUnstable": false,
       "enabled": true
     },
