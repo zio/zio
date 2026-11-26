@@ -85,10 +85,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      # A shallow checkout is enough: the deploy action fetches the tip of gh-pages itself (`--depth=1`).
+      # A full checkout would also download the whole gh-pages history, about four minutes per deploy.
       - name: Checkout
         uses: actions/checkout@v7.0.1
-        with:
-          fetch-depth: 0
       - name: Download website build artifact
         uses: actions/download-artifact@v8
         with:
