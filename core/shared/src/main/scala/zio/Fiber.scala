@@ -204,9 +204,16 @@ sealed abstract class Fiber[+E, +A] { self =>
    * Interrupts the fiber from whichever fiber is calling this method. If the
    * fiber has already exited, the returned effect will resume immediately.
    * Otherwise, the effect will resume when the fiber exits, after its
-   * finalizers have run. The result is the fiber's [[Exit]]: an interruption
-   * that names the calling fiber, or the fiber's own result when it had already
-   * ended.
+   * finalizers have run.
+   *
+   * The result is the fiber's [[Exit]]. When the interruption takes effect, its
+   * cause contains an interruption that names the calling fiber, and it can
+   * also hold other failures, such as a defect thrown by a finalizer. A fiber
+   * that stays uninterruptible until it ends (for example one forked inside
+   * `ZIO.uninterruptible`) returns its own result, which can be a success; so
+   * does a fiber that had already ended. An interruption received inside an
+   * uninterruptible region takes effect when the region ends, even when that
+   * is the fiber's last step.
    *
    * @return
    *   `UIO[Exit[E, A]]`
@@ -217,8 +224,9 @@ sealed abstract class Fiber[+E, +A] { self =>
   /**
    * Interrupts the fiber as if interrupted from the specified fiber. If the
    * fiber has already exited, the returned effect will resume immediately.
-   * Otherwise, the effect will resume when the fiber exits. The interruption in
-   * the resulting [[Exit]] names `fiberId`.
+   * Otherwise, the effect will resume when the fiber exits. When the
+   * interruption takes effect, the cause of the resulting [[Exit]] contains an
+   * interruption that names `fiberId`.
    *
    * @return
    *   `UIO[Exit[E, A]]`
