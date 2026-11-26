@@ -309,8 +309,7 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Recovers from all errors.
    *
-   * The handler `h` receives each typed failure `E`. Defects (see
-   * `catchAllDefect`) and interruption are not recovered.
+   * The handler `h` receives the first typed failure `E` in the cause; the rest of the cause, defects included, is dropped. When the cause holds no typed failure (only defects, see `catchAllDefect`, or interruptions), `h` does not run and the effect fails with that cause.
    *
    * {{{
    * def readConfig(path: String): IO[String, String] =
@@ -382,8 +381,7 @@ sealed trait ZIO[-R, +E, +A]
     catchSomeDefect { case t => h(t) }
 
   /**
-   * Recovers from all failures, the same as `catchAll`. The handler receives
-   * every `Throwable` this effect fails with, fatal ones included.
+   * Recovers from typed failures, the same as `catchAll`: the handler receives the first `Throwable` in the error channel, fatal ones included.
    *
    * {{{
    * import java.io.IOException
@@ -964,7 +962,7 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Like fork, and runs `handler` in the forked fiber when it fails with an
    * error `E`. The handler does not recover: the fiber still completes with the
-   * original failure.
+   * original failure. When the cause holds no typed failure (for example only a defect), `handler` does not run and the fiber completes with that cause repeated twice in sequence (`cause ++ cause`).
    */
   final def forkWithErrorHandler[R1 <: R](handler: E => URIO[R1, Any])(implicit
     trace: Trace
@@ -1114,7 +1112,7 @@ sealed trait ZIO[-R, +E, +A]
 
   /**
    * Runs this effect inside a new log span named `label`. Log messages written
-   * while it runs carry the span, as `label=<elapsed>ms`.
+   * while it runs carry the span, as `label=<elapsed>ms`; the default log format puts the label in double quotes when it contains a space.
    *
    * {{{
    * def parseRequest(line: String): UIO[Int] =
@@ -1248,7 +1246,7 @@ sealed trait ZIO[-R, +E, +A]
    * effect if it exists. The provided effect will not be interrupted.
    *
    * `cleanup` receives the full `Cause`, and runs when this effect fails, dies
-   * or is interrupted. The returned effect then ends with the original cause.
+   * or is interrupted. The returned effect then ends with the original cause, followed by the defect of `cleanup` when `cleanup` dies.
    */
   final def onError[R1 <: R](cleanup: Cause[E] => URIO[R1, Any])(implicit trace: Trace): ZIO[R1, E, A] =
     onExit {
@@ -1270,7 +1268,7 @@ sealed trait ZIO[-R, +E, +A]
    *
    * When this effect completes, the fiber may keep running the effects that
    * follow on the same thread until its next yield or asynchronous boundary,
-   * and then returns to the executor it used before. With the
+   * and then continues on the executor of the enclosing region (the runtime's default executor when there is none). With the
    * `RuntimeFlag.EagerShiftBack` flag enabled, or inside an enclosing
    * `onExecutor`, it shifts back right away.
    */
@@ -1280,8 +1278,7 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Executes the effect on the specified `ExecutionContext`, the same as
    * `onExecutor` with an executor built from `ec`. Shifting back follows
-   * `onExecutor`: the fiber returns to its previous executor at its next yield,
-   * or right away with `RuntimeFlag.EagerShiftBack` enabled.
+   * `onExecutor`: at its next yield the fiber continues on the executor of the enclosing region (the runtime's default executor when there is none), or right away with `RuntimeFlag.EagerShiftBack` enabled.
    */
   final def onExecutionContext(ec: => ExecutionContext)(implicit trace: Trace): ZIO[R, E, A] =
     self.onExecutor(Executor.fromExecutionContext(ec))
@@ -1399,6 +1396,8 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Returns an effect that will produce the value of this effect, unless it
    * fails, in which case, it will produce the value of the specified effect.
+   *
+   * As with `orElse`, `that` runs when this effect fails with a typed error or is interrupted from inside (for example by `ZIO.interrupt`). When the cause contains a defect, `that` does not run and the returned effect dies with the defects.
    */
   final def orElseEither[R1 <: R, E2, B](
     that: => ZIO[R1, E2, B]
@@ -1408,6 +1407,8 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Executes this effect and returns its value, if it succeeds, but otherwise
    * fails with the specified error.
+   *
+   * As with `orElse`, the error replaces a typed failure or an interruption from inside; when the cause contains a defect, the returned effect dies with the defects instead.
    */
   def orElseFail[E1](e1: => E1)(implicit ev: CanFail[E], trace: Trace): ZIO[R, E1, A] =
     orElse(ZIO.fail(e1))
@@ -1425,6 +1426,8 @@ sealed trait ZIO[-R, +E, +A]
   /**
    * Executes this effect and returns its value, if it succeeds, but otherwise
    * succeeds with the specified value.
+   *
+   * As with `orElse`, the value replaces a typed failure or an interruption from inside; when the cause contains a defect, the returned effect dies with the defects instead.
    */
   final def orElseSucceed[A1 >: A](a1: => A1)(implicit ev: CanFail[E], trace: Trace): URIO[R, A1] =
     orElse(Exit.succeed(a1))
@@ -1907,9 +1910,7 @@ sealed trait ZIO[-R, +E, +A]
    * for example), so that that `io.retry(Schedule.once)` means "execute `io`
    * and in case of failure, try again once".
    *
-   * Only typed failures are retried: a defect or an interruption ends the
-   * effect at once. When the schedule is done, the effect fails with the last
-   * error.
+   * A cause that holds a typed failure is retried; a cause with only defects or interruptions ends the effect at once. When the schedule is done, the effect fails with the last cause.
    *
    * {{{
    * def connect(attempts: Ref[Int]): IO[String, String] =
