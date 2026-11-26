@@ -25,8 +25,7 @@ import scala.collection.mutable
 import scala.runtime.AbstractFunction2
 
 /**
- * A `Cause[E]` describes every reason an effect failed, without losing any of
- * them. Its leaves are the typed failures of type `E` (`Fail`), the defects,
+ * A `Cause[E]` describes why an effect failed, and can hold several reasons at once. Its leaves are the typed failures of type `E` (`Fail`), the defects,
  * which are unexpected `Throwable`s (`Die`), and the interruptions, which
  * record the id of the interrupting fiber (`Interrupt`). `Then` composes two
  * causes that happened in sequence, such as a failure followed by a failing
@@ -484,8 +483,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
     }.isDefined
 
   /**
-   * Remove all `Fail` and `Interrupt` nodes from this `Cause`, return only
-   * `Die` cause/finalizer defects.
+   * Removes the `Fail` and `Interrupt` nodes from this cause and returns `Some` with the `Die` nodes that remain, or `None` when the cause has no `Die`.
    */
   final def keepDefects: Option[Cause[Nothing]] =
     foldLog[Option[Cause[Nothing]]](
@@ -511,7 +509,8 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
 
   /**
    * Linearizes this cause to a set of parallel causes where each parallel cause
-   * contains a linear sequence of failures.
+   * contains a linear sequence of failures. A `Then` node with an `Empty` side
+   * linearizes to the empty set.
    */
   def linearize[E1 >: E]: Set[Cause[E1]] =
     foldLog[Set[Cause[E1]]](
@@ -601,14 +600,7 @@ sealed abstract class Cause[+E] extends Product with Serializable { self =>
   /**
    * Returns a `String` with the cause pretty-printed.
    *
-   * The output looks like a Java stack trace. For each parallel branch of the
-   * cause (see `linearize`), the first leaf prints as a `className: message`
-   * line followed by its `at` trace lines, and each leaf that came after it in
-   * sequence prints as an indented `Suppressed:` entry. Branches that start
-   * with a `Die` come first, then those that start with a `Fail`, then those
-   * that start with an `Interrupt`. A typed failure prints the class name and
-   * `toString` of its error value, and an interruption prints as a
-   * `java.lang.InterruptedException`. `Cause.empty` gives an empty string.
+   * The output looks like a Java stack trace. For each parallel branch of the cause (see `linearize`), the first leaf prints as a `className: message` line followed by its `at` trace lines. Each later entry of the branch prints as a `Suppressed:` entry, indented one tab more than the one before; the later entries are the leaves that came after it in sequence and the `getCause` chain of each `Throwable`. Branches that start with a `Die` come first, then those that start with a `Fail`, then those that start with an `Interrupt`. A typed failure that is not a `Throwable` prints the class name and `toString` of its error value, a `Throwable` prints its class name and `getMessage`, and an interruption prints as a `java.lang.InterruptedException`. `Cause.empty` gives an empty string, and so does a `Then` node with an `Empty` side (which `stripFailures` can leave), because `linearize` drops it.
    *
    * {{{
    * val cause: Cause[String] = Cause.fail("disk full") ++ Cause.fail("rollback failed")
