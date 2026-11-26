@@ -26,8 +26,11 @@ import zio.metrics.MetricLabel
  *
  * Each fiber has its own value: a fiber reads the `initial` value until it, or
  * a parent before forking it, sets one. A forked child starts with its parent's
- * value (transformed by the `fork` function of `FiberRef.make`), and the
- * changes a fiber makes are not seen by other fibers that run at the same time.
+ * value, and the changes a fiber makes are not seen by other fibers that run at
+ * the same time. When the parent holds a value for the `FiberRef` (it set or
+ * inherited one, or created the `FiberRef` with `FiberRef.make`), the `fork`
+ * function of `FiberRef.make` transforms it for the child; otherwise the child
+ * reads the `initial` value unchanged.
  * `Fiber#join` merges the child's value back into the joining fiber;
  * `Fiber#await` does not.
  *
@@ -118,7 +121,9 @@ sealed trait FiberRef[A] extends Serializable { self =>
 
   /**
    * The initial patch that is applied to the value of the `FiberRef` when a new
-   * fiber is forked.
+   * fiber is forked. It is applied only when the forking fiber holds a value
+   * for the `FiberRef`; the child of a fiber that holds none reads the
+   * `initial` value unchanged.
    */
   def fork: Patch
 
@@ -191,6 +196,13 @@ sealed trait FiberRef[A] extends Serializable { self =>
    * After `zio` ends, whether it succeeds, fails or is interrupted, the
    * `FiberRef` is restored to the value it had before, which also discards the
    * changes `zio` made to it.
+   *
+   * For a `FiberRef` created with `FiberRef.make`, `FiberRef.unsafe.make` or
+   * the other constructors of `FiberRef`, when the current fiber already holds
+   * `newValue` (the same reference, or an equal boxed number), `zio` runs
+   * without the restore, and the changes it makes to the `FiberRef` are kept.
+   * A fiber holds a value once it has set or inherited one, or has created the
+   * `FiberRef` with `FiberRef.make`.
    */
   def locally[R, E, B](newValue: A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
     ZIO.acquireReleaseWith(getAndSet(newValue))(set)(_ => zio)
@@ -201,6 +213,12 @@ sealed trait FiberRef[A] extends Serializable { self =>
    *
    * After `zio` ends, whether it succeeds, fails or is interrupted, the
    * `FiberRef` is restored to the value it had before.
+   *
+   * For a `FiberRef` created with `FiberRef.make`, `FiberRef.unsafe.make` or
+   * the other constructors of `FiberRef`, when `f` returns the value the
+   * current fiber already holds (the same reference, or an equal boxed
+   * number), `zio` runs without the restore, and the changes it makes to the
+   * `FiberRef` are kept.
    */
   def locallyWith[R, E, B](f: A => A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
     getWith(a => locally(f(a))(zio))
@@ -434,7 +452,7 @@ object FiberRef {
    * Creates a new `FiberRef` with given initial value.
    *
    * `fork` computes a child fiber's value from its parent's value when the
-   * child is forked (unchanged by default). `join` combines the joining fiber's
+   * child is forked and the parent holds a value (unchanged by default). `join` combines the joining fiber's
    * value with the joined fiber's value when a fiber is joined (the joined
    * fiber's value wins by default). The value is deleted from the fiber that
    * closes the scope.
