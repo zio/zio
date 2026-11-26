@@ -22,6 +22,32 @@ import scala.util.Try
 /**
  * A ConfigProvider is a service that provides configuration given a description
  * of the structure of that configuration.
+ *
+ * `load` reads a [[Config]] description and fails with a `Config.Error` when
+ * data is missing or invalid. `ZIO.config` loads with the provider of the
+ * current fiber, which is `ConfigProvider.defaultProvider` (each value from the
+ * environment variables, then from the system properties) unless
+ * `Runtime.setConfigProvider` or `ZIO.withConfigProvider` replaces it.
+ * `fromMap`, `fromEnv`, `fromProps` and `fromAppArgs` build providers that read
+ * a map, the environment variables, the system properties and command-line
+ * arguments. `orElse` combines two providers value by value, `nested` and
+ * `unnested` move the data of a provider under or out of a name, and
+ * `kebabCase`, `snakeCase`, `upperCase` and `contramapPath` rename the keys
+ * that a provider looks up.
+ *
+ * {{{
+ * val provider: ConfigProvider =
+ *   ConfigProvider
+ *     .fromMap(Map("db-host" -> "db.internal"))
+ *     .kebabCase
+ *     .orElse(ConfigProvider.fromMap(Map("dbHost" -> "localhost", "dbPort" -> "5432")))
+ *
+ * val database: IO[Config.Error, (String, Int)] = provider.load(Config.string("dbHost") ++ Config.int("dbPort"))
+ * // succeeds with (db.internal,5432)
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/configuration/ Configuration]]
  */
 trait ConfigProvider {
   self =>
@@ -38,10 +64,21 @@ trait ConfigProvider {
   def load[A](implicit trace: Trace, config: Config[A]): IO[Config.Error, A] = load(config)
 
   /**
-   * Returns a new config provider that will automatically tranform all path
-   * configuration names with the specified function. This can be utilized to
-   * adapt the names of configuration properties from one naming convention to
-   * another.
+   * Returns a new config provider that will automatically transform the names
+   * of each path it looks up with the specified function. This can be utilized
+   * to adapt the names of configuration properties from one naming convention
+   * to another.
+   *
+   * The names of the keys that `Config.table` finds are used unchanged when the
+   * values of the table are bare primitives, such as `Config.string`,
+   * `Config.boolean`, `Config.bigInt` or `Config.secret`. When the values are
+   * other configs, the keys are passed to `f` as well: for example
+   * `Config.int`, `Config.long`, `Config.double`, `Config.logLevel` and
+   * `Config.uri` (which convert a primitive with `map` or `mapOrFail`), a
+   * `zip`, `Config.string("host")` or `Config.listOf(Config.string)`. With
+   * `optional` values, a renamed key that is not found reads as `None`. On a
+   * provider that does not override `flatten`, the result dies when it loads a
+   * value (see `flatten`).
    */
   final def contramapPath(f: String => String): ConfigProvider =
     ConfigProvider.fromFlat(self.flatten.contramapPath(f))
@@ -49,6 +86,14 @@ trait ConfigProvider {
   /**
    * Flattens this config provider into a simplified config provider that knows
    * only how to deal with flat (key/value) properties.
+   *
+   * A provider built with `ConfigProvider.fromFlat`, such as those of
+   * `fromMap`, `fromEnv`, `fromProps`, `fromAppArgs` and `consoleProvider`,
+   * returns its `Flat`. This default implementation returns a `Flat` whose
+   * methods die with `NotImplementedError("ConfigProvider#flatten")`, so on a
+   * provider that does not override `flatten`, the providers returned by
+   * `contramapPath`, `nested`, `unnested`, `orElse`, `within` and the case
+   * conversions die when they load a value, such as `Config.int("port")`.
    */
   def flatten: ConfigProvider.Flat =
     new ConfigProvider.Flat {
@@ -68,6 +113,9 @@ trait ConfigProvider {
    * Note: This method now correctly handles numbers in camelCase names (e.g.,
    * "myValue123" becomes "my-value-123"). For backward compatibility with the
    * legacy behavior, use [[kebabCaseLegacy]].
+   *
+   * It renames through `contramapPath`, so the keys that `Config.table` finds
+   * are renamed only as described there.
    */
   final def kebabCase: ConfigProvider =
     contramapPath { name =>
@@ -103,6 +151,9 @@ trait ConfigProvider {
    * names to lower case. This can be utilized to adapt the names of
    * configuration properties from the default naming convention of camel case
    * to the naming convention of a config provider.
+   *
+   * It renames through `contramapPath`, so the keys that `Config.table` finds
+   * are renamed only as described there.
    */
   final def lowerCase: ConfigProvider =
     contramapPath(_.toLowerCase)
@@ -120,6 +171,12 @@ trait ConfigProvider {
    * Returns a new config provider that preferentially loads configuration data
    * from this one, but which will fall back to the specified alternate provider
    * if there are any issues loading the configuration from this provider.
+   *
+   * The fallback happens for each value that is looked up, so one config can
+   * read some values from this provider and others from `that`. When both fail,
+   * the error is the `Config.Error.Or` of the two errors. For `Config.table`
+   * and indexed sequences, the property names come from this provider when it
+   * has any under the path, and from `that` otherwise.
    */
   final def orElse(that: ConfigProvider): ConfigProvider =
     ConfigProvider.fromFlat(self.flatten.orElse(that.flatten))
@@ -133,6 +190,9 @@ trait ConfigProvider {
    * Note: This method now correctly handles numbers in camelCase names (e.g.,
    * "myValue123" becomes "my_value_123"). For backward compatibility with the
    * legacy behavior, use [[snakeCaseLegacy]].
+   *
+   * It renames through `contramapPath`, so the keys that `Config.table` finds
+   * are renamed only as described there.
    */
   final def snakeCase: ConfigProvider =
     contramapPath { name =>
@@ -175,6 +235,9 @@ trait ConfigProvider {
    * names to upper case. This can be utilized to adapt the names of
    * configuration properties from the default naming convention of camel case
    * to the naming convention of a config provider.
+   *
+   * It renames through `contramapPath`, so the keys that `Config.table` finds
+   * are renamed only as described there.
    */
   final def upperCase: ConfigProvider =
     contramapPath(_.toUpperCase)
@@ -182,6 +245,9 @@ trait ConfigProvider {
   /**
    * Returns a new config provider that transforms the config provider with the
    * specified function within the specified path.
+   *
+   * Values outside `path`, and values inside it that the transformed provider
+   * fails to load, are read from this provider.
    */
   final def within(path: Chunk[String])(f: ConfigProvider => ConfigProvider): ConfigProvider = {
     val unnested = path.foldLeft(self)((configProvider, name) => configProvider.unnested(name))
@@ -190,6 +256,13 @@ trait ConfigProvider {
   }
 }
 
+/**
+ * Constructors of [[ConfigProvider]]: the providers that read environment
+ * variables (`envProvider`, `fromEnv`), system properties (`propsProvider`,
+ * `fromProps`), command-line arguments (`fromAppArgs`), the console
+ * (`consoleProvider`) and maps (`fromMap`), the default provider, and
+ * `fromFlat`, which builds a provider from flat key/value lookups.
+ */
 object ConfigProvider {
 
   /**
@@ -207,10 +280,26 @@ object ConfigProvider {
 
     import Flat._
 
+    /**
+     * Loads the values of the primitive `config` at `path`, which `patch` has
+     * already changed. The providers of `fromMap`, `fromEnv` and `fromProps`
+     * return several values when the value at `path` holds a delimited
+     * sequence, and fail with `Config.Error.MissingData` when there is nothing
+     * at `path`.
+     */
     def load[A](path: Chunk[String], config: Config.Primitive[A])(implicit trace: Trace): IO[Config.Error, Chunk[A]]
 
+    /**
+     * Returns the names of the properties directly under `path`. `Config.table`
+     * uses them as keys, and sequences use them to find indexed keys such as
+     * `ports[0]`.
+     */
     def enumerateChildren(path: Chunk[String])(implicit trace: Trace): IO[Config.Error, Set[String]]
 
+    /**
+     * Returns a flat provider whose `patch` also applies `f` to each name of a
+     * path.
+     */
     def contramapPath(f: String => String): Flat =
       new Flat {
         override def load[A](path: Chunk[String], config: Config.Primitive[A], split: Boolean)(implicit
@@ -230,11 +319,22 @@ object ConfigProvider {
           self.patch.mapName(f)
       }
 
+    /**
+     * Loads the values of `config` at `path`, where `split` says whether to
+     * split a value at the sequence delimiter. `ConfigProvider.fromFlat` passes
+     * `true` when it loads the elements of a sequence, and `false` for a value
+     * that is not inside a sequence. This default implementation ignores
+     * `split` and calls the two-argument `load`.
+     */
     def load[A](path: Chunk[String], config: Config.Primitive[A], split: Boolean)(implicit
       trace: Trace
     ): IO[Config.Error, Chunk[A]] =
       load(path, config)
 
+    /**
+     * Returns a flat provider whose `patch` also puts `name` in front of each
+     * path.
+     */
     final def nested(name: String): Flat =
       new Flat {
         override def load[A](path: Chunk[String], config: Config.Primitive[A], split: Boolean)(implicit
@@ -254,9 +354,21 @@ object ConfigProvider {
           self.patch.nested(name)
       }
 
+    /**
+     * The change that `ConfigProvider.fromFlat` applies to each path before it
+     * calls `load` or `enumerateChildren`, built by `contramapPath`, `nested`
+     * and `unnested`. It is `PathPatch.empty` by default.
+     */
     def patch: PathPatch =
       PathPatch.empty
 
+    /**
+     * Returns a flat provider that loads each value from this provider and,
+     * when that fails, from `that`, each with its own `patch`. When both fail,
+     * the error is the `Config.Error.Or` of the two errors. `enumerateChildren`
+     * returns the names of this provider when it has any, and those of `that`
+     * otherwise.
+     */
     final def orElse(that: Flat): Flat =
       new Flat {
         override def load[A](path: Chunk[String], config: Config.Primitive[A], split: Boolean)(implicit
@@ -293,6 +405,11 @@ object ConfigProvider {
           PathPatch.empty
       }
 
+    /**
+     * Returns a flat provider whose `patch` also removes `name` from the front
+     * of each path, and fails with `Config.Error.MissingData` for a path that
+     * does not start with `name`.
+     */
     final def unnested(name: String): Flat =
       new Flat {
         override def load[A](path: Chunk[String], config: Config.Primitive[A], split: Boolean)(implicit
@@ -313,12 +430,32 @@ object ConfigProvider {
       }
   }
 
+  /** The `PathPatch` type and helpers for writing `Flat` providers. */
   object Flat {
+
+    /**
+     * A change to a configuration path, made of renames (`mapName`), added
+     * prefixes (`nested`) and removed prefixes (`unnested`), which apply in the
+     * order they were added.
+     *
+     * {{{
+     * import zio.ConfigProvider.Flat.PathPatch
+     *
+     * val patch: PathPatch = PathPatch.empty.nested("app").mapName(_.toUpperCase)
+     *
+     * val patched: Either[Config.Error, Chunk[String]] = patch(Chunk("port"))
+     * // Right(Chunk(APP,PORT))
+     * }}}
+     */
     sealed trait PathPatch {
       self =>
 
       import PathPatch._
 
+      /**
+       * Applies this patch to `path`. It fails with `Config.Error.MissingData`
+       * when an `unnested` step finds a path that does not start with its name.
+       */
       def apply[A](path: Chunk[String]): Either[Config.Error, Chunk[String]] = {
 
         @tailrec
@@ -342,18 +479,28 @@ object ConfigProvider {
         loop(path, List(self))
       }
 
+      /**
+       * Returns this patch followed by applying `f` to each name of the path.
+       */
       def mapName(f: String => String): PathPatch =
         AndThen(self, MapName(f))
 
+      /** Returns this patch followed by putting `name` in front of the path. */
       def nested(name: String): PathPatch =
         AndThen(self, Nested(name))
 
+      /**
+       * Returns this patch followed by removing `name` from the front of the
+       * path.
+       */
       def unnested(name: String): PathPatch =
         AndThen(self, Unnested(name))
     }
 
+    /** The empty `PathPatch`, from which the other patches are built. */
     object PathPatch {
 
+      /** The patch that leaves a path unchanged. */
       val empty: PathPatch =
         Empty
 
@@ -364,10 +511,23 @@ object ConfigProvider {
       private final case class Unnested(name: String)                       extends PathPatch
     }
 
+    /** Helpers for writing `Flat` providers. */
     object util {
+
+      /**
+       * Splits `text` at the regular expression `escapedDelim` and removes the
+       * whitespace around each delimiter; empty parts at the end are dropped.
+       * Quote a literal delimiter with `java.util.regex.Pattern.quote`.
+       * Splitting `a , b,c,` at a quoted `,` gives `Chunk(a,b,c)`.
+       */
       def splitPathString(text: String, escapedDelim: String): Chunk[String] =
         Chunk.fromArray(text.split("\\s*" + escapedDelim + "\\s*"))
 
+      /**
+       * Parses `text` with `primitive`. When `split` is `true`, it first splits
+       * `text` with `splitPathString` and parses each trimmed part. Errors get
+       * `path` in front of their path; `name` is not used.
+       */
       def parsePrimitive[A](
         text: String,
         path: Chunk[String],
@@ -391,6 +551,10 @@ object ConfigProvider {
         }
       }
 
+      /**
+       * The same as the six-argument `parsePrimitive` with `split` set to
+       * `true`.
+       */
       def parsePrimitive[A](
         text: String,
         path: Chunk[String],
@@ -404,14 +568,24 @@ object ConfigProvider {
 
   /**
    * A config provider layer that loads configuration from interactive console
-   * prompts, using the default Console service.
+   * prompts, using the `Console` service of the current fiber.
    */
   lazy val console: ZLayer[Any, Nothing, ConfigProvider] =
     ZLayer.succeed(consoleProvider)
 
+  /** The same as `consoleProvider()`. */
   lazy val consoleProvider: ConfigProvider =
     consoleProvider()
 
+  /**
+   * A config provider that asks for each value on the console with the current
+   * `Console` service. For `Config.int("port")` it prints `Please enter an
+   * integer property for property port:` and reads one line. For a table or a
+   * sequence, it first prints `Enter the keys you want for the table`, followed
+   * by the path, and reads a comma-separated line of keys. Values of sequences
+   * are split at `,`; the `seqDelim` argument is not used. When the console
+   * can't be read, loading fails with `Config.Error.SourceUnavailable`.
+   */
   def consoleProvider(seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
       override def load[A](path: Chunk[String], primitive: Config.Primitive[A], split: Boolean)(implicit
@@ -448,19 +622,26 @@ object ConfigProvider {
         load(path, primitive, true)
     })
 
+  /**
+   * The config provider that `ZIO.config` uses unless another one is set. It
+   * reads each value from the environment variables, as `envProvider` does, and
+   * when that fails, from the system properties, as `propsProvider` does. So
+   * `Config.int("port").nested("http")` reads `HTTP_PORT`, then `http.port`.
+   * When both fail, the error is the `Config.Error.Or` of the two errors.
+   */
   lazy val defaultProvider: ConfigProvider =
     envProvider.orElse(propsProvider)
 
   /**
    * A config provider layer that loads configuration from environment
-   * variables, using the default System service.
+   * variables, using the `System` service of the current fiber.
    */
   lazy val env: ZLayer[Any, Nothing, ConfigProvider] =
     ZLayer.succeed(envProvider)
 
   /**
    * A config provider that loads configuration from environment variables,
-   * using the default System service.
+   * using the `System` service of the current fiber.
    */
   lazy val envProvider: ConfigProvider =
     fromEnv()
@@ -471,6 +652,29 @@ object ConfigProvider {
    * "-flag" or "--flag". Key Value pairs can be specified as "--key=value" or
    * "--key value". Sequences can be specified as "--key value1 value2 ..." or
    * "--key=value1 --key=value2"
+   *
+   * Arguments before the first key are ignored. All leading dashes are removed
+   * from a key, so `-port`, `--port` and `---port` name the same key; keys are
+   * case-sensitive, and `pathDelim` separates nested names (`--db.port 5432`).
+   * An argument that starts with `-` is read as a key, so `--offset -5` sets
+   * `offset` to `true` and adds a key `5`, while `--offset=-5` sets `offset` to
+   * `-5`. A key that is repeated or followed by several values has several
+   * values: a sequence reads all of them, and a single config that is not a
+   * sequence, such as `Config.string("host")`, reads the first. Inside a `zip`
+   * (`++`), a single config that is not a sequence fails to load with
+   * `MissingData` when its key has several values, unless the other side of the
+   * zip is also a config that is not a sequence and reads as many values, for
+   * example `The element at index 1 in a sequence at db was missing`. When a
+   * sequence is loaded, each value is also split at `seqDelim`, or at `,` when
+   * `seqDelim` is `None`.
+   *
+   * {{{
+   * val args: ZIOAppArgs = ZIOAppArgs(Chunk("serve", "--host", "0.0.0.0", "--port=9000", "--verbose"))
+   *
+   * val settings: IO[Config.Error, (String, Int, Boolean)] =
+   *   ConfigProvider.fromAppArgs(args).load(Config.string("host") ++ Config.int("port") ++ Config.boolean("verbose"))
+   * // succeeds with (0.0.0.0,9000,true)
+   * }}}
    */
   def fromAppArgs(args: ZIOAppArgs, pathDelim: String = ".", seqDelim: Option[String] = None): ConfigProvider = {
     val escapedPathDelim = java.util.regex.Pattern.quote(pathDelim)
@@ -605,8 +809,14 @@ object ConfigProvider {
 
   /**
    * Constructs a ConfigProvider that loads configuration information from
-   * environment variables, using the default System service and the specified
-   * delimiter strings.
+   * environment variables, using the `System` service of the current fiber and
+   * the specified delimiter strings.
+   *
+   * It looks up a path as its names joined with `pathDelim` and converted to
+   * upper case, after replacing `-` with `_` in each name:
+   * `Config.int("port").nested("http-server")` reads `HTTP_SERVER_PORT`, and
+   * `Config.string("apiKey")` reads `APIKEY`. When a sequence is loaded, a
+   * value is split at `seqDelim`.
    */
   def fromEnv(pathDelim: String = "_", seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
@@ -825,6 +1035,12 @@ object ConfigProvider {
   /**
    * Constructs a ConfigProvider using a map and the specified delimiter string,
    * which determines how to split the keys in the map into path segments.
+   *
+   * Keys are case-sensitive, and a value that is not part of a sequence is read
+   * unchanged. When a sequence is loaded, a value is split at `seqDelim` and
+   * the whitespace around each part is removed, so `8080, 8081` gives two
+   * values; indexed keys such as `ports[0]` and `ports[1]` also form a
+   * sequence, and the value `<nil>` gives an empty one.
    */
   def fromMap(map: Map[String, String], pathDelim: String = ".", seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
@@ -872,8 +1088,8 @@ object ConfigProvider {
 
   /**
    * Constructs a ConfigProvider that loads configuration information from
-   * system properties, using the default System service and the specified
-   * delimiter strings.
+   * system properties, using the `System` service of the current fiber and the
+   * specified delimiter strings.
    */
   def fromProps(pathDelim: String = ".", seqDelim: String = ","): ConfigProvider =
     fromFlat(new Flat {
@@ -918,14 +1134,14 @@ object ConfigProvider {
 
   /**
    * A config provider layer that loads configuration from system properties,
-   * using the default System service.
+   * using the `System` service of the current fiber.
    */
   lazy val props: ZLayer[Any, Nothing, ConfigProvider] =
     ZLayer.succeed(propsProvider)
 
   /**
    * A configuration provider that loads configuration from system properties,
-   * using the default System service.
+   * using the `System` service of the current fiber.
    */
   lazy val propsProvider: ConfigProvider =
     fromProps()

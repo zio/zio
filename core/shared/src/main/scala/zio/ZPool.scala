@@ -23,6 +23,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * A `ZPool[E, A]` is a pool of items of type `A`, each of which may be
  * associated with the acquisition and release of resources. An attempt to get
  * an item `A` from a pool may fail with an error of type `E`.
+ *
+ * @see
+ *   [[https://zio.dev/reference/resource/zpool/ ZPool]]
  */
 trait ZPool[+Error, Item] {
 
@@ -30,16 +33,28 @@ trait ZPool[+Error, Item] {
    * Retrieves an item from the pool in a scoped effect. Note that if
    * acquisition fails, then the returned effect will fail for that same reason.
    * Retrying a failed acquisition attempt will repeat the acquisition attempt.
+   *
+   * The item returns to the pool when the scope closes, or is released when it
+   * was invalidated. When every item is in use and the pool has reached its
+   * maximum size, `get` waits until an item is returned. After the pool is shut
+   * down, `get` is interrupted.
    */
   def get(implicit trace: Trace): ZIO[Scope, Error, Item]
 
   /**
-   * Invalidates the specified item. This will cause the pool to eventually
-   * reallocate the item, although this reallocation may occur lazily rather
-   * than eagerly.
+   * Invalidates the specified item. The pool does not release it at once: it
+   * releases the item when the item is returned, or when a later `get` takes it
+   * from the pool. It then acquires a replacement when the pool held no more
+   * than its minimum number of items or a `get` is waiting; otherwise the pool
+   * shrinks by one item.
    */
   def invalidate(item: Item)(implicit trace: Trace): UIO[Unit]
 }
+
+/**
+ * Constructors of pools: `make` for a fixed size or a size range with a time to
+ * live, and `fromIterable` for items that already exist.
+ */
 object ZPool {
 
   /**
@@ -47,6 +62,11 @@ object ZPool {
    * should only be used when there is no cleanup or release operation
    * associated with items in the pool. If cleanup or release is required, then
    * the `make` constructor should be used instead.
+   *
+   * The pool cannot create new items: after `invalidate`, a later `get` can die
+   * with a `java.lang.IllegalArgumentException` ("No items in list!") when the
+   * pool tries to replace the invalidated item. Creating the pool from an empty
+   * `iterable` dies with a `java.lang.IllegalArgumentException`.
    */
   def fromIterable[A](iterable: => Iterable[A])(implicit trace: Trace): ZIO[Scope, Nothing, ZPool[Nothing, A]] =
     for {
@@ -66,6 +86,9 @@ object ZPool {
    * `Scope`, which governs the lifetime of the pool. When the pool is shutdown
    * because the `Scope` is closed, the individual items allocated by the pool
    * will be released in some unspecified order.
+   *
+   * The pool acquires all `size` items when it is created. Closing its scope
+   * waits until the items in use are returned.
    */
   def make[R, E, A](get: => ZIO[R, E, A], size: => Int)(implicit
     trace: Trace
@@ -80,18 +103,37 @@ object ZPool {
    * live before a pool whose excess items are not being used will be shrunk
    * down to the minimum size. The pool is returned in a `Scope`, which governs
    * the lifetime of the pool. When the pool is shutdown because the `Scope` is
-   * used, the individual items allocated by the pool will be released in some
+   * closed, the individual items allocated by the pool will be released in some
    * unspecified order.
+   *
+   * The pool acquires `range.start` items when it is created, and more on
+   * demand up to `range.end`. When no item has been created or returned to the
+   * pool for at least `timeToLive`, the pool releases idle items one at a time
+   * while it holds more idle items than `range.start`. So it shrinks to
+   * `range.start` items when none is in use, and keeps up to `range.start` idle
+   * items besides the ones in use.
+   *
    * {{{
-   * ZIO.scoped {
-   *   ZPool.make(acquireDbConnection, 10 to 20, 60.seconds).flatMap { pool =>
-   *     ZIO.scoped {
-   *       pool.get.flatMap {
-   *         connection => useConnection(connection)
+   * final case class Connection(id: Int)
+   *
+   * def acquireDbConnection(ids: Ref[Int]): ZIO[Scope, Nothing, Connection] =
+   *   ZIO.acquireRelease(ids.updateAndGet(_ + 1).map(Connection(_)))(_ => ZIO.unit)
+   *
+   * def useConnection(connection: Connection): UIO[Unit] =
+   *   ZIO.debug(s"querying with connection \${connection.id}")
+   *
+   * val program: UIO[Unit] =
+   *   ZIO.scoped {
+   *     Ref.make(0).flatMap { ids =>
+   *       ZPool.make(acquireDbConnection(ids), 10 to 20, 60.seconds).flatMap { pool =>
+   *         ZIO.scoped {
+   *           pool.get.flatMap { connection =>
+   *             useConnection(connection)
+   *           }
+   *         }
    *       }
    *     }
    *   }
-   * }
    * }}}
    */
   def make[R, E, A](get: => ZIO[R, E, A], range: => Range, timeToLive: => Duration)(implicit
@@ -171,7 +213,10 @@ object ZPool {
       } yield attempted
 
     /**
-     * Returns the number of items in the pool in excess of the minimum size.
+     * Returns the number of free items in excess of the minimum size, capped at
+     * the number of items in the pool: `(free - range.start) min size`. It is
+     * zero or negative while the pool holds no more than `range.start` free
+     * items, even when the pool holds more than `range.start` items.
      */
     def excess(implicit trace: Trace): UIO[Int] =
       state.get.map { case State(free, size) => size - range.start min free }
@@ -356,8 +401,9 @@ object ZPool {
     }
 
     /**
-     * A strategy that shrinks the pool down to its minimum size if items in the
-     * pool have not been used for the specified duration.
+     * A strategy that, when no item has been created or returned to the pool
+     * for the specified duration, shrinks the pool one free item at a time
+     * while `excess` is positive.
      */
     final case class TimeToLive(timeToLive: Duration) extends Strategy[Any, Any, Any] {
       type State = (Clock, Ref[java.time.Instant])
