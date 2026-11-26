@@ -26,6 +26,7 @@ import java.io.IOException
  * `ZOutputStream.fromOutputStream` wraps a `java.io.OutputStream`.
  */
 sealed trait ZOutputStream {
+
   /**
    * Writes the bytes of `chunk` to the stream, on the blocking executor. Fails
    * with the `IOException` that the stream throws; other exceptions are
@@ -40,8 +41,8 @@ sealed trait ZOutputStream {
 object ZOutputStream {
 
   /**
-   * Wraps the Java output stream `os`. Writes are not flushed, and closing
-   * `os` stays the caller's job.
+   * Wraps the Java output stream `os`. Writes are not flushed, and closing `os`
+   * stays the caller's job.
    */
   def fromOutputStream(os: java.io.OutputStream): ZOutputStream = new ZOutputStream {
     def write(chunk: Chunk[Byte])(implicit trace: Trace): IO[IOException, Unit] =

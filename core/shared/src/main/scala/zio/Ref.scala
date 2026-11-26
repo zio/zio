@@ -21,20 +21,20 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * A `Ref` is a purely functional description of a mutable reference that
- * fibers can share. The fundamental operations of a `Ref` are `set` and `get`.
- * `set` sets the reference to a new value. `get` gets the current value of the
+ * A `Ref` is a purely functional description of a mutable reference that fibers
+ * can share. The fundamental operations of a `Ref` are `set` and `get`. `set`
+ * sets the reference to a new value. `get` gets the current value of the
  * reference. `update` and `modify` change the value with a function, as one
  * atomic step with respect to the other operations on the same `Ref`.
  *
  * A `Ref` created with `Ref.make` is implemented with compare-and-swap
  * operations on an `AtomicReference`. When other fibers change the value
- * between the read and the write, the update function is called again with
- * the new value, so it can run more than once for one call and should have no
- * side effects. To run effects within update operations, create a
- * `Ref.Synchronized`, a `Ref` that runs its updates one at a time, at some
- * cost to performance. Its writes wait for one another, while its `get` does
- * not wait.
+ * between the read and the write, the update function is called again with the
+ * new value, so it can run more than once for one call and should have no side
+ * effects. To run effects within update operations, create a
+ * `Ref.Synchronized`, a `Ref` that runs its updates one at a time, at some cost
+ * to performance. Its writes wait for one another, while its `get` does not
+ * wait.
  *
  * The value inside a `Ref` should normally be immutable: the compare-and-swap
  * operations do not protect a mutable value that is changed in place.
@@ -229,6 +229,7 @@ object Ref extends Serializable {
    * implicit `Unsafe` value, which `Unsafe.unsafe` provides.
    */
   object unsafe {
+
     /**
      * Creates a new `Ref` with the specified value, outside of a ZIO effect.
      */
@@ -281,10 +282,10 @@ object Ref extends Serializable {
     /**
      * Atomically modifies the `Ref.Synchronized` with the specified effectful
      * function, which computes a return value for the modification. The effect
-     * returns a pair: the first element is the result and the second one is
-     * the new value. When the effect fails, `modifyZIO` fails with the same
-     * error; when it fails or is interrupted, the value is left unchanged. This
-     * is a more powerful version of `updateZIO`.
+     * returns a pair: the first element is the result and the second one is the
+     * new value. When the effect fails, `modifyZIO` fails with the same error;
+     * when it fails or is interrupted, the value is left unchanged. This is a
+     * more powerful version of `updateZIO`.
      */
     def modifyZIO[R, E, B](f: A => ZIO[R, E, (B, A)])(implicit trace: Trace): ZIO[R, E, B]
 
@@ -389,9 +390,10 @@ object Ref extends Serializable {
      * They need an implicit `Unsafe` value.
      */
     object unsafe {
+
       /**
-       * Creates a new `Ref.Synchronized` with the specified value, outside of
-       * a ZIO effect.
+       * Creates a new `Ref.Synchronized` with the specified value, outside of a
+       * ZIO effect.
        */
       def make[A](a: A)(implicit unsafe: Unsafe): Synchronized[A] = {
         val ref       = Ref.unsafe.make(a)

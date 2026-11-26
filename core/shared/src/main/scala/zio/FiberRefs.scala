@@ -114,8 +114,8 @@ final class FiberRefs private (
   /**
    * Forks this collection of fiber refs as the specified child fiber id. This
    * will potentially modify the value of the fiber refs, as determined by the
-   * individual fiber refs that make up the collection: each `FiberRef`'s
-   * `fork` patch is applied, and the changed values are recorded as written by
+   * individual fiber refs that make up the collection: each `FiberRef`'s `fork`
+   * patch is applied, and the changed values are recorded as written by
    * `childId`. Returns this same collection when no value changes.
    */
   def forkAs(childId: FiberId.Runtime): FiberRefs = {
@@ -296,8 +296,8 @@ final class FiberRefs private (
 
   /**
    * Sets each `FiberRef` in this collection to its value here, in the current
-   * fiber. The `FiberRef`s that are not in this collection keep their values
-   * in the current fiber.
+   * fiber. The `FiberRef`s that are not in this collection keep their values in
+   * the current fiber.
    */
   def setAll(implicit trace: Trace): UIO[Unit] =
     ZIO.foreachDiscard(fiberRefs) { fiberRef =>
@@ -480,8 +480,8 @@ object FiberRefs {
 
     /**
      * Constructs a patch that describes the changes between the specified
-     * collections of `FiberRef` values: the `FiberRef`s added to, removed
-     * from, or changed in `newValue` compared to `oldValue`.
+     * collections of `FiberRef` values: the `FiberRef`s added to, removed from,
+     * or changed in `newValue` compared to `oldValue`.
      */
     def diff(oldValue: FiberRefs, newValue: FiberRefs): Patch = {
       if (oldValue eq newValue) return empty

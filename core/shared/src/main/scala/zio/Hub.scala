@@ -30,8 +30,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  * returns a [[Dequeue]] that stays subscribed until its `Scope` closes. A
  * message published while there are no subscribers is not kept.
  *
- * A bounded hub keeps each message until every subscriber has taken it. When
- * it is full, what `publish` does depends on how the hub was made:
+ * A bounded hub keeps each message until every subscriber has taken it. When it
+ * is full, what `publish` does depends on how the hub was made:
  *   - `Hub.bounded` suspends the publishing fiber until there is room (back
  *     pressure).
  *   - `Hub.dropping` drops the new message, and `publish` returns `false`.
@@ -70,10 +70,10 @@ sealed abstract class Hub[A] extends Enqueue.Internal[A] {
 
   /**
    * Publishes all of the specified messages to the hub, returning any messages
-   * that were not published to the hub. Only a `dropping` hub returns
-   * messages: a `bounded` hub suspends the fiber until all of them are
-   * published, and a `sliding` hub drops older messages to make room.
-   * Interrupted when the hub is shut down.
+   * that were not published to the hub. Only a `dropping` hub returns messages:
+   * a `bounded` hub suspends the fiber until all of them are published, and a
+   * `sliding` hub drops older messages to make room. Interrupted when the hub
+   * is shut down.
    */
   def publishAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]]
 
@@ -115,9 +115,9 @@ object Hub {
    * messages until they have been taken by all subscribers, applying back
    * pressure to publishers if the hub is at capacity.
    *
-   * For best performance use capacities that are powers of two. The capacity
-   * is not rounded. The returned effect dies with an
-   * `IllegalArgumentException` when `requestedCapacity` is less than 1.
+   * For best performance use capacities that are powers of two. The capacity is
+   * not rounded. The returned effect dies with an `IllegalArgumentException`
+   * when `requestedCapacity` is less than 1.
    */
   def bounded[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
     ZIO.suspendSucceed {
@@ -130,9 +130,9 @@ object Hub {
    * Creates a bounded hub with the dropping strategy. The hub will drop new
    * messages if the hub is at capacity.
    *
-   * For best performance use capacities that are powers of two. The capacity
-   * is not rounded. The returned effect dies with an
-   * `IllegalArgumentException` when `requestedCapacity` is less than 1.
+   * For best performance use capacities that are powers of two. The capacity is
+   * not rounded. The returned effect dies with an `IllegalArgumentException`
+   * when `requestedCapacity` is less than 1.
    */
   def dropping[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
     ZIO.suspendSucceed {
@@ -145,9 +145,9 @@ object Hub {
    * Creates a bounded hub with the sliding strategy. The hub will add new
    * messages and drop old messages if the hub is at capacity.
    *
-   * For best performance use capacities that are powers of two. The capacity
-   * is not rounded. The returned effect dies with an
-   * `IllegalArgumentException` when `requestedCapacity` is less than 1.
+   * For best performance use capacities that are powers of two. The capacity is
+   * not rounded. The returned effect dies with an `IllegalArgumentException`
+   * when `requestedCapacity` is less than 1.
    */
   def sliding[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
     ZIO.suspendSucceed {

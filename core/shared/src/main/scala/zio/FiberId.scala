@@ -71,10 +71,14 @@ sealed trait FiberId extends Serializable { self =>
         }
     }
 
-  /** Returns `that` when this identity is none (see `isNone`), else this one. */
+  /**
+   * Returns `that` when this identity is none (see `isNone`), else this one.
+   */
   final def getOrElse(that: => FiberId): FiberId = if (isNone) that else self
 
-  /** Returns the numbers of the runtime fiber ids that make up this identity. */
+  /**
+   * Returns the numbers of the runtime fiber ids that make up this identity.
+   */
   final def ids: Set[Int] = try {
     FiberId.ids(self)
   } catch {
@@ -95,8 +99,8 @@ sealed trait FiberId extends Serializable { self =>
 
   /**
    * Returns the name used for this identity in traces and fiber dumps:
-   * `zio-fiber-` followed by the numbers of its runtime fiber ids, separated
-   * by commas (`zio-fiber-` alone for `FiberId.None`).
+   * `zio-fiber-` followed by the numbers of its runtime fiber ids, separated by
+   * commas (`zio-fiber-` alone for `FiberId.None`).
    */
   final def threadName: String =
     threadNameInto(new StringBuilder(32))(Unsafe).result()
@@ -210,9 +214,8 @@ object FiberId {
     /**
      * Generates a fiber ID where the `id` is a random integer.
      *
-     * This is more performant than using `FiberId.Gen.Monotonic`, but cannot
-     * be used in cases that rely on strict ordering of fibers (e.g., in
-     * zio-test)
+     * This is more performant than using `FiberId.Gen.Monotonic`, but cannot be
+     * used in cases that rely on strict ordering of fibers (e.g., in zio-test)
      */
     object Live extends Gen {
       def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime = {

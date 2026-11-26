@@ -114,8 +114,8 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
    * the promise is completed with that interruption.
    *
    * `completeWith` does not run the effect: it stores it, and every `await`
-   * runs it. Use it when you do not need to memoize the result of the
-   * specified effect.
+   * runs it. Use it when you do not need to memoize the result of the specified
+   * effect.
    */
   def complete(io: IO[E, A])(implicit trace: Trace): UIO[Boolean] = io.intoPromise(this)
 
@@ -126,8 +126,8 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
    * Note that since the promise is completed with an effect, the effect will be
    * evaluated each time the value of the promise is retrieved through
    * combinators such as `await`, potentially producing different results if the
-   * effect produces different results on subsequent evaluations. In this
-   * case the meaning of the "exactly once" guarantee of `Promise` is that the
+   * effect produces different results on subsequent evaluations. In this case
+   * the meaning of the "exactly once" guarantee of `Promise` is that the
    * promise can be completed with exactly one effect. For a version that
    * completes the promise with the result of an effect see
    * [[Promise.complete]].
@@ -155,19 +155,19 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
   /**
    * Completes the promise with interruption by the fiber calling this method.
    * `await`, in the fibers waiting now and in the ones that await later, then
-   * fails with an interruption cause that holds the id of that fiber. A
-   * waiting fiber that does not handle the cause (with `catchAllCause`, for
-   * example) ends as interrupted. Returns `false` when the promise was already
+   * fails with an interruption cause that holds the id of that fiber. A waiting
+   * fiber that does not handle the cause (with `catchAllCause`, for example)
+   * ends as interrupted. Returns `false` when the promise was already
    * completed.
    */
   def interrupt(implicit trace: Trace): UIO[Boolean] =
     ZIO.fiberIdWith(id => interruptAs(id))
 
   /**
-   * Completes the promise with interruption by the specified fiber. `await`,
-   * in the fibers waiting now and in the ones that await later, then fails
-   * with an interruption cause that holds `fiberId`. Returns `false` when the
-   * promise was already completed.
+   * Completes the promise with interruption by the specified fiber. `await`, in
+   * the fibers waiting now and in the ones that await later, then fails with an
+   * interruption cause that holds `fiberId`. Returns `false` when the promise
+   * was already completed.
    */
   def interruptAs(fiberId: FiberId)(implicit trace: Trace): UIO[Boolean] =
     ZIO.succeed(unsafe.interruptAs(fiberId)(trace, Unsafe))
@@ -196,8 +196,8 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     ZIO.succeed(unsafe.refailCause(e)(trace, Unsafe))
 
   /**
-   * Completes the promise with the specified value. Returns `false`, and
-   * leaves the promise unchanged, when it was already completed.
+   * Completes the promise with the specified value. Returns `false`, and leaves
+   * the promise unchanged, when it was already completed.
    */
   def succeed(a: A)(implicit trace: Trace): UIO[Boolean] =
     ZIO.succeed(unsafe.succeed(a)(trace, Unsafe))
@@ -212,56 +212,67 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
     ZIO.succeed(unsafe.succeedUnit(ev0, trace, Unsafe))
 
   private[zio] trait UnsafeAPI extends Serializable {
+
     /**
      * Completes the promise with the specified effect, which each waiter runs.
      * Returns `false` when the promise was already completed.
      */
     def completeWith(io: IO[E, A])(implicit unsafe: Unsafe): Boolean
+
     /**
-     * Completes the promise with the specified defect. Returns `false` when
-     * the promise was already completed.
+     * Completes the promise with the specified defect. Returns `false` when the
+     * promise was already completed.
      */
     def die(e: Throwable)(implicit trace: Trace, unsafe: Unsafe): Boolean
+
     /**
      * Completes the promise with the specified effect, as `completeWith` does,
      * without reporting whether it completed the promise.
      */
     def done(io: IO[E, A])(implicit unsafe: Unsafe): Unit
+
     /**
      * Completes the promise with the specified error. Returns `false` when the
      * promise was already completed.
      */
     def fail(e: E)(implicit trace: Trace, unsafe: Unsafe): Boolean
+
     /**
      * Completes the promise with the specified cause, to which each waiter
      * attaches its stack trace. Returns `false` when the promise was already
      * completed.
      */
     def failCause(e: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Boolean
+
     /**
      * Completes the promise with interruption by the specified fiber. Returns
      * `false` when the promise was already completed.
      */
     def interruptAs(fiberId: FiberId)(implicit trace: Trace, unsafe: Unsafe): Boolean
+
     /**
      * Returns `true` when the promise has been completed.
      */
     def isDone(implicit unsafe: Unsafe): Boolean
+
     /**
      * Returns the effect the promise was completed with, or `None` when it is
      * not completed yet.
      */
     def poll(implicit unsafe: Unsafe): Option[IO[E, A]]
+
     /**
      * Completes the promise with the specified cause, without attaching a new
      * stack trace. Returns `false` when the promise was already completed.
      */
     def refailCause(e: Cause[E])(implicit trace: Trace, unsafe: Unsafe): Boolean
+
     /**
      * Completes the promise with the specified value. Returns `false` when the
      * promise was already completed.
      */
     def succeed(a: A)(implicit trace: Trace, unsafe: Unsafe): Boolean
+
     /**
      * Completes the promise with `()`, reusing a shared `Exit` value. Returns
      * `false` when the promise was already completed.
@@ -323,6 +334,7 @@ final class Promise[E, A] private (blockingOn: FiberId) extends Serializable {
   }
 
 }
+
 /**
  * Constructors for [[Promise]].
  */
@@ -434,6 +446,7 @@ object Promise {
    * implicit `Unsafe` value.
    */
   object unsafe {
+
     /**
      * Makes a new promise outside of a ZIO effect, recording `fiberId` as the
      * fiber that the waiting fibers are blocked on.

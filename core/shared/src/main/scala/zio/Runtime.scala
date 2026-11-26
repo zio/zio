@@ -23,19 +23,18 @@ import scala.concurrent.Future
 
 /**
  * A `Runtime[R]` runs ZIO effects that need an environment `R`. It holds the
- * environment, the [[zio.FiberRefs]] that each fiber it starts begins with
- * (the executor, loggers, supervisor and other fiber-local settings live
- * there; a `FiberRef` that is missing has its initial value), and the
+ * environment, the [[zio.FiberRefs]] that each fiber it starts begins with (the
+ * executor, loggers, supervisor and other fiber-local settings live there; a
+ * `FiberRef` that is missing has its initial value), and the
  * [[zio.RuntimeFlags]] of those fibers.
  *
- * A ZIO application built with `ZIOAppDefault` creates and uses its runtime
- * for you. Use a `Runtime` directly at the edge of code that is not written
- * with ZIO, through the methods of `unsafe`. `Runtime.default` is the
- * runtime with no environment and the default settings,
- * `Runtime.unsafe.fromLayer` builds a runtime from a layer, and the layers in
- * the companion object (`Runtime.removeDefaultLoggers`,
- * `Runtime.setExecutor`, ...) change the settings for the effects they are
- * provided to.
+ * A ZIO application built with `ZIOAppDefault` creates and uses its runtime for
+ * you. Use a `Runtime` directly at the edge of code that is not written with
+ * ZIO, through the methods of `unsafe`. `Runtime.default` is the runtime with
+ * no environment and the default settings, `Runtime.unsafe.fromLayer` builds a
+ * runtime from a layer, and the layers in the companion object
+ * (`Runtime.removeDefaultLoggers`, `Runtime.setExecutor`, ...) change the
+ * settings for the effects they are provided to.
  *
  * {{{
  * val runtime: Runtime[Any] = Runtime.default
@@ -72,8 +71,8 @@ trait Runtime[+R] { self =>
   /**
    * Returns an effect that runs `zio` in a new fiber of this runtime, with this
    * runtime's environment, `FiberRefs` and flags instead of the caller's, and
-   * completes with its result. Interrupting the returned effect interrupts
-   * that fiber.
+   * completes with its result. Interrupting the returned effect interrupts that
+   * fiber.
    */
   final def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace): IO[E, A] =
     ZIO.fiberIdWith { fiberId =>
@@ -103,8 +102,8 @@ trait Runtime[+R] { self =>
   trait UnsafeAPI {
 
     /**
-     * Executes the effect asynchronously on the runtime's executor, returning
-     * a fiber whose methods can await the exit value of the fiber or interrupt
+     * Executes the effect asynchronously on the runtime's executor, returning a
+     * fiber whose methods can await the exit value of the fiber or interrupt
      * the fiber. The fiber has no parent fiber.
      *
      * This method is effectful and should only be used at the edges of your
@@ -130,8 +129,8 @@ trait Runtime[+R] { self =>
     def run[E, A](zio: ZIO[R, E, A])(implicit trace: Trace, unsafe: Unsafe): Exit[E, A]
 
     /**
-     * Executes the effect asynchronously on the runtime's executor, returning
-     * a `Future` that completes when the effect ends: with its value, or failed
+     * Executes the effect asynchronously on the runtime's executor, returning a
+     * `Future` that completes when the effect ends: with its value, or failed
      * with its typed error or its defect. When the effect is interrupted, the
      * `Future` fails with a `java.util.concurrent.ExecutionException` that
      * wraps an `InterruptedException`.
@@ -156,8 +155,8 @@ trait Runtime[+R] { self =>
     /**
      * Attempts to execute the effect synchronously on the calling thread and
      * returns its result as a [[zio.Exit]] value in a `Right`. If the effect
-     * suspends or yields before it ends, it continues on the runtime's
-     * executor and its fiber is returned in a `Left`.
+     * suspends or yields before it ends, it continues on the runtime's executor
+     * and its fiber is returned in a `Left`.
      *
      * This method is effectful and should only be used at the edges of your
      * application.
@@ -272,9 +271,9 @@ trait Runtime[+R] { self =>
  * `Runtime.unsafe.fromLayer`), the platform's default settings
  * (`defaultExecutor`, `defaultLoggers`, ...), and layers that change runtime
  * settings for the effects they are provided to: loggers, log annotations,
- * executors, runtime flags, supervisors, the config provider and the
- * reporting of fatal errors. A settings layer applies its change while its
- * scope is open and reverts it when the scope closes.
+ * executors, runtime flags, supervisors, the config provider and the reporting
+ * of fatal errors. A settings layer applies its change while its scope is open
+ * and reverts it when the scope closes.
  */
 object Runtime extends RuntimePlatformSpecific {
   private[zio] sealed abstract class Internal[+R](
@@ -293,10 +292,10 @@ object Runtime extends RuntimePlatformSpecific {
   }
 
   /**
-   * A layer that leaves the runtime unchanged: building it prints a
-   * deprecation message ("Runtime.addFatal is deprecated & inert, kept only
-   * for binary compatibility.") to standard error. Which errors count as fatal
-   * is no longer configurable.
+   * A layer that leaves the runtime unchanged: building it prints a deprecation
+   * message ("Runtime.addFatal is deprecated & inert, kept only for binary
+   * compatibility.") to standard error. Which errors count as fatal is no
+   * longer configurable.
    */
   @deprecated("Custom Fatal handling is deprecated, kept only for binary compatibility.", "2.1.22")
   def addFatal(fatal: Class[_ <: Throwable])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
@@ -310,10 +309,10 @@ object Runtime extends RuntimePlatformSpecific {
     ZLayer.scoped(FiberRef.currentLogAnnotations.locallyScopedWith(_ + (annotation.key -> annotation.value)))
 
   /**
-   * A layer that adds `logger` to the loggers of the effects it is provided
-   * to. The default loggers stay: combine it with `removeDefaultLoggers` to
-   * replace them. The added logger receives entries of every level, including
-   * the levels below `Info` that the default loggers leave out.
+   * A layer that adds `logger` to the loggers of the effects it is provided to.
+   * The default loggers stay: combine it with `removeDefaultLoggers` to replace
+   * them. The added logger receives entries of every level, including the
+   * levels below `Info` that the default loggers leave out.
    */
   def addLogger(logger: ZLogger[String, Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(ZIO.withLoggerScoped(logger))
@@ -322,9 +321,9 @@ object Runtime extends RuntimePlatformSpecific {
    * A layer that adds `supervisor` to the supervisors of the effects it is
    * provided to. The supervisor sees the fibers that start after the layer is
    * built, such as the fibers those effects fork; when the layer is passed to
-   * `Runtime.unsafe.fromLayer`, it also sees the fibers that the runtime
-   * starts with `unsafe.run` and `unsafe.fork`. A supervisor that is already
-   * present is not added twice.
+   * `Runtime.unsafe.fromLayer`, it also sees the fibers that the runtime starts
+   * with `unsafe.run` and `unsafe.fork`. A supervisor that is already present
+   * is not added twice.
    */
   def addSupervisor(supervisor: Supervisor[Any])(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentSupervisor.locallyScopedWith(_.patchAdd(supervisor)))
@@ -345,8 +344,8 @@ object Runtime extends RuntimePlatformSpecific {
    * The runtime with an empty environment, empty `FiberRefs` (so each
    * `FiberRef` has its initial value: the platform's `defaultExecutor`,
    * `defaultBlockingExecutor` and `defaultLoggers`, and no supervisor) and
-   * `RuntimeFlags.default`, which enables `Interruption`,
-   * `CooperativeYielding` and `FiberRoots`.
+   * `RuntimeFlags.default`, which enables `Interruption`, `CooperativeYielding`
+   * and `FiberRoots`.
    */
   val default: Runtime[Any] =
     Runtime(ZEnvironment.empty, FiberRefs.empty, RuntimeFlags.default)
@@ -397,8 +396,8 @@ object Runtime extends RuntimePlatformSpecific {
 
   /**
    * A layer that enables `RuntimeFlag.OpSupervision`, so that the `onEffect`
-   * method of the current supervisors is called for each operation that a
-   * fiber runs.
+   * method of the current supervisors is called for each operation that a fiber
+   * runs.
    */
   def enableOpSupervision(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     enableFlags(RuntimeFlag.OpSupervision)
@@ -412,9 +411,8 @@ object Runtime extends RuntimePlatformSpecific {
     enableFlags(RuntimeFlag.RuntimeMetrics)
 
   /**
-   * A layer that enables `RuntimeFlag.WorkStealing`, which the runtime
-   * ignores. `RuntimeFlags.render` and `RuntimeFlags.toSet` do not list this
-   * flag.
+   * A layer that enables `RuntimeFlag.WorkStealing`, which the runtime ignores.
+   * `RuntimeFlags.render` and `RuntimeFlags.toSet` do not list this flag.
    */
   @deprecated("Unused + unimplemented: using this flag will have no effect", "2.1.19")
   def enableWorkStealing(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
@@ -423,8 +421,8 @@ object Runtime extends RuntimePlatformSpecific {
   /**
    * A layer that removes `Runtime.defaultLoggers` from the loggers of the
    * effects it is provided to. Loggers added with `addLogger` stay, so
-   * `Runtime.removeDefaultLoggers ++ Runtime.addLogger(logger)` makes
-   * `logger` the only logger.
+   * `Runtime.removeDefaultLoggers ++ Runtime.addLogger(logger)` makes `logger`
+   * the only logger.
    */
   val removeDefaultLoggers: ZLayer[Any, Nothing, Unit] = {
     implicit val trace = Trace.empty
@@ -433,8 +431,8 @@ object Runtime extends RuntimePlatformSpecific {
 
   /**
    * A layer that makes `executor` the blocking executor, which runs
-   * `ZIO.attemptBlocking` and the other blocking effects, for the effects it
-   * is provided to.
+   * `ZIO.attemptBlocking` and the other blocking effects, for the effects it is
+   * provided to.
    */
   def setBlockingExecutor(executor: Executor)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.currentBlockingExecutor.locallyScoped(executor))
@@ -447,8 +445,8 @@ object Runtime extends RuntimePlatformSpecific {
     ZLayer.scoped(ZIO.withConfigProviderScoped(configProvider))
 
   /**
-   * A layer that makes `executor` the executor of the effects it is provided
-   * to and of the fibers they fork. A fiber that is already running moves to
+   * A layer that makes `executor` the executor of the effects it is provided to
+   * and of the fibers they fork. A fiber that is already running moves to
    * `executor` at its next yield or asynchronous boundary. Blocking effects
    * such as `ZIO.attemptBlocking` still run on the blocking executor.
    */
@@ -456,17 +454,17 @@ object Runtime extends RuntimePlatformSpecific {
     ZLayer.scoped(FiberRef.overrideExecutor.locallyScoped(Some(executor)))
 
   /**
-   * A layer that sets the level at which a fiber logs an error that it did
-   * not handle when it ends ("Fiber ... did not handle an error"). The default
-   * level is `Debug`, which the default loggers leave out. Fibers that end
-   * only because they were interrupted log nothing.
+   * A layer that sets the level at which a fiber logs an error that it did not
+   * handle when it ends ("Fiber ... did not handle an error"). The default
+   * level is `Debug`, which the default loggers leave out. Fibers that end only
+   * because they were interrupted log nothing.
    */
   def setUnhandledErrorLogLevel(logLevel: LogLevel)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped(FiberRef.unhandledErrorLogLevel.locallyScoped(Some(logLevel)))
 
   /**
-   * A layer that sets the function that the runtime calls when an effect
-   * throws a fatal error, which is a `VirtualMachineError` such as
+   * A layer that sets the function that the runtime calls when an effect throws
+   * a fatal error, which is a `VirtualMachineError` such as
    * `StackOverflowError`. The function cannot return normally: it throws or
    * ends the program. `Runtime.defaultReportFatal` is the default.
    */
@@ -515,10 +513,13 @@ object Runtime extends RuntimePlatformSpecific {
    * `underlying` each time it needs them.
    */
   class Proxy[+R](underlying: Runtime[R]) extends Runtime[R] {
+
     /** Returns `underlying.environment`. */
-    def environment  = underlying.environment
+    def environment = underlying.environment
+
     /** Returns `underlying.fiberRefs`. */
-    def fiberRefs    = underlying.fiberRefs
+    def fiberRefs = underlying.fiberRefs
+
     /** Returns `underlying.runtimeFlags`. */
     def runtimeFlags = underlying.runtimeFlags
   }

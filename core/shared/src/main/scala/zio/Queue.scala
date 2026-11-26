@@ -25,8 +25,8 @@ import scala.annotation.tailrec
 /**
  * A `Queue` is an asynchronous queue into which values can be enqueued and of
  * which elements can be dequeued. Fibers `offer` values and `take` them in the
- * order in which they were offered. `take` on an empty queue suspends the
- * fiber until a value arrives.
+ * order in which they were offered. `take` on an empty queue suspends the fiber
+ * until a value arrives.
  *
  * What `offer` does on a full queue depends on how the queue was made:
  *   - `Queue.bounded` suspends the offering fiber until there is room (back
@@ -56,8 +56,8 @@ import scala.annotation.tailrec
 sealed abstract class Queue[A] extends Dequeue.Internal[A] with Enqueue.Internal[A] {
 
   /**
-   * Checks whether the queue is currently empty. It is `true` while fibers
-   * are suspended in `take`, when `size` is negative.
+   * Checks whether the queue is currently empty. It is `true` while fibers are
+   * suspended in `take`, when `size` is negative.
    */
   override final def isEmpty(implicit trace: Trace): UIO[Boolean] =
     size.map(_ <= 0)
@@ -71,8 +71,8 @@ sealed abstract class Queue[A] extends Dequeue.Internal[A] with Enqueue.Internal
 }
 
 /**
- * Constructors for [[Queue]]: `bounded`, `dropping`, `sliding` and
- * `unbounded`, each also available in `Queue.unsafe`.
+ * Constructors for [[Queue]]: `bounded`, `dropping`, `sliding` and `unbounded`,
+ * each also available in `Queue.unsafe`.
  */
 object Queue extends QueuePlatformSpecific {
   private val interruptAsNone = ZIO.interruptAs(FiberId.None)(Trace.empty)
@@ -104,8 +104,8 @@ object Queue extends QueuePlatformSpecific {
 
   /**
    * Makes a new bounded queue with the dropping strategy. When the capacity of
-   * the queue is reached, new elements will be dropped: `offer` returns
-   * `false` and `offerAll` returns the values it did not place.
+   * the queue is reached, new elements will be dropped: `offer` returns `false`
+   * and `offerAll` returns the values it did not place.
    *
    * The capacity is the requested one: it is not rounded. The returned effect
    * dies when `requestedCapacity` is less than 1.

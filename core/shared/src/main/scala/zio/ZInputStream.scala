@@ -22,25 +22,27 @@ import java.io.IOException
 
 /**
  * A source of bytes whose reads are ZIO effects. On the JVM and Scala Native,
- * `ZIO.readFileInputStream`, `ZIO.readURLInputStream` and similar
- * constructors return one, and `ZInputStream.fromInputStream` wraps a
- * `java.io.InputStream`. The operations run on the blocking executor.
- * `readN` and `readAll` fail with `Some(e)` when the stream throws the
- * `IOException` `e`, and `skip` fails with `e`; other exceptions thrown by the
- * stream are defects.
+ * `ZIO.readFileInputStream`, `ZIO.readURLInputStream` and similar constructors
+ * return one, and `ZInputStream.fromInputStream` wraps a `java.io.InputStream`.
+ * The operations run on the blocking executor. `readN` and `readAll` fail with
+ * `Some(e)` when the stream throws the `IOException` `e`, and `skip` fails with
+ * `e`; other exceptions thrown by the stream are defects.
  */
 sealed trait ZInputStream {
+
   /**
    * Reads up to `n` bytes with one read of the stream and returns them; the
    * chunk can be shorter than `n`. Fails with `None` at the end of the stream.
    * A negative `n` makes the effect die with a `NegativeArraySizeException`.
    */
   def readN(n: Int)(implicit trace: Trace): IO[Option[IOException], Chunk[Byte]]
+
   /**
    * Skips up to `n` bytes and returns the number of bytes skipped, which is 0
    * at the end of the stream.
    */
   def skip(n: Long)(implicit trace: Trace): IO[IOException, Long]
+
   /**
    * Reads the stream to its end, `bufferSize` bytes at a time, and returns all
    * the bytes read. Fails with `None` when the stream is already at its end.

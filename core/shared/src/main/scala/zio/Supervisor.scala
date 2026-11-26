@@ -27,10 +27,10 @@ import scala.collection.immutable.SortedSet
  * A `Supervisor[A]` is allowed to supervise the launching and termination of
  * fibers, producing some visible value of type `A` from the supervision. The
  * runtime calls `onStart` when a fiber starts and `onEnd` when it ends,
- * `onResume` and `onSuspend` when it starts and stops running on a thread,
- * and, while `RuntimeFlag.OpSupervision` is enabled, `onEffect` for each
- * operation it runs. The runtime calls these methods synchronously, on the
- * thread that runs or forks the fiber, so they should return quickly.
+ * `onResume` and `onSuspend` when it starts and stops running on a thread, and,
+ * while `RuntimeFlag.OpSupervision` is enabled, `onEffect` for each operation
+ * it runs. The runtime calls these methods synchronously, on the thread that
+ * runs or forks the fiber, so they should return quickly.
  *
  * Install a supervisor with `ZIO#supervised`, which applies it to the fibers
  * forked inside a region, or with the `Runtime.addSupervisor` layer.
@@ -92,8 +92,8 @@ abstract class Supervisor[+A] { self =>
   def onEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _])(implicit unsafe: Unsafe): Unit = ()
 
   /**
-   * Called when `fiber` stops running on its current thread: when it
-   * suspends, yields or ends. Does nothing unless overridden.
+   * Called when `fiber` stops running on its current thread: when it suspends,
+   * yields or ends. Does nothing unless overridden.
    */
   def onSuspend[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
 
@@ -103,9 +103,10 @@ abstract class Supervisor[+A] { self =>
    */
   def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
 }
+
 /**
- * Constructors of [[Supervisor]] values, and the patches that the runtime
- * uses to update the supervisor of a fiber.
+ * Constructors of [[Supervisor]] values, and the patches that the runtime uses
+ * to update the supervisor of a fiber.
  */
 object Supervisor {
 
@@ -113,10 +114,10 @@ object Supervisor {
 
   /**
    * Creates a new supervisor that tracks children in a set. A fiber is added
-   * when it starts under the supervisor and removed when it ends, so the
-   * value lists the fibers that are still running. Under `ZIO#supervised`,
-   * that includes the fibers that the forked fibers fork in turn, but not the
-   * fiber that called `supervised`.
+   * when it starts under the supervisor and removed when it ends, so the value
+   * lists the fibers that are still running. Under `ZIO#supervised`, that
+   * includes the fibers that the forked fibers fork in turn, but not the fiber
+   * that called `supervised`.
    *
    * @param weak
    *   Whether or not to track the children in a weak set, if possible
@@ -128,15 +129,15 @@ object Supervisor {
     ZIO.succeed(unsafe.track(weak)(Unsafe.unsafe))
 
   /**
-   * Creates a supervisor that ignores the supervision events and whose value
-   * is the result of `value`.
+   * Creates a supervisor that ignores the supervision events and whose value is
+   * the result of `value`.
    */
   def fromZIO[A](value: UIO[A]): Supervisor[A] = new ConstSupervisor(_ => value)
 
   /**
-   * Creates a new supervisor that tracks children in a set: it adds each
-   * fiber to the set in `ref` when the fiber starts and removes it when the
-   * fiber ends. Its value is the current content of `ref`.
+   * Creates a new supervisor that tracks children in a set: it adds each fiber
+   * to the set in `ref` when the fiber starts and removes it when the fiber
+   * ends. Its value is the current content of `ref`.
    */
   def fibersIn(
     ref: AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]
@@ -244,9 +245,9 @@ object Supervisor {
   }
 
   /**
-   * A change to a supervisor that adds or removes supervisors. The runtime
-   * uses patches to carry supervisor changes from one fiber to another, for
-   * example when a fiber is joined.
+   * A change to a supervisor that adds or removes supervisors. The runtime uses
+   * patches to carry supervisor changes from one fiber to another, for example
+   * when a fiber is joined.
    */
   sealed trait Patch { self =>
     import Patch._

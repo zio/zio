@@ -24,42 +24,41 @@ import scala.concurrent.ExecutionContext
 
 /**
  * An executor is responsible for executing actions: the `Runnable`s that the
- * ZIO runtime submits to it, such as the steps of fibers. The default
- * executors start each action on a fresh stack frame.
- * `fromExecutionContext`, `fromJavaExecutor` and
- * `fromThreadPoolExecutor` pass actions to the wrapped executor unchanged, so
- * an action runs on the caller's stack when the wrapped executor runs it on
- * the calling thread, as `ExecutionContext.parasitic` does.
+ * ZIO runtime submits to it, such as the steps of fibers. The default executors
+ * start each action on a fresh stack frame. `fromExecutionContext`,
+ * `fromJavaExecutor` and `fromThreadPoolExecutor` pass actions to the wrapped
+ * executor unchanged, so an action runs on the caller's stack when the wrapped
+ * executor runs it on the calling thread, as `ExecutionContext.parasitic` does.
  */
 abstract class Executor extends ExecutorPlatformSpecific { self =>
   private val interop = new Executor.Interop(this)
 
   /**
-   * Current sampled execution metrics, if available. The default executors
-   * and the executors made with `fromThreadPoolExecutor` return them;
+   * Current sampled execution metrics, if available. The default executors and
+   * the executors made with `fromThreadPoolExecutor` return them;
    * `fromJavaExecutor` and `fromExecutionContext` executors return `None`.
    */
   def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics]
 
   /**
-   * Submits `runnable` for execution. Returns `true` when the executor
-   * accepted it and `false` when it rejected it.
+   * Submits `runnable` for execution. Returns `true` when the executor accepted
+   * it and `false` when it rejected it.
    */
   def submit(runnable: Runnable)(implicit unsafe: Unsafe): Boolean
 
   /**
    * Views this `Executor` as a Scala `ExecutionContext`. Its `execute` throws a
-   * `java.util.concurrent.RejectedExecutionException` when `submit` rejects
-   * the runnable, and its `reportFailure` prints the stack trace. An executor
-   * made with `fromExecutionContext` returns the original `ExecutionContext`.
+   * `java.util.concurrent.RejectedExecutionException` when `submit` rejects the
+   * runnable, and its `reportFailure` prints the stack trace. An executor made
+   * with `fromExecutionContext` returns the original `ExecutionContext`.
    */
   def asExecutionContext: ExecutionContext = interop
 
   /**
    * Views this `Executor` as a Java `Executor`. Its `execute` throws a
-   * `java.util.concurrent.RejectedExecutionException` when `submit` rejects
-   * the runnable. An executor made with `fromJavaExecutor` returns the
-   * original Java `Executor`.
+   * `java.util.concurrent.RejectedExecutionException` when `submit` rejects the
+   * runnable. An executor made with `fromJavaExecutor` returns the original
+   * Java `Executor`.
    */
   def asJava: java.util.concurrent.Executor = interop
 
@@ -69,9 +68,9 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
    *
    * '''NOTE''': On the default executor of the JVM and Scala Native, a call
    * from one of its worker threads whose local queue is empty makes the
-   * runnable the next task of that same thread, unless the global queue holds
-   * a task, which then runs first. This leads to improved performance as we
-   * avoid unnecessary parking/un-parking of threads. Other executors submit the
+   * runnable the next task of that same thread, unless the global queue holds a
+   * task, which then runs first. This leads to improved performance as we avoid
+   * unnecessary parking/un-parking of threads. Other executors submit the
    * runnable as `submit` does.
    */
   def submitAndYield(runnable: Runnable)(implicit unsafe: Unsafe): Boolean =
@@ -146,8 +145,8 @@ object Executor extends DefaultExecutors with Serializable {
   /**
    * Creates an `Executor` from a Scala `ExecutionContext`. Its `submit` returns
    * `false` when `ec` throws a
-   * `java.util.concurrent.RejectedExecutionException`, its `metrics` are
-   * `None` and its `asExecutionContext` returns `ec`.
+   * `java.util.concurrent.RejectedExecutionException`, its `metrics` are `None`
+   * and its `asExecutionContext` returns `ec`.
    */
   def fromExecutionContext(ec: ExecutionContext): Executor =
     new Executor {

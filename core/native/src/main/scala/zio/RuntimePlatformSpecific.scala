@@ -38,8 +38,8 @@ private[zio] trait RuntimePlatformSpecific {
    * The executor that runs blocking effects, such as `ZIO.attemptBlocking`, by
    * default. On the JVM and Scala Native it is a thread pool that starts a
    * daemon thread named `zio-default-blocking-N` whenever no idle thread is
-   * free, with no upper limit, and stops threads that stay idle for 60
-   * seconds. On Scala.js, which has a single thread, it is `defaultExecutor`.
+   * free, with no upper limit, and stops threads that stay idle for 60 seconds.
+   * On Scala.js, which has a single thread, it is `defaultExecutor`.
    */
   final val defaultBlockingExecutor: Executor =
     Blocking.blockingExecutor
@@ -56,10 +56,10 @@ private[zio] trait RuntimePlatformSpecific {
    * The loggers of a new runtime: one logger that writes the entries of level
    * `Info` and above in the format of `ZLogger.default` (`timestamp=...
    * level=INFO thread=#zio-fiber-... message="..."`). On the JVM and Scala
-   * Native it prints them to standard output. On Scala.js it writes them to
-   * the JavaScript console, with `console.error` for `Error` and `Fatal`
-   * entries and `console.log` for the others, and ignores exceptions thrown
-   * while logging.
+   * Native it prints them to standard output. On Scala.js it writes them to the
+   * JavaScript console, with `console.error` for `Error` and `Fatal` entries
+   * and `console.log` for the others, and ignores exceptions thrown while
+   * logging.
    */
   final val defaultLoggers: Set[ZLogger[String, Any]] =
     Set(ZLogger.default.map(println(_)).filterLogLevel(_ >= LogLevel.Info))

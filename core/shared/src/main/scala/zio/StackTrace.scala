@@ -20,9 +20,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * The ZIO stack trace of a fiber: the identity of the fiber and the locations
- * (`Trace` values) of the effects it was running, most recent first. A
- * `Cause` carries one for each failure, and `ZIO.stackTrace` returns the
- * current one.
+ * (`Trace` values) of the effects it was running, most recent first. A `Cause`
+ * carries one for each failure, and `ZIO.stackTrace` returns the current one.
  *
  * {{{
  * val trace: UIO[String] =
@@ -59,8 +58,8 @@ final case class StackTrace(
     stackTrace.flatMap(Trace.toJava).dedupe
 
   /**
-   * Renders the trace as text: the `prefix` line, then one `at <location>`
-   * line per Java stack trace element (see `toJava`), indented with a tab.
+   * Renders the trace as text: the `prefix` line, then one `at <location>` line
+   * per Java stack trace element (see `toJava`), indented with a tab.
    */
   def prettyPrint(prefix: String): String = prettyPrint(Some(prefix))
 

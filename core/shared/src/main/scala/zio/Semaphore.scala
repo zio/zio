@@ -128,6 +128,7 @@ object Semaphore {
    * an implicit `Unsafe` value.
    */
   object unsafe {
+
     /**
      * Creates a new `Semaphore` with the specified number of permits, outside
      * of a ZIO effect.

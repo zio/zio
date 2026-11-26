@@ -34,6 +34,7 @@ sealed abstract class InterruptStatus(val isInterruptible: Boolean) extends Seri
 
   private[zio] final def toBoolean: Boolean = isInterruptible
 }
+
 /**
  * The two values of [[InterruptStatus]].
  */

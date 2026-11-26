@@ -150,9 +150,9 @@ object RuntimeFlags {
      * Combines two patches into one that changes the flags that either patch
      * changes and enables the flags that either patch enables. When one patch
      * enables a flag and the other disables it, the combined patch enables it
-     * whatever the order: with `on = RuntimeFlags.enable(flag)` and
-     * `off = RuntimeFlags.disable(flag)`, `andThen(on, off)` enables `flag`,
-     * while applying `on` and then `off` disables it.
+     * whatever the order: with `on = RuntimeFlags.enable(flag)` and `off =
+     * RuntimeFlags.disable(flag)`, `andThen(on, off)` enables `flag`, while
+     * applying `on` and then `off` disables it.
      */
     def andThen(first: Patch, second: Patch): Patch =
       first | second
@@ -264,8 +264,8 @@ object RuntimeFlags {
       (flags & (~active(patch) | enabled(patch))) | (active(patch) & enabled(patch))
 
     /**
-     * Renders the patch, for example as
-     * `RuntimeFlags.Patch(enabled = (CurrentFiber), disabled = (OpLog))`.
+     * Renders the patch, for example as `RuntimeFlags.Patch(enabled =
+     * (CurrentFiber), disabled = (OpLog))`.
      */
     def render(patch: Patch): String = {
       val enabledS =

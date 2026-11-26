@@ -58,12 +58,12 @@ private[zio] trait FiberPlatformSpecific {
 
   /**
    * Returns a `Fiber` that is backed by the specified Java `Future`. The future
-   * is created the first time the fiber is used. Interrupting the fiber
-   * cancels the future with `cancel(false)`. Only on the JVM and Scala Native.
+   * is created the first time the fiber is used. Interrupting the fiber cancels
+   * the future with `cancel(false)`. Only on the JVM and Scala Native.
    *
-   * WARNING: unless the future is already done or is also a
-   * `CompletionStage`, awaiting the fiber calls the blocking `Future#get` on
-   * the blocking thread pool; consider using `fromCompletionStage`.
+   * WARNING: unless the future is already done or is also a `CompletionStage`,
+   * awaiting the fiber calls the blocking `Future#get` on the blocking thread
+   * pool; consider using `fromCompletionStage`.
    */
   def fromFutureJava[A](thunk: => Future[A]): Fiber[Throwable, A] = {
     lazy val ftr: Future[A] = thunk

@@ -46,8 +46,8 @@ sealed trait Dequeue[+A] extends Serializable {
    * `offer` or `take`. On a `Hub`, it shuts down every subscription, which
    * interrupts the fibers suspended in `take`, and frees the space that the
    * subscriptions held, so publishers suspended by back pressure resume with
-   * `true`. On a hub subscription, it interrupts the fibers suspended in
-   * `take` on that subscription.
+   * `true`. On a hub subscription, it interrupts the fibers suspended in `take`
+   * on that subscription.
    *
    * After it, calls to `offer*`, `take*`, `poll` and `size` are interrupted
    * immediately, while `isShutdown`, `awaitShutdown` and `shutdown` succeed.
@@ -58,9 +58,9 @@ sealed trait Dequeue[+A] extends Serializable {
    * Retrieves the size of the queue. For a `Queue`, this may be negative if
    * fibers are suspended waiting for elements to be added to the queue or
    * greater than the capacity if fibers are suspended waiting to add elements
-   * to the queue. For a `Hub`, it is the number of messages that the hub
-   * holds, and for a hub subscription the number of messages waiting to be
-   * taken. Interrupted when the queue is shut down.
+   * to the queue. For a `Hub`, it is the number of messages that the hub holds,
+   * and for a hub subscription the number of messages waiting to be taken.
+   * Interrupted when the queue is shut down.
    */
   def size(implicit trace: Trace): UIO[Int]
 
@@ -78,8 +78,8 @@ sealed trait Dequeue[+A] extends Serializable {
   def takeAll(implicit trace: Trace): UIO[Chunk[A]]
 
   /**
-   * Takes up to `max` values from the queue, oldest first. It does not wait:
-   * it returns an empty `Chunk` when the queue is empty or `max` is 0 or less.
+   * Takes up to `max` values from the queue, oldest first. It does not wait: it
+   * returns an empty `Chunk` when the queue is empty or `max` is 0 or less.
    */
   def takeUpTo(max: Int)(implicit trace: Trace): UIO[Chunk[A]]
 

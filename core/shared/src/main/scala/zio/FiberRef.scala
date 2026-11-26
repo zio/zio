@@ -25,10 +25,10 @@ import zio.metrics.MetricLabel
  * and merged back in to the value of the parent fiber after they are joined.
  *
  * Each fiber has its own value: a fiber reads the `initial` value until it, or
- * a parent before forking it, sets one. A forked child starts with its
- * parent's value (transformed by the `fork` function of `FiberRef.make`), and
- * the changes a fiber makes are not seen by other fibers that run at the same
- * time. `Fiber#join` merges the child's value back into the joining fiber;
+ * a parent before forking it, sets one. A forked child starts with its parent's
+ * value (transformed by the `fork` function of `FiberRef.make`), and the
+ * changes a fiber makes are not seen by other fibers that run at the same time.
+ * `Fiber#join` merges the child's value back into the joining fiber;
  * `Fiber#await` does not.
  *
  * {{{
@@ -189,8 +189,8 @@ sealed trait FiberRef[A] extends Serializable { self =>
    * Returns a `ZIO` that runs with `newValue` bound to the current fiber.
    *
    * After `zio` ends, whether it succeeds, fails or is interrupted, the
-   * `FiberRef` is restored to the value it had before, which also discards
-   * the changes `zio` made to it.
+   * `FiberRef` is restored to the value it had before, which also discards the
+   * changes `zio` made to it.
    */
   def locally[R, E, B](newValue: A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
     ZIO.acquireReleaseWith(getAndSet(newValue))(set)(_ => zio)
@@ -351,8 +351,8 @@ sealed trait FiberRef[A] extends Serializable { self =>
   private[zio] def hasIdentityFork: Boolean = false
 
   /**
-   * Flag used to determine whether the join method returns its second
-   * argument (the value of the joined fiber) unchanged.
+   * Flag used to determine whether the join method returns its second argument
+   * (the value of the joined fiber) unchanged.
    *
    * '''NOTE FOR ZIO LIBRARIES''' This method is package-private only so that it
    * can be accessed from `FiberRefs`. Do not use it
@@ -364,10 +364,10 @@ sealed trait FiberRef[A] extends Serializable { self =>
  * Constructors for [[FiberRef]] values, and the `FiberRef`s that ZIO itself
  * uses for logging and metrics.
  *
- * The constructors that return `ZIO[Scope, Nothing, ...]` set the initial
- * value in the current fiber and delete the value from the fiber that closes
- * the scope. The constructors in `FiberRef.unsafe` create a `FiberRef`
- * directly, outside of any effect and scope.
+ * The constructors that return `ZIO[Scope, Nothing, ...]` set the initial value
+ * in the current fiber and delete the value from the fiber that closes the
+ * scope. The constructors in `FiberRef.unsafe` create a `FiberRef` directly,
+ * outside of any effect and scope.
  */
 object FiberRef {
   import Differ._
@@ -434,10 +434,10 @@ object FiberRef {
    * Creates a new `FiberRef` with given initial value.
    *
    * `fork` computes a child fiber's value from its parent's value when the
-   * child is forked (unchanged by default). `join` combines the joining
-   * fiber's value with the joined fiber's value when a fiber is joined (the
-   * joined fiber's value wins by default). The value is deleted from the fiber
-   * that closes the scope.
+   * child is forked (unchanged by default). `join` combines the joining fiber's
+   * value with the joined fiber's value when a fiber is joined (the joined
+   * fiber's value wins by default). The value is deleted from the fiber that
+   * closes the scope.
    *
    * {{{
    * val program: UIO[(Int, Int)] =
@@ -497,8 +497,8 @@ object FiberRef {
     makeWith(unsafe.makePatch(initial, differ, fork)(Unsafe.unsafe))
 
   /**
-   * Creates a new `FiberRef` of `RuntimeFlags`, using `RuntimeFlags.Patch`
-   * to combine updates to the flags in a compositional way.
+   * Creates a new `FiberRef` of `RuntimeFlags`, using `RuntimeFlags.Patch` to
+   * combine updates to the flags in a compositional way.
    */
   def makeRuntimeFlags(initial: RuntimeFlags)(implicit
     trace: Trace
@@ -589,8 +589,8 @@ object FiberRef {
 
     /**
      * Creates a new `FiberRef` with the specified initial value, using the
-     * specified `differ` to combine updates, `fork0` as the patch applied
-     * when a fiber is forked, and `join0` to combine values on join.
+     * specified `differ` to combine updates, `fork0` as the patch applied when
+     * a fiber is forked, and `join0` to combine values on join.
      */
     def makePatch[Value0, Patch0](
       initialValue0: Value0,
@@ -627,8 +627,8 @@ object FiberRef {
       )
 
     /**
-     * Creates a new `FiberRef` of a [[Supervisor]], using `Supervisor.Patch`
-     * to combine updates. The type parameter `A` is not used.
+     * Creates a new `FiberRef` of a [[Supervisor]], using `Supervisor.Patch` to
+     * combine updates. The type parameter `A` is not used.
      */
     def makeSupervisor[A](
       initial: Supervisor[Any]

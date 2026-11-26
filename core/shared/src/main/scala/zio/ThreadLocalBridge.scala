@@ -34,16 +34,16 @@ import java.util.concurrent.atomic.AtomicReference
 sealed trait ThreadLocalBridge {
 
   /**
-   * Creates a `FiberRef` with the specified initial value whose value is
-   * passed to `link`:
+   * Creates a `FiberRef` with the specified initial value whose value is passed
+   * to `link`:
    *
    *   - the initial value when the `FiberRef` is created;
    *   - the current value after `set`, `update`, `modify` and `get`, which all
    *     go through `modify`;
    *   - the new value when `locally` starts, and the previous value when it
    *     ends;
-   *   - the initial value when a fiber suspends, and that fiber's value when
-   *     it resumes on a thread;
+   *   - the initial value when a fiber suspends, and that fiber's value when it
+   *     resumes on a thread;
    *   - the initial value when the scope closes.
    *
    * `link` runs on the thread that runs the fiber, so it can set a
