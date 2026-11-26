@@ -1,0 +1,1319 @@
+{
+  "categories": [
+    {
+      "id": "web",
+      "label": "Web & APIs"
+    },
+    {
+      "id": "data",
+      "label": "Data Access"
+    },
+    {
+      "id": "streaming",
+      "label": "Streaming & Messaging"
+    },
+    {
+      "id": "serialization",
+      "label": "Schemas & Serialization"
+    },
+    {
+      "id": "observability",
+      "label": "Observability"
+    },
+    {
+      "id": "config",
+      "label": "Configuration & CLI"
+    },
+    {
+      "id": "di",
+      "label": "Dependency Injection"
+    },
+    {
+      "id": "resources",
+      "label": "Resource Management"
+    },
+    {
+      "id": "concurrency",
+      "label": "Concurrency & Resilience"
+    },
+    {
+      "id": "types",
+      "label": "Types & Abstractions"
+    },
+    {
+      "id": "cloud",
+      "label": "Cloud & Infrastructure"
+    },
+    {
+      "id": "tooling",
+      "label": "Tooling & Testing"
+    }
+  ],
+  "cards": [
+    {
+      "name": "ZIO HTTP",
+      "href": "https://ziohttp.com",
+      "kind": "official",
+      "category": "web",
+      "description": "A type-safe, composable, and feature-rich HTTP library built on top of ZIO.",
+      "api": false
+    },
+    {
+      "name": "ZIO DynamoDB",
+      "href": "/zio-dynamodb/",
+      "kind": "official",
+      "category": "data",
+      "description": "Simple, type-safe, and efficient access to AWS DynamoDB.",
+      "api": false
+    },
+    {
+      "name": "ZIO Query",
+      "href": "/zio-query/",
+      "kind": "official",
+      "category": "data",
+      "description": "A library for writing optimized queries to data sources in a compositional style, with batching, pipelining, and caching.",
+      "api": true
+    },
+    {
+      "name": "ZIO Quill",
+      "href": "/zio-quill/",
+      "kind": "official",
+      "category": "data",
+      "description": "A quoted domain-specific language for expressing queries in Scala and executing them as SQL or CQL.",
+      "api": false
+    },
+    {
+      "name": "ZIO Redis",
+      "href": "/zio-redis/",
+      "kind": "official",
+      "category": "data",
+      "description": "A type-safe and performant ZIO-native Redis client.",
+      "api": false
+    },
+    {
+      "name": "ZIO Rocksdb",
+      "href": "/zio-rocksdb/",
+      "kind": "official",
+      "category": "data",
+      "description": "A ZIO-based interface to RocksDB.",
+      "api": false
+    },
+    {
+      "name": "ZIO AMQP",
+      "href": "/zio-amqp/",
+      "kind": "official",
+      "category": "streaming",
+      "description": "A ZIO-based wrapper around the RabbitMQ client with a streaming interface to AMQP queues.",
+      "api": false
+    },
+    {
+      "name": "ZIO Kafka",
+      "href": "/zio-kafka/",
+      "kind": "official",
+      "category": "streaming",
+      "description": "A purely functional, streams-based Kafka client for ZIO.",
+      "api": false
+    },
+    {
+      "name": "ZIO SQS",
+      "href": "/zio-sqs/",
+      "kind": "official",
+      "category": "streaming",
+      "description": "A ZIO-powered client for AWS SQS, built on top of ZIO AWS.",
+      "api": false
+    },
+    {
+      "name": "ZIO BSON",
+      "href": "/zio-bson/",
+      "kind": "official",
+      "category": "serialization",
+      "description": "A BSON library with tight ZIO integration and native support for BSON types.",
+      "api": false
+    },
+    {
+      "name": "ZIO JSON",
+      "href": "/zio-json/",
+      "kind": "official",
+      "category": "serialization",
+      "description": "A fast and secure JSON library with tight ZIO integration.",
+      "api": true
+    },
+    {
+      "name": "ZIO Parser",
+      "href": "/zio-parser/",
+      "kind": "official",
+      "category": "serialization",
+      "description": "A library for constructing parsers and pretty printers from invertible syntax descriptions.",
+      "api": false
+    },
+    {
+      "name": "ZIO Schema",
+      "href": "/zio-schema/",
+      "kind": "official",
+      "category": "serialization",
+      "description": "A library for modeling the schema of data structures as first-class values, enabling serialization, deserialization, and data migration.",
+      "api": true
+    },
+    {
+      "name": "ZIO Streams Compress",
+      "href": "/zio-streams-compress/",
+      "kind": "official",
+      "category": "serialization",
+      "description": "A library that integrates compression algorithms and archive formats with ZIO Streams.",
+      "api": false
+    },
+    {
+      "name": "ZIO Logging",
+      "href": "/zio-logging/",
+      "kind": "official",
+      "category": "observability",
+      "description": "Simple logging for ZIO applications, with correlation, context, and pluggable backends.",
+      "api": false
+    },
+    {
+      "name": "ZIO Metrics Connectors",
+      "href": "/zio-metrics-connectors/",
+      "kind": "official",
+      "category": "observability",
+      "description": "Integrations between ZIO metrics and monitoring systems such as Prometheus and Datadog.",
+      "api": false
+    },
+    {
+      "name": "ZIO Profiling",
+      "href": "/zio-profiling/",
+      "kind": "official",
+      "category": "observability",
+      "description": "A collection of profilers for understanding the runtime behavior of ZIO programs.",
+      "api": false
+    },
+    {
+      "name": "ZIO Telemetry",
+      "href": "/zio-telemetry/",
+      "kind": "official",
+      "category": "observability",
+      "description": "Purely functional and type-safe clients for OpenTracing, OpenCensus, and OpenTelemetry.",
+      "api": false
+    },
+    {
+      "name": "ZIO Cli",
+      "href": "/zio-cli/",
+      "kind": "official",
+      "category": "config",
+      "description": "A library for rapidly building powerful command-line applications powered by ZIO.",
+      "api": false
+    },
+    {
+      "name": "ZIO Config",
+      "href": "/zio-config/",
+      "kind": "official",
+      "category": "config",
+      "description": "A ZIO-based library that extends ZIO's `Config` with support for various sources and automatic derivation.",
+      "api": false
+    },
+    {
+      "name": "ZIO Process",
+      "href": "/zio-process/",
+      "kind": "official",
+      "category": "config",
+      "description": "A library for interacting with external processes and command-line programs, backed by ZIO Streams.",
+      "api": false
+    },
+    {
+      "name": "ZIO Cache",
+      "href": "/zio-cache/",
+      "kind": "official",
+      "category": "concurrency",
+      "description": "A library for optimizing the performance of an application by caching values.",
+      "api": false
+    },
+    {
+      "name": "Izumi Reflect",
+      "href": "/izumi-reflect/",
+      "kind": "official",
+      "category": "types",
+      "description": "A fast, lightweight, portable and efficient alternative to `TypeTag` from `scala-reflect`.",
+      "api": false
+    },
+    {
+      "name": "ZIO 2.x Interop Cats 2.x",
+      "href": "/zio2-interop-cats2/",
+      "kind": "official",
+      "category": "types",
+      "description": "Legacy interoperability layer for ZIO 2 and Cats Effect 2. No longer maintained; use interop-cats for Cats Effect 3.",
+      "api": false
+    },
+    {
+      "name": "ZIO 2.x Interop Cats 3.x",
+      "href": "/interop-cats/",
+      "kind": "official",
+      "category": "types",
+      "description": "An interoperability layer that lets ZIO 2 work with Cats Effect 3 and its ecosystem, including fs2, doobie and http4s.",
+      "api": false
+    },
+    {
+      "name": "ZIO Constraintless",
+      "href": "/zio-constraintless/",
+      "kind": "official",
+      "category": "types",
+      "description": "A library for building programs as descriptions with maximum polymorphism and modularity, and zero abstraction leakage.",
+      "api": false
+    },
+    {
+      "name": "ZIO Direct Style",
+      "href": "/zio-direct/",
+      "kind": "official",
+      "category": "types",
+      "description": "A library for writing ZIO programs in a direct, imperative style, based on the Monadless paradigm.",
+      "api": false
+    },
+    {
+      "name": "ZIO Prelude",
+      "href": "/zio-prelude/",
+      "kind": "official",
+      "category": "types",
+      "description": "A lightweight, distinctly Scala take on functional abstractions, with tight ZIO integration.",
+      "api": false
+    },
+    {
+      "name": "ZIO AWS",
+      "href": "/zio-aws/",
+      "kind": "official",
+      "category": "cloud",
+      "description": "A ZIO wrapper for all AWS services, built on the AWS Java SDK v2.",
+      "api": false
+    },
+    {
+      "name": "ZIO Ftp",
+      "href": "/zio-ftp/",
+      "kind": "official",
+      "category": "cloud",
+      "description": "A thin wrapper over (s)FTP clients for ZIO.",
+      "api": false
+    },
+    {
+      "name": "ZIO Lambda",
+      "href": "/zio-lambda/",
+      "kind": "official",
+      "category": "cloud",
+      "description": "A ZIO-based AWS Custom Runtime compatible with GraalVM Native Image.",
+      "api": false
+    },
+    {
+      "name": "ZIO S3",
+      "href": "/zio-s3/",
+      "kind": "official",
+      "category": "cloud",
+      "description": "A thin wrapper over the S3 async client for ZIO.",
+      "api": false
+    },
+    {
+      "name": "ZIO IntelliJ",
+      "href": "https://github.com/zio/zio-intellij",
+      "kind": "official",
+      "category": "tooling",
+      "description": "A plugin for IntelliJ IDEA that brings enhancements when using ZIO in your projects.",
+      "api": false
+    },
+    {
+      "name": "ZIO SBT",
+      "href": "/zio-sbt/",
+      "kind": "official",
+      "category": "tooling",
+      "description": "A collection of sbt plugins that simplify the development of ZIO projects.",
+      "api": false
+    },
+    {
+      "name": "Caliban",
+      "href": "/ecosystem/community/caliban",
+      "kind": "community",
+      "category": "web",
+      "description": "A purely functional library for creating GraphQL servers and clients in Scala.",
+      "api": false
+    },
+    {
+      "name": "Tapir",
+      "href": "/ecosystem/community/tapir",
+      "kind": "community",
+      "category": "web",
+      "description": "A library to describe HTTP APIs, expose them as a server, consume them as a client, and document them automatically, with first-class ZIO support.",
+      "api": false
+    },
+    {
+      "name": "ZIO gRPC",
+      "href": "/ecosystem/community/zio-grpc",
+      "kind": "community",
+      "category": "web",
+      "description": "A library for writing purely functional gRPC servers and clients with ZIO.",
+      "api": false
+    },
+    {
+      "name": "Decrel",
+      "href": "/ecosystem/community/decrel",
+      "kind": "community",
+      "category": "data",
+      "description": "A library for declarative programming using relations between data, with automatic batching, parallelization, and caching.",
+      "api": false
+    },
+    {
+      "name": "Mongo4cats",
+      "href": "/ecosystem/community/mongo4cats",
+      "kind": "community",
+      "category": "data",
+      "description": "A functional and idiomatic interface for MongoDB, with a dedicated ZIO 2 module.",
+      "api": false
+    },
+    {
+      "name": "TranzactIO",
+      "href": "/ecosystem/community/tranzactio",
+      "kind": "community",
+      "category": "data",
+      "description": "A ZIO wrapper for database access libraries, currently Doobie and Anorm.",
+      "api": false
+    },
+    {
+      "name": "ZIO Elasticsearch",
+      "href": "/ecosystem/community/zio-elasticsearch",
+      "kind": "community",
+      "category": "data",
+      "description": "A type-safe and streaming-friendly ZIO-native Elasticsearch client.",
+      "api": false
+    },
+    {
+      "name": "ZIO LMDB",
+      "href": "/ecosystem/community/zio-lmdb",
+      "kind": "community",
+      "category": "data",
+      "description": "An embedded, ACID, key-value database for ZIO, stored in a single file.",
+      "api": false
+    },
+    {
+      "name": "ZIO MongoDB",
+      "href": "/ecosystem/community/zio-mongodb",
+      "kind": "community",
+      "category": "data",
+      "description": "A ZIO wrapper around the official MongoDB Java driver, with compile-time codecs and a type-safe query DSL.",
+      "api": false
+    },
+    {
+      "name": "tamer",
+      "href": "/ecosystem/community/tamer",
+      "kind": "community",
+      "category": "streaming",
+      "description": "A multi-functional Kafka connector for producing data, based on ZIO Kafka.",
+      "api": false
+    },
+    {
+      "name": "ZIO Kinesis",
+      "href": "/ecosystem/community/zio-kinesis",
+      "kind": "community",
+      "category": "streaming",
+      "description": "A ZIO-based AWS Kinesis client for consuming and producing data.",
+      "api": false
+    },
+    {
+      "name": "ZIO Spark",
+      "href": "/ecosystem/community/zio-spark",
+      "kind": "community",
+      "category": "streaming",
+      "description": "A functional wrapper around Spark that makes it work with ZIO and improves error management.",
+      "api": false
+    },
+    {
+      "name": "ZIO Apache Parquet",
+      "href": "/ecosystem/community/zio-apache-parquet",
+      "kind": "community",
+      "category": "serialization",
+      "description": "A ZIO-powered library for reading and writing Parquet files without running a Spark cluster.",
+      "api": false
+    },
+    {
+      "name": "LogStage",
+      "href": "/ecosystem/community/logstage",
+      "kind": "community",
+      "category": "observability",
+      "description": "A zero-cost structural logging framework for Scala and Scala.js.",
+      "api": false
+    },
+    {
+      "name": "Tofu ZIO 2 Logging",
+      "href": "/ecosystem/community/tofu-zio2-logging",
+      "kind": "community",
+      "category": "observability",
+      "description": "Logging integration of Tofu, a functional toolkit based on the tagless-final approach, with ZIO 2.",
+      "api": false
+    },
+    {
+      "name": "Distage",
+      "href": "/ecosystem/community/distage",
+      "kind": "community",
+      "category": "di",
+      "description": "A compile-time safe, transparent, and debuggable dependency injection framework for pure FP Scala.",
+      "api": false
+    },
+    {
+      "name": "Rezilience",
+      "href": "/ecosystem/community/rezilience",
+      "kind": "community",
+      "category": "concurrency",
+      "description": "A ZIO-native fault tolerance library with policies for making asynchronous systems more resilient to failures.",
+      "api": false
+    },
+    {
+      "name": "Shard",
+      "href": "/ecosystem/community/shard",
+      "kind": "community",
+      "category": "concurrency",
+      "description": "A library for distributing entities across multiple servers and sending them messages by ID, without knowing their location. It is the successor of Shardcake.",
+      "api": false
+    },
+    {
+      "name": "Neotype",
+      "href": "/ecosystem/community/neotype",
+      "kind": "community",
+      "category": "types",
+      "description": "A friendly newtype library for Scala 3 with compile-time validation and integrations with ZIO JSON, ZIO Quill, ZIO Config, and ZIO Schema.",
+      "api": false
+    },
+    {
+      "name": "Scala k8s",
+      "href": "/ecosystem/community/scala-k8s",
+      "kind": "community",
+      "category": "cloud",
+      "description": "A Kubernetes client, data models, and typesafe manifest generation for Scala, Scala.js, and Scala Native.",
+      "api": false
+    },
+    {
+      "name": "ZIO K8s",
+      "href": "/ecosystem/community/zio-k8s",
+      "kind": "community",
+      "category": "cloud",
+      "description": "An idiomatic ZIO client for the Kubernetes API, with code generation for custom resources and operators.",
+      "api": false
+    },
+    {
+      "name": "MUnit ZIO",
+      "href": "/ecosystem/community/munit-zio",
+      "kind": "community",
+      "category": "tooling",
+      "description": "An integration library between MUnit and ZIO.",
+      "api": false
+    },
+    {
+      "name": "ZIO Test Akka HTTP",
+      "href": "/ecosystem/community/zio-test-akka-http",
+      "kind": "community",
+      "category": "tooling",
+      "description": "An Akka HTTP route test kit for ZIO Test.",
+      "api": false
+    },
+    {
+      "name": "MediaType",
+      "href": "https://zioblocks.com/reference/media-type/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "web",
+      "description": "Type-safe IANA media types with 2,600+ predefined types",
+      "artifact": "zio-blocks-mediatype",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "HTTP Model",
+      "href": "https://zioblocks.com/reference/http-model/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "web",
+      "description": "Pure HTTP data model with URL parsing, headers, cookies, and forms",
+      "artifact": "zio-blocks-http-model",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "HTTP Model Schema",
+      "href": "https://zioblocks.com/reference/http-model/schema/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "web",
+      "description": "Schema-based typed access to the HTTP model",
+      "artifact": "zio-blocks-http-model-schema",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Endpoint",
+      "href": "https://zioblocks.com/reference/endpoint/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "web",
+      "description": "Type-safe HTTP endpoint descriptors with composable codecs and typed auth",
+      "artifact": "zio-blocks-endpoint",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "OpenAPI",
+      "href": "https://zioblocks.com/reference/openapi/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "web",
+      "description": "Type-safe OpenAPI 3.1 specification generation and rendering",
+      "artifact": "zio-blocks-openapi",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "JWT",
+      "href": "https://zioblocks.com/reference/jwt/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "web",
+      "description": "Zero-dependency JWT signing and verification with HMAC, RSA, ECDSA and EdDSA support",
+      "artifact": "zio-blocks-jwt",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "HTML",
+      "href": "https://zioblocks.com/reference/html/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "web",
+      "description": "Type-safe HTML templating with XSS protection",
+      "artifact": "zio-blocks-html",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Datastar",
+      "href": "https://zioblocks.com/reference/datastar/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "web",
+      "description": "Typed Datastar attribute and signal DSL, plus the SSE events that patch a live page",
+      "artifact": "zio-blocks-datastar",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "HTMX",
+      "href": "https://zioblocks.com/reference/htmx/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "web",
+      "description": "Typed HTMX DSL for compile-time-checked HTMX attributes",
+      "artifact": "zio-blocks-http-htmx",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "SQL Module",
+      "href": "https://zioblocks.com/reference/sql/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "data",
+      "description": "Type-safe JDBC wrapper with schema-derived codecs and a CRUD repository",
+      "artifact": "zio-blocks-sql",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "ZIO Integration",
+      "href": "https://zioblocks.com/reference/sql-zio/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "data",
+      "description": "ZIO integration with `ZIO.attemptBlocking` and `ZLayer`",
+      "artifact": "zio-blocks-sql-zio",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Data Migration",
+      "href": "https://zioblocks.com/reference/data-migration/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "data",
+      "description": "Typed, online database schema migrations in three execution models, with no hand-written SQL",
+      "artifact": "zio-blocks-data-migration",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Projection",
+      "href": "https://zioblocks.com/reference/projection/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "data",
+      "description": "Event-sourced projections with per-entity SQLite storage",
+      "artifact": "zio-blocks-projection",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Streams",
+      "href": "https://zioblocks.com/reference/streams/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "streaming",
+      "description": "Pull-based streaming with typed errors, zero boxing, and synchronous or asynchronous execution",
+      "artifact": "zio-blocks-streams",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Schema",
+      "href": "https://zioblocks.com/reference/schema/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "serialization",
+      "description": "Type-safe schemas with automatic codec, optic, and validator derivation",
+      "artifact": "zio-blocks-schema",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "2.13 (JVM) · 3.x",
+      "api": false
+    },
+    {
+      "name": "Avro Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/avro/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "serialization",
+      "description": "Apache Avro binary serialization with automatic schema generation",
+      "artifact": "zio-blocks-schema-avro",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "BSON Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/bson/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "serialization",
+      "description": "MongoDB-compatible BSON serialization with native type support",
+      "artifact": "zio-blocks-schema-bson",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "CSV Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/csv/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "serialization",
+      "description": "RFC 4180-compliant CSV serialization",
+      "artifact": "zio-blocks-schema-csv",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "MessagePack Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/messagepack/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "serialization",
+      "description": "Compact binary serialization with optimized streaming",
+      "artifact": "zio-blocks-schema-messagepack",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Thrift Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/thrift/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "serialization",
+      "description": "Apache Thrift binary serialization with TBinaryProtocol",
+      "artifact": "zio-blocks-schema-thrift",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "TOON Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/toon/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "serialization",
+      "description": "Token-oriented notation 30–60% smaller than JSON, tuned for LLM prompts",
+      "artifact": "zio-blocks-schema-toon",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "XML Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/xml/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "serialization",
+      "description": "Zero-dependency XML serialization with fluent navigation and patching",
+      "artifact": "zio-blocks-schema-xml",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "YAML Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/yaml/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "serialization",
+      "description": "Human-readable YAML serialization with JSON interop",
+      "artifact": "zio-blocks-schema-yaml",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Telemetry",
+      "href": "https://zioblocks.com/reference/telemetry/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "observability",
+      "description": "Zero-dependency OpenTelemetry-aligned tracing, logging, and metrics",
+      "artifact": "zio-blocks-telemetry",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "OTLP Export",
+      "href": "https://zioblocks.com/reference/telemetry/otel/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "observability",
+      "description": "OTLP exporters bridging telemetry signals to an OpenTelemetry collector",
+      "artifact": "zio-blocks-telemetry-otel",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Configuration",
+      "href": "https://zioblocks.com/reference/config/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "config",
+      "description": "Typed configuration loading, feature flags, and rollout rules",
+      "artifact": "zio-blocks-config",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Config YAML",
+      "href": "https://zioblocks.com/reference/config/formats/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "config",
+      "description": "YAML source adapter for `ConfigSource`",
+      "artifact": "zio-blocks-config-yaml",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Config JSON",
+      "href": "https://zioblocks.com/reference/config/formats/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "config",
+      "description": "JSON source adapter for `ConfigSource`",
+      "artifact": "zio-blocks-config-json",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Config HOCON",
+      "href": "https://zioblocks.com/reference/config/formats/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "config",
+      "description": "HOCON source adapter for `ConfigSource`",
+      "artifact": "zio-blocks-config-hocon",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Wire",
+      "href": "https://zioblocks.com/reference/resource-management/wire/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "di",
+      "description": "Compile-time safe recipes for constructing a service and its dependencies",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Context",
+      "href": "https://zioblocks.com/reference/context/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "di",
+      "description": "Type-indexed heterogeneous collections",
+      "artifact": "zio-blocks-context",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Scope",
+      "href": "https://zioblocks.com/reference/resource-management/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "resources",
+      "description": "Compile-time safe resource boundaries that keep values from escaping their lifetime",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Resource",
+      "href": "https://zioblocks.com/reference/resource-management/resource/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "resources",
+      "description": "Lazy recipes that pair acquisition with finalization, composable with `map`, `flatMap`, and `zip`",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Unscoped",
+      "href": "https://zioblocks.com/reference/resource-management/unscoped/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "resources",
+      "description": "Marker typeclass for plain data that can safely leave a scope",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "DeferHandle",
+      "href": "https://zioblocks.com/reference/resource-management/defer-handle/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "resources",
+      "description": "Handle returned by `Scope.defer` for cancelling a registered finalizer",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Finalizer",
+      "href": "https://zioblocks.com/reference/resource-management/finalizer/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "resources",
+      "description": "Minimal capability interface for registering cleanup actions",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Finalization",
+      "href": "https://zioblocks.com/reference/resource-management/finalization/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "resources",
+      "description": "Result of running a scope's finalizers, including any cleanup errors",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Async",
+      "href": "https://zioblocks.com/reference/async/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "concurrency",
+      "description": "Zero-allocation asynchronous effect type with direct-style `await`",
+      "artifact": "zio-blocks-async",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Mux",
+      "href": "https://zioblocks.com/reference/mux/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "concurrency",
+      "description": "Thread-safe multiplexer for HTTP/2, QUIC, and WebSocket-style protocols",
+      "artifact": "zio-blocks-mux",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "RingBuffer",
+      "href": "https://zioblocks.com/reference/ringbuffer/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "concurrency",
+      "description": "Lock-free bounded ring buffers (SPSC, SPMC, MPSC, MPMC)",
+      "artifact": "zio-blocks-ringbuffer",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "TypeId",
+      "href": "https://zioblocks.com/reference/typeid/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "types",
+      "description": "Compile-time type identity with rich metadata",
+      "artifact": "zio-blocks-typeid",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "2.13 (JVM) · 3.x",
+      "api": false
+    },
+    {
+      "name": "Chunk",
+      "href": "https://zioblocks.com/reference/chunk/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "types",
+      "description": "High-performance immutable indexed sequences with zero-boxing builders",
+      "artifact": "zio-blocks-chunk",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "2.13 (JVM) · 3.x",
+      "api": false
+    },
+    {
+      "name": "Maybe",
+      "href": "https://zioblocks.com/reference/maybe/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "types",
+      "description": "Optional values that store a present reference as is, without a wrapper object (Scala 3)",
+      "artifact": "zio-blocks-maybe",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "2.13 (JVM) · 3.x",
+      "api": false
+    },
+    {
+      "name": "Combinators",
+      "href": "https://zioblocks.com/reference/combinators/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "types",
+      "description": "Compile-time composition and decomposition of tuples, eithers, and unions",
+      "artifact": "zio-blocks-combinators",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Code Generation",
+      "href": "https://zioblocks.com/reference/codegen/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "tooling",
+      "description": "Generic Scala code generation IR and emitter",
+      "artifact": "zio-blocks-codegen",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Docs",
+      "href": "https://zioblocks.com/reference/docs/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "tooling",
+      "description": "GitHub Flavored Markdown parsing, rendering, and programmatic construction",
+      "artifact": "zio-blocks-markdown",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "2.13 (JVM) · 3.x",
+      "api": false
+    },
+    {
+      "name": "Smithy",
+      "href": "https://zioblocks.com/reference/smithy/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "tooling",
+      "description": "Smithy IDL parser and AST library for API modeling",
+      "artifact": "zio-blocks-smithy",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "d4s",
+      "href": "https://github.com/PlayQ/d4s",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "\"Dynamo DB Database done Scala way\". A library that allows accessing the DynamoDB in a purely functional way",
+      "api": false
+    },
+    {
+      "name": "Edomata",
+      "href": "https://github.com/hnaderi/edomata",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "Production ready event-driven automata for Scala, Scala.js and scala native",
+      "api": false
+    },
+    {
+      "name": "elastic4s",
+      "href": "https://github.com/sksamuel/elastic4s",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "Elasticsearch Scala Client - Reactive, Non Blocking, Type Safe, HTTP Client",
+      "api": false
+    },
+    {
+      "name": "Lepus",
+      "href": "https://github.com/hnaderi/lepus",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "Your principled, purely functional, non-blocking RabbitMQ client for scala, scala js and scala native built on top of fs2",
+      "api": false
+    },
+    {
+      "name": "neotypes",
+      "href": "https://github.com/neotypes/neotypes",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "A Scala lightweight, type-safe & asynchronous driver for neo4j",
+      "api": false
+    },
+    {
+      "name": "scanamo",
+      "href": "https://github.com/scanamo/scanamo",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "Simpler DynamoDB access for Scala",
+      "api": false
+    },
+    {
+      "name": "sttp",
+      "href": "https://github.com/softwaremill/sttp",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "The Scala HTTP client you always wanted!",
+      "api": false
+    },
+    {
+      "name": "doobie",
+      "href": "https://github.com/tpolecat/doobie",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "Functional JDBC layer for Scala.",
+      "api": false
+    },
+    {
+      "name": "fs2",
+      "href": "https://github.com/typelevel/fs2",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "Compositional, streaming I/O library for Scala",
+      "api": false
+    },
+    {
+      "name": "http4s",
+      "href": "https://github.com/http4s/http4s",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "A minimal, idiomatic Scala interface for HTTP",
+      "api": false
+    },
+    {
+      "name": "Automorph",
+      "href": "https://automorph.org",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "RPC in a few lines of Scala code",
+      "api": false
+    },
+    {
+      "name": "ldbc",
+      "href": "https://github.com/takapi327/ldbc",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "Pure functional JDBC layer for Scala 3 built on Cats Effect, usable with ZIO through the `ldbc-zio-interop` module",
+      "api": false
+    },
+    {
+      "name": "Iron",
+      "href": "https://github.com/iltotore/iron",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "Strong type constraints for Scala 3, with the `iron-zio`, `iron-zio-json`, and `iron-zio-blocks-schema` modules for ZIO",
+      "api": false
+    },
+    {
+      "name": "sttp-ai",
+      "href": "https://github.com/softwaremill/sttp-ai",
+      "kind": "compatible",
+      "category": "compatible",
+      "description": "A Scala toolkit for working with third-party LLMs such as OpenAI and Claude, with a ZIO backend",
+      "api": false
+    }
+  ]
+}

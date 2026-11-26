@@ -1,16 +1,18 @@
 ---
 id: index
 title: "ZIO Ecosystem"
+hide_table_of_contents: true
 ---
-import Ecosystem from '@site/src/components/sections/Ecosystem';
+import EcosystemCards from '@site/src/components/EcosystemCards';
 
-ZIO has a rich ecosystem of libraries and tools that enhance its capabilities and provide additional functionality. This ecosystem includes libraries for various purposes, such as web development, data processing, testing, and more.
+ZIO has a rich ecosystem of libraries and tools that enhance its capabilities and provide additional functionality, for web development, data processing, testing, and more.
 
-Browse the libraries by purpose in the sidebar, or jump to the complete lists below: the [official libraries](#official-libraries), maintained by the ZIO team under the [ZIO Organization](https://github.com/zio), the [community libraries](#community-libraries), maintained by members of the ZIO community, and the [compatible libraries](#compatible-libraries) that work with ZIO.
+Find a library by name or by purpose below. **Official** libraries are maintained by the ZIO team under the [ZIO organization](https://github.com/zio/), and include the blocks of [ZIO Blocks](https://zioblocks.com), which [zioblocks.com/reference](https://zioblocks.com/reference/) groups by the same categories. **Community** libraries are maintained by members of the ZIO community, and **compatible** libraries work with ZIO.
 
-Below are some of the highlights from the official libraries:
+<EcosystemCards />
 
-<Ecosystem  />
+<details>
+<summary>Full list, with descriptions</summary>
 
 ## Official Libraries
 
@@ -32,66 +34,83 @@ Each project in the ZIO organization namespace has a _Stage Badge_ which indicat
 ### Web & APIs
 
 - [ZIO HTTP](https://ziohttp.com) — A type-safe, composable, and feature-rich HTTP library built on top of ZIO.
+- ZIO Blocks: [MediaType](https://zioblocks.com/reference/media-type/), [HTTP Model](https://zioblocks.com/reference/http-model/), [HTTP Model Schema](https://zioblocks.com/reference/http-model/schema/), [Endpoint](https://zioblocks.com/reference/endpoint/), [OpenAPI](https://zioblocks.com/reference/openapi/), [JWT](https://zioblocks.com/reference/jwt/), [HTML](https://zioblocks.com/reference/html/), [Datastar](https://zioblocks.com/reference/datastar/), [HTMX](https://zioblocks.com/reference/htmx/)
 
 ### Data Access
 
-- [ZIO DynamoDB](/zio-dynamodb/) · <a href="/zio-dynamodb/api/">API</a> — Simple, type-safe, and efficient access to AWS DynamoDB.
-- [ZIO Query](/zio-query/) · <a href="/zio-query/api/">API</a> — A library for writing optimized queries to data sources in a compositional style, with batching, pipelining, and caching.
+- [ZIO DynamoDB](/zio-dynamodb/) — Simple, type-safe, and efficient access to AWS DynamoDB.
+- [ZIO Query](/zio-query/) — A library for writing optimized queries to data sources in a compositional style, with batching, pipelining, and caching.
 - [ZIO Quill](/zio-quill/) — A quoted domain-specific language for expressing queries in Scala and executing them as SQL or CQL.
-- [ZIO Redis](/zio-redis/) · <a href="/zio-redis/api/">API</a> — A type-safe and performant ZIO-native Redis client.
-- [ZIO RocksDB](/zio-rocksdb/) · <a href="/zio-rocksdb/api/">API</a> — A ZIO-based interface to RocksDB.
+- [ZIO Redis](/zio-redis/) — A type-safe and performant ZIO-native Redis client.
+- [ZIO Rocksdb](/zio-rocksdb/) — A ZIO-based interface to RocksDB.
+- ZIO Blocks: [SQL Module](https://zioblocks.com/reference/sql/), [ZIO Integration](https://zioblocks.com/reference/sql-zio/), [Data Migration](https://zioblocks.com/reference/data-migration/), [Projection](https://zioblocks.com/reference/projection/)
 
-### Messaging & Pipelines
+### Streaming & Messaging
 
-- [ZIO AMQP](/zio-amqp/) · <a href="/zio-amqp/api/">API</a> — A ZIO-based wrapper around the RabbitMQ client with a streaming interface to AMQP queues.
-- [ZIO Kafka](/zio-kafka/) · <a href="/zio-kafka/api/">API</a> — A purely functional, streams-based Kafka client for ZIO.
-- [ZIO SQS](/zio-sqs/) · <a href="/zio-sqs/api/">API</a> — A ZIO-powered client for AWS SQS, built on top of ZIO AWS.
+- [ZIO AMQP](/zio-amqp/) — A ZIO-based wrapper around the RabbitMQ client with a streaming interface to AMQP queues.
+- [ZIO Kafka](/zio-kafka/) — A purely functional, streams-based Kafka client for ZIO.
+- [ZIO SQS](/zio-sqs/) — A ZIO-powered client for AWS SQS, built on top of ZIO AWS.
+- ZIO Blocks: [Streams](https://zioblocks.com/reference/streams/)
 
-### Serialization & Formats
+### Schemas & Serialization
 
-- [ZIO Bson](/zio-bson/) · <a href="/zio-bson/api/">API</a> — A BSON library with tight ZIO integration and native support for BSON types.
-- [ZIO JSON](/zio-json/) · <a href="/zio-json/api/">API</a> — A fast and secure JSON library with tight ZIO integration.
-- [ZIO Parser](/zio-parser/) · <a href="/zio-parser/api/">API</a> — A library for constructing parsers and pretty printers from invertible syntax descriptions.
-- [ZIO Schema](/zio-schema/) · <a href="/zio-schema/api/">API</a> — A library for modeling the schema of data structures as first-class values, enabling serialization, deserialization, and data migration.
-- [ZIO Streams Compress](/zio-streams-compress/) · <a href="/zio-streams-compress/api/">API</a> — A library that integrates compression algorithms and archive formats with ZIO Streams.
+- [ZIO BSON](/zio-bson/) — A BSON library with tight ZIO integration and native support for BSON types.
+- [ZIO JSON](/zio-json/) — A fast and secure JSON library with tight ZIO integration.
+- [ZIO Parser](/zio-parser/) — A library for constructing parsers and pretty printers from invertible syntax descriptions.
+- [ZIO Schema](/zio-schema/) — A library for modeling the schema of data structures as first-class values, enabling serialization, deserialization, and data migration.
+- [ZIO Streams Compress](/zio-streams-compress/) — A library that integrates compression algorithms and archive formats with ZIO Streams.
+- ZIO Blocks: [Schema](https://zioblocks.com/reference/schema/), [Avro Codec](https://zioblocks.com/reference/schema/built-in-codecs/avro/), [BSON Codec](https://zioblocks.com/reference/schema/built-in-codecs/bson/), [CSV Codec](https://zioblocks.com/reference/schema/built-in-codecs/csv/), [MessagePack Codec](https://zioblocks.com/reference/schema/built-in-codecs/messagepack/), [Thrift Codec](https://zioblocks.com/reference/schema/built-in-codecs/thrift/), [TOON Codec](https://zioblocks.com/reference/schema/built-in-codecs/toon/), [XML Codec](https://zioblocks.com/reference/schema/built-in-codecs/xml/), [YAML Codec](https://zioblocks.com/reference/schema/built-in-codecs/yaml/)
 
 ### Observability
 
-- [ZIO Logging](/zio-logging/) · <a href="/zio-logging/api/">API</a> — Simple logging for ZIO applications, with correlation, context, and pluggable backends.
-- [ZIO Metrics Connectors](/zio-metrics-connectors/) · <a href="/zio-metrics-connectors/api/">API</a> — Integrations between ZIO metrics and monitoring systems such as Prometheus and Datadog.
-- [ZIO Profiling](/zio-profiling/) · <a href="/zio-profiling/api/">API</a> — A collection of profilers for understanding the runtime behavior of ZIO programs.
-- [ZIO Telemetry](/zio-telemetry/) · <a href="/zio-telemetry/api/">API</a> — Purely functional and type-safe clients for OpenTracing, OpenCensus, and OpenTelemetry.
+- [ZIO Logging](/zio-logging/) — Simple logging for ZIO applications, with correlation, context, and pluggable backends.
+- [ZIO Metrics Connectors](/zio-metrics-connectors/) — Integrations between ZIO metrics and monitoring systems such as Prometheus and Datadog.
+- [ZIO Profiling](/zio-profiling/) — A collection of profilers for understanding the runtime behavior of ZIO programs.
+- [ZIO Telemetry](/zio-telemetry/) — Purely functional and type-safe clients for OpenTracing, OpenCensus, and OpenTelemetry.
+- ZIO Blocks: [Telemetry](https://zioblocks.com/reference/telemetry/), [OTLP Export](https://zioblocks.com/reference/telemetry/otel/)
 
-### Cloud & Infrastructure
+### Configuration & CLI
 
-- [ZIO AWS](/zio-aws/) — A ZIO wrapper for all AWS services, built on the AWS Java SDK v2.
-- [ZIO FTP](/zio-ftp/) · <a href="/zio-ftp/api/">API</a> — A thin wrapper over (s)FTP clients for ZIO.
-- [ZIO Lambda](/zio-lambda/) · <a href="/zio-lambda/api/">API</a> — A ZIO-based AWS Custom Runtime compatible with GraalVM Native Image.
-- [ZIO S3](/zio-s3/) · <a href="/zio-s3/api/">API</a> — A thin wrapper over the S3 async client for ZIO.
+- [ZIO Cli](/zio-cli/) — A library for rapidly building powerful command-line applications powered by ZIO.
+- [ZIO Config](/zio-config/) — A ZIO-based library that extends ZIO's `Config` with support for various sources and automatic derivation.
+- [ZIO Process](/zio-process/) — A library for interacting with external processes and command-line programs, backed by ZIO Streams.
+- ZIO Blocks: [Configuration](https://zioblocks.com/reference/config/), [Config YAML](https://zioblocks.com/reference/config/formats/), [Config JSON](https://zioblocks.com/reference/config/formats/), [Config HOCON](https://zioblocks.com/reference/config/formats/)
 
-### Config & App Wiring
+### Dependency Injection
 
-- [ZIO CLI](/zio-cli/) · <a href="/zio-cli/api/">API</a> — A library for rapidly building powerful command-line applications powered by ZIO.
-- [ZIO Config](/zio-config/) · <a href="/zio-config/api/">API</a> — A ZIO-based library that extends ZIO's `Config` with support for various sources and automatic derivation.
-- [ZIO Process](/zio-process/) · <a href="/zio-process/api/">API</a> — A library for interacting with external processes and command-line programs, backed by ZIO Streams.
+- ZIO Blocks: [Wire](https://zioblocks.com/reference/resource-management/wire/), [Context](https://zioblocks.com/reference/context/)
 
-### Resilience & Scaling
+### Resource Management
 
-- [ZIO Cache](/zio-cache/) · <a href="/zio-cache/api/">API</a> — A library for optimizing the performance of an application by caching values.
+- ZIO Blocks: [Scope](https://zioblocks.com/reference/resource-management/), [Resource](https://zioblocks.com/reference/resource-management/resource/), [Unscoped](https://zioblocks.com/reference/resource-management/unscoped/), [DeferHandle](https://zioblocks.com/reference/resource-management/defer-handle/), [Finalizer](https://zioblocks.com/reference/resource-management/finalizer/), [Finalization](https://zioblocks.com/reference/resource-management/finalization/)
+
+### Concurrency & Resilience
+
+- [ZIO Cache](/zio-cache/) — A library for optimizing the performance of an application by caching values.
+- ZIO Blocks: [Async](https://zioblocks.com/reference/async/), [Mux](https://zioblocks.com/reference/mux/), [RingBuffer](https://zioblocks.com/reference/ringbuffer/)
 
 ### Types & Abstractions
 
 - [Izumi Reflect](/izumi-reflect/) — A fast, lightweight, portable and efficient alternative to `TypeTag` from `scala-reflect`.
 - [ZIO 2.x Interop Cats 2.x](/zio2-interop-cats2/) — Legacy interoperability layer for ZIO 2 and Cats Effect 2. No longer maintained; use interop-cats for Cats Effect 3.
 - [ZIO 2.x Interop Cats 3.x](/interop-cats/) — An interoperability layer that lets ZIO 2 work with Cats Effect 3 and its ecosystem, including fs2, doobie and http4s.
-- [ZIO Constraintless](/zio-constraintless/) · <a href="/zio-constraintless/api/">API</a> — A library for building programs as descriptions with maximum polymorphism and modularity, and zero abstraction leakage.
-- [ZIO Direct Style](/zio-direct/) · <a href="/zio-direct/api/">API</a> — A library for writing ZIO programs in a direct, imperative style, based on the Monadless paradigm.
-- [ZIO Prelude](/zio-prelude/) · <a href="/zio-prelude/api/">API</a> — A lightweight, distinctly Scala take on functional abstractions, with tight ZIO integration.
+- [ZIO Constraintless](/zio-constraintless/) — A library for building programs as descriptions with maximum polymorphism and modularity, and zero abstraction leakage.
+- [ZIO Direct Style](/zio-direct/) — A library for writing ZIO programs in a direct, imperative style, based on the Monadless paradigm.
+- [ZIO Prelude](/zio-prelude/) — A lightweight, distinctly Scala take on functional abstractions, with tight ZIO integration.
+- ZIO Blocks: [TypeId](https://zioblocks.com/reference/typeid/), [Chunk](https://zioblocks.com/reference/chunk/), [Maybe](https://zioblocks.com/reference/maybe/), [Combinators](https://zioblocks.com/reference/combinators/)
 
-### Testing & Dev Tools
+### Cloud & Infrastructure
+
+- [ZIO AWS](/zio-aws/) — A ZIO wrapper for all AWS services, built on the AWS Java SDK v2.
+- [ZIO Ftp](/zio-ftp/) — A thin wrapper over (s)FTP clients for ZIO.
+- [ZIO Lambda](/zio-lambda/) — A ZIO-based AWS Custom Runtime compatible with GraalVM Native Image.
+- [ZIO S3](/zio-s3/) — A thin wrapper over the S3 async client for ZIO.
+
+### Tooling & Testing
 
 - [ZIO IntelliJ](https://github.com/zio/zio-intellij) — A plugin for IntelliJ IDEA that brings enhancements when using ZIO in your projects.
 - [ZIO SBT](/zio-sbt/) — A collection of sbt plugins that simplify the development of ZIO projects.
+- ZIO Blocks: [Code Generation](https://zioblocks.com/reference/codegen/), [Docs](https://zioblocks.com/reference/docs/), [Smithy](https://zioblocks.com/reference/smithy/)
 
 {/* END GENERATED: official libraries */}
 
@@ -118,13 +137,13 @@ If you know a useful library that has first-class ZIO support, please consider [
 - [ZIO LMDB](/ecosystem/community/zio-lmdb) — An embedded, ACID, key-value database for ZIO, stored in a single file.
 - [ZIO MongoDB](/ecosystem/community/zio-mongodb) — A ZIO wrapper around the official MongoDB Java driver, with compile-time codecs and a type-safe query DSL.
 
-### Messaging & Pipelines
+### Streaming & Messaging
 
 - [tamer](/ecosystem/community/tamer) — A multi-functional Kafka connector for producing data, based on ZIO Kafka.
 - [ZIO Kinesis](/ecosystem/community/zio-kinesis) — A ZIO-based AWS Kinesis client for consuming and producing data.
 - [ZIO Spark](/ecosystem/community/zio-spark) — A functional wrapper around Spark that makes it work with ZIO and improves error management.
 
-### Serialization & Formats
+### Schemas & Serialization
 
 - [ZIO Apache Parquet](/ecosystem/community/zio-apache-parquet) — A ZIO-powered library for reading and writing Parquet files without running a Spark cluster.
 
@@ -133,16 +152,11 @@ If you know a useful library that has first-class ZIO support, please consider [
 - [LogStage](/ecosystem/community/logstage) — A zero-cost structural logging framework for Scala and Scala.js.
 - [Tofu ZIO 2 Logging](/ecosystem/community/tofu-zio2-logging) — Logging integration of Tofu, a functional toolkit based on the tagless-final approach, with ZIO 2.
 
-### Cloud & Infrastructure
-
-- [Scala k8s](/ecosystem/community/scala-k8s) — A Kubernetes client, data models, and typesafe manifest generation for Scala, Scala.js, and Scala Native.
-- [ZIO K8s](/ecosystem/community/zio-k8s) — An idiomatic ZIO client for the Kubernetes API, with code generation for custom resources and operators.
-
-### Config & App Wiring
+### Dependency Injection
 
 - [Distage](/ecosystem/community/distage) — A compile-time safe, transparent, and debuggable dependency injection framework for pure FP Scala.
 
-### Resilience & Scaling
+### Concurrency & Resilience
 
 - [Rezilience](/ecosystem/community/rezilience) — A ZIO-native fault tolerance library with policies for making asynchronous systems more resilient to failures.
 - [Shard](/ecosystem/community/shard) — A library for distributing entities across multiple servers and sending them messages by ID, without knowing their location. It is the successor of Shardcake.
@@ -151,7 +165,12 @@ If you know a useful library that has first-class ZIO support, please consider [
 
 - [Neotype](/ecosystem/community/neotype) — A friendly newtype library for Scala 3 with compile-time validation and integrations with ZIO JSON, ZIO Quill, ZIO Config, and ZIO Schema.
 
-### Testing & Dev Tools
+### Cloud & Infrastructure
+
+- [Scala k8s](/ecosystem/community/scala-k8s) — A Kubernetes client, data models, and typesafe manifest generation for Scala, Scala.js, and Scala Native.
+- [ZIO K8s](/ecosystem/community/zio-k8s) — An idiomatic ZIO client for the Kubernetes API, with code generation for custom resources and operators.
+
+### Tooling & Testing
 
 - [MUnit ZIO](/ecosystem/community/munit-zio) — An integration library between MUnit and ZIO.
 - [ZIO Test Akka HTTP](/ecosystem/community/zio-test-akka-http) — An Akka HTTP route test kit for ZIO Test.
@@ -161,6 +180,8 @@ If you know a useful library that has first-class ZIO support, please consider [
 ## Compatible Libraries
 
 List of ZIO compatible libraries:
+
+{/* BEGIN GENERATED: compatible libraries */}
 
 - [d4s](https://github.com/PlayQ/d4s) — "Dynamo DB Database done Scala way". A library that allows accessing the DynamoDB in a purely functional way
 - [Edomata](https://github.com/hnaderi/edomata) — Production ready event-driven automata for Scala, Scala.js and scala native
@@ -172,7 +193,11 @@ List of ZIO compatible libraries:
 - [doobie](https://github.com/tpolecat/doobie) — Functional JDBC layer for Scala.
 - [fs2](https://github.com/typelevel/fs2) — Compositional, streaming I/O library for Scala
 - [http4s](https://github.com/http4s/http4s) — A minimal, idiomatic Scala interface for HTTP
-- [Automorph](https://automorph.org) - RPC in a few lines of Scala code
+- [Automorph](https://automorph.org) — RPC in a few lines of Scala code
 - [ldbc](https://github.com/takapi327/ldbc) — Pure functional JDBC layer for Scala 3 built on Cats Effect, usable with ZIO through the `ldbc-zio-interop` module
 - [Iron](https://github.com/iltotore/iron) — Strong type constraints for Scala 3, with the `iron-zio`, `iron-zio-json`, and `iron-zio-blocks-schema` modules for ZIO
 - [sttp-ai](https://github.com/softwaremill/sttp-ai) — A Scala toolkit for working with third-party LLMs such as OpenAI and Claude, with a ZIO backend
+
+{/* END GENERATED: compatible libraries */}
+
+</details>
