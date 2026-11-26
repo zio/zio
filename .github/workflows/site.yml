@@ -34,7 +34,7 @@ jobs:
       - name: Fetch history and tags of the deployed commit
         run: git fetch --unshallow --tags --no-recurse-submodules origin "$GITHUB_SHA"
       - name: Setup Java
-        uses: actions/setup-java@v6.1.0
+        uses: actions/setup-java@v6.3.0
         with:
           distribution: temurin
           java-version: 17
