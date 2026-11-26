@@ -225,8 +225,7 @@ private[zio] transparent trait ZIOCompanionVersionSpecific {
   /**
    * Returns an effect that models success with the specified value.
    *
-   * `a` is evaluated each time the effect runs. When evaluating it throws, the
-   * effect dies with the exception.
+   * `a` is evaluated each time the effect runs. When evaluating it throws a non-fatal exception (any `Throwable` except a `VirtualMachineError`), the effect dies with the exception.
    *
    * On Scala 3, `a` runs with a given `Unsafe` in scope.
    *
