@@ -163,6 +163,7 @@ function categorizedEcosystem(officialLinks: Record<string, SidebarEntry>) {
             label: communityLabel(doc),
             item: { type: 'doc', id: `ecosystem/community/${doc}`, label: communityLabel(doc), className: 'eco-tag eco-tag-community' }
           })))
+          .concat(blocksEntry(category))
           .sort((a, b) => a.label.localeCompare(b.label))
 
       return { category, entries }
@@ -175,6 +176,29 @@ function categorizedEcosystem(officialLinks: Record<string, SidebarEntry>) {
       collapsed: category.collapsed !== undefined ? category.collapsed : true,
       items: entries.map(entry => entry.item)
     }))
+}
+
+// The ZIO Blocks blocks of a category, as one entry that links to the same category on zioblocks.com/reference/. Both
+// sites share the categories of ecosystem-categories.json; the blocks come from ecosystem-blocks.json, which
+// scripts/sync-zio-blocks.mjs writes from zio-blocks' docs/index.md.
+function blocksEntry(category: CategoryConfig): SidebarEntry[] {
+  const count = zioBlocks().filter(block => block.category === category.id).length
+  if (count === 0) return []
+  const label = `ZIO Blocks · ${count}`
+  return [{
+    label,
+    item: { type: 'link', label, href: `https://zioblocks.com/reference/#${referenceAnchor(category.label)}`, className: 'eco-tag eco-tag-official eco-blocks' }
+  }]
+}
+
+function zioBlocks(): { category: string }[] {
+  return fs.existsSync('ecosystem-blocks.json') ? JSON.parse(fs.readFileSync('ecosystem-blocks.json', 'utf8')).blocks : []
+}
+
+// The anchor of a category on zioblocks.com/reference/ (`groupId` in zio-blocks' website/src/lib/reference-directory.mjs),
+// the same as `referenceAnchor` in scripts/lib/zio-blocks.mjs.
+function referenceAnchor(label: string): string {
+  return 'ref-' + label.toLowerCase().replace(/&/g, ' ').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
 function writeSidebarFile(path: string, sidebar: unknown) {
