@@ -89,18 +89,18 @@
       "community": []
     },
     {
+      "id": "resources",
+      "label": "Resource Management",
+      "official": [],
+      "community": []
+    },
+    {
       "id": "di",
       "label": "Dependency Injection",
       "official": [],
       "community": [
         "distage"
       ]
-    },
-    {
-      "id": "resources",
-      "label": "Resource Management",
-      "official": [],
-      "community": []
     },
     {
       "id": "concurrency",

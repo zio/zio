@@ -25,12 +25,12 @@
       "label": "Configuration & CLI"
     },
     {
-      "id": "di",
-      "label": "Dependency Injection"
-    },
-    {
       "id": "resources",
       "label": "Resource Management"
+    },
+    {
+      "id": "di",
+      "label": "Dependency Injection"
     },
     {
       "id": "concurrency",
@@ -936,36 +936,6 @@
       "api": false
     },
     {
-      "name": "Wire",
-      "href": "https://zioblocks.com/reference/resource-management/wire/",
-      "kind": "official",
-      "family": "zio-blocks",
-      "category": "di",
-      "description": "Compile-time safe recipes for constructing a service and its dependencies",
-      "artifact": "zio-blocks-scope",
-      "platforms": [
-        "JVM",
-        "JS"
-      ],
-      "scala": "3.x",
-      "api": false
-    },
-    {
-      "name": "Context",
-      "href": "https://zioblocks.com/reference/context/",
-      "kind": "official",
-      "family": "zio-blocks",
-      "category": "di",
-      "description": "Type-indexed heterogeneous collections",
-      "artifact": "zio-blocks-context",
-      "platforms": [
-        "JVM",
-        "JS"
-      ],
-      "scala": "3.x",
-      "api": false
-    },
-    {
       "name": "Scope",
       "href": "https://zioblocks.com/reference/resource-management/",
       "kind": "official",
@@ -1056,6 +1026,36 @@
       "api": false
     },
     {
+      "name": "Wire",
+      "href": "https://zioblocks.com/reference/resource-management/wire/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "di",
+      "description": "Compile-time safe recipes for constructing a service and its dependencies",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "Context",
+      "href": "https://zioblocks.com/reference/context/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "di",
+      "description": "Type-indexed heterogeneous collections",
+      "artifact": "zio-blocks-context",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "api": false
+    },
+    {
       "name": "Async",
       "href": "https://zioblocks.com/reference/async/",
       "kind": "official",
@@ -1101,21 +1101,6 @@
       "api": false
     },
     {
-      "name": "TypeId",
-      "href": "https://zioblocks.com/reference/typeid/",
-      "kind": "official",
-      "family": "zio-blocks",
-      "category": "types",
-      "description": "Compile-time type identity with rich metadata",
-      "artifact": "zio-blocks-typeid",
-      "platforms": [
-        "JVM",
-        "JS"
-      ],
-      "scala": "2.13 (JVM) · 3.x",
-      "api": false
-    },
-    {
       "name": "Chunk",
       "href": "https://zioblocks.com/reference/chunk/",
       "kind": "official",
@@ -1158,6 +1143,21 @@
         "JS"
       ],
       "scala": "3.x",
+      "api": false
+    },
+    {
+      "name": "TypeId",
+      "href": "https://zioblocks.com/reference/typeid/",
+      "kind": "official",
+      "family": "zio-blocks",
+      "category": "types",
+      "description": "Compile-time type identity with rich metadata",
+      "artifact": "zio-blocks-typeid",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "2.13 (JVM) · 3.x",
       "api": false
     },
     {

@@ -343,30 +343,6 @@
       "category": "config"
     },
     {
-      "name": "Wire",
-      "href": "https://zioblocks.com/reference/resource-management/wire/",
-      "artifact": "zio-blocks-scope",
-      "platforms": [
-        "JVM",
-        "JS"
-      ],
-      "scala": "3.x",
-      "description": "Compile-time safe recipes for constructing a service and its dependencies",
-      "category": "di"
-    },
-    {
-      "name": "Context",
-      "href": "https://zioblocks.com/reference/context/",
-      "artifact": "zio-blocks-context",
-      "platforms": [
-        "JVM",
-        "JS"
-      ],
-      "scala": "3.x",
-      "description": "Type-indexed heterogeneous collections",
-      "category": "di"
-    },
-    {
       "name": "Scope",
       "href": "https://zioblocks.com/reference/resource-management/",
       "artifact": "zio-blocks-scope",
@@ -439,6 +415,30 @@
       "category": "resources"
     },
     {
+      "name": "Wire",
+      "href": "https://zioblocks.com/reference/resource-management/wire/",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Compile-time safe recipes for constructing a service and its dependencies",
+      "category": "di"
+    },
+    {
+      "name": "Context",
+      "href": "https://zioblocks.com/reference/context/",
+      "artifact": "zio-blocks-context",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Type-indexed heterogeneous collections",
+      "category": "di"
+    },
+    {
       "name": "Async",
       "href": "https://zioblocks.com/reference/async/",
       "artifact": "zio-blocks-async",
@@ -475,18 +475,6 @@
       "category": "concurrency"
     },
     {
-      "name": "TypeId",
-      "href": "https://zioblocks.com/reference/typeid/",
-      "artifact": "zio-blocks-typeid",
-      "platforms": [
-        "JVM",
-        "JS"
-      ],
-      "scala": "2.13 (JVM) · 3.x",
-      "description": "Compile-time type identity with rich metadata",
-      "category": "types"
-    },
-    {
       "name": "Chunk",
       "href": "https://zioblocks.com/reference/chunk/",
       "artifact": "zio-blocks-chunk",
@@ -520,6 +508,18 @@
       ],
       "scala": "3.x",
       "description": "Compile-time composition and decomposition of tuples, eithers, and unions",
+      "category": "types"
+    },
+    {
+      "name": "TypeId",
+      "href": "https://zioblocks.com/reference/typeid/",
+      "artifact": "zio-blocks-typeid",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "2.13 (JVM) · 3.x",
+      "description": "Compile-time type identity with rich metadata",
       "category": "types"
     },
     {
