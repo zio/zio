@@ -25,10 +25,10 @@ import scala.reflect.ClassTag
 /**
  * `ChunkLike` represents the capability for a `Chunk` to extend Scala's
  * collection library. Because of changes to Scala's collection library in 2.13,
- * separate versions of this trait are implemented for 2.12 and 2.13 / Dotty.
- * This allows code in `Chunk` to be written without concern for the
- * implementation details of Scala's collection library to the maximum extent
- * possible.
+ * separate versions of this trait are implemented for Scala 2.12, and for Scala
+ * 2.13 and Scala 3. This allows code in `Chunk` to be written without concern
+ * for the implementation details of Scala's collection library to the maximum
+ * extent possible.
  *
  * Note that `IndexedSeq` is not a referentially transparent interface in that
  * it exposes methods that are partial (e.g. `apply`), allocate mutable state
@@ -46,18 +46,37 @@ trait ChunkLike[+A]
   // removing it should trigger a mima failure
   ()
 
+  /**
+   * Returns a chunk with `a1` added at the end.
+   */
   override final def appended[A1 >: A](a1: A1): Chunk[A1] =
     append(a1)
 
+  /**
+   * Returns a chunk with `a1` added at the beginning.
+   */
   override final def prepended[A1 >: A](a1: A1): Chunk[A1] =
     prepend(a1)
 
   /**
-   * Returns a filtered, mapped subset of the elements of this `Chunk`.
+   * Returns a filtered, mapped subset of the elements of this chunk. Elements
+   * for which `pf` returns `null` are left out of the result. On Scala 2.12,
+   * when the builder factory is not a `ChunkCanBuildFrom` or the reusable one
+   * of `immutable.IndexedSeq`, `immutable.Seq` or `collection.Seq` (for example
+   * `collection.breakOut` to a `Vector`, or a `Chunk` whose static type is
+   * `collection.IndexedSeq`), they are kept.
    */
   override def collect[B](pf: PartialFunction[A, B]): Chunk[B] =
     collectChunk(pf)
 
+  /**
+   * Copies up to `length` elements of this chunk, starting from its first
+   * element, into `dest` at `destPos`, stopping at the end of `dest`. It copies
+   * nothing when `length` is zero or negative, or when `destPos` is at or past
+   * the end of `dest`. It throws a `java.lang.ArrayIndexOutOfBoundsException`
+   * when `destPos` is negative and there are elements to copy. On Scala 2.13
+   * and Scala 3, it returns the number of elements copied.
+   */
   override def copyToArray[B >: A](dest: Array[B], destPos: Int, length: Int): Int = {
     val n = math.max(math.min(math.min(length, self.length), dest.length - destPos), 0)
     if (n > 0) {
@@ -124,6 +143,12 @@ trait ChunkLike[+A]
   override final def map[B](f: A => B): Chunk[B] =
     mapChunk(f)
 
+  /**
+   * Returns the elements sorted with `ord`. With the natural ordering of
+   * `Byte`, `Char`, `Double`, `Float`, `Int`, `Long` or `Short` on a chunk of
+   * that primitive type, it sorts the unboxed values with
+   * `java.util.Arrays.sort`, which puts `-0.0` before `0.0` and `NaN` last.
+   */
   override def sorted[A1 >: A](implicit ord: Ordering[A1]): Chunk[A] = {
     implicit val classTag = Chunk.classTagOf(self)
     (ord, classTag) match {
@@ -168,6 +193,13 @@ trait ChunkLike[+A]
     }
   }
 
+  /**
+   * Returns a chunk with the element at `index` replaced by `elem`. Throws a
+   * `java.lang.IndexOutOfBoundsException` when `index` is negative or not less
+   * than the length of the chunk. When `elem` is `null`, index access on the
+   * result does not return it: on `Chunk("a", "b").updated(0, null)`,
+   * `apply(0)` returns `"a"`, while `toList` gives `List(null, "b")`.
+   */
   override final def updated[A1 >: A](index: Int, elem: A1): Chunk[A1] =
     update(index, elem)
 

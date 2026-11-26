@@ -23,6 +23,14 @@ import scala.reflect.ClassTag
 private[zio] trait ChunkPlatformSpecific {
 
   private[zio] object Tags {
+
+    /**
+     * Returns the `ClassTag` that `ChunkBuilder.make` uses for the array of a
+     * chunk whose first element is `a`. On the JVM and Scala Native, a
+     * primitive value gives the tag of that primitive, and any other value,
+     * including `null`, gives `ClassTag.AnyRef`. On Scala.js, it returns
+     * `ClassTag.AnyRef` for every value.
+     */
     def fromValue[A](a: A): ClassTag[A] = {
       if (a == null) ClassTag.AnyRef
       else {

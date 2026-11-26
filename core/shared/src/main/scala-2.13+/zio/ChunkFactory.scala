@@ -22,6 +22,11 @@ import scala.collection.{IterableOnce, StrictOptimizedSeqFactory, mutable}
 
 private[zio] trait ChunkFactory extends StrictOptimizedSeqFactory[Chunk] {
 
+  /**
+   * Returns a chunk with the elements of `source`. A `Chunk` is returned as it
+   * is, any other `Iterable` goes through `Chunk.fromIterable`, and a source
+   * that is not an `Iterable`, such as an `Iterator`, is read once.
+   */
   final def from[A](source: IterableOnce[A]): Chunk[A] =
     source match {
       case iterable: Iterable[A] => Chunk.fromIterable(iterable)

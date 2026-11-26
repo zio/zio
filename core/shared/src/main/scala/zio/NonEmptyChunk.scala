@@ -23,24 +23,49 @@ import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
 /**
- * A `NonEmptyChunk` is a `Chunk` that is guaranteed to contain at least one
- * element. As a result, operations which would not be safe when performed on
- * `Chunk`, such as `head` or `reduce`, are safe when performed on
- * `NonEmptyChunk`. Operations on `NonEmptyChunk` which could potentially return
- * an empty chunk will return a `Chunk` instead.
+ * A `NonEmptyChunk` is a `Chunk` that contains at least one element. As a
+ * result, operations that throw on an empty `Chunk` because it has no elements,
+ * such as `head` or `reduce`, do not throw for that reason on a
+ * `NonEmptyChunk`. Operations that can drop elements, such as `filter`,
+ * `collect`, `init` and `tail`, return a `Chunk` instead, and an implicit
+ * conversion turns a `NonEmptyChunk` into a `Chunk` wherever a `Chunk` is
+ * expected.
+ *
+ * {{{
+ * val numbers: NonEmptyChunk[Int] = NonEmptyChunk(1, 2, 3)
+ *
+ * val first: Int = numbers.head
+ * // 1
+ * val doubled: NonEmptyChunk[Int] = numbers.map(_ * 2)
+ * // NonEmptyChunk(2, 4, 6)
+ * val plain: Chunk[Int] = doubled.toChunk
+ * // Chunk(2,4,6)
+ *
+ * val none: Option[NonEmptyChunk[Int]] =
+ *   NonEmptyChunk.fromChunk(Chunk.empty[Int])
+ * // None
+ * val some: Option[NonEmptyChunk[Int]] =
+ *   NonEmptyChunk.fromChunk(Chunk(4, 5))
+ * // Some(NonEmptyChunk(4, 5))
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/stream/chunk/ Chunk]]
  */
 final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
     extends NonEmptySeq[A, NonEmptyChunk, Chunk]
     with Serializable { self =>
 
   /**
-   * A symbolic alias for `prepended`.
+   * Prepends a single element to the beginning of this `NonEmptyChunk`. A
+   * symbolic alias for `prepended`.
    */
   def +:[A1 >: A](a: A1): NonEmptyChunk[A1] =
     prepended(a)
 
   /**
-   * A symbolic alias for `appended`.
+   * Appends a single element to the end of this `NonEmptyChunk`. A symbolic
+   * alias for `appended`.
    */
   def :+[A1 >: A](a: A1): NonEmptyChunk[A1] =
     appended(a)
@@ -64,35 +89,52 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
     nonEmpty(chunk :+ a)
 
   /**
-   * Converts this `NonEmptyChunk` of ints to a `NonEmptyChunk` of bits.
+   * Converts this `NonEmptyChunk` of ints to a `NonEmptyChunk` of bits, 32 per
+   * int, in the bit order given by `endianness`.
    */
   def asBitsInt(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Int): NonEmptyChunk[Boolean] =
     nonEmpty(chunk.asBitsInt(endianness))
 
   /**
-   * Converts this `NonEmptyChunk` of longs to a `NonEmptyChunk` of bits.
+   * Converts this `NonEmptyChunk` of longs to a `NonEmptyChunk` of bits, 64 per
+   * long, in the bit order given by `endianness`.
    */
   def asBitsLong(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Long): NonEmptyChunk[Boolean] =
     nonEmpty(chunk.asBitsLong(endianness))
 
   /**
-   * Converts this `NonEmptyChunk` of bytes to a `NonEmptyChunk` of bits.
+   * Converts this `NonEmptyChunk` of bytes to a `NonEmptyChunk` of bits, 8 per
+   * byte, most significant bit first.
    */
   def asBits(implicit ev: A <:< Byte): NonEmptyChunk[Boolean] =
     nonEmpty(chunk.asBitsByte)
 
+  /**
+   * Returns the results of `pf` for the elements where it is defined, as a
+   * `Chunk`, which can be empty. Elements for which `pf` returns `null` are
+   * left out of the result.
+   */
   override def collect[B](pf: PartialFunction[A, B]): Chunk[B] =
     chunk.collect(pf)
 
+  /**
+   * Returns the result of `pf` for the first element where it is defined, or
+   * `None` when it is defined for no element.
+   */
   override def collectFirst[B](pf: PartialFunction[A, B]): Option[B] =
     chunk.collectFirst(pf)
 
+  /**
+   * Returns the elements without duplicates, keeping the first occurrence of
+   * each in its original position.
+   */
   override def distinct: NonEmptyChunk[A] =
     nonEmpty(chunk.distinct)
 
   /**
-   * Returns whether this `NonEmptyChunk` and the specified `NonEmptyChunk` are
-   * equal to each other.
+   * Returns `true` when `that` is a `NonEmptyChunk` with equal elements in the
+   * same order. A `NonEmptyChunk` and a `Chunk` with the same elements are not
+   * equal, whichever side the comparison starts from.
    */
   override def equals(that: Any): Boolean =
     that match {
@@ -107,12 +149,23 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
   override def exists(p: A => Boolean): Boolean =
     chunk.exists(p)
 
+  /**
+   * Returns the elements that satisfy `p`, as a `Chunk`, which can be empty.
+   */
   override def filter(p: A => Boolean): Chunk[A] =
     chunk.filter(p)
 
+  /**
+   * Returns the elements that do not satisfy `p`, as a `Chunk`, which can be
+   * empty.
+   */
   override def filterNot(p: A => Boolean): Chunk[A] =
     chunk.filterNot(p)
 
+  /**
+   * Returns the first element that satisfies `p`, or `None` when no element
+   * does.
+   */
   override def find(p: A => Boolean): Option[A] =
     chunk.find(p)
 
@@ -130,24 +183,37 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
   def flatten[B](implicit ev: A <:< NonEmptyChunk[B]): NonEmptyChunk[B] =
     flatMap(ev)
 
+  /**
+   * Combines the elements from left to right with `op`, starting from `z`.
+   */
   override def foldLeft[B](z: B)(op: (B, A) => B): B =
     chunk.foldLeft(z)(op)
 
+  /**
+   * Returns `true` when `p` holds for every element.
+   */
   override def forall(p: A => Boolean): Boolean =
     chunk.forall(p)
 
+  /**
+   * Splits this `NonEmptyChunk` into groups of `size` elements, in order. The
+   * last group holds the remaining elements and can be smaller. Throws a
+   * `java.lang.IllegalArgumentException` when `size` is zero or negative.
+   */
   override def grouped(size: Int): Iterator[NonEmptyChunk[A]] =
     chunk.grouped(size).map(nonEmpty)
 
   /**
    * Groups the values in this `NonEmptyChunk` using the specified function.
+   * Each key maps to the values that produced it, in their original order.
    */
   def groupBy[K](f: A => K): Map[K, NonEmptyChunk[A]] =
     groupMap(f)(identity)
 
   /**
-   * Groups and transformers the values in this `NonEmptyChunk` using the
-   * specified function.
+   * Groups the values in this `NonEmptyChunk` by `key` and transforms each
+   * value with `f`. Each key maps to the transformed values, in their original
+   * order.
    */
   def groupMap[K, V](key: A => K)(f: A => V): Map[K, NonEmptyChunk[V]] = {
     val m = collection.mutable.Map.empty[K, ChunkBuilder[V]]
@@ -164,20 +230,34 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
   }
 
   /**
-   * Returns the hashcode of this `NonEmptyChunk`.
+   * Returns the hashcode of this `NonEmptyChunk`, which is the hashcode of the
+   * underlying `Chunk`.
    */
   override def hashCode: Int =
     chunk.hashCode
 
+  /**
+   * Returns the first element.
+   */
   override def head: A =
     chunk.head
 
+  /**
+   * Returns every element except the last, as a `Chunk`, which is empty when
+   * this `NonEmptyChunk` has one element.
+   */
   override def init: Chunk[A] =
     chunk.init
 
+  /**
+   * Returns an iterator over the elements.
+   */
   override def iterator: Iterator[A] =
     chunk.iterator
 
+  /**
+   * Returns the last element.
+   */
   override def last: A =
     chunk.last
 
@@ -217,7 +297,7 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
     chunk.mapZIOPar(f).map(nonEmpty)
 
   /**
-   * Materialize the elements of this `NonEmptyChunk` into a `NonEmptyChunk`
+   * Materializes the elements of this `NonEmptyChunk` into a `NonEmptyChunk`
    * backed by an array.
    */
   def materialize[A1 >: A]: NonEmptyChunk[A1] =
@@ -235,6 +315,10 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
   def prepended[A1 >: A](a: A1): NonEmptyChunk[A1] =
     nonEmpty(a +: chunk)
 
+  /**
+   * Combines the elements from left to right with `op`. A `NonEmptyChunk` with
+   * one element returns that element.
+   */
   override def reduce[B >: A](op: (B, B) => B): B =
     chunk.reduce(op)
 
@@ -242,6 +326,15 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
    * Reduces the elements of this `NonEmptyChunk` from left to right using the
    * function `map` to transform the first value to the type `B` and then the
    * function `reduce` to combine the `B` value with each other `A` value.
+   *
+   * When `map` or `reduce` returns `null`, the next element goes to `map` again
+   * instead of to `reduce`.
+   *
+   * {{{
+   * val joined: String =
+   *   NonEmptyChunk(1, 2, 3).reduceMapLeft(_.toString)(_ + "-" + _)
+   * // "1-2-3"
+   * }}}
    */
   def reduceMapLeft[B](map: A => B)(reduce: (B, A) => B): B = {
     val iterator = chunk.iterator
@@ -255,8 +348,11 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
 
   /**
    * Reduces the elements of this `NonEmptyChunk` from right to left using the
-   * function `map` to transform the first value to the type `B` and then the
-   * function `reduce` to combine the `B` value with each other `A` value.
+   * function `map` to transform the last value to the type `B` and then the
+   * function `reduce` to combine each earlier `A` value with the `B` value.
+   *
+   * When `map` or `reduce` returns `null`, the next element goes to `map` again
+   * instead of to `reduce`.
    */
   def reduceMapRight[B](map: A => B)(reduce: (A, B) => B): B = {
     val iterator = chunk.reverseIterator
@@ -268,18 +364,35 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
     b
   }
 
+  /**
+   * Returns the elements in reverse order.
+   */
   override def reverse: NonEmptyChunk[A] =
     nonEmpty(chunk.reverse)
 
+  /**
+   * Returns the number of elements, which is at least 1.
+   */
   override def size: Int =
     chunk.size
 
+  /**
+   * Returns the elements sorted by the key that `f` computes, compared with
+   * `ord`.
+   */
   override def sortBy[B](f: A => B)(implicit ord: Ordering[B]): NonEmptyChunk[A] =
     nonEmpty(chunk.sortBy(f))
 
+  /**
+   * Returns the elements sorted with `ord`.
+   */
   override def sorted[B >: A](implicit ord: Ordering[B]): NonEmptyChunk[B] =
     nonEmpty(chunk.sorted[B])
 
+  /**
+   * Returns every element except the first, as a `Chunk`, which is empty when
+   * this `NonEmptyChunk` has one element.
+   */
   override def tail: Chunk[A] =
     chunk.tail
 
@@ -291,7 +404,7 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
 
   /**
    * Converts this `NonEmptyChunk` to a `Chunk`, discarding information about it
-   * not being empty.
+   * not being empty. It returns the underlying `Chunk` without copying.
    */
   def toChunk: Chunk[A] =
     chunk
@@ -315,14 +428,19 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
     chunk.toList
 
   /**
-   * Renders this `NonEmptyChunk` as a `String`.
+   * Renders this `NonEmptyChunk` as a `String`, such as `NonEmptyChunk(1, 2,
+   * 3)`. On Scala 2.12, it throws a `java.lang.NullPointerException` when an
+   * element is `null`.
    */
   override def toString: String =
     chunk.mkString("NonEmptyChunk(", ", ", ")")
 
   /**
    * Zips this `NonEmptyChunk` with the specified `NonEmptyChunk`, only keeping
-   * as many elements as are in the smaller chunk.
+   * as many elements as are in the smaller chunk. The `Zippable` instance
+   * combines each pair, so zipping a chunk of tuples with another chunk gives
+   * flat tuples: `NonEmptyChunk((1, "a")).zip(NonEmptyChunk(true))` is
+   * `NonEmptyChunk((1, "a", true))`.
    */
   def zip[B](that: NonEmptyChunk[B])(implicit zippable: Zippable[A, B]): NonEmptyChunk[zippable.Out] =
     zipWith(that)(zippable.zip(_, _))
@@ -352,7 +470,9 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
     nonEmpty(chunk.zipWith(that.chunk)(f))
 
   /**
-   * Annotates each element of this `NonEmptyChunk` with its index.
+   * Annotates each element of this `NonEmptyChunk` with its index, starting
+   * from 0: `NonEmptyChunk("a", "b").zipWithIndex` is `NonEmptyChunk(("a", 0),
+   * ("b", 1))`.
    */
   override def zipWithIndex: NonEmptyChunk[(A, Int)] =
     nonEmpty(chunk.zipWithIndex)
@@ -366,6 +486,10 @@ final class NonEmptyChunk[+A] private (private val chunk: Chunk[A])
 
 }
 
+/**
+ * Constructors and extractors for [[NonEmptyChunk]], and the implicit
+ * conversion from a `NonEmptyChunk` to a `Chunk`.
+ */
 object NonEmptyChunk {
 
   /**
@@ -375,7 +499,8 @@ object NonEmptyChunk {
     fromIterable(a, as)
 
   /**
-   * Checks if a `chunk` is not empty and constructs a `NonEmptyChunk` from it.
+   * Returns a `NonEmptyChunk` with the elements of `chunk` in a `Some`, or
+   * `None` when `chunk` is empty.
    */
   def fromChunk[A](chunk: Chunk[A]): Option[NonEmptyChunk[A]] =
     chunk.nonEmptyOrElse[Option[NonEmptyChunk[A]]](None)(Some(_))
@@ -387,7 +512,8 @@ object NonEmptyChunk {
     as match { case h :: t => fromIterable(h, t) }
 
   /**
-   * Constructs a `NonEmptyChunk` from an `Iterable`.
+   * Constructs a `NonEmptyChunk` from the element `a` followed by the elements
+   * of `as`. When `as` is empty, the result holds `a` alone.
    */
   def fromIterable[A](a: A, as: Iterable[A]): NonEmptyChunk[A] =
     if (as.isEmpty) single(a)
@@ -401,7 +527,8 @@ object NonEmptyChunk {
       }
 
   /**
-   * Constructs a `NonEmptyChunk` from an `Iterable` or `None` otherwise.
+   * Returns a `NonEmptyChunk` with the elements of `as` in a `Some`, or `None`
+   * when `as` is empty.
    */
   def fromIterableOption[A](as: Iterable[A]): Option[NonEmptyChunk[A]] =
     if (as.isEmpty) None else Some(nonEmpty(Chunk.fromIterable(as)))
@@ -413,7 +540,8 @@ object NonEmptyChunk {
     nonEmpty(Chunk.single(a))
 
   /**
-   * Extracts the elements from a `Chunk`.
+   * Extracts the elements from a non-empty `Chunk`. An empty `Chunk`, or a
+   * `Seq` that is not a `Chunk` (such as a `Vector`), does not match.
    */
   def unapplySeq[A](seq: Seq[A]): Option[Seq[A]] =
     seq match {
@@ -428,7 +556,7 @@ object NonEmptyChunk {
     Some(nonEmptyChunk.chunk)
 
   /**
-   * The unit non-empty chunk.
+   * The `NonEmptyChunk` that holds the single value `()`.
    */
   val unit: NonEmptyChunk[Unit] = single(())
 
