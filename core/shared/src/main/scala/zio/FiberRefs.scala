@@ -26,6 +26,26 @@ import scala.runtime.BoxesRunTime
  * `FiberRefs` is a data type that represents a collection of `FiberRef` values.
  * This allows safely propagating `FiberRef` values across fiber boundaries, for
  * example between an asynchronous producer and consumer.
+ *
+ * `ZIO.getFiberRefs` returns the values of the current fiber, and
+ * `ZIO.setFiberRefs` sets them in the fiber that runs it, which can be another
+ * fiber.
+ *
+ * {{{
+ * val program: UIO[String] =
+ *   ZIO.scoped {
+ *     for {
+ *       requestId <- FiberRef.make("none")
+ *       queue     <- Queue.unbounded[FiberRefs]
+ *       producer   = requestId.set("req-42") *> ZIO.getFiberRefs
+ *       _         <- producer.flatMap(queue.offer).fork
+ *       consumer  <- queue.take.flatMap(ZIO.setFiberRefs(_)).fork
+ *       _         <- consumer.join
+ *       seen      <- requestId.get
+ *     } yield seen
+ *   }
+ * // succeeds with req-42
+ * }}}
  */
 final class FiberRefs private (
   private[zio] val fiberRefLocals: Map[FiberRef[_], FiberRefs.Value]
@@ -94,7 +114,9 @@ final class FiberRefs private (
   /**
    * Forks this collection of fiber refs as the specified child fiber id. This
    * will potentially modify the value of the fiber refs, as determined by the
-   * individual fiber refs that make up the collection.
+   * individual fiber refs that make up the collection: each `FiberRef`'s
+   * `fork` patch is applied, and the changed values are recorded as written by
+   * `childId`. Returns this same collection when no value changes.
    */
   def forkAs(childId: FiberId.Runtime): FiberRefs = {
     var toTransform = needTransformWhenForked
@@ -156,10 +178,10 @@ final class FiberRefs private (
    * values if it exists or the `initial` value if it doesn't.
    *
    * This method is implemented separately of [[getOrDefault]] to avoid boxing
-   * across for both Scala 2 and 3.
+   * on both Scala 2 and 3.
    *
    * '''NOTE''': This method is package-private so that it can be used in
-   * `FiberRuntime`. For extracting the value of `RuntimeFlags`` anywhere else,
+   * `FiberRuntime`. For extracting the value of `RuntimeFlags` anywhere else,
    * use `ZIO.withFiberRuntime`.
    */
   private[zio] def getRuntimeFlags(implicit unsafe: Unsafe): RuntimeFlags = {
@@ -177,6 +199,12 @@ final class FiberRefs private (
    * Joins this collection of fiber refs to the specified collection, as the
    * specified fiber id. This will perform diffing and merging to ensure
    * preservation of maximum information from both child and parent refs.
+   *
+   * `this` holds the joining fiber's values and `that` the joined fiber's. For
+   * each `FiberRef` whose latest value in `that` was written by another fiber
+   * than `fiberId`, the changes made since the two collections' common value
+   * (`diff`) are applied to the value in `this` (`patch`), and the result is
+   * combined with the value in `this` by the `FiberRef`'s `join` function.
    */
   def joinAs(fiberId: FiberId.Runtime)(that: FiberRefs): FiberRefs = {
     val childFiberRefs  = that.fiberRefLocals
@@ -266,6 +294,11 @@ final class FiberRefs private (
         findAncestor(ref, parentStack.tail, parentDepth - 1, childStack.tail, childDepth - 1)
     }
 
+  /**
+   * Sets each `FiberRef` in this collection to its value here, in the current
+   * fiber. The `FiberRef`s that are not in this collection keep their values
+   * in the current fiber.
+   */
   def setAll(implicit trace: Trace): UIO[Unit] =
     ZIO.foreachDiscard(fiberRefs) { fiberRef =>
       fiberRef.asInstanceOf[FiberRef[Any]].set(getOrDefault(fiberRef))
@@ -273,6 +306,11 @@ final class FiberRefs private (
 
   override final def toString(): String = fiberRefLocals.mkString("FiberRefLocals(", ",", ")")
 
+  /**
+   * Returns a collection in which `fiberRef` has the specified value, recorded
+   * as written by `fiberId`. Returns this same collection when `fiberRef`
+   * already has that value (the same reference, or an equal boxed number).
+   */
   def updatedAs[@specialized(SpecializeInt) A](
     fiberId: FiberId.Runtime
   )(fiberRef: FiberRef[A], value: A): FiberRefs =
@@ -345,6 +383,10 @@ final class FiberRefs private (
 
 }
 
+/**
+ * Constructors for [[FiberRefs]] and the [[FiberRefs.Patch]] type that
+ * describes changes to `FiberRef` values.
+ */
 object FiberRefs {
   private[zio] case class StackEntry[@specialized(SpecializeInt) A](
     id: FiberId.Runtime,
@@ -363,7 +405,8 @@ object FiberRefs {
     new FiberRefs(fiberRefLocals)
 
   /**
-   * Similar to `eq`, improved for cases that the type is a boxed integer.
+   * Similar to `eq`, improved for cases that the type is a boxed number: two
+   * `java.lang.Number`s are compared by numeric value.
    *
    * @note
    *   Normally we need to be performing a 2nd type check whether the type is a
@@ -424,6 +467,9 @@ object FiberRefs {
       else AndThen(self, that)
   }
 
+  /**
+   * Constructors for [[FiberRefs.Patch]] values.
+   */
   object Patch {
 
     /**
@@ -434,7 +480,8 @@ object FiberRefs {
 
     /**
      * Constructs a patch that describes the changes between the specified
-     * collections of `FiberRef`
+     * collections of `FiberRef` values: the `FiberRef`s added to, removed
+     * from, or changed in `newValue` compared to `oldValue`.
      */
     def diff(oldValue: FiberRefs, newValue: FiberRefs): Patch = {
       if (oldValue eq newValue) return empty
