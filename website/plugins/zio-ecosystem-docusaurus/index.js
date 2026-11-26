@@ -89,10 +89,7 @@ function zioEcosystemPlugin(context, options) {
                 const ecosystemSidebar = categorizedEcosystem(officialLinks);
                 const perProjectSidebars = Object.fromEntries(projects.filter(project => !isSinglePage(project.category)).map(project => [
                     `${project.name}-sidebar`,
-                    [
-                        { type: 'link', label: '← ZIO Ecosystem', href: `/ecosystem/?eco-category=${categoryIdOf(project.name)}` },
-                        { ...project.category, collapsible: false, collapsed: false, items: [...itemsWithoutOwnPage(project.category), ...apiReferenceItem(project.name)] }
-                    ]
+                    projectSidebar(project.name, project.category, categoryIdOf(project.name), fs.existsSync(`static/${project.name}/api/index.html`))
                 ]));
                 writeSidebarFile('ecosystem-sidebar.js', ecosystemSidebar);
                 writeSidebarFile('per-project-sidebars.js', perProjectSidebars);
@@ -163,12 +160,22 @@ function writeSidebarFile(path, sidebar) {
         }
     });
 }
+// The sidebar of one project: the way back to the ecosystem, the project's API reference when it was built, then the
+// project's own pages. The API entry sits at the top, so a long sidebar never hides it below the first screen.
+function projectSidebar(project, category, categoryId, apiBuilt) {
+    return [
+        { type: 'link', label: '← ZIO Ecosystem', href: `/ecosystem/?eco-category=${categoryId}` },
+        ...apiReferenceItem(project, apiBuilt),
+        { ...category, collapsible: false, collapsed: false, items: itemsWithoutOwnPage(category) }
+    ];
+}
 // The "API Reference" entry of a project's sidebar, when scripts/build-ecosystem-api.mjs has built the project's
 // Scaladoc into static/<project>/api (see `zioApiDocs` in package.json); none otherwise, so the sidebar never links an
 // API that is missing. The pages are plain HTML outside the Docusaurus router, so the entry is a plain link that loads
 // the page: a `link` item would hand it to the router, or, as `pathname://`, open it in a new tab as an external site.
-function apiReferenceItem(project) {
-    if (!fs.existsSync(`static/${project}/api/index.html`))
+// Its look (icon, "Scaladoc" pill, the divider under it) is `.eco-api-reference` in src/css/custom.css.
+function apiReferenceItem(project, apiBuilt) {
+    if (!apiBuilt)
         return [];
     return [{
             type: 'html',
@@ -319,3 +326,4 @@ function mapConfig(config, prefix) {
     return config;
 }
 exports.default = zioEcosystemPlugin;
+exports.projectSidebar = projectSidebar;

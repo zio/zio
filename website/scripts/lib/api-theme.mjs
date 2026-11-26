@@ -179,9 +179,25 @@ export function breadcrumbsHtml(trail, site = CORE_SITE) {
   return `<nav class="za-breadcrumbs" aria-label="Breadcrumbs"><ul class="za-breadcrumbs__list">${items.join('')}</ul></nav>`;
 }
 
+const escapeText = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const LEFT_COLUMN = /<div id="leftColumn"[^>]*>/;
+
+/**
+ * On an ecosystem library's API pages, a link back to the library's docs at the top of the left menu, as a library's
+ * docs sidebar starts with "← ZIO Ecosystem". Scaladoc's ux.js appends its side menu to #leftColumn after it, and keeps
+ * #leftColumn as it is when it loads another page of the site, so the link stays on top. zio's own /api has no docs
+ * of its own to go back to, so it gets none.
+ */
+export function addBackLink(html, site = CORE_SITE) {
+  if (!site.docs) return html;
+  const link = `<a class="za-back-link" href="${site.docs.href}">← ${escapeText(site.docs.label)} docs</a>`;
+  return replaceOnce(html, LEFT_COLUMN, (open) => open + link, 'left column (#leftColumn)');
+}
+
 /**
  * Puts the site navbar, breadcrumbs, favicon, font, stylesheet and mobile-menu links into one Scaladoc page, without its
- * footer. `moves` (see siteLinks) are the nested-type pages of every API site, for the links between sites.
+ * footer, and on an ecosystem library's pages a link back to its docs (addBackLink). `moves` (see siteLinks) are the
+ * nested-type pages of every API site, for the links between sites.
  */
 export function themeApiPage(html, { prompt, site = CORE_SITE, moves = new Map() }) {
   let out = replaceOnce(html, HEADER, navbarHtml({ prompt, site }), 'header (#header before #mobile-menu)');
@@ -191,6 +207,7 @@ export function themeApiPage(html, { prompt, site = CORE_SITE, moves = new Map()
   const trail = [...crumbs[1].matchAll(/<a href="([^"]*)">([^<]*)<\/a>/g)].map(([, href, label]) => ({ href, label }));
   out = out.replace(CRUMBS, '');
   out = replaceOnce(out, CONTENT_START, (open) => open + breadcrumbsHtml(trail, site), 'content column');
+  out = addBackLink(out, site);
   out = replaceOnce(out, MOBILE_LOGO, brandHtml('mobile-menu-logo'), 'mobile menu logo');
   out = replaceOnce(
     out,

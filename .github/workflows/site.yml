@@ -69,7 +69,9 @@ jobs:
           rm -Rf node_modules
           yarn install
           yarn test
-          yarn build-ecosystem-api
+          # A deploy never ships a sidebar or ecosystem-list link to an API that did not build: a failed library fails
+          # the deploy (build-ecosystem-api.mjs, ECOSYSTEM_API_STRICT). Pull requests (ci.yml) stay lenient.
+          ECOSYSTEM_API_STRICT=1 yarn build-ecosystem-api
           yarn build
       - name: Upload website build artifact
         uses: actions/upload-artifact@v7

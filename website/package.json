@@ -81,10 +81,36 @@
     "tslib": "^2.4.0"
   },
   "zioApiDocs": {
+    "zio-cache": {},
+    "zio-config": {
+      "modules": ["zio-config", "zio-config-magnolia", "zio-config-typesafe", "zio-config-yaml", "zio-config-refined"]
+    },
     "zio-json": {},
+    "zio-kafka": {
+      "modules": ["zio-kafka", "zio-kafka-testkit"]
+    },
+    "zio-logging": {
+      "modules": ["zio-logging", "zio-logging-slf4j2", "zio-logging-slf4j2-bridge", "zio-logging-jul-bridge"]
+    },
+    "zio-prelude": {
+      "modules": ["zio-prelude", "zio-prelude-magnolia"]
+    },
     "zio-query": {},
     "zio-schema": {
       "modules": ["zio-schema", "zio-schema-derivation", "zio-schema-json"]
+    },
+    "zio-streams-compress": {
+      "modules": [
+        "zio-streams-compress-core",
+        "zio-streams-compress-gzip",
+        "zio-streams-compress-zip",
+        "zio-streams-compress-tar",
+        "zio-streams-compress-brotli",
+        "zio-streams-compress-zstd",
+        "zio-streams-compress-bzip2",
+        "zio-streams-compress-lz4",
+        "zio-streams-compress-snappy"
+      ]
     }
   },
   "overrides": {

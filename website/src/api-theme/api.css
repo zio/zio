@@ -430,12 +430,46 @@ body,
   display: none;
 }
 
+/* The menu takes the column's height below the back link, if any (Scaladoc makes #leftColumn a flex column), and
+   scrolls on its own, so the back link stays on top. */
 #leftColumn .side-menu {
-  height: 100%;
+  flex: 1 1 0;
+  min-height: 0;
   padding: 0.5rem;
   overflow-y: auto;
   scrollbar-gutter: stable;
   font-weight: 500;
+}
+
+/* "← <library> docs" on an ecosystem library's API pages (addBackLink in scripts/lib/api-theme.mjs): a menu row like
+   the docs sidebar's "← ZIO Ecosystem", in line with the rows below it, with a divider under it. Scaladoc centres the
+   column's children, so it stretches itself to the column's width. */
+#leftColumn .za-back-link {
+  align-self: stretch;
+  flex-shrink: 0;
+  margin: 0.7rem 0.7rem 0;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.25rem;
+  color: var(--za-menu-color);
+  font-size: 1rem;
+  line-height: 1.25;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 200ms cubic-bezier(0.08, 0.52, 0.52, 1);
+}
+
+#leftColumn .za-back-link:hover {
+  background: var(--za-hover-overlay);
+  color: var(--za-menu-color);
+  text-decoration: none;
+}
+
+/* The divider: on the menu, so the back link's hover tint stays off it, and only when there is a back link */
+#leftColumn .za-back-link ~ .side-menu {
+  margin: 0.5rem 0.5rem 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-top: 1px solid var(--za-emphasis-300);
 }
 
 /* Each item padded 0.2rem, as the docs sidebar's items are, and each level indented 0.75rem more */

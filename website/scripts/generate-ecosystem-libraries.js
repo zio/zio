@@ -7,8 +7,10 @@
 // one-line descriptions come from ecosystem-descriptions.json. Official
 // libraries are keyed by their URL segment (e.g. "zio-cache"), or by their
 // kebab-case label for external links (e.g. "zio-http"); community libraries by
-// the name of their page (e.g. "tapir"). Run `yarn generate-sidebar` first,
-// then `node scripts/generate-ecosystem-libraries.js`.
+// the name of their page (e.g. "tapir"). Official libraries listed under
+// zioApiDocs in package.json also get an "API" link to their /<lib>/api/
+// reference. Run `yarn generate-sidebar` first, then
+// `node scripts/generate-ecosystem-libraries.js`.
 const fs = require('fs')
 const path = require('path')
 
@@ -16,6 +18,9 @@ const website = path.join(__dirname, '..')
 const docs = path.join(website, '..', 'docs', 'ecosystem')
 const sidebar = require(path.join(website, 'ecosystem-sidebar.js'))
 const descriptions = require(path.join(website, 'ecosystem-descriptions.json'))
+const { apiHrefFor, libraryLine } = require(path.join(__dirname, 'lib', 'ecosystem-list.js'))
+// The libraries whose API reference the site builds, at /<lib>/api/ (scripts/build-ecosystem-api.mjs).
+const zioApiDocs = require(path.join(website, 'package.json')).zioApiDocs || {}
 
 // Official libraries are `link` items, except those with a single page, which
 // are `doc` items.
@@ -55,8 +60,12 @@ function generate(kind, { page, href, key }) {
       const lines = libraries.map((library) => {
         const description = (descriptions[kind] || {})[key(library)]
         if (!description) missing.push(library.label)
-        const link = `[${library.label}](${href(library)})`
-        return description ? `- ${link} — ${description}` : `- ${link}`
+        return libraryLine({
+          label: library.label,
+          href: href(library),
+          description,
+          api: apiHrefFor(kind, key(library), zioApiDocs),
+        })
       })
       return `### ${label}\n\n${lines.join('\n')}`
     })
