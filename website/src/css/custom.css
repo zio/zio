@@ -872,6 +872,46 @@ html.homepage-snap .fp-section {
   --eco-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx=%225%22 cy=%2212%22 r=%221.5%22/%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%221.5%22/%3E%3Ccircle cx=%2219%22 cy=%2212%22 r=%221.5%22/%3E%3C/svg%3E");
 }
 
+/* "API Reference" entry at the top of a library's sidebar (projectSidebar in plugins/zio-ecosystem-docusaurus):
+   a code icon, bold text and a "Scaladoc" pill, set apart from the library's pages by a divider below it. No tinted
+   background: the sidebar tints the current page. */
+.eco-api-reference {
+  --eco-api-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points=%228 7 3 12 8 17%22/%3E%3Cpolyline points=%2216 7 21 12 16 17%22/%3E%3Cline x1=%2214%22 y1=%224%22 x2=%2210%22 y2=%2220%22/%3E%3C/svg%3E");
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.eco-api-reference > .menu__link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.eco-api-reference > .menu__link::before {
+  content: '';
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  background-color: var(--ifm-color-primary);
+  -webkit-mask: var(--eco-api-icon) center / contain no-repeat;
+  mask: var(--eco-api-icon) center / contain no-repeat;
+}
+
+.eco-api-reference > .menu__link::after {
+  content: 'Scaladoc';
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0.05rem 0.45rem;
+  border-radius: 99px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ifm-color-emphasis-700);
+  border: 1px solid var(--ifm-color-emphasis-400);
+}
+
 /* ── Resources / Events: single centred column (no sidebars) ────────────── */
 html.docs-doc-id-resources\/index main .container > .row > .col,
 html.docs-doc-id-events\/index main .container > .row > .col {

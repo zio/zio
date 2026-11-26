@@ -17,6 +17,7 @@ import {
   extensionlessSearchData,
   extensionlessUxJs,
   folderIndexRedirect,
+  librarySite,
   navbarHtml,
   nestedTypePaths,
   relocatePage,
@@ -357,4 +358,10 @@ test('every click flips the mode, and is stored in localStorage "theme" like Doc
     seen.push([t.store.get('theme'), t.classes.has('theme-dark')]);
   }
   assert.deepEqual(seen, [['dark', true], ['light', false], ['dark', true]]);
+});
+
+test("a library's API pages start the left menu with a link back to its docs; zio's /api does not", () => {
+  const library = themeApiPage(PAGE, { prompt: PROMPT, site: librarySite({ lib: 'zio-json', title: 'ZIO JSON' }) });
+  assert.match(library, /<div id="leftColumn" class="body-small"><a class="za-back-link" href="\/zio-json\/">← ZIO JSON docs<\/a><\/div>/);
+  assert.doesNotMatch(themeApiPage(PAGE, { prompt: PROMPT }), /za-back-link/);
 });
