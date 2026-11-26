@@ -20,12 +20,29 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.io.IOException
 
+/**
+ * A sink of bytes whose writes are ZIO effects. On the JVM and Scala Native,
+ * `ZIO.writeFileOutputStream` and similar constructors return one, and
+ * `ZOutputStream.fromOutputStream` wraps a `java.io.OutputStream`.
+ */
 sealed trait ZOutputStream {
+  /**
+   * Writes the bytes of `chunk` to the stream, on the blocking executor. Fails
+   * with the `IOException` that the stream throws; other exceptions are
+   * defects.
+   */
   def write(chunk: Chunk[Byte])(implicit trace: Trace): IO[IOException, Unit]
 }
 
+/**
+ * Constructors of [[ZOutputStream]] values.
+ */
 object ZOutputStream {
 
+  /**
+   * Wraps the Java output stream `os`. Writes are not flushed, and closing
+   * `os` stays the caller's job.
+   */
   def fromOutputStream(os: java.io.OutputStream): ZOutputStream = new ZOutputStream {
     def write(chunk: Chunk[Byte])(implicit trace: Trace): IO[IOException, Unit] =
       ZIO.attemptBlockingIO {

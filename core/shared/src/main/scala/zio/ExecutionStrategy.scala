@@ -25,6 +25,11 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  */
 sealed abstract class ExecutionStrategy
 
+/**
+ * The three execution strategies. `Scope.makeWith` and `Scope#forkWith` use
+ * one to decide how the finalizers of a scope run when it closes, and
+ * `ZIO.foreachExec` uses one to decide how it runs its effects.
+ */
 object ExecutionStrategy {
 
   /**
