@@ -318,8 +318,11 @@ function loadThemeScript({ stored = null } = {}) {
   const document = {
     documentElement: {
       classList: { toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)) },
+      getAttribute: (k) => (k in attrs ? attrs[k] : null),
       setAttribute: (k, v) => (attrs[k] = v),
+      style: { setProperty() {} },
     },
+    querySelector: () => null,
     querySelectorAll: () => [toggle],
     getElementById: () => null,
     addEventListener() {},
@@ -364,4 +367,12 @@ test("a library's API pages start the left menu with a link back to its docs; zi
   const library = themeApiPage(PAGE, { prompt: PROMPT, site: librarySite({ lib: 'zio-json', title: 'ZIO JSON' }) });
   assert.match(library, /<div id="leftColumn" class="body-small"><a class="za-back-link" href="\/zio-json\/">← ZIO JSON docs<\/a><\/div>/);
   assert.doesNotMatch(themeApiPage(PAGE, { prompt: PROMPT }), /za-back-link/);
+});
+
+test("the API pages show the site's announcement bar, the one docusaurus.config.js declares for the docs pages", () => {
+  const bar = config.themeConfig.announcementBar;
+  const html = themeApiPage(PAGE, { prompt: PROMPT, announcement: bar });
+  assert.ok(html.includes(`<div class="za-announcement__content">${bar.content}</div>`));
+  assert.ok(html.includes(`data-za-announcement-id="${bar.id}"`));
+  assert.doesNotMatch(themeApiPage(PAGE, { prompt: PROMPT }), /za-announcement/);
 });

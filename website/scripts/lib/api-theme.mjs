@@ -194,12 +194,41 @@ export function addBackLink(html, site = CORE_SITE) {
   return replaceOnce(html, LEFT_COLUMN, (open) => open + link, 'left column (#leftColumn)');
 }
 
+const CLOSE_ICON =
+  '<svg viewBox="0 0 15 15" width="14" height="14" aria-hidden="true"><g stroke="currentColor" stroke-width="3.1"><path d="M.75.75l13.5 13.5M14.25.75L.75 14.25"></path></g></svg>';
+
+/**
+ * The site's announcement bar (docusaurus.config.js themeConfig.announcementBar) at the top of an API page, as Docusaurus
+ * draws it at the top of every docs page: its content, colours and close button. The page carries the bar's id, which
+ * theme.js uses to apply the docs pages' dismissal rules (a bar closed anywhere on the site stays closed; a new id shows
+ * again). The script right after the bar measures it before the rest of the page is drawn, so the fixed navbar starts
+ * under it without a jump (theme.js, zaPlaceAnnouncement). No bar in the config: the page is unchanged.
+ */
+export function addAnnouncementBar(html, bar) {
+  if (!bar?.id || !bar.content) return html;
+  const style = [bar.backgroundColor && `background-color:${bar.backgroundColor}`, bar.textColor && `color:${bar.textColor}`]
+    .filter(Boolean)
+    .join(';');
+  const close = bar.isCloseable === false
+    ? '<div class="za-announcement__placeholder"></div>'
+    : `<button type="button" aria-label="Close" class="za-announcement__close">${CLOSE_ICON}</button>`;
+  const markup =
+    `<div class="za-announcement theme-announcement-bar" role="banner"${style ? ` style="${escapeAttr(style)}"` : ''}>` +
+    '<div class="za-announcement__placeholder"></div>' +
+    `<div class="za-announcement__content">${bar.content}</div>` +
+    close +
+    '</div><script>window.zaPlaceAnnouncement&&zaPlaceAnnouncement()</script>';
+  const out = replaceOnce(html, /<body[^>]*>/, (open) => open + markup, '<body>');
+  return replaceOnce(out, /<html\b/, `<html data-za-announcement-id="${escapeAttr(bar.id)}"`, '<html>');
+}
+
 /**
  * Puts the site navbar, breadcrumbs, favicon, font, stylesheet and mobile-menu links into one Scaladoc page, without its
- * footer, and on an ecosystem library's pages a link back to its docs (addBackLink). `moves` (see siteLinks) are the
- * nested-type pages of every API site, for the links between sites.
+ * footer, the site's announcement bar when there is one (addAnnouncementBar; `announcement` is
+ * docusaurus.config.js themeConfig.announcementBar), and on an ecosystem library's pages a link back to its docs
+ * (addBackLink). `moves` (see siteLinks) are the nested-type pages of every API site, for the links between sites.
  */
-export function themeApiPage(html, { prompt, site = CORE_SITE, moves = new Map() }) {
+export function themeApiPage(html, { prompt, site = CORE_SITE, moves = new Map(), announcement }) {
   let out = replaceOnce(html, HEADER, navbarHtml({ prompt, site }), 'header (#header before #mobile-menu)');
   // The breadcrumbs move from above the columns to the top of the text column, where a docs page has them.
   const crumbs = CRUMBS.exec(out);
@@ -208,6 +237,7 @@ export function themeApiPage(html, { prompt, site = CORE_SITE, moves = new Map()
   out = out.replace(CRUMBS, '');
   out = replaceOnce(out, CONTENT_START, (open) => open + breadcrumbsHtml(trail, site), 'content column');
   out = addBackLink(out, site);
+  out = addAnnouncementBar(out, announcement);
   out = replaceOnce(out, MOBILE_LOGO, brandHtml('mobile-menu-logo'), 'mobile menu logo');
   out = replaceOnce(
     out,

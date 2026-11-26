@@ -340,16 +340,106 @@ body {
   overflow: visible;
 }
 
+/* --za-announcement-offset: the part of the announcement bar still in view (theme.js), 0 without one */
 #header.za-navbar {
   position: fixed;
-  top: 0;
+  top: var(--za-announcement-offset, 0px);
 }
 
 #leftColumn {
   position: fixed;
-  top: var(--za-navbar-height);
-  height: calc(100vh - var(--za-navbar-height));
+  top: calc(var(--za-navbar-height) + var(--za-announcement-offset, 0px));
+  height: calc(100vh - var(--za-navbar-height) - var(--za-announcement-offset, 0px));
   border-right: 1px solid var(--za-emphasis-300);
+}
+
+/* The announcement bar (addAnnouncementBar in scripts/lib/api-theme.mjs) as the docs pages draw it: Docusaurus'
+   .announcementBar (30px from 997px up, its content at 85% and centred, 10px or 50px side columns) with the
+   .theme-announcement-bar rules of src/css/custom.css (25px padding, 20px text, red links, dark colours). It sits in
+   the page flow above the navbar and scrolls away with the page; theme.js moves the fixed navbar and sidebar under the
+   part still in view. */
+.za-announcement {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: auto;
+  padding: 25px;
+  font-family: var(--body-font-family);
+  font-size: 20px;
+  background: #ececec;
+  color: #1a1a1a;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+html[data-announcement-bar-initially-dismissed='true'] .za-announcement {
+  display: none;
+}
+
+.za-announcement__placeholder {
+  flex: 0 0 10px;
+}
+
+.za-announcement__content {
+  flex: 1 1 auto;
+  padding: 5px 0;
+  font-size: 85%;
+  text-align: center;
+}
+
+.za-announcement__content a {
+  color: #dc2626 !important;
+  text-decoration: none;
+}
+
+.za-announcement__content a:hover {
+  text-decoration: underline;
+}
+
+.za-announcement__close {
+  flex: 0 0 30px;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  padding: 0 20px;
+  border: 0;
+  background: none;
+  color: inherit;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.za-announcement__close svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (min-width: 997px) {
+  .za-announcement {
+    height: 30px;
+  }
+
+  .za-announcement__placeholder,
+  .za-announcement__close {
+    flex-basis: 50px;
+  }
+}
+
+[data-theme='dark'] .za-announcement {
+  background: #1c1c1c !important;
+  color: #f0f0f0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme='dark'] .za-announcement__content a {
+  color: #e14747 !important;
+}
+
+@media print {
+  .za-announcement {
+    display: none;
+  }
 }
 
 #main {
