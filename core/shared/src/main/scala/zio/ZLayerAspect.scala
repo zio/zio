@@ -2,14 +2,36 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * An aspect that transforms a [[ZLayer]] into another layer with the same
+ * input, error and output types, applied with `layer @@ aspect`. The type
+ * parameters bound the layers that the aspect accepts: their input, error and
+ * output types must lie between the `Lower` and `Upper` bounds.
+ *
+ * {{{
+ * final case class DbConfig(url: String)
+ *
+ * val configLayer: Layer[String, DbConfig] =
+ *   ZLayer.fromZIO(ZIO.succeed(DbConfig("jdbc:postgresql://localhost:5432/inventory")))
+ *
+ * val retried: Layer[String, DbConfig] =
+ *   configLayer @@ ZLayerAspect.retry(Schedule.recurs(3)) @@ ZLayerAspect.debug("config")
+ * }}}
+ */
 trait ZLayerAspect[+LowerRIn, -UpperRIn, +LowerE, -UpperE, +LowerROut, -UpperROut] { self =>
 
+  /**
+   * Applies this aspect to `layer`.
+   */
   def apply[RIn >: LowerRIn <: UpperRIn, E >: LowerE <: UpperE, ROut >: LowerROut <: UpperROut](
     layer: ZLayer[RIn, E, ROut]
   )(implicit
     trace: Trace
   ): ZLayer[RIn, E, ROut]
 
+  /**
+   * A symbolic alias for `andThen`.
+   */
   def >>>[
     LowerRIn1 >: LowerRIn,
     UpperRIn1 <: UpperRIn,
@@ -38,6 +60,10 @@ trait ZLayerAspect[+LowerRIn, -UpperRIn, +LowerE, -UpperE, +LowerROut, -UpperROu
   ): ZLayerAspect[LowerRIn1, UpperRIn1, LowerE1, UpperE1, LowerROut1, UpperROut1] =
     self >>> that
 
+  /**
+   * Returns a new aspect that applies this aspect to a layer and then applies
+   * `that` to the result.
+   */
   def andThen[
     LowerRIn1 >: LowerRIn,
     UpperRIn1 <: UpperRIn,
@@ -56,6 +82,9 @@ trait ZLayerAspect[+LowerRIn, -UpperRIn, +LowerE, -UpperE, +LowerROut, -UpperROu
     }
 }
 
+/**
+ * The predefined layer aspects: `debug`, `identity` and `retry`.
+ */
 object ZLayerAspect {
 
   /**

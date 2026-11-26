@@ -77,14 +77,21 @@ export function compareVersions(a, b) {
  * The Scaladoc to run on a library: the version of the Scala 3 standard library on its classpath, which is the newest
  * Scala the library or its dependencies were built with. An older Scaladoc cannot read newer TASTy, and a newer one
  * than needed can crash (Scaladoc 3.10.1 fails on zio-schema 1.9.2, built with 3.9.0, where 3.9.0 does not).
+ *
+ * Below Scala 3.3 it is the 3.3 LTS Scaladoc instead (MIN_SCALADOC): an older Scaladoc writes no dynamicSideMenu.json
+ * (zio-direct 1.0.0-RC7, built with 3.2.1, got none from Scaladoc 3.2.1), which the side menu and the theme need. A
+ * newer Scaladoc reads older TASTy.
  */
+export const MIN_SCALADOC = { below: '3.3.0', use: '3.3.9' };
+
 export function scaladocVersion(classpath) {
   const versions = classpath
     .map((p) => /(?:^|\/)scala3-library_3-([^/]+)\.jar$/.exec(p)?.[1])
     .filter(Boolean)
     .sort(compareVersions);
   if (!versions.length) throw new Error('no scala3-library_3 on the classpath; is this a Scala 3 library?');
-  return versions[versions.length - 1];
+  const newest = versions[versions.length - 1];
+  return compareVersions(newest, MIN_SCALADOC.below) < 0 ? MIN_SCALADOC.use : newest;
 }
 
 // What Scaladoc matches a mapping against differs by version: Scaladoc 3.3 takes the class file with its jar

@@ -81,24 +81,102 @@
     "tslib": "^2.4.0"
   },
   "zioApiDocs": {
-    "zio-cache": {},
-    "zio-config": {
-      "modules": ["zio-config", "zio-config-magnolia", "zio-config-typesafe", "zio-config-yaml", "zio-config-refined"]
+    "zio-amqp": {},
+    "zio-bson": {
+      "modules": ["zio-bson", "zio-bson-magnolia"]
     },
-    "zio-json": {},
+    "zio-cache": {},
+    "zio-cli": {
+      "modules": ["zio-cli", "zio-cli-testkit"]
+    },
+    "zio-config": {
+      "modules": [
+        "zio-config",
+        "zio-config-magnolia",
+        "zio-config-typesafe",
+        "zio-config-yaml",
+        "zio-config-refined",
+        "zio-config-cats",
+        "zio-config-scalaz",
+        "zio-config-enumeratum",
+        "zio-config-toml",
+        "zio-config-xml",
+        "zio-config-aws"
+      ]
+    },
+    "zio-constraintless": {},
+    "zio-direct": {
+      "modules": ["zio-direct", "zio-direct-pure", "zio-direct-streams"]
+    },
+    "zio-dynamodb": {
+      "modules": ["zio-dynamodb", "zio-dynamodb-json", "zio-dynamodb-ce", "zio-dynamodb-future"]
+    },
+    "zio-ftp": {},
+    "zio-json": {
+      "modules": [
+        "zio-json",
+        "zio-json-yaml",
+        "zio-json-golden",
+        "zio-json-interop-refined",
+        "zio-json-interop-enumeratum",
+        "zio-json-interop-http4s"
+      ]
+    },
     "zio-kafka": {
       "modules": ["zio-kafka", "zio-kafka-testkit"]
     },
-    "zio-logging": {
-      "modules": ["zio-logging", "zio-logging-slf4j2", "zio-logging-slf4j2-bridge", "zio-logging-jul-bridge"]
+    "zio-lambda": {
+      "modules": ["zio-lambda", "zio-lambda-event", "zio-lambda-response"]
     },
+    "zio-logging": {
+      "modules": [
+        "zio-logging",
+        "zio-logging-slf4j2",
+        "zio-logging-slf4j2-bridge",
+        "zio-logging-jul-bridge",
+        "zio-logging-jpl"
+      ]
+    },
+    "zio-metrics-connectors": {
+      "modules": [
+        "zio-metrics-connectors",
+        "zio-metrics-connectors-prometheus",
+        "zio-metrics-connectors-statsd",
+        "zio-metrics-connectors-datadog",
+        "zio-metrics-connectors-newrelic",
+        "zio-metrics-connectors-micrometer"
+      ]
+    },
+    "zio-parser": {},
     "zio-prelude": {
-      "modules": ["zio-prelude", "zio-prelude-magnolia"]
+      "modules": ["zio-prelude", "zio-prelude-magnolia", "zio-prelude-experimental", "zio-prelude-experimental-laws"]
+    },
+    "zio-process": {},
+    "zio-profiling": {
+      "modules": ["zio-profiling", "zio-profiling-jmh"]
     },
     "zio-query": {},
-    "zio-schema": {
-      "modules": ["zio-schema", "zio-schema-derivation", "zio-schema-json"]
+    "zio-redis": {
+      "modules": ["zio-redis", "zio-redis-embedded"]
     },
+    "zio-rocksdb": {},
+    "zio-s3": {},
+    "zio-schema": {
+      "modules": [
+        "zio-schema",
+        "zio-schema-derivation",
+        "zio-schema-json",
+        "zio-schema-avro",
+        "zio-schema-bson",
+        "zio-schema-msg-pack",
+        "zio-schema-protobuf",
+        "zio-schema-thrift",
+        "zio-schema-xml",
+        "zio-schema-optics",
+        "zio-schema-zio-test"
+      ]
+    },
+    "zio-sqs": {},
     "zio-streams-compress": {
       "modules": [
         "zio-streams-compress-core",
@@ -109,8 +187,13 @@
         "zio-streams-compress-zstd",
         "zio-streams-compress-bzip2",
         "zio-streams-compress-lz4",
-        "zio-streams-compress-snappy"
+        "zio-streams-compress-snappy",
+        "zio-streams-compress-brotli4j",
+        "zio-streams-compress-zip4j"
       ]
+    },
+    "zio-telemetry": {
+      "modules": ["zio-opentelemetry", "zio-opentelemetry-zio-logging", "zio-opentracing", "zio-opencensus"]
     }
   },
   "overrides": {
