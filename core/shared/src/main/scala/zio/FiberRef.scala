@@ -497,7 +497,7 @@ object FiberRef {
     makeWith(unsafe.makePatch(initial, differ, fork)(Unsafe.unsafe))
 
   /**
-   * Creates a new `FiberRef` of [[RuntimeFlags]], using `RuntimeFlags.Patch`
+   * Creates a new `FiberRef` of `RuntimeFlags`, using `RuntimeFlags.Patch`
    * to combine updates to the flags in a compositional way.
    */
   def makeRuntimeFlags(initial: RuntimeFlags)(implicit
@@ -601,7 +601,7 @@ object FiberRef {
       new PatchFiber(initialValue0, differ, fork0, join0)
 
     /**
-     * Creates a new `FiberRef` of [[RuntimeFlags]], as
+     * Creates a new `FiberRef` of `RuntimeFlags`, as
      * `FiberRef.makeRuntimeFlags` does, without a scope.
      */
     def makeRuntimeFlags(
