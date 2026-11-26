@@ -21,10 +21,23 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
+/**
+ * Defines `transform` and `transformWith` on a `CancelableFuture` by delegating
+ * to the wrapped future.
+ */
 private[zio] trait FutureTransformCompat[+A] { this: CancelableFuture[A] =>
+
+  /**
+   * Creates a future from the result of this one, mapped with `f` on
+   * `executor`.
+   */
   def transform[S](f: Try[A] => Try[S])(implicit executor: ExecutionContext): Future[S] =
     future.transform(f)(executor)
 
+  /**
+   * Creates a future from the future that `f` returns for the result of this
+   * one, with `f` run on `executor`.
+   */
   def transformWith[S](f: Try[A] => Future[S])(implicit executor: ExecutionContext): Future[S] =
     future.transformWith(f)(executor)
 }

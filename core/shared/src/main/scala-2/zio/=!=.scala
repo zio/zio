@@ -22,20 +22,45 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.annotation.implicitAmbiguous
 
 /**
- * Evidence type `A` is not equal to type `B`.
+ * Evidence that the types `A` and `B` are different. A method that takes an
+ * implicit `A =!= B` only compiles for types that the compiler does not see as
+ * the same type.
+ *
+ * {{{
+ * def different[A, B](implicit ev: A =!= B): String = "different"
+ *
+ * val ok: String = different[Int, String]
+ * // different[Int, Int] does not compile
+ * }}}
  *
  * Based on https://github.com/milessabin/shapeless.
  */
 sealed abstract class =!=[A, B] extends Serializable
 
+/**
+ * The instances of `=!=`. On Scala 2, `A =!= A` has two ambiguous candidates,
+ * so no instance is found when the two types are the same.
+ */
 object =!= {
   private val instance: =!=[Any, Any] = new =!=[Any, Any] {}
 
+  /**
+   * Throws a `java.lang.RuntimeException` with the message "Unexpected
+   * invocation".
+   */
   def unexpected: Nothing = sys.error("Unexpected invocation")
 
+  /** Provides the evidence for any two types `A` and `B`. */
   implicit def neq[A, B]: A =!= B = instance.asInstanceOf[=!=[A, B]]
 
+  /**
+   * Makes `A =!= A` ambiguous together with `neqAmbig2` and `neq`, so that no
+   * evidence is found when the two types are the same. For `Int` the compiler
+   * reports "Cannot prove that Int =!= Int".
+   */
   @implicitAmbiguous("Cannot prove that ${A} =!= ${A}")
   implicit def neqAmbig1[A]: A =!= A = unexpected
+
+  /** The second candidate that makes `A =!= A` ambiguous, with `neqAmbig1`. */
   implicit def neqAmbig2[A]: A =!= A = unexpected
 }

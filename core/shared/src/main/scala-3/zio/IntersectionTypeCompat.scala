@@ -18,4 +18,9 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * Mixed into the `zio` package object. On Scala 2 it defines the type alias `&`
+ * for `A with B`; on Scala 3 it has no members, because `&` is part of the
+ * language.
+ */
 transparent private[zio] trait IntersectionTypeCompat

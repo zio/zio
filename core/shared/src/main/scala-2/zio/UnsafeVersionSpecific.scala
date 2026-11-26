@@ -15,4 +15,8 @@
  */
 package zio
 
+/**
+ * Provides the Scala-version-specific members of the `Unsafe` object. It has no
+ * members on Scala 2; Scala 3 adds `unsafely`.
+ */
 private[zio] trait UnsafeVersionSpecific

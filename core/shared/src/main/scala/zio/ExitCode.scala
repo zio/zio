@@ -18,9 +18,28 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * The exit code of a program: the integer `code` that the process reports to
+ * its caller when it ends. `ZIO#exitCode` and the `ZIOApp` exit code use
+ * `ExitCode.success` and `ExitCode.failure`, and `ZIOApp#exit` ends the program
+ * with the given code. On Scala.js, `ZIOApp#exit` sets the exit code without
+ * stopping the program.
+ *
+ * {{{
+ * val code: ExitCode = ExitCode(2)
+ *
+ * val fromEffect: UIO[ExitCode] = ZIO.fail("boom").exitCode
+ * // ExitCode(1)
+ * }}}
+ */
 final case class ExitCode(code: Int)
 
+/** The predefined exit codes. */
 object ExitCode {
+
+  /** The exit code 0, which stands for success. */
   val success: ExitCode = ExitCode(0)
+
+  /** The exit code 1, which stands for failure. */
   val failure: ExitCode = ExitCode(1)
 }
