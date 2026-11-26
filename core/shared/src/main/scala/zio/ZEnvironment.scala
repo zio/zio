@@ -24,6 +24,15 @@ import scala.collection.{immutable, mutable}
 import scala.util.control.ControlThrowable
 import scala.util.hashing.MurmurHash3
 
+/**
+ * A `ZEnvironment[R]` holds the services that an effect of type `ZIO[R, E, A]`
+ * needs, keyed by their type. `get` finds a service by its `Tag`, and returns
+ * the most recently added service whose type is the requested type or a subtype
+ * of it.
+ *
+ * @see
+ *   [[https://zio.dev/reference/contextual/zenvironment/ ZEnvironment]]
+ */
 final class ZEnvironment[+R] private (
   private val map: UpdateOrderLinkedMap[LightTypeTag, Any],
   private val cache: ConcurrentHashMap[LightTypeTag, Any],
@@ -49,11 +58,18 @@ final class ZEnvironment[+R] private (
     scope: Scope
   ) = this(map, ZEnvironment.scalaToJucMap(cache), scope)
 
+  /**
+   * Combines this environment with the specified environment, like `union`:
+   * `that` is first pruned with `prune[R1]`, and when both environments hold a
+   * service of the same type, the one in `that` wins.
+   */
   def ++[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.union[R1](that)
 
   /**
    * Adds a service to the environment.
+   *
+   * A service already stored under the same type is replaced.
    */
   def add[A](a: A)(implicit tag: Tag[A]): ZEnvironment[R with A] =
     unsafe.add[A](tag.tag, a)(Unsafe)
@@ -98,6 +114,21 @@ final class ZEnvironment[+R] private (
 
   /**
    * Retrieves a service from the environment.
+   *
+   * It returns the most recently added service whose type is `A` or a subtype
+   * of `A`.
+   *
+   * {{{
+   * trait Animal { def name: String }
+   * final case class Dog(name: String) extends Animal
+   * final case class Cat(name: String) extends Animal
+   *
+   * val pets: ZEnvironment[Dog with Cat] =
+   *   ZEnvironment.empty.add[Dog](Dog("Rex")).add[Cat](Cat("Tom"))
+   *
+   * val animal: Animal = pets.get[Animal]
+   * // Cat(Tom)
+   * }}}
    */
   def get[A >: R](implicit tag: Tag[A]): A =
     unsafe.get[A](tag.tag)(Unsafe)
@@ -111,13 +142,17 @@ final class ZEnvironment[+R] private (
 
   /**
    * Retrieves a service from the environment if it exists in the environment.
+   *
+   * Like `get`, it returns the most recently added service whose type is `A` or
+   * a subtype of `A`, and returns `None` when there is none.
    */
   def getDynamic[A](implicit tag: Tag[A]): Option[A] =
     Option(unsafe.getOrElse(tag.tag, null.asInstanceOf[A])(Unsafe))
 
   /**
    * Retrieves the current Scope the environment. Raises a compilation error if
-   * the `ZEnvironment` is not statically known to contain a `Scope`
+   * the `ZEnvironment` is not statically known to contain a `Scope`. Throws a
+   * `java.lang.Error` when the environment holds no `Scope` at run time.
    */
   private[zio] def getScope(implicit ev: R <:< Scope): Scope =
     scope match {
@@ -131,6 +166,9 @@ final class ZEnvironment[+R] private (
   /**
    * Prunes the environment to the set of services statically known to be
    * contained within it.
+   *
+   * It keeps the services whose type is a type of `R1` or a subtype of one, and
+   * drops the others. When `R1` is `Any`, it returns the environment unchanged.
    */
   def prune[R1 >: R](implicit tagged: EnvironmentTag[R1]): ZEnvironment[R1] = {
 
@@ -259,6 +297,9 @@ final class ZEnvironment[+R] private (
   def size: Int =
     map.size + (if (scope eq null) 0 else 1)
 
+  /**
+   * Returns `true` when the environment holds no service and no `Scope`.
+   */
   def isEmpty: Boolean =
     (scope eq null) && map.isEmpty
 
@@ -270,6 +311,20 @@ final class ZEnvironment[+R] private (
 
   /**
    * Combines this environment with the specified environment.
+   *
+   * `that` is first pruned with `prune[R1]`, so services it holds beyond its
+   * static type are dropped, unless `R1` is `Any`. When both environments hold
+   * a service of the same type, the one in `that` wins.
+   *
+   * {{{
+   * val defaults: ZEnvironment[Int with String] = ZEnvironment[Int, String](8080, "localhost")
+   * val overrides: ZEnvironment[Int]            = ZEnvironment(9090)
+   *
+   * val port: Int = defaults.union[Int](overrides).get[Int]
+   * // 9090
+   * val host: String = defaults.union[Int](overrides).get[String]
+   * // localhost
+   * }}}
    */
   def union[R1: EnvironmentTag](that: ZEnvironment[R1]): ZEnvironment[R with R1] =
     self.unionAll[R1](that.prune)
@@ -301,20 +356,40 @@ final class ZEnvironment[+R] private (
 
   /**
    * Updates a service in the environment corresponding to the specified key.
+   *
+   * Throws a `java.util.NoSuchElementException` when the map holds no value for
+   * `k`.
    */
   def updateAt[K, V](k: K)(f: V => V)(implicit ev: R <:< Map[K, V], tag: Tag[Map[K, V]]): ZEnvironment[R] =
     self.add[Map[K, V]](unsafe.get[Map[K, V]](taggedTagType(tag))(Unsafe).updated(k, f(getAt(k).get)))
 
+  /**
+   * Operations on the environment that look services up by a `LightTypeTag`
+   * instead of a `Tag`, so the compiler does not check the service type. They
+   * need an `Unsafe` value.
+   */
   trait UnsafeAPI {
+
+    /**
+     * Returns the most recently added service whose type is the type of `tag`
+     * or a subtype of it, cast to `A`. Throws a `java.lang.Error` when the
+     * environment holds no such service.
+     */
     def get[A](tag: LightTypeTag)(implicit unsafe: Unsafe): A
     private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A]
     private[ZEnvironment] def update[A >: R](tag: LightTypeTag, f: A => A)(implicit unsafe: Unsafe): ZEnvironment[R]
   }
 
+  /**
+   * More unsafe operations on the environment, all of them internal to ZIO.
+   */
   trait UnsafeAPI2 {
     private[ZEnvironment] def getOrElse[A](tag: LightTypeTag, default: => A)(implicit unsafe: Unsafe): A
   }
 
+  /**
+   * More unsafe operations on the environment, all of them internal to ZIO.
+   */
   trait UnsafeAPI3 {
     private[zio] def addScope(scope: Scope)(implicit unsafe: Unsafe): ZEnvironment[R with Scope]
     private[ZEnvironment] def addService[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A]
@@ -323,6 +398,9 @@ final class ZEnvironment[+R] private (
   private def isScopeTag(tag: LightTypeTag): Boolean =
     (tag eq ScopeTag) || taggedIsSubtype(tag, ScopeTag)
 
+  /**
+   * The unsafe operations on this environment.
+   */
   val unsafe: UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 =
     new UnsafeAPI with UnsafeAPI2 with UnsafeAPI3 with Serializable {
       private[ZEnvironment] def add[A](tag: LightTypeTag, a: A)(implicit unsafe: Unsafe): ZEnvironment[R with A] =
@@ -386,6 +464,10 @@ final class ZEnvironment[+R] private (
     }
 }
 
+/**
+ * Constructors of environments holding zero to five services, and `Patch`,
+ * which describes changes to an environment.
+ */
 object ZEnvironment {
 
   /**
@@ -506,10 +588,17 @@ object ZEnvironment {
 
     /**
      * Boolean flag indicating whether the patch is empty.
+     *
+     * It is `true` for `Patch.empty` and for a `Patch.diff` that finds no
+     * change. A patch built with `combine` is not empty, even when it combines
+     * empty patches.
      */
     def isEmpty: Boolean = self.isInstanceOf[Empty[?]]
   }
 
+  /**
+   * Constructors of patches: `empty` and `diff`.
+   */
   object Patch {
 
     /**
@@ -518,8 +607,28 @@ object ZEnvironment {
     def empty[A]: Patch[A, A] = empty0.asInstanceOf[Patch[A, A]]
 
     /**
-     * Constructs a patch that describes the updates necessary to transform the
-     * specified old environment into the specified new environment.
+     * Constructs a patch that adds to an environment the services of `newValue`
+     * that differ from those of `oldValue`, and the `Scope` of `newValue` when
+     * it differs. The patch only adds, so applying it to `oldValue` keeps the
+     * services that `newValue` lacks.
+     *
+     * Services are compared by value while both environments are scanned in the
+     * order their services were added. A service that `newValue` holds under a
+     * type that `oldValue` lacks can be compared with the most recently added
+     * service of `oldValue`, and is left out of the patch when the two are
+     * equal by `==`. For example, `diff(ZEnvironment[Int](8080),
+     * ZEnvironment[Long](8080L))` is empty, so applying it adds no `Long`.
+     *
+     * {{{
+     * val before: ZEnvironment[Int with String] = ZEnvironment[Int, String](8080, "localhost")
+     * val after: ZEnvironment[Int]              = ZEnvironment(9090)
+     *
+     * val patched = ZEnvironment.Patch.diff(before, after)(before)
+     * val port: Int = patched.get[Int]
+     * // 9090
+     * val host: Option[String] = patched.getDynamic[String]
+     * // Some(localhost)
+     * }}}
      */
     def diff[In, Out](oldValue: ZEnvironment[In], newValue: ZEnvironment[Out]): Patch[In, Out] =
       if (oldValue.map eq newValue.map) {
