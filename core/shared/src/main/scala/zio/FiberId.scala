@@ -22,15 +22,38 @@ import java.util.concurrent.ThreadLocalRandom
 import scala.util.control.TailCalls
 
 /**
- * The identity of a Fiber, described by the time it began life, and a
- * monotonically increasing sequence number generated from an atomic counter.
+ * The identity of a Fiber. A [[FiberId.Runtime]] identifies one fiber by a
+ * number, the time it began life and the location it was forked from. By
+ * default the number is a random non-negative `Int`; in the ZIO Test
+ * environment it is a monotonically increasing sequence number generated from
+ * an atomic counter. [[FiberId.None]] is the identity of no fiber, and
+ * [[FiberId.Composite]] combines several identities, for example the identity
+ * of a fiber built with `Fiber#zip`.
+ *
+ * {{{
+ * val first: FiberId    = FiberId(1, 1700000000, Trace.empty)
+ * val second: FiberId   = FiberId(2, 1700000000, Trace.empty)
+ * val combined: FiberId = first <> second
+ *
+ * val ids: Set[Int] = combined.ids
+ * // Set(1, 2)
+ * val name: String = combined.threadName
+ * // zio-fiber-1,2
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/fiber/fiberid/ FiberId]]
  */
 sealed trait FiberId extends Serializable { self =>
   import FiberId._
 
+  /** A symbolic alias for `combine`. */
   final def <>(that: FiberId): FiberId = self.combine(that)
 
   /**
+   * Combines this identity with the specified one: returns the other one when
+   * either is `FiberId.None`, and a `FiberId.Composite` of both otherwise.
+   *
    * Implemented this way and not just pattern matching on (self, that) because
    * of: https://github.com/zio/zio/pull/8746#discussion_r1567448064
    */
@@ -48,8 +71,10 @@ sealed trait FiberId extends Serializable { self =>
         }
     }
 
+  /** Returns `that` when this identity is none (see `isNone`), else this one. */
   final def getOrElse(that: => FiberId): FiberId = if (isNone) that else self
 
+  /** Returns the numbers of the runtime fiber ids that make up this identity. */
   final def ids: Set[Int] = try {
     FiberId.ids(self)
   } catch {
@@ -57,6 +82,10 @@ sealed trait FiberId extends Serializable { self =>
     case _: StackOverflowError => FiberId.toSetLazy(self).map(_.id)
   }
 
+  /**
+   * Returns `true` when this identity contains no runtime fiber id:
+   * `FiberId.None`, or a `FiberId.Composite` made only of `FiberId.None`.
+   */
   final def isNone: Boolean = try {
     FiberId.isNone(self)
   } catch {
@@ -64,6 +93,11 @@ sealed trait FiberId extends Serializable { self =>
     case _: StackOverflowError => FiberId.toSetLazy(self).isEmpty
   }
 
+  /**
+   * Returns the name used for this identity in traces and fiber dumps:
+   * `zio-fiber-` followed by the numbers of its runtime fiber ids, separated
+   * by commas (`zio-fiber-` alone for `FiberId.None`).
+   */
   final def threadName: String =
     threadNameInto(new StringBuilder(32))(Unsafe).result()
 
@@ -83,8 +117,13 @@ sealed trait FiberId extends Serializable { self =>
     sb
   }
 
+  /**
+   * Returns `None` when this identity is none (see `isNone`), else `Some` of
+   * its runtime fiber ids combined.
+   */
   final def toOption: Option[FiberId] = toSet.asInstanceOf[Set[FiberId]].reduceOption(_.combine(_))
 
+  /** Returns the runtime fiber ids that make up this identity. */
   final def toSet: Set[FiberId.Runtime] = try {
     FiberId.toSet(self)
   } catch {
@@ -93,8 +132,15 @@ sealed trait FiberId extends Serializable { self =>
   }
 }
 
+/**
+ * The cases of [[FiberId]].
+ */
 object FiberId {
 
+  /**
+   * Creates a [[FiberId.Runtime]] from a number, a start time in seconds
+   * (stored in milliseconds) and a location.
+   */
   def apply(id: Int, startTimeSeconds: Int, location: Trace): FiberId =
     Runtime(id, startTimeSeconds * 1000L, location)
 
@@ -105,9 +151,17 @@ object FiberId {
   private[zio] def generate(fiberRefs: FiberRefs)(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime =
     fiberRefs.getOrDefault(FiberRef.currentFiberIdGenerator).make(location)
 
-  case object None                                                          extends FiberId
+  /** The identity of no fiber, as used by fibers made from a value. */
+  case object None extends FiberId
+
+  /**
+   * The identity of one runtime fiber: its number, the time it started (in
+   * milliseconds since the epoch) and the location it was forked from.
+   */
   final case class Runtime(id: Int, startTimeMillis: Long, location: Trace) extends FiberId
-  final case class Composite(left: FiberId, right: FiberId)                 extends FiberId
+
+  /** Two identities combined, as made by `<>` and `combine`. */
+  final case class Composite(left: FiberId, right: FiberId) extends FiberId
 
   private def ids(id: FiberId): Set[Int] =
     id match {
@@ -146,6 +200,8 @@ object FiberId {
   }
 
   private[zio] trait Gen {
+
+    /** Generates a new runtime fiber id for a fiber forked at `location`. */
     def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime
   }
 
@@ -154,8 +210,9 @@ object FiberId {
     /**
      * Generates a fiber ID where the `id` is a random integer.
      *
-     * This is more performant than using `FiberId.Gen.Ordered`, but cannot be
-     * used in cases that rely on strict ordering of fibers (e.g., in zio-test)
+     * This is more performant than using `FiberId.Gen.Monotonic`, but cannot
+     * be used in cases that rely on strict ordering of fibers (e.g., in
+     * zio-test)
      */
     object Live extends Gen {
       def make(location: Trace)(implicit unsafe: Unsafe): FiberId.Runtime = {

@@ -18,29 +18,56 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * The ZIO stack trace of a fiber: the identity of the fiber and the locations
+ * (`Trace` values) of the effects it was running, most recent first. A
+ * `Cause` carries one for each failure, and `ZIO.stackTrace` returns the
+ * current one.
+ *
+ * {{{
+ * val trace: UIO[String] =
+ *   ZIO.stackTrace.map(_.prettyPrint("Current trace:"))
+ * }}}
+ */
 final case class StackTrace(
   fiberId: FiberId,
   stackTrace: Chunk[Trace]
 ) { self =>
 
+  /**
+   * Concatenates two stack traces: the locations of this one, then those of
+   * `that` one, with the fiber ids combined. Returns the other one when either
+   * is empty.
+   */
   def ++(that: StackTrace): StackTrace =
     if ((self eq that) || self.isEmpty) that
     else if (that.isEmpty) self
     else StackTrace(self.fiberId combine that.fiberId, self.stackTrace ++ that.stackTrace)
 
+  /** Returns `true` when there is no fiber id and no location. */
   def isEmpty: Boolean = (fiberId eq FiberId.None) && stackTrace.isEmpty
 
+  /** Returns the number of locations. */
   def size: Int = stackTrace.length
 
   /**
    * Converts the ZIO trace into a Java stack trace, by converting each trace
-   * element into a Java stack trace element.
+   * element into a Java stack trace element. Locations that cannot be parsed,
+   * such as `Trace.empty`, are left out, and adjacent duplicates are removed.
    */
   def toJava: Chunk[StackTraceElement] =
     stackTrace.flatMap(Trace.toJava).dedupe
 
+  /**
+   * Renders the trace as text: the `prefix` line, then one `at <location>`
+   * line per Java stack trace element (see `toJava`), indented with a tab.
+   */
   def prettyPrint(prefix: String): String = prettyPrint(Some(prefix))
 
+  /**
+   * Renders the trace as text: one `at <location>` line per Java stack trace
+   * element (see `toJava`), indented with a tab.
+   */
   def prettyPrint: String = prettyPrint(None)
 
   private def prettyPrint(prefix: Option[String]): String = {
@@ -61,8 +88,16 @@ final case class StackTrace(
     else prettyPrint("Stack trace for thread \"" + fiberId.threadName + "\":")
 }
 
+/**
+ * Constructors for [[StackTrace]].
+ */
 object StackTrace {
 
+  /**
+   * Converts a Java stack trace into a ZIO stack trace for the specified fiber.
+   * It keeps the elements before the first `zio.internal.FiberRuntime` frame,
+   * and stops at the first element whose file and line are those of `trace`.
+   */
   def fromJava(fiberId: FiberId, stackTrace: Array[StackTraceElement])(implicit trace: Trace): StackTrace =
     StackTrace(
       fiberId,
@@ -72,6 +107,7 @@ object StackTrace {
         .takeWhile(!Trace.equalIgnoreLocation(_, trace))
     )
 
+  /** The empty stack trace, with no fiber id and no location. */
   val none: StackTrace =
     StackTrace(FiberId.None, Chunk.empty)
 }
