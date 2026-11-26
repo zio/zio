@@ -738,9 +738,8 @@ a.za-breadcrumbs__link:hover {
 }
 
 /* Columns: the docs page grid (Infima's .container > .row with a 75% doc column and a 25% table of contents, 16px
-   gutters, 1280px at most, as a docs page's main container), so text starts 16px right of a 300px sidebar as it does
-   on a docs page. Scaladoc's own grid is a 313px sidebar, 48-68px gutters and a 720px text
-   column. */
+   gutters, and the docs container's width; see #content below), so text starts 16px right of a 300px sidebar as it
+   does on a docs page. Scaladoc's own grid is a 313px sidebar, 48-68px gutters and a centred 720px text column. */
 @media (min-width: 429px) {
   #leftColumn {
     box-sizing: border-box;
@@ -755,16 +754,50 @@ a.za-breadcrumbs__link:hover {
   }
 }
 
-/* Under the navbar the column starts 1rem down, as the docs .container does (Scaladoc pads it 144px) */
+/* Under the navbar the column starts 1rem down, as the docs .container does (Scaladoc pads it 144px). Its width is the
+   docs .container's: the site compiles Tailwind with `important: true` (tailwind.config.js), so on every docs page
+   Tailwind's .container (full width, capped at 40/48/64/80/96rem by viewport width) overrides Infima's 1140/1320px.
+   With the same caps the text starts 1rem right of the sidebar wherever a docs page's does, and centres only where a
+   docs page's does (windows wider than the 96rem cap plus the sidebar). */
 #content {
   box-sizing: border-box;
   width: 100%;
-  max-width: 1280px;
+  max-width: 100%;
   margin-inline: auto;
   padding-top: calc(var(--za-navbar-height) + 1rem);
   padding-inline: 1rem;
   gap: 2rem;
   justify-content: flex-start;
+}
+
+@media (min-width: 40rem) {
+  #content {
+    max-width: 40rem;
+  }
+}
+
+@media (min-width: 48rem) {
+  #content {
+    max-width: 48rem;
+  }
+}
+
+@media (min-width: 64rem) {
+  #content {
+    max-width: 64rem;
+  }
+}
+
+@media (min-width: 80rem) {
+  #content {
+    max-width: 80rem;
+  }
+}
+
+@media (min-width: 96rem) {
+  #content {
+    max-width: 96rem;
+  }
 }
 
 /* Docusaurus keeps the sidebar down to 997px; Scaladoc folds it away below 1025px */
