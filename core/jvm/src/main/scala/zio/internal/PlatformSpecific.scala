@@ -26,13 +26,32 @@ private[zio] trait PlatformSpecific {
 
   /**
    * Adds a shutdown hook that executes the specified action on shutdown.
+   *
+   * @see
+   *   [[addShutdownHookScoped]]
    */
   final def addShutdownHook(action: () => Unit)(implicit unsafe: zio.Unsafe): Unit =
-    java.lang.Runtime.getRuntime.addShutdownHook {
-      new Thread {
-        override def run() = action()
+    addShutdownHookScoped(action)
+
+  /**
+   * Adds a shutdown hook that executes the specified action on shutdown.
+   *
+   * Returns a function that deregisters the shutdown hook when executed.
+   */
+  final def addShutdownHookScoped(action: () => Unit)(implicit unsafe: zio.Unsafe): () => Unit = {
+    val thread = new Thread {
+      override def run(): Unit = action()
+    }
+    java.lang.Runtime.getRuntime.addShutdownHook(thread)
+
+    { () =>
+      try java.lang.Runtime.getRuntime.removeShutdownHook(thread)
+      catch {
+        // Thrown when `removeShutdownHook` is called after the shutdown sequence has started
+        case _: IllegalArgumentException => ()
       }
     }
+  }
 
   /**
    * Adds a signal handler for the specified signal (e.g. "INFO"). This method
