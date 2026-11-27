@@ -102,9 +102,9 @@ sealed trait Dequeue[+A] extends Serializable {
    * Takes a number of elements from the queue between the specified minimum and
    * maximum. If there are fewer than the minimum number of elements available,
    * suspends until at least the minimum number of elements have been collected.
-   * Returns an empty `Chunk` right away when `max` is less than `min`. When
-   * `min` is 0 or less, it does not wait and returns what `takeUpTo(max)`
-   * returns.
+   * Returns an empty `Chunk` right away when `max` is less than `min`.
+   * Otherwise, when `min` is 0 or less, it does not wait and returns what
+   * `takeUpTo(max)` returns.
    */
   final def takeBetween(min: Int, max: Int)(implicit trace: Trace): UIO[Chunk[A]] = {
     def takeRemainder(min: Int, max: Int, acc: Chunk[A]): UIO[Chunk[A]] =
