@@ -22,10 +22,10 @@ import zio.test.Spec._
 
 /**
  * A `Spec[R, E]` is a tree of tests. Each node is a test, a label on a test or
- * suite, a group of specs, a node that sets the execution strategy of the
- * specs inside it, or a scoped node that acquires resources for them. `R` is
- * the environment that the tests need and `E` is the error type with which they
- * can fail.
+ * suite, a group of specs, a node that sets the execution strategy of the specs
+ * inside it, or a scoped node that acquires resources for them. `R` is the
+ * environment that the tests need and `E` is the error type with which they can
+ * fail.
  *
  * The `suite` and `test` constructors build specs, `@@` applies a
  * [[TestAspect]], and the `provide` methods supply the environment.
@@ -141,9 +141,9 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * specified predicate. If a suite label satisfies the predicate the entire
    * suite will be included in the new spec. Otherwise only those specs in a
    * suite that satisfy the specified predicate will be included in the new
-   * spec. Returns `None` when no label matches and the spec has no scoped
-   * node. A scoped node (one that acquires resources, as `provideLayerShared`
-   * and `aroundAll` create) is kept, and is left with no tests when none of its
+   * spec. Returns `None` when no label matches and the spec has no scoped node.
+   * A scoped node (one that acquires resources, as `provideLayerShared` and
+   * `aroundAll` create) is kept, and is left with no tests when none of its
    * labels match.
    */
   final def filterLabels(f: String => Boolean)(implicit trace: Trace): Option[Spec[R, E]] =
@@ -185,8 +185,8 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
 
   /**
    * Returns a new spec without the tests that have at least one tag (set with
-   * `TestAspect.tag`) satisfying `f`. Returns `None` when every test is
-   * removed and the spec has no scoped node. A scoped node (one that acquires
+   * `TestAspect.tag`) satisfying `f`. Returns `None` when every test is removed
+   * and the spec has no scoped node. A scoped node (one that acquires
    * resources, as `provideLayerShared` and `aroundAll` create) is kept, and is
    * left with no tests when all of its tests are removed.
    */
@@ -312,8 +312,8 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Provides each test with the part of the environment that is not part of the
    * `TestEnvironment`, leaving a spec that only depends on the
-   * `TestEnvironment`. The layer is built once for each test, and once more
-   * for each scoped node (such as one that `aroundAll` creates).
+   * `TestEnvironment`. The layer is built once for each test, and once more for
+   * each scoped node (such as one that `aroundAll` creates).
    *
    * {{{
    * import zio.{ULayer, ZIO, ZLayer}
@@ -373,9 +373,9 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Provides each test in this spec with the services of `layer`, leaving a
    * spec that requires only the layer's input `R0`. The layer is built once for
-   * each test, and once more for each scoped node (such as one that
-   * `aroundAll` creates), so tests do not share its services; a failure to
-   * build it fails the test.
+   * each test, and once more for each scoped node (such as one that `aroundAll`
+   * creates), so tests do not share its services; a failure to build it fails
+   * the test.
    */
   final def provideLayer[E1 >: E, R0](
     layer: ZLayer[R0, E1, R]
@@ -673,8 +673,8 @@ object Spec {
   final class ProvideSomeLayer[R0, -R, +E](private val self: Spec[R, E]) extends AnyVal {
 
     /**
-     * Provides each test with the services of `layer`, built once for each
-     * test and once more for each scoped node (such as one that `aroundAll`
+     * Provides each test with the services of `layer`, built once for each test
+     * and once more for each scoped node (such as one that `aroundAll`
      * creates), and leaves the remainder `R0` to be provided later.
      */
     def apply[E1 >: E, R1](

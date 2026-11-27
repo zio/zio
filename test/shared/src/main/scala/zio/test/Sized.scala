@@ -19,9 +19,9 @@ trait Sized extends Serializable {
   def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 
   /**
-   * Returns a generator that runs `gen` with the size set to `size` until
-   * `gen` emits its first value. The previous size is restored as each value
-   * is emitted, so later values of `gen` see the previous size.
+   * Returns a generator that runs `gen` with the size set to `size` until `gen`
+   * emits its first value. The previous size is restored as each value is
+   * emitted, so later values of `gen` see the previous size.
    */
   def withSizeGen[R, A](size: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, A]
 }

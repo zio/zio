@@ -76,8 +76,8 @@ object CustomAssertion {
  * an `Either`, `success`, `failure`, `die`, `cause` and `interrupted` for an
  * `Exit`, `failure`, `die` and `interrupted` for a `Cause`, `success` and
  * `failure` for a `Try`, and `anything`, `subtype` and `custom` for any value.
- * The `assertTrue` macro rewrites these calls; called anywhere else, they
- * throw an exception.
+ * The `assertTrue` macro rewrites these calls; called anywhere else, they throw
+ * an exception.
  *
  * {{{
  * test("nested values") {

@@ -29,9 +29,9 @@ import scala.language.implicitConversions
  *
  * Every spec is an ordinary immutable value, built with `suite` and `test` and
  * composed like any other value. Because the tests in a spec are ZIO effects,
- * they can use resources (including those requiring disposal), run
- * sequentially or in parallel, and use the ZIO combinators. Property-based
- * tests use [[Gen]] with `check`.
+ * they can use resources (including those requiring disposal), run sequentially
+ * or in parallel, and use the ZIO combinators. Property-based tests use [[Gen]]
+ * with `check`.
  *
  * {{{
  * import zio.test._
@@ -1379,8 +1379,8 @@ package object test extends CompileVariants {
   implicit final class TestLensCauseOps[E](private val self: TestLens[Cause[E]]) extends AnyVal {
 
     /**
-     * Transforms a [[Cause]] to the [[scala.Throwable]] of its first `Die`
-     * when it contains one, otherwise fails.
+     * Transforms a [[Cause]] to the [[scala.Throwable]] of its first `Die` when
+     * it contains one, otherwise fails.
      */
     def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
 

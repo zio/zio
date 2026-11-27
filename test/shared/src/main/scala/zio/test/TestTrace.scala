@@ -45,8 +45,8 @@ sealed trait TestTrace[+A] { self =>
     TestTrace.prune(self.asInstanceOf[TestTrace[Boolean]], false).isEmpty
 
   /**
-   * Returns `true` when a node of this trace died with an exception; the
-   * nested children of a node are not checked.
+   * Returns `true` when a node of this trace died with an exception; the nested
+   * children of a node are not checked.
    */
   def isDie: Boolean =
     self.asInstanceOf[TestTrace[_]] match {
@@ -145,8 +145,8 @@ sealed trait TestTrace[+A] { self =>
     }
 
   /**
-   * Sets the code on every node in the tree, nested children included. A
-   * `None` argument leaves the trace unchanged.
+   * Sets the code on every node in the tree, nested children included. A `None`
+   * argument leaves the trace unchanged.
    */
   final def withCode(fullCode: Option[String]): TestTrace[A] = if (fullCode.isDefined) {
     self match {
@@ -250,8 +250,8 @@ sealed trait TestTrace[+A] { self =>
     implies(that)
 
   /**
-   * Logical equivalence: both traces succeed or both fail. When either trace
-   * is a single node that died, the result fails.
+   * Logical equivalence: both traces succeed or both fail. When either trace is
+   * a single node that died, the result fails.
    */
   final def <==>(that: TestTrace[Boolean])(implicit ev: A <:< Boolean): TestTrace[Boolean] =
     self ==> that && that ==> self.asInstanceOf[TestTrace[Boolean]]
@@ -296,11 +296,11 @@ object TestTrace {
 
   /**
    * Returns the part of `trace` that explains why it failed, or `None` when it
-   * succeeded. With `negated = true` the trace is read as negated, so the
-   * nodes that succeeded are kept instead, and a negated `&&` is kept only when
-   * both of its sides are kept. A node that died is kept, but inside a negated
-   * `&&` whose other side is not kept it is dropped together with that `&&`,
-   * so `!(a && b)` can succeed even though `a` threw.
+   * succeeded. With `negated = true` the trace is read as negated, so the nodes
+   * that succeeded are kept instead, and a negated `&&` is kept only when both
+   * of its sides are kept. A node that died is kept, but inside a negated `&&`
+   * whose other side is not kept it is dropped together with that `&&`, so `!(a
+   * && b)` can succeed even though `a` threw.
    */
   def prune(trace: TestTrace[Boolean], negated: Boolean): Option[TestTrace[Boolean]] =
     trace match {

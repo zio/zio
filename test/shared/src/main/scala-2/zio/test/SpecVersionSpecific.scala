@@ -46,8 +46,8 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    * from `layer`, wiring the layers together at compile time, and provides it
    * to each test, leaving a spec that only depends on `TestEnvironment`. The
    * layers are built once for each test, and once more for each scoped node
-   * (such as one that `aroundAll` creates). Layer inputs that
-   * `TestEnvironment` contains are taken from that remainder.
+   * (such as one that `aroundAll` creates). Layer inputs that `TestEnvironment`
+   * contains are taken from that remainder.
    *
    * {{{
    * import zio.{ULayer, ZIO, ZLayer}
@@ -192,8 +192,8 @@ final class ProvideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extend
   /**
    * Provides each test with `layer`, which builds the whole environment `R`
    * from `R0`, the same as `Spec#provideLayer`. The layer is built once for
-   * each test, and once more for each scoped node (such as one that
-   * `aroundAll` creates).
+   * each test, and once more for each scoped node (such as one that `aroundAll`
+   * creates).
    */
   def provideLayer[E1 >: E](
     layer: ZLayer[R0, E1, R]

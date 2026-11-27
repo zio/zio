@@ -120,8 +120,8 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    * from `layer`, wiring the layers together at compile time, and provides it
    * to each test, leaving a spec that only depends on `TestEnvironment`. The
    * layers are built once for each test, and once more for each scoped node
-   * (such as one that `aroundAll` creates). Layer inputs that
-   * `TestEnvironment` contains are taken from that remainder.
+   * (such as one that `aroundAll` creates). Layer inputs that `TestEnvironment`
+   * contains are taken from that remainder.
    *
    * {{{
    * import zio.{ULayer, ZIO, ZLayer}

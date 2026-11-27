@@ -769,9 +769,9 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs a test if the specified optional environment
    * variable satisfies the specified assertion. The variable is read from the
-   * live `System`, not from `TestSystem`. When the assertion does not hold,
-   * the aspect acts as `ignore`: tests are reported as ignored, and a scoped
-   * part of the spec (such as one that `provideLayerShared` creates) is dropped
+   * live `System`, not from `TestSystem`. When the assertion does not hold, the
+   * aspect acts as `ignore`: tests are reported as ignored, and a scoped part
+   * of the spec (such as one that `provideLayerShared` creates) is dropped
    * without reporting its tests.
    */
   def ifEnvOption(env: String)(assertion: Option[String] => Boolean): TestAspectPoly =
@@ -941,9 +941,9 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that repeats the test a specified number of times, ensuring it is
-   * stable ("non-flaky"). Stops at the first failure. A passing test runs
-   * `n + 1` times, or twice when `n` is 0 or less. The state of the test
-   * services is restored after each run.
+   * stable ("non-flaky"). Stops at the first failure. A passing test runs `n +
+   * 1` times, or twice when `n` is 0 or less. The state of the test services is
+   * restored after each run.
    */
   def nonFlaky(n: Int): TestAspectPoly = {
     val nonFlaky = new PerTest.Poly {
@@ -1353,8 +1353,8 @@ object TestAspect extends TimeoutVariants {
   val unix: TestAspectPoly = os(_.isUnix)
 
   /**
-   * Runs only on Windows operating systems. On other systems, and on
-   * Scala.js, where `System.os` is `OS.Unknown`, it acts as `ignore`.
+   * Runs only on Windows operating systems. On other systems, and on Scala.js,
+   * where `System.os` is `OS.Unknown`, it acts as `ignore`.
    */
   val windows: TestAspectPoly = os(_.isWindows)
 

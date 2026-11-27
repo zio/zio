@@ -28,9 +28,9 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
 
   /**
    * Combines this sample with `that` sample. A symbolic alias for `zip`. The
-   * values are combined with `Zippable`, which flattens nested tuples and
-   * drops `Unit` values, so a pair sample combined with an `Int` sample gives
-   * a triple.
+   * values are combined with `Zippable`, which flattens nested tuples and drops
+   * `Unit` values, so a pair sample combined with an `Int` sample gives a
+   * triple.
    */
   def <*>[R1 <: R, B](
     that: Sample[R1, B]

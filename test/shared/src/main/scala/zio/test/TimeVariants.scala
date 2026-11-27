@@ -273,9 +273,9 @@ trait TimeVariants {
 
   /**
    * A generator of `java.time.ZonedDateTime` values in a zone picked from the
-   * available zone ids. Shrinks the local date-time toward
-   * `LocalDateTime.MIN`; the zone does not shrink, and each shrunk date-time
-   * gets a new zone picked at random.
+   * available zone ids. Shrinks the local date-time toward `LocalDateTime.MIN`;
+   * the zone does not shrink, and each shrunk date-time gets a new zone picked
+   * at random.
    */
   final def zonedDateTime(implicit trace: Trace): Gen[Any, ZonedDateTime] =
     for {

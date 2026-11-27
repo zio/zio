@@ -65,10 +65,10 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
   /**
    * Combines this result with `that` by logical or: the combined result
    * succeeds when at least one succeeds. When either side is an `assertTrue`
-   * whose expression threw an exception, the combined result fails, even if
-   * the other side succeeds. A thrown exception inside `&&` that is then
-   * negated is dropped when the other side of that `&&` fails, so
-   * `!(a && b) || c` can succeed even though `a` threw.
+   * whose expression threw an exception, the combined result fails, even if the
+   * other side succeeds. A thrown exception inside `&&` that is then negated is
+   * dropped when the other side of that `&&` fails, so `!(a && b) || c` can
+   * succeed even though `a` threw.
    */
   def ||(that: TestResult): TestResult = TestResult(arrow || that.arrow)
 
@@ -76,8 +76,8 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
    * Negates this result by logical not: the negated result succeeds when this
    * one fails. Negating an `assertTrue` whose expression threw an exception
    * still gives a failure. A thrown exception inside `&&` that is then negated
-   * is dropped together with its other side when that side fails, so
-   * `!(a && b)` succeeds when `b` fails even though `a` threw.
+   * is dropped together with its other side when that side fails, so `!(a &&
+   * b)` succeeds when `b` fails even though `a` threw.
    */
   def unary_! : TestResult = TestResult(!arrow)
 
@@ -192,8 +192,8 @@ object TestResult {
  * A step of an assertion: a function from an `A`, or from an exception thrown
  * by an earlier step, to a [[TestTrace]] of `B`, with the source code it came
  * from. `assertTrue` compiles each expression into a chain of arrows joined
- * with `>>>`, and an [[Assertion]] wraps an arrow to `Boolean`.
- * `TestArrow.run` runs one.
+ * with `>>>`, and an [[Assertion]] wraps an arrow to `Boolean`. `TestArrow.run`
+ * runs one.
  */
 sealed trait TestArrow[-A, +B] { self =>
 
