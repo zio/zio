@@ -19,7 +19,7 @@ package zio
 import zio.Cause.Both
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
-import java.io.PrintWriter
+import java.io.{PrintStream, PrintWriter}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.runtime.AbstractFunction2
@@ -1196,9 +1196,21 @@ object Cause extends Serializable {
      */
     def toThrowable: Throwable =
       new Throwable(null, null, false, false) {
-        override final def getMessage(): String = message
+        private final def prettyPrintWith(append: String => Unit)(implicit unsafe: Unsafe): Unit = {
+          append(toString)
+          // default JVM stack trace depth is 1024 frames
+          trace.take(1024).foreach(trace => append(s"\tat $trace"))
+        }
 
-        override final def getStackTrace(): Array[StackTraceElement] = trace.toArray
+        override final def toString: String = s"$className: $message"
+
+        override final def getMessage: String = message
+
+        override final def getStackTrace: Array[StackTraceElement] = trace.toArray
+
+        override final def printStackTrace(s: PrintStream): Unit = prettyPrintWith(s.println)(Unsafe.unsafe)
+
+        override final def printStackTrace(s: PrintWriter): Unit = prettyPrintWith(s.println)(Unsafe.unsafe)
       }
   }
 
