@@ -356,9 +356,9 @@ object Runtime extends RuntimePlatformSpecific {
    * A layer that disables `flags` for the effects it is provided to.
    *
    * Composed in parallel with `++`, `enableFlags(f)` and `disableFlags(f)` do
-   * not apply one after the other: when `f` starts disabled, it ends enabled
-   * in either order, and when it starts enabled (as `FiberRoots` does), it
-   * ends disabled in either order. With `>>>`, the layer on the right wins.
+   * not apply one after the other: when `f` starts disabled, it ends enabled in
+   * either order, and when it starts enabled (as `FiberRoots` does), it ends
+   * disabled in either order. With `>>>`, the layer on the right wins.
    */
   def disableFlags(flags: RuntimeFlag*)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped {

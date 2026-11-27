@@ -37,11 +37,10 @@ import zio.internal.WeakConcurrentBag
  *
  * `join` waits for the result and succeeds or fails like the fiber did; when
  * the fiber succeeds, it also merges the fiber's `FiberRef` values into the
- * joining fiber. `await` waits
- * for the result as an [[Exit]] and never fails. `interrupt` stops the fiber,
- * runs its finalizers, and waits until it has ended. Prefer the higher-level
- * operators (`zipPar`, `race`, `foreachPar`, ...) when they fit: they fork,
- * join and interrupt fibers for you.
+ * joining fiber. `await` waits for the result as an [[Exit]] and never fails.
+ * `interrupt` stops the fiber, runs its finalizers, and waits until it has
+ * ended. Prefer the higher-level operators (`zipPar`, `race`, `foreachPar`,
+ * ...) when they fit: they fork, join and interrupt fibers for you.
  *
  * {{{
  * val program: UIO[(Int, Boolean, Boolean)] =
@@ -213,8 +212,8 @@ sealed abstract class Fiber[+E, +A] { self =>
    * that stays uninterruptible until it ends (for example one forked inside
    * `ZIO.uninterruptible`) returns its own result, which can be a success; so
    * does a fiber that had already ended. An interruption received inside an
-   * uninterruptible region takes effect when the region ends, even when that
-   * is the fiber's last step.
+   * uninterruptible region takes effect when the region ends, even when that is
+   * the fiber's last step.
    *
    * @return
    *   `UIO[Exit[E, A]]`

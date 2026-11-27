@@ -30,9 +30,8 @@ import zio.metrics.MetricLabel
  * the same time. When the parent holds a value for the `FiberRef` (it set or
  * inherited one, or created the `FiberRef` with `FiberRef.make`), the `fork`
  * function of `FiberRef.make` transforms it for the child; otherwise the child
- * reads the `initial` value unchanged.
- * `Fiber#join` merges the child's value back into the joining fiber;
- * `Fiber#await` does not.
+ * reads the `initial` value unchanged. `Fiber#join` merges the child's value
+ * back into the joining fiber; `Fiber#await` does not.
  *
  * {{{
  * val program: UIO[(String, String, String)] =
@@ -200,8 +199,8 @@ sealed trait FiberRef[A] extends Serializable { self =>
    * For a `FiberRef` created with `FiberRef.make`, `FiberRef.unsafe.make` or
    * the other constructors of `FiberRef`, when the current fiber already holds
    * `newValue` (the same reference, or an equal boxed number), `zio` runs
-   * without the restore, and the changes it makes to the `FiberRef` are kept.
-   * A fiber holds a value once it has set or inherited one, or has created the
+   * without the restore, and the changes it makes to the `FiberRef` are kept. A
+   * fiber holds a value once it has set or inherited one, or has created the
    * `FiberRef` with `FiberRef.make`.
    */
   def locally[R, E, B](newValue: A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
@@ -216,9 +215,9 @@ sealed trait FiberRef[A] extends Serializable { self =>
    *
    * For a `FiberRef` created with `FiberRef.make`, `FiberRef.unsafe.make` or
    * the other constructors of `FiberRef`, when `f` returns the value the
-   * current fiber already holds (the same reference, or an equal boxed
-   * number), `zio` runs without the restore, and the changes it makes to the
-   * `FiberRef` are kept.
+   * current fiber already holds (the same reference, or an equal boxed number),
+   * `zio` runs without the restore, and the changes it makes to the `FiberRef`
+   * are kept.
    */
   def locallyWith[R, E, B](f: A => A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
     getWith(a => locally(f(a))(zio))
@@ -452,10 +451,10 @@ object FiberRef {
    * Creates a new `FiberRef` with given initial value.
    *
    * `fork` computes a child fiber's value from its parent's value when the
-   * child is forked and the parent holds a value (unchanged by default). `join` combines the joining fiber's
-   * value with the joined fiber's value when a fiber is joined (the joined
-   * fiber's value wins by default). The value is deleted from the fiber that
-   * closes the scope.
+   * child is forked and the parent holds a value (unchanged by default). `join`
+   * combines the joining fiber's value with the joined fiber's value when a
+   * fiber is joined (the joined fiber's value wins by default). The value is
+   * deleted from the fiber that closes the scope.
    *
    * {{{
    * val program: UIO[(Int, Int)] =
