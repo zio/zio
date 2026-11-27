@@ -37,8 +37,8 @@
       ]
     },
     {
-      "id": "messaging",
-      "label": "Messaging & Pipelines",
+      "id": "streaming",
+      "label": "Streaming & Messaging",
       "official": [
         "zio-amqp",
         "zio-kafka",
@@ -52,7 +52,7 @@
     },
     {
       "id": "serialization",
-      "label": "Serialization & Formats",
+      "label": "Schemas & Serialization",
       "official": [
         "zio-bson",
         "zio-json",
@@ -79,34 +79,32 @@
       ]
     },
     {
-      "id": "cloud",
-      "label": "Cloud & Infrastructure",
-      "official": [
-        "zio-aws",
-        "zio-ftp",
-        "zio-lambda",
-        "zio-s3"
-      ],
-      "community": [
-        "scala-k8s",
-        "zio-k8s"
-      ]
-    },
-    {
-      "id": "app",
-      "label": "Config & App Wiring",
+      "id": "config",
+      "label": "Configuration & CLI",
       "official": [
         "zio-cli",
         "zio-config",
         "zio-process"
       ],
+      "community": []
+    },
+    {
+      "id": "resources",
+      "label": "Resource Management",
+      "official": [],
+      "community": []
+    },
+    {
+      "id": "di",
+      "label": "Dependency Injection",
+      "official": [],
       "community": [
         "distage"
       ]
     },
     {
-      "id": "resilience",
-      "label": "Resilience & Scaling",
+      "id": "concurrency",
+      "label": "Concurrency & Resilience",
       "official": [
         "zio-cache"
       ],
@@ -116,7 +114,7 @@
       ]
     },
     {
-      "id": "fp",
+      "id": "types",
       "label": "Types & Abstractions",
       "official": [
         "interop-cats",
@@ -131,8 +129,22 @@
       ]
     },
     {
+      "id": "cloud",
+      "label": "Cloud & Infrastructure",
+      "official": [
+        "zio-aws",
+        "zio-ftp",
+        "zio-lambda",
+        "zio-s3"
+      ],
+      "community": [
+        "scala-k8s",
+        "zio-k8s"
+      ]
+    },
+    {
       "id": "tooling",
-      "label": "Testing & Dev Tools",
+      "label": "Tooling & Testing",
       "official": [
         "zio-sbt"
       ],

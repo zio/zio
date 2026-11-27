@@ -24,25 +24,69 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * A `Hub` is an asynchronous message hub. Publishers can offer messages to the
  * hub and subscribers can subscribe to take messages from the hub.
+ *
+ * Subscribers do not compete for messages: each subscriber takes them on its
+ * own, whereas each value offered to a [[Queue]] goes to one taker. With
+ * `Hub.bounded` and `Hub.unbounded`, a subscriber receives each message
+ * published while it is subscribed. With `Hub.dropping` and `Hub.sliding`, it
+ * can miss the messages that the hub dropped while it was full. `subscribe`
+ * returns a [[Dequeue]] that stays subscribed until its `Scope` closes. A
+ * message published while there are no subscribers is not kept.
+ *
+ * A bounded hub keeps each message until every subscriber has taken it, or,
+ * with `Hub.sliding`, until a newer message replaces it. When it is full, what
+ * `publish` does depends on how the hub was made:
+ *   - `Hub.bounded` suspends the publishing fiber until there is room (back
+ *     pressure).
+ *   - `Hub.dropping` drops the new message, and `publish` returns `false`.
+ *   - `Hub.sliding` drops the oldest message to make room for the new one.
+ *   - `Hub.unbounded` has a capacity of `Int.MaxValue`.
+ *
+ * {{{
+ * val program: UIO[(Chunk[String], Chunk[String])] =
+ *   ZIO.scoped {
+ *     for {
+ *       hub    <- Hub.bounded[String](8)
+ *       first  <- hub.subscribe
+ *       second <- hub.subscribe
+ *       _      <- hub.publishAll(List("a", "b"))
+ *       a      <- first.takeAll
+ *       b      <- second.takeN(2)
+ *     } yield (a, b)
+ *   }
+ * // succeeds with (Chunk(a,b),Chunk(a,b))
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/concurrency/hub/ Hub]]
  */
 sealed abstract class Hub[A] extends Enqueue.Internal[A] {
 
   /**
    * Publishes a message to the hub, returning whether the message was published
-   * to the hub.
+   * to the hub. When the hub has no subscribers, it returns `true` and the
+   * message is not kept. When the hub is full, a `bounded` hub suspends the
+   * fiber until there is room, a `dropping` hub returns `false`, and a
+   * `sliding` hub drops the oldest message and returns `true`. Interrupted when
+   * the hub is shut down.
    */
   def publish(a: A)(implicit trace: Trace): UIO[Boolean]
 
   /**
    * Publishes all of the specified messages to the hub, returning any messages
-   * that were not published to the hub.
+   * that were not published to the hub. Only a `dropping` hub returns messages:
+   * a `bounded` hub suspends the fiber until all of them are published, and a
+   * `sliding` hub drops older messages to make room. Interrupted when the hub
+   * is shut down.
    */
   def publishAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]]
 
   /**
-   * Subscribes to receive messages from the hub. The resulting subscription can
-   * be evaluated multiple times within the scope to take a message from the hub
-   * each time.
+   * Subscribes to receive messages from the hub. The resulting subscription is
+   * a [[Dequeue]] from which `take` and the other methods read the messages
+   * published from now on, each one once. The subscription is shut down when
+   * the scope closes, and `take` on it is then interrupted. On a hub that is
+   * shut down, it returns a subscription that is already shut down.
    */
   def subscribe(implicit trace: Trace): ZIO[Scope, Nothing, Dequeue[A]]
 
@@ -52,13 +96,22 @@ sealed abstract class Hub[A] extends Enqueue.Internal[A] {
   override final def isFull(implicit trace: Trace): UIO[Boolean] =
     size.map(_ == capacity)
 
+  /**
+   * Publishes a message to the hub, as `publish` does.
+   */
   final def offer(a: A)(implicit trace: Trace): UIO[Boolean] =
     publish(a)
 
+  /**
+   * Publishes the messages to the hub, as `publishAll` does.
+   */
   final def offerAll[A1 <: A](as: Iterable[A1])(implicit trace: Trace): UIO[Chunk[A1]] =
     publishAll(as)
 }
 
+/**
+ * Constructors for [[Hub]]: `bounded`, `dropping`, `sliding` and `unbounded`.
+ */
 object Hub {
 
   /**
@@ -66,7 +119,9 @@ object Hub {
    * messages until they have been taken by all subscribers, applying back
    * pressure to publishers if the hub is at capacity.
    *
-   * For best performance use capacities that are powers of two.
+   * For best performance use capacities that are powers of two. The capacity is
+   * not rounded. The returned effect dies with an `IllegalArgumentException`
+   * when `requestedCapacity` is less than 1.
    */
   def bounded[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
     ZIO.suspendSucceed {
@@ -79,7 +134,9 @@ object Hub {
    * Creates a bounded hub with the dropping strategy. The hub will drop new
    * messages if the hub is at capacity.
    *
-   * For best performance use capacities that are powers of two.
+   * For best performance use capacities that are powers of two. The capacity is
+   * not rounded. The returned effect dies with an `IllegalArgumentException`
+   * when `requestedCapacity` is less than 1.
    */
   def dropping[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
     ZIO.suspendSucceed {
@@ -92,7 +149,9 @@ object Hub {
    * Creates a bounded hub with the sliding strategy. The hub will add new
    * messages and drop old messages if the hub is at capacity.
    *
-   * For best performance use capacities that are powers of two.
+   * For best performance use capacities that are powers of two. The capacity is
+   * not rounded. The returned effect dies with an `IllegalArgumentException`
+   * when `requestedCapacity` is less than 1.
    */
   def sliding[A](requestedCapacity: => Int)(implicit trace: Trace): UIO[Hub[A]] =
     ZIO.suspendSucceed {
@@ -102,7 +161,7 @@ object Hub {
     }
 
   /**
-   * Creates an unbounded hub.
+   * Creates an unbounded hub. Its `capacity` is `Int.MaxValue`.
    */
   def unbounded[A](implicit trace: Trace): UIO[Hub[A]] =
     ZIO.suspendSucceed {
@@ -311,8 +370,10 @@ object Hub {
   private sealed abstract class Strategy[A] {
 
     /**
-     * Describes how publishers should signal to subscribers that they are
-     * waiting for space to become available in the hub.
+     * Describes what happens to the messages that did not fit in the hub: the
+     * back pressure strategy suspends the publisher until they are published,
+     * the dropping strategy drops them, and the sliding strategy drops older
+     * messages to make room for them.
      */
     def handleSurplus(
       hub: internal.Hub[A],
@@ -563,7 +624,7 @@ object Hub {
     subscription.pollUpTo(Int.MaxValue)
 
   /**
-   * Unsafely polls the specified number of values from a subscription.
+   * Unsafely polls up to the specified number of values from a subscription.
    */
   private def unsafePollN[A](subscription: internal.Hub.Subscription[A], max: Int): Chunk[A] =
     subscription.pollUpTo(max)
@@ -575,7 +636,8 @@ object Hub {
     hub.publishAll(as)
 
   /**
-   * Unsafely removes the specified item from a queue.
+   * Unsafely removes the specified item, and any item equal to it, from a
+   * queue.
    */
   private def unsafeRemove[A](queue: MutableConcurrentQueue[A], a: A): Unit = {
     unsafeOfferAll(queue, unsafePollAll(queue).filterNot(_ == a))
