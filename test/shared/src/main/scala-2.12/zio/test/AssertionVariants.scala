@@ -21,8 +21,8 @@ import zio.test.Assertion.Arguments.valueArgument
 import zio.test.{ErrorMessage => M}
 
 /**
- * The `equalTo` assertion, in a source file per Scala version. [[Assertion]]
- * extends this trait, so use it as `Assertion.equalTo`.
+ * Holds the `equalTo` assertion. [[Assertion]] extends this trait, so use it
+ * as `Assertion.equalTo`.
  */
 trait AssertionVariants extends FieldExtractorPlatformSpecific {
   private def diffProduct[T](

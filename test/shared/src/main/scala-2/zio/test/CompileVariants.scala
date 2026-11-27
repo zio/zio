@@ -22,16 +22,17 @@ import zio.{Trace, UIO, ZIO}
 
 /**
  * The assertion functions that need a macro: `assertTrue`, `assert`,
- * `assertZIO` and `typeCheck`, in a source file per Scala version. The
- * `zio.test` package object extends this trait, so `import zio.test._` brings
- * them into scope.
+ * `assertZIO` and `typeCheck`. The `zio.test` package object extends this
+ * trait, so `import zio.test._` brings them into scope.
  */
 trait CompileVariants {
 
   /**
    * Returns either `Right` if the specified string type checks as valid Scala
    * code or `Left` with an error message otherwise. The code is checked at
-   * compile time, in the scope of the call.
+   * compile time, in the scope of the call. On Scala 3, local values of the
+   * calling method are not visible to the checked code (it returns a `Left`);
+   * imports and members of the enclosing class or object are.
    *
    * On Scala 2, the returned effect dies with a `RuntimeException` when the
    * string cannot be parsed or is not known at compile time. On Scala 3, a

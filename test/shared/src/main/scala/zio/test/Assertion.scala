@@ -277,8 +277,8 @@ object Assertion extends AssertionVariants {
 
   /**
    * Makes a new assertion that requires an `Exit` to be a failure whose cause
-   * contains a defect of type `E` (or a subtype). The typed error of the `Exit`
-   * does not matter.
+   * contains a defect, the first of which is of type `E` (or a subtype). The
+   * typed error of the `Exit` does not matter.
    */
   def diesWithA[E: ClassTag]: Assertion[Exit[Any, Any]] =
     dies(isSubtype[E](anything)).withCode("diesWithA", typeArgument[E])
@@ -710,7 +710,8 @@ object Assertion extends AssertionVariants {
 
   /**
    * Makes a new assertion that requires an `Exit` to be a failure whose cause
-   * contains a typed error of type `E` (or a subtype).
+   * contains a typed error, the first of which is of type `E` (or a subtype). A
+   * cause that also holds a defect still satisfies it.
    */
   def failsWithA[E: ClassTag]: Assertion[Exit[Any, Any]] =
     fails(isSubtype[E](anything)).withCode("failsWithA", typeArgument[E])
@@ -1076,7 +1077,8 @@ object Assertion extends AssertionVariants {
     )
 
   /**
-   * Makes a new assertion that requires an exit value to succeed.
+   * Makes a new assertion that requires an `Exit` to be a success whose value
+   * satisfies `assertion`.
    */
   def succeeds[A](assertion: Assertion[A]): Assertion[Exit[Any, A]] =
     Assertion {
@@ -1181,7 +1183,7 @@ object Assertion extends AssertionVariants {
 
     /**
      * Returns the simple name of the runtime class of `C`, or its full name
-     * when the simple name is not available.
+     * when the JVM fails to compute the simple name (a malformed class name).
      */
     def className[A](C: ClassTag[A]): String =
       try {
