@@ -36,8 +36,34 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The optionality of the error type `E` can be used to signal the end
-   * of the stream, by setting it to `None`.
+   * times. `register` receives the callback and is called once, when the stream
+   * starts.
+   *
+   * Each call of the callback runs the effect it is given: a chunk emits its
+   * values, a failure with `Some(e)` fails the stream with `e`, and a failure
+   * with `None` ends the stream. The methods of `ZStream.Emit` (`single`,
+   * `chunk`, `fail`, `die`, `end`, ...) build these effects.
+   *
+   * Up to `outputBuffer` chunks wait in a buffer until the stream pulls them.
+   *
+   * On the JVM and Scala Native, each call of the callback blocks the calling
+   * thread until its chunk is in the buffer. On Scala.js, each call returns at
+   * once with a `Future[Boolean]` that completes with `true` when the chunk is
+   * in the buffer, and fails when the stream ends first.
+   *
+   * {{{
+   * import zio._
+   *
+   * val numbers: ZStream[Any, Nothing, Int] =
+   *   ZStream.async[Any, Nothing, Int] { emit =>
+   *     emit.single(1)
+   *     emit.chunk(Chunk(2, 3))
+   *     emit.end
+   *   }
+   * // numbers.runCollect succeeds with Chunk(1, 2, 3)
+   * }}}
+   *
+   * @see [[https://zio.dev/reference/stream/zstream/creating-zio-streams/ Creating ZIO Streams]]
    */
   def async[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Unit,
@@ -53,9 +79,23 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The registration of the callback returns either a canceler or
-   * synchronously returns a stream. The optionality of the error type `E` can
-   * be used to signal the end of the stream, by setting it to `None`.
+   * times, like `async`. `register` receives the callback, is called once when
+   * the stream starts, and returns either `Left(canceler)` or `Right(stream)`.
+   * The canceler runs when the stream ends: by the end signal, a failure,
+   * interruption or a downstream `take`. With `Right(stream)`, the result is
+   * `stream`, and the callback is ignored.
+   *
+   * Each call of the callback runs the effect it is given: a chunk emits its
+   * values, a failure with `Some(e)` fails the stream with `e`, and a failure
+   * with `None` ends the stream. The methods of `ZStream.Emit` (`single`,
+   * `chunk`, `fail`, `die`, `end`, ...) build these effects.
+   *
+   * Up to `outputBuffer` chunks wait in a buffer until the stream pulls them.
+   *
+   * On the JVM and Scala Native, each call of the callback blocks the calling
+   * thread until its chunk is in the buffer. On Scala.js, each call returns at
+   * once with a `Future[Boolean]` that completes with `true` when the chunk is
+   * in the buffer, and fails when the stream ends first.
    */
   def asyncInterrupt[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Either[URIO[R, Any], ZStream[R, E, A]],
@@ -100,9 +140,20 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The registration of the callback itself returns an a scoped
-   * resource. The optionality of the error type `E` can be used to signal the
-   * end of the stream, by setting it to `None`.
+   * times, like `async`. The registration of the callback itself returns a
+   * scoped resource: its scope closes when the stream ends, and a failure of
+   * `register` fails the stream.
+   *
+   * Each call of the callback runs the effect it is given: a chunk emits its
+   * values, a failure with `Some(e)` fails the stream with `e`, and a failure
+   * with `None` ends the stream.
+   *
+   * Up to `outputBuffer` chunks wait in a buffer until the stream pulls them.
+   *
+   * On the JVM and Scala Native, each call of the callback blocks the calling
+   * thread until its chunk is in the buffer. On Scala.js, each call returns at
+   * once with a `Future[Boolean]` that completes with `true` when the chunk is
+   * in the buffer, and fails when the stream ends first.
    */
   def asyncScoped[R, E, A](
     register: (ZIO[R, Option[E], Chunk[A]] => Unit) => ZIO[R with Scope, E, Any],
@@ -133,9 +184,21 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple
-   * times The registration of the callback itself returns an effect. The
-   * optionality of the error type `E` can be used to signal the end of the
-   * stream, by setting it to `None`.
+   * times, like `async`. The registration of the callback itself returns an
+   * effect, which runs when the stream starts; a failure of that effect fails
+   * the stream.
+   *
+   * Each call of the callback runs the effect it is given: a chunk emits its
+   * values, a failure with `Some(e)` fails the stream with `e`, and a failure
+   * with `None` ends the stream. The methods of `ZStream.Emit` (`single`,
+   * `chunk`, `fail`, `die`, `end`, ...) build these effects.
+   *
+   * Up to `outputBuffer` chunks wait in a buffer until the stream pulls them.
+   *
+   * On the JVM and Scala Native, each call of the callback blocks the calling
+   * thread until its chunk is in the buffer. On Scala.js, each call returns at
+   * once with a `Future[Boolean]` that completes with `true` when the chunk is
+   * in the buffer, and fails when the stream ends first.
    */
   def asyncZIO[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => ZIO[R, E, Any],
@@ -170,9 +233,22 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The registration of the callback can possibly return the stream
-   * synchronously. The optionality of the error type `E` can be used to signal
-   * the end of the stream, by setting it to `None`.
+   * times, like `async`. The registration of the callback can return the stream
+   * synchronously: with `Some(stream)`, the result is `stream`, and the
+   * callback is ignored; with `None`, the stream emits what the callback
+   * receives.
+   *
+   * Each call of the callback runs the effect it is given: a chunk emits its
+   * values, a failure with `Some(e)` fails the stream with `e`, and a failure
+   * with `None` ends the stream. The methods of `ZStream.Emit` (`single`,
+   * `chunk`, `fail`, `die`, `end`, ...) build these effects.
+   *
+   * Up to `outputBuffer` chunks wait in a buffer until the stream pulls them.
+   *
+   * On the JVM and Scala Native, each call of the callback blocks the calling
+   * thread until its chunk is in the buffer. On Scala.js, each call returns at
+   * once with a `Future[Boolean]` that completes with `true` when the chunk is
+   * in the buffer, and fails when the stream ends first.
    */
   def asyncMaybe[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Option[ZStream[R, E, A]],
@@ -181,7 +257,13 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     asyncInterrupt(k => register(k).toRight(ZIO.unit), outputBuffer)
 
   /**
-   * Creates a stream of bytes from the specified file.
+   * Creates a stream of bytes from the specified file, in chunks of at most
+   * `chunkSize` bytes.
+   *
+   * On the JVM and Scala Native, `file` is a `java.io.File`, read like
+   * `fromPath`. On Scala.js, `file` is a file name, read with the Node.js
+   * `fs.createReadStream` function. On Scala.js, a missing file fails the
+   * stream with a `Throwable` whose message contains `ENOENT`.
    */
   final def fromFile(file: => File, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: Trace
@@ -191,8 +273,10 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       .flatMap(path => self.fromPath(path, chunkSize))
 
   /**
-   * Creates a stream of bytes from a file at the specified path represented by
-   * a string.
+   * Creates a stream of bytes from the file with the specified name, in chunks
+   * of at most `chunkSize` bytes. The name is converted with
+   * `java.nio.file.Paths.get`, and the file is read like `fromPath`. An invalid
+   * name fails the stream with `java.nio.file.InvalidPathException`.
    */
   final def fromFileName(name: => String, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: Trace
@@ -202,7 +286,10 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       .flatMap(path => self.fromPath(path, chunkSize))
 
   /**
-   * Creates a stream of bytes from a file at the specified uri.
+   * Creates a stream of bytes from the file at the specified URI, in chunks of
+   * at most `chunkSize` bytes, read like `fromPath`. A URI whose scheme has no
+   * installed file system provider, such as `http`, fails the stream with
+   * `java.nio.file.FileSystemNotFoundException`.
    */
   final def fromFileURI(uri: => URI, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: Trace
@@ -212,7 +299,22 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       .flatMap(path => self.fromPath(path, chunkSize))
 
   /**
-   * Creates a stream of bytes from a file at the specified path.
+   * Creates a stream of bytes from the file at the specified path, read in
+   * chunks of `chunkSize` bytes; the last chunk may be smaller. The file is
+   * opened when the stream runs and closed when it ends, and each run reads the
+   * file again. Reads run on ZIO's blocking thread pool. A missing file fails
+   * the stream with `java.nio.file.NoSuchFileException`.
+   *
+   * {{{
+   * import java.nio.file.Paths
+   *
+   * val lines: ZStream[Any, Throwable, String] =
+   *   ZStream
+   *     .fromPath(Paths.get("data.csv"))
+   *     .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
+   * }}}
+   *
+   * @see [[https://zio.dev/reference/stream/zstream/creating-zio-streams/ Creating ZIO Streams]]
    */
   final def fromPath(path: => Path, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: Trace
@@ -237,7 +339,10 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from `java.io.Reader`.
+   * Creates a stream of characters from a `java.io.Reader`, in chunks of at
+   * most `chunkSize` characters. Reads run on ZIO's blocking thread pool. An
+   * `IOException` thrown by the reader fails the stream; other exceptions make
+   * it die. The stream does not close the reader: `fromReaderZIO` does.
    */
   def fromReader(reader: => Reader, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: Trace
@@ -260,7 +365,9 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from scoped `java.io.Reader`.
+   * Creates a stream of characters from a scoped `java.io.Reader`, like
+   * `fromReader`. The scope closes when the stream ends; the reader is closed
+   * then only if the scoped effect adds a finalizer that closes it.
    */
   def fromReaderScoped[R](
     reader: => ZIO[Scope with R, IOException, Reader],
@@ -269,7 +376,8 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     ZStream.scoped[R](reader).flatMap(fromReader(_, chunkSize))
 
   /**
-   * Creates a stream from an effect producing `java.io.Reader`.
+   * Creates a stream of characters from an effect producing a `java.io.Reader`,
+   * like `fromReader`, and closes the reader when the stream ends.
    */
   def fromReaderZIO[R](
     reader: => ZIO[R, IOException, Reader],
@@ -278,7 +386,16 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     fromReaderScoped[R](ZIO.acquireRelease(reader)(reader => ZIO.succeed(reader.close())), chunkSize)
 
   /**
-   * Creates a stream from a Java stream
+   * Creates a stream from a `java.util.stream.Stream`, in chunks of at most
+   * `ZStream.DefaultChunkSize` (4096) elements. The Java stream is closed when
+   * the stream ends, also when it ends early, for example after a `take`. An
+   * exception thrown by the Java stream fails the stream.
+   *
+   * {{{
+   * val numbers: ZStream[Any, Throwable, Int] =
+   *   ZStream.fromJavaStream(java.util.stream.Stream.of(1, 2, 3))
+   * // numbers.runCollect succeeds with Chunk(1, 2, 3)
+   * }}}
    */
   final def fromJavaStream[A](stream: => java.util.stream.Stream[A])(implicit
     trace: Trace
@@ -286,7 +403,10 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     fromJavaStream(stream, ZStream.DefaultChunkSize)
 
   /**
-   * Creates a stream from a Java stream
+   * Creates a stream from a `java.util.stream.Stream`, in chunks of at most
+   * `chunkSize` elements. The Java stream is closed when the stream ends, also
+   * when it ends early, for example after a `take`. An exception thrown by the
+   * Java stream fails the stream.
    */
   final def fromJavaStream[A](
     stream: => java.util.stream.Stream[A],
@@ -298,7 +418,10 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     )
 
   /**
-   * Creates a stream from a scoped Java stream
+   * Creates a stream from a scoped `java.util.stream.Stream`, in chunks of at
+   * most `ZStream.DefaultChunkSize` (4096) elements. The scope closes when the
+   * stream ends, and the Java stream is closed then too, also when the scoped
+   * effect adds no finalizer.
    */
   final def fromJavaStreamScoped[R, A](stream: => ZIO[Scope with R, Throwable, java.util.stream.Stream[A]])(implicit
     trace: Trace
@@ -306,7 +429,10 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     fromJavaStreamScoped[R, A](stream, ZStream.DefaultChunkSize)
 
   /**
-   * Creates a stream from a scoped Java stream
+   * Creates a stream from a scoped `java.util.stream.Stream`, in chunks of at
+   * most `chunkSize` elements. The scope closes when the stream ends, and the
+   * Java stream is closed then too, also when the scoped effect adds no
+   * finalizer.
    */
   final def fromJavaStreamScoped[R, A](
     stream: => ZIO[Scope with R, Throwable, java.util.stream.Stream[A]],
@@ -315,7 +441,10 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     ZStream.scoped[R](stream).flatMap(ZStream.fromJavaStream(_, chunkSize))
 
   /**
-   * Creates a stream from a Java stream
+   * Creates a stream from a `java.util.stream.Stream` that is not expected to
+   * throw, in chunks of at most `ZStream.DefaultChunkSize` (4096) elements. An
+   * exception thrown by the Java stream makes the stream die. The Java stream
+   * is not closed.
    */
   final def fromJavaStreamSucceed[R, A](stream: => java.util.stream.Stream[A])(implicit
     trace: Trace
@@ -323,7 +452,9 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     fromJavaStreamSucceed(stream, ZStream.DefaultChunkSize)
 
   /**
-   * Creates a stream from a Java stream
+   * Creates a stream from a `java.util.stream.Stream` that is not expected to
+   * throw, in chunks of at most `chunkSize` elements. An exception thrown by
+   * the Java stream makes the stream die. The Java stream is not closed.
    */
   final def fromJavaStreamSucceed[R, A](
     stream: => java.util.stream.Stream[A],
@@ -334,7 +465,10 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     ZStream.fromJavaIteratorSucceed(stream.iterator(), chunkSize)
 
   /**
-   * Creates a stream from a Java stream
+   * Creates a stream from an effect producing a `java.util.stream.Stream`, in
+   * chunks of at most `ZStream.DefaultChunkSize` (4096) elements. A failure of
+   * the effect fails the stream. The Java stream is closed when the stream
+   * ends.
    */
   final def fromJavaStreamZIO[R, A](stream: => ZIO[R, Throwable, java.util.stream.Stream[A]])(implicit
     trace: Trace
@@ -342,7 +476,9 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
     fromJavaStreamZIO(stream, ZStream.DefaultChunkSize)
 
   /**
-   * Creates a stream from a Java stream
+   * Creates a stream from an effect producing a `java.util.stream.Stream`, in
+   * chunks of at most `chunkSize` elements. A failure of the effect fails the
+   * stream. The Java stream is closed when the stream ends.
    */
   final def fromJavaStreamZIO[R, A](
     stream: => ZIO[R, Throwable, java.util.stream.Stream[A]],
@@ -356,7 +492,7 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
 
     /**
      * Constructs a `ZStream[Any, Throwable, A]` from a
-     * `java.util.stream.Stream[A]`.
+     * `java.util.stream.Stream[A]` with `ZStream.fromJavaStream`.
      */
     implicit def JavaStreamConstructor[A, StreamLike[A] <: java.util.stream.Stream[A]]
       : WithOut[StreamLike[A], ZStream[Any, Throwable, A]] =
@@ -367,8 +503,8 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Constructs a `ZStream[Any, Throwable, A]` from a `ZIO[R with Scope,
-     * Throwable, java.util.stream.Stream[A]]`.
+     * Constructs a `ZStream[R, Throwable, A]` from a `ZIO[Scope with R, E,
+     * java.util.stream.Stream[A]]` with `ZStream.fromJavaStreamScoped`.
      */
     implicit def JavaStreamScopedConstructor[R, E <: Throwable, A, StreamLike[A] <: java.util.stream.Stream[A]]
       : WithOut[ZIO[Scope with R, E, StreamLike[A]], ZStream[R, Throwable, A]] =
@@ -381,8 +517,8 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Constructs a `ZStream[Any, Throwable, A]` from a `ZIO[R, Throwable,
-     * java.util.stream.Stream[A]]`.
+     * Constructs a `ZStream[R, Throwable, A]` from a `ZIO[R, E,
+     * java.util.stream.Stream[A]]` with `ZStream.fromJavaStreamZIO`.
      */
     implicit def JavaStreamZIOConstructor[R, E <: Throwable, A, StreamLike[A] <: java.util.stream.Stream[A]]
       : WithOut[ZIO[R, E, StreamLike[A]], ZStream[R, Throwable, A]] =
@@ -399,8 +535,8 @@ private[stream] trait ZSinkPlatformSpecificConstructors {
   self: ZSink.type =>
 
   /**
-   * Uses the provided `File` to create a [[ZSink]] that consumes byte chunks
-   * and writes them to the `File`. The sink will yield count of bytes written.
+   * Creates a sink that writes the incoming bytes to the specified file, like
+   * `fromPath`, and yields the number of bytes written.
    */
   final def fromFile(
     file: => File,
@@ -414,9 +550,9 @@ private[stream] trait ZSinkPlatformSpecificConstructors {
       .flatMap(path => self.fromPath(path, position, options))
 
   /**
-   * Uses the provided `Path` represented as a string to create a [[ZSink]] that
-   * consumes byte chunks and writes them to the `File`. The sink will yield
-   * count of bytes written.
+   * Creates a sink that writes the incoming bytes to the file with the
+   * specified name, like `fromPath`, and yields the number of bytes written.
+   * The name is converted with `java.nio.file.Paths.get`.
    */
   final def fromFileName(
     name: => String,
@@ -430,8 +566,8 @@ private[stream] trait ZSinkPlatformSpecificConstructors {
       .flatMap(path => self.fromPath(path, position, options))
 
   /**
-   * Uses the provided `URI` to create a [[ZSink]] that consumes byte chunks and
-   * writes them to the `File`. The sink will yield count of bytes written.
+   * Creates a sink that writes the incoming bytes to the file at the specified
+   * URI, like `fromPath`, and yields the number of bytes written.
    */
   final def fromFileURI(
     uri: => URI,
@@ -445,8 +581,26 @@ private[stream] trait ZSinkPlatformSpecificConstructors {
       .flatMap(path => self.fromPath(path, position, options))
 
   /**
-   * Uses the provided `Path` to create a [[ZSink]] that consumes byte chunks
-   * and writes them to the `File`. The sink will yield count of bytes written.
+   * Creates a sink that writes the incoming bytes to the file at the specified
+   * path, and yields the number of bytes written. The file is opened with
+   * `options` when the sink runs, and closed when the sink is done; by default
+   * it is created if missing and truncated otherwise. Writing starts at byte
+   * `position`. Opening and writing run on ZIO's blocking thread pool. A
+   * missing parent directory fails the sink with
+   * `java.nio.file.NoSuchFileException`.
+   *
+   * {{{
+   * import zio._
+   * import java.nio.file.Paths
+   *
+   * val written: ZIO[Any, Throwable, Long] =
+   *   ZStream
+   *     .fromChunk(Chunk.fromArray("hello".getBytes("UTF-8")))
+   *     .run(ZSink.fromPath(Paths.get("out.txt")))
+   * // written succeeds with 5
+   * }}}
+   *
+   * @see [[https://zio.dev/reference/stream/zsink/creating-sinks/ Creating Sinks]]
    */
   final def fromPath(
     path: => Path,
@@ -491,6 +645,14 @@ private[stream] trait ZSinkPlatformSpecificConstructors {
 }
 
 private[stream] trait ZPipelinePlatformSpecificConstructors {
+  /**
+   * Compresses a stream of bytes with `java.util.zip.Deflater`. The output is
+   * in the zlib format, or raw deflate data when `noWrap` is `true`.
+   * `bufferSize` is the size in bytes of the buffer that compressed output is
+   * read into; `level`, `strategy` and `flushMode` configure the `Deflater`.
+   *
+   * @see [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
+   */
   def deflate(
     bufferSize: => Int = 64 * 1024,
     noWrap: => Boolean = false,
@@ -508,6 +670,14 @@ private[stream] trait ZPipelinePlatformSpecificConstructors {
       )
     )
 
+  /**
+   * Decompresses a stream of deflate-compressed bytes with
+   * `java.util.zip.Inflater`: zlib-format input, or raw deflate data when
+   * `noWrap` is `true`. Input that is not in that format fails the stream with
+   * a `CompressionException`.
+   *
+   * @see [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
+   */
   def inflate(
     bufferSize: => Int = 64 * 1024,
     noWrap: => Boolean = false
@@ -516,6 +686,27 @@ private[stream] trait ZPipelinePlatformSpecificConstructors {
       Inflate.makeInflater(bufferSize, noWrap)
     )
 
+  /**
+   * Compresses a stream of bytes in the gzip format (RFC 1952). `bufferSize` is
+   * the size in bytes of the buffer that compressed output is read into;
+   * `level`, `strategy` and `flushMode` configure the deflate compression.
+   *
+   * {{{
+   * import zio._
+   * import zio.stream.compression.CompressionException
+   *
+   * val text: Chunk[Byte] = Chunk.fromArray("hello hello".getBytes("UTF-8"))
+   *
+   * val roundTrip: ZIO[Any, CompressionException, Chunk[Byte]] =
+   *   ZStream
+   *     .fromChunk(text)
+   *     .via(ZPipeline.gzip() >>> ZPipeline.gunzip())
+   *     .runCollect
+   * // roundTrip succeeds with the bytes of text
+   * }}}
+   *
+   * @see [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
+   */
   def gzip(
     bufferSize: => Int = 64 * 1024,
     level: => CompressionLevel = CompressionLevel.DefaultCompression,
@@ -526,6 +717,14 @@ private[stream] trait ZPipelinePlatformSpecificConstructors {
       Gzip.makeGzipper(bufferSize, level, strategy, flushMode)
     )
 
+  /**
+   * Decompresses a stream of gzip-format bytes (RFC 1952). Concatenated gzip
+   * members are decompressed one after the other, and an empty input gives an
+   * empty output. Input that is not gzip data, or that ends inside the gzip
+   * data, fails the stream with a `CompressionException`.
+   *
+   * @see [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
+   */
   def gunzip[Env](bufferSize: => Int = 64 * 1024)(implicit
     trace: Trace
   ): ZPipeline[Any, CompressionException, Byte, Byte] =
@@ -533,6 +732,13 @@ private[stream] trait ZPipelinePlatformSpecificConstructors {
       Gunzip.makeGunzipper(bufferSize)
     )
 
+  /**
+   * Decompresses the stream like `gunzip` when its first two bytes are the gzip
+   * magic bytes `0x1f 0x8b`, and passes it through unchanged otherwise, also
+   * when it has fewer than two bytes.
+   *
+   * @see [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
+   */
   def gunzipAuto[Env](
     bufferSize: => Int = 64 * 1024
   )(implicit trace: Trace): ZPipeline[Any, CompressionException, Byte, Byte] = {

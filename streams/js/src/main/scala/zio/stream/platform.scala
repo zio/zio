@@ -28,8 +28,34 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The optionality of the error type `E` can be used to signal the end
-   * of the stream, by setting it to `None`.
+   * times. `register` receives the callback and is called once, when the stream
+   * starts.
+   *
+   * Each call of the callback runs the effect it is given: a chunk emits its
+   * values, a failure with `Some(e)` fails the stream with `e`, and a failure
+   * with `None` ends the stream. The methods of `ZStream.Emit` (`single`,
+   * `chunk`, `fail`, `die`, `end`, ...) build these effects.
+   *
+   * Up to `outputBuffer` chunks wait in a buffer until the stream pulls them.
+   *
+   * On the JVM and Scala Native, each call of the callback blocks the calling
+   * thread until its chunk is in the buffer. On Scala.js, each call returns at
+   * once with a `Future[Boolean]` that completes with `true` when the chunk is
+   * in the buffer, and fails when the stream ends first.
+   *
+   * {{{
+   * import zio._
+   *
+   * val numbers: ZStream[Any, Nothing, Int] =
+   *   ZStream.async[Any, Nothing, Int] { emit =>
+   *     emit.single(1)
+   *     emit.chunk(Chunk(2, 3))
+   *     emit.end
+   *   }
+   * // numbers.runCollect succeeds with Chunk(1, 2, 3)
+   * }}}
+   *
+   * @see [[https://zio.dev/reference/stream/zstream/creating-zio-streams/ Creating ZIO Streams]]
    */
   def async[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Unit,
@@ -45,9 +71,23 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The registration of the callback returns either a canceler or
-   * synchronously returns a stream. The optionality of the error type `E` can
-   * be used to signal the end of the stream, by setting it to `None`.
+   * times, like `async`. `register` receives the callback, is called once when
+   * the stream starts, and returns either `Left(canceler)` or `Right(stream)`.
+   * The canceler runs when the stream ends: by the end signal, a failure,
+   * interruption or a downstream `take`. With `Right(stream)`, the result is
+   * `stream`, and the callback is ignored.
+   *
+   * Each call of the callback runs the effect it is given: a chunk emits its
+   * values, a failure with `Some(e)` fails the stream with `e`, and a failure
+   * with `None` ends the stream. The methods of `ZStream.Emit` (`single`,
+   * `chunk`, `fail`, `die`, `end`, ...) build these effects.
+   *
+   * Up to `outputBuffer` chunks wait in a buffer until the stream pulls them.
+   *
+   * On the JVM and Scala Native, each call of the callback blocks the calling
+   * thread until its chunk is in the buffer. On Scala.js, each call returns at
+   * once with a `Future[Boolean]` that completes with `true` when the chunk is
+   * in the buffer, and fails when the stream ends first.
    */
   def asyncInterrupt[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Either[URIO[R, Any], ZStream[R, E, A]],
@@ -90,9 +130,20 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The registration of the callback itself returns an a scoped
-   * resource. The optionality of the error type `E` can be used to signal the
-   * end of the stream, by setting it to `None`.
+   * times, like `async`. The registration of the callback itself returns a
+   * scoped resource: its scope closes when the stream ends, and a failure of
+   * `register` fails the stream.
+   *
+   * Each call of the callback runs the effect it is given: a chunk emits its
+   * values, a failure with `Some(e)` fails the stream with `e`, and a failure
+   * with `None` ends the stream.
+   *
+   * Up to `outputBuffer` chunks wait in a buffer until the stream pulls them.
+   *
+   * On the JVM and Scala Native, each call of the callback blocks the calling
+   * thread until its chunk is in the buffer. On Scala.js, each call returns at
+   * once with a `Future[Boolean]` that completes with `true` when the chunk is
+   * in the buffer, and fails when the stream ends first.
    */
   def asyncScoped[R, E, A](
     register: (ZIO[R, Option[E], Chunk[A]] => Future[Boolean]) => ZIO[R with Scope, E, Any],
@@ -122,9 +173,21 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple
-   * times The registration of the callback itself returns an effect. The
-   * optionality of the error type `E` can be used to signal the end of the
-   * stream, by setting it to `None`.
+   * times, like `async`. The registration of the callback itself returns an
+   * effect, which runs when the stream starts; a failure of that effect fails
+   * the stream.
+   *
+   * Each call of the callback runs the effect it is given: a chunk emits its
+   * values, a failure with `Some(e)` fails the stream with `e`, and a failure
+   * with `None` ends the stream. The methods of `ZStream.Emit` (`single`,
+   * `chunk`, `fail`, `die`, `end`, ...) build these effects.
+   *
+   * Up to `outputBuffer` chunks wait in a buffer until the stream pulls them.
+   *
+   * On the JVM and Scala Native, each call of the callback blocks the calling
+   * thread until its chunk is in the buffer. On Scala.js, each call returns at
+   * once with a `Future[Boolean]` that completes with `true` when the chunk is
+   * in the buffer, and fails when the stream ends first.
    */
   def asyncZIO[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => ZIO[R, E, Any],
@@ -158,9 +221,22 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an asynchronous callback that can be called multiple
-   * times. The registration of the callback can possibly return the stream
-   * synchronously. The optionality of the error type `E` can be used to signal
-   * the end of the stream, by setting it to `None`.
+   * times, like `async`. The registration of the callback can return the stream
+   * synchronously: with `Some(stream)`, the result is `stream`, and the
+   * callback is ignored; with `None`, the stream emits what the callback
+   * receives.
+   *
+   * Each call of the callback runs the effect it is given: a chunk emits its
+   * values, a failure with `Some(e)` fails the stream with `e`, and a failure
+   * with `None` ends the stream. The methods of `ZStream.Emit` (`single`,
+   * `chunk`, `fail`, `die`, `end`, ...) build these effects.
+   *
+   * Up to `outputBuffer` chunks wait in a buffer until the stream pulls them.
+   *
+   * On the JVM and Scala Native, each call of the callback blocks the calling
+   * thread until its chunk is in the buffer. On Scala.js, each call returns at
+   * once with a `Future[Boolean]` that completes with `true` when the chunk is
+   * in the buffer, and fails when the stream ends first.
    */
   def asyncMaybe[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Option[ZStream[R, E, A]],
@@ -170,6 +246,15 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
 
   private[stream] trait ZStreamConstructorPlatformSpecific extends ZStreamConstructorLowPriority1
 
+  /**
+   * Creates a stream of bytes from the specified file, in chunks of at most
+   * `chunkSize` bytes.
+   *
+   * On the JVM and Scala Native, `file` is a `java.io.File`, read like
+   * `fromPath`. On Scala.js, `file` is a file name, read with the Node.js
+   * `fs.createReadStream` function. On Scala.js, a missing file fails the
+   * stream with a `Throwable` whose message contains `ENOENT`.
+   */
   def fromFile(file: => String, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: Trace
   ): ZStream[Any, Throwable, Byte] = {
