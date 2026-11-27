@@ -28,10 +28,10 @@ import scala.language.implicitConversions
  * _ZIO Test_ is a testing library for effectful programs.
  *
  * Every spec is an ordinary immutable value, built with `suite` and `test` and
- * composed like any other value. Because specs are ZIO effects, they can use
- * resources (including those requiring disposal), run sequentially or in
- * parallel, and use the ZIO combinators. Property-based tests use [[Gen]] with
- * `check`.
+ * composed like any other value. Because the tests in a spec are ZIO effects,
+ * they can use resources (including those requiring disposal), run
+ * sequentially or in parallel, and use the ZIO combinators. Property-based
+ * tests use [[Gen]] with `check`.
  *
  * {{{
  * import zio.test._
@@ -384,7 +384,7 @@ package object test extends CompileVariants {
   /**
    * A `ZTest[R, E]` is an effectfully produced test that requires an `R`. It
    * succeeds with a [[TestSuccess]], or fails with a [[TestFailure]] that holds
-   * either a failed assertion or an error of type `E`.
+   * either a failed assertion or the `Cause[E]` of the effect's failure.
    */
   type ZTest[-R, +E] = ZIO[R, TestFailure[E], TestSuccess]
 
@@ -485,7 +485,9 @@ package object test extends CompileVariants {
    * the `shrinks` setting of `TestConfig` (1000 by default) smaller inputs, and
    * the result reports the smallest failing input it found. A test effect that
    * fails with an error counts as a failing sample, and its input is shrunk the
-   * same way. A generator that produces no values makes the check run forever.
+   * same way. A test effect that dies is not shrunk: the check dies with that
+   * defect. A generator that produces no values makes the check run forever,
+   * and a warning is logged after 5 seconds.
    *
    * {{{
    * import zio.test._
@@ -912,7 +914,8 @@ package object test extends CompileVariants {
   /**
    * Checks the test passes for the specified number of samples from the given
    * random variable, instead of the `samples` setting of [[TestConfig]] that
-   * `check` uses. A failing sample is shrunk as in `check`.
+   * `check` uses. A failing sample is shrunk as in `check`, and a generator
+   * that produces no values makes the check run forever, as in `check`.
    *
    * {{{
    * import zio.test._
@@ -934,7 +937,8 @@ package object test extends CompileVariants {
    * the given random variable, running the test on up to `parallelism` samples
    * at the same time. The number of samples is the `samples` setting of
    * [[TestConfig]], as in `check`, and a failing sample is shrunk as in
-   * `check`.
+   * `check`. A generator that produces no values makes the check run forever,
+   * as in `check`.
    */
   def checkPar[R <: ZAny, A, In](rv: Gen[R, A], parallelism: Int)(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -1341,14 +1345,14 @@ package object test extends CompileVariants {
   implicit final class TestLensExitOps[E, A](private val self: TestLens[Exit[E, A]]) extends AnyVal {
 
     /**
-     * Transforms an [[Exit]] to a [[scala.Throwable]] if it is a `die`,
-     * otherwise fails.
+     * Transforms an [[Exit]] to the [[scala.Throwable]] of the first `Die` in
+     * its cause when the cause contains one, otherwise fails.
      */
     def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
 
     /**
-     * Transforms an [[Exit]] to its failure type (`E`) if it is a `fail`,
-     * otherwise fails.
+     * Transforms an [[Exit]] to the error (`E`) of the first `Fail` in its
+     * cause when the cause contains one, otherwise fails.
      */
     def failure: TestLens[E] = throw SmartAssertionExtensionError()
 
@@ -1365,8 +1369,8 @@ package object test extends CompileVariants {
     def cause: TestLens[Cause[E]] = throw SmartAssertionExtensionError()
 
     /**
-     * Transforms an [[Exit]] to a boolean value representing whether or not it
-     * was interrupted.
+     * Succeeds with `true` when the [[Exit]] is a failure whose cause contains
+     * an interruption, and fails otherwise.
      */
     def interrupted: TestLens[Boolean] = throw SmartAssertionExtensionError()
   }
@@ -1375,20 +1379,20 @@ package object test extends CompileVariants {
   implicit final class TestLensCauseOps[E](private val self: TestLens[Cause[E]]) extends AnyVal {
 
     /**
-     * Transforms a [[Cause]] to a [[scala.Throwable]] if it is a `die`,
-     * otherwise fails.
+     * Transforms a [[Cause]] to the [[scala.Throwable]] of its first `Die`
+     * when it contains one, otherwise fails.
      */
     def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
 
     /**
-     * Transforms a [[Cause]] to its failure type (`E`) if it is a `fail`,
-     * otherwise fails.
+     * Transforms a [[Cause]] to the error (`E`) of its first `Fail` when it
+     * contains one, otherwise fails.
      */
     def failure: TestLens[E] = throw SmartAssertionExtensionError()
 
     /**
-     * Transforms a [[Cause]] to a boolean value representing whether or not it
-     * was interrupted.
+     * Succeeds with `true` when the [[Cause]] contains an interruption, and
+     * fails otherwise.
      */
     def interrupted: TestLens[Boolean] = throw SmartAssertionExtensionError()
   }
@@ -1450,8 +1454,8 @@ package object test extends CompileVariants {
 
     /**
      * This extension method can only be called inside of the `assertTrue`
-     * method; anywhere else it throws a `SmartAssertionExtensionError`. It will
-     * transform the value using the given [[TestLens]].
+     * method; anywhere else it throws an exception. It transforms the value
+     * using the given [[TestLens]].
      *
      * {{{
      * import zio.test._

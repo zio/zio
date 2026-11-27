@@ -89,8 +89,8 @@ trait GenZIO {
 
   /**
    * A generator of the specified effect raced with `ZIO.never`. When the effect
-   * succeeds the result is the same as the effect's. When the effect fails, the
-   * race waits for `ZIO.never`, so the result does not complete.
+   * succeeds the result is the same as the effect's. When the effect fails or
+   * dies, the race waits for `ZIO.never`, so the result does not complete.
    */
   final def concurrent[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): Gen[Any, ZIO[R, E, A]] =
     Gen.const(zio.race(ZIO.never))

@@ -6,9 +6,9 @@ import zio.stm.ZSTM
 
 /**
  * A type class that turns the body of a property (the function passed to
- * `check`, `checkAll`, `checkN` or `checkPar`) into an effect that produces a
- * [[TestResult]]. Instances exist for a `TestResult`, and for a `ZIO`, a `ZSTM`
- * or an `Either` whose success type is a `TestResult`.
+ * `check`, `checkAll`, `checkN`, `checkPar` or `checkAllPar`) into an effect
+ * that produces a [[TestResult]]. Instances exist for a `TestResult`, and for
+ * a `ZIO`, a `ZSTM` or an `Either` whose success type is a `TestResult`.
  *
  * @tparam Environment
  *   the environment of the generator

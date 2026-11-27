@@ -18,7 +18,11 @@ trait Sized extends Serializable {
   /** Runs `zio` with the given size, then restores the previous size. */
   def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 
-  /** Returns a generator that runs `gen` with the size set to `size`. */
+  /**
+   * Returns a generator that runs `gen` with the size set to `size` until
+   * `gen` emits its first value. The previous size is restored as each value
+   * is emitted, so later values of `gen` see the previous size.
+   */
   def withSizeGen[R, A](size: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, A]
 }
 
@@ -45,8 +49,9 @@ object Sized {
       fiberRef.locally(size)(zio)
 
     /**
-     * Returns a generator that runs `gen` with the size set to `size`. The
-     * previous size is restored before each generated value is emitted.
+     * Returns a generator that runs `gen` with the size set to `size` until
+     * `gen` emits its first value. The previous size is restored as each value
+     * is emitted, so later values of `gen` see the previous size.
      */
     def withSizeGen[R, A](size: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, A] =
       Gen {
@@ -88,7 +93,9 @@ object Sized {
 
   /**
    * Returns a generator that runs `gen` with the size of the current `Sized`
-   * service set to `size`.
+   * service set to `size` until `gen` emits its first value. The previous size
+   * is restored as each value is emitted, so later values of `gen` see the
+   * previous size.
    */
   def withSizeGen[R, A](size: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, A] =
     Gen.fromZIO(sized).flatMap(_.withSizeGen(size)(gen))

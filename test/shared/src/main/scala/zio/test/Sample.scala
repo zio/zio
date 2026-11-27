@@ -27,8 +27,10 @@ import zio.{ZIO, Zippable, Trace}
 final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
   /**
-   * Combines this sample with `that` sample into a sample of pairs. A symbolic
-   * alias for `zip`.
+   * Combines this sample with `that` sample. A symbolic alias for `zip`. The
+   * values are combined with `Zippable`, which flattens nested tuples and
+   * drops `Unit` values, so a pair sample combined with an `Int` sample gives
+   * a triple.
    */
   def <*>[R1 <: R, B](
     that: Sample[R1, B]
@@ -77,8 +79,9 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
       ZStream(value) ++ shrink.takeUntil(v => f(v.value)).flatMap(_.shrinkSearch(f))
 
   /**
-   * Composes this sample with the specified sample to create a cartesian
-   * product of values and shrinkings.
+   * Combines this sample with `that` sample. The shrinks of the result are the
+   * shrinks of `that` paired with this value, followed by the shrinks of this
+   * sample paired with `that` sample.
    */
   def zip[R1 <: R, B](
     that: Sample[R1, B]
@@ -86,8 +89,9 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
     self.zipWith(that)(zippable.zip(_, _))
 
   /**
-   * Composes this sample with the specified sample to create a cartesian
-   * product of values and shrinkings with the specified function.
+   * Combines this sample with `that` sample using `f`. The shrinks of the
+   * result are the shrinks of `that` combined with this value, followed by the
+   * shrinks of this sample combined with `that` sample, all with `f`.
    */
   def zipWith[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C)(implicit trace: Trace): Sample[R1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
@@ -105,8 +109,11 @@ object Sample {
   /**
    * Creates a sample of `a` that shrinks toward `smallest`. The first shrink is
    * halfway between `smallest` and `a`, and each next one halves the remaining
-   * distance to `a`; the list stops once that distance is below `0.001`.
-   * Following the shrinks of the shrinks reaches `smallest`.
+   * distance to `a`. Once that distance is below `0.001`, the list ends by
+   * repeating its previous shrink. When `a` differs from `smallest` by less
+   * than `0.002`, the only shrink is `smallest`, and when `a` equals `smallest`
+   * there are no shrinks. Following the shrinks of the shrinks reaches
+   * `smallest`.
    *
    * {{{
    * import zio._
