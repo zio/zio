@@ -62,9 +62,7 @@ final class TMap[K, V] private (
     get(k).map(_.isDefined)
 
   /**
-   * Returns `true` when `size` is 0. After `make` or `fromIterable` with a
-   * repeated key, `size` is larger than the number of bindings, so this can
-   * return `false` for a map with no bindings.
+   * Returns `true` when `size` is 0.
    */
   def isEmpty: USTM[Boolean] =
     tSize.get.map(_ == 0)
@@ -409,12 +407,7 @@ final class TMap[K, V] private (
     removeIfDiscard(!p(_, _))
 
   /**
-   * Returns the number of bindings. After `make` or `fromIterable` with a
-   * repeated key, it also counts each repeat, so it is larger than the number
-   * of bindings until `removeIf`, `removeIfDiscard`, `retainIf`,
-   * `retainIfDiscard`, `transform`, `transformSTM`, `transformValues`,
-   * `transformValuesSTM`, or a `takeSome` that removes a binding, counts the
-   * bindings again.
+   * Returns the number of bindings.
    */
   val size: USTM[Int] =
     tSize.get
@@ -720,18 +713,13 @@ object TMap {
     fromIterable(Nil)
 
   /**
-   * Makes a new `TMap` with the bindings of `data`. When `data` repeats a key,
-   * the map keeps the last value for it, but `size` counts every pair of
-   * `data`.
+   * Makes a new `TMap` with the bindings of `data`.
    */
   def fromIterable[K, V](data: => Iterable[(K, V)]): USTM[TMap[K, V]] =
     make(data.toSeq: _*)
 
   /**
-   * Makes a new `TMap` with the bindings of `data`. When `data` repeats a key,
-   * the map keeps the last value for it, but `size` counts every pair of
-   * `data`: `TMap.make(1 -> "a", 1 -> "b")` holds only `1 -> "b"` and has a
-   * `size` of 2.
+   * Makes a new `TMap` with the bindings of `data`.
    */
   def make[K, V](data: (K, V)*): USTM[TMap[K, V]] =
     ZSTM.succeed(unsafe.make(data: _*)(Unsafe.unsafe))
@@ -744,8 +732,7 @@ object TMap {
 
     /**
      * Makes a new `TMap` with the bindings of `data` without running a
-     * transaction. When `data` repeats a key, the map keeps the last value for
-     * it, but `size` counts every pair of `data`.
+     * transaction.
      */
     def make[K, V](data: (K, V)*)(implicit unsafe: Unsafe): TMap[K, V] = {
       val size     = data.size

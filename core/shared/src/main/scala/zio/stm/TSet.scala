@@ -36,10 +36,7 @@ final class TSet[A] private (private val tmap: TMap[A, Unit]) extends AnyVal {
     tmap.contains(a)
 
   /**
-   * Returns whether the set is empty. After `make` or `fromIterable` with a
-   * repeated element, the set keeps a count that includes each repeat, so this
-   * can return `false` for a set with no elements; `size` counts the elements
-   * themselves.
+   * Returns whether the set is empty.
    */
   def isEmpty: USTM[Boolean] =
     tmap.isEmpty
@@ -212,17 +209,13 @@ object TSet {
     fromIterable(Nil)
 
   /**
-   * Makes a new `TSet` with the elements of `data`. When `data` repeats an
-   * element, the count behind `isEmpty` includes each repeat.
+   * Makes a new `TSet` with the elements of `data`.
    */
   def fromIterable[A](data: => Iterable[A]): USTM[TSet[A]] =
     make(data.toSeq: _*)
 
   /**
-   * Makes a new `TSet` with the elements of `data`. When `data` repeats an
-   * element, the count behind `isEmpty` includes each repeat: after
-   * `TSet.make(1, 1)` and `delete(1)`, `isEmpty` returns `false` while `size`
-   * returns 0.
+   * Makes a new `TSet` with the elements of `data`.
    */
   def make[A](data: A*): USTM[TSet[A]] =
     ZSTM.succeed(unsafe.make(data: _*)(Unsafe.unsafe))
@@ -235,8 +228,7 @@ object TSet {
 
     /**
      * Makes a new `TSet` with the elements of `data` without running a
-     * transaction. When `data` repeats an element, the count behind `isEmpty`
-     * includes each repeat.
+     * transaction.
      */
     def make[A](data: A*)(implicit unsafe: Unsafe): TSet[A] =
       new TSet(TMap.unsafe.make(data.map((_, ())): _*))
