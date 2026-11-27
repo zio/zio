@@ -284,7 +284,7 @@
   flex-shrink: 0;
 }
 
-.blockTag {
+.siteTag {
   color: var(--eco-blocks-ink);
   background: var(--eco-blocks-soft);
 }

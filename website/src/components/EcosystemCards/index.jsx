@@ -65,8 +65,18 @@ function Name({ name }) {
   return zio ? <><span className={styles.prefix}>{zio[1]}</span>{zio[2]}</> : name;
 }
 
+// The website a card belongs to: ZIO Blocks and ZIO HTTP have their own sites; the other official libraries are on
+// zio.dev. Official links to other sites (ZIO IntelliJ on GitHub) get no tag.
+function siteOf(card) {
+  if (isBlock(card)) return 'zioblocks.com';
+  if (card.href.startsWith('https://ziohttp.com')) return 'ziohttp.com';
+  if (card.kind === 'official' && card.href.startsWith('/')) return 'zio.dev';
+  return null;
+}
+
 function Card({ card, first }) {
   const block = isBlock(card);
+  const site = siteOf(card);
   return (
     <li className={clsx(styles.card, block && styles.block, first && styles.first)}>
       <div className={styles.top}>
@@ -81,7 +91,7 @@ function Card({ card, first }) {
           ) : (
             <span className={clsx(styles.kind, styles[card.kind])}>{KIND_LABEL[card.kind]}</span>
           )}
-          {block && <span className={clsx(styles.kind, styles.blockTag)}>Block</span>}
+          {site && <span className={clsx(styles.kind, styles.siteTag)}>{site}</span>}
         </span>
       </div>
       <p className={styles.description}><Text>{card.description}</Text></p>
