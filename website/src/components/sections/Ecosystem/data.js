@@ -1,3 +1,5 @@
+import { FaWaveSquare, FaVial, FaLock } from 'react-icons/fa6';
+
 export const ecosystemProjects = [
   {
     name: 'ZIO Blocks',
@@ -44,7 +46,7 @@ export const ecosystemProjects = [
       'Non-blocking and asynchronous processing',
     ],
     link: '/reference/stream',
-    icon: '🔗'
+    icon: FaWaveSquare
   },
   {
     name: 'ZIO Test',
@@ -56,7 +58,7 @@ export const ecosystemProjects = [
       'Integration with JUnit and other frameworks'
     ],
     link: '/reference/test',
-    icon: '✅'
+    icon: FaVial
   },
   {
     name: 'ZIO STM',
@@ -68,7 +70,7 @@ export const ecosystemProjects = [
       'Automatic retry of interrupted transactions'
     ],
     link: '/reference/stm',
-    icon: '🔒'
+    icon: FaLock
   },
   {
     name: 'ZIO Schema',

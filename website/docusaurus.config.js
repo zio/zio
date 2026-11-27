@@ -131,10 +131,10 @@ const config = {
     footer: {
       links: [
         {
-          title: 'Learn!',
+          title: 'Learn',
           items: [
             {
-              label: 'Getting Started!',
+              label: 'Getting Started',
               href: '/overview/getting-started',
             },
             {
@@ -156,7 +156,7 @@ const config = {
           title: 'Community and Social',
           items: [
             {
-              label: 'Github',
+              label: 'GitHub',
               href: 'https://github.com/zio/zio',
             },
             {
@@ -174,7 +174,7 @@ const config = {
           items: [
             {
               html: `
-                <a href="https://ziverge.us21.list-manage.com/subscribe?u=320ecb1626d9d6e2f5c111cce&id=75ac6a8d09" target="_blank" style="background-color:#e73c00;color:#fff;display:inline-block;font-size:14px;font-weight:bold;line-height:30px;text-align:center;text-decoration:none;width:100px;-webkit-text-size-adjust:none;border-radius: 10px; -moz-border-radius: 10px; -webkit-border-radius: 10px;">Subscribe</a>
+                <a href="https://ziverge.us21.list-manage.com/subscribe?u=320ecb1626d9d6e2f5c111cce&id=75ac6a8d09" target="_blank" class="button button--primary button--sm">Subscribe</a>
               `,
             },
           ],
@@ -191,7 +191,7 @@ const config = {
               href: '/contributing-to-zio-ecosystem',
             },
             {
-              label: 'Contributing to The ZIO Documentation',
+              label: 'Contributing to the ZIO Documentation',
               href: '/contributing-to-documentation',
             },
             {
