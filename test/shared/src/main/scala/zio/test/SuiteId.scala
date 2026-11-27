@@ -20,8 +20,8 @@ case class SuiteId(id: Int)
  */
 object SuiteId {
   /**
-   * The id with number 0, which stands for the top level of a run, above
-   * every group.
+   * The id with number 0, which stands for the top level of a run,
+   * outside every group.
    */
   val global: SuiteId = SuiteId(0)
 

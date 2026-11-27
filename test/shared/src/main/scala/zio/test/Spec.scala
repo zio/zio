@@ -23,7 +23,7 @@ import zio.test.Spec._
 /**
  * A `Spec[R, E]` is a tree of tests. Each node is a test, a labeled suite of
  * other specs, a group of specs, a node that sets the execution strategy of
- * the specs below it, or a scoped node that acquires resources for them. `R`
+ * the specs inside it, or a scoped node that acquires resources for them. `R`
  * is the environment that the tests need and `E` is the error type with which
  * they can fail.
  *
