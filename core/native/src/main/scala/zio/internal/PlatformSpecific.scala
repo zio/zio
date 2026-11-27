@@ -31,6 +31,11 @@ private[zio] trait PlatformSpecific {
   final def addShutdownHook(action: () => Unit)(implicit unsafe: zio.Unsafe): Unit =
     blackhole(action)
 
+  final def addShutdownHookScoped(action: () => Unit)(implicit unsafe: zio.Unsafe): () => Unit = {
+    blackhole(action)
+    () => ()
+  }
+
   /**
    * Adds a signal handler for the specified signal (e.g. "INFO"). This method
    * never fails even if adding the handler fails.
