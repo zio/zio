@@ -20,18 +20,16 @@ import org.junit.platform.engine.support.descriptor.AbstractTestDescriptor
 import org.junit.platform.engine.{TestDescriptor, UniqueId}
 
 /**
- * Describes a JUnit 5 test descriptor for a suite of ZIO tests.
+ * The JUnit Platform descriptor of a ZIO Test suite: a container whose display name is the suite label and whose source is the spec class.
  *
- * @constructor
- *   Creates an instance of ZIOSuiteTestDescriptor.
  * @param parent
- *   The parent TestDescriptor.
+ *   the parent descriptor
  * @param uniqueId
- *   The unique identifier for this test descriptor.
+ *   the unique id of this descriptor
  * @param label
- *   The display name of this test descriptor.
+ *   the suite label, used as the display name
  * @param testClass
- *   The class representing the suite of tests.
+ *   the spec class, used as the test source
  */
 class ZIOSuiteTestDescriptor(
   parent: TestDescriptor,
@@ -40,9 +38,14 @@ class ZIOSuiteTestDescriptor(
   testClass: Class[_]
 ) extends AbstractTestDescriptor(uniqueId, label, ZIOTestSource(testClass)) {
   setParent(parent)
+
+  /** Returns `CONTAINER`. */
   override def getType: TestDescriptor.Type = TestDescriptor.Type.CONTAINER
 }
 
+/** Constants of [[ZIOSuiteTestDescriptor]]. */
 object ZIOSuiteTestDescriptor {
+
+  /** The unique id segment type of suite descriptors: `suite`. */
   val segmentType = "suite"
 }

@@ -5,14 +5,12 @@ import scala.util.Try
 private[zio] object ReflectionUtils {
 
   /**
-   * Retrieves the companion object of the specified class, if it exists. Here
-   * we use plain java reflection as runtime reflection is not available for
-   * scala 3
+   * Returns the Scala object of `klass`: the object itself when `klass` is the class of an object (its name ends with `\$`), or the companion object of `klass` otherwise. Returns `None` when there is no such object. The companion object's class is loaded with the class loader of the ZIO JUnit engine. It uses Java reflection instead of Scala runtime reflection, which Scala 3 doesn't have.
    *
    * @param klass
-   *   The class for which to retrieve the companion object.
+   *   the class whose object to return
    * @return
-   *   the optional companion object.
+   *   the object, or `None`
    */
   def getCompanionObject(klass: Class[_]): Option[Any] =
     Try {
