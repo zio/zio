@@ -21,19 +21,14 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `THub` is a transactional message hub. Publishers publish messages to the
- * hub, and each subscriber receives the messages published after it subscribed,
- * except those that a dropping or sliding hub discards. It works like `Hub`,
- * but its operations are STM transactions, so publishing and taking can be
- * combined with other transactional operations and commit together.
+ * hub, and subscribers subscribe to take messages published after they
+ * subscribed. It works like `Hub`, but its operations are STM transactions, so
+ * publishing and taking can be combined with other transactional operations
+ * and commit together.
  *
- * A subscription is a [[TDequeue]]. The hub keeps a message until every
- * subscriber that was subscribed when it was published has taken it or
- * unsubscribed. What `publish` does when the hub is full depends on the
- * constructor: `bounded` waits for room, `dropping` discards the new message,
- * and `sliding` discards the oldest message. A `null` message is not delivered
- * to any subscriber, but it keeps counting toward `size` and the capacity, so
- * once `null` messages fill a bounded or sliding hub, `publish` waits, and a
- * dropping hub discards every new message.
+ * A subscription is a [[TDequeue]]. What `publish` does when the hub is full
+ * depends on the constructor: `bounded` waits for room, `dropping` discards the
+ * new message, and `sliding` discards the oldest message.
  *
  * {{{
  * import zio._
@@ -58,34 +53,30 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 sealed abstract class THub[A] extends TEnqueue.Internal[A] {
 
   /**
-   * Publishes a message to every current subscriber. With no subscribers, the
-   * message is discarded and the result is `true`. A `null` message is not
-   * delivered, but it counts toward the hub's size. When the hub is full, a
-   * bounded hub retries, so the fiber suspends until the subscribers have taken
-   * enough messages to make room; a dropping hub discards the message and
-   * succeeds with `false`; a sliding hub drops the oldest message and succeeds
-   * with `true`.
+   * Publishes a message to the hub. With no subscribers, the message is
+   * discarded and the result is `true`. When the hub is full, a bounded hub
+   * retries, so the fiber suspends until the subscribers have taken enough
+   * messages to make room; a dropping hub discards the message and succeeds
+   * with `false`; a sliding hub drops the oldest message and succeeds with
+   * `true`.
    */
   def publish(a: A): USTM[Boolean]
 
   /**
    * Publishes the messages one by one in a single transaction, and succeeds
-   * with `true` when every one of them was published. A bounded hub with
-   * subscribers retries until there is room for all of them at once, so
-   * publishing more messages than the capacity does not complete. A dropping
-   * hub publishes the messages that fit and succeeds with `false` when it
-   * discards any. A sliding hub drops the oldest messages to make room, so
-   * subscribers keep the last messages.
+   * with `true` when every one of them was published. When there is not room
+   * for all of them, a bounded hub with subscribers retries, so the fiber
+   * suspends until the hub changes. A dropping hub publishes the messages that
+   * fit and succeeds with `false` when it discards any. A sliding hub drops the
+   * oldest messages to make room and succeeds with `true`.
    */
   def publishAll(as: Iterable[A]): USTM[Boolean]
 
   /**
-   * Subscribes to the hub. The subscription is a [[TDequeue]] that receives the
-   * messages published after it was created, except `null` messages and those
-   * that a dropping or sliding hub discards. The caller unsubscribes by
+   * Subscribes to the hub. The subscription is a [[TDequeue]] that receives
+   * messages published after it was created. The caller unsubscribes by
    * shutting the subscription down; until then, the messages it has not taken
-   * count toward the hub's size and capacity. Subscribing to a hub that is shut
-   * down returns a subscription that is already shut down.
+   * count toward the hub's size and capacity.
    */
   def subscribe: USTM[TDequeue[A]]
 
@@ -118,7 +109,7 @@ sealed abstract class THub[A] extends TEnqueue.Internal[A] {
 
   /**
    * Subscribes to the hub, committing the subscription right away, and shuts
-   * the subscription down when the scope closes. The subscription receives the
+   * the subscription down when the scope closes. The subscription receives
    * messages published after it was created, as with `subscribe`.
    */
   final def subscribeScoped(implicit trace: Trace): ZIO[Scope, Nothing, TDequeue[A]] =
@@ -134,8 +125,7 @@ object THub {
    * Creates a bounded hub with the back pressure strategy. The hub keeps
    * messages until they have been taken by all subscribers. When it is full,
    * `publish` retries, so the publishing fiber suspends until the subscribers
-   * make room. The capacity is not checked: with a capacity of 0 or less and at
-   * least one subscriber, `publish` never completes.
+   * make room.
    */
   def bounded[A](requestedCapacity: => Int): USTM[THub[A]] =
     makeHub(requestedCapacity, Strategy.BackPressure)
@@ -150,9 +140,7 @@ object THub {
   /**
    * Creates a bounded hub with the sliding strategy. When the hub is full,
    * `publish` drops the oldest message, so subscribers that had not taken it no
-   * longer receive it, adds the new one and succeeds with `true`. With a
-   * capacity of 0 or less, `publish` discards the new message and succeeds with
-   * `true`.
+   * longer receive it, adds the new one and succeeds with `true`.
    */
   def sliding[A](requestedCapacity: => Int): USTM[THub[A]] =
     makeHub(requestedCapacity, Strategy.Sliding)

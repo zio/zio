@@ -54,15 +54,11 @@ sealed trait TEnqueue[-A] extends Serializable {
   def offer(a: A): ZSTM[Any, Nothing, Boolean]
 
   /**
-   * Offers the values to the queue in order. A bounded queue retries until
-   * there is room for all of them at once, so offering more values than the
-   * capacity does not complete. A dropping queue adds the values that fit and
-   * succeeds with `false` when it discards any. A sliding queue drops its
-   * oldest values to make room and succeeds with `true`; when `as` alone has
-   * more values than the capacity, a sliding [[THub]] keeps the last values of
-   * `as`, while a sliding [[TQueue]] replaces its contents with the first
-   * `capacity` values of `as`. A [[THub]] with no subscribers discards the
-   * values and succeeds with `true`.
+   * Offers the values to the queue in order. When there is not room for all
+   * of them, a bounded queue retries, so the fiber suspends until the queue
+   * changes. A dropping queue adds the values that fit and succeeds with
+   * `false` when it discards any. A sliding queue succeeds with `true`. A
+   * [[THub]] with no subscribers discards the values and succeeds with `true`.
    */
   def offerAll(as: Iterable[A]): ZSTM[Any, Nothing, Boolean]
 
@@ -73,9 +69,7 @@ sealed trait TEnqueue[-A] extends Serializable {
   def shutdown: USTM[Unit]
 
   /**
-   * The current number of values in the queue. For a [[THub]], the number of
-   * messages that at least one subscriber has not taken yet, plus every `null`
-   * message published while it had subscribers.
+   * The current number of values in the queue.
    */
   def size: USTM[Int]
 

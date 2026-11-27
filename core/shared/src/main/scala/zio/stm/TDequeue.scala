@@ -59,15 +59,13 @@ sealed trait TDequeue[+A] extends Serializable {
 
   /**
    * Shuts down the queue. A fiber suspended in `take` on it wakes up and is
-   * interrupted. Shutting down a hub subscription unsubscribes it from the hub:
-   * the messages it had not taken stop counting toward the hub's size, apart
-   * from `null` messages, which keep counting.
+   * interrupted. Shutting down a hub subscription unsubscribes it from the
+   * hub.
    */
   def shutdown: USTM[Unit]
 
   /**
-   * The current number of values in the queue. For a hub subscription, the
-   * number of messages it has not taken yet.
+   * The current number of values in the queue.
    */
   def size: USTM[Int]
 
@@ -85,8 +83,7 @@ sealed trait TDequeue[+A] extends Serializable {
 
   /**
    * Takes up to `max` values from the queue without waiting. The result is
-   * empty when the queue is empty or `max` is 0. With a negative `max`, a
-   * [[TQueue]] takes no values and a hub subscription takes all of them.
+   * empty when the queue is empty or `max` is 0.
    */
   def takeUpTo(max: Int): ZSTM[Any, Nothing, Chunk[A]]
 
@@ -157,8 +154,7 @@ sealed trait TDequeue[+A] extends Serializable {
    * Takes the specified number of elements from the queue. If there are fewer
    * than `n` elements available, the transaction retries without taking any, so
    * the fiber suspends until they become available. The result is empty when
-   * `n` is 0. With a negative `n`, a [[TQueue]] takes no values and a hub
-   * subscription takes all of them.
+   * `n` is 0.
    */
   final def takeN(n: Int): ZSTM[Any, Nothing, Chunk[A]] =
     takeBetween(n, n)

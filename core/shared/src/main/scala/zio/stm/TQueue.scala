@@ -81,8 +81,7 @@ object TQueue {
   /**
    * Creates a bounded queue with the back pressure strategy. The queue keeps
    * values until they are taken. When it is full, `offer` retries, so the
-   * offering fiber suspends until a take makes room. The capacity is not
-   * checked: with a capacity of 0 or less, `offer` never completes.
+   * offering fiber suspends until a take makes room.
    */
   def bounded[A](requestedCapacity: => Int): USTM[TQueue[A]] =
     makeQueue(requestedCapacity, Strategy.BackPressure)
@@ -97,8 +96,6 @@ object TQueue {
   /**
    * Creates a bounded queue with the sliding strategy. When the queue is full,
    * `offer` drops the oldest value, adds the new one and succeeds with `true`.
-   * With a capacity of 0 or less, `offer` discards the new value and succeeds
-   * with `true`.
    */
   def sliding[A](requestedCapacity: => Int): USTM[TQueue[A]] =
     makeQueue(requestedCapacity, Strategy.Sliding)
