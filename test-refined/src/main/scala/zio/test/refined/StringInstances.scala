@@ -29,15 +29,9 @@ import zio.test.Gen
 object string extends StringInstances
 
 /**
- * Instances for the `EndsWith[S]`, `StartsWith[S]` and `Uuid` predicates of
- * `eu.timepit.refined.string`.
+ * Instances for the `EndsWith[S]`, `StartsWith[S]` and `Uuid` predicates of `eu.timepit.refined.string`.
  *
- * For `EndsWith[S]` and for `StartsWith[S]` there are three implicit
- * `DeriveGen` members (plain, `1` and `N`) with the same result type, so an
- * implicit search for `DeriveGen[Refined[String, EndsWith[S]]]` or
- * `DeriveGen[Refined[String, StartsWith[S]]]` with all of them in scope, for
- * example through `import zio.test.refined.all._`, reports an ambiguous
- * implicit. Call the `*Gen` members to pick one.
+ * For `EndsWith[S]` and for `StartsWith[S]` there are three implicit `DeriveGen` members (plain, `1` and `N`) with the same result type, so on Scala 2 an implicit search for `DeriveGen[Refined[String, EndsWith[S]]]` or `DeriveGen[Refined[String, StartsWith[S]]]` with all of them in scope, for example through `import zio.test.refined.all._`, reports an ambiguous implicit. On Scala 3, implicit search finds none of them for a literal `S` such as `StartsWith["ab"]`. Call the `*Gen` members to pick one.
  */
 trait StringInstances {
 

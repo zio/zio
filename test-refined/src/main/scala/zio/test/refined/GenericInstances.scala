@@ -29,7 +29,7 @@ import zio.test.Gen
 object generic extends GenericInstances
 
 /**
- * Instances for the `Equal[U]` predicate of `eu.timepit.refined.generic`.
+ * Instances for the `Equal[U]` predicate of `eu.timepit.refined.generic`. On Scala 3, implicit search does not find the implicit instance for a literal `U` such as `Refined[Int, Equal[3]]`; on Scala 2 it does.
  */
 trait GenericInstances {
 
