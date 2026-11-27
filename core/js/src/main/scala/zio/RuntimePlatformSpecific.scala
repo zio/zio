@@ -48,8 +48,9 @@ private[zio] trait RuntimePlatformSpecific {
     defaultExecutor
 
   /**
-   * An `IsFatal` that matches no error. Kept for binary compatibility: which
-   * errors count as fatal is no longer configurable.
+   * An `IsFatal` that matches `VirtualMachineError`s, such as
+   * `StackOverflowError`, and no other error. Kept for binary compatibility:
+   * which errors count as fatal is no longer configurable.
    */
   @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.23")
   final val defaultFatal: IsFatal =

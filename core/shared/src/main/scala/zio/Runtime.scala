@@ -131,9 +131,11 @@ trait Runtime[+R] { self =>
     /**
      * Executes the effect asynchronously on the runtime's executor, returning a
      * `Future` that completes when the effect ends: with its value, or failed
-     * with its typed error or its defect. When the effect is interrupted, the
+     * with its typed error or its defect. When a typed error and a defect occur
+     * together, it fails with the typed error. When the effect is interrupted,
+     * or dies with a `java.lang.Error` such as an `AssertionError`, the
      * `Future` fails with a `java.util.concurrent.ExecutionException` that
-     * wraps an `InterruptedException`.
+     * wraps the `InterruptedException` or the error.
      *
      * `cancel()` on the returned `CancelableFuture` interrupts the fiber and
      * returns a `Future` of the fiber's `Exit`, which completes once the fiber
@@ -352,6 +354,11 @@ object Runtime extends RuntimePlatformSpecific {
 
   /**
    * A layer that disables `flags` for the effects it is provided to.
+   *
+   * Composed in parallel with `++`, `enableFlags(f)` and `disableFlags(f)` do
+   * not apply one after the other: when `f` starts disabled, it ends enabled
+   * in either order, and when it starts enabled (as `FiberRoots` does), it
+   * ends disabled in either order. With `>>>`, the layer on the right wins.
    */
   def disableFlags(flags: RuntimeFlag*)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped {
@@ -373,7 +380,8 @@ object Runtime extends RuntimePlatformSpecific {
     enableFlags(RuntimeFlag.CurrentFiber)
 
   /**
-   * A layer that enables `flags` for the effects it is provided to.
+   * A layer that enables `flags` for the effects it is provided to. See
+   * `disableFlags` for what `enableFlags(f) ++ disableFlags(f)` does.
    */
   def enableFlags(flags: RuntimeFlag*)(implicit trace: Trace): ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped {
