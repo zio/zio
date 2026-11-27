@@ -62,7 +62,7 @@ trait FunctionVariants {
    * Constructs a generator of functions from `A` to `B` given a generator of
    * `B` values and a hashing function for `A` values. Two `A` values will be
    * considered to be equal, and thus will be guaranteed to generate the same
-   * `B` value, if they have have the same hash. This is useful when `A` does
+   * `B` value, if they have the same hash. This is useful when `A` does
    * not implement `hashCode` in a way that is consistent with equality.
    */
   final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int)(implicit trace: Trace): Gen[R, A => B] =

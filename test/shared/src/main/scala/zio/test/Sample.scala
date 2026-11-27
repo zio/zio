@@ -27,7 +27,8 @@ import zio.{ZIO, Zippable, Trace}
 final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
   /**
-   * A symbolic alias for `zip`.
+   * Combines this sample with `that` sample into a sample of pairs. A symbolic
+   * alias for `zip`.
    */
   def <*>[R1 <: R, B](
     that: Sample[R1, B]
