@@ -4,8 +4,7 @@ import zio._
 import zio.test._
 
 /**
- * Turns the result of a finished test into the text that is written to the test
- * results file. `ResultPrinter.json` uses [[ResultSerializer.Json]].
+ * Turns the result of a finished test into the text for the test results file, which is written on the JVM and Scala Native. `ResultPrinter.json` uses [[ResultSerializer.Json]].
  */
 trait ResultSerializer {
 

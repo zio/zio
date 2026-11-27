@@ -18,18 +18,12 @@ trait ResultPrinter {
 object ResultPrinter {
 
   /**
-   * The same as `json(TestArgs.reportsParentDefault)`, with the default reports
-   * directory `target`.
+   * The same as `json("target")`, which uses the default reports directory `target`.
    */
   val json: ZLayer[Any, Nothing, ResultPrinter] = json(TestArgs.reportsParentDefault)
 
   /**
-   * A layer whose printer turns each event into text with
-   * [[ResultSerializer.Json]] for the JSON results file. The file path is
-   * `reportsParent`, then `/`, then `TestArgs.jsonResultPath`
-   * (`test-reports-zio/output.json`). The test runner passes the directory of
-   * the `-reports` test argument, or `TestArgs.reportsParentDefault` (`target`)
-   * when there is none.
+   * A layer whose printer turns each event into text with [[ResultSerializer.Json]] for the JSON results file. The file path is `reportsParent` followed by `/test-reports-zio/output.json`. The test runner passes the directory of the `-reports` test argument, or `target` when there is none.
    *
    * On the JVM and Scala Native, the printer keeps the entries in memory and
    * writes the file when the layer is released, creating missing parent
