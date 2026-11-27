@@ -775,6 +775,111 @@ object ChunkSpec extends ZIOBaseSpec {
         assertTrue(actual == expected)
       }
     },
+    suite("toArray on slices of composite chunks (i11513)")(
+      test("slice ending right before a Singleton") {
+        val chunk = (Chunk.fromArray(Array(1, 2, 3)) ++ Chunk.single(4)).slice(0, 2)
+        assertTrue(chunk.toArray.toList == List(1, 2))
+      },
+      test("slice ending exactly at the end of the left side of a Concat") {
+        val chunk = (Chunk.fromArray(Array(1, 2)) ++ Chunk.single(3)).slice(0, 2)
+        assertTrue(chunk.toArray.toList == List(1, 2))
+      },
+      test("collect on a slice ending right before a Singleton") {
+        val chunk = (Chunk.fromArray(Array(1, 2)) ++ Chunk.single(3)).slice(0, 2)
+        assertTrue(chunk.collect { case x => x } == Chunk(1, 2))
+      },
+      test("slice starting at a Singleton") {
+        val chunk = Chunk.fromArray(Array(1, 2)) ++ Chunk.single(3)
+        assertTrue(
+          chunk.slice(2, 3).toArray.toList == List(3),
+          chunk.slice(1, 3).toArray.toList == List(2, 3)
+        )
+      },
+      test("slice with a Singleton on the left") {
+        val chunk = Chunk.single(0) ++ Chunk.fromArray(Array(1, 2))
+        assertTrue(
+          chunk.slice(0, 1).toArray.toList == List(0),
+          chunk.slice(1, 3).toArray.toList == List(1, 2),
+          chunk.slice(0, 2).toArray.toList == List(0, 1)
+        )
+      },
+      test("empty slice of a Concat with a Singleton") {
+        val chunk = Chunk.fromArray(Array(1, 2)) ++ Chunk.single(3)
+        assertTrue(
+          chunk.slice(0, 0).toArray.isEmpty,
+          chunk.slice(2, 2).toArray.isEmpty,
+          chunk.slice(3, 3).toArray.isEmpty
+        )
+      },
+      test("slices of an appended chunk") {
+        val chunk = Chunk.fromArray(Array(1, 2)) :+ 3
+        assertTrue(
+          chunk.slice(0, 2).toArray.toList == List(1, 2),
+          chunk.slice(2, 3).toArray.toList == List(3),
+          chunk.slice(1, 3).toArray.toList == List(2, 3),
+          chunk.slice(2, 2).toArray.isEmpty
+        )
+      },
+      test("slices of a prepended chunk") {
+        val chunk = 0 +: Chunk.fromArray(Array(1, 2))
+        assertTrue(
+          chunk.slice(0, 1).toArray.toList == List(0),
+          chunk.slice(1, 3).toArray.toList == List(1, 2),
+          chunk.slice(0, 2).toArray.toList == List(0, 1),
+          chunk.slice(1, 1).toArray.isEmpty
+        )
+      },
+      test("slices of an updated chunk") {
+        val chunk = Chunk.fromArray(Array(1, 2, 3)).updated(0, 9)
+        assertTrue(
+          chunk.slice(0, 0).toArray.isEmpty,
+          chunk.slice(0, 2).toArray.toList == List(9, 2),
+          chunk.slice(3, 3).toArray.isEmpty
+        )
+      },
+      test("non-zero offset slice of an updated chunk") {
+        val chunk = Chunk.fromArray(Array(1, 2, 3, 4)).updated(2, 99)
+        assertTrue(
+          chunk.drop(1).toArray.toList == List(2, 99, 4),
+          chunk.slice(1, 3).toArray.toList == List(2, 99)
+        )
+      },
+      test("slice of a Concat of a Singleton and an empty slice") {
+        val chunk = Chunk.single(1) ++ Chunk.fromArray(Array(2, 3)).slice(2, 2)
+        assertTrue(chunk.toArray.toList == List(1))
+      },
+      test("nested slices over Singletons") {
+        val chunk = (Chunk.single(1) ++ Chunk.single(2) ++ Chunk.single(3) ++ Chunk.single(4)).slice(1, 3).slice(0, 1)
+        assertTrue(chunk.toArray.toList == List(2))
+      },
+      test("any slice of a chunk built from arbitrary appends, prepends and concats") {
+        val structuredChunks: Gen[Any, Chunk[Int]] =
+          Gen.listOf(Gen.int(0, 3).zip(Gen.int(-10, 10))).map { ops =>
+            ops.foldLeft(Chunk.empty: Chunk[Int]) { case (acc, (op, i)) =>
+              op match {
+                case 0 => acc ++ Chunk.single(i)
+                case 1 => acc ++ Chunk.fromArray(Array(i, i + 1))
+                case 2 => acc :+ i
+                case _ => i +: acc
+              }
+            }
+          }
+        val slicedChunks = for {
+          chunk <- structuredChunks
+          from  <- Gen.int(0, chunk.length)
+          until <- Gen.int(from, chunk.length)
+        } yield (chunk, from, until)
+
+        check(slicedChunks) { case (chunk, from, until) =>
+          val expected = chunk.toList.slice(from, until)
+          val sliced   = chunk.slice(from, until)
+          assertTrue(
+            sliced.toArray.toList == expected,
+            sliced.collect { case x => x }.toList == expected
+          )
+        }
+      }
+    ),
     suite("Concat")(
       test("right only slice of concat converted to vector") {
         val chunk1 = Chunk(1, 2)
