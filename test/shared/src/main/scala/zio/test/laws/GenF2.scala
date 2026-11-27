@@ -21,23 +21,34 @@ import zio.test.{FunctionVariants, Gen}
 import zio.Trace
 
 /**
- * A `GenF` knows how to construct a generator of `F[A,B]` values given a
- * generator of `A` and generator of `B` values. For example, a `GenF2` of
- * `Function1` values knows how to generate functions A => B with elements given
- * a generator of elements of that type `B`.
+ * A `GenF2` knows how to construct a generator of `F[A, B]` values given a generator of `B` values, for any `A` and `B`. For example, a `GenF2` of `Function1` values knows how to generate functions `A => B` given a generator of their results of type `B`.
+ *
+ * The laws in `ZLawsF2` take a `GenF2` to build the `F[A, B]` values they check.
+ *
+ * {{{
+ * import zio.test._
+ *
+ * val lengths: Gen[Any, String => Int] =
+ *   GenF2.function1[Any, String, Int](Gen.int(0, 100))
+ * }}}
+ *
+ * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 trait GenF2[-R, F[_, _]] {
 
   /**
-   * Construct a generator of `F[A,B]` values given a generator of `B` values.
+   * Construct a generator of `F[A, B]` values given a generator of `B` values.
    */
   def apply[R1 <: R, A, B](gen: Gen[R1, B])(implicit trace: Trace): Gen[R1, F[A, B]]
 }
 
+/**
+ * `GenF2` instances. It also inherits the function generators of `FunctionVariants`, such as `function` and `functionWith`.
+ */
 object GenF2 extends FunctionVariants {
 
   /**
-   * A generator of `Function1` A => B values.
+   * A `GenF2` of `Function1` values: it builds a generator of functions `A => B` with `function`, whose results are drawn from the given generator of `B` values. A generated function returns the same result for two inputs with the same `hashCode`.
    */
   val function1: GenF2[Any, Function1] =
     new GenF2[Any, Function1] {
