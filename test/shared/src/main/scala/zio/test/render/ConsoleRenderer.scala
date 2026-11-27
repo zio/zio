@@ -148,7 +148,7 @@ trait ConsoleRenderer extends TestRenderer {
 
   /**
    * Renders `results` for the summary at the end of a run, one string per
-   * result. Each test or suite result gets its summary lines, its annotations
+   * result. Each `Passed`, `Failed` or `Ignored` test or suite result gets its summary lines, its annotations
    * rendered with `testAnnotationRenderer` and the console output recorded for
    * the test; an `Other` result gets its streaming lines.
    */
