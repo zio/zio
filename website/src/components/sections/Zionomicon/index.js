@@ -42,7 +42,7 @@ export default function HomepageZionomicon() {
                   to="https://www.zionomicon.com"
                   target="_blank"
                 >
-                  <span>Get the Book for Free</span>
+                  <span>Read Zionomicon</span>
                   <FaArrowRight />
                 </Link>
               </div>
