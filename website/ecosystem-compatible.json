@@ -1,0 +1,74 @@
+{
+  "compatible": [
+    {
+      "name": "d4s",
+      "href": "https://github.com/PlayQ/d4s",
+      "description": "\"Dynamo DB Database done Scala way\". A library that allows accessing the DynamoDB in a purely functional way"
+    },
+    {
+      "name": "Edomata",
+      "href": "https://github.com/hnaderi/edomata",
+      "description": "Production ready event-driven automata for Scala, Scala.js and scala native"
+    },
+    {
+      "name": "elastic4s",
+      "href": "https://github.com/sksamuel/elastic4s",
+      "description": "Elasticsearch Scala Client - Reactive, Non Blocking, Type Safe, HTTP Client"
+    },
+    {
+      "name": "Lepus",
+      "href": "https://github.com/hnaderi/lepus",
+      "description": "Your principled, purely functional, non-blocking RabbitMQ client for scala, scala js and scala native built on top of fs2"
+    },
+    {
+      "name": "neotypes",
+      "href": "https://github.com/neotypes/neotypes",
+      "description": "A Scala lightweight, type-safe & asynchronous driver for neo4j"
+    },
+    {
+      "name": "scanamo",
+      "href": "https://github.com/scanamo/scanamo",
+      "description": "Simpler DynamoDB access for Scala"
+    },
+    {
+      "name": "sttp",
+      "href": "https://github.com/softwaremill/sttp",
+      "description": "The Scala HTTP client you always wanted!"
+    },
+    {
+      "name": "doobie",
+      "href": "https://github.com/tpolecat/doobie",
+      "description": "Functional JDBC layer for Scala."
+    },
+    {
+      "name": "fs2",
+      "href": "https://github.com/typelevel/fs2",
+      "description": "Compositional, streaming I/O library for Scala"
+    },
+    {
+      "name": "http4s",
+      "href": "https://github.com/http4s/http4s",
+      "description": "A minimal, idiomatic Scala interface for HTTP"
+    },
+    {
+      "name": "Automorph",
+      "href": "https://automorph.org",
+      "description": "RPC in a few lines of Scala code"
+    },
+    {
+      "name": "ldbc",
+      "href": "https://github.com/takapi327/ldbc",
+      "description": "Pure functional JDBC layer for Scala 3 built on Cats Effect, usable with ZIO through the `ldbc-zio-interop` module"
+    },
+    {
+      "name": "Iron",
+      "href": "https://github.com/iltotore/iron",
+      "description": "Strong type constraints for Scala 3, with the `iron-zio`, `iron-zio-json`, and `iron-zio-blocks-schema` modules for ZIO"
+    },
+    {
+      "name": "sttp-ai",
+      "href": "https://github.com/softwaremill/sttp-ai",
+      "description": "A Scala toolkit for working with third-party LLMs such as OpenAI and Claude, with a ZIO backend"
+    }
+  ]
+}
