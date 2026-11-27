@@ -1,0 +1,333 @@
+/* Library cards of /ecosystem/ (index.jsx). Colours come from Infima, except the ZIO Blocks blue of its logo. */
+.cards {
+  --eco-blocks-ink: #2d3f8f;
+  --eco-blocks-bg: #f5f6fc;
+  --eco-blocks-line: #d5dbf2;
+  --eco-blocks-soft: rgba(45, 63, 143, 0.1);
+  --eco-official-ink: var(--ifm-color-primary-darker);
+  --eco-official-soft: rgba(220, 38, 38, 0.1);
+  margin: 1.5rem 0 2rem;
+}
+
+[data-theme='dark'] .cards {
+  --eco-blocks-ink: #a9b8f7;
+  --eco-blocks-bg: #191c28;
+  --eco-blocks-line: #2c3352;
+  --eco-blocks-soft: rgba(159, 176, 245, 0.14);
+  --eco-official-ink: var(--ifm-color-primary-lightest);
+  --eco-official-soft: rgba(220, 38, 38, 0.2);
+}
+
+.finder {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 10px;
+  background: var(--ifm-background-surface-color);
+}
+
+.label {
+  font-weight: 600;
+}
+
+.input {
+  width: 100%;
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.6rem 0.8rem;
+  border: 1.5px solid var(--ifm-color-emphasis-300);
+  border-radius: 8px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 3px var(--eco-official-soft);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip,
+.order button {
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 99px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--ifm-color-primary);
+  border-color: var(--ifm-color-primary);
+  color: #fff;
+}
+
+.chipBlocks[aria-pressed='true'] {
+  background: var(--eco-blocks-ink);
+  border-color: var(--eco-blocks-ink);
+  color: var(--ifm-background-color);
+}
+
+.n {
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.order {
+  display: inline-flex;
+}
+
+.order button {
+  border-radius: 0;
+}
+
+.order button:first-child {
+  border-radius: 99px 0 0 99px;
+}
+
+.order button:last-child {
+  border-radius: 0 99px 99px 0;
+  border-left: 0;
+}
+
+.order button[aria-pressed='true'] {
+  background: var(--ifm-font-color-base);
+  color: var(--ifm-background-color);
+}
+
+.order button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.count {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+  font-variant-numeric: tabular-nums;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.empty {
+  margin-top: 1rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.group {
+  margin-top: 1.5rem;
+}
+
+.groupHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.groupCount {
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.grid {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  gap: 0.6rem;
+}
+
+.card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.35rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 10px;
+  background: var(--ifm-background-surface-color);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.card:hover,
+.card:focus-within {
+  border-color: var(--ifm-color-primary);
+}
+
+.card:has(.name:focus-visible) {
+  outline: 2px solid var(--ifm-color-primary);
+  outline-offset: 2px;
+}
+
+.first {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 3px var(--eco-official-soft);
+}
+
+.block {
+  background: var(--eco-blocks-bg);
+  border-color: var(--eco-blocks-line);
+}
+
+.block:hover,
+.block:focus-within {
+  border-color: var(--eco-blocks-ink);
+}
+
+.top {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.name {
+  min-width: 0;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--ifm-font-color-base);
+}
+
+/* The whole card is the link. */
+.name::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+}
+
+.name:hover {
+  text-decoration: none;
+  color: var(--ifm-color-primary);
+}
+
+.name:focus-visible {
+  outline: none;
+}
+
+.prefix {
+  font-weight: 400;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.external {
+  color: var(--ifm-color-emphasis-600);
+  font-size: 0.8em;
+}
+
+.kind,
+.enter {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 0 0.45rem;
+  border-radius: 99px;
+}
+
+.official {
+  color: var(--eco-official-ink);
+  background: var(--eco-official-soft);
+}
+
+.community {
+  color: var(--ifm-color-emphasis-700);
+  border: 1px solid var(--ifm-color-emphasis-400);
+}
+
+.compatible {
+  color: var(--ifm-color-emphasis-600);
+  border: 1px dashed var(--ifm-color-emphasis-400);
+}
+
+.enter {
+  color: var(--ifm-color-primary);
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.description {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--ifm-color-emphasis-700);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.description code,
+.family code {
+  font-size: 0.85em;
+  padding: 0 0.2em;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.family {
+  font-weight: 600;
+  color: var(--eco-blocks-ink);
+  overflow-wrap: anywhere;
+}
+
+/* Above the card-wide link, so it opens the API, not the docs. */
+.api {
+  position: relative;
+  z-index: 1;
+  font-weight: 600;
+  font-size: 0.7rem;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  color: var(--eco-official-ink);
+  background: var(--eco-official-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+}
