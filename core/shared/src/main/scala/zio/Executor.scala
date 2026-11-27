@@ -34,9 +34,11 @@ abstract class Executor extends ExecutorPlatformSpecific { self =>
   private val interop = new Executor.Interop(this)
 
   /**
-   * Current sampled execution metrics, if available. The default executors and
-   * the executors made with `fromThreadPoolExecutor` return them;
-   * `fromJavaExecutor` and `fromExecutionContext` executors return `None`.
+   * Current sampled execution metrics, if available. On the JVM and Scala
+   * Native, the default executors and the executors made with
+   * `fromThreadPoolExecutor` return them. Executors made with
+   * `fromJavaExecutor` or `fromExecutionContext`, including the default
+   * executors on Scala.js, return `None`.
    */
   def metrics(implicit unsafe: Unsafe): Option[ExecutionMetrics]
 

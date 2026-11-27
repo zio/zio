@@ -47,7 +47,8 @@ sealed trait ZInputStream {
    * Reads the stream to its end, `bufferSize` bytes at a time, and returns all
    * the bytes read. Fails with `None` when the stream is already at its end.
    * With a `bufferSize` of 0, each read returns no bytes, so the effect does
-   * not complete on a stream that still has data.
+   * not complete on a stream that still has data, and interrupting it has no
+   * effect.
    */
   def readAll(bufferSize: Int)(implicit trace: Trace): IO[Option[IOException], Chunk[Byte]]
 }
