@@ -20,6 +20,12 @@ import zio.{Semaphore, ZIO, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZStream.BufferedPull
 
+/**
+ * Generators of functions, mixed into the [[Gen]] companion object. A generated
+ * function draws its result for a new input from the given generator and
+ * remembers it, so it returns the same result each time it is called with an
+ * input that has the same hash.
+ */
 trait FunctionVariants {
 
   /**
