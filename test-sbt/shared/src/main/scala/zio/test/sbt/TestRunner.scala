@@ -52,8 +52,7 @@ abstract class TestRunner(
   protected def sendSummary(summary: Summary): Unit
 
   /**
-   * Returns `true` when `done()` returns the summary, and `false` when `done()`
-   * prints the summary and returns `"Completed tests"`.
+   * Returns `true` when `done()` returns the summary, and `false` when `done()` prints the summary (when at least one spec finished) and returns `"Completed tests"`.
    */
   protected def returnSummary: Boolean
 

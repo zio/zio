@@ -28,8 +28,7 @@ sealed abstract class ZTestRunner(
     ) {
 
   /**
-   * Adds the spec summary that a slave runner sent to the summaries of this
-   * runner, and returns `None`. A message that is not a summary is ignored.
+   * Adds the spec summary that a slave runner sent to the summaries of this runner, and returns `None`.
    */
   final override def receiveMessage(summary: String): Option[String] = {
     ZTestRunner.deserialize(summary).foreach(addSummary)

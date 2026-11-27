@@ -24,21 +24,11 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 /**
- * The sbt task that runs one ZIO Test spec, created by [[TestRunner]]. It runs
- * the spec on the shared runtime of its runner when there is one, and on
- * `Runtime.default` otherwise. Failed tests are reported to sbt as events; they
- * don't make the task throw.
+ * The sbt task that runs one ZIO Test spec, created by [[TestRunner]]. It runs the spec on the shared runtime of its runner when there is one, and on `Runtime.default` otherwise. Failed tests are reported to sbt as events; they don't make the task throw.
  *
- * On the JVM and Scala Native, `execute` blocks until the spec finishes and
- * returns no further tasks. When running the spec fails (for example, when its
- * `bootstrap` layer fails), `execute` logs the full stack trace to each sbt
- * logger and rethrows the error.
+ * On the JVM and Scala Native, `execute` blocks until the spec finishes and returns no further tasks. When running the spec fails (for example, on Scala Native, when its `bootstrap` layer fails), `execute` logs the full stack trace to each sbt logger and rethrows the error.
  *
- * On Scala.js, the `execute` overload with a continuation starts the spec on a
- * new fiber and returns at once. When the fiber ends, it prints the cause to
- * the standard error stream if the fiber failed, then calls the continuation
- * with no further tasks. The overload without a continuation throws a
- * `java.lang.IllegalStateException`.
+ * On Scala.js, the `execute` overload with a continuation starts the spec on a new fiber and returns at once. When the fiber ends, it prints the cause to the standard error stream if the fiber failed, then calls the continuation with no further tasks. The overload without a continuation throws a `java.lang.IllegalStateException`.
  */
 final class ZTestTask(
   taskDef: TaskDef,
