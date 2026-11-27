@@ -35,9 +35,7 @@ import zio.{Cause, _}
  * [[IntelliJRenderer]], and any other value or no argument selects
  * [[ConsoleRenderer]].
  *
- * Rendering has two steps: `renderEvent` turns a [[zio.test.ExecutionEvent]]
- * into [[ExecutionResult]]s built from [[LogLine]] values, and `render` turns
- * those results into strings.
+ * Rendering has two steps: `renderEvent` turns a [[zio.test.ExecutionEvent]] into [[ExecutionResult]]s built from [[LogLine]] values, and `render` runs `renderEvent` and turns its results into strings.
  */
 trait TestRenderer {
 

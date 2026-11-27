@@ -32,8 +32,7 @@ import zio.test.render.LogLine.Line
  * @param resultType
  *   whether the result describes a test, a suite or other output
  * @param label
- *   the label of the test or suite; for a test, [[IntelliJRenderer]] stores the
- *   test's own label and [[ConsoleRenderer]] the outermost label of its path
+ *   the label of the test or suite; for a finished test, [[IntelliJRenderer]] stores the test's own label and [[ConsoleRenderer]] the outermost label of its path, and for a runtime failure both store the last label of the path
  * @param status
  *   the state of the test or suite
  * @param offset
