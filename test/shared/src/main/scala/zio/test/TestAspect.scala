@@ -1100,8 +1100,8 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that sets the number of samples that `check` and `checkPar` draw
    * from a generator to `n`. Each such check in the test runs its assertion on
-   * up to `n` samples, stopping at the first failure. `checkN` and `checkAll`
-   * do not read this setting.
+   * up to `n` samples, and `check` stops at the first failure. `checkN` and
+   * `checkAll` do not read this setting.
    */
   def samples(n: Int): TestAspectPoly =
     new PerTest.Poly {

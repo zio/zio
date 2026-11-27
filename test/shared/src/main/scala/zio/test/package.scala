@@ -914,8 +914,9 @@ package object test extends CompileVariants {
   /**
    * Checks the test passes for the specified number of samples from the given
    * random variable, instead of the `samples` setting of [[TestConfig]] that
-   * `check` uses. A failing sample is shrunk as in `check`, and a generator
-   * that produces no values makes the check run forever, as in `check`.
+   * `check` uses. A failing sample is shrunk as in `check`. When `n` is
+   * positive, a generator that produces no values makes the check run forever,
+   * as in `check`.
    *
    * {{{
    * import zio.test._

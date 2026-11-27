@@ -159,7 +159,8 @@ trait TimeVariants {
 
   /**
    * A generator of `java.time.OffsetDateTime` values. Shrinks toward
-   * `OffsetDateTime.MIN`.
+   * `OffsetDateTime.MIN`: the local date-time shrinks first, and each shrunk
+   * local date-time gets a newly drawn offset.
    */
   final def offsetDateTime(implicit trace: Trace): Gen[Any, OffsetDateTime] =
     offsetDateTime(OffsetDateTime.MIN, OffsetDateTime.MAX)
@@ -168,7 +169,9 @@ trait TimeVariants {
    * A generator of `java.time.OffsetDateTime` values whose local date-time lies
    * between those of `min` and `max`. The offset is drawn separately from the
    * local date-time, so a generated value can be earlier than `min` or later
-   * than `max` when compared as instants. Shrinks toward min.
+   * than `max` when compared as instants. Shrinks toward `min`: the local
+   * date-time shrinks first, and each shrunk local date-time gets a newly drawn
+   * offset.
    */
   final def offsetDateTime(min: OffsetDateTime, max: OffsetDateTime)(implicit
     trace: Trace

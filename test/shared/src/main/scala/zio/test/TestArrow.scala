@@ -84,7 +84,9 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
   /**
    * Logical implication: the combined result succeeds when this result fails or
    * `that` succeeds, the same as `!this || that`. When either side is an
-   * `assertTrue` whose expression threw an exception, the result fails.
+   * `assertTrue` whose expression threw an exception, the result fails. An
+   * exception inside a negated `&&` on the right-hand side follows the rules of
+   * `!`, so `a ==> !(b && c)` can succeed even though `b` threw.
    */
   def implies(that: TestResult): TestResult = !self || that
 
