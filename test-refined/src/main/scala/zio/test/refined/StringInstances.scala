@@ -55,9 +55,7 @@ trait StringInstances {
     Gen.string1(charGen).map(v => Refined.unsafeApply(v + ws.value)) // Only String can call `+` since scala 2.13.0.
 
   /**
-   * A generator of `String Refined EndsWith[S]`: a string of exactly `n`
-   * characters from `charGen`, with `n` drawn from `sizeGen`, followed by the
-   * witness `S`.
+   * A generator of `String Refined EndsWith[S]`: a string of `n` characters from `charGen`, empty when `n` is zero or negative, with `n` drawn from `sizeGen`, followed by the witness `S`.
    */
   def endsWithStringNGen[R, S <: String, P](implicit
     ws: Witness.Aux[S],
@@ -85,9 +83,7 @@ trait StringInstances {
   ): Gen[R, Refined[String, StartsWith[S]]] = Gen.string1(charGen).map(v => Refined.unsafeApply(ws.value + v))
 
   /**
-   * A generator of `String Refined StartsWith[S]`: the witness `S` followed by
-   * a string of exactly `n` characters from `charGen`, with `n` drawn from
-   * `sizeGen`.
+   * A generator of `String Refined StartsWith[S]`: the witness `S` followed by a string of `n` characters from `charGen`, empty when `n` is zero or negative, with `n` drawn from `sizeGen`.
    */
   def startsWithStringNGen[R, S <: String, P](implicit
     ws: Witness.Aux[S],
