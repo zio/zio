@@ -19,6 +19,11 @@ package zio
 import scala.annotation.experimental
 import scala.language.experimental.saferExceptions
 
+/**
+ * Experimental extensions that use experimental Scala 3 language features. The
+ * object is marked `@experimental`, so it can only be used in an experimental
+ * scope, for example inside a definition annotated with `@experimental`.
+ */
 @experimental
 object Experimental {
 
@@ -26,7 +31,10 @@ object Experimental {
 
     /**
      * Converts a value whose computation may throw exceptions into a `ZIO`
-     * value.
+     * value. `a` is evaluated each time the effect runs: its value is the
+     * success, and an exception that it throws is the failure. The exception is
+     * not checked against `E` at run time, so any `java.lang.Exception` that
+     * `a` throws fails the effect.
      */
     def fromThrows[E <: Exception, A](a: => A throws E): IO[E, A] =
       ZIO.suspendSucceed {

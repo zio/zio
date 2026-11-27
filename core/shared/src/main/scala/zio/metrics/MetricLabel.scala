@@ -23,5 +23,25 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * an additional level of granularity. For example if a metric tracks the
  * response time of a service labels could be used to create separate versions
  * that track response times for different clients.
+ *
+ * Labels are added with `Metric#tagged`, or to every metric updated in a region
+ * with `ZIO.tagged`. A metric with different labels has a separate state.
+ *
+ * {{{
+ * import zio._
+ *
+ * val requests = Metric.counter("http_requests")
+ *
+ * val program: UIO[Double] =
+ *   for {
+ *     _     <- requests.tagged(MetricLabel("method", "GET")).increment
+ *     _     <- requests.tagged("method", "POST").increment
+ *     state <- requests.tagged("method", "GET").value
+ *   } yield state.count
+ * // 1.0
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/observability/metrics/metriclabel/ MetricLabel]]
  */
 final case class MetricLabel(key: String, value: String)

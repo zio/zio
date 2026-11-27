@@ -17,6 +17,16 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * A named period of time that is attached to the log statements written while
+ * it is active.
+ *
+ * @param label
+ *   The name of the span.
+ * @param startTime
+ *   The start of the span, as milliseconds since the Unix epoch (the value of
+ *   `java.lang.System.currentTimeMillis` when the span started).
+ */
 final case class LogSpan(label: String, startTime: Long) {
   private[zio] def renderInto(sb: StringBuilder, now: Long)(implicit unsafe: Unsafe): Unit = {
     if (label.indexOf(' ') < 0) sb.append(label)
@@ -33,6 +43,16 @@ final case class LogSpan(label: String, startTime: Long) {
     ()
   }
 
+  /**
+   * Renders the span as `label=<elapsed>ms`, where `elapsed` is `now` minus
+   * `startTime`, in milliseconds. `elapsed` is negative when `now` is before
+   * `startTime`.
+   *
+   * {{{
+   * val a: String = LogSpan("db", 100L).render(250L)
+   * // db=150ms
+   * }}}
+   */
   def render(now: Long): String = {
     val sb = new StringBuilder()
 

@@ -5,6 +5,25 @@ import zio.metrics._
 
 import java.lang.management.{ManagementFactory, ThreadMXBean}
 
+/**
+ * The polling metrics of the JVM threads (`ThreadMXBean`). Each one is a gauge.
+ *
+ * @param threadsCurrent
+ *   `jvm_threads_current`: the number of live threads
+ * @param threadsDaemon
+ *   `jvm_threads_daemon`: the number of live daemon threads
+ * @param threadsPeak
+ *   `jvm_threads_peak`: the peak number of live threads
+ * @param threadsStartedTotal
+ *   `jvm_threads_started_total`: the number of threads started since the JVM
+ *   started
+ * @param threadsDeadlocked
+ *   `jvm_threads_deadlocked`: the number of threads that are deadlocked waiting
+ *   for object monitors or ownable synchronizers (`findDeadlockedThreads`)
+ * @param threadsDeadlockedMonitor
+ *   `jvm_threads_deadlocked_monitor`: polled with `findDeadlockedThreads`, the
+ *   same call as `threadsDeadlocked`, so it reports the same number
+ */
 final case class Thread(
   threadsCurrent: PollingMetric[Any, Throwable, MetricState.Gauge],
   threadsDaemon: PollingMetric[Any, Throwable, MetricState.Gauge],
@@ -14,6 +33,9 @@ final case class Thread(
   threadsDeadlockedMonitor: PollingMetric[Any, Throwable, MetricState.Gauge]
 )
 
+/**
+ * The layer that collects the thread metrics.
+ */
 object Thread {
 
   /** Current count of threads by state */
@@ -41,6 +63,12 @@ object Thread {
            }
     } yield ()
 
+  /**
+   * A layer that polls the thread metrics on the `updateMetrics` schedule of
+   * [[JvmMetricsSchedule]], until the layer's scope closes. On the same
+   * schedule it also sets the gauge `jvm_threads_state`, tagged with `state`,
+   * to the number of threads in each `java.lang.Thread.State`.
+   */
   val live: ZLayer[JvmMetricsSchedule, Throwable, Thread] =
     ZLayer.scoped {
       for {

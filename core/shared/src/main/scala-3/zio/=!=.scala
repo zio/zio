@@ -22,13 +22,27 @@ import scala.annotation.{implicitNotFound, static}
 import scala.util.NotGiven
 
 /**
- * Evidence type `A` is not equal to type `B`.
+ * Evidence that the types `A` and `B` are different. A method that takes an
+ * implicit `A =!= B` only compiles for types that the compiler does not see as
+ * the same type.
+ *
+ * {{{
+ * def different[A, B](implicit ev: A =!= B): String = "different"
+ *
+ * val ok: String = different[Int, String]
+ * // different[Int, Int] does not compile
+ * }}}
  */
 @implicitNotFound("${A} must not be ${B}")
 sealed abstract class =!=[A, B] extends Serializable
 
+/**
+ * The instances of `=!=`. On Scala 3, the instance exists when the compiler
+ * cannot find evidence that `A =:= B`.
+ */
 object =!= {
   @static private val instance: =!=[Any, Any] = new =!=[Any, Any] {}
 
+  /** Provides the evidence when there is no evidence that `A =:= B`. */
   given neq[A, B](using NotGiven[A =:= B]): =!=[A, B] = instance.asInstanceOf[=!=[A, B]]
 }

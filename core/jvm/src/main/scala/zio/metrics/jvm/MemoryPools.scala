@@ -6,6 +6,39 @@ import zio.metrics._
 import java.lang.management.{ManagementFactory, MemoryPoolMXBean, MemoryUsage}
 import scala.jdk.CollectionConverters._
 
+/**
+ * The polling metrics of JVM memory (`MemoryMXBean` and `MemoryPoolMXBean`).
+ * The names depend on the layer: `MemoryPools.liveV2` uses the names of the
+ * Prometheus Java client 1.0, and the deprecated `MemoryPools.live` the names
+ * of version 0.16, given in parentheses. Each one is a gauge.
+ *
+ * @param memoryBytesUsed
+ *   `jvm_memory_used_bytes` (`jvm_memory_bytes_used`): the used bytes of the
+ *   heap and of the non-heap memory, tagged with `area` (`heap` or `nonheap`)
+ * @param memoryBytesCommitted
+ *   `jvm_memory_committed_bytes` (`jvm_memory_bytes_committed`): the committed
+ *   bytes of each memory area
+ * @param memoryBytesMax
+ *   `jvm_memory_max_bytes` (`jvm_memory_bytes_max`): the maximum bytes of each
+ *   memory area
+ * @param memoryBytesInit
+ *   `jvm_memory_init_bytes` (`jvm_memory_bytes_init`): the initial bytes of
+ *   each memory area
+ * @param poolBytesUsed
+ *   `jvm_memory_pool_used_bytes` (`jvm_memory_pool_bytes_used`): the used bytes
+ *   of each memory pool, tagged with `pool`, together with
+ *   `jvm_memory_pool_collection_used_bytes`, the used bytes after the last
+ *   collection (0 when the pool reports no collection usage)
+ * @param poolBytesCommitted
+ *   `jvm_memory_pool_committed_bytes` (`jvm_memory_pool_bytes_committed`),
+ *   together with `jvm_memory_pool_collection_committed_bytes`
+ * @param poolBytesMax
+ *   `jvm_memory_pool_max_bytes` (`jvm_memory_pool_bytes_max`), together with
+ *   `jvm_memory_pool_collection_max_bytes`
+ * @param poolBytesInit
+ *   `jvm_memory_pool_init_bytes` (`jvm_memory_pool_bytes_init`), together with
+ *   `jvm_memory_pool_collection_init_bytes`
+ */
 final case class MemoryPools(
   memoryBytesUsed: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
   memoryBytesCommitted: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]],
@@ -17,6 +50,9 @@ final case class MemoryPools(
   poolBytesInit: PollingMetric[Any, Throwable, Chunk[MetricState.Gauge]]
 )
 
+/**
+ * The layers that collect the memory metrics.
+ */
 object MemoryPools {
   sealed private trait Area { val label: String }
   private case object Heap    extends Area { override val label: String = "heap"    }
@@ -79,6 +115,12 @@ object MemoryPools {
       )
     )
 
+  /**
+   * A layer that polls the memory metrics with the metric names of the
+   * Prometheus Java client 1.0 on the `updateMetrics` schedule of
+   * [[JvmMetricsSchedule]]. It also polls the gauge
+   * `jvm_memory_objects_pending_finalization`.
+   */
   val liveV2: ZLayer[JvmMetricsSchedule, Throwable, MemoryPools] = withNames(
     jvmMemoryCommittedBytes = "jvm_memory_committed_bytes",
     jvmMemoryInitBytes = "jvm_memory_init_bytes",
@@ -90,6 +132,12 @@ object MemoryPools {
     jvmMemoryPoolInitBytes = "jvm_memory_pool_init_bytes"
   )
 
+  /**
+   * A layer that polls the memory metrics with the metric names of the
+   * Prometheus Java client 0.16 on the `updateMetrics` schedule of
+   * [[JvmMetricsSchedule]]. It also polls the gauge
+   * `jvm_memory_objects_pending_finalization`.
+   */
   @deprecated(
     "This layer exposes JVM metrics with the non-OpenMetrics-compliant names used in prometheus client_java 0.16: https://github.com/prometheus/client_java/blob/main/docs/content/migration/simpleclient.md#jvm-metrics. Use the `liveV2` layer instead, it uses names compatible with the client_java 1.0 library"
   )

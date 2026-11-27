@@ -20,6 +20,16 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.ScheduledExecutorService
 
+/**
+ * The platform-specific members of `Scheduler`: `asScheduledExecutorService` on
+ * the JVM and Scala Native, and none on Scala.js.
+ */
 private[zio] abstract class SchedulerPlatformSpecific {
+
+  /**
+   * Returns the `ScheduledExecutorService` that this scheduler schedules its
+   * tasks on. A scheduler made with `Scheduler.fromScheduledExecutorService`
+   * returns the service it was made from.
+   */
   def asScheduledExecutorService: ScheduledExecutorService
 }

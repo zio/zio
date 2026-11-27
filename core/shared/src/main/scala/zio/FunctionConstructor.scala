@@ -1,9 +1,21 @@
 package zio
 
 /**
- * A `FunctionConstructor[Input]` knows how to construct a `ZIO` value from a
+ * A `FunctionConstructor[In]` knows how to construct a `ZIO` value from a
  * function of type `In`. This allows the type of the `ZIO` value constructed to
  * depend on `In`.
+ *
+ * It is the implicit parameter of `ZIO.fromFunction`. Instances exist for
+ * functions of one to seven arguments: each argument is read from the
+ * environment by its type, and the result is the value of the function.
+ *
+ * {{{
+ * val length: ZIO[String, Nothing, Int] =
+ *   ZIO.fromFunction((s: String) => s.length)
+ *
+ * val total: ZIO[Int with String, Nothing, Int] =
+ *   ZIO.fromFunction((n: Int, s: String) => n + s.length)
+ * }}}
  */
 sealed abstract class FunctionConstructor[In] {
 
@@ -18,10 +30,19 @@ sealed abstract class FunctionConstructor[In] {
   def apply(in: In)(implicit trace: Trace): Out
 }
 
+/**
+ * The instances of `FunctionConstructor`, for functions of one to seven
+ * arguments.
+ */
 object FunctionConstructor {
 
+  /** A `FunctionConstructor[In]` whose result type `Out` is `Out0`. */
   type WithOut[In, Out0] = FunctionConstructor[In] { type Out = Out0 }
 
+  /**
+   * Constructs a `ZIO` from a function of one argument. The argument is the
+   * service of its type read from the environment.
+   */
   implicit def function1Constructor[A: Tag, Z]: FunctionConstructor.WithOut[A => Z, ZIO[A, Nothing, Z]] =
     new FunctionConstructor[A => Z] {
       type Out = ZIO[A, Nothing, Z]
@@ -29,6 +50,10 @@ object FunctionConstructor {
         ZIO.serviceWith[A](f)
     }
 
+  /**
+   * Constructs a `ZIO` from a function of two arguments. Each argument is the
+   * service of its type read from the environment.
+   */
   implicit def function2Constructor[A: Tag, B: Tag, Z]
     : FunctionConstructor.WithOut[(A, B) => Z, ZIO[A with B, Nothing, Z]] =
     new FunctionConstructor[(A, B) => Z] {
@@ -37,6 +62,10 @@ object FunctionConstructor {
         ZIO.environmentWith[A with B](env => f(env.get[A], env.get[B]))
     }
 
+  /**
+   * Constructs a `ZIO` from a function of three arguments. Each argument is the
+   * service of its type read from the environment.
+   */
   implicit def function3Constructor[A: Tag, B: Tag, C: Tag, Z]
     : FunctionConstructor.WithOut[(A, B, C) => Z, ZIO[A with B with C, Nothing, Z]] =
     new FunctionConstructor[(A, B, C) => Z] {
@@ -45,6 +74,10 @@ object FunctionConstructor {
         ZIO.environmentWith[A with B with C](env => f(env.get[A], env.get[B], env.get[C]))
     }
 
+  /**
+   * Constructs a `ZIO` from a function of four arguments. Each argument is the
+   * service of its type read from the environment.
+   */
   implicit def function4Constructor[A: Tag, B: Tag, C: Tag, D: Tag, Z]
     : FunctionConstructor.WithOut[(A, B, C, D) => Z, ZIO[A with B with C with D, Nothing, Z]] =
     new FunctionConstructor[(A, B, C, D) => Z] {
@@ -53,6 +86,10 @@ object FunctionConstructor {
         ZIO.environmentWith[A with B with C with D](env => f(env.get[A], env.get[B], env.get[C], env.get[D]))
     }
 
+  /**
+   * Constructs a `ZIO` from a function of five arguments. Each argument is the
+   * service of its type read from the environment.
+   */
   implicit def function5Constructor[A: Tag, B: Tag, C: Tag, D: Tag, F: Tag, Z]
     : FunctionConstructor.WithOut[(A, B, C, D, F) => Z, ZIO[
       A with B with C with D with F,
@@ -69,6 +106,10 @@ object FunctionConstructor {
         )
     }
 
+  /**
+   * Constructs a `ZIO` from a function of six arguments. Each argument is the
+   * service of its type read from the environment.
+   */
   implicit def function6Constructor[A: Tag, B: Tag, C: Tag, D: Tag, F: Tag, G: Tag, Z]
     : FunctionConstructor.WithOut[(A, B, C, D, F, G) => Z, ZIO[
       A with B with C with D with F with G,
@@ -85,6 +126,10 @@ object FunctionConstructor {
         )
     }
 
+  /**
+   * Constructs a `ZIO` from a function of seven arguments. Each argument is the
+   * service of its type read from the environment.
+   */
   implicit def function7Constructor[A: Tag, B: Tag, C: Tag, D: Tag, F: Tag, G: Tag, H: Tag, Z]
     : FunctionConstructor.WithOut[(A, B, C, D, F, G, H) => Z, ZIO[
       A with B with C with D with F with G with H,

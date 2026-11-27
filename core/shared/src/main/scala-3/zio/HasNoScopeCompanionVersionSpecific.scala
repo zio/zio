@@ -2,15 +2,29 @@ package zio
 
 import scala.quoted._
 
+/**
+ * Provides the `HasNoScope` instances that the compiler derives: a macro on
+ * Scala 2 and an inline given on Scala 3.
+ */
 private[zio] abstract class HasNoScopeCompanionVersionSpecific {
 
+  /** The value that every derived `HasNoScope` instance is cast from. */
   val instance: HasNoScope[Any]
 
+  /**
+   * Derives the evidence that `R` does not contain `zio.Scope`. `R` can be a
+   * single type or an intersection such as `A with B`. It does not compile when
+   * `R` is or contains `zio.Scope` ("The type X contains a zio.Scope. This is
+   * not allowed."), and when `R` is or contains an abstract type parameter
+   * ("Can not prove that X does not contain a zio.Scope. Please add a context
+   * bound X: HasNoScope."), where `X` is the name of the type.
+   */
   final inline given hasNoScope[R]: HasNoScope[R] =
     ${ HasNoScopeMacro.noScope[R] }
 
 }
 
+/** The macro implementation behind `HasNoScope.hasNoScope`. */
 private[zio] object HasNoScopeMacro {
 
   def noScope[R: Type](using Quotes): Expr[HasNoScope[R]] = {

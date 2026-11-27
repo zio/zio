@@ -23,14 +23,33 @@ import scala.collection.mutable.Builder
 
 private[zio] trait BuildFromCompat {
 
+  /**
+   * An alias for the standard library's builder factory:
+   * `scala.collection.generic.CanBuildFrom` on Scala 2.12, and
+   * `scala.collection.BuildFrom` on Scala 2.13 and Scala 3. Operations such as
+   * `ZIO.foreach` take one to build a result collection of the same kind as
+   * their input.
+   */
   type BuildFrom[-From, -A, +C] = CanBuildFrom[From, A, C]
 
+  /**
+   * Adds the Scala 2.13 `BuildFrom` methods `fromSpecific` and `newBuilder` to
+   * a Scala 2.12 `CanBuildFrom`.
+   */
   implicit class BuildFromOps[From, A, C](private val self: BuildFrom[From, A, C]) {
+    /**
+     * Builds a collection of type `C` from the elements of `iterable`, with
+     * `from` as the source collection.
+     */
     def fromSpecific(from: From)(iterable: Iterable[A]): C = {
       val builder = newBuilder(from)
       builder ++= iterable
       builder.result()
     }
+    /**
+     * Returns a new builder for a collection of type `C`, with `from` as the
+     * source collection.
+     */
     def newBuilder(from: From): Builder[A, C] =
       self.apply(from)
   }
