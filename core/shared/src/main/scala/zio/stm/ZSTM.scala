@@ -1528,9 +1528,8 @@ object ZSTM {
   val none: USTM[Option[Nothing]] = succeedNow(None)
 
   /**
-   * Registers the workflow `zio`, which runs after the transaction, before the
-   * committing effect returns. Workflows registered in one transaction run in
-   * the order they were registered.
+   * Registers the workflow `zio` with the transaction. Workflows registered in
+   * one transaction run in the order they were registered.
    */
   def onCommit[R](zio: ZIO[R, Nothing, Any])(implicit trace: Trace): ZSTM[R, Nothing, Unit] =
     ZSTM.OnCommit(zio, trace)

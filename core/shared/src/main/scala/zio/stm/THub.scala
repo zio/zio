@@ -21,10 +21,10 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `THub` is a transactional message hub. Publishers publish messages to the
- * hub, and subscribers subscribe to take messages published after they
- * subscribed. It works like `Hub`, but its operations are STM transactions, so
- * publishing and taking can be combined with other transactional operations and
- * commit together.
+ * hub, and subscribers subscribe to take messages from it; a subscription only
+ * sees messages published after it subscribed. It works like `Hub`, but its
+ * operations are STM transactions, so publishing and taking can be combined
+ * with other transactional operations and commit together.
  *
  * A subscription is a [[TDequeue]]. What `publish` does when the hub is full
  * depends on the constructor: `bounded` waits for room, `dropping` discards the
@@ -73,7 +73,7 @@ sealed abstract class THub[A] extends TEnqueue.Internal[A] {
   def publishAll(as: Iterable[A]): USTM[Boolean]
 
   /**
-   * Subscribes to the hub. The subscription is a [[TDequeue]] that receives
+   * Subscribes to the hub. The subscription is a [[TDequeue]] that only sees
    * messages published after it was created. The caller unsubscribes by
    * shutting the subscription down; until then, the messages it has not taken
    * count toward the hub's size and capacity.
@@ -109,7 +109,7 @@ sealed abstract class THub[A] extends TEnqueue.Internal[A] {
 
   /**
    * Subscribes to the hub, committing the subscription right away, and shuts
-   * the subscription down when the scope closes. The subscription receives
+   * the subscription down when the scope closes. The subscription only sees
    * messages published after it was created, as with `subscribe`.
    */
   final def subscribeScoped(implicit trace: Trace): ZIO[Scope, Nothing, TDequeue[A]] =

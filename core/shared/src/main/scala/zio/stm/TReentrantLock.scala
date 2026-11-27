@@ -171,17 +171,16 @@ final class TReentrantLock private (data: TRef[LockState]) {
 
   /**
    * Runs the specified workflow with a read lock, waiting while another fiber
-   * holds a write lock. The wait can be interrupted. The lock is released when
-   * the workflow completes, whether by success, failure, or interruption.
+   * holds a write lock. The lock is released when the workflow completes,
+   * whether by success, failure, or interruption.
    */
   def withReadLock[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.uninterruptibleMask(restore => restore(acquireRead.commit) *> restore(zio).ensuring(releaseRead.commit))
 
   /**
    * Runs the specified workflow with a write lock, waiting while another fiber
-   * holds a read or write lock. The wait can be interrupted. The lock is
-   * released when the workflow completes, whether by success, failure, or
-   * interruption.
+   * holds a read or write lock. The lock is released when the workflow
+   * completes, whether by success, failure, or interruption.
    */
   def withWriteLock[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.uninterruptibleMask(restore => restore(acquireWrite.commit) *> restore(zio).ensuring(releaseWrite.commit))

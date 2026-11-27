@@ -100,8 +100,8 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
 
   /**
    * Acquires as many available permits as possible, at most `max`, and succeeds
-   * with the number acquired, which is 0 when none are available. A negative
-   * `max` dies with a `java.lang.IllegalArgumentException`.
+   * with the number acquired, which is 0 when the available count is 0. A
+   * negative `max` dies with a `java.lang.IllegalArgumentException`.
    */
   def acquireUpTo(max: Long): USTM[Long] =
     acquireBetween(0, max)
