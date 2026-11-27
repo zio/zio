@@ -109,6 +109,8 @@ case class ExecutionResult(
   def withAnnotations(annotations: List[TestAnnotationMap]): ExecutionResult =
     self.copy(annotations = annotations)
 }
+
+/** A constructor for [[ExecutionResult]], and its [[ExecutionResult.Status]] and [[ExecutionResult.ResultType]] cases. */
 object ExecutionResult {
 
   /**
