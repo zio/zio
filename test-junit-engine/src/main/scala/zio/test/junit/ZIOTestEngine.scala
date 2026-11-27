@@ -31,17 +31,9 @@ import zio._
 import scala.jdk.CollectionConverters._
 
 /**
- * A JUnit Platform test engine that discovers and runs ZIO Test specs; its id
- * is `zio`. It is registered as a `TestEngine` service, so build tools that run
- * tests on the JUnit Platform, such as Maven Surefire, find it when
- * `zio-test-junit-engine` is on the test class path. Specs need no annotation.
+ * A JUnit Platform test engine that discovers and runs ZIO Test specs; its id is `zio`. It is registered as a `TestEngine` service, so build tools that run tests on the JUnit Platform, such as Maven Surefire, find it when `zio-test-junit-engine` is on the test class path. Specs need no annotation.
  *
- * Discovery finds the spec classes (see [[ZIOTestClassSelectorResolver]]) in
- * the selected classes, packages, modules and class path roots, such as `object
- * MySpec extends ZIOSpecDefault`. Each spec becomes a container, each suite a
- * nested container and each test a test, and the ZIO Test tags of a test become
- * its JUnit tags, so tag filters (for example Surefire's `groups`) select tests
- * by tag.
+ * Discovery finds the spec classes (see [[ZIOTestClassSelectorResolver]]) in the selected classes, packages, modules and class path roots, such as `object MySpec extends ZIOSpecDefault`. Each spec becomes a container, each suite a nested container and each test a test, and the ZIO Test tags of a test become its JUnit tags (a tag must be a valid JUnit tag name, for example without spaces), so tag filters (for example Surefire's `groups`) select tests by tag.
  */
 class ZIOTestEngine extends TestEngine {
 
@@ -54,10 +46,7 @@ class ZIOTestEngine extends TestEngine {
     .build()
 
   /**
-   * Returns an engine descriptor named `ZIO EngineDescriptor` with a
-   * [[ZIOTestClassDescriptor]] for each spec class that `discoveryRequest`
-   * selects. Creating a class descriptor runs the effects that build the suites
-   * of its spec; when that fails, the selector is reported as failed.
+   * Returns an engine descriptor named `ZIO EngineDescriptor` with a [[ZIOTestClassDescriptor]] for each spec class that `discoveryRequest` selects. Creating a class descriptor runs the effects that build the suites of its spec. When the `bootstrap` layer of the spec fails, when one of these effects dies, or when one that isn't inside another suite fails, the selector is reported as failed; a suite whose effect fails inside another suite is left out.
    */
   override def discover(discoveryRequest: EngineDiscoveryRequest, uniqueId: UniqueId): TestDescriptor = {
     val engineDesc = new EngineDescriptor(uniqueId, "ZIO EngineDescriptor")

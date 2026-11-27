@@ -23,20 +23,11 @@ import zio.test._
 import zio.test.junit.ReflectionUtils._
 
 /**
- * The JUnit Platform descriptor of one ZIO Test spec class: a container whose
- * display name is the class name without a trailing `\$`.
+ * The JUnit Platform descriptor of one ZIO Test spec class: a container whose display name is the class name without a trailing `\$`.
  *
- * Creating it loads the spec and builds the child descriptors: a
- * [[ZIOSuiteTestDescriptor]] for each suite and a [[ZIOTestDescriptor]] for
- * each test. Building them runs the effects that build suites, with the live
- * environment, the test environment and the `bootstrap` layer of the spec; when
- * they fail, the constructor throws.
+ * Creating it loads the spec and builds the child descriptors: a [[ZIOSuiteTestDescriptor]] for each suite and a [[ZIOTestDescriptor]] for each test. Building them runs the effects that build suites, with the live environment, the test environment and the `bootstrap` layer of the spec. The constructor throws when the `bootstrap` layer fails, when an effect that builds a suite dies, or when one that isn't inside another suite fails; a suite whose effect fails inside another suite is left out, with its tests.
  *
- * The spec is the Scala object of `testClass` when there is one (`testClass` is
- * the class of an object, or has a companion object), and a new instance
- * created with the no-argument constructor otherwise. When the companion object
- * of `testClass` isn't a spec, the constructor throws a
- * `java.lang.ClassCastException`.
+ * The spec is the Scala object of `testClass` when there is one (`testClass` is the class of an object, or has a companion object), and a new instance created with the no-argument constructor otherwise. When the companion object of `testClass` isn't a spec, the constructor throws a `java.lang.ClassCastException`.
  *
  * @param parent
  *   the parent descriptor
