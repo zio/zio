@@ -56,10 +56,7 @@ class ZIOTestClassDescriptor(parent: TestDescriptor, uniqueId: UniqueId, val tes
     .asInstanceOf[ZIOSpecAbstract]
 
   /**
-   * Returns an effect that adds a [[ZIOSuiteTestDescriptor]] under
-   * `description` for each suite of `spec` and a [[ZIOTestDescriptor]] for each
-   * test, running the effects that build suites. `path` is the list of labels
-   * above `spec`.
+   * Returns an effect that adds the descriptors of `spec` under `description`, nested like its suites: a [[ZIOSuiteTestDescriptor]] for each suite and a [[ZIOTestDescriptor]] for each test, running the effects that build suites. `path` is the list of labels of the suites that enclose `spec`, outermost first.
    */
   def traverse[R, E](
     spec: Spec[R, E],

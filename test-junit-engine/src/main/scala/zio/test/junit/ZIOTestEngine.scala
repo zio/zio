@@ -55,12 +55,7 @@ class ZIOTestEngine extends TestEngine {
   }
 
   /**
-   * Runs the spec classes of `request` one after another with
-   * [[ZIOTestClassRunner]] and reports them to the listener of `request`. Each
-   * class is reported as successful when its run ends, whatever the results of
-   * its tests, which are reported one by one. Descriptors that aren't spec
-   * classes are skipped with a warning log. When the run of a class fails, this
-   * method throws and the remaining classes don't run.
+   * Runs the spec classes of `request` one after another with [[ZIOTestClassRunner]], and reports each class as successful when its run ends, whatever the results of its tests, which are reported one by one. Descriptors that aren't spec classes don't run and aren't reported; a warning is logged for each. When the run of a class fails, this method throws and the remaining classes don't run.
    */
   override def execute(request: ExecutionRequest): Unit =
     Unsafe.unsafe { implicit unsafe =>
