@@ -13,7 +13,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 trait Sized extends Serializable {
   /** Returns the current size. */
   def size(implicit trace: Trace): UIO[Int]
-  /** Runs `zio` with the size set to `size`, then restores the previous size. */
+  /** Runs `zio` with the given size, then restores the previous size. */
   def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
   /** Returns a generator that runs `gen` with the size set to `size`. */
   def withSizeGen[R, A](size: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, A]
@@ -35,7 +35,7 @@ object Sized {
     /** Returns the size stored in the `FiberRef`. */
     def size(implicit trace: Trace): UIO[Int] =
       fiberRef.get
-    /** Runs `zio` with the size set to `size`, then restores the previous size. */
+    /** Runs `zio` with the given size, then restores the previous size. */
     def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       fiberRef.locally(size)(zio)
     /**
