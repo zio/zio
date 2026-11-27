@@ -3,6 +3,18 @@ package zio.test.sbt
 import sbt.testing.{Task, TaskDef}
 import zio.test.Summary
 
+/**
+ * The sbt runner of ZIO Test, created by [[ZTestFramework]].
+ *
+ * On the JVM, the specs of each `tasks` call run on one runtime built from
+ * their `bootstrap` layers. The runner collects the summary of each spec, and
+ * `done()` prints the combined summary and returns `"Completed tests"`.
+ *
+ * On Scala.js and Scala Native, a runner is a `ZTestRunner.Master` or a
+ * `ZTestRunner.Slave`. There is no shared runtime: each spec runs as its own
+ * application with its own `bootstrap` layer. `done()` returns the combined
+ * summary instead of printing it.
+ */
 sealed abstract class ZTestRunner(
   args: Array[String],
   remoteArgs: Array[String],
@@ -14,6 +26,11 @@ sealed abstract class ZTestRunner(
       testClassLoader,
       runnerType
     ) {
+
+  /**
+   * Adds the spec summary that a slave runner sent to the summaries of this
+   * runner, and returns `None`.
+   */
   final override def receiveMessage(summary: String): Option[String] = {
     ZTestRunner.deserialize(summary).foreach(addSummary)
     None
@@ -29,17 +46,34 @@ sealed abstract class ZTestRunner(
 
   final override protected def returnSummary: Boolean = true
 
+  /**
+   * Returns the string that `serializer` makes from the task definition of
+   * `task`.
+   */
   final override def serializeTask(task: Task, serializer: TaskDef => String): String =
     serializer(task.taskDef())
 
   // This is what prevents us from utilizing merged Specs.
   // When we try to round trip, we only deserialize the first task, so all the others
   // that were merged in are lost.
+  /**
+   * Returns a task for the task definition that `deserializer` reads from
+   * `task`, loading its spec object.
+   */
   final override def deserializeTask(task: String, deserializer: String => TaskDef): Task =
     toTask(deserializer(task))
 }
 
+/**
+ * The two kinds of ZIO Test sbt runner on Scala.js and Scala Native.
+ */
 object ZTestRunner {
+
+  /**
+   * The runner that sbt creates with `ZTestFramework.runner`. It collects the
+   * summaries of the specs it runs and the summaries that slave runners send,
+   * and `done()` returns the combined summary.
+   */
   final class Master(
     args: Array[String],
     remoteArgs: Array[String],
@@ -48,6 +82,10 @@ object ZTestRunner {
     override protected def sendSummary(summary: Summary): Unit = addSummary(summary)
   }
 
+  /**
+   * The runner that sbt creates with `ZTestFramework.slaveRunner`. It sends the
+   * summary of each spec it runs through `send` and keeps no summaries itself.
+   */
   final class Slave(
     args: Array[String],
     remoteArgs: Array[String],

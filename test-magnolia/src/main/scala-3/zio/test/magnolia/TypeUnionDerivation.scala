@@ -5,6 +5,9 @@ import scala.quoted.*
 import zio.test.Gen
 
 /**
+ * Derives `DeriveGen` instances for union types at compile time.
+ * `DeriveGen.unionType` calls it.
+ *
  * Implementation copied/adapted from Caliban
  *
  * See:
@@ -12,8 +15,21 @@ import zio.test.Gen
  *   - https://github.com/ghostdogpr/caliban/blob/v2.10.0/core/src/main/scala-3/caliban/schema/TypeUnionDerivation.scala
  */
 object TypeUnionDerivation {
+
+  /**
+   * Derives a `DeriveGen[T]` for the union type alias `T`. Same as
+   * `DeriveGen.unionType`.
+   */
   inline def derived[T]: DeriveGen[T] = ${ typeUnionDeriveGen[T] }
 
+  /**
+   * The macro behind `derived` and `DeriveGen.unionType`. Flattens the union
+   * `T` into its member types, dealiasing type aliases, summons a `DeriveGen`
+   * for each member, and builds a `DeriveGen` that picks one member's generator
+   * with equal probability. It reports a compile error when `T` is written as
+   * an inline union instead of a type alias, and when a member type has no
+   * `DeriveGen`.
+   */
   def typeUnionDeriveGen[T](using Quotes, Type[T]): Expr[DeriveGen[T]] = {
     import quotes.reflect.*
 

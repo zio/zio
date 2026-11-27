@@ -31,7 +31,13 @@ import java.util.stream.Collectors
 import scala.jdk.CollectionConverters._
 
 /**
- * JUnit 5 platform test class resolver for ZIO test implementation
+ * Resolves JUnit Platform class, package, module and class path root selectors
+ * to [[ZIOTestClassDescriptor]]s.
+ *
+ * It accepts the public, non-abstract classes that aren't inner classes and
+ * that extend `zio.test.ZIOSpecAbstract` or have a companion object that does.
+ * An object's class and its companion class (`MySpec\$` and `MySpec`) resolve
+ * to one descriptor.
  */
 class ZIOTestClassSelectorResolver extends SelectorResolver {
   private val isSuitePredicate: Predicate[Class[_]] = { (testClass: Class[_]) =>
@@ -70,6 +76,7 @@ class ZIOTestClassSelectorResolver extends SelectorResolver {
       .orElse(java.util.stream.Stream.empty())
   }
 
+  /** Resolves the spec classes in the class path root of `selector`. */
   override def resolve(
     selector: ClasspathRootSelector,
     context: SelectorResolver.Context
@@ -83,6 +90,7 @@ class ZIOTestClassSelectorResolver extends SelectorResolver {
     Resolution.matches(matches)
   }
 
+  /** Resolves the spec classes in the package of `selector`. */
   override def resolve(selector: PackageSelector, context: SelectorResolver.Context): SelectorResolver.Resolution = {
     val matches =
       ReflectionSupport
@@ -93,6 +101,7 @@ class ZIOTestClassSelectorResolver extends SelectorResolver {
     Resolution.matches(matches)
   }
 
+  /** Resolves the spec classes in the Java module of `selector`. */
   override def resolve(selector: ModuleSelector, context: SelectorResolver.Context): SelectorResolver.Resolution = {
     val matches =
       ReflectionSupport
@@ -103,6 +112,10 @@ class ZIOTestClassSelectorResolver extends SelectorResolver {
     Resolution.matches(matches)
   }
 
+  /**
+   * Resolves the class of `selector` when it is a spec class, and leaves it
+   * unresolved otherwise.
+   */
   override def resolve(selector: ClassSelector, context: SelectorResolver.Context): SelectorResolver.Resolution = {
     val testClass = selector.getJavaClass
     if (isSuitePredicate.test(testClass)) {

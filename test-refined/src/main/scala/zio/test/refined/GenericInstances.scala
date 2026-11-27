@@ -22,15 +22,32 @@ import shapeless.Witness
 import zio.test.magnolia.DeriveGen
 import zio.test.Gen
 
+/**
+ * Brings the instances of `GenericInstances` into scope: `import
+ * zio.test.refined.generic._`.
+ */
 object generic extends GenericInstances
 
+/**
+ * Instances for the `Equal[U]` predicate of `eu.timepit.refined.generic`. On
+ * Scala 3, implicit search does not find the implicit instance for a literal
+ * `U` such as `Refined[Int, Equal[3]]`; on Scala 2 it does.
+ */
 trait GenericInstances {
 
+  /**
+   * A generator of `Refined[T, Equal[U]]` that always produces the value of the
+   * witness `U`.
+   */
   def equalArbitraryGen[T, U <: T](implicit
     wu: Witness.Aux[U]
   ): Gen[Any, Refined[T, Equal[U]]] =
     Gen.const(wu.value).map(Refined.unsafeApply)
 
+  /**
+   * The implicit `DeriveGen` for `Refined[T, Equal[U]]`; it wraps
+   * `equalArbitraryGen`.
+   */
   implicit def equalArbitrary[T, U <: T](implicit
     wu: Witness.Aux[U]
   ): DeriveGen[Refined[T, Equal[U]]] =

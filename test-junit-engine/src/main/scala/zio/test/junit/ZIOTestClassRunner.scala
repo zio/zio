@@ -27,16 +27,26 @@ import zio._
 import scala.jdk.OptionConverters._
 
 /**
- * The `ZIOTestClassRunner` is responsible for running ZIO tests within a test
- * class and reporting their results using the given JUnit 5
- * `EngineExecutionListener`.
+ * Runs the spec of one ZIO Test spec class and reports its tests to a JUnit
+ * Platform `EngineExecutionListener`.
  *
  * @param descriptor
- *   The ZIO test class JUnit 5 descriptor
+ *   the descriptor of the spec class
  */
 class ZIOTestClassRunner(descriptor: ZIOTestClassDescriptor) {
   private val spec = descriptor.spec
 
+  /**
+   * Returns an effect that runs the spec, reports each test of `descriptor` to
+   * `notifier` as started and then as finished or, when it is ignored, as
+   * skipped with the reason `Test skipped`, and succeeds with the summary of
+   * the run. A failed test finishes with a [[TestFailed]] for a failed
+   * assertion or an error that isn't a `Throwable`, with the `Throwable` error
+   * or the defect when the test fails or dies with one, and with a
+   * `java.lang.InterruptedException` when it is interrupted. Tests that aren't
+   * in `descriptor` (because a filter removed them) don't run and count as
+   * ignored in the summary, and suites that aren't in it are left out.
+   */
   def run(notifier: EngineExecutionListener): IO[Any, Summary] = {
     def instrumentedSpec[R, E](zspec: Spec[R, E]) = {
       def loop(

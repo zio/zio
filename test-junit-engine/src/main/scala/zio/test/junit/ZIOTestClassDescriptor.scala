@@ -23,28 +23,56 @@ import zio.test._
 import zio.test.junit.ReflectionUtils._
 
 /**
- * Represents a JUnit 5 test descriptor for a ZIO-based test class
+ * The JUnit Platform descriptor of one ZIO Test spec class: a container whose
+ * display name is the class name without a trailing `\$`.
+ *
+ * Creating it loads the spec and builds the child descriptors: a
+ * [[ZIOSuiteTestDescriptor]] for each suite and a [[ZIOTestDescriptor]] for
+ * each test. Building them runs the effects that build suites, with the live
+ * environment, the test environment and the `bootstrap` layer of the spec. The
+ * constructor throws when the `bootstrap` layer fails, when an effect that
+ * builds a suite dies, or when one that isn't inside another suite fails; a
+ * suite whose effect fails inside another suite is left out, with its tests.
+ *
+ * The spec is the Scala object of `testClass` when there is one (`testClass` is
+ * the class of an object, or has a companion object), and a new instance
+ * created with the no-argument constructor otherwise. When the companion object
+ * of `testClass` isn't a spec, the constructor throws a
+ * `java.lang.ClassCastException`.
  *
  * @param parent
- *   The parent TestDescriptor.
+ *   the parent descriptor
  * @param uniqueId
- *   A unique identifier for this TestDescriptor.
+ *   the unique id of this descriptor
  * @param testClass
- *   The class representing the test.
+ *   the spec class, or the class whose companion object is the spec
  */
 class ZIOTestClassDescriptor(parent: TestDescriptor, uniqueId: UniqueId, val testClass: Class[_])
     extends AbstractTestDescriptor(uniqueId, testClass.getName.stripSuffix("$"), ZIOTestSource(testClass)) {
 
   setParent(parent)
+
+  /**
+   * The JVM name of `testClass`, which ends with `\$` for the class of an
+   * object.
+   */
   val className: String = testClass.getName
 
   // reflection to get the spec implementation
   // by default, it would be an object, extending ZIOSpecDefault
   // but this also support class that needs to be instantiated
+  /** The spec that this descriptor describes. */
   val spec: ZIOSpecAbstract = getCompanionObject(testClass)
     .getOrElse(testClass.getDeclaredConstructor().newInstance())
     .asInstanceOf[ZIOSpecAbstract]
 
+  /**
+   * Returns an effect that adds the descriptors of `spec` under `description`,
+   * nested like its suites: a [[ZIOSuiteTestDescriptor]] for each suite and a
+   * [[ZIOTestDescriptor]] for each test, running the effects that build suites.
+   * `path` is the list of labels of the suites that enclose `spec`, outermost
+   * first.
+   */
   def traverse[R, E](
     spec: Spec[R, E],
     description: TestDescriptor,
@@ -78,6 +106,10 @@ class ZIOTestClassDescriptor(parent: TestDescriptor, uniqueId: UniqueId, val tes
         )
     }
 
+  /**
+   * The effect that builds the child descriptors of this descriptor from the
+   * spec.
+   */
   lazy val scoped: ZIO[spec.Environment with TestEnvironment, Any, Unit] =
     ZIO.scoped[spec.Environment with TestEnvironment](
       traverse(spec.spec, this)
@@ -95,9 +127,13 @@ class ZIOTestClassDescriptor(parent: TestDescriptor, uniqueId: UniqueId, val tes
       .getOrThrowFiberFailure()
   }
 
+  /** Returns `CONTAINER`. */
   override def getType: TestDescriptor.Type = TestDescriptor.Type.CONTAINER
 }
 
+/** Constants of [[ZIOTestClassDescriptor]]. */
 object ZIOTestClassDescriptor {
+
+  /** The unique id segment type of spec class descriptors: `class`. */
   val segmentType = "class"
 }

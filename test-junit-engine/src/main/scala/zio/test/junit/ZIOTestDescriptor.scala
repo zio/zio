@@ -24,20 +24,22 @@ import java.util
 import scala.jdk.CollectionConverters._
 
 /**
- * Describes a JUnit 5 test descriptor for a single ZIO tests.
+ * The JUnit Platform descriptor of one ZIO test, whose display name is the test
+ * label. Its tags are the `TestAnnotation.tagged` tags of the test (a tag must
+ * be a valid JUnit tag name, for example without spaces). Its source is the
+ * file and line where the test is defined (from `TestAnnotation.trace`), or the
+ * spec class when that location is missing.
  *
- * @constructor
- *   Creates a new ZIOTestDescriptor instance.
  * @param parent
- *   The parent descriptor of this test descriptor.
+ *   the parent descriptor
  * @param uniqueId
- *   A unique identifier for this test descriptor.
+ *   the unique id of this descriptor
  * @param label
- *   The display name or label for this test descriptor.
+ *   the test label, used as the display name
  * @param testClass
- *   The test class associated with this descriptor.
+ *   the spec class
  * @param annotations
- *   A map of annotations applied to this test descriptor.
+ *   the annotations of the test
  */
 class ZIOTestDescriptor(
   parent: TestDescriptor,
@@ -47,12 +49,22 @@ class ZIOTestDescriptor(
   annotations: TestAnnotationMap
 ) extends AbstractTestDescriptor(uniqueId, label, ZIOTestSource(testClass, annotations)) {
   setParent(parent)
+
+  /** Returns `TEST`. */
   override def getType: TestDescriptor.Type = TestDescriptor.Type.TEST
 
+  /**
+   * Returns the `TestAnnotation.tagged` tags of the test as JUnit tags. Throws
+   * an `org.junit.platform.commons.PreconditionViolationException` when a tag
+   * isn't a valid JUnit tag name, for example when it contains a space.
+   */
   override def getTags: util.Set[TestTag] =
     annotations.get(TestAnnotation.tagged).map(TestTag.create).asJava
 }
 
+/** Constants of [[ZIOTestDescriptor]]. */
 object ZIOTestDescriptor {
+
+  /** The unique id segment type of test descriptors: `test`. */
   val segmentType = "test"
 }

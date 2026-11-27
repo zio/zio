@@ -17,64 +17,37 @@
 package zio.test.sbt
 
 /**
- * Note: this doc comment seems outdated/misplaced.
+ * The sbt test framework of ZIO Test. sbt uses it to find the spec objects
+ * (objects that extend `zio.test.ZIOSpecAbstract`, such as `ZIOSpecDefault`)
+ * and to run them with `sbt test` and `sbt testOnly`. sbt 1.8.0 and later
+ * register it when `zio-test-sbt` is on the test classpath; older versions need
+ * `zio.test.sbt.ZTestFramework` in the `testFrameworks` setting.
  *
- * =General Test Pieces=
+ * On the JVM, `runner` returns a [[ZTestRunner]]. The runner builds one runtime
+ * from the `bootstrap` layers of the specs in each `tasks` call, so a layer
+ * that several of those specs share is built once. It prints the summary when
+ * sbt calls `done()`. The framework's own class loader is used when no test
+ * class loader is given.
  *
- * [[zio.test.ZIOSpecAbstract]]
+ * On Scala.js and Scala Native, `runner` returns a `ZTestRunner.Master` and
+ * `slaveRunner` returns a `ZTestRunner.Slave`. Slave runners send the summaries
+ * of their specs to the master runner. There is no shared runtime: each spec
+ * runs as its own application with its own `bootstrap` layer. The master
+ * runner's `done()` returns the summary instead of printing it. The class
+ * loader used when none is given is `null`.
  *
- * Contains test logic and how it should be executed. The most important method
- * is:
- *
- * `runSpec` is the most significant method in this class. It:
- *   - Interacts with the Runtime
- *   - Builds TestRunner
- *   - Folds aspects into logic
- *   - Builds `TestExecutor` and passes spec to it
- *   - Returns summary
- *
- * [[zio.test.TestExecutor]]
- *
- * Capable of executing specs that require an environment `R` and may fail with
- * an `E` Recursively traverses tree of specs, executing suites/tests in
- * parallel
- *
- * [[zio.test.TestRunner]]
- *
- * Encapsulates the logic necessary to run specs that require an environment `R`
- * and may fail with an error `E`.
- *
- * ==SBT-specific pieces==
- *
- * [[sbt.testing.Task]]
- *
- * SBT needs everything packaged in these to run tests/suites
- *
- * [[zio.test.sbt.ZTestTask]] extends [[Task]]
- *
- * Contains a ZIOSpecAbstract and everything that SBT needs to run/report it.
- *
- * [[sbt.testing.Runner]]
- *
- * SBT delegates to `Runner` clients for managing/executing test
- *
- * [[zio.test.sbt.ZioSpecFingerprint]] What SBT needs to find your tests. Finds
- * `ZIOSpecAbstract` implementations in your codebase.
- *
- * [[zio.test.sbt.ZTestRunner]] extends [[sbt.testing.Runner]]
- *
- * Receives all Specs found by the `FingerPrint` and merges them into a single
- * `ZTestTask`
- *
- * [[sbt.testing.Framework]] We need to implement this for SBT to recognize
- * ZIO-test as a legitimate test framework.
- *
- * [[zio.test.sbt.ZTestFramework]] extends [[sbt.testing.Framework]] Defines
- * `ZIOSpecFingerPrint` & `ZTestRunner` and passes them to SBT
+ * @see
+ *   [[https://zio.dev/reference/test/installation/ Installation]]
+ * @see
+ *   [[https://zio.dev/reference/test/running-tests/ Running Tests]]
  */
 final class ZTestFramework extends TestFramework {
   override protected def getClassLoader: ClassLoader = getClass.getClassLoader
 
+  /**
+   * Returns a new runner for one sbt test run: a [[ZTestRunner]] on the JVM,
+   * and a `ZTestRunner.Master` on Scala.js and Scala Native.
+   */
   override def runner(
     args: Array[String],
     remoteArgs: Array[String],

@@ -19,12 +19,14 @@ package zio.test.junit
 import org.opentest4j.AssertionFailedError
 
 /**
- * Represents a failure of a test assertion. It needs to extend
- * AssertionFailedError for Junit5 platform to mark it as failure
+ * The failure that the ZIO JUnit engine reports for a failed assertion, and for
+ * a test that fails with an error that isn't a `Throwable`. It extends
+ * `org.opentest4j.AssertionFailedError`, the assertion failure type of the
+ * JUnit Platform.
  *
  * @param message
- *   A description of the failure.
+ *   the rendered failure
  * @param cause
- *   The underlying cause of the failure, if any.
+ *   the underlying cause of the failure, or `null`
  */
 class TestFailed(message: String, cause: Throwable = null) extends AssertionFailedError(message, cause)

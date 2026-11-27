@@ -6,13 +6,18 @@ import zio.{Semaphore, UIO, Unsafe, ZIO}
 import zio.test.{ExecutionEvent, TestFailure, ZTestEventHandler}
 
 /**
- * Reports test results to SBT, ensuring that the `test` task fails if any ZIO
- * test instances fail
+ * Reports ZIO Test results to sbt. It converts each test result and each
+ * runtime failure (`TestFailure.Runtime`) to an sbt event with [[ZTestEvent]],
+ * and passes the events to sbt's `EventHandler` one at a time. Failed tests are
+ * reported with `Status.Failure`, which sbt counts as failed tests. Other
+ * execution events are not reported.
  *
  * @param eventHandler
- *   The underlying handler provided by SBT
+ *   the event handler that sbt provides
  * @param taskDef
- *   The test task that we are reporting for
+ *   the task definition of the spec whose results are reported
+ * @param renderer
+ *   renders the message of each failed test
  */
 final class ZTestEventHandlerSbt(
   eventHandler: EventHandler,
@@ -21,6 +26,10 @@ final class ZTestEventHandlerSbt(
 ) extends ZTestEventHandler {
   private val semaphore: Semaphore = Semaphore.unsafe.make(1L)(Unsafe)
 
+  /**
+   * Converts `executionEvent` to an sbt event and passes it to sbt, or does
+   * nothing when the event is not a test result or a runtime failure.
+   */
   override def handle(executionEvent: ExecutionEvent): UIO[Unit] = {
     val event: Option[Event] = executionEvent match {
       case test @ ExecutionEvent.Test(_, _, _, _, _, _, _) =>
