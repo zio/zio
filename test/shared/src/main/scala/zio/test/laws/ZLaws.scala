@@ -72,8 +72,7 @@ abstract class ZLaws[-Caps[_], -R] { self =>
    * Test that values of type `A` satisfy the laws using the specified
    * generator.
    *
-   * The constructors in `ZLaws` implement it with `check`: each law draws its
-   * own values from `gen`, so two combined laws do not see the same values. By
+   * The constructors in `ZLaws` implement it with `check`: each law draws its own samples from `gen`, so two combined laws see different values from a random generator such as `Gen.int`, and the same values from a fixed sequence such as `Gen.fromIterable`. By
    * default each law checks 200 samples (the `samples` setting of
    * `TestConfig`), and a law with two or three parameters draws each of them
    * separately. A law stops at its first failing sample, which is shrunk and

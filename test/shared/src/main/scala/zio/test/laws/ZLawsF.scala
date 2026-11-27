@@ -89,9 +89,7 @@ object ZLawsF {
      * the laws, using `genF` to construct a generator of `F[A]` values from the
      * generator `gen` of `A` values.
      *
-     * The constructors in the companion object implement it with `check`: each
-     * law draws its own values, 200 samples by default, and stops at its first
-     * failing sample. The effect itself does not fail; a failed law gives a
+     * The constructors in the companion object implement it with `check`: each law draws its own samples from the generator built by `genF` (200 by default) and stops at its first failing sample. The effect itself does not fail; a failed law gives a
      * failed `TestResult` labelled with the law's name.
      */
     def run[R1 <: R, F[+_]: CapsF, A: Caps](
@@ -330,9 +328,7 @@ object ZLawsF {
      * the laws, using `genF` to construct a generator of `F[A]` values from the
      * generator `gen` of `A` values.
      *
-     * The constructors in the companion object implement it with `check`: each
-     * law draws its own values, 200 samples by default, and stops at its first
-     * failing sample. The effect itself does not fail; a failed law gives a
+     * The constructors in the companion object implement it with `check`: each law draws its own samples from the generator built by `genF` (200 by default) and stops at its first failing sample. The effect itself does not fail; a failed law gives a
      * failed `TestResult` labelled with the law's name.
      */
     def run[R1 <: R, F[-_]: CapsF, A: Caps](
@@ -548,9 +544,7 @@ object ZLawsF {
      * the laws, using `genF` to construct a generator of `F[A]` values from the
      * generator `gen` of `A` values.
      *
-     * The constructors in the companion object implement it with `check`: each
-     * law draws its own values, 200 samples by default, and stops at its first
-     * failing sample. The effect itself does not fail; a failed law gives a
+     * The constructors in the companion object implement it with `check`: each law draws its own samples from the generator built by `genF` (200 by default) and stops at its first failing sample. The effect itself does not fail; a failed law gives a
      * failed `TestResult` labelled with the law's name.
      */
     def run[R1 <: R, F[_]: CapsF, A: Caps](
