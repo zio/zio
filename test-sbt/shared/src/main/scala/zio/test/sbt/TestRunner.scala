@@ -7,6 +7,9 @@ import zio.test.{ExecutionEventPrinter, Summary, TestArgs, TestOutput, ZIOSpecAb
 
 import java.util.concurrent.ConcurrentLinkedQueue
 
+/**
+ * The base of the ZIO Test sbt runners ([[ZTestRunner]] on each platform). It parses the test arguments (such as `-t`, `-tags` and `-ignore-tags`) with `TestArgs.parse`, loads the spec object that each `TaskDef` names, creates a [[ZTestTask]] for it, and combines the summaries of the specs in `done()`.
+ */
 abstract class TestRunner(
   final override val args: Array[String],
   // attempt to do `final override val remoteArgs: Array[String]`
@@ -22,22 +25,36 @@ abstract class TestRunner(
   @volatile private var isDone: Boolean = false
   private def verifyNonDone(): Unit     = if (isDone) throw new IllegalStateException(s"Runner $this is already done!")
 
+  /** Returns the remote arguments that this runner was created with. */
   final override def remoteArgs(): Array[String] = remoteArgs0
 
   private val testArgs: TestArgs = TestArgs.parse(args)
 
   private val sharedRuntimes: ConcurrentLinkedQueue[zio.Runtime.Scoped[TestOutput]] = new ConcurrentLinkedQueue
 
+  /**
+   * Returns `true` when the specs of one `tasks` call run on one runtime built from their `bootstrap` layers (on the JVM), and `false` when each spec runs as its own application with its own `bootstrap` layer (on Scala.js and Scala Native).
+   */
   protected def sharedRuntimeSupported: Boolean
 
   private val summaries: ConcurrentLinkedQueue[Summary] = new ConcurrentLinkedQueue
 
+  /** Adds the summary of one spec to the summaries that `done()` combines. */
   final protected def addSummary(summary: Summary): Unit = summaries.offer(summary)
 
+  /** Receives the summary of each spec that a task of this runner finishes. */
   protected def sendSummary(summary: Summary): Unit
 
+  /**
+   * Returns `true` when `done()` returns the summary, and `false` when `done()` prints the summary and returns `"Completed tests"`.
+   */
   protected def returnSummary: Boolean
 
+  /**
+   * Returns one [[ZTestTask]] for each task definition. The spec object that a `TaskDef` names is loaded with the test class loader of this runner.
+   *
+   * Throws a `java.lang.ClassNotFoundException` when a spec object can't be loaded, and a `java.lang.IllegalStateException` when `done()` was already called. On the JVM, this method builds the shared runtime of the specs, so it throws when one of their `bootstrap` layers fails.
+   */
   final override def tasks(taskDefs: Array[TaskDef]): Array[Task] =
     tasks(taskDefs, zio.Console.ConsoleLive)(Trace.empty).toArray
 
@@ -93,6 +110,7 @@ abstract class TestRunner(
   )
 
   // Used to de-serialize tasks on non-JVM backends
+  /** Returns a task for `taskDef` that doesn't use a shared runtime. */
   final protected def toTask(taskDef: TaskDef): TestTask =
     toTask(taskDef, loadSpec(taskDef), None)
 
@@ -106,6 +124,13 @@ abstract class TestRunner(
       .asInstanceOf[ZIOSpecAbstract]
   }
 
+  /**
+   * Ends the test run: shuts down the shared runtimes of this runner and combines the summaries of the specs that ran.
+   *
+   * The summary is the combined test summary when at least one test that ran was not ignored, `"All eligible tests are currently ignored"` when every test was ignored, and `"No tests were executed"` when no test ran. On the JVM, this method prints the summary to standard output (when at least one spec finished) and returns `"Completed tests"`. On Scala.js and Scala Native, it returns the summary.
+   *
+   * Throws a `java.lang.IllegalStateException` when it was already called.
+   */
   final override def done(): String = {
     verifyNonDone()
     isDone = true
@@ -144,9 +169,13 @@ abstract class TestRunner(
   }
 }
 
+/** Helpers of [[TestRunner]]. */
 object TestRunner {
   private val suffix: String = "$"
 
+  /**
+   * Returns `name` with a `\$` at the end, unless it already ends with one. This is the class name of the Scala object named `name`: `example.MySpec` becomes `example.MySpec\$`.
+   */
   def moduleName(name: String): String =
     if (name endsWith suffix) name else name + suffix
 }

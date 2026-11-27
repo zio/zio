@@ -2,21 +2,36 @@ package zio.test.sbt
 
 import scala.annotation.tailrec
 
+/**
+ * ANSI color helpers for the text that the ZIO Test sbt integration prints.
+ */
 object Colors {
+
+  /**
+   * Returns `str` preceded by the ANSI code `code` and followed by the ANSI reset code.
+   */
   def colored(code: String)(str: String): String = s"$code$str${Console.RESET}"
 
-  val red: String => String    = colored(Console.RED)
-  val green: String => String  = colored(Console.GREEN)
-  val cyan: String => String   = colored(Console.CYAN)
-  val blue: String => String   = colored(Console.BLUE)
+  /** Colors a string red. */
+  val red: String => String = colored(Console.RED)
+
+  /** Colors a string green. */
+  val green: String => String = colored(Console.GREEN)
+
+  /** Colors a string cyan. */
+  val cyan: String => String = colored(Console.CYAN)
+
+  /** Colors a string blue. */
+  val blue: String => String = colored(Console.BLUE)
+
+  /** Colors a string yellow. */
   val yellow: String => String = colored(Console.YELLOW)
 
+  /** Returns `str` preceded by the ANSI reset code. */
   def reset(str: String): String = s"${Console.RESET}$str"
 
   /**
-   * Inserts the ANSI escape code for the current color at the beginning of each
-   * line of the specified string so the string will be displayed with the
-   * correct color by the `SBTTestLogger`.
+   * Inserts the ANSI code of the current color at the beginning of each line of `s`, so that each line of colored text keeps its color when the lines are printed one by one. The current color is the last red, green, cyan, blue or yellow code before the line break that no reset code has ended.
    */
   def coloredLines(s: String): String = {
     @tailrec
