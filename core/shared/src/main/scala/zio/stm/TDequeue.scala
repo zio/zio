@@ -59,8 +59,7 @@ sealed trait TDequeue[+A] extends Serializable {
 
   /**
    * Shuts down the queue. A fiber suspended in `take` on it wakes up and is
-   * interrupted. Shutting down a hub subscription unsubscribes it from the
-   * hub.
+   * interrupted. Shutting down a hub subscription unsubscribes it from the hub.
    */
   def shutdown: USTM[Unit]
 

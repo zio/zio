@@ -23,8 +23,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * A `THub` is a transactional message hub. Publishers publish messages to the
  * hub, and subscribers subscribe to take messages published after they
  * subscribed. It works like `Hub`, but its operations are STM transactions, so
- * publishing and taking can be combined with other transactional operations
- * and commit together.
+ * publishing and taking can be combined with other transactional operations and
+ * commit together.
  *
  * A subscription is a [[TDequeue]]. What `publish` does when the hub is full
  * depends on the constructor: `bounded` waits for room, `dropping` discards the

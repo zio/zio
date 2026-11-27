@@ -34,11 +34,11 @@ import scala.util.{Failure, Success, Try}
  *
  * Nothing runs until the transaction is committed with `commit` or
  * `STM.atomically`, which turn it into a `ZIO`. What a successful transaction
- * commits becomes visible to other transactions together: they see all of it
- * or none of it. A transaction that fails or dies commits none of its writes.
- * When another transaction changes a `TRef` that this one has read before this
- * one commits, this one runs again, so code inside `STM.succeed` can run more
- * than once.
+ * commits becomes visible to other transactions together: they see all of it or
+ * none of it. A transaction that fails or dies commits none of its writes. When
+ * another transaction changes a `TRef` that this one has read before this one
+ * commits, this one runs again, so code inside `STM.succeed` can run more than
+ * once.
  *
  * `STM.retry`, and the operators built on it such as `STM.check`, `retryUntil`
  * and `retryWhile`, abandon the current run. The fiber that commits the
@@ -534,9 +534,9 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Runs this transaction, and runs `that` instead when this one retries. A
    * failure of this transaction is not caught. When `that` also retries, the
-   * result retries. For example,
-   * `(STM.retry orTry STM.succeed("fallback")).commit` returns `"fallback"`.
-   * Named alias for `<|>`.
+   * result retries. For example, `(STM.retry orTry
+   * STM.succeed("fallback")).commit` returns `"fallback"`. Named alias for
+   * `<|>`.
    */
   def orTry[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
     OnRetry(self, that)
@@ -1002,9 +1002,9 @@ object ZSTM {
   /**
    * Commits the transaction: returns a `ZIO` effect that runs it. The `TRef`
    * values a successful transaction commits become visible to other fibers
-   * together, and none of the transaction's changes are committed when it
-   * fails or dies. When the transaction retries, the fiber waits until one of
-   * the `TRef`s it read changes, then runs it again. The transaction can run
+   * together, and none of the transaction's changes are committed when it fails
+   * or dies. When the transaction retries, the fiber waits until one of the
+   * `TRef`s it read changes, then runs it again. The transaction can run
    * several times before it commits, so it should not perform side effects.
    * `stm.commit` is the same operation.
    *
@@ -1140,18 +1140,17 @@ object ZSTM {
     foreach(in)(ZIO.identityFn)
 
   /**
-   * Collects the transactional effects into a single transactional effect
-   * that runs them in order and produces `Unit`, without the cost of building
-   * the collection of results.
+   * Collects the transactional effects into a single transactional effect that
+   * runs them in order and produces `Unit`, without the cost of building the
+   * collection of results.
    */
   def collectAllDiscard[R, E, A](in: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, Unit] =
     foreachDiscard(in)(ZIO.identityFn)
 
   /**
    * Applies `f` to the elements of `as` in order and succeeds with the first
-   * `Some` it returns, without applying `f` to the elements after it.
-   * Succeeds with `None` when `f` returns `None` for each element it is
-   * applied to.
+   * `Some` it returns, without applying `f` to the elements after it. Succeeds
+   * with `None` when `f` returns `None` for each element it is applied to.
    */
   def collectFirst[R, E, A, B](as: Iterable[A])(f: A => ZSTM[R, E, Option[B]]): ZSTM[R, E, Option[B]] =
     succeedNow(as.iterator).flatMap { iterator =>
@@ -1185,8 +1184,8 @@ object ZSTM {
     die(new RuntimeException(m))
 
   /**
-   * Takes an exit value of the `TExit` type, which is private to the
-   * `zio.stm` package.
+   * Takes an exit value of the `TExit` type, which is private to the `zio.stm`
+   * package.
    */
   def done[R, E, A](exit: => TExit[E, A]): ZSTM[R, E, A] =
     suspend(done(exit))
@@ -1212,9 +1211,9 @@ object ZSTM {
 
   /**
    * Applies the transactional predicate `f` to the elements of `as` in order
-   * and succeeds with `true` at the first element for which it returns
-   * `true`, without applying `f` to the elements after it. Succeeds with
-   * `false` when `f` returns `false` for each element it is applied to.
+   * and succeeds with `true` at the first element for which it returns `true`,
+   * without applying `f` to the elements after it. Succeeds with `false` when
+   * `f` returns `false` for each element it is applied to.
    */
   def exists[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, Boolean] =
     succeedNow(as.iterator).flatMap { iterator =>

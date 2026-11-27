@@ -54,8 +54,8 @@ sealed trait TEnqueue[-A] extends Serializable {
   def offer(a: A): ZSTM[Any, Nothing, Boolean]
 
   /**
-   * Offers the values to the queue in order. When there is not room for all
-   * of them, a bounded queue retries, so the fiber suspends until the queue
+   * Offers the values to the queue in order. When there is not room for all of
+   * them, a bounded queue retries, so the fiber suspends until the queue
    * changes. A dropping queue adds the values that fit and succeeds with
    * `false` when it discards any. A sliding queue succeeds with `true`. A
    * [[THub]] with no subscribers discards the values and succeeds with `true`.
