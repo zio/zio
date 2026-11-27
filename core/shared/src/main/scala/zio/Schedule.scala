@@ -26,50 +26,91 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 
 /**
- * A `Schedule[Env, In, Out]` defines a recurring schedule, which consumes
- * values of type `In`, and which returns values of type `Out`.
+ * A `Schedule[Env, In, Out]` describes when and how many times an effect
+ * recurs. At each step it receives an input of type `In`, produces an output of
+ * type `Out`, and decides either to stop or to continue after a delay. It may
+ * use an environment of type `Env`.
  *
- * Schedules are defined as a possibly infinite set of intervals spread out over
- * time. Each interval defines a window in which recurrence is possible.
+ * Use a schedule with `ZIO#repeat`, where the input is the effect's success
+ * value, or with `ZIO#retry`, where the input is the effect's error.
+ * Recurrences come after the first run, so with `Schedule.recurs(3)` an effect
+ * runs at most four times.
  *
- * When schedules are used to repeat or retry effects, the starting boundary of
- * each interval produced by a schedule is used as the moment when the effect
- * will be executed again.
+ * Each step that continues returns a set of time intervals
+ * ([[Schedule.Intervals]]), and the effect runs again at the start of the
+ * earliest one. Schedules combine in three main ways:
  *
- * Schedules compose in the following primary ways:
+ *   - Intersection (`&&`): continues while both schedules continue, and waits
+ *     for the longer of the two delays.
+ *   - Union (`||`): continues while either schedule continues, and waits for
+ *     the shorter of the two delays.
+ *   - Sequence (`andThen`): runs this schedule until it is done, then the other
+ *     one.
  *
- * * Union. This performs the union of the intervals of two schedules. *
- * Intersection. This performs the intersection of the intervals of two
- * schedules. * Sequence. This concatenates the intervals of one schedule onto
- * another.
+ * Inputs and outputs can also be transformed (`map`, `contramap`), used to stop
+ * a schedule early (`whileInput`, `untilOutput`), and the delays changed
+ * (`jittered`, `modifyDelay`). The companion object holds the common schedules,
+ * such as `recurs`, `spaced`, `exponential` and the calendar schedules.
  *
- * In addition, schedule inputs and outputs can be transformed, filtered (to
- * terminate a schedule early in response to some input or output), and so
- * forth.
+ * {{{
+ * def connect(attempts: Ref[Int]): IO[String, String] =
+ *   attempts.updateAndGet(_ + 1).flatMap { n =>
+ *     if (n < 3) ZIO.fail("attempt " + n + " failed")
+ *     else ZIO.succeed("connected on attempt " + n)
+ *   }
  *
- * A variety of other operators exist for transforming and combining schedules,
- * and the companion object for `Schedule` contains all common types of
- * schedules, both for performing retrying, as well as performing repetition.
+ * // waits 100 ms, then 200 ms, 400 ms, ...; gives up after 5 retries
+ * val policy: Schedule[Any, Any, (Duration, Long)] =
+ *   Schedule.exponential(100.millis) && Schedule.recurs(5)
+ *
+ * val program: IO[String, String] =
+ *   Ref.make(0).flatMap(attempts => connect(attempts).retry(policy))
+ * // succeeds with "connected on attempt 3"
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/schedule/ Schedule]]
  */
 trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   import Schedule.Decision._
   import Schedule._
 
+  /**
+   * The type of the state that this schedule carries from one step to the next.
+   */
   type State
 
   private[zio] sealed trait UnsafeAPI {
+
+    /**
+     * Creates a [[Schedule.Driver]] for this schedule directly, without
+     * wrapping the creation in an effect.
+     */
     def driver(implicit trace: Trace, unsafe: Unsafe): Schedule.Driver[self.State, Env, In, Out]
   }
 
+  /**
+   * The state of this schedule before its first step.
+   */
   def initial: State
 
+  /**
+   * Runs one step of this schedule at time `now`, with input `in` and the
+   * current `state`. Returns the next state, the output, and the decision:
+   * `Decision.Continue` with the intervals in which the next recurrence may
+   * happen, or `Decision.Done` to stop.
+   */
   def step(now: OffsetDateTime, in: In, state: State)(implicit
     trace: Trace
   ): ZIO[Env, Nothing, (State, Out, Decision)]
 
   /**
-   * Returns a new schedule that performs a geometric intersection on the
-   * intervals defined by both schedules.
+   * Returns a new schedule that continues only while both schedules continue,
+   * and outputs both outputs together. Each step uses the intersection of the
+   * two schedules' intervals, so it waits for the longer of the two delays:
+   * `Schedule.spaced(1.second) && Schedule.spaced(3.seconds)` waits 3 seconds
+   * each time. When the intervals do not overlap, the schedule whose interval
+   * comes first is stepped again until they overlap or one of them is done.
    */
   final def &&[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2])(implicit
     zippable: Zippable[Out, Out2]
@@ -180,7 +221,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
    * Returns the composition of this schedule and the specified schedule, by
    * piping the output of this one into the input of the other. Effects
    * described by this schedule will always be executed before the effects
-   * described by the second schedule.
+   * described by the second schedule. The result continues while both continue,
+   * and waits for the later of the two next intervals.
    */
   final def >>>[Env1 <: Env, Out2](
     that: Schedule[Env1, Out, Out2]
@@ -208,8 +250,11 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     }
 
   /**
-   * Returns a new schedule that performs a geometric union on the intervals
-   * defined by both schedules.
+   * Returns a new schedule that continues while either schedule continues, and
+   * outputs both outputs together. Each step uses the union of the two
+   * schedules' intervals, so it waits for the shorter of the two delays:
+   * `Schedule.spaced(1.second) || Schedule.spaced(3.seconds)` waits 1 second
+   * each time. Once one schedule is done, the other one's intervals are used.
    */
   final def ||[Env1 <: Env, In1 <: In, Out2](that: Schedule[Env1, In1, Out2])(implicit
     zippable: Zippable[Out, Out2]
@@ -242,7 +287,10 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     modifyDelayZIO((out, duration) => f(out).map(duration + _))
 
   /**
-   * The same as `andThenEither`, but merges the output.
+   * Returns a new schedule that runs this schedule until it is done, then runs
+   * the specified schedule until it is done. It outputs the output of the
+   * schedule that is running. The same as `andThenEither`, but merges the
+   * output.
    */
   final def andThen[Env1 <: Env, In1 <: In, Out2 >: Out](
     that: Schedule[Env1, In1, Out2]
@@ -326,8 +374,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     collectWhile(_ => true)
 
   /**
-   * Returns a new schedule that collects the outputs of this one into a list as
-   * long as the condition f holds.
+   * Returns a new schedule that collects the outputs of this one into a chunk
+   * as long as the condition `f` holds. The first output for which `f` is false
+   * is not collected, and the schedule stops there.
    */
   final def collectWhile[Out1 >: Out](f: Out => Boolean)(implicit
     trace: Trace
@@ -335,8 +384,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     collectWhileZIO(out => ZIO.succeed(f(out)))
 
   /**
-   * Returns a new schedule that collects the outputs of this one into a list as
-   * long as the effectual condition f holds.
+   * Returns a new schedule that collects the outputs of this one into a chunk
+   * as long as the effectual condition `f` holds. The first output for which
+   * `f` is false is not collected, and the schedule stops there.
    */
   final def collectWhileZIO[Env1 <: Env, Out1 >: Out](f: Out => URIO[Env1, Boolean])(implicit
     trace: Trace
@@ -372,8 +422,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     }
 
   /**
-   * Returns a new schedule that collects the outputs of this one into a list
-   * until the condition f fails.
+   * Returns a new schedule that collects the outputs of this one into a chunk
+   * until the condition `f` holds for an output. That output is not collected,
+   * and the schedule stops there.
    */
   final def collectUntil[Out1 >: Out](f: Out => Boolean)(implicit
     trace: Trace
@@ -381,8 +432,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     collectUntilZIO(out => ZIO.succeed(f(out)))
 
   /**
-   * Returns a new schedule that collects the outputs of this one into a list
-   * until the effectual condition f fails.
+   * Returns a new schedule that collects the outputs of this one into a chunk
+   * until the effectual condition `f` holds for an output. That output is not
+   * collected, and the schedule stops there.
    */
   final def collectUntilZIO[Env1 <: Env, Out1 >: Out](f: Out => URIO[Env1, Boolean])(implicit
     trace: Trace
@@ -398,8 +450,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     that >>> self
 
   /**
-   * Returns a new schedule that deals with a narrower class of inputs than this
-   * schedule.
+   * Returns a new schedule that applies `f` to each input before passing it to
+   * this schedule.
    */
   final def contramap[Env1 <: Env, In2](f: In2 => In)(implicit
     trace: Trace
@@ -407,8 +459,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     self.contramapZIO(in => ZIO.succeed(f(in)))
 
   /**
-   * Returns a new schedule that deals with a narrower class of inputs than this
-   * schedule.
+   * Returns a new schedule that runs the effectful function `f` on each input
+   * and passes its result to this schedule.
    */
   final def contramapZIO[Env1 <: Env, In2](f: In2 => URIO[Env1, In]): Schedule.WithState[self.State, Env1, In2, Out] =
     new Schedule.Internal[Env1, In2, Out] {
@@ -421,7 +473,9 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     }
 
   /**
-   * A schedule that recurs during the given duration
+   * Returns a new schedule that continues like this one while less than
+   * `duration` has passed since its first step, and stops after that. The time
+   * counts from the first step, which comes after the first run of the effect.
    */
   final def upTo(duration: Duration)(implicit
     trace: Trace
@@ -429,14 +483,17 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     self <* Schedule.upTo(duration)
 
   /**
-   * Returns a new schedule with the specified effectfully computed delay added
-   * before the start of each interval produced by this schedule.
+   * Returns a new schedule that replaces each delay of this schedule with the
+   * result of applying `f` to it: `Schedule.spaced(3.seconds).delayed(_ * 0.5)`
+   * waits 1.5 seconds each time.
    */
   final def delayed(f: Duration => Duration)(implicit trace: Trace): Schedule.WithState[self.State, Env, In, Out] =
     self.delayedZIO(d => ZIO.succeed(f(d)))
 
   /**
-   * Returns a new schedule that outputs the delay between each occurence.
+   * Returns a new schedule that outputs, at each step, the delay before the
+   * next recurrence instead of this schedule's output. The step that ends the
+   * schedule outputs `Duration.Zero`.
    */
   final def delays: Schedule.WithState[self.State, Env, In, Duration] =
     new Schedule.Internal[Env, In, Duration] {
@@ -455,8 +512,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     }
 
   /**
-   * Returns a new schedule with the specified effectfully computed delay added
-   * before the start of each interval produced by this schedule.
+   * Returns a new schedule that replaces each delay of this schedule with the
+   * result of the effectful function `f` applied to it.
    */
   final def delayedZIO[Env1 <: Env](
     f: Duration => URIO[Env1, Duration]
@@ -534,13 +591,20 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     self *** Schedule.identity[X]
 
   /**
-   * Returns a new schedule that folds over the outputs of this one.
+   * Returns a new schedule that folds the outputs of this one with `f`,
+   * starting from `z`. Each step outputs the value accumulated before that
+   * step's output is folded in, and the step that ends the schedule outputs the
+   * value folded from all earlier outputs. For example, `Schedule.recurs(3)`
+   * outputs 0, 1, 2 and then 3 when it stops, so
+   * `Schedule.recurs(3).fold(100L)(_ + _)` outputs 100, 100, 101 and then 103.
    */
   final def fold[Z](z: Z)(f: (Z, Out) => Z)(implicit trace: Trace): Schedule.WithState[(self.State, Z), Env, In, Z] =
     foldZIO(z)((z, out) => ZIO.succeed(f(z, out)))
 
   /**
-   * Returns a new schedule that effectfully folds over the outputs of this one.
+   * Returns a new schedule that folds the outputs of this one with the
+   * effectful function `f`, starting from `z`. As with `fold`, each step
+   * outputs the value accumulated before that step's output is folded in.
    */
   final def foldZIO[Env1 <: Env, Z](
     z: Z
@@ -633,18 +697,16 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     }
 
   /**
-   * Returns a new schedule that randomly modifies the size of the intervals of
-   * this schedule.
+   * Returns a new schedule that multiplies each delay of this schedule by a
+   * random factor between 0.8 and 1.2. The same as `jittered(0.8, 1.2)`.
    */
   final def jittered(implicit trace: Trace): Schedule.WithState[self.State, Env, In, Out] =
     jittered(0.8, 1.2)
 
   /**
-   * Returns a new schedule that randomly modifies the size of the intervals of
-   * this schedule.
+   * Returns a new schedule that randomly modifies the delays of this schedule.
    *
-   * The new interval size is between `min * old interval size` and `max * old
-   * interval size`.
+   * The new delay is between `min * old delay` and `max * old delay`.
    *
    * [Research](https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/)
    * shows that `jittered(0.0, 1.0)` is a suitable range for a retrying
@@ -802,7 +864,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   /**
    * Returns a new schedule that reconsiders every decision made by this
    * schedule, possibly modifying the next interval and the output type in the
-   * process.
+   * process. When `f` returns `Left`, the schedule stops. A decision to stop
+   * stays a decision to stop, even when `f` returns `Right`.
    */
   final def reconsider[Out2](
     f: (State, Out, Decision) => Either[Out2, (Out2, Interval)]
@@ -812,7 +875,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
   /**
    * Returns a new schedule that effectfully reconsiders every decision made by
    * this schedule, possibly modifying the next interval and the output type in
-   * the process.
+   * the process. When `f` returns `Left`, the schedule stops. A decision to
+   * stop stays a decision to stop, even when `f` returns `Right`.
    */
   final def reconsiderZIO[Env1 <: Env, In1 <: In, Out2](
     f: (State, Out, Decision) => URIO[Env1, Either[Out2, (Out2, Interval)]]
@@ -838,14 +902,18 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     }
 
   /**
-   * Returns a new schedule that outputs the number of repetitions of this one.
+   * Returns a new schedule that outputs the number of repetitions of this one:
+   * how many earlier steps continued, so 0 at the first step, then 1, 2, and so
+   * on.
    */
   final def repetitions(implicit trace: Trace): Schedule.WithState[(self.State, Long), Env, In, Long] =
     fold(0L)((n: Long, _: Out) => n + 1L)
 
   /**
-   * Return a new schedule that automatically resets the schedule to its initial
-   * state after some time of inactivity defined by `duration`.
+   * Returns a new schedule that resets this schedule to its initial state once
+   * `duration` has passed since its first step or its last reset. The time is
+   * measured from that step, not from the last step, so a schedule that keeps
+   * stepping is reset too.
    */
   final def resetAfter(duration: Duration)(implicit
     trace: Trace
@@ -877,7 +945,11 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     Schedule.identity[X] +++ self
 
   /**
-   * Runs a schedule using the provided inputs, and collects all outputs.
+   * Runs a schedule using the provided inputs, and collects all outputs. It
+   * steps once per input, starting at `now` and using the start of each next
+   * interval as the next time, without sleeping. It stops when the inputs run
+   * out or the schedule is done; the output of the step that ends the schedule
+   * is included.
    */
   final def run(now: OffsetDateTime, input: Iterable[In])(implicit trace: Trace): URIO[Env, Chunk[Out]] = {
     def loop(
@@ -1043,8 +1115,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     checkZIO((_, out) => f(out).map(b => !b))
 
   /**
-   * Returns a new schedule that continues for as long the specified predicate
-   * on the input evaluates to true.
+   * Returns a new schedule that continues for as long as the specified
+   * predicate on the input evaluates to true.
    */
   final def whileInput[In1 <: In](f: In1 => Boolean)(implicit
     trace: Trace
@@ -1052,8 +1124,8 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     check((in, _) => f(in))
 
   /**
-   * Returns a new schedule that continues for as long the specified effectful
-   * predicate on the input evaluates to true.
+   * Returns a new schedule that continues for as long as the specified
+   * effectful predicate on the input evaluates to true.
    */
   final def whileInputZIO[Env1 <: Env, In1 <: In](
     f: In1 => URIO[Env1, Boolean]
@@ -1061,15 +1133,15 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     checkZIO((in, _) => f(in))
 
   /**
-   * Returns a new schedule that continues for as long the specified predicate
-   * on the output evaluates to true.
+   * Returns a new schedule that continues for as long as the specified
+   * predicate on the output evaluates to true.
    */
   final def whileOutput(f: Out => Boolean)(implicit trace: Trace): Schedule.WithState[self.State, Env, In, Out] =
     check((_, out) => f(out))
 
   /**
-   * Returns a new schedule that continues for as long the specified effectful
-   * predicate on the output evaluates to true.
+   * Returns a new schedule that continues for as long as the specified
+   * effectful predicate on the output evaluates to true.
    */
   final def whileOutputZIO[Env1 <: Env](f: Out => URIO[Env1, Boolean]): Schedule.WithState[self.State, Env1, In, Out] =
     checkZIO((_, out) => f(out))
@@ -1109,6 +1181,12 @@ trait Schedule[-Env, -In, +Out] extends Serializable { self =>
     (self zip that).map(f.tupled)
 }
 
+/**
+ * Constructors for [[Schedule]] values, such as `recurs`, `spaced`,
+ * `exponential`, `fixed` and the calendar schedules, and the types a schedule
+ * works with: [[Schedule.Interval]], [[Schedule.Intervals]],
+ * [[Schedule.Decision]] and [[Schedule.Driver]].
+ */
 object Schedule {
 
   /**
@@ -1117,14 +1195,16 @@ object Schedule {
   private sealed abstract class Internal[-Env, In, Out] extends Schedule[Env, In, Out]
 
   /**
-   * A schedule that recurs anywhere, collecting all inputs into a list.
+   * A schedule that always recurs, without delay, and outputs all inputs so far
+   * in a chunk.
    */
   def collectAll[A](implicit trace: Trace): Schedule.WithState[(Unit, Chunk[A]), Any, A, Chunk[A]] =
     identity[A].collectAll
 
   /**
-   * A schedule that recurs as long as the condition f holds, collecting all
-   * inputs into a list.
+   * A schedule that recurs, without delay, as long as the condition `f` holds
+   * for the input, and outputs the inputs so far in a chunk. The first input
+   * for which `f` is false is not collected, and the schedule stops there.
    */
   def collectWhile[A](f: A => Boolean)(implicit
     trace: Trace
@@ -1132,8 +1212,10 @@ object Schedule {
     identity[A].collectWhile(f)
 
   /**
-   * A schedule that recurs as long as the effectful condition holds, collecting
-   * all inputs into a list.
+   * A schedule that recurs, without delay, as long as the effectful condition
+   * `f` holds for the input, and outputs the inputs so far in a chunk. The
+   * first input for which `f` is false is not collected, and the schedule stops
+   * there.
    */
   def collectWhileZIO[Env, A](f: A => URIO[Env, Boolean])(implicit
     trace: Trace
@@ -1141,8 +1223,9 @@ object Schedule {
     identity[A].collectWhileZIO(f)
 
   /**
-   * A schedule that recurs until the condition f fails, collecting all inputs
-   * into a list.
+   * A schedule that recurs, without delay, until the condition `f` holds for
+   * the input, and outputs the inputs so far in a chunk. The input for which
+   * `f` holds is not collected, and the schedule stops there.
    */
   def collectUntil[A](f: A => Boolean)(implicit
     trace: Trace
@@ -1150,8 +1233,9 @@ object Schedule {
     identity[A].collectUntil(f)
 
   /**
-   * A schedule that recurs until the effectful condition f fails, collecting
-   * all inputs into a list.
+   * A schedule that recurs, without delay, until the effectful condition `f`
+   * holds for the input, and outputs the inputs so far in a chunk. The input
+   * for which `f` holds is not collected, and the schedule stops there.
    */
   def collectUntilZIO[Env, A](f: A => URIO[Env, Boolean])(implicit
     trace: Trace
@@ -1181,19 +1265,22 @@ object Schedule {
     identity[A].whileInputZIO(f)
 
   /**
-   * A schedule that recurs for as long as the predicate is equal.
+   * A schedule that recurs for as long as the input is equal to `a`, and
+   * outputs the input.
    */
   def recurWhileEquals[A](a: => A)(implicit trace: Trace): Schedule.WithState[Unit, Any, A, A] =
     identity[A].whileInput(_ == a)
 
   /**
-   * A schedule that recurs for until the predicate evaluates to true.
+   * A schedule that recurs until the predicate evaluates to true for the input,
+   * and outputs the input.
    */
   def recurUntil[A](f: A => Boolean)(implicit trace: Trace): Schedule.WithState[Unit, Any, A, A] =
     identity[A].untilInput(f)
 
   /**
-   * A schedule that recurs for until the predicate evaluates to true.
+   * A schedule that recurs until the effectful predicate evaluates to true for
+   * the input, and outputs the input.
    */
   def recurUntilZIO[Env, A](f: A => URIO[Env, Boolean])(implicit
     trace: Trace
@@ -1201,14 +1288,16 @@ object Schedule {
     identity[A].untilInputZIO(f)
 
   /**
-   * A schedule that recurs for until the predicate is equal.
+   * A schedule that recurs until the input is equal to `a`, and outputs the
+   * input.
    */
   def recurUntilEquals[A](a: => A)(implicit trace: Trace): Schedule.WithState[Unit, Any, A, A] =
     identity[A].untilInput(_ == a)
 
   /**
-   * A schedule that recurs for until the input value becomes applicable to
-   * partial function and then map that value with given function.
+   * A schedule that recurs until `pf` is defined at the input. It outputs
+   * `None` while `pf` is not defined, and `Some` of the result of `pf` for the
+   * input that stops it.
    */
   def recurUntil[A, B](pf: PartialFunction[A, B])(implicit
     trace: Trace
@@ -1285,7 +1374,8 @@ object Schedule {
   // format: off
   /**
    * A schedule that recurs on a fixed interval. Returns the number of
-   * repetitions of the schedule so far.
+   * repetitions of the schedule so far. The intervals count from the first
+   * step, which comes after the first run of the effect.
    *
    * If the action run between updates takes longer than the interval, then the
    * action will be run immediately, but re-runs will not "pile up".
@@ -1332,7 +1422,10 @@ object Schedule {
     }
 
   /**
-   * A schedule that recurs during the given duration
+   * A schedule that recurs, without delay, while less than `duration` has
+   * passed since its first step, and outputs the time passed since that step.
+   * Combine it with a schedule that adds a delay, for example
+   * `Schedule.spaced(1.second) && Schedule.upTo(30.seconds)`.
    */
   def upTo(duration: Duration)(implicit
     trace: Trace
@@ -1407,8 +1500,9 @@ object Schedule {
 
   /**
    * A schedule that always recurs, but will repeat on a linear time interval,
-   * given by `base * n` where `n` is the number of repetitions so far. Returns
-   * the current duration between recurrences.
+   * given by `base * n` where `n` is the number of the recurrence, starting at
+   * 1: the delays are `base`, `2 * base`, `3 * base`, and so on. Returns the
+   * current duration between recurrences.
    */
   def linear(base: Duration)(implicit trace: Trace): Schedule.WithState[Long, Any, Any, Duration] =
     delayed[Any, Any](forever.map(i => base * (i + 1).doubleValue()))
@@ -1420,22 +1514,28 @@ object Schedule {
     recurs(1).unit
 
   /**
-   * A schedule spanning all time, which can be stepped only the specified
-   * number of times before it terminates.
+   * A schedule that recurs `n` times, without delay, and then stops. It outputs
+   * the number of earlier recurrences: 0, 1, 2, and so on. With `ZIO#repeat` or
+   * `ZIO#retry`, the effect runs at most `n + 1` times. When `n` is zero or
+   * negative, it does not recur.
    */
   def recurs(n: Long)(implicit trace: Trace): Schedule.WithState[Long, Any, Any, Long] =
     forever.whileOutput(_ < n)
 
   /**
-   * A schedule spanning all time, which can be stepped only the specified
-   * number of times before it terminates.
+   * A schedule that recurs `n` times, without delay, and then stops. It outputs
+   * the number of earlier recurrences: 0, 1, 2, and so on. With `ZIO#repeat` or
+   * `ZIO#retry`, the effect runs at most `n + 1` times. When `n` is zero or
+   * negative, it does not recur.
    */
   def recurs(n: Int)(implicit trace: Trace): Schedule.WithState[Long, Any, Any, Long] =
     recurs(n.toLong)
 
   /**
    * Returns a schedule that recurs continuously, each repetition spaced the
-   * specified duration from the last run.
+   * specified duration from the last run. The delay counts from the end of the
+   * last run, so a run that takes longer does not shorten it. It outputs the
+   * number of earlier recurrences: 0, 1, 2, and so on.
    */
   def spaced(duration: Duration)(implicit trace: Trace): Schedule.WithState[Long, Any, Any, Long] =
     forever.addDelay(_ => duration)
@@ -1447,15 +1547,15 @@ object Schedule {
     recurs(0).unit
 
   /**
-   * Returns a schedule that repeats one time, producing the specified constant
-   * value.
+   * Returns a schedule that always recurs, without delay, producing the
+   * specified constant value.
    */
   def succeed[A](a: => A)(implicit trace: Trace): Schedule.WithState[Long, Any, Any, A] =
     forever.as(a)
 
   /**
-   * Unfolds a schedule that repeats one time from the specified state and
-   * iterator.
+   * Returns a schedule that always recurs, without delay, and outputs `a`,
+   * then `f(a)`, then `f(f(a))`, and so on.
    */
   def unfold[A](a: => A)(f: A => A): Schedule.WithState[A, Any, Any, A] =
     new Schedule.Internal[Any, Any, A] {
@@ -1480,6 +1580,11 @@ object Schedule {
    * |----------|----------|----------|----------|
    * |action------|sleep---|act|-sleep|action----|
    * </pre>
+   *
+   * It outputs the number of earlier recurrences: 0, 1, 2, and so on. The
+   * windows count from the first step, which comes after the first run of the
+   * effect. With `Duration.Zero`, the second step dies with a
+   * `java.lang.ArithmeticException`.
    */
   def windowed(interval: Duration): Schedule.WithState[(Option[Long], Long), Any, Any, Long] =
     new Schedule.Internal[Any, Any, Long] {
@@ -1515,9 +1620,12 @@ object Schedule {
   /**
    * Cron-like schedule that recurs every specified `second` of each minute. It
    * triggers at zero nanosecond of the second. Producing a count of repeats: 0,
-   * 1, 2.
+   * 1, 2. When the first step happens during that second, the first recurrence
+   * runs without delay.
    *
    * NOTE: `second` parameter is validated lazily. Must be in range 0...59.
+   * Outside that range, the first step dies with a
+   * `java.lang.IllegalArgumentException`.
    */
   def secondOfMinute(second0: Int)(implicit trace: Trace): Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long] =
     new Schedule.Internal[Any, Any, Long] {
@@ -1544,9 +1652,12 @@ object Schedule {
   /**
    * Cron-like schedule that recurs every specified `minute` of each hour. It
    * triggers at zero second of the minute. Producing a count of repeats: 0, 1,
-   * 2.
+   * 2. When the first step happens during that minute, the first recurrence
+   * runs without delay.
    *
    * NOTE: `minute` parameter is validated lazily. Must be in range 0...59.
+   * Outside that range, the first step dies with a
+   * `java.lang.IllegalArgumentException`.
    */
   def minuteOfHour(minute: Int)(implicit trace: Trace): Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long] =
     new Schedule.Internal[Any, Any, Long] {
@@ -1571,8 +1682,12 @@ object Schedule {
   /**
    * Cron-like schedule that recurs every specified `hour` of each day. It
    * triggers at zero minute of the hour. Producing a count of repeats: 0, 1, 2.
+   * When the first step happens during that hour, the first recurrence runs
+   * without delay.
    *
    * NOTE: `hour` parameter is validated lazily. Must be in range 0...23.
+   * Outside that range, the first step dies with a
+   * `java.lang.IllegalArgumentException`.
    */
   def hourOfDay(hour: Int)(implicit trace: Trace): Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long] =
     new Schedule.Internal[Any, Any, Long] {
@@ -1596,10 +1711,13 @@ object Schedule {
 
   /**
    * Cron-like schedule that recurs every specified `day` of each week. It
-   * triggers at zero hour of the week. Producing a count of repeats: 0, 1, 2.
+   * triggers at midnight (00:00) at the start of that day. Producing a count of
+   * repeats: 0, 1, 2. When the first step happens on that day, the first
+   * recurrence runs without delay.
    *
    * NOTE: `day` parameter is validated lazily. Must be in range 1 (Monday)...7
-   * (Sunday).
+   * (Sunday). Outside that range, the first step dies with a
+   * `java.lang.IllegalArgumentException`.
    */
   def dayOfWeek(day: Int)(implicit trace: Trace): Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long] =
     new Schedule.Internal[Any, Any, Long] {
@@ -1630,8 +1748,12 @@ object Schedule {
    * on months containing less days than specified in `day` param.
    *
    * It triggers at zero hour of the day. Producing a count of repeats: 0, 1, 2.
+   * When the first step happens on that day, the first recurrence runs without
+   * delay. When a step happens earlier in a month that has fewer days than `day` (for example on February 10 for `dayOfMonth(31)`), `step` throws a `java.time.DateTimeException`, so `ZIO#repeat` and `ZIO#retry` die with it.
    *
    * NOTE: `day` parameter is validated lazily. Must be in range 1...31.
+   * Outside that range, the first step dies with a
+   * `java.lang.IllegalArgumentException`.
    */
   def dayOfMonth(day: Int)(implicit trace: Trace): Schedule.WithState[(OffsetDateTime, Long), Any, Any, Long] =
     new Schedule.Internal[Any, Any, Long] {
@@ -1659,11 +1781,22 @@ object Schedule {
    */
   sealed abstract class Interval private (val start: OffsetDateTime, val end: OffsetDateTime) { self =>
 
+    /**
+     * Returns `true` when this interval comes first, as decided by `min`.
+     */
     final def <(that: Interval): Boolean = (self min that) == self
 
+    /**
+     * Returns `true` when `start` is not before `end`. A zero-width interval,
+     * whose start equals its end, is empty.
+     */
     final def isEmpty: Boolean =
       start.compareTo(end) >= 0
 
+    /**
+     * Returns the interval from the later of the two starts to the earlier of
+     * the two ends. When the intervals do not overlap, the result is empty.
+     */
     final def intersect(that: Interval): Interval = {
       val start = Interval.max(self.start, that.start)
       val end   = Interval.min(self.end, that.end)
@@ -1671,12 +1804,22 @@ object Schedule {
       Interval(start, end)
     }
 
+    /**
+     * Returns the interval that comes last: the one of the two that `min` does
+     * not return.
+     */
     final def max(that: Interval): Interval = {
       val m = self min that
 
       if (m == self) that else self
     }
 
+    /**
+     * Returns the interval that comes first. When one interval ends at or
+     * before the start of the other, that one comes first. Otherwise the one
+     * with the earlier start comes first, and with equal starts, the one with
+     * the earlier end (this interval, when the ends are equal too).
+     */
     final def min(that: Interval): Interval =
       if (self.end.compareTo(that.start) <= 0) self
       else if (that.end.compareTo(self.start) <= 0) that
@@ -1685,24 +1828,42 @@ object Schedule {
       else if (self.end.compareTo(that.end) <= 0) self
       else that
 
+    /**
+     * Returns `true` when `start` is before `end`.
+     */
     final def nonEmpty: Boolean =
       !isEmpty
 
+    /**
+     * Returns the time from `start` to `end`. Throws a
+     * `java.lang.ArithmeticException` when the interval is too long to count
+     * in nanoseconds as a `Long` (about 292 years), for example an interval
+     * created with `Interval.after`, which ends at `OffsetDateTime.MAX`.
+     */
     final def size: Duration = Duration.fromNanos(java.time.Duration.between(start, end).toNanos)
   }
 
+  /**
+   * Constructors for [[Schedule.Interval]].
+   */
   object Interval extends Function2[OffsetDateTime, OffsetDateTime, Interval] {
 
     /**
-     * Constructs a new interval from the two specified endpoints. If the start endpoint greater
-     * than the end endpoint, then a zero size interval will be returned.
+     * Constructs a new interval from the two specified endpoints. If the start endpoint is greater
+     * than the end endpoint, then the zero size interval `Interval.empty` will be returned.
      */
     def apply(start: OffsetDateTime, end: OffsetDateTime): Interval =
       if (start.isBefore(end) || start == end) new Interval(start, end) {}
       else empty
 
+    /**
+     * Returns the interval from `start` to `OffsetDateTime.MAX`.
+     */
     def after(start: OffsetDateTime): Interval = Interval(start, OffsetDateTime.MAX)
 
+    /**
+     * Returns the interval from `OffsetDateTime.MIN` to `end`.
+     */
     def before(end: OffsetDateTime): Interval = Interval(OffsetDateTime.MIN, end)
 
     /**
@@ -1732,7 +1893,11 @@ object Schedule {
       self.union(that)
 
     /**
-      * The union of this set of intervals and the specified set of intervals
+      * The union of this set of intervals and the specified set of intervals.
+      * Overlapping and touching intervals are merged into one. When an
+      * interval lies inside another one, the merged interval ends where the
+      * inner interval ends: the union of the 0 to 10 second interval and the 2
+      * to 5 second interval is the 0 to 5 second interval.
       */
     def union(that: Intervals): Intervals = {
 
@@ -1791,7 +1956,8 @@ object Schedule {
     }
 
     /**
-      * The start of the earliest interval in this set.
+      * The start of the earliest interval in this set, or `OffsetDateTime.MIN`
+      * when the set is empty.
       */
     def start: OffsetDateTime =
       (intervals match {
@@ -1800,7 +1966,9 @@ object Schedule {
       }).start
 
     /**
-      * The end of the latest interval in this set.
+      * The end of the earliest interval in this set, or `OffsetDateTime.MIN`
+      * when the set is empty. For a set of several separate intervals, this is
+      * not the end of the latest one.
       */
     def end: OffsetDateTime =
       (intervals match {
@@ -1816,7 +1984,8 @@ object Schedule {
       self.start.isBefore(that.start)
 
     /**
-      * Whether this set of intervals is empty.
+      * Whether this set holds at least one interval. A set that holds only an
+      * empty interval, such as `Intervals(Interval.empty)`, is non-empty.
       */
     def nonEmpty: Boolean =
       !intervals.isEmpty
@@ -1828,10 +1997,14 @@ object Schedule {
       if (self < that) that else self
   }
 
+  /**
+   * Constructors for [[Schedule.Intervals]].
+   */
   object Intervals {
 
     /**
-     * Constructs a set of intervals from the specified intervals.
+     * Constructs a set of intervals from the specified intervals, merging them
+     * with `union`.
      */
     def apply(intervals: Interval*): Intervals =
       intervals.foldLeft(Intervals.empty) { (intervals, interval) =>
@@ -1849,14 +2022,27 @@ object Schedule {
   }
 
 
+  /**
+   * Returns the earlier of the two date-times, or `l` when they are equal.
+   */
   def minOffsetDateTime(l: OffsetDateTime, r: OffsetDateTime): OffsetDateTime =
     if (l.compareTo(r) <= 0) l else r
 
+  /**
+   * Returns the later of the two date-times, or `l` when they are equal.
+   */
   def maxOffsetDateTime(l: OffsetDateTime, r: OffsetDateTime): OffsetDateTime =
     if (l.compareTo(r) >= 0) l else r
 
+  /**
+   * A [[Schedule]] whose `State` type is `State0`. Constructors and operators
+   * return this type so that the state type of the result stays known.
+   */
   type WithState[State0, -Env, -In0, +Out0] = Schedule[Env, In0, Out0] { type State = State0 }
 
+  /**
+   * A handle for stepping a schedule by hand, created by `Schedule#driver`. `next` runs one step with the given input at the current clock time, sleeps until the next recurrence, and returns the output; it fails with `None` when the schedule is done. `last` returns the output of the most recent step, and fails with a `NoSuchElementException` ("There is no value left") before the first step and after `reset`. `reset` returns to the initial state, and `state` returns the current state.
+   */
   final case class Driver[+State, -Env, -In, +Out](
     next: In => ZIO[Env, None.type, Out],
     last: IO[NoSuchElementException, Out],
@@ -1864,16 +2050,39 @@ object Schedule {
     state: UIO[State]
   )
 
+  /**
+   * The decision a schedule makes at each step: continue, with the intervals
+   * in which the next recurrence may happen, or stop.
+   */
   sealed trait Decision
 
+  /**
+   * The two kinds of [[Schedule.Decision]]: `Continue` and `Done`.
+   */
   object Decision {
 
+    /**
+     * Continues the schedule. The next recurrence happens at the start of the
+     * earliest interval in `interval`.
+     */
     final case class Continue(interval: Intervals) extends Decision
+
+    /**
+     * Constructors for `Continue` decisions.
+     */
     object Continue {
+
+      /**
+       * Returns a `Continue` decision whose set of intervals holds only
+       * `interval`.
+       */
       def apply(interval: Interval): Decision =
         Continue(Intervals(interval))
     }
 
+    /**
+     * Stops the schedule.
+     */
     case object Done                              extends Decision
   }
 
