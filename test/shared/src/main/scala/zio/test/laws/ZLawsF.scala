@@ -364,13 +364,6 @@ object ZLawsF {
       left: Contravariant[CapsF, Caps, R],
       right: Contravariant[CapsF, Caps, R]
     ) extends Contravariant[CapsF, Caps, R] {
-
-      /**
-       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately
-       * from `genF(gen)` for each sample (200 samples by default). It runs the
-       * effect returned by `apply` once per sample. The result is labelled with
-       * the law's name.
-       */
       final def run[R1 <: R, F[-_]: CapsF, A: Caps](
         genF: GenF[R1, F],
         gen: Gen[R1, A]
@@ -589,13 +582,6 @@ object ZLawsF {
       left: Invariant[CapsF, Caps, R],
       right: Invariant[CapsF, Caps, R]
     ) extends Invariant[CapsF, Caps, R] {
-
-      /**
-       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately
-       * from `genF(gen)` for each sample (200 samples by default). It runs the
-       * effect returned by `apply` once per sample. The result is labelled with
-       * the law's name.
-       */
       final def run[R1 <: R, F[_]: CapsF, A: Caps](
         genF: GenF[R1, F],
         gen: Gen[R1, A]
