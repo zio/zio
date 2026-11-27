@@ -24,7 +24,12 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.immutable.SortedSet
 
 /**
- * A type of annotation.
+ * A type of annotation: `identifier` names it, `initial` is its value before
+ * anything is added, and `combine` merges two values. Two annotations are equal
+ * when their identifiers and value types are equal.
+ *
+ * @see
+ *   [[https://zio.dev/reference/test/aspects/annotating-tests/ Annotating Tests]]
  */
 final class TestAnnotation[V] private (
   val identifier: String,
@@ -41,8 +46,15 @@ final class TestAnnotation[V] private (
     (identifier, tag).hashCode
 }
 
+/**
+ * The predefined test annotations, and the constructor of new ones.
+ */
 object TestAnnotation {
 
+  /**
+   * Creates an annotation type named `identifier`, with the value `initial`
+   * before anything is added and `combine` to merge two values.
+   */
   def apply[V](identifier: String, initial: V, combine: (V, V) => V)(implicit
     tag: EnvironmentTag[V]
   ): TestAnnotation[V] =
@@ -55,19 +67,22 @@ object TestAnnotation {
     TestAnnotation("ignored", 0, _ + _)
 
   /**
-   * An annotation which tracks output produced by a test.
+   * An annotation which tracks output produced by a test: the lines it prints
+   * with `printLine` and reads with `readLine` through `TestConsole`.
    */
   val output: TestAnnotation[Chunk[ConsoleIO]] =
     TestAnnotation("output", Chunk.empty, _ ++ _)
 
   /**
-   * An annotation which counts repeated tests.
+   * An annotation which counts how many times a test was repeated by `nonFlaky`
+   * or `repeat`.
    */
   val repeated: TestAnnotation[Int] =
     TestAnnotation("repeated", 0, _ + _)
 
   /**
-   * An annotation which counts retried tests.
+   * An annotation which counts how many times a test was retried by `flaky` or
+   * `retry`.
    */
   val retried: TestAnnotation[Int] =
     TestAnnotation("retried", 0, _ + _)
@@ -79,7 +94,7 @@ object TestAnnotation {
     TestAnnotation("tagged", Set.empty, _ union _)
 
   /**
-   * An annotation for timing.
+   * An annotation for timing: the time a test took, set by `TestAspect.timed`.
    */
   val timing: TestAnnotation[TestDuration] =
     TestAnnotation("timing", TestDuration.zero, _ <> _)
@@ -91,9 +106,18 @@ object TestAnnotation {
   private[zio] val trace: TestAnnotation[List[SourceLocation]] =
     TestAnnotation("trace", List.empty, _ ++ _)
 
+  /**
+   * An annotation which records the fibers a test forks. While the test runs,
+   * it holds the sets of fibers that ZIO Test tracks (`Right`); after the test,
+   * it holds their number (`Left`).
+   */
   val fibers: TestAnnotation[Either[Int, Chunk[AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]]]] =
     TestAnnotation("fibers", Left(0), compose)
 
+  /**
+   * The combining function of `fibers`. Two counts are added, two chunks are
+   * concatenated, and when a count meets a chunk the result is `right`.
+   */
   def compose[A](left: Either[Int, Chunk[A]], right: Either[Int, Chunk[A]]): Either[Int, Chunk[A]] =
     (left, right) match {
       case (Left(n), Left(m))           => Left(n + m)

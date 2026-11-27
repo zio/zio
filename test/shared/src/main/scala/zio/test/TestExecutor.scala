@@ -28,9 +28,18 @@ import java.util.concurrent.TimeUnit
  * environment `R` and may fail with an `E`.
  */
 abstract class TestExecutor[+R, E] {
+
+  /**
+   * Runs `spec` and returns the summary of its results. `fullyQualifiedName`
+   * names the spec in the execution events and warnings, and `defExec` is the
+   * execution strategy for suites that do not set their own.
+   */
   def run(fullyQualifiedName: String, spec: Spec[R, E], defExec: ExecutionStrategy)(implicit trace: Trace): UIO[Summary]
 }
 
+/**
+ * Constructors for [[TestExecutor]].
+ */
 object TestExecutor {
   private[this] val exitRightUnit = Exit.succeed(Right(()))
   private[this] val exitLeftUnit  = Exit.succeed(Left(()))
@@ -40,6 +49,15 @@ object TestExecutor {
   private[zio] val overrideShutdownTimeout: FiberRef[Option[Duration]] =
     FiberRef.unsafe.make[Option[Duration]](None)(Unsafe)
 
+  /**
+   * Creates a `TestExecutor` that provides `sharedSpecLayer` once to the whole
+   * spec and `freshLayerPerSpec` to each test, and installs a new `ZTestLogger`
+   * for each test. It sends each [[ExecutionEvent]] first to the sink built
+   * from `sinkLayer` and then to `eventHandlerZ`, and returns the sink's
+   * summary. When closing a suite's scope takes more than 60 seconds, it prints
+   * a warning to standard output and goes on without waiting for the scope to
+   * close.
+   */
   def default[R, E](
     sharedSpecLayer: ZLayer[Any, E, R],
     freshLayerPerSpec: ZLayer[Any, Nothing, TestEnvironment with Scope],

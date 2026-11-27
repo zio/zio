@@ -20,35 +20,146 @@ import zio._
 import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * A pseudo-random number generator whose operations are transactions, so they
+ * can be combined with other `STM` operations and committed together. The
+ * generator keeps its seed in a [[TRef]]. When a transaction that drew a value
+ * fails or retries, the seed keeps its old value.
+ *
+ * `TRandom` is not part of the default ZIO environment: provide it with
+ * `TRandom.live`. The accessors on the companion object, such as
+ * `TRandom.nextInt`, call the `TRandom` service in the environment.
+ *
+ * {{{
+ * import zio._
+ *
+ * val roll: UIO[Int] =
+ *   TRandom.nextIntBetween(1, 7).commit.provide(TRandom.live)
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/stm/trandom/ TRandom]]
+ */
 trait TRandom {
+
+  /** Returns a pseudo-random `Boolean`. */
   def nextBoolean: STM[Nothing, Boolean]
+
+  /**
+   * Returns `length` pseudo-random bytes. On the JVM, dies with a
+   * `java.lang.NegativeArraySizeException` when `length` is negative.
+   */
   def nextBytes(length: Int): STM[Nothing, Chunk[Byte]]
+
+  /**
+   * Returns a pseudo-random, uniformly distributed `Double` from 0.0
+   * (inclusive) to 1.0 (exclusive).
+   */
   def nextDouble: STM[Nothing, Double]
+
+  /**
+   * Returns a pseudo-random `Double` from `minInclusive` to `maxExclusive`.
+   * Dies with a `java.lang.IllegalArgumentException` when `minInclusive` is
+   * greater than or equal to `maxExclusive`.
+   */
   def nextDoubleBetween(minInclusive: Double, maxExclusive: Double): STM[Nothing, Double]
+
+  /**
+   * Returns a pseudo-random, uniformly distributed `Float` from 0.0 (inclusive)
+   * to 1.0 (exclusive).
+   */
   def nextFloat: STM[Nothing, Float]
+
+  /**
+   * Returns a pseudo-random `Float` from `minInclusive` to `maxExclusive`. Dies
+   * with a `java.lang.IllegalArgumentException` when `minInclusive` is greater
+   * than or equal to `maxExclusive`.
+   */
   def nextFloatBetween(minInclusive: Float, maxExclusive: Float): STM[Nothing, Float]
+
+  /**
+   * Returns a pseudo-random `Double` from a normal distribution with mean 0.0
+   * and standard deviation 1.0.
+   */
   def nextGaussian: STM[Nothing, Double]
+
+  /** Returns a pseudo-random `Int` from the whole `Int` range. */
   def nextInt: STM[Nothing, Int]
+
+  /**
+   * Returns a pseudo-random `Int` from `minInclusive` to `maxExclusive`. Dies
+   * with a `java.lang.IllegalArgumentException` when `minInclusive` is greater
+   * than or equal to `maxExclusive`.
+   */
   def nextIntBetween(minInclusive: Int, maxExclusive: Int): STM[Nothing, Int]
+
+  /**
+   * Returns a pseudo-random `Int` from 0 (inclusive) to `n` (exclusive). Dies
+   * with a `java.lang.IllegalArgumentException` when `n` is 0 or negative.
+   */
   def nextIntBounded(n: Int): STM[Nothing, Int]
+
+  /** Returns a pseudo-random `Long` from the whole `Long` range. */
   def nextLong: STM[Nothing, Long]
+
+  /**
+   * Returns a pseudo-random `Long` from `minInclusive` to `maxExclusive`. Dies
+   * with a `java.lang.IllegalArgumentException` when `minInclusive` is greater
+   * than or equal to `maxExclusive`.
+   */
   def nextLongBetween(minInclusive: Long, maxExclusive: Long): STM[Nothing, Long]
+
+  /**
+   * Returns a pseudo-random `Long` from 0 (inclusive) to `n` (exclusive). Dies
+   * with a `java.lang.IllegalArgumentException` when `n` is 0 or negative.
+   */
   def nextLongBounded(n: Long): STM[Nothing, Long]
+
+  /**
+   * Returns a pseudo-random printable ASCII character, from code 33 (`!`) to
+   * code 126 (`~`).
+   */
   def nextPrintableChar: STM[Nothing, Char]
+
+  /**
+   * Returns a string of `length` pseudo-random characters, or an empty string
+   * when `length` is 0 or negative.
+   */
   def nextString(length: Int): STM[Nothing, String]
+
+  /**
+   * Sets the seed of this generator.
+   */
   def setSeed(seed: Long): STM[Nothing, Unit]
+
+  /**
+   * Returns the elements of `collection` in a pseudo-random order, in a
+   * collection of the same type.
+   */
   def shuffle[A, Collection[+Element] <: Iterable[Element]](collection: Collection[A])(implicit
     bf: BuildFrom[Collection[A], A, Collection[A]]
   ): STM[Nothing, Collection[A]]
 }
 
+/**
+ * The layers that provide a [[TRandom]] service, and accessors that call the
+ * `TRandom` service in the environment.
+ */
 object TRandom extends Serializable {
 
+  /**
+   * A layer that takes the `TRandom` service from its input and passes it
+   * through as its output.
+   */
   val any: ZLayer[TRandom, Nothing, TRandom] = {
     implicit val trace = Tracer.newTrace
     ZLayer.service[TRandom]
   }
 
+  /**
+   * A layer that creates a `TRandom` whose seed is a value drawn from the ZIO
+   * `Random` service.
+   */
   val live: ZLayer[Any, Nothing, TRandom] = {
     implicit val trace = Tracer.newTrace
     ZLayer {
@@ -77,8 +188,8 @@ object TRandom extends Serializable {
     ZSTM.serviceWithSTM(_.nextBytes(length))
 
   /**
-   * Generates a pseudo-random, uniformly distributed double between 0.0 and 1.0
-   * inside a transaction.
+   * Generates a pseudo-random, uniformly distributed double from 0.0
+   * (inclusive) to 1.0 (exclusive) inside a transaction.
    */
   val nextDouble: URSTM[TRandom, Double] =
     ZSTM.serviceWithSTM(_.nextDouble)
@@ -91,8 +202,8 @@ object TRandom extends Serializable {
     ZSTM.serviceWithSTM(_.nextDoubleBetween(minInclusive, maxExclusive))
 
   /**
-   * Generates a pseudo-random, uniformly distributed float between 0.0 and 1.0
-   * inside a transaction.
+   * Generates a pseudo-random, uniformly distributed float from 0.0 (inclusive)
+   * to 1.0 (exclusive) inside a transaction.
    */
   val nextFloat: URSTM[TRandom, Float] =
     ZSTM.serviceWithSTM(_.nextFloat)
@@ -165,7 +276,8 @@ object TRandom extends Serializable {
     ZSTM.serviceWithSTM(_.nextString(length))
 
   /**
-   * Sets the seed of this random number generator inside a transaction.
+   * Sets the seed of the `TRandom` service in the environment inside a
+   * transaction.
    */
   def setSeed(seed: Long): URSTM[TRandom, Unit] =
     ZSTM.serviceWithSTM(_.setSeed(seed))

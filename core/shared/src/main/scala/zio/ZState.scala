@@ -26,18 +26,26 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * {{{
  * final case class MyState(counter: Int)
  *
- * for {
- *   _     <- ZIO.updateState[MyState](state => state.copy(counter = state.counter + 1))
- *   count <- ZIO.getStateWith[MyState](_.counter)
- * } yield count
+ * val increment: ZIO[ZState[MyState], Nothing, Int] =
+ *   for {
+ *     _     <- ZIO.updateState[MyState](s => s.copy(counter = s.counter + 1))
+ *     count <- ZIO.getStateWith[MyState](_.counter)
+ *   } yield count
+ *
+ * val program: UIO[Int] = ZIO.stateful(MyState(0))(increment)
+ * // succeeds with 1
  * }}}
  *
  * Because `ZState` is typically used as part of the environment, it is
- * recommended to define your own state type `S` such as `MyState` above rather
- * than using a type such as `Int` to avoid the risk of ambiguity.
+ * recommended to define your own state type `S`, such as `MyState` in the
+ * example, rather than using a type such as `Int` to avoid the risk of
+ * ambiguity.
  *
  * To run a stateful workflow, use the `ZIO.stateful` operator to allocate the
  * initial state.
+ *
+ * @see
+ *   [[https://zio.dev/reference/state-management/zstate/ ZState]]
  */
 sealed trait ZState[S] {
 
@@ -57,6 +65,9 @@ sealed trait ZState[S] {
   def update(f: S => S)(implicit trace: Trace): UIO[Unit]
 }
 
+/**
+ * Layers that allocate the initial value of a [[ZState]].
+ */
 object ZState {
 
   /**

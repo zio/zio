@@ -23,7 +23,8 @@ import scala.annotation.implicitNotFound
 /**
  * A value of type `Eql[A, B]` provides implicit evidence that two values with
  * types `A` and `B` could potentially be equal, that is, that `A` is a subtype
- * of `B` or `B` is a subtype of `A`.
+ * of `B` or `B` is a subtype of `A`. `equalTo` asks for one on Scala 2, so
+ * comparing values of unrelated types does not compile.
  */
 @implicitNotFound(
   "This operation assumes that values of types ${A} and ${B} could " +
@@ -31,7 +32,15 @@ import scala.annotation.implicitNotFound
     "they cannot be equal."
 )
 sealed abstract class Eql[A, B]
+
+/**
+ * Provides `Eql[A, B]` when `A` is a subtype of `B` or `B` is a subtype of `A`.
+ */
 object Eql extends EqlLowPriority {
+
+  /**
+   * Provides `Eql[A, B]` when `A` is a subtype of `B`.
+   */
   implicit final def eqlSubtype1[A <: B, B]: Eql[A, B] = instance.asInstanceOf[Eql[A, B]]
 }
 

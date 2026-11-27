@@ -27,7 +27,10 @@ import zio.{ZIO, Zippable, Trace}
 final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
   /**
-   * A symbolic alias for `zip`.
+   * Combines this sample with `that` sample. A symbolic alias for `zip`. The
+   * values are combined with `Zippable`, which flattens nested tuples and drops
+   * `Unit` values, so a pair sample combined with an `Int` sample gives a
+   * triple.
    */
   def <*>[R1 <: R, B](
     that: Sample[R1, B]
@@ -42,14 +45,24 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
     if (f(value)) ZStream(Sample(value, shrink.flatMap(_.filter(f))))
     else shrink.flatMap(_.filter(f))
 
+  /**
+   * Applies `f` to the value of this sample. The shrinks of the result are the
+   * shrinks of the sample that `f` returns, followed by the shrinks of this
+   * sample with `f` applied to each of them.
+   */
   def flatMap[R1 <: R, B](f: A => Sample[R1, B])(implicit trace: Trace): Sample[R1, B] = {
     val sample = f(value)
     Sample(sample.value, sample.shrink ++ shrink.map(_.flatMap(f)))
   }
 
+  /**
+   * Applies the effectual function `f` to the value of this sample, and to each
+   * shrink when the shrink tree is explored.
+   */
   def foreach[R1 <: R, B](f: A => ZIO[R1, Nothing, B])(implicit trace: Trace): ZIO[R1, Nothing, Sample[R1, B]] =
     f(value).map(Sample(_, shrink.mapZIO(_.foreach(f))))
 
+  /** Applies `f` to the value of this sample and to every shrink. */
   def map[B](f: A => B)(implicit trace: Trace): Sample[R, B] =
     Sample(f(value), shrink.map(_.map(f)))
 
@@ -66,8 +79,9 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
       ZStream(value) ++ shrink.takeUntil(v => f(v.value)).flatMap(_.shrinkSearch(f))
 
   /**
-   * Composes this sample with the specified sample to create a cartesian
-   * product of values and shrinkings.
+   * Combines this sample with `that` sample. The shrinks of the result are the
+   * shrinks of `that` paired with this value, followed by the shrinks of this
+   * sample paired with `that` sample.
    */
   def zip[R1 <: R, B](
     that: Sample[R1, B]
@@ -75,13 +89,15 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
     self.zipWith(that)(zippable.zip(_, _))
 
   /**
-   * Composes this sample with the specified sample to create a cartesian
-   * product of values and shrinkings with the specified function.
+   * Combines this sample with `that` sample using `f`. The shrinks of the
+   * result are the shrinks of `that` combined with this value, followed by the
+   * shrinks of this sample combined with `that` sample, all with `f`.
    */
   def zipWith[R1 <: R, B, C](that: Sample[R1, B])(f: (A, B) => C)(implicit trace: Trace): Sample[R1, C] =
     self.flatMap(a => that.map(b => f(a, b)))
 }
 
+/** Constructors of [[Sample]] values, including the shrinkers for numbers. */
 object Sample {
 
   /**
@@ -90,6 +106,23 @@ object Sample {
   def noShrink[A](a: A)(implicit trace: Trace): Sample[Any, A] =
     Sample(a, ZStream.empty)
 
+  /**
+   * Creates a sample of `a` that shrinks toward `smallest`. The first shrink is
+   * halfway between `smallest` and `a`, and each next one halves the remaining
+   * distance to `a`. Once that distance is below `0.001`, the list ends by
+   * repeating its previous shrink. When `a` differs from `smallest` by less
+   * than `0.002`, the only shrink is `smallest`, and when `a` equals `smallest`
+   * there are no shrinks. Following the shrinks of the shrinks reaches
+   * `smallest`.
+   *
+   * {{{
+   * import zio._
+   *
+   * // The shrinks of 1.0 start with 0.5, 0.75, 0.875, ...
+   * val shrinks: UIO[List[Double]] =
+   *   Sample.shrinkFractional(0.0)(1.0).shrink.map(_.value).runCollect.map(_.toList)
+   * }}}
+   */
   def shrinkFractional[A](smallest: A)(a: A)(implicit F: Fractional[A], trace: Trace): Sample[Any, A] =
     Sample.unfold(a) { max =>
       (
@@ -103,6 +136,20 @@ object Sample {
       )
     }
 
+  /**
+   * Creates a sample of `a` that shrinks toward `smallest`. The first shrink is
+   * halfway between `smallest` and `a` (rounded toward `smallest`), and each
+   * next one halves the remaining distance to `a`. Following the shrinks of the
+   * shrinks reaches `smallest`.
+   *
+   * {{{
+   * import zio._
+   *
+   * // List(50, 75, 87, 93, 96, 98, 99)
+   * val shrinks: UIO[List[Int]] =
+   *   Sample.shrinkIntegral(0)(100).shrink.map(_.value).runCollect.map(_.toList)
+   * }}}
+   */
   def shrinkIntegral[A](smallest: A)(a: A)(implicit I: Integral[A], trace: Trace): Sample[Any, A] =
     Sample.unfold(a) { max =>
       (
@@ -116,6 +163,11 @@ object Sample {
       )
     }
 
+  /**
+   * Builds a sample from a seed. `f` returns the value for a seed and the
+   * stream of seeds for its shrinks, and each shrink is built from its seed in
+   * the same way.
+   */
   def unfold[R, A, S](s: S)(f: S => (A, ZStream[R, Nothing, S]))(implicit trace: Trace): Sample[R, A] = {
     val (value, shrink) = f(s)
     Sample(value, shrink.map(unfold(_)(f)))

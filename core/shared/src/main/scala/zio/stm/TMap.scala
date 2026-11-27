@@ -22,8 +22,27 @@ import zio.stm.ZSTM.internal._
 import zio.{Chunk, ChunkBuilder, NonEmptyChunk, Unsafe}
 
 /**
- * Transactional map implemented on top of [[TRef]] and [[TArray]]. Resolves
- * conflicts via chaining.
+ * A `TMap` is a mutable hash map that is read and changed inside STM
+ * transactions. It keeps its bindings in a [[TArray]] of buckets held in a
+ * [[TRef]], and keys whose hashes fall in the same bucket share a list in that
+ * bucket. Keys are compared with `==` and hashed with `hashCode`. Methods that
+ * visit several bindings (`fold`, `foreach`, `toList`, `find`, `takeFirst`,
+ * ...) visit them in an unspecified order.
+ *
+ * {{{
+ * import zio._
+ *
+ * val wordCounts: UIO[Map[String, Int]] =
+ *   (for {
+ *     counts <- TMap.empty[String, Int]
+ *     _      <- STM.foreach(List("a", "b", "a"))(w => counts.merge(w, 1)(_ + _))
+ *     result <- counts.toMap
+ *   } yield result).commit
+ * // Map(a -> 2, b -> 1)
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/stm/tmap/ TMap]]
  */
 final class TMap[K, V] private (
   private val tBuckets: TRef[TArray[List[(K, V)]]],
@@ -36,19 +55,19 @@ final class TMap[K, V] private (
   private[this] val resizeLock: ZSTMLockSupport.Lock = ZSTMLockSupport.Lock()
 
   /**
-   * Tests whether or not map contains a key.
+   * Returns whether the map has a binding for the key `k`.
    */
   def contains(k: K): USTM[Boolean] =
     get(k).map(_.isDefined)
 
   /**
-   * Tests if the map is empty or not
+   * Returns `true` when `size` is 0.
    */
   def isEmpty: USTM[Boolean] =
     tSize.get.map(_ == 0)
 
   /**
-   * Removes binding for given key.
+   * Removes the binding for the key `k`. Does nothing when there is none.
    */
   def delete(k: K): USTM[Unit] =
     ZSTM.Effect { (journal, _, _) =>
@@ -88,8 +107,8 @@ final class TMap[K, V] private (
     }
 
   /**
-   * Finds the key/value pair matching the specified predicate, and uses the
-   * provided function to extract a value out of it.
+   * Returns `pf` applied to the first binding at which `pf` is defined, or
+   * `None` when there is no such binding.
    */
   def find[A](pf: PartialFunction[(K, V), A]): USTM[Option[A]] =
     findSTM {
@@ -98,8 +117,10 @@ final class TMap[K, V] private (
     }
 
   /**
-   * Finds the key/value pair matching the specified predicate, and uses the
-   * provided effectful function to extract a value out of it.
+   * Runs `f` on the bindings until it succeeds, and returns that result in a
+   * `Some`, or `None` when `f` succeeds for no binding. `f` fails with `None`
+   * to skip a binding; when it fails with `Some(e)`, the transaction fails with
+   * `e`.
    */
   def findSTM[R, E, A](f: (K, V) => ZSTM[R, Option[E], A]): ZSTM[R, E, Option[A]] =
     foldSTM[R, E, Option[A]](Option.empty[A]) {
@@ -109,8 +130,7 @@ final class TMap[K, V] private (
     }
 
   /**
-   * Finds all the key/value pairs matching the specified predicate, and uses
-   * the provided function to extract values out them.
+   * Returns `pf` applied to every binding at which `pf` is defined.
    */
   def findAll[A](pf: PartialFunction[(K, V), A]): USTM[Chunk[A]] =
     findAllSTM {
@@ -119,8 +139,9 @@ final class TMap[K, V] private (
     }
 
   /**
-   * Finds all the key/value pairs matching the specified predicate, and uses
-   * the provided effectful function to extract values out of them..
+   * Runs `pf` on every binding and returns the results of the bindings where it
+   * succeeds. `pf` fails with `None` to skip a binding; when it fails with
+   * `Some(e)`, the transaction fails with `e`.
    */
   def findAllSTM[R, E, A](pf: (K, V) => ZSTM[R, Option[E], A]): ZSTM[R, E, Chunk[A]] =
     foldSTM(Chunk.empty: Chunk[A]) { case (acc, kv) =>
@@ -134,7 +155,7 @@ final class TMap[K, V] private (
     }
 
   /**
-   * Atomically folds using a pure function.
+   * Folds the bindings into one value with `op`, starting from `zero`.
    */
   def fold[A](zero: A)(op: (A, (K, V)) => A): USTM[A] =
     ZSTM.Effect { (journal, _, _) =>
@@ -155,19 +176,21 @@ final class TMap[K, V] private (
     }
 
   /**
-   * Atomically folds using a transactional function.
+   * Folds the bindings into one value with the transactional function `op`,
+   * starting from `zero`. Stops at the first failure of `op`.
    */
   def foldSTM[R, E, A](zero: A)(op: (A, (K, V)) => ZSTM[R, E, A]): ZSTM[R, E, A] =
     toChunk.flatMap(ZSTM.foldLeft(_)(zero)(op))
 
   /**
-   * Atomically performs transactional-effect for each binding present in map.
+   * Runs the transaction `f` for each binding. Stops at the first failure of
+   * `f`.
    */
   def foreach[R, E](f: (K, V) => ZSTM[R, E, Unit]): ZSTM[R, E, Unit] =
     foldSTM(())((_, kv) => f(kv._1, kv._2))
 
   /**
-   * Retrieves value associated with given key.
+   * Returns the value bound to the key `k`, or `None` when there is none.
    */
   def get(k: K): USTM[Option[V]] =
     ZSTM.Effect { (journal, _, _) =>
@@ -199,9 +222,8 @@ final class TMap[K, V] private (
     toList.map(_.map(_._1))
 
   /**
-   * If the key `k` is not already associated with a value, stores the provided
-   * value, otherwise merge the existing value with the new one using function
-   * `f` and store the result
+   * Binds `k` to `v` when the map has no binding for `k`; otherwise binds `k`
+   * to `f(existing, v)`. Returns the value now bound to `k`.
    */
   def merge(k: K, v: V)(f: (V, V) => V): USTM[V] =
     get(k).flatMap(_.fold(put(k, v).as(v)) { v0 =>
@@ -210,9 +232,9 @@ final class TMap[K, V] private (
     })
 
   /**
-   * If the key `k` is not already associated with a value, stores the provided
-   * value, otherwise merge the existing value with the new one using
-   * transactional function `f` and store the result
+   * Binds `k` to `v` when the map has no binding for `k`; otherwise binds `k`
+   * to the result of the transactional function `f(existing, v)`. Returns the
+   * value now bound to `k`.
    */
   def mergeSTM[R, E](k: K, v: V)(f: (V, V) => ZSTM[R, E, V]): ZSTM[R, E, V] =
     get(k).flatMap {
@@ -221,7 +243,8 @@ final class TMap[K, V] private (
     }
 
   /**
-   * Stores new binding into the map.
+   * Binds the key `k` to `v`, replacing the value of an existing binding for
+   * `k`.
    */
   def put(k: K, v: V): USTM[Unit] = {
     def resize(journal: Journal, buckets: TArray[List[(K, V)]]): Unit = {
@@ -389,7 +412,9 @@ final class TMap[K, V] private (
     tSize.get
 
   /**
-   * Takes the first matching value, or retries until there is one.
+   * Removes the first binding at which `pf` is defined and returns `pf` applied
+   * to it. When no binding matches, the transaction retries, so the fiber waits
+   * until another transaction changes the map.
    */
   def takeFirst[A](pf: PartialFunction[(K, V), A]): USTM[A] =
     ZSTM
@@ -433,6 +458,13 @@ final class TMap[K, V] private (
       }
       .collect { case Some(value) => value }
 
+  /**
+   * Removes the first binding for which `pf` succeeds and returns that result.
+   * `pf` fails with `None` to skip a binding; when it fails with `Some(e)`, the
+   * transaction fails with `e`. When `pf` succeeds for no binding, the
+   * transaction retries, so the fiber waits until another transaction changes
+   * the map.
+   */
   def takeFirstSTM[R, E, A](pf: (K, V) => ZSTM[R, Option[E], A]): ZSTM[R, E, A] =
     findSTM { case (k, v) =>
       pf(k, v).map(a => k -> a)
@@ -441,7 +473,9 @@ final class TMap[K, V] private (
     }.flatMap(kv => delete(kv._1).as(kv._2))
 
   /**
-   * Takes all matching values, or retries until there is at least one.
+   * Removes every binding at which `pf` is defined and returns `pf` applied to
+   * each of them. When no binding matches, the transaction retries, so the
+   * fiber waits until another transaction changes the map.
    */
   def takeSome[A](pf: PartialFunction[(K, V), A]): USTM[NonEmptyChunk[A]] =
     ZSTM
@@ -487,7 +521,11 @@ final class TMap[K, V] private (
       .collect { case Some(value) => value }
 
   /**
-   * Takes all matching values, or retries until there is at least one.
+   * Removes every binding for which `pf` succeeds and returns those results.
+   * `pf` fails with `None` to skip a binding; when it fails with `Some(e)`, the
+   * transaction fails with `e`. When `pf` succeeds for no binding, the
+   * transaction retries, so the fiber waits until another transaction changes
+   * the map.
    */
   def takeSomeSTM[R, E, A](pf: (K, V) => ZSTM[R, Option[E], A]): ZSTM[R, E, NonEmptyChunk[A]] =
     findAllSTM { case (k, v) =>
@@ -534,7 +572,8 @@ final class TMap[K, V] private (
   }
 
   /**
-   * Atomically updates all bindings using a pure function.
+   * Replaces every binding with `f` applied to it. When `f` gives several
+   * bindings the same key, the map keeps only one of them.
    */
   def transform(f: (K, V) => (K, V)): USTM[Unit] =
     ZSTM.Effect { (journal, _, _) =>
@@ -578,7 +617,9 @@ final class TMap[K, V] private (
     }
 
   /**
-   * Atomically updates all bindings using a transactional function.
+   * Replaces every binding with the result of the transactional function `f`.
+   * When `f` gives several bindings the same key, the map keeps only one of
+   * them. When `f` fails, the transaction fails with that error.
    */
   def transformSTM[R, E](f: (K, V) => ZSTM[R, E, (K, V)]): ZSTM[R, E, Unit] =
     toChunk.flatMap { data =>
@@ -616,13 +657,14 @@ final class TMap[K, V] private (
     }
 
   /**
-   * Atomically updates all values using a pure function.
+   * Replaces every value with `f` applied to it, keeping the keys.
    */
   def transformValues(f: V => V): USTM[Unit] =
     transform((k, v) => k -> f(v))
 
   /**
-   * Atomically updates all values using a transactional function.
+   * Replaces every value with the result of the transactional function `f`,
+   * keeping the keys. When `f` fails, the transaction fails with that error.
    */
   def transformValuesSTM[R, E](f: V => ZSTM[R, E, V]): ZSTM[R, E, Unit] =
     transformSTM((k, v) => f(v).map(k -> _))
@@ -632,7 +674,7 @@ final class TMap[K, V] private (
    * which takes the current value of the key as an input, if it exists, and
    * either returns `Some` with a new value to indicate to update the value in
    * the map or `None` to remove the value from the map. Returns `Some` with the
-   * updated value or `None` if the value was removed from the map.
+   * new value, or `None` when `f` returns `None` (the key then has no binding).
    */
   def updateWith(k: K)(f: Option[V] => Option[V]): USTM[Option[V]] =
     get(k).flatMap(f(_).fold[USTM[Option[V]]](delete(k).as(None))(v => put(k, v).as(Some(v))))
@@ -642,8 +684,8 @@ final class TMap[K, V] private (
    * function, which takes the current value of the key as an input, if it
    * exists, and either returns `Some` with a new value to indicate to update
    * the value in the map or `None` to remove the value from the map. Returns
-   * `Some` with the updated value or `None` if the value was removed from the
-   * map.
+   * `Some` with the new value, or `None` when `f` returns `None` (the key then
+   * has no binding).
    */
   def updateWithSTM[R, E](k: K)(f: Option[V] => ZSTM[R, E, Option[V]]): ZSTM[R, E, Option[V]] =
     get(k).flatMap(f).flatMap {
@@ -658,6 +700,9 @@ final class TMap[K, V] private (
     toList.map(_.map(_._2))
 }
 
+/**
+ * Constructors for [[TMap]].
+ */
 object TMap {
 
   /**
@@ -667,18 +712,27 @@ object TMap {
     fromIterable(Nil)
 
   /**
-   * Makes a new `TMap` initialized with provided iterable.
+   * Makes a new `TMap` with the bindings of `data`.
    */
   def fromIterable[K, V](data: => Iterable[(K, V)]): USTM[TMap[K, V]] =
     make(data.toSeq: _*)
 
   /**
-   * Makes a new `TMap` that is initialized with specified values.
+   * Makes a new `TMap` with the bindings of `data`.
    */
   def make[K, V](data: (K, V)*): USTM[TMap[K, V]] =
     ZSTM.succeed(unsafe.make(data: _*)(Unsafe.unsafe))
 
+  /**
+   * Constructors that make a `TMap` outside a transaction. They need an
+   * `Unsafe` capability.
+   */
   object unsafe {
+
+    /**
+     * Makes a new `TMap` with the bindings of `data` without running a
+     * transaction.
+     */
     def make[K, V](data: (K, V)*)(implicit unsafe: Unsafe): TMap[K, V] = {
       val size     = data.size
       val capacity = if (size < InitialCapacity) InitialCapacity else nextPowerOfTwo(size)

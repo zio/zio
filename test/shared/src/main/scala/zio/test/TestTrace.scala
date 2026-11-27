@@ -5,8 +5,17 @@ import zio.test.TestArrow.Span
 
 import scala.annotation.tailrec
 
+/**
+ * The record of running a [[TestArrow]]: a tree of nodes, one per step, each
+ * with its [[Result]], message and source code, joined by `>>>`, `&&`, `||` and
+ * `!`. The test report reads it to explain a failure.
+ */
 sealed trait TestTrace[+A] { self =>
 
+  /**
+   * Returns the values of the nodes of this trace whose result is `Succeed`,
+   * from left to right, without the nested children of a node.
+   */
   def values: List[Any] =
     self.asInstanceOf[TestTrace[Any]] match {
       case TestTrace.Node(Result.Succeed(value), _, _, _, _, _, _, _, _, _, _) =>
@@ -23,11 +32,22 @@ sealed trait TestTrace[+A] { self =>
         trace.values
     }
 
+  /**
+   * Returns `true` when this Boolean trace fails.
+   */
   def isFailure(implicit ev: A <:< Boolean): Boolean = !isSuccess
 
+  /**
+   * Returns `true` when this Boolean trace succeeds, that is when
+   * `TestTrace.prune` finds nothing that explains a failure.
+   */
   def isSuccess(implicit ev: A <:< Boolean): Boolean =
     TestTrace.prune(self.asInstanceOf[TestTrace[Boolean]], false).isEmpty
 
+  /**
+   * Returns `true` when a node of this trace died with an exception; the nested
+   * children of a node are not checked.
+   */
   def isDie: Boolean =
     self.asInstanceOf[TestTrace[_]] match {
       case TestTrace.Node(Result.Die(_), _, _, _, _, _, _, _, _, _, _) => true
@@ -39,7 +59,9 @@ sealed trait TestTrace[+A] { self =>
     }
 
   /**
-   * Apply the metadata to the rightmost node in the trace.
+   * Sets `span` on this node, or on the last node of a `>>>` chain. A trace
+   * joined by `&&`, `||` or `!`, and a `None` argument, leave the trace
+   * unchanged.
    */
   final def withSpan(span: Option[Span] = None): TestTrace[A] = if (span.isDefined) {
     self match {
@@ -52,7 +74,9 @@ sealed trait TestTrace[+A] { self =>
   }
 
   /**
-   * Apply the parent span to every node in the tree.
+   * Sets the parent span on every node of the tree that has none yet; the
+   * nested children of a node are not changed. A `None` argument leaves the
+   * trace unchanged.
    */
   def withParentSpan(span: Option[Span]): TestTrace[A] = if (span.isDefined) {
     self match {
@@ -72,7 +96,8 @@ sealed trait TestTrace[+A] { self =>
   }
 
   /**
-   * Apply the location to every node in the tree.
+   * Sets the location on every node in the tree, nested children included. A
+   * `None` argument leaves the trace unchanged.
    */
   def withLocation(location: Option[String]): TestTrace[A] = if (location.isDefined) {
     self match {
@@ -91,6 +116,11 @@ sealed trait TestTrace[+A] { self =>
     self
   }
 
+  /**
+   * Sets `customLabel` on every node of the tree, nested children included. A
+   * node that already has a label keeps it, and so do its children. A `None`
+   * argument leaves the trace unchanged.
+   */
   def withCustomLabel(customLabel: Option[String]): TestTrace[A] =
     if (customLabel.isDefined) {
       self match {
@@ -115,7 +145,8 @@ sealed trait TestTrace[+A] { self =>
     }
 
   /**
-   * Apply the code to every node in the tree.
+   * Sets the code on every node in the tree, nested children included. A `None`
+   * argument leaves the trace unchanged.
    */
   final def withCode(fullCode: Option[String]): TestTrace[A] = if (fullCode.isDefined) {
     self match {
@@ -135,7 +166,8 @@ sealed trait TestTrace[+A] { self =>
   }
 
   /**
-   * Apply the code to every node in the tree.
+   * Sets the source code of the whole assertion on every node in the tree,
+   * nested children included. A `None` argument clears it.
    */
   final def withCompleteCode(completeCode: Option[String]): TestTrace[A] =
     self match {
@@ -155,6 +187,10 @@ sealed trait TestTrace[+A] { self =>
         TestTrace.Not(not.trace.withCompleteCode(completeCode)).asInstanceOf[TestTrace[A]]
     }
 
+  /**
+   * Sets `genFailureDetails` on every node of the tree, nested children
+   * included, that has none yet.
+   */
   final def withGenFailureDetails(genFailureDetails: Option[GenFailureDetails]): TestTrace[A] =
     self match {
       case node: TestTrace.Node[_] =>
@@ -176,6 +212,10 @@ sealed trait TestTrace[+A] { self =>
         TestTrace.Not(not.trace.withGenFailureDetails(genFailureDetails)).asInstanceOf[TestTrace[A]]
     }
 
+  /**
+   * Returns the first generator failure details set on a node, from left to
+   * right; the nested children of a node are not searched.
+   */
   def getGenFailureDetails: Option[GenFailureDetails] =
     self match {
       case node: TestTrace.Node[_]        => node.genFailureDetails
@@ -185,6 +225,10 @@ sealed trait TestTrace[+A] { self =>
       case not: TestTrace.Not             => not.trace.getGenFailureDetails
     }
 
+  /**
+   * Adds the annotations to this node, or to the last node of a `>>>` chain. A
+   * trace joined by `&&`, `||` or `!` is returned unchanged.
+   */
   @tailrec
   final def annotate(annotation: TestTrace.Annotation*): TestTrace[A] =
     self match {
@@ -193,34 +237,70 @@ sealed trait TestTrace[+A] { self =>
       case zip                         => zip
     }
 
+  /**
+   * Logical implication: the same as `!this || that`.
+   */
   final def implies(that: TestTrace[Boolean])(implicit ev: A <:< Boolean): TestTrace[Boolean] =
     !self || that
 
+  /**
+   * Logical implication; the same as `implies`.
+   */
   final def ==>(that: TestTrace[Boolean])(implicit ev: A <:< Boolean): TestTrace[Boolean] =
     implies(that)
 
+  /**
+   * Logical equivalence: both traces succeed or both fail. When either trace is
+   * a single node that died, the result fails.
+   */
   final def <==>(that: TestTrace[Boolean])(implicit ev: A <:< Boolean): TestTrace[Boolean] =
     self ==> that && that ==> self.asInstanceOf[TestTrace[Boolean]]
 
+  /**
+   * Joins two Boolean traces by logical and.
+   */
   final def &&(that: TestTrace[Boolean])(implicit ev: A <:< Boolean): TestTrace[Boolean] =
     TestTrace.And(self.asInstanceOf[TestTrace[Boolean]], that)
 
+  /**
+   * Joins two Boolean traces by logical or.
+   */
   final def ||(that: TestTrace[Boolean])(implicit ev: A <:< Boolean): TestTrace[Boolean] =
     TestTrace.Or(self.asInstanceOf[TestTrace[Boolean]], that)
 
+  /**
+   * Negates a Boolean trace by logical not.
+   */
   final def unary_!(implicit ev: A <:< Boolean): TestTrace[Boolean] =
     TestTrace.Not(self.asInstanceOf[TestTrace[Boolean]])
 
+  /**
+   * Joins this trace and `that`, the trace of the next step, in sequence. The
+   * result of the joined trace is the result of `that`.
+   */
   final def >>>[B](that: TestTrace[B]): TestTrace[B] =
     TestTrace.AndThen(self, that)
 
+  /**
+   * The result of this trace: the result of its node, of the last step of a
+   * `>>>` chain, the two sides of `&&` and `||` combined, or for `!` the
+   * negated result of the inner trace.
+   */
   def result: Result[A]
 }
 
+/**
+ * Constructors of [[TestTrace]] values.
+ */
 object TestTrace {
 
   /**
-   * Prune all non-failures from the trace.
+   * Returns the part of `trace` that explains why it failed, or `None` when it
+   * succeeded. With `negated = true` the trace is read as negated, so the nodes
+   * that succeeded are kept instead, and a negated `&&` is kept only when both
+   * of its sides are kept. A node that died is kept, but inside a negated `&&`
+   * whose other side is not kept it is dropped together with that `&&`, so `!(a
+   * && b)` can succeed even though `a` threw.
    */
   def prune(trace: TestTrace[Boolean], negated: Boolean): Option[TestTrace[Boolean]] =
     trace match {
@@ -265,10 +345,25 @@ object TestTrace {
         prune(not.trace, !negated)
     }
 
+  /**
+   * A marker on a node of a trace.
+   */
   sealed trait Annotation
 
+  /**
+   * The annotations of a trace node.
+   */
   object Annotation {
+
+    /**
+     * Marks a node that passes on an exception from an earlier step; `prune`
+     * reports the earlier step instead.
+     */
     case object Rethrow extends Annotation {
+
+      /**
+       * Returns `true` when `value` contains `Rethrow`.
+       */
       def unapply(value: Set[Annotation]): Boolean = value.contains(Rethrow)
     }
   }
@@ -320,18 +415,45 @@ object TestTrace {
     }
   }
 
-  val fail: TestTrace[Nothing]                        = Node(Result.Fail)
-  def fail(message: String): TestTrace[Nothing]       = Node(Result.Fail, message = ErrorMessage.text(message))
+  /**
+   * A failed trace with the default message.
+   */
+  val fail: TestTrace[Nothing] = Node(Result.Fail)
+
+  /**
+   * A failed trace with `message`.
+   */
+  def fail(message: String): TestTrace[Nothing] = Node(Result.Fail, message = ErrorMessage.text(message))
+
+  /**
+   * A failed trace with `message`.
+   */
   def fail(message: ErrorMessage): TestTrace[Nothing] = Node(Result.Fail, message = message)
-  def succeed[A](value: A): TestTrace[A]              = Node(Result.succeed(value))
+
+  /**
+   * A successful trace holding `value`.
+   */
+  def succeed[A](value: A): TestTrace[A] = Node(Result.succeed(value))
+
+  /**
+   * A successful trace holding the content of `value`, or a failed one with
+   * `message` when `value` is `None`.
+   */
   def option[A](value: Option[A])(message: ErrorMessage): TestTrace[A] = {
     val result = value.fold[Result[A]](Result.Fail)(a => Result.succeed(a))
     Node[A](result, message = message)
   }
 
+  /**
+   * A trace holding `value` with `message`. It counts as a failure when `value`
+   * is `false`.
+   */
   def boolean(value: Boolean)(message: ErrorMessage): TestTrace[Boolean] =
     Node(Result.succeed(value), message = message)
 
+  /**
+   * A trace that died with `throwable`.
+   */
   def die(throwable: Throwable): TestTrace[Nothing] =
     Node(Result.die(throwable), message = ErrorMessage.throwable(throwable))
 

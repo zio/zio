@@ -4,16 +4,29 @@ import zio.{Chunk, Ref, ZIO, ZLayer}
 
 import scala.io.Source
 
+/**
+ * Collects the execution events of a test run and passes them to the printer
+ * one suite at a time.
+ */
 private[test] trait TestOutput {
 
   /**
-   * Does not necessarily print immediately. Might queue for later, sensible
-   * output.
+   * Passes `executionEvent` to the printer when its suite holds or can take
+   * printing control, and otherwise queues it. When a suite ends without
+   * printing control, its queued events move to its parent suite's queue. A
+   * `TopLevelFlush` event is not printed itself; it adds the events queued
+   * under its id to the queue of `SuiteId.global`, and prints that queue when
+   * `SuiteId.global` can take printing control.
    */
   def print(executionEvent: ExecutionEvent): ZIO[Any, Nothing, Unit]
 }
 
 private[test] object TestOutput {
+
+  /**
+   * Builds a `TestOutput` that prints through the `ExecutionEventPrinter` in
+   * the environment.
+   */
   val live: ZLayer[ExecutionEventPrinter, Nothing, TestOutput] =
     ZLayer.fromZIO(
       for {
@@ -27,8 +40,6 @@ private[test] object TestOutput {
    * Guarantees:
    *   - Everything at or below a specific suite level will be printed
    *     contiguously
-   *   - Everything will be printed, as long as required SectionEnd events have
-   *     been passed in
    *
    * Not guaranteed:
    *   - Ordering within a suite
@@ -36,6 +47,10 @@ private[test] object TestOutput {
   def print(executionEvent: ExecutionEvent): ZIO[TestOutput, Nothing, Unit] =
     ZIO.serviceWithZIO[TestOutput](_.print(executionEvent))
 
+  /**
+   * The `TestOutput` that queues the events of each suite and prints them when
+   * the suite holds printing control in its `TestReporters`.
+   */
   case class TestOutputLive(
     output: Ref[Map[SuiteId, Chunk[ExecutionEvent]]],
     reporters: TestReporters,
@@ -120,6 +135,11 @@ private[test] object TestOutput {
 
   object TestOutputLive {
 
+    /**
+     * Creates a `TestOutputLive` with empty queues. With `debug` set, it also
+     * records started and finished tests in a debug file on the JVM and Scala
+     * Native.
+     */
     def make(executionEventPrinter: ExecutionEventPrinter, debug: Boolean): ZIO[Any, Nothing, TestOutput] =
       for {
         talkers <- TestReporters.make

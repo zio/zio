@@ -25,41 +25,62 @@ import zio.test.Spec.{ExecCase, LabeledCase}
 import scala.language.implicitConversions
 
 /**
- * _ZIO Test_ is a featherweight testing library for effectful programs.
+ * _ZIO Test_ is a testing library for effectful programs.
  *
- * The library imagines every spec as an ordinary immutable value, providing
- * tremendous potential for composition. Thanks to tight integration with ZIO,
- * specs can use resources (including those requiring disposal), have well-
- * defined linear and parallel semantics, and can benefit from a host of ZIO
- * combinators.
+ * Every spec is an ordinary immutable value, built with `suite` and `test` and
+ * composed like any other value. Because the tests in a spec are ZIO effects,
+ * they can use resources (including those requiring disposal), run sequentially
+ * or in parallel, and use the ZIO combinators. Property-based tests use [[Gen]]
+ * with `check`.
  *
  * {{{
- *   import zio.test._
- *   import zio.Clock.nanoTime
+ * import zio.test._
+ * import zio.Clock.nanoTime
  *
- *   object MyTest extends ZIOSpecDefault {
- *     def spec = suite("clock")(
- *       test("time is non-zero") {
- *         for {
- *           time <- Live.live(nanoTime)
- *         } yield assertTrue(time >= 0L)
- *       }
- *     )
- *   }
+ * object MyTest extends ZIOSpecDefault {
+ *   def spec = suite("clock")(
+ *     test("the live time is not negative") {
+ *       for {
+ *         time <- Live.live(nanoTime)
+ *       } yield assertTrue(time >= 0L)
+ *     }
+ *   )
+ * }
  * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/test/ ZIO Test]]
  */
 package object test extends CompileVariants {
+
+  /**
+   * The services that ZIO Test provides to every test: [[Annotations]],
+   * [[Live]], [[Sized]] and [[TestConfig]]. The test versions of the default
+   * ZIO services ([[TestClock]], [[TestConsole]], [[TestRandom]] and
+   * [[TestSystem]]) are installed as the default services of the test instead.
+   */
   type TestEnvironment = Annotations with Live with Sized with TestConfig
 
+  /** Layers that build a [[TestEnvironment]]. */
   object TestEnvironment {
     private val sizedLive  = Sized.live(100)(Trace.empty)
     private val configLive = TestConfig.live(100, 100, 200, 1000)(Trace.empty)
     private val defaultTestConfig =
       TestConfig.TestV2(100, 100, 200, 1000, ZIOAspect.identity)
 
+    /** A layer that passes on the `TestEnvironment` it is given. */
     val any: ZLayer[TestEnvironment, Nothing, TestEnvironment] =
       ZLayer.environment[TestEnvironment](Tracer.newTrace)
 
+    /**
+     * A layer that builds a `TestEnvironment` on top of the given live `Clock`,
+     * `Console`, `System` and `Random` services, which the [[Live]] service
+     * gives access to. While the layer's scope is open, it installs a
+     * `TestClock`, `TestConsole`, `TestRandom` and `TestSystem` as the default
+     * services, and it restores the previous ones when the scope closes. Its
+     * `Sized` service has size 100, and its `TestConfig` has 100 repeats, 100
+     * retries, 200 samples and 1000 shrinks.
+     */
     val live: ZLayer[Clock with Console with System with Random, Nothing, TestEnvironment] =
       make(installMonotonicFiberIds = false)
 
@@ -123,6 +144,10 @@ package object test extends CompileVariants {
     }
   }
 
+  /**
+   * A layer that provides the live `Clock`, `Console`, `System` and `Random`
+   * services.
+   */
   val liveEnvironment: Layer[Nothing, Clock with Console with System with Random] = {
     implicit val trace = Trace.empty
     ZLayer.succeedEnvironment(
@@ -135,6 +160,10 @@ package object test extends CompileVariants {
     )
   }
 
+  /**
+   * A layer that provides the [[TestEnvironment]], built on top of
+   * [[liveEnvironment]]. `ZIOSpecDefault` provides it to its spec.
+   */
   val testEnvironment: ZLayer[Any, Nothing, TestEnvironment] = {
     implicit val trace = Tracer.newTrace
     liveEnvironment >>> TestEnvironment.liveWithMonotonicFiberIds
@@ -328,7 +357,11 @@ package object test extends CompileVariants {
    * while ensuring that the effect itself uses the test environment.
    *
    * {{{
-   *   withLive(test)(_.timeout(duration))
+   * import zio.test._
+   *
+   * // The timeout uses the live clock, while the effect still uses the
+   * // TestClock.
+   * val timed = withLive(Clock.nanoTime)(_.timeout(1.second))
    * }}}
    */
   def withLive[R, E, E1, A, B](
@@ -337,8 +370,8 @@ package object test extends CompileVariants {
     Live.withLive(zio)(f)
 
   /**
-   * A `TestAspectAtLeast[R]` is a `TestAspect` that requires at least an `R` in
-   * its environment.
+   * A `TestAspectAtLeastR[R]` is a `TestAspect` that requires at least an `R`
+   * in its environment.
    */
   type TestAspectAtLeastR[-R] = TestAspect[Nothing, R, Nothing, Any]
 
@@ -349,15 +382,19 @@ package object test extends CompileVariants {
   type TestAspectPoly = TestAspect[Nothing, Any, Nothing, Any]
 
   /**
-   * A `ZTest[R, E]` is an effectfully produced test that requires an `R` and
-   * may fail with an `E`.
+   * A `ZTest[R, E]` is an effectfully produced test that requires an `R`. It
+   * succeeds with a [[TestSuccess]], or fails with a [[TestFailure]] that holds
+   * either a failed assertion or the `Cause[E]` of the effect's failure.
    */
   type ZTest[-R, +E] = ZIO[R, TestFailure[E], TestSuccess]
 
+  /** Constructors of [[ZTest]] values. */
   object ZTest {
 
     /**
-     * Builds a test with an effectual assertion.
+     * Builds a test with an effectual assertion. A failed assertion becomes a
+     * `TestFailure.Assertion`, and an error or defect of the effect becomes a
+     * `TestFailure.Runtime`.
      */
     def apply[R, E](label: String, assertion: => ZIO[R, E, TestResult])(implicit
       trace: Trace
@@ -419,26 +456,53 @@ package object test extends CompileVariants {
     }
 
   /**
-   * Asserts that the given test was completed.
+   * Returns a test result that always succeeds. Use it as the result of a test
+   * that only needs to reach this point.
    */
   def assertCompletes(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
     assertImpl(true)(Assertion.isTrue)
 
   /**
-   * Asserts that the given test was completed.
+   * Returns an effect that succeeds with a test result that always succeeds, as
+   * [[assertCompletes]] does.
    */
   def assertCompletesZIO(implicit trace: Trace, sourceLocation: SourceLocation): UIO[TestResult] =
     ZIO.succeed(assertCompletes)
 
   /**
-   * Asserts that the given test was never completed.
+   * Returns a test result that always fails, labelled with `message`. Use it in
+   * a branch that the test should never reach.
    */
   def assertNever(message: String)(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
     assertImpl(true)(Assertion.equalTo(false)) ?? message
 
   /**
    * Checks the test passes for "sufficient" numbers of samples from the given
-   * random variable.
+   * random variable: the `samples` setting of [[TestConfig]], which is 200 by
+   * default and which `TestAspect.samples` changes.
+   *
+   * The check stops at the first failing sample and shrinks it, trying up to
+   * the `shrinks` setting of `TestConfig` (1000 by default) smaller inputs, and
+   * the result reports the smallest failing input it found. A test effect that
+   * fails with an error counts as a failing sample, and its input is shrunk the
+   * same way. A test effect that dies is not shrunk: the check dies with that
+   * defect. A generator that produces no values makes the check run forever,
+   * and a warning is logged after 5 seconds.
+   *
+   * {{{
+   * import zio.test._
+   *
+   * object ReverseSpec extends ZIOSpecDefault {
+   *   def spec = test("reversing a list twice gives the same list") {
+   *     check(Gen.listOf(Gen.int)) { list =>
+   *       assertTrue(list.reverse.reverse == list)
+   *     }
+   *   }
+   * }
+   * }}}
+   *
+   * @see
+   *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
    */
   def check[R <: ZAny, A, In](rv: Gen[R, A])(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -564,7 +628,22 @@ package object test extends CompileVariants {
   /**
    * Checks the test passes for all values from the given finite, deterministic
    * generator. For non-deterministic or infinite generators use `check` or
-   * `checkN`.
+   * `checkN`: a random generator such as `Gen.int` produces one value each time
+   * it runs, so `checkAll` tests one sample of it. The check stops at the first
+   * failing value and shrinks it as `check` does. A generator that produces no
+   * values passes.
+   *
+   * {{{
+   * import zio.test._
+   *
+   * object PortSpec extends ZIOSpecDefault {
+   *   def spec = test("well-known ports are below 1024") {
+   *     checkAll(Gen.fromIterable(List(22, 80, 443))) { port =>
+   *       assertTrue(port < 1024)
+   *     }
+   *   }
+   * }
+   * }}}
    */
   def checkAll[R <: ZAny, A, In](rv: Gen[R, A])(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -689,8 +768,10 @@ package object test extends CompileVariants {
 
   /**
    * Checks in parallel the effectual test passes for all values from the given
-   * random variable. This is useful for deterministic `Gen` that
-   * comprehensively explore all possibilities in a given domain.
+   * random variable, running the test on up to `parallelism` values at the same
+   * time. This is useful for deterministic `Gen` that comprehensively explore
+   * all possibilities in a given domain. A failing value is shrunk as in
+   * `check`.
    */
   def checkAllPar[R <: ZAny, E, A, In](rv: Gen[R, A], parallelism: Int)(
     test: A => In
@@ -788,7 +869,7 @@ package object test extends CompileVariants {
     checkAllPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6, parallelism)(test.tupled)
 
   /**
-   * A version of `checkAllPar` that accepts six random variables.
+   * A version of `checkAllPar` that accepts seven random variables.
    */
   def checkAllPar[R <: ZAny, E, A, B, C, D, F, G, H, In](
     rv1: Gen[R, A],
@@ -809,7 +890,7 @@ package object test extends CompileVariants {
     checkAllPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7, parallelism)(test.tupled)
 
   /**
-   * A version of `checkAllPar` that accepts six random variables.
+   * A version of `checkAllPar` that accepts eight random variables.
    */
   def checkAllPar[R <: ZAny, E, A, B, C, D, F, G, H, I, In](
     rv1: Gen[R, A],
@@ -832,14 +913,33 @@ package object test extends CompileVariants {
 
   /**
    * Checks the test passes for the specified number of samples from the given
-   * random variable.
+   * random variable, instead of the `samples` setting of [[TestConfig]] that
+   * `check` uses. A failing sample is shrunk as in `check`. When `n` is
+   * positive, a generator that produces no values makes the check run forever,
+   * as in `check`.
+   *
+   * {{{
+   * import zio.test._
+   *
+   * object AbsSpec extends ZIOSpecDefault {
+   *   def spec = test("abs is not negative") {
+   *     checkN(50)(Gen.int(-1000, 1000)) { n =>
+   *       assertTrue(math.abs(n) >= 0)
+   *     }
+   *   }
+   * }
+   * }}}
    */
   def checkN(n: Int): CheckVariants.CheckN =
     new CheckVariants.CheckN(n)
 
   /**
    * Checks in parallel the test passes for "sufficient" numbers of samples from
-   * the given random variable.
+   * the given random variable, running the test on up to `parallelism` samples
+   * at the same time. The number of samples is the `samples` setting of
+   * [[TestConfig]], as in `check`, and a failing sample is shrunk as in
+   * `check`. A generator that produces no values makes the check run forever,
+   * as in `check`.
    */
   def checkPar[R <: ZAny, A, In](rv: Gen[R, A], parallelism: Int)(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -971,7 +1071,8 @@ package object test extends CompileVariants {
     checkPar(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5 <*> rv6 <*> rv7 <*> rv8, parallelism)(test.tupled)
 
   /**
-   * A `Runner` that provides a default testable environment.
+   * A [[TestRunner]] that provides the [[testEnvironment]] to the spec and
+   * writes the results to the live console.
    */
   lazy val defaultTestRunner: TestRunner[TestEnvironment, Any] =
     TestRunner(
@@ -984,13 +1085,14 @@ package object test extends CompileVariants {
     )
 
   /**
-   * Creates a failed test result with the specified runtime cause.
+   * Creates a test that fails with a `TestFailure.Runtime` holding the
+   * specified cause.
    */
   def failed[E](cause: Cause[E])(implicit trace: Trace): ZIO[Any, TestFailure[E], Nothing] =
     ZIO.fail(TestFailure.Runtime(cause))
 
   /**
-   * Creates an ignored test result.
+   * A test that succeeds with an ignored result.
    */
   val ignored: UIO[TestSuccess] =
     ZIO.succeed(TestSuccess.ignored)(Trace.empty)
@@ -1049,14 +1151,26 @@ package object test extends CompileVariants {
     else if (TestVersion.isScala2) f(scala2)
     else ignored
 
+  /** Helpers for the `checkN` syntax. */
   object CheckVariants {
 
+    /**
+     * The result of `checkN(n)`: apply it to one to six generators and a
+     * property to check the property for `n` samples.
+     */
     final class CheckN(private val n: Int) extends AnyVal {
+
+      /**
+       * Checks the test passes for `n` samples from the given random variable.
+       * On the first failure it shrinks the failing input, as `check` does.
+       */
       def apply[R <: ZAny, A, In](rv: Gen[R, A])(test: A => In)(implicit
         checkConstructor: CheckConstructor[R, In],
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkStream(rv.sample.forever.take(n.toLong))(a => checkConstructor(test(a)))
+
+      /** A version of `apply` that accepts two random variables. */
       def apply[R <: ZAny, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => In
       )(implicit
@@ -1064,6 +1178,8 @@ package object test extends CompileVariants {
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2)(test.tupled)
+
+      /** A version of `apply` that accepts three random variables. */
       def apply[R <: ZAny, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => In
       )(implicit
@@ -1071,6 +1187,8 @@ package object test extends CompileVariants {
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3)(test.tupled)
+
+      /** A version of `apply` that accepts four random variables. */
       def apply[R <: ZAny, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
         test: (A, B, C, D) => In
       )(implicit
@@ -1078,6 +1196,8 @@ package object test extends CompileVariants {
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
+
+      /** A version of `apply` that accepts five random variables. */
       def apply[R <: ZAny, A, B, C, D, F, In](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
@@ -1091,6 +1211,8 @@ package object test extends CompileVariants {
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
+
+      /** A version of `apply` that accepts six random variables. */
       def apply[R <: ZAny, A, B, C, D, F, G, In](
         rv1: Gen[R, A],
         rv2: Gen[R, B],
@@ -1178,6 +1300,7 @@ package object test extends CompileVariants {
     "Warning: A check / checkAll / checkN generator did not produce any test cases, " +
       "which may result in the test hanging. Ensure that the provided generator is producing values."
 
+  /** Smart-assertion syntax for an `Option` inside `assertTrue`. */
   implicit final class TestLensOptionOps[A](private val self: TestLens[Option[A]]) extends AnyVal {
 
     /**
@@ -1187,6 +1310,7 @@ package object test extends CompileVariants {
     def some: TestLens[A] = throw SmartAssertionExtensionError()
   }
 
+  /** Smart-assertion syntax for a `Try` inside `assertTrue`. */
   implicit final class TestLensTryOps[A](private val self: TestLens[scala.util.Try[A]]) extends AnyVal {
 
     /**
@@ -1202,6 +1326,7 @@ package object test extends CompileVariants {
     def failure: TestLens[Throwable] = throw SmartAssertionExtensionError()
   }
 
+  /** Smart-assertion syntax for an `Either` inside `assertTrue`. */
   implicit final class TestLensEitherOps[E, A](private val self: TestLens[Either[E, A]]) extends AnyVal {
 
     /**
@@ -1217,17 +1342,18 @@ package object test extends CompileVariants {
     def right: TestLens[A] = throw SmartAssertionExtensionError()
   }
 
+  /** Smart-assertion syntax for an `Exit` inside `assertTrue`. */
   implicit final class TestLensExitOps[E, A](private val self: TestLens[Exit[E, A]]) extends AnyVal {
 
     /**
-     * Transforms an [[Exit]] to a [[scala.Throwable]] if it is a `die`,
-     * otherwise fails.
+     * Transforms an [[Exit]] to the [[scala.Throwable]] of the first `Die` in
+     * its cause when the cause contains one, otherwise fails.
      */
     def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
 
     /**
-     * Transforms an [[Exit]] to its failure type (`E`) if it is a `fail`,
-     * otherwise fails.
+     * Transforms an [[Exit]] to the error (`E`) of the first `Fail` in its
+     * cause when the cause contains one, otherwise fails.
      */
     def failure: TestLens[E] = throw SmartAssertionExtensionError()
 
@@ -1244,43 +1370,50 @@ package object test extends CompileVariants {
     def cause: TestLens[Cause[E]] = throw SmartAssertionExtensionError()
 
     /**
-     * Transforms an [[Exit]] to a boolean value representing whether or not it
-     * was interrupted.
+     * Succeeds with `true` when the [[Exit]] is a failure whose cause contains
+     * an interruption, and fails otherwise.
      */
     def interrupted: TestLens[Boolean] = throw SmartAssertionExtensionError()
   }
 
+  /** Smart-assertion syntax for a `Cause` inside `assertTrue`. */
   implicit final class TestLensCauseOps[E](private val self: TestLens[Cause[E]]) extends AnyVal {
 
     /**
-     * Transforms a [[Cause]] to a [[scala.Throwable]] if it is a `die`,
-     * otherwise fails.
+     * Transforms a [[Cause]] to the [[scala.Throwable]] of its first `Die` when
+     * it contains one, otherwise fails.
      */
     def die: TestLens[Throwable] = throw SmartAssertionExtensionError()
 
     /**
-     * Transforms a [[Cause]] to its failure type (`E`) if it is a `fail`,
-     * otherwise fails.
+     * Transforms a [[Cause]] to the error (`E`) of its first `Fail` when it
+     * contains one, otherwise fails.
      */
     def failure: TestLens[E] = throw SmartAssertionExtensionError()
 
     /**
-     * Transforms a [[Cause]] to a boolean value representing whether or not it
-     * was interrupted.
+     * Succeeds with `true` when the [[Cause]] contains an interruption, and
+     * fails otherwise.
      */
     def interrupted: TestLens[Boolean] = throw SmartAssertionExtensionError()
   }
 
+  /** Smart-assertion syntax for a value of any type inside `assertTrue`. */
   implicit final class TestLensAnyOps[A](private val self: TestLens[A]) extends AnyVal {
 
     /**
-     * Always returns true as long the chain of preceding transformations has
+     * Returns `true` as long as the chain of preceding transformations has
      * succeeded.
      *
      * {{{
-     *   val option: Either[Int, Option[String]] = Right(Some("Cool"))
-     *   assertTrue(option.is(_.right.some.anything)) // returns true
-     *   assertTrue(option.is(_.left.anything)) // will fail because of `.left`.
+     * import zio.test._
+     *
+     * val value: Either[Int, Option[String]] = Right(Some("Cool"))
+     *
+     * // succeeds
+     * val passes: TestResult = assertTrue(value.is(_.right.some.anything))
+     * // fails because of `.left`
+     * val fails: TestResult = assertTrue(value.is(_.left.anything))
      * }}}
      */
     def anything: TestLens[Boolean] = throw SmartAssertionExtensionError()
@@ -1290,20 +1423,26 @@ package object test extends CompileVariants {
      * otherwise fails.
      *
      * {{{
-     *   sealed trait CustomError
-     *   case class Explosion(blastRadius: Int) extends CustomError
-     *   case class Melting(degrees: Double) extends CustomError
-     *   case class Fulminating(wow: Boolean) extends CustomError
+     * import zio.test._
      *
-     *   val error: CustomError = Melting(100)
-     *   assertTrue(option.is(_.subtype[Melting]).degrees > 10) // succeeds
-     *   assertTrue(option.is(_.subtype[Explosion]).blastRadius == 12) // fails
+     * sealed trait CustomError
+     * case class Explosion(blastRadius: Int) extends CustomError
+     * case class Melting(degrees: Double)    extends CustomError
+     * case class Fulminating(wow: Boolean)   extends CustomError
+     *
+     * val error: CustomError = Melting(100)
+     *
+     * // succeeds
+     * val passes: TestResult = assertTrue(error.is(_.subtype[Melting]).degrees > 10)
+     * // fails
+     * val fails: TestResult = assertTrue(error.is(_.subtype[Explosion]).blastRadius == 12)
      * }}}
      */
     def subtype[Subtype <: A]: TestLens[Subtype] = throw SmartAssertionExtensionError()
 
     /**
-     * Transforms a value with the given [[CustomAssertion]]
+     * Transforms a value with the given [[CustomAssertion]], failing when the
+     * custom assertion returns a `Left`.
      */
     def custom[B](customAssertion: CustomAssertion[A, B]): TestLens[B] = {
       val _ = customAssertion
@@ -1311,16 +1450,23 @@ package object test extends CompileVariants {
     }
   }
 
+  /** Adds `is`, which opens the smart-assertion syntax of [[TestLens]]. */
   implicit final class SmartAssertionOps[A](private val self: A) extends AnyVal {
 
     /**
      * This extension method can only be called inside of the `assertTrue`
-     * method. It will transform the value using the given [[TestLens]].
+     * method; anywhere else it throws an exception. It transforms the value
+     * using the given [[TestLens]].
      *
      * {{{
-     *   val option: Either[Int, Option[String]] = Right(Some("Cool"))
-     *   assertTrue(option.is(_.right.some) == "Cool") // returns true
-     *   assertTrue(option.is(_.left) < 100) // will fail because of `.left`.
+     * import zio.test._
+     *
+     * val value: Either[Int, Option[String]] = Right(Some("Cool"))
+     *
+     * // succeeds
+     * val passes: TestResult = assertTrue(value.is(_.right.some) == "Cool")
+     * // fails because of `.left`
+     * val fails: TestResult = assertTrue(value.is(_.left) < 100)
      * }}}
      */
     def is[B](f: TestLens[A] => TestLens[B]): B = {
@@ -1329,9 +1475,20 @@ package object test extends CompileVariants {
     }
   }
 
+  /** Combinators for effects that produce a [[TestResult]]. */
   implicit final class TestResultZIOOps[R, E](private val self: ZIO[R, E, TestResult]) extends AnyVal {
+
+    /**
+     * Runs this effect and then `that` effect, and combines their results with
+     * logical and (`&&`).
+     */
     def &&[R1 <: R, E1 >: E](that: => ZIO[R1, E1, TestResult])(implicit trace: Trace): ZIO[R1, E1, TestResult] =
       self.zipWith(that)(_ && _)
+
+    /**
+     * Runs this effect and then `that` effect, and combines their results with
+     * logical or (`||`).
+     */
     def ||[R1 <: R, E1 >: E](that: => ZIO[R1, E1, TestResult])(implicit trace: Trace): ZIO[R1, E1, TestResult] =
       self.zipWith(that)(_ || _)
   }

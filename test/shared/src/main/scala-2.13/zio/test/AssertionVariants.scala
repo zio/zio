@@ -20,6 +20,10 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Assertion.Arguments.valueArgument
 import zio.test.{ErrorMessage => M}
 
+/**
+ * Holds the `equalTo` assertion. [[Assertion]] extends this trait, so use it as
+ * `Assertion.equalTo`.
+ */
 trait AssertionVariants {
   private def diffProduct[T](
     obj1: T,
@@ -65,6 +69,24 @@ trait AssertionVariants {
     }
   }
 
+  /**
+   * Makes a new assertion that requires a value to equal `expected`. Arrays are
+   * compared element by element, one level deep (nested arrays are compared by
+   * reference); two `CharSequence` values are compared by their string content;
+   * other values are compared with `==`.
+   *
+   * On Scala 2, an implicit `Eql[A, B]` must show that one of the two types is
+   * a subtype of the other, so comparing unrelated types such as `Int` and
+   * `String` does not compile. On Scala 3 there is no such check: the
+   * comparison compiles and fails when it runs.
+   *
+   * {{{
+   * import zio.test.Assertion._
+   *
+   * val result: TestResult = assert(List(1, 2, 3).map(_ * 2))(equalTo(List(2, 4, 6)))
+   * // result.isSuccess == true
+   * }}}
+   */
   def equalTo[A, B](expected: A)(implicit eql: Eql[A, B]): Assertion[B] =
     Assertion[B](
       TestArrow

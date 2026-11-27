@@ -22,12 +22,39 @@ import zio.Trace
 
 /**
  * `GenFractionalPoly` provides evidence that instances of `Gen[T]` and
- * `Fractional[T]` exist for some concrete but unknown type `T`.
+ * `Fractional[T]` exist for some concrete but unknown type `T`. Use it for
+ * properties that divide generated values of a type that changes from sample to
+ * sample.
+ *
+ * {{{
+ * import zio.test._
+ *
+ * val divideByOne =
+ *   test("dividing by one keeps the value") {
+ *     check(GenFractionalPoly.genFractionalPoly) { poly =>
+ *       val num = poly.numT
+ *       check(poly.genT) { a =>
+ *         val divided = num.div(a, num.one)
+ *         assertTrue(divided == a)
+ *       }
+ *     }
+ *   }
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 trait GenFractionalPoly extends GenNumericPoly {
   override val numT: Fractional[T]
 }
 
+/**
+ * Constructors of [[GenFractionalPoly]] instances for `Double` and `Float`, and
+ * `genFractionalPoly`, a generator that picks between them.
+ *
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ */
 object GenFractionalPoly {
 
   /**
@@ -43,21 +70,21 @@ object GenFractionalPoly {
 
   /**
    * Provides evidence that instances of `Gen` and `Fractional` exist for
-   * doubles.
+   * doubles, using `Gen.double` and `Numeric.DoubleIsFractional`.
    */
   def double(implicit trace: Trace): GenFractionalPoly =
     GenFractionalPoly(Gen.double, Numeric.DoubleIsFractional)
 
   /**
    * Provides evidence that instances of `Gen` and `Fractional` exist for
-   * floats.
+   * floats, using `Gen.float` and `Numeric.FloatIsFractional`.
    */
   def float(implicit trace: Trace): GenFractionalPoly =
     GenFractionalPoly(Gen.float, Numeric.FloatIsFractional)
 
   /**
-   * A generator of polymorphic values constrainted to have a `Fractional`
-   * instance.
+   * A generator of polymorphic values constrained to have a `Fractional`
+   * instance. It picks `double` or `float` with equal weight.
    */
   def genFractionalPoly(implicit trace: Trace): Gen[Any, GenFractionalPoly] =
     Gen.elements(double, float)

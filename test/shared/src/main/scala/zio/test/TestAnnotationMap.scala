@@ -25,6 +25,11 @@ import scala.collection.immutable.Map
  */
 final class TestAnnotationMap private (private val map: Map[TestAnnotation[Any], AnyRef]) { self =>
 
+  /**
+   * Merges this map with `that`. For an annotation present in both, the values
+   * are combined with the annotation's `combine` function, this map's value
+   * first.
+   */
   def ++(that: TestAnnotationMap): TestAnnotationMap = {
     val map0 = that.map.foldLeft(self.map) { case (acc, (k, v)) =>
       acc.updated(k, acc.get(k).fold(v)(k.combine(_, v).asInstanceOf[AnyRef]))
@@ -33,7 +38,8 @@ final class TestAnnotationMap private (private val map: Map[TestAnnotation[Any],
   }
 
   /**
-   * Appends the specified annotation to the annotation map.
+   * Returns a map in which `value` is combined with the current value of `key`
+   * (its initial value when absent), using the annotation's `combine` function.
    */
   def annotate[V](key: TestAnnotation[V], value: V): TestAnnotationMap =
     update[V](key, key.combine(_, value))
@@ -55,6 +61,9 @@ final class TestAnnotationMap private (private val map: Map[TestAnnotation[Any],
     map.toString
 }
 
+/**
+ * Constructors of [[TestAnnotationMap]].
+ */
 object TestAnnotationMap {
 
   /**

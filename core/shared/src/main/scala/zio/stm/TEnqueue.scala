@@ -19,12 +19,23 @@ package zio.stm
 import zio._
 
 /**
- * A transactional queue that can only be enqueued.
+ * The write side of a transactional queue: a [[TQueue]] or a [[THub]]. Its
+ * operations, apart from `capacity`, are STM transactions, so offers compose
+ * with other transactional operations and commit together.
+ *
+ * What an offer does when the queue is full depends on how the queue was
+ * created: a bounded queue retries the transaction, so the fiber suspends until
+ * there is room; a dropping queue discards the new value; a sliding queue
+ * discards the oldest value. After the queue is shut down, `capacity`,
+ * `isShutdown`, `awaitShutdown` and `shutdown` still work, and the other
+ * operations interrupt the fiber that runs them, except `offerAll` of an empty
+ * collection on a [[THub]], which succeeds with `true`.
  */
 sealed trait TEnqueue[-A] extends Serializable {
 
   /**
-   * The maximum capacity of the queue.
+   * The capacity the queue was created with, or `Int.MaxValue` for an unbounded
+   * queue.
    */
   def capacity: Int
 
@@ -34,19 +45,26 @@ sealed trait TEnqueue[-A] extends Serializable {
   def isShutdown: USTM[Boolean]
 
   /**
-   * Offers a value to the queue, returning whether the value was offered to the
-   * queue.
+   * Offers a value to the queue. Succeeds with `false` when a dropping queue is
+   * full and discards the value, and with `true` otherwise. A full bounded
+   * queue retries, so the fiber suspends until there is room; a full sliding
+   * queue drops its oldest value to make room. A [[THub]] with no subscribers
+   * discards the value and succeeds with `true`.
    */
   def offer(a: A): ZSTM[Any, Nothing, Boolean]
 
   /**
-   * Offers all of the specified values to the queue, returning whether they
-   * were offered to the queue.
+   * Offers the values to the queue in order. When there is not room for all of
+   * them, a bounded queue retries, so the fiber suspends until the queue
+   * changes. A dropping queue adds the values that fit and succeeds with
+   * `false` when it discards any. A sliding queue succeeds with `true`. A
+   * [[THub]] with no subscribers discards the values and succeeds with `true`.
    */
   def offerAll(as: Iterable[A]): ZSTM[Any, Nothing, Boolean]
 
   /**
-   * Shuts down the queue.
+   * Shuts down the queue. Shutting down a [[THub]] also shuts down its
+   * subscriptions.
    */
   def shutdown: USTM[Unit]
 
@@ -56,7 +74,8 @@ sealed trait TEnqueue[-A] extends Serializable {
   def size: USTM[Int]
 
   /**
-   * Waits for the hub to be shut down.
+   * Retries until the queue is shut down, so the fiber suspends until another
+   * fiber shuts it down.
    */
   def awaitShutdown: USTM[Unit] =
     isShutdown.flatMap(b => if (b) ZSTM.unit else ZSTM.retry)
@@ -68,7 +87,7 @@ sealed trait TEnqueue[-A] extends Serializable {
     size.map(_ == 0)
 
   /**
-   * Checks if the queue is at capacity.
+   * Checks if the queue is at capacity, that is, its size equals `capacity`.
    */
   def isFull: USTM[Boolean] =
     size.map(_ == capacity)

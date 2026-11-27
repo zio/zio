@@ -21,6 +21,11 @@ import zio.{Duration, Trace}
 import java.time._
 import scala.jdk.CollectionConverters._
 
+/**
+ * Generators of `java.time` values and of `zio.Duration` values. [[Gen]]
+ * extends this trait, so they are called as `Gen.instant`, `Gen.localDate` and
+ * so on.
+ */
 trait TimeVariants {
 
   /**
@@ -39,15 +44,15 @@ trait TimeVariants {
     )
 
   /**
-   * A generator of finite `zio.duration.Duration` values. Shrinks toward
-   * `Duration.Zero`.
+   * A generator of finite `zio.Duration` values from zero to `Long.MaxValue`
+   * nanoseconds. Shrinks toward `Duration.Zero`.
    */
   final def finiteDuration(implicit trace: Trace): Gen[Any, Duration] =
     Gen.long(0L, Long.MaxValue).map(Duration.Finite(_))
 
   /**
-   * A generator of finite `zio.duration.Duration` values inside the specified
-   * range: [min, max]. Shrinks toward min.
+   * A generator of finite `zio.Duration` values inside the specified range:
+   * [min, max]. Shrinks toward min.
    */
   final def finiteDuration(min: Duration, max: Duration)(implicit trace: Trace): Gen[Any, Duration] =
     Gen.long(min.toNanos, max.toNanos).map(Duration.Finite(_))
@@ -111,7 +116,7 @@ trait TimeVariants {
 
   /**
    * A generator of `java.time.LocalTime` values within the specified range:
-   * [min, max]. Shrinks toward `LocalTime.MIN`.
+   * [min, max]. Shrinks toward `min`.
    */
   final def localTime(min: LocalTime, max: LocalTime)(implicit trace: Trace): Gen[Any, LocalTime] =
     localDateTime(min.atDate(LocalDate.MIN), max.atDate(LocalDate.MIN)).map(_.toLocalTime)
@@ -154,14 +159,19 @@ trait TimeVariants {
 
   /**
    * A generator of `java.time.OffsetDateTime` values. Shrinks toward
-   * `OffsetDateTime.MIN`.
+   * `OffsetDateTime.MIN`: the local date-time shrinks first, and each shrunk
+   * local date-time gets a newly drawn offset.
    */
   final def offsetDateTime(implicit trace: Trace): Gen[Any, OffsetDateTime] =
     offsetDateTime(OffsetDateTime.MIN, OffsetDateTime.MAX)
 
   /**
-   * A generator of `java.time.OffsetDateTime` values inside the specified
-   * range: [min, max]. Shrinks toward min.
+   * A generator of `java.time.OffsetDateTime` values whose local date-time lies
+   * between those of `min` and `max`. The offset is drawn separately from the
+   * local date-time, so a generated value can be earlier than `min` or later
+   * than `max` when compared as instants. Shrinks toward `min`: the local
+   * date-time shrinks first, and each shrunk local date-time gets a newly drawn
+   * offset.
    */
   final def offsetDateTime(min: OffsetDateTime, max: OffsetDateTime)(implicit
     trace: Trace
@@ -199,7 +209,7 @@ trait TimeVariants {
   }
 
   /**
-   * A generator of `java.time.OffsetTime` values. Shrinks torward
+   * A generator of `java.time.OffsetTime` values. Shrinks toward
    * `OffsetTime.MIN`.
    */
   final def offsetTime(implicit trace: Trace): Gen[Any, OffsetTime] =
@@ -209,7 +219,8 @@ trait TimeVariants {
     } yield OffsetTime.of(time, ZoneOffset.ofTotalSeconds(-offset.getTotalSeconds))
 
   /**
-   * A generator of `java.time.Period` values. Shrinks toward `Period.ZERO`.
+   * A generator of `java.time.Period` values whose years, months and days are
+   * each between 0 and `Int.MaxValue`. Shrinks toward `Period.ZERO`.
    */
   final def period(implicit trace: Trace): Gen[Any, Period] =
     for {
@@ -264,8 +275,10 @@ trait TimeVariants {
   }
 
   /**
-   * A generator of `java.time.ZonedDateTime` values. Shrinks toward
-   * `ZoneDateTime.of(LocalDateTime.MIN, zoneId)`.
+   * A generator of `java.time.ZonedDateTime` values in a zone picked from the
+   * available zone ids. Shrinks the local date-time toward `LocalDateTime.MIN`;
+   * the zone does not shrink, and each shrunk date-time gets a new zone picked
+   * at random.
    */
   final def zonedDateTime(implicit trace: Trace): Gen[Any, ZonedDateTime] =
     for {
@@ -274,8 +287,13 @@ trait TimeVariants {
     } yield ZonedDateTime.of(dateTime, zoneId)
 
   /**
-   * A generator of `java.time.ZonedDateTime` values within specified range:
-   * [min, max]. Shrinks toward `min`.
+   * A generator of `java.time.ZonedDateTime` values whose local date-time lies
+   * between the local date-times of `min` and `max`. The zone is picked from
+   * all available zone ids, ignoring the zones of `min` and `max`, so a
+   * generated value can be earlier than `min` or later than `max` when compared
+   * as instants. Shrinks the local date-time toward that of `min`; the zone
+   * does not shrink, and each shrunk date-time gets a new zone picked at
+   * random.
    */
   final def zonedDateTime(min: ZonedDateTime, max: ZonedDateTime)(implicit trace: Trace): Gen[Any, ZonedDateTime] =
     for {
