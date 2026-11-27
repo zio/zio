@@ -213,7 +213,7 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
   /**
    * Repeatedly runs the generator and collects the specified number of values
    * in a list. A deterministic generator repeats its sequence. If the generator
-   * produces no values, the effect does not complete.
+   * produces no values and `n` is positive, the effect does not complete.
    */
   def runCollectN(n: Int)(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
     sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
@@ -502,7 +502,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A generator of double values from `min` (inclusive) to `max` (exclusive).
    * The shrinker will shrink toward `min`. When `min` equals `max`, the value
-   * generated is the double just below `max`.
+   * generated is the double just below `max`, which is also below `min`.
    */
   def double(min: Double, max: Double)(implicit trace: Trace): Gen[Any, Double] =
     if (min > max)
