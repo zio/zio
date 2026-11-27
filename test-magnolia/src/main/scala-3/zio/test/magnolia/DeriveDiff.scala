@@ -40,7 +40,12 @@ import scala.quoted._
  *
  * In the scope of `import zio.test.magnolia.DeriveDiff._`, `Diff[List[Int]]`
  * and `Diff[Option[Int]]` are derived as sealed types (from `::` and `Nil`, and
- * from `Some` and `None`) instead of coming from the `Diff` companion. On Scala 3, this also applies to the `List` fields of a derived case class. On Scala 2, in that scope, a `Diff` summoned directly for a type that Magnolia cannot derive, such as `String` or `Map[Int, Int]`, is `fallback` instead of the companion instance, while the fields of derived case classes still use the companion instances.
+ * from `Some` and `None`) instead of coming from the `Diff` companion. On Scala
+ * 3, this also applies to the `List` fields of a derived case class. On Scala
+ * 2, in that scope, a `Diff` summoned directly for a type that Magnolia cannot
+ * derive, such as `String` or `Map[Int, Int]`, is `fallback` instead of the
+ * companion instance, while the fields of derived case classes still use the
+ * companion instances.
  *
  * @see
  *   [[https://zio.dev/reference/test/zio-test-diff zio.test.diff.Diff]]
@@ -93,8 +98,11 @@ trait LowPri {
    * A `Diff` that compares two values with `==`: it returns
    * `DiffResult.Identical(x)` when they are equal and `DiffResult.Different(x,
    * y)` otherwise. Its `isLowPriority` is `true`, so a failing `assertTrue(x ==
-   * y)` whose `Diff` is this one shows the two values instead of a diff. On Scala 2, Magnolia uses it for field types that it cannot derive, and, in the scope of `import zio.test.magnolia.DeriveDiff._`, for a `Diff` summoned directly for such a type, such as `Diff[String]`. On Scala 3
-   * it is a `given`, imported with `import zio.test.magnolia.DeriveDiff.given`.
+   * y)` whose `Diff` is this one shows the two values instead of a diff. On
+   * Scala 2, Magnolia uses it for field types that it cannot derive, and, in
+   * the scope of `import zio.test.magnolia.DeriveDiff._`, for a `Diff` summoned
+   * directly for such a type, such as `Diff[String]`. On Scala 3 it is a
+   * `given`, imported with `import zio.test.magnolia.DeriveDiff.given`.
    */
   given fallback[A]: Diff[A] = new Diff[A] {
     override def diff(x: A, y: A): DiffResult =

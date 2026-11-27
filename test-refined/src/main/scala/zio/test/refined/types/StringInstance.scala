@@ -16,7 +16,13 @@ import zio.test.Gen
 object string extends StringInstance
 
 /**
- * Instances for the `FiniteString[N]`, `NonEmptyString`, `NonEmptyFiniteString[N]`, `TrimmedString` and `HexString` aliases of `eu.timepit.refined.types.string`. The trait is named `StringInstance`, in the singular. On Scala 3, implicit search does not find `FiniteString[N]` and `NonEmptyFiniteString[N]` for a literal `N` such as `FiniteString[5]`; `NonEmptyString`, `TrimmedString` and `HexString` are found on Scala 2 and Scala 3.
+ * Instances for the `FiniteString[N]`, `NonEmptyString`,
+ * `NonEmptyFiniteString[N]`, `TrimmedString` and `HexString` aliases of
+ * `eu.timepit.refined.types.string`. The trait is named `StringInstance`, in
+ * the singular. On Scala 3, implicit search does not find `FiniteString[N]` and
+ * `NonEmptyFiniteString[N]` for a literal `N` such as `FiniteString[5]`;
+ * `NonEmptyString`, `TrimmedString` and `HexString` are found on Scala 2 and
+ * Scala 3.
  */
 trait StringInstance {
 

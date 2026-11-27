@@ -31,10 +31,10 @@ package zio.test.sbt
  *
  * On Scala.js and Scala Native, `runner` returns a `ZTestRunner.Master` and
  * `slaveRunner` returns a `ZTestRunner.Slave`. Slave runners send the summaries
- * of their specs to the master runner. There is no shared runtime:
- * each spec runs as its own application with its own `bootstrap` layer. The
- * master runner's `done()` returns the summary instead of printing it. The
- * class loader used when none is given is `null`.
+ * of their specs to the master runner. There is no shared runtime: each spec
+ * runs as its own application with its own `bootstrap` layer. The master
+ * runner's `done()` returns the summary instead of printing it. The class
+ * loader used when none is given is `null`.
  *
  * @see
  *   [[https://zio.dev/reference/test/installation/ Installation]]

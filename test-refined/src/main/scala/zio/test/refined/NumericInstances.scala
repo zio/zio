@@ -29,7 +29,11 @@ import zio.test.magnolia.DeriveGen
 object numeric extends NumericInstances
 
 /**
- * Instances for the `Greater[N]` and `Less[N]` predicates of `eu.timepit.refined.numeric` on `Int`, `Long`, `Short`, `Byte` and `Double`. `N` is the literal type that `WitnessAs` reads as the bound. On Scala 3, implicit search does not find these instances for a literal `N` such as `Int Refined Greater[5]`; on Scala 2 it does.
+ * Instances for the `Greater[N]` and `Less[N]` predicates of
+ * `eu.timepit.refined.numeric` on `Int`, `Long`, `Short`, `Byte` and `Double`.
+ * `N` is the literal type that `WitnessAs` reads as the bound. On Scala 3,
+ * implicit search does not find these instances for a literal `N` such as `Int
+ * Refined Greater[5]`; on Scala 2 it does.
  */
 trait NumericInstances {
 

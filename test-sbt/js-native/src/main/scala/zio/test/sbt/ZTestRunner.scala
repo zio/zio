@@ -28,7 +28,8 @@ sealed abstract class ZTestRunner(
     ) {
 
   /**
-   * Adds the spec summary that a slave runner sent to the summaries of this runner, and returns `None`.
+   * Adds the spec summary that a slave runner sent to the summaries of this
+   * runner, and returns `None`.
    */
   final override def receiveMessage(summary: String): Option[String] = {
     ZTestRunner.deserialize(summary).foreach(addSummary)
@@ -45,7 +46,10 @@ sealed abstract class ZTestRunner(
 
   final override protected def returnSummary: Boolean = true
 
-  /** Returns the string that `serializer` makes from the task definition of `task`. */
+  /**
+   * Returns the string that `serializer` makes from the task definition of
+   * `task`.
+   */
   final override def serializeTask(task: Task, serializer: TaskDef => String): String =
     serializer(task.taskDef())
 

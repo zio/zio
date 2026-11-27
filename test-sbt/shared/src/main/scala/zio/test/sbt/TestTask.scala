@@ -6,7 +6,12 @@ import zio.{Scope, Trace, ZIO, ZIOAppArgs, ZLayer}
 import zio.test.{Summary, TestArgs, TestEnvironment, TestOutput, ZIOSpecAbstract, ZTestEventHandler, testEnvironment}
 
 /**
- * The base of [[ZTestTask]]: an sbt task that runs one spec, after installing the fiber dump signal handlers of [[SignalHandlers]], and reports its test results to sbt through [[ZTestEventHandlerSbt]]. When every selector of its `TaskDef` is a `TestSelector` or a `TestWildcardSelector`, the selector names are added to the `-t` search terms, so only the matching tests run. With any other selector, the spec runs with the test arguments unchanged.
+ * The base of [[ZTestTask]]: an sbt task that runs one spec, after installing
+ * the fiber dump signal handlers of [[SignalHandlers]], and reports its test
+ * results to sbt through [[ZTestEventHandlerSbt]]. When every selector of its
+ * `TaskDef` is a `TestSelector` or a `TestWildcardSelector`, the selector names
+ * are added to the `-t` search terms, so only the matching tests run. With any
+ * other selector, the spec runs with the test arguments unchanged.
  */
 abstract class TestTask(
   // attempt to do `final override val taskDef: TaskDef`

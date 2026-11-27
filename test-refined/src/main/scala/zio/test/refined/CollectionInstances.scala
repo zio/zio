@@ -65,7 +65,10 @@ trait CollectionInstances {
   ): Gen[R, Refined[Vector[T], NonEmpty]] = Gen.vectorOf1(genT).map(Refined.unsafeApply)
 
   /**
-   * A generator of `Chunk[T] Refined Size[P]`. The collection has the size drawn from `sizeGen`, or is empty when that size is zero or negative, and the elements come from `genT`. The result satisfies `Size[P]` when the values of `sizeGen` are non-negative and satisfy `P`.
+   * A generator of `Chunk[T] Refined Size[P]`. The collection has the size
+   * drawn from `sizeGen`, or is empty when that size is zero or negative, and
+   * the elements come from `genT`. The result satisfies `Size[P]` when the
+   * values of `sizeGen` are non-negative and satisfy `P`.
    */
   def sizedChunkRefinedGen[R, T, P](implicit
     genT: Gen[R, T],
@@ -76,7 +79,10 @@ trait CollectionInstances {
     }.map(r => Refined.unsafeApply(r))
 
   /**
-   * A generator of `List[T] Refined Size[P]`. The collection has the size drawn from `sizeGen`, or is empty when that size is zero or negative, and the elements come from `genT`. The result satisfies `Size[P]` when the values of `sizeGen` are non-negative and satisfy `P`.
+   * A generator of `List[T] Refined Size[P]`. The collection has the size drawn
+   * from `sizeGen`, or is empty when that size is zero or negative, and the
+   * elements come from `genT`. The result satisfies `Size[P]` when the values
+   * of `sizeGen` are non-negative and satisfy `P`.
    */
   def listSizeRefinedGen[R, T, P](implicit
     genT: Gen[R, T],
@@ -87,7 +93,10 @@ trait CollectionInstances {
     }.map(Refined.unsafeApply)
 
   /**
-   * A generator of `Vector[T] Refined Size[P]`. The collection has the size drawn from `sizeGen`, or is empty when that size is zero or negative, and the elements come from `genT`. The result satisfies `Size[P]` when the values of `sizeGen` are non-negative and satisfy `P`.
+   * A generator of `Vector[T] Refined Size[P]`. The collection has the size
+   * drawn from `sizeGen`, or is empty when that size is zero or negative, and
+   * the elements come from `genT`. The result satisfies `Size[P]` when the
+   * values of `sizeGen` are non-negative and satisfy `P`.
    */
   def vectorSizeRefinedGen[R, T, P](implicit
     genT: Gen[R, T],

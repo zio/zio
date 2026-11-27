@@ -24,7 +24,11 @@ import java.util
 import scala.jdk.CollectionConverters._
 
 /**
- * The JUnit Platform descriptor of one ZIO test, whose display name is the test label. Its tags are the `TestAnnotation.tagged` tags of the test (a tag must be a valid JUnit tag name, for example without spaces). Its source is the file and line where the test is defined (from `TestAnnotation.trace`), or the spec class when that location is missing.
+ * The JUnit Platform descriptor of one ZIO test, whose display name is the test
+ * label. Its tags are the `TestAnnotation.tagged` tags of the test (a tag must
+ * be a valid JUnit tag name, for example without spaces). Its source is the
+ * file and line where the test is defined (from `TestAnnotation.trace`), or the
+ * spec class when that location is missing.
  *
  * @param parent
  *   the parent descriptor
@@ -50,7 +54,9 @@ class ZIOTestDescriptor(
   override def getType: TestDescriptor.Type = TestDescriptor.Type.TEST
 
   /**
-   * Returns the `TestAnnotation.tagged` tags of the test as JUnit tags. Throws an `org.junit.platform.commons.PreconditionViolationException` when a tag isn't a valid JUnit tag name, for example when it contains a space.
+   * Returns the `TestAnnotation.tagged` tags of the test as JUnit tags. Throws
+   * an `org.junit.platform.commons.PreconditionViolationException` when a tag
+   * isn't a valid JUnit tag name, for example when it contains a space.
    */
   override def getTags: util.Set[TestTag] =
     annotations.get(TestAnnotation.tagged).map(TestTag.create).asJava

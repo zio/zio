@@ -68,7 +68,8 @@ trait CharInstances {
     Gen.whitespaceChars.map(char => Refined.unsafeApply(char))
 
   /**
-   * The implicit `DeriveGen` for `Char Refined Digit`, built with `Gen.numericChar` like `digitGen`.
+   * The implicit `DeriveGen` for `Char Refined Digit`, built with
+   * `Gen.numericChar` like `digitGen`.
    */
   implicit def digitArbitrary: DeriveGen[Refined[Char, Digit]] =
     DeriveGen.instance(Gen.numericChar.map(value => Refined.unsafeApply(value)))

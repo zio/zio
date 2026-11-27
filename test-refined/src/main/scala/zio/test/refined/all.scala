@@ -19,13 +19,26 @@ package zio.test.refined
 import zio.test.refined.types.AllTypesInstances
 
 /**
- * Brings the implicit `DeriveGen` instances of this module into scope. `import zio.test.refined.all._` lets `DeriveGen` derive generators for refined types such as `Int Refined Greater[N]`, `Char Refined Digit`, `List[A] Refined NonEmpty`, `Refined[T, A Or B]`, `Refined[T, Equal[U]]` and the aliases of `eu.timepit.refined.types` (for example `PosInt`, `NonEmptyString`, `Month` and `MD5`). The `*Gen` members (for example `intGreaterThanGen`) return plain `Gen` values, and the implicit members wrap them as `DeriveGen`.
+ * Brings the implicit `DeriveGen` instances of this module into scope. `import
+ * zio.test.refined.all._` lets `DeriveGen` derive generators for refined types
+ * such as `Int Refined Greater[N]`, `Char Refined Digit`, `List[A] Refined
+ * NonEmpty`, `Refined[T, A Or B]`, `Refined[T, Equal[U]]` and the aliases of
+ * `eu.timepit.refined.types` (for example `PosInt`, `NonEmptyString`, `Month`
+ * and `MD5`). The `*Gen` members (for example `intGreaterThanGen`) return plain
+ * `Gen` values, and the implicit members wrap them as `DeriveGen`.
  *
- * For `String Refined StartsWith[S]` and `String Refined EndsWith[S]` this import makes the implicit search ambiguous on Scala 2 and finds no instance on Scala 3; call a `*Gen` member such as `startsWithStringGen` instead.
+ * For `String Refined StartsWith[S]` and `String Refined EndsWith[S]` this
+ * import makes the implicit search ambiguous on Scala 2 and finds no instance
+ * on Scala 3; call a `*Gen` member such as `startsWithStringGen` instead.
  *
- * On Scala 3, implicit search does not find the instances whose bound is a literal type, such as `Int Refined Greater[5]`, `Refined[Int, Equal[3]]` and `FiniteString[5]`; the aliases with fixed predicates, such as `PosInt`, `NonEmptyString` and `Month`, work on Scala 2 and Scala 3.
+ * On Scala 3, implicit search does not find the instances whose bound is a
+ * literal type, such as `Int Refined Greater[5]`, `Refined[Int, Equal[3]]` and
+ * `FiniteString[5]`; the aliases with fixed predicates, such as `PosInt`,
+ * `NonEmptyString` and `Month`, work on Scala 2 and Scala 3.
  *
- * The generators build the refined value with `Refined.unsafeApply`, so the predicate is not checked. The documentation of each member gives the range or shape it produces.
+ * The generators build the refined value with `Refined.unsafeApply`, so the
+ * predicate is not checked. The documentation of each member gives the range or
+ * shape it produces.
  *
  * {{{
  * import eu.timepit.refined.types.numeric.PosInt

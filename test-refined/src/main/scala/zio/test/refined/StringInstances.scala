@@ -29,9 +29,16 @@ import zio.test.Gen
 object string extends StringInstances
 
 /**
- * Instances for the `EndsWith[S]`, `StartsWith[S]` and `Uuid` predicates of `eu.timepit.refined.string`.
+ * Instances for the `EndsWith[S]`, `StartsWith[S]` and `Uuid` predicates of
+ * `eu.timepit.refined.string`.
  *
- * For `EndsWith[S]` and for `StartsWith[S]` there are three implicit `DeriveGen` members (plain, `1` and `N`) with the same result type, so on Scala 2 an implicit search for `DeriveGen[Refined[String, EndsWith[S]]]` or `DeriveGen[Refined[String, StartsWith[S]]]` with all of them in scope, for example through `import zio.test.refined.all._`, reports an ambiguous implicit. On Scala 3, implicit search finds none of them for a literal `S` such as `StartsWith["ab"]`. Call the `*Gen` members to pick one.
+ * For `EndsWith[S]` and for `StartsWith[S]` there are three implicit
+ * `DeriveGen` members (plain, `1` and `N`) with the same result type, so on
+ * Scala 2 an implicit search for `DeriveGen[Refined[String, EndsWith[S]]]` or
+ * `DeriveGen[Refined[String, StartsWith[S]]]` with all of them in scope, for
+ * example through `import zio.test.refined.all._`, reports an ambiguous
+ * implicit. On Scala 3, implicit search finds none of them for a literal `S`
+ * such as `StartsWith["ab"]`. Call the `*Gen` members to pick one.
  */
 trait StringInstances {
 
@@ -55,7 +62,10 @@ trait StringInstances {
     Gen.string1(charGen).map(v => Refined.unsafeApply(v + ws.value)) // Only String can call `+` since scala 2.13.0.
 
   /**
-   * A generator of `String Refined EndsWith[S]`: a random part of `n` characters from `charGen`, with `n` drawn from `sizeGen`, followed by the witness `S`. The random part is empty when `n` is zero or negative, so the string is then only `S`.
+   * A generator of `String Refined EndsWith[S]`: a random part of `n`
+   * characters from `charGen`, with `n` drawn from `sizeGen`, followed by the
+   * witness `S`. The random part is empty when `n` is zero or negative, so the
+   * string is then only `S`.
    */
   def endsWithStringNGen[R, S <: String, P](implicit
     ws: Witness.Aux[S],
@@ -83,7 +93,10 @@ trait StringInstances {
   ): Gen[R, Refined[String, StartsWith[S]]] = Gen.string1(charGen).map(v => Refined.unsafeApply(ws.value + v))
 
   /**
-   * A generator of `String Refined StartsWith[S]`: the witness `S` followed by a random part of `n` characters from `charGen`, with `n` drawn from `sizeGen`. The random part is empty when `n` is zero or negative, so the string is then only `S`.
+   * A generator of `String Refined StartsWith[S]`: the witness `S` followed by
+   * a random part of `n` characters from `charGen`, with `n` drawn from
+   * `sizeGen`. The random part is empty when `n` is zero or negative, so the
+   * string is then only `S`.
    */
   def startsWithStringNGen[R, S <: String, P](implicit
     ws: Witness.Aux[S],

@@ -37,7 +37,15 @@ class ZIOTestClassRunner(descriptor: ZIOTestClassDescriptor) {
   private val spec = descriptor.spec
 
   /**
-   * Returns an effect that runs the spec, reports each test of `descriptor` to `notifier` as started and then as finished or, when it is ignored, as skipped with the reason `Test skipped`, and succeeds with the summary of the run. A failed test finishes with a [[TestFailed]] for a failed assertion or an error that isn't a `Throwable`, with the `Throwable` error or the defect when the test fails or dies with one, and with a `java.lang.InterruptedException` when it is interrupted. Tests that aren't in `descriptor` (because a filter removed them) don't run and count as ignored in the summary, and suites that aren't in it are left out.
+   * Returns an effect that runs the spec, reports each test of `descriptor` to
+   * `notifier` as started and then as finished or, when it is ignored, as
+   * skipped with the reason `Test skipped`, and succeeds with the summary of
+   * the run. A failed test finishes with a [[TestFailed]] for a failed
+   * assertion or an error that isn't a `Throwable`, with the `Throwable` error
+   * or the defect when the test fails or dies with one, and with a
+   * `java.lang.InterruptedException` when it is interrupted. Tests that aren't
+   * in `descriptor` (because a filter removed them) don't run and count as
+   * ignored in the summary, and suites that aren't in it are left out.
    */
   def run(notifier: EngineExecutionListener): IO[Any, Summary] = {
     def instrumentedSpec[R, E](zspec: Spec[R, E]) = {

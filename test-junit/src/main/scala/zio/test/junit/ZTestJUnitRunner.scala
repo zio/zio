@@ -73,9 +73,14 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   private var filter = Filter.ALL
 
   /**
-   * Returns the JUnit description of the spec: a suite named after the spec class, with a child suite for each suite of the spec and a child test for each test, whose method name is the test label.
+   * Returns the JUnit description of the spec: a suite named after the spec
+   * class, with a child suite for each suite of the spec and a child test for
+   * each test, whose method name is the test label.
    *
-   * It is computed the first time it is used, with the live environment, the test environment and the `bootstrap` layer of the spec, and it runs the effects that build suites. Tests that the filter (see `filter`) removed before that first use are left out.
+   * It is computed the first time it is used, with the live environment, the
+   * test environment and the `bootstrap` layer of the spec, and it runs the
+   * effects that build suites. Tests that the filter (see `filter`) removed
+   * before that first use are left out.
    */
   lazy val getDescription: Description = {
     val description = Description.createSuiteDescription(className)
@@ -114,9 +119,13 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   }
 
   /**
-   * Runs the spec and reports each test to `notifier` only when the test ends: a passed test as started and finished, a failed test as started, failed and finished (the failure of a test that dies has the defect as its cause), and an ignored test as ignored.
+   * Runs the spec and reports each test to `notifier` only when the test ends:
+   * a passed test as started and finished, a failed test as started, failed and
+   * finished (the failure of a test that dies has the defect as its cause), and
+   * an ignored test as ignored.
    *
-   * The spec runs with the live environment, the test environment and its `bootstrap` layer. Tests that the filter (see `filter`) removes don't run.
+   * The spec runs with the live environment, the test environment and its
+   * `bootstrap` layer. Tests that the filter (see `filter`) removes don't run.
    */
   override def run(notifier: RunNotifier): Unit = {
     val _ = zio.Runtime.default.unsafe.run {
@@ -222,7 +231,13 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       .getOrElse(spec.spec)
 
   /**
-   * Sets the filter that selects the tests to describe and run: each label of the spec is passed to `filter` as a test description whose class is the spec class and whose method name is the label, and a test is kept when its label or the label of an enclosing suite is accepted. When the filter accepts no label, a spec with no part built by an effect is kept whole, and a spec with such a part (for example a suite built from an effect, or a `provideShared` layer) keeps no test.
+   * Sets the filter that selects the tests to describe and run: each label of
+   * the spec is passed to `filter` as a test description whose class is the
+   * spec class and whose method name is the label, and a test is kept when its
+   * label or the label of an enclosing suite is accepted. When the filter
+   * accepts no label, a spec with no part built by an effect is kept whole, and
+   * a spec with such a part (for example a suite built from an effect, or a
+   * `provideShared` layer) keeps no test.
    */
   override def filter(filter: Filter): Unit =
     this.filter = filter

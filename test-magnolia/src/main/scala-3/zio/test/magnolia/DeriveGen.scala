@@ -51,8 +51,12 @@ import zio.test.Gen
  * }}}
  *
  * A derived generator for a case class generates each field with that field's
- * instance, and shrinks the fields with their own generators. A derived generator for a sealed trait picks one of its subtypes with equal probability: on Scala 2 among the case classes and objects at the leaves of the hierarchy, and on Scala 3 among the direct subtypes, so a nested sealed trait counts as one subtype. To use a type that is neither a case class nor a sealed trait,
- * give it an implicit `DeriveGen` with `DeriveGen.instance`.
+ * instance, and shrinks the fields with their own generators. A derived
+ * generator for a sealed trait picks one of its subtypes with equal
+ * probability: on Scala 2 among the case classes and objects at the leaves of
+ * the hierarchy, and on Scala 3 among the direct subtypes, so a nested sealed
+ * trait counts as one subtype. To use a type that is neither a case class nor a
+ * sealed trait, give it an implicit `DeriveGen` with `DeriveGen.instance`.
  *
  * On Scala 2, derivation uses Magnolia; on Scala 3, it uses the type's
  * `scala.deriving.Mirror`. Scala 3 has no instances for `BigInt`,
@@ -341,7 +345,8 @@ object DeriveGen {
 
   /**
    * Builds the generator of a sum type: picks one generator of `instances` with
-   * equal probability. `gen` calls it with one instance per direct subtype, so a nested sealed trait counts as one subtype.
+   * equal probability. `gen` calls it with one instance per direct subtype, so
+   * a nested sealed trait counts as one subtype.
    */
   def genSum[T](s: Mirror.SumOf[T], instances: => List[DeriveGen[_]]): Gen[Any, T] =
     Gen.suspend(Gen.oneOf(instances.map(_.asInstanceOf[DeriveGen[T]].derive): _*))
