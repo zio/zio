@@ -22,8 +22,31 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.collection.immutable.{Queue => ScalaQueue}
 
 /**
- * A `TQueue` is a transactional queue. Offerors can offer values to the queue
- * and takers can take values from the queue.
+ * A `TQueue` is a transactional first-in, first-out queue. Its operations are
+ * STM transactions, so an offer or a take can be combined with changes to other
+ * transactional data structures and commit together. Use it instead of `Queue`
+ * when queue operations are part of a larger transaction.
+ *
+ * A take on an empty queue retries the transaction, so the fiber suspends until
+ * a value arrives. What an offer does on a full queue depends on the
+ * constructor: `bounded` waits for room, `dropping` discards the new value, and
+ * `sliding` discards the oldest value.
+ *
+ * {{{
+ * import zio._
+ *
+ * val program: UIO[(Int, Chunk[Int])] =
+ *   for {
+ *     queue <- TQueue.bounded[Int](4).commit
+ *     _     <- queue.offerAll(List(1, 2, 3)).commit
+ *     first <- queue.take.commit
+ *     rest  <- queue.takeAll.commit
+ *   } yield (first, rest)
+ * // (1,Chunk(2,3))
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/stm/tqueue/ TQueue]]
  */
 sealed trait TQueue[A] extends TDequeue.Internal[A] with TEnqueue.Internal[A] {
 
@@ -43,44 +66,46 @@ sealed trait TQueue[A] extends TDequeue.Internal[A] with TEnqueue.Internal[A] {
     size.map(_ == capacity)
 
   /**
-   * Views all elements in the queue without removing them
+   * Views all elements in the queue, oldest first, without removing them.
    */
   def peekAll: ZSTM[Any, Nothing, Chunk[A]] = takeAll.tap(offerAll(_))
 
 }
 
+/**
+ * Constructors for [[TQueue]]: `bounded`, `dropping`, `sliding` and
+ * `unbounded`.
+ */
 object TQueue {
 
   /**
-   * Creates a bounded queue with the back pressure strategy. The queue will
-   * retain values until they have been taken, applying back pressure to
-   * offerors if the queue is at capacity.
-   *
-   * For best performance use capacities that are powers of two.
+   * Creates a bounded queue with the back pressure strategy. The queue keeps
+   * values until they are taken. When it is full, `offer` retries, so the
+   * offering fiber suspends until a take makes room. The capacity is not
+   * checked: with a capacity of 0 or less, `offer` never completes.
    */
   def bounded[A](requestedCapacity: => Int): USTM[TQueue[A]] =
     makeQueue(requestedCapacity, Strategy.BackPressure)
 
   /**
-   * Creates a bounded queue with the dropping strategy. The queue will drop new
-   * values if the queue is at capacity.
-   *
-   * For best performance use capacities that are powers of two.
+   * Creates a bounded queue with the dropping strategy. When the queue is full,
+   * `offer` discards the new value and succeeds with `false`.
    */
   def dropping[A](requestedCapacity: => Int): USTM[TQueue[A]] =
     makeQueue(requestedCapacity, Strategy.Dropping)
 
   /**
-   * Creates a bounded queue with the sliding strategy. The queue will add new
-   * values and drop old values if the queue is at capacity.
-   *
-   * For best performance use capacities that are powers of two.
+   * Creates a bounded queue with the sliding strategy. When the queue is full,
+   * `offer` drops the oldest value, adds the new one and succeeds with `true`.
+   * With a capacity of 0 or less, `offer` discards the new value and succeeds
+   * with `true`.
    */
   def sliding[A](requestedCapacity: => Int): USTM[TQueue[A]] =
     makeQueue(requestedCapacity, Strategy.Sliding)
 
   /**
-   * Creates an unbounded queue.
+   * Creates an unbounded queue: its capacity is `Int.MaxValue`, so `offer` does
+   * not wait for room.
    */
   def unbounded[A]: USTM[TQueue[A]] =
     makeQueue(Int.MaxValue, Strategy.Dropping)

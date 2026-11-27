@@ -19,23 +19,35 @@ package zio.stm
 import zio._
 
 /**
- * A transactional queue that can only be dequeued.
+ * The read side of a transactional queue: a [[TQueue]], or a subscription
+ * returned by [[THub#subscribe]]. Its operations, apart from `capacity`, are
+ * STM transactions, so takes compose with other transactional operations and
+ * commit together.
+ *
+ * Operations that wait for values (`take`, `peek`, `takeN`, `takeBetween`,
+ * `seek`) retry the transaction: the fiber suspends until the queue changes,
+ * then runs the transaction again. After the queue is shut down, `capacity`,
+ * `isShutdown`, `awaitShutdown` and `shutdown` still work, and the other
+ * operations interrupt the fiber that runs them, except `takeBetween` with
+ * `max` less than `min`, which succeeds with an empty chunk.
  */
 sealed trait TDequeue[+A] extends Serializable {
 
   /**
-   * The maximum capacity of the queue.
+   * The capacity the queue was created with, or `Int.MaxValue` for an unbounded
+   * queue. A hub subscription has the capacity of its hub.
    */
   def capacity: Int
 
   /**
-   * Checks whether the queue is shut down.
+   * Checks whether the queue is shut down. A hub subscription is shut down when
+   * it or its hub is shut down.
    */
   def isShutdown: USTM[Boolean]
 
   /**
    * Views the next element in the queue without removing it, retrying if the
-   * queue is empty.
+   * queue is empty, so the fiber suspends until a value arrives.
    */
   def peek: ZSTM[Any, Nothing, A]
 
@@ -46,32 +58,41 @@ sealed trait TDequeue[+A] extends Serializable {
   def peekOption: ZSTM[Any, Nothing, Option[A]]
 
   /**
-   * Shuts down the queue.
+   * Shuts down the queue. A fiber suspended in `take` on it wakes up and is
+   * interrupted. Shutting down a hub subscription unsubscribes it from the hub:
+   * the messages it had not taken stop counting toward the hub's size, apart
+   * from `null` messages, which keep counting.
    */
   def shutdown: USTM[Unit]
 
   /**
-   * The current number of values in the queue.
+   * The current number of values in the queue. For a hub subscription, the
+   * number of messages it has not taken yet.
    */
   def size: USTM[Int]
 
   /**
-   * Takes a value from the queue.
+   * Takes the next value from the queue, retrying while the queue is empty, so
+   * the fiber suspends until a value arrives.
    */
   def take: ZSTM[Any, Nothing, A]
 
   /**
-   * Takes all the values from the queue.
+   * Takes all the values from the queue without waiting. The result is empty
+   * when the queue is empty.
    */
   def takeAll: ZSTM[Any, Nothing, Chunk[A]]
 
   /**
-   * Takes up to the specified number of values from the queue.
+   * Takes up to `max` values from the queue without waiting. The result is
+   * empty when the queue is empty or `max` is 0. With a negative `max`, a
+   * [[TQueue]] takes no values and a hub subscription takes all of them.
    */
   def takeUpTo(max: Int): ZSTM[Any, Nothing, Chunk[A]]
 
   /**
-   * Waits for the hub to be shut down.
+   * Retries until the queue is shut down, so the fiber suspends until another
+   * fiber shuts it down.
    */
   def awaitShutdown: USTM[Unit] =
     isShutdown.flatMap(b => if (b) ZSTM.unit else ZSTM.retry)
@@ -83,7 +104,7 @@ sealed trait TDequeue[+A] extends Serializable {
     size.map(_ == 0)
 
   /**
-   * Checks if the queue is at capacity.
+   * Checks if the queue is at capacity, that is, its size equals `capacity`.
    */
   def isFull: USTM[Boolean] =
     size.map(_ == capacity)
@@ -98,15 +119,17 @@ sealed trait TDequeue[+A] extends Serializable {
   /**
    * Drops elements from the queue while they do not satisfy the predicate,
    * taking and returning the first element that does satisfy the predicate.
-   * Retries if no elements satisfy the predicate.
+   * When no element satisfies it, the transaction retries, which also undoes
+   * the drops, and the fiber suspends until the queue changes.
    */
   final def seek(f: A => Boolean): ZSTM[Any, Nothing, A] =
     take.flatMap(b => if (f(b)) ZSTM.succeedNow(b) else seek(f))
 
   /**
-   * Takes a number of elements from the queue between the specified minimum and
-   * maximum. If there are fewer than the minimum number of elements available,
-   * retries until at least the minimum number of elements have been collected.
+   * Takes at least `min` and at most `max` elements from the queue. If fewer
+   * than `min` elements are available, the transaction retries without taking
+   * any, so the fiber suspends until at least `min` elements are in the queue.
+   * When `max` is less than `min`, the result is empty and nothing is taken.
    */
   final def takeBetween(min: Int, max: Int): ZSTM[Any, Nothing, Chunk[A]] =
     ZSTM.suspend {
@@ -132,8 +155,10 @@ sealed trait TDequeue[+A] extends Serializable {
 
   /**
    * Takes the specified number of elements from the queue. If there are fewer
-   * than the specified number of elements available, it retries until they
-   * become available.
+   * than `n` elements available, the transaction retries without taking any, so
+   * the fiber suspends until they become available. The result is empty when
+   * `n` is 0. With a negative `n`, a [[TQueue]] takes no values and a hub
+   * subscription takes all of them.
    */
   final def takeN(n: Int): ZSTM[Any, Nothing, Chunk[A]] =
     takeBetween(n, n)
