@@ -37,7 +37,7 @@ class ZIOSuiteTestDescriptor(
   parent: TestDescriptor,
   uniqueId: UniqueId,
   label: String,
-  testClass: Class[_]
+  testClass: Class[?]
 ) extends AbstractTestDescriptor(uniqueId, label, ZIOTestSource(testClass)) {
   setParent(parent)
   override def getType: TestDescriptor.Type = TestDescriptor.Type.CONTAINER

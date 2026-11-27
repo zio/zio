@@ -42,7 +42,7 @@ trait CollectionInstances {
 
   def sizedChunkRefinedGen[R, T, P](implicit
     genT: Gen[R, T],
-    sizeGen: Gen[R, Int Refined P]
+    sizeGen: Gen[R, Refined[Int, P]]
   ): Gen[R, Refined[Chunk[T], Size[P]]] =
     sizeGen.flatMap { n =>
       Gen.chunkOfN(n.value)(genT)
@@ -50,7 +50,7 @@ trait CollectionInstances {
 
   def listSizeRefinedGen[R, T, P](implicit
     genT: Gen[R, T],
-    sizeGen: Gen[R, Int Refined P]
+    sizeGen: Gen[R, Refined[Int, P]]
   ): Gen[R, Refined[List[T], Size[P]]] =
     sizeGen.flatMap { n =>
       listOfN(n.value)(genT)
@@ -58,7 +58,7 @@ trait CollectionInstances {
 
   def vectorSizeRefinedGen[R, T, P](implicit
     genT: Gen[R, T],
-    sizeGen: Gen[R, Int Refined P]
+    sizeGen: Gen[R, Refined[Int, P]]
   ): Gen[R, Refined[Vector[T], Size[P]]] = sizeGen.flatMap { n =>
     vectorOfN(n.value)(genT)
   }.map(Refined.unsafeApply)
@@ -85,7 +85,7 @@ trait CollectionInstances {
 
   implicit def sizedChunkRefinedDeriveGen[T, P](implicit
     deriveGenT: DeriveGen[T],
-    deriveGenSize: DeriveGen[Int Refined P]
+    deriveGenSize: DeriveGen[Refined[Int, P]]
   ): DeriveGen[Refined[Chunk[T], Size[P]]] =
     DeriveGen.instance(
       sizedChunkRefinedGen(deriveGenT.derive, deriveGenSize.derive)
@@ -93,7 +93,7 @@ trait CollectionInstances {
 
   implicit def listSizeRefinedDeriveGen[T, P](implicit
     deriveGenT: DeriveGen[T],
-    deriveGenSize: DeriveGen[Int Refined P]
+    deriveGenSize: DeriveGen[Refined[Int, P]]
   ): DeriveGen[Refined[List[T], Size[P]]] =
     DeriveGen.instance(
       listSizeRefinedGen(deriveGenT.derive, deriveGenSize.derive)
@@ -101,7 +101,7 @@ trait CollectionInstances {
 
   implicit def vectorSizeRefinedDeriveGen[T, P](implicit
     deriveGenT: DeriveGen[T],
-    deriveGenSize: DeriveGen[Int Refined P]
+    deriveGenSize: DeriveGen[Refined[Int, P]]
   ): DeriveGen[Refined[Vector[T], Size[P]]] =
     DeriveGen.instance(
       vectorSizeRefinedGen(deriveGenT.derive, deriveGenSize.derive)

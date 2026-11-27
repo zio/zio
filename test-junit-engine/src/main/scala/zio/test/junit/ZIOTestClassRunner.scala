@@ -85,7 +85,7 @@ class ZIOTestClassRunner(descriptor: ZIOTestClassDescriptor) {
       descriptor.findByUniqueId(uniqueId).toScala
     }
 
-    def notifyTestFailure(testDescriptor: TestDescriptor, failure: TestFailure[_]): Unit = failure match {
+    def notifyTestFailure(testDescriptor: TestDescriptor, failure: TestFailure[?]): Unit = failure match {
       case TestFailure.Assertion(result, _) =>
         notifier.executionFinished(
           testDescriptor,
@@ -103,7 +103,7 @@ class ZIOTestClassRunner(descriptor: ZIOTestClassDescriptor) {
         )
     }
 
-    val instrumented: Spec[spec.Environment with TestEnvironment with Scope, Any] = instrumentedSpec(spec.spec)
+    val instrumented: Spec[spec.Environment & TestEnvironment & Scope, Any] = instrumentedSpec(spec.spec)
 
     val eventHandler: ZTestEventHandler = {
       case ExecutionEvent.TestStarted(labelsReversed, _, _, _, _) =>
@@ -111,7 +111,7 @@ class ZIOTestClassRunner(descriptor: ZIOTestClassDescriptor) {
       case ExecutionEvent.Test(labelsReversed, test, _, _, _, _, _) =>
         ZIO.succeed(testDescriptorFromReversedLabel(labelsReversed).foreach { testDescriptor =>
           test match {
-            case Left(failure: TestFailure[_]) =>
+            case Left(failure: TestFailure[?]) =>
               notifyTestFailure(testDescriptor, failure)
             case Right(TestSuccess.Succeeded(_)) =>
               notifier.executionFinished(testDescriptor, TestExecutionResult.successful())

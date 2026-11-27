@@ -49,7 +49,7 @@ sealed trait TestTrace[+A] { self =>
    * children of a node are not checked.
    */
   def isDie: Boolean =
-    self.asInstanceOf[TestTrace[_]] match {
+    self.asInstanceOf[TestTrace[?]] match {
       case TestTrace.Node(Result.Die(_), _, _, _, _, _, _, _, _, _, _) => true
       case TestTrace.Node(_, _, _, _, _, _, _, _, _, _, _)             => false
       case TestTrace.AndThen(left, right)                              => left.isDie || right.isDie
@@ -65,7 +65,7 @@ sealed trait TestTrace[+A] { self =>
    */
   final def withSpan(span: Option[Span] = None): TestTrace[A] = if (span.isDefined) {
     self match {
-      case node: TestTrace.Node[_]        => node.copy(span = span)
+      case node: TestTrace.Node[?]        => node.copy(span = span)
       case TestTrace.AndThen(left, right) => TestTrace.AndThen(left, right.withSpan(span))
       case zip                            => zip
     }

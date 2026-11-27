@@ -12,9 +12,9 @@ import scala.scalanative.sbtplugin.ScalaNativePlugin.autoImport.*
 object BuildHelper {
   val Scala212: String = "2.12.21"
   val Scala213: String = "2.13.18"
-  val Scala3: String   = "3.3.9"
+  val Scala3: String   = "3.9.0"
 
-  val JdkReleaseVersion: String = "11"
+  val JdkReleaseVersion: String = "17"
 
   lazy val isRelease = {
     val value = sys.env.contains("CI_RELEASE_MODE")
@@ -48,7 +48,7 @@ object BuildHelper {
     "-Ywarn-value-discard"
   )
 
-  private def optimizerOptions(optimize: Boolean, isScala213: Boolean, projectName: String) =
+  private def optimizerOptions(optimize: Boolean, scalaVersion: ScalaVersion, projectName: String) =
     if (optimize) {
       val inlineFrom = projectName match {
         case "zio"         => List("zio.**")
@@ -56,20 +56,29 @@ object BuildHelper {
         case "zio-test"    => Nil
         case _             => List("zio.internal.**")
       }
-      val scala213Flags =
-        if (isScala213)
+      scalaVersion match {
+        case ScalaVersion.`3` =>
+          // NOTE: We get some _very_ weird compiler crashes when we try to inline from zio.**.
+          // For now, we leave it disabled and inline just from the scala package.
           Seq(
-            "-opt-inline-from:scala.**", // We get some weird errors when trying to inline Scala 2.12 std lib
-            "-Ybackend-parallelism:4"
+            "-opt",
+            "-opt-inline:scala.**"
           )
-        else Nil
-      scala213Flags ++ Seq(
-        "-opt:l:method",
-        "-opt:l:inline",
-        // To remove calls to `assert` in releases. Assertions are level 2000
-        "-Xelide-below",
-        "2001"
-      ) ++ inlineFrom.map(p => s"-opt-inline-from:$p")
+        case _ =>
+          val scala213Flags =
+            if (scalaVersion == ScalaVersion.`2.13`)
+              Seq(
+                "-opt-inline-from:scala.**" // We get some weird errors when trying to inline Scala 2.12 std lib
+              )
+            else Nil
+          scala213Flags ++ Seq(
+            "-opt:l:method",
+            "-opt:l:inline",
+            // To remove calls to `assert` in releases. Assertions are level 2000
+            "-Xelide-below",
+            "2001"
+          ) ++ inlineFrom.map(p => s"-opt-inline-from:$p")
+      }
     } else Nil
 
   def buildInfoSettings(packageName: String) =
@@ -138,13 +147,14 @@ object BuildHelper {
           "-Xignore-scala2-macros",
           "-Xmax-inlines:64",
           "-noindent",
-          "-Yfuture-lazy-vals"
-        )
+          "-Ybackend-parallelism:4",
+          "-Wconf:msg=Implicit parameters should be provided with a `using` clause:s"
+        ) ++ optimizerOptions(optimize, ScalaVersion.`3`, projectName = projectName)
       case Some((2, 13)) =>
         Seq(
           "-Ywarn-unused:params,-implicits",
           "-Ybackend-parallelism:4"
-        ) ++ std2xOptions ++ optimizerOptions(optimize, isScala213 = true, projectName = projectName)
+        ) ++ std2xOptions ++ optimizerOptions(optimize, ScalaVersion.`2.13`, projectName = projectName)
       case Some((2, 12)) =>
         Seq(
           "-opt-warnings",
@@ -161,7 +171,7 @@ object BuildHelper {
           "-Xsource:2.13",
           "-Xmax-classfile-name",
           "242"
-        ) ++ std2xOptions ++ optimizerOptions(optimize, isScala213 = false, projectName = projectName)
+        ) ++ std2xOptions ++ optimizerOptions(optimize, ScalaVersion.`2.12`, projectName = projectName)
       case _ => Seq.empty
     }
 
@@ -312,4 +322,12 @@ object BuildHelper {
   implicit class ModuleHelper(p: Project) {
     def module: Project = p.in(file(p.id)).settings(stdSettings(p.id))
   }
+
+  private sealed trait ScalaVersion
+  private object ScalaVersion {
+    case object `2.12` extends ScalaVersion
+    case object `2.13` extends ScalaVersion
+    case object `3`    extends ScalaVersion
+  }
+
 }

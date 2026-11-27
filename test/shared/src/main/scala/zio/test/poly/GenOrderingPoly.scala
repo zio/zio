@@ -153,8 +153,10 @@ object GenOrderingPoly {
    * `Gen.listOf(poly.genT)`. Its ordering compares lists element by element
    * with `poly.ordT`, and a list that is a prefix of another comes first.
    */
-  def list(poly: GenOrderingPoly)(implicit trace: Trace): GenOrderingPoly =
-    GenOrderingPoly(Gen.listOf(poly.genT), ListOrdering(poly.ordT))
+  def list(poly: GenOrderingPoly)(implicit trace: Trace): GenOrderingPoly = {
+    implicit val ordT: Ordering[poly.T] = poly.ordT
+    GenOrderingPoly(Gen.listOf(poly.genT), ListOrdering[poly.T])
+  }
 
   /**
    * Returns a `GenOrderingPoly` for `Long` values, built by
@@ -198,8 +200,10 @@ object GenOrderingPoly {
    * element with `poly.ordT`, and a vector that is a prefix of another comes
    * first.
    */
-  def vector(poly: GenOrderingPoly)(implicit trace: Trace): GenOrderingPoly =
-    GenOrderingPoly(Gen.vectorOf(poly.genT), VectorOrdering(poly.ordT))
+  def vector(poly: GenOrderingPoly)(implicit trace: Trace): GenOrderingPoly = {
+    implicit val ordT: Ordering[poly.T] = poly.ordT
+    GenOrderingPoly(Gen.vectorOf(poly.genT), VectorOrdering[poly.T])
+  }
 
   /**
    * Derives an `Ordering[List[A]]` given an `Ordering[A]`.
@@ -207,7 +211,7 @@ object GenOrderingPoly {
   private implicit def ListOrdering[A: Ordering]: Ordering[List[A]] = {
 
     @tailrec
-    def loop[A: Ordering](left: List[A], right: List[A]): Int =
+    def loop(left: List[A], right: List[A]): Int =
       (left, right) match {
         case (Nil, Nil) => 0
         case (Nil, _)   => -1
