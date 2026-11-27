@@ -23,22 +23,44 @@ import zio.stm.ZSTM.internal._
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 
 /**
- * A `TRef` is a purely functional description of a mutable reference that can
- * be modified as part of a transactional effect. The fundamental operations of
- * a `TRef` are `set` and `get`. `set` transactionally sets the reference to a
- * new value. `get` gets the current value of the reference.
+ * A `TRef` is a mutable reference that is read and changed inside STM
+ * transactions. `get` reads the value, and `set`, `update` and `modify` change
+ * it. Other fibers see the changes when the transaction commits; a transaction
+ * that fails, dies or retries leaves the `TRef` unchanged.
  *
- * NOTE: While `TRef` provides the transactional equivalent of a mutable
- * reference, the value inside the `TRef` should be immutable. For performance
- * reasons `TRef` is implemented in terms of compare and swap operations rather
- * than synchronization. These operations are not safe for mutable values that
- * do not support concurrent access.
+ * {{{
+ * import zio._
+ *
+ * val balances: UIO[(Int, Int)] =
+ *   for {
+ *     from <- TRef.makeCommit(100)
+ *     to   <- TRef.makeCommit(0)
+ *     _    <- (from.update(_ - 30) *> to.update(_ + 30)).commit
+ *     both <- from.get.zip(to.get).commit
+ *   } yield both
+ * // (70,30)
+ * }}}
+ *
+ * The value inside a `TRef` should be immutable. A transaction that fails, dies
+ * or retries restores the old value of the `TRef`, but it does not undo
+ * in-place changes to a mutable object (an `ArrayBuffer`, for example) held in
+ * it, and a transaction that runs again makes those changes again.
+ *
+ * @see
+ *   [[https://zio.dev/reference/stm/tref/ TRef]]
  */
 final class TRef[A] private (
   private[stm] val versioned: AtomicReference[A],
   @volatile private[stm] var todo: Map[TxnId, Todo] = Map.empty
 ) extends Serializable { self =>
 
+  /**
+   * Builds a `TRef` that holds `versioned.value`, with the callbacks of the
+   * suspended transactions in `todo`. Kept for binary compatibility: its
+   * parameter types are private to the `zio.stm` package, so code outside that
+   * package can pass it only `null`, which throws a
+   * `java.lang.NullPointerException`. Use `TRef.make` instead.
+   */
   @deprecated("kept for binary compatibility only", "2.1.8")
   def this(versioned: Versioned[A], todo: AtomicReference[Map[TxnId, Todo]]) =
     this(new AtomicReference(versioned.value), todo.get())
@@ -52,13 +74,14 @@ final class TRef[A] private (
   override def hashCode(): Int = hc
 
   /**
-   * Retrieves the value of the `TRef`.
+   * Reads the value of the `TRef`, including changes made earlier in the same
+   * transaction.
    */
   def get: USTM[A] =
     ZSTM.Effect((journal, _, _) => getOrMakeEntry(journal).unsafeGet[A])
 
   /**
-   * Sets the value of the `TRef` and returns the old value.
+   * Sets the value of the `TRef` to `a` and returns the old value.
    */
   def getAndSet(a: A): USTM[A] =
     ZSTM.Effect { (journal, _, _) =>
@@ -69,7 +92,8 @@ final class TRef[A] private (
     }
 
   /**
-   * Updates the value of the variable and returns the old value.
+   * Replaces the value of the `TRef` with `f` applied to it and returns the old
+   * value.
    */
   def getAndUpdate(f: A => A): USTM[A] =
     ZSTM.Effect { (journal, _, _) =>
@@ -80,15 +104,15 @@ final class TRef[A] private (
     }
 
   /**
-   * Updates some values of the variable but leaves others alone, returning the
-   * old value.
+   * Replaces the value of the `TRef` with `f` applied to it when `f` is defined
+   * at the value, and leaves it unchanged otherwise. Returns the old value.
    */
   def getAndUpdateSome(f: PartialFunction[A, A]): USTM[A] =
     getAndUpdate(f orElse { case a => a })
 
   /**
-   * Updates the value of the variable, returning a function of the specified
-   * value.
+   * Applies `f` to the value of the `TRef`, stores the second element of the
+   * result as the new value and returns the first element.
    */
   def modify[B](f: A => (B, A)): USTM[B] =
     ZSTM.Effect { (journal, _, _) =>
@@ -99,14 +123,14 @@ final class TRef[A] private (
     }
 
   /**
-   * Updates the value of the variable, returning a function of the specified
-   * value.
+   * Works like `modify` when `f` is defined at the value of the `TRef`. When it
+   * is not, leaves the value unchanged and returns `default`.
    */
   def modifySome[B](default: B)(f: PartialFunction[A, (B, A)]): USTM[B] =
     modify(a => f.lift(a).getOrElse((default, a)))
 
   /**
-   * Sets the value of the `TRef`.
+   * Sets the value of the `TRef` to `a`.
    */
   def set(a: A): USTM[Unit] =
     ZSTM.Effect { (journal, _, _) =>
@@ -119,7 +143,7 @@ final class TRef[A] private (
     s"TRef(id = ${self.hashCode()}, versioned.value = ${versioned})"
 
   /**
-   * Updates the value of the variable.
+   * Replaces the value of the `TRef` with `f` applied to it.
    */
   def update(f: A => A): USTM[Unit] =
     ZSTM.Effect { (journal, _, _) =>
@@ -129,7 +153,8 @@ final class TRef[A] private (
     }
 
   /**
-   * Updates the value of the variable and returns the new value.
+   * Replaces the value of the `TRef` with `f` applied to it and returns the new
+   * value.
    */
   def updateAndGet(f: A => A): USTM[A] =
     ZSTM.Effect { (journal, _, _) =>
@@ -140,14 +165,16 @@ final class TRef[A] private (
     }
 
   /**
-   * Updates some values of the variable but leaves others alone.
+   * Replaces the value of the `TRef` with `f` applied to it when `f` is defined
+   * at the value, and leaves it unchanged otherwise.
    */
   def updateSome(f: PartialFunction[A, A]): USTM[Unit] =
     update(f orElse { case a => a })
 
   /**
-   * Updates some values of the variable but leaves others alone, returning the
-   * new value.
+   * Replaces the value of the `TRef` with `f` applied to it when `f` is defined
+   * at the value, and leaves it unchanged otherwise. Returns the value the
+   * `TRef` holds afterwards.
    */
   def updateSomeAndGet(f: PartialFunction[A, A]): USTM[A] =
     updateAndGet(f orElse { case a => a })
@@ -164,27 +191,46 @@ final class TRef[A] private (
   private[this] val newEntry = () => Entry(self.asInstanceOf[TRef[A & AnyRef]])
 }
 
+/**
+ * Constructors for [[TRef]], and the `Ordering` the STM runtime uses to sort
+ * the `TRef`s of a transaction.
+ */
 object TRef {
   private val idCounter: AtomicLong = new AtomicLong(0L)
 
+  /**
+   * Orders `TRef`s by an identifier that each `TRef` takes from a global
+   * counter when it is created, so a `TRef` created earlier comes first. On the
+   * JVM and Scala Native, the STM runtime locks the `TRef`s of a transaction in
+   * this order when it commits.
+   */
   implicit val ordering: Ordering[TRef[?]] = new Ordering[TRef[?]] {
     def compare(x: TRef[?], y: TRef[?]): Int = java.lang.Long.compare(x.id, y.id)
   }
 
   /**
-   * Makes a new `TRef` that is initialized to the specified value.
+   * Makes a new `TRef` that is initialized to the specified value. The value is
+   * evaluated each time the transaction runs.
    */
   def make[A](a: => A): USTM[TRef[A]] =
     ZSTM.succeed(unsafe.make(a)(Unsafe.unsafe))
 
   /**
-   * A convenience method that makes a `TRef` and immediately commits the
-   * transaction to extract the value out.
+   * Makes a new `TRef` initialized to `a` in a transaction of its own and
+   * commits it, returning the `TRef`. The same as `TRef.make(a).commit`.
    */
   def makeCommit[A](a: => A)(implicit trace: Trace): UIO[TRef[A]] =
     STM.atomically(make(a))
 
+  /**
+   * Constructors that make a `TRef` outside a transaction. They need an
+   * `Unsafe` capability.
+   */
   object unsafe {
+
+    /**
+     * Makes a new `TRef` initialized to `a` without running a transaction.
+     */
     def make[A](a: A)(implicit unsafe: Unsafe): TRef[A] =
       TRef.unsafeMake(a)
   }
