@@ -4679,6 +4679,37 @@ final class ZStream[-R, +E, +A] private (val channel: ZChannel[R, Any, Any, Any,
     self >>> ZPipeline.zipWithPreviousAndNext
 }
 
+/**
+ * Constructors of [[ZStream]] values, and the types they use.
+ *
+ * The main entry points:
+ *
+ *   - from values and collections: `apply`, `succeed`, `fromIterable`,
+ *     `fromChunk`, `fromChunks`, `range`
+ *   - from effects: `fromZIO`, `fromZIOOption`, `repeatZIO`, `unwrap`
+ *   - from queues and hubs: `fromQueue`, `fromHub`, `fromTQueue`
+ *   - by unfolding a state: `iterate`, `unfold`, `unfoldZIO`, `paginate`,
+ *     `paginateZIO`
+ *   - over time: `tick`, `fromSchedule`, `repeatWithSchedule`
+ *   - from resources: `acquireReleaseWith`, `scoped`, `unwrapScoped`
+ *   - from callbacks: `async`, `asyncZIO`, `asyncScoped`
+ *   - from any supported input: `from`, which picks the constructor from the
+ *     type of its argument
+ *   - from several streams: `concatAll`, `mergeAll`
+ *
+ * {{{
+ * import zio._
+ *
+ * val numbers: ZStream[Any, Nothing, Int] = ZStream(1, 2, 3)
+ * val squares: ZStream[Any, Nothing, Int] = ZStream.range(1, 4).map(n => n * n)
+ *
+ * val all: ZIO[Any, Nothing, Chunk[Int]] = (numbers ++ squares).runCollect
+ * // Chunk(1, 2, 3, 1, 4, 9)
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/stream/zstream/creating-zio-streams/ Creating ZIO Streams]]
+ */
 object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
@@ -4688,7 +4719,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   final val DefaultChunkSize = 4096
 
   /**
-   * Submerges the error case of an `Either` into the `ZStream`.
+   * Submerges the error case of an `Either` into the `ZStream`: emits the
+   * values of the `Right` elements and fails with the value of the first
+   * `Left`. Elements after the first `Left` are not emitted.
    */
   def absolve[R, E, O](xs: ZStream[R, E, Either[E, O]])(implicit trace: Trace): ZStream[R, E, O] = {
     lazy val loop: ZChannel[Any, E, Chunk[Either[E, O]], Any, E, Chunk[O], Any] = ZChannel.readWithCause(
@@ -4708,8 +4741,29 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   }
 
   /**
-   * Creates a stream from a single value that will get cleaned up after the
-   * stream is consumed
+   * Creates a single-element stream from a resource: runs `acquire`, emits the
+   * acquired value, and runs `release` when the stream ends, whether it
+   * succeeds, fails or is interrupted. A stream composed with `flatMap` runs
+   * while the resource is open; a stream appended with `++` runs after
+   * `release`. When `acquire` fails, the stream fails and `release` does not
+   * run.
+   *
+   * {{{
+   * import zio._
+   *
+   * final case class Connection(id: Int) {
+   *   def close(): Unit = ()
+   * }
+   *
+   * val rows: ZStream[Any, Nothing, Int] =
+   *   ZStream
+   *     .acquireReleaseWith(ZIO.succeed(Connection(7)))(c => ZIO.succeed(c.close()))
+   *     .flatMap(c => ZStream(c.id * 10, c.id * 10 + 1))
+   * // emits 70 and 71, then closes the connection
+   * }}}
+   *
+   * @see
+   *   [[https://zio.dev/reference/stream/zstream/resourceful-streams/ Resourceful Streams]]
    */
   def acquireReleaseWith[R, E, A](acquire: => ZIO[R, E, A])(release: A => URIO[R, Any])(implicit
     trace: Trace
@@ -4717,8 +4771,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     scoped[R](ZIO.acquireRelease(acquire)(release))
 
   /**
-   * Creates a stream from a single value that will get cleaned up after the
-   * stream is consumed
+   * Like `acquireReleaseWith`, but `release` also receives the `Exit` with
+   * which the stream ended: a failure when the stream fails, dies or is
+   * interrupted.
    */
   def acquireReleaseExitWith[R, E, A](
     acquire: => ZIO[R, E, A]
@@ -4735,14 +4790,17 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a pure stream from a variable list of values
+   * Creates a pure stream from a variable list of values, emitted in order.
+   * `ZStream(1, 2, 3)` emits `1`, `2` and `3` in one chunk, then ends.
    */
   def apply[A](as: A*)(implicit trace: Trace): ZStream[Any, Nothing, A] = fromIterable(as)
 
   /**
-   * Locks the execution of the specified stream to the blocking executor. Any
-   * streams that are composed after this one will automatically be shifted back
-   * to the previous executor.
+   * Runs the specified stream on the blocking executor. Operators applied to
+   * the returned stream (such as `map`, `mapZIO` or `flatMap`) also run on the
+   * blocking executor while they process its elements. A stream appended with
+   * `++` runs with the previous executor again, though its first effects can
+   * still run on the blocking thread until the fiber yields or suspends.
    */
   def blocking[R, E, A](stream: => ZStream[R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
     ZStream.fromZIO(ZIO.blockingExecutor).flatMap(stream.onExecutor(_))
@@ -4766,13 +4824,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromZIO(ZIO.die(ex))
 
   /**
-   * The stream that dies with an exception described by `msg`.
+   * The stream that dies with a `RuntimeException` whose message is `msg`.
    */
   def dieMessage(msg: => String)(implicit trace: Trace): ZStream[Any, Nothing, Nothing] =
     fromZIO(ZIO.dieMessage(msg))
 
   /**
-   * The stream that ends with the [[zio.Exit]] value `exit`.
+   * The stream that emits the success value of the [[zio.Exit]] value `exit`
+   * as its only element, or fails with the cause of `exit`.
    */
   @deprecated("use `ZStream.fromZIO` instead", "2.1.14")
   def done[E, A](exit: => Exit[E, A])(implicit trace: Trace): ZStream[Any, E, A] =
@@ -4827,12 +4886,28 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     fromZIO(Exit.failCause(cause))
 
   /**
-   * Creates a one-element stream that never fails and executes the finalizer
-   * when it ends.
+   * Creates a stream that emits a single unit value and runs `finalizer` when
+   * the stream ends. A stream composed with `flatMap` runs before the
+   * finalizer; a stream appended with `++` runs after it.
    */
   def finalizer[R](finalizer: => URIO[R, Any])(implicit trace: Trace): ZStream[R, Nothing, Any] =
     scoped[R](ZIO.addFinalizer(finalizer))
 
+  /**
+   * Creates a stream from `input`, with the constructor that an implicit
+   * [[zio.stream.ZStream.ZStreamConstructor]] picks from the static type of
+   * `input`. For example, an `Iterable` goes through `fromIterable`, a `ZIO`
+   * through `fromZIO`, a `Queue` through `fromQueue` and a `Chunk` through
+   * `fromChunk`; a value of any other type becomes a single-element stream.
+   *
+   * {{{
+   * import zio._
+   *
+   * val fromList: ZStream[Any, Nothing, Int]     = ZStream.from(List(1, 2, 3))
+   * val fromEffect: ZStream[Any, Nothing, Int]   = ZStream.from(ZIO.succeed(4))
+   * val fromValue: ZStream[Any, Nothing, String] = ZStream.from("five")
+   * }}}
+   */
   def from[Input](
     input: => Input
   )(implicit constructor: ZStreamConstructor[Input], trace: Trace): constructor.Out =
@@ -4845,9 +4920,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     new ZStream(channel)
 
   /**
-   * Creates a stream from a [[zio.Chunk]] of values
+   * Creates a stream from a [[zio.Chunk]] of values, emitted as one chunk. An
+   * empty chunk gives an empty stream. `ZStream.fromChunk(Chunk(1, 2, 3))`
+   * emits `1`, `2` and `3`, then ends.
    *
-   * @param c
+   * @param chunk
    *   a chunk of values
    * @return
    *   a finite stream of values
@@ -4907,7 +4984,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a queue of values
+   * Creates a stream from a queue of chunks, emitting the elements of each
+   * chunk taken from the queue. The stream ends when the queue is shut down.
    */
   def fromChunkQueue[O](
     queue: => Dequeue[Chunk[O]]
@@ -4924,8 +5002,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a queue of values. The queue will be shutdown once
-   * the stream is closed.
+   * Creates a stream from a queue of chunks, emitting the elements of each
+   * chunk taken from the queue. The queue will be shutdown once the stream is
+   * closed.
    */
   def fromChunkQueueWithShutdown[O](queue: => Dequeue[Chunk[O]])(implicit
     trace: Trace
@@ -4936,13 +5015,17 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from an arbitrary number of chunks.
+   * Creates a stream from an arbitrary number of chunks. Each non-empty chunk
+   * is emitted as one chunk, in order; empty chunks are skipped.
    */
   def fromChunks[O](cs: Chunk[O]*)(implicit trace: Trace): ZStream[Any, Nothing, O] =
     fromIterable(cs).flatMap(fromChunk(_))
 
   /**
-   * Creates a stream from a subscription to a hub.
+   * Creates a stream from a subscription to a hub. The stream subscribes when
+   * it starts, so it receives only the values published after that, and it
+   * ends when the hub is shut down. Each chunk holds at most `maxChunkSize`
+   * values.
    */
   def fromHub[A](
     hub: => Hub[A],
@@ -4954,6 +5037,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    * Creates a stream from a subscription to a hub in the context of a scoped
    * effect. The scoped effect describes subscribing to receive messages from
    * the hub while the stream describes taking messages from the hub.
+   *
+   * The stream receives the values published after the scoped effect has run,
+   * including those published before the stream starts.
    */
   def fromHubScoped[A](
     hub: => Hub[A],
@@ -4992,7 +5078,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a `java.io.InputStream`
+   * Creates a stream from a `java.io.InputStream`, reading at most `chunkSize`
+   * bytes per chunk. The stream ends when the input stream returns end of
+   * input, and it does not close the input stream.
    */
   def fromInputStream(
     is: => InputStream,
@@ -5028,8 +5116,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a `java.io.InputStream`. Ensures that the input
-   * stream is closed after it is exhausted.
+   * Creates a stream from a `java.io.InputStream`. Closes the input stream
+   * when the stream ends, whether it succeeds, fails or is interrupted.
    */
   def fromInputStreamZIO[R](
     is: => ZIO[R, IOException, InputStream],
@@ -5047,13 +5135,18 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.scoped[R](is).flatMap(fromInputStream(_, chunkSize))
 
   /**
-   * Creates a stream from an iterable collection of values
+   * Creates a stream from an iterable collection of values, emitted in
+   * iteration order. A [[zio.Chunk]] is emitted as one chunk; other
+   * collections are emitted in chunks of at most `DefaultChunkSize` values.
+   * `ZStream.fromIterable(List(1, 2, 3))` emits `1`, `2` and `3`.
    */
   def fromIterable[O](as: => Iterable[O])(implicit trace: Trace): ZStream[Any, Nothing, O] =
     fromIterable(as, DefaultChunkSize)
 
   /**
-   * Creates a stream from an iterable collection of values
+   * Creates a stream from an iterable collection of values, emitted in
+   * iteration order in chunks of at most `chunkSize` values. A [[zio.Chunk]]
+   * is emitted as one chunk, whatever the `chunkSize`.
    */
   def fromIterable[O](as: => Iterable[O], chunkSize: => Int)(implicit trace: Trace): ZStream[Any, Nothing, O] =
     ZStream.suspend {
@@ -5064,20 +5157,28 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from an effect producing a value of type `Iterable[A]`
+   * Creates a stream from an effect producing a value of type `Iterable[O]`,
+   * emitting the elements of the collection. The stream fails when the effect
+   * fails.
    */
   def fromIterableZIO[R, E, O](iterable: => ZIO[R, E, Iterable[O]])(implicit trace: Trace): ZStream[R, E, O] =
     fromIterableZIO(iterable, DefaultChunkSize)
 
   /**
-   * Creates a stream from an effect producing a value of type `Iterable[A]`
+   * Creates a stream from an effect producing a value of type `Iterable[O]`,
+   * emitting the elements of the collection in chunks of at most `chunkSize`
+   * values (a [[zio.Chunk]] is emitted as one chunk). The stream fails when
+   * the effect fails.
    */
   def fromIterableZIO[R, E, O](iterable: => ZIO[R, E, Iterable[O]], chunkSize: => Int)(implicit
     trace: Trace
   ): ZStream[R, E, O] =
     ZStream.unwrap(iterable.map(fromIterable(_, chunkSize)))
 
-  /** Creates a stream from an iterator */
+  /**
+   * Creates a stream from an iterator, reading at most `maxChunkSize` elements
+   * per chunk. An exception thrown by `hasNext` or `next` fails the stream.
+   */
   def fromIterator[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
     trace: Trace
   ): ZStream[Any, Throwable, A] =
@@ -5144,7 +5245,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     scoped[R](iterator).flatMap(fromIterator(_, maxChunkSize))
 
   /**
-   * Creates a stream from an iterator
+   * Creates a stream from an iterator that does not throw, reading at most
+   * `maxChunkSize` elements per chunk. An exception thrown by the iterator
+   * makes the stream die.
    */
   def fromIteratorSucceed[A](iterator: => Iterator[A], maxChunkSize: => Int = DefaultChunkSize)(implicit
     trace: Trace
@@ -5298,7 +5401,23 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.unwrapScoped[R](zio.map(pull => repeatZIOChunkOption(pull)))
 
   /**
-   * Creates a stream from a queue of values
+   * Creates a stream from a queue of values. Each pull waits until the queue
+   * holds at least one value, then takes up to `maxChunkSize` values. The
+   * stream ends when the queue is shut down; values still in the queue at that
+   * point are not emitted. The stream does not shut down the queue (see
+   * `fromQueueWithShutdown`).
+   *
+   * {{{
+   * import zio._
+   *
+   * val firstTwo: ZIO[Any, Nothing, Chunk[Int]] =
+   *   for {
+   *     queue <- Queue.unbounded[Int]
+   *     _     <- queue.offerAll(List(1, 2, 3))
+   *     taken <- ZStream.fromQueue(queue).take(2).runCollect
+   *   } yield taken
+   * // Chunk(1, 2)
+   * }}}
    *
    * @param maxChunkSize
    *   Maximum number of queued elements to put in one chunk in the stream
@@ -5337,8 +5456,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from a [[zio.Schedule]] that does not require any further
-   * input. The stream will emit an element for each value output from the
-   * schedule, continuing for as long as the schedule continues.
+   * input. At each step the stream waits for the delay of the schedule, then
+   * emits the output of the schedule; it ends when the schedule is done.
+   * `ZStream.fromSchedule(Schedule.recurs(3))` emits `0`, `1` and `2`.
    */
   def fromSchedule[R, A](schedule: => Schedule[R, Any, A])(implicit
     trace: Trace
@@ -5349,19 +5469,23 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a stream from a [[zio.stm.TPriorityQueue]] of values.
+   * Creates a stream from a [[zio.stm.TPriorityQueue]] of values, emitting
+   * each value taken from the queue in its own chunk.
    */
   def fromTPriorityQueue[A](queue: => TPriorityQueue[A])(implicit trace: Trace): ZStream[Any, Nothing, A] =
     repeatZIOChunk(queue.take.map(Chunk.single(_)).commit)
 
   /**
-   * Creates a stream from a [[zio.stm.TQueue]] of values.
+   * Creates a stream from a [[zio.stm.TQueue]] of values, emitting each value
+   * taken from the queue in its own chunk.
    */
   def fromTQueue[A](queue: => TDequeue[A])(implicit trace: Trace): ZStream[Any, Nothing, A] =
     repeatZIOChunk(queue.take.map(Chunk.single(_)).commit)
 
   /**
-   * Creates a stream from an effect producing a value of type `A`
+   * Creates a single-element stream from an effect producing a value of type
+   * `A`: the stream emits the success value of the effect, or fails with its
+   * error. `ZStream.fromZIO(ZIO.succeed(4))` emits `4`, then ends.
    */
   def fromZIO[R, E, A](fa: => ZIO[R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
     new ZStream(
@@ -5375,7 +5499,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an effect producing a value of type `A` or an empty
-   * Stream
+   * Stream: the stream emits the success value of the effect, ends without
+   * elements when the effect fails with `None`, and fails with `e` when the
+   * effect fails with `Some(e)`.
    */
   def fromZIOOption[R, E, A](fa: => ZIO[R, Option[E], A])(implicit trace: Trace): ZStream[R, E, A] =
     new ZStream(
@@ -5392,7 +5518,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * The infinite stream of iterative function application: a, f(a), f(f(a)),
-   * f(f(f(a))), ...
+   * f(f(f(a))), ... `ZStream.iterate(1)(_ * 2).take(5)` emits `1`, `2`, `4`,
+   * `8` and `16`.
    */
   def iterate[A](a: => A)(f: A => A)(implicit trace: Trace): ZStream[Any, Nothing, A] =
     unfold(a)(a => Some((a, f(a))))
@@ -5405,7 +5532,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Annotates each log in streams composed after this with the specified log
-   * annotation.
+   * annotation. It applies to streams composed with `flatMap` (or `*>`); a
+   * stream appended with `++` does not see the annotation.
    */
   def logAnnotate(key: => String, value: => String)(implicit
     trace: Trace
@@ -5414,7 +5542,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Annotates each log in streams composed after this with the specified log
-   * annotation.
+   * annotation. It applies to streams composed with `flatMap` (or `*>`); a
+   * stream appended with `++` does not see the annotation.
    */
   def logAnnotate(annotation: => LogAnnotation, annotations: LogAnnotation*)(implicit
     trace: Trace
@@ -5423,7 +5552,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Annotates each log in streams composed after this with the specified log
-   * annotation.
+   * annotation. It applies to streams composed with `flatMap` (or `*>`); a
+   * stream appended with `++` does not see the annotation.
    */
   def logAnnotate(annotations: => Set[LogAnnotation])(implicit
     trace: Trace
@@ -5467,13 +5597,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.fromZIO(ZIO.logInfo(message))
 
   /**
-   * Sets the log level for streams composed after this.
+   * Sets the log level for streams composed after this with `flatMap` (or
+   * `*>`). A stream appended with `++` uses the previous log level.
    */
   def logLevel(level: LogLevel)(implicit trace: Trace): ZStream[Any, Nothing, Unit] =
     ZStream.scoped(ZIO.logLevelScoped(level))
 
   /**
-   * Adjusts the label for the logging span for streams composed after this.
+   * Adjusts the label for the logging span for streams composed after this
+   * with `flatMap` (or `*>`). A stream appended with `++` is not in the span.
    */
   def logSpan(label: => String)(implicit trace: Trace): ZStream[Any, Nothing, Unit] =
     ZStream.scoped(ZIO.logSpanScoped(label))
@@ -5491,7 +5623,23 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.fromZIO(ZIO.logWarning(message))
 
   /**
-   * Creates a single-valued stream from a scoped resource
+   * Creates a single-valued stream from a scoped resource. The resource is
+   * acquired when the stream starts and released when the stream ends, after
+   * the streams composed with `flatMap` and before a stream appended with
+   * `++`.
+   *
+   * {{{
+   * import zio._
+   *
+   * val lines: ZStream[Any, Throwable, String] =
+   *   ZStream
+   *     .scoped(ZIO.fromAutoCloseable(ZIO.attempt(scala.io.Source.fromString("a\nb"))))
+   *     .flatMap(source => ZStream.fromIterator(source.getLines()))
+   * // emits "a" and "b", then closes the source
+   * }}}
+   *
+   * @see
+   *   [[https://zio.dev/reference/stream/zstream/resourceful-streams/ Resourceful Streams]]
    */
   def scoped[R]: ScopedPartiallyApplied[R] =
     new ScopedPartiallyApplied[R]
@@ -5505,7 +5653,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Merges a variable list of streams in a non-deterministic fashion. Up to `n`
    * streams may be consumed in parallel and up to `outputBuffer` chunks may be
-   * buffered by this operator.
+   * buffered by this operator. The merged stream fails when one of the streams
+   * fails.
+   *
+   * `ZStream.mergeAll(2)(ZStream(1, 2), ZStream(3, 4))` emits `1`, `2`, `3`
+   * and `4`, with the elements of the two streams interleaved in no fixed
+   * order. With `n = 1` the streams run one after the other.
    */
   def mergeAll[R, E, O](n: => Int, outputBuffer: => Int = 16)(
     streams: ZStream[R, E, O]*
@@ -5528,7 +5681,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   /**
    * Like [[unfold]], but allows the emission of values to end one step further
    * than the unfolding of the state. This is useful for embedding paginated
-   * APIs, hence the name.
+   * APIs, hence the name. `f` returns the value to emit and the next state;
+   * the stream ends after emitting a value whose next state is `None`.
+   * `ZStream.paginate(0)(s => (s, if (s < 3) Some(s + 1) else None))` emits
+   * `0`, `1`, `2` and `3`.
    */
   def paginate[R, E, A, S](s: => S)(f: S => (A, Option[S]))(implicit trace: Trace): ZStream[Any, Nothing, A] =
     paginateChunk(s) { s =>
@@ -5572,6 +5728,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     new ZStream(ZChannel.suspend(loop(s)))
   }
 
+  /**
+   * Provides `stream` with the services `ROut` built by `layer`. The resulting
+   * stream needs the input of the layer (`RIn`) and the rest of the
+   * environment of `stream` (`RIn2`), and fails when building the layer fails.
+   */
   def provideLayer[RIn, E, ROut, RIn2, ROut2](layer: ZLayer[RIn, E, ROut])(
     stream: => ZStream[ROut with RIn2, E, ROut2]
   )(implicit
@@ -5593,7 +5754,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Constructs a stream from a range of integers (lower bound included, upper
-   * bound not included)
+   * bound not included), in chunks of at most `chunkSize` values.
+   * `ZStream.range(1, 5)` emits `1`, `2`, `3` and `4`, and
+   * `ZStream.range(5, 1)` is empty.
    */
   def range(min: => Int, max: => Int, chunkSize: => Int = DefaultChunkSize)(implicit
     trace: Trace
@@ -5625,7 +5788,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     )
 
   /**
-   * Repeats the value using the provided schedule.
+   * Repeats the value using the provided schedule: emits `a` once, then once
+   * more at each step of the schedule.
+   * `ZStream.repeatWithSchedule("ping", Schedule.recurs(2))` emits `"ping"`
+   * three times.
    */
   def repeatWithSchedule[R, A](a: => A, schedule: => Schedule[R, A, _])(implicit
     trace: Trace
@@ -5634,14 +5800,17 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an effect producing a value of type `A` which repeats
-   * forever.
+   * until it fails: the stream emits each result of `fa` and fails with the
+   * first error of `fa`. `ZStream.repeatZIO(Random.nextInt).take(3)` emits
+   * three random numbers.
    */
   def repeatZIO[R, E, A](fa: => ZIO[R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
     repeatZIOOption(fa.mapError(Some(_)))
 
   /**
    * Creates a stream from an effect producing chunks of `A` values which
-   * repeats forever.
+   * repeats until it fails: the stream emits the elements of each chunk and
+   * fails with the first error of `fa`.
    */
   def repeatZIOChunk[R, E, A](fa: => ZIO[R, E, Chunk[A]])(implicit trace: Trace): ZStream[R, E, A] =
     repeatZIOChunkOption(fa.mapError(Some(_)))
@@ -5672,7 +5841,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream from an effect producing a value of type `A`, which is
-   * repeated using the specified schedule.
+   * repeated using the specified schedule. The effect runs once when the
+   * stream starts, then once more at each step of the schedule, which receives
+   * the last value. The stream ends when the schedule is done.
    */
   def repeatZIOWithSchedule[R, E, A](
     effect: => ZIO[R, E, A],
@@ -5699,7 +5870,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     )
 
   /**
-   * Accesses the specified service in the environment of the effect.
+   * Accesses the specified service in the environment of the stream, emitting
+   * it as the only element.
    */
   def service[A: Tag](implicit trace: Trace): ZStream[A, Nothing, A] =
     ZStream.serviceWith(identity)
@@ -5731,7 +5903,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     new ServiceWithStreamPartiallyApplied[Service]
 
   /**
-   * Creates a single-valued pure stream
+   * Creates a single-valued pure stream. `a` is evaluated each time the stream
+   * runs. `ZStream.succeed(5)` emits `5`, then ends.
    */
   def succeed[A](a: => A)(implicit trace: Trace): ZStream[Any, Nothing, A] =
     new ZStream(ZChannel.suspend(ZChannel.write(Chunk.single(a))))
@@ -5744,21 +5917,24 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Annotates each metric in streams composed after this with the specified
-   * tag.
+   * tag. It applies to streams composed with `flatMap` (or `*>`); a stream
+   * appended with `++` does not see the tag.
    */
   def tagged(key: => String, value: => String)(implicit trace: Trace): ZStream[Any, Nothing, Unit] =
     tagged(Set(MetricLabel(key, value)))
 
   /**
    * Annotates each metric in streams composed after this with the specified
-   * tag.
+   * tag. It applies to streams composed with `flatMap` (or `*>`); a stream
+   * appended with `++` does not see the tag.
    */
   def tagged(tag: => MetricLabel, tags: MetricLabel*)(implicit trace: Trace): ZStream[Any, Nothing, Unit] =
     tagged(Set(tag) ++ tags.toSet)
 
   /**
    * Annotates each metric in streams composed after this with the specified
-   * tag.
+   * tag. It applies to streams composed with `flatMap` (or `*>`); a stream
+   * appended with `++` does not see the tag.
    */
   def tagged(tags: => Set[MetricLabel])(implicit trace: Trace): ZStream[Any, Nothing, Unit] =
     ZStream.scoped(ZIO.taggedScoped(tags))
@@ -5770,7 +5946,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     ZStream.fromZIO(ZIO.tags)
 
   /**
-   * A stream that emits Unit values spaced by the specified duration.
+   * A stream that emits Unit values spaced by the specified duration. The
+   * first value is emitted when the stream starts, and the stream does not
+   * end. `ZStream.tick(1.second).take(3)` emits three `()` values about one
+   * second apart.
    */
   def tick(interval: => Duration)(implicit trace: Trace): ZStream[Any, Nothing, Unit] =
     repeatWithSchedule((), Schedule.spaced(interval))
@@ -5782,7 +5961,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     succeed(())(Trace.empty)
 
   /**
-   * Creates a stream by peeling off the "layers" of a value of type `S`
+   * Creates a stream by peeling off the "layers" of a value of type `S`. `f`
+   * returns the next value and the next state, or `None` to end the stream.
+   * `ZStream.unfold(3)(n => if (n == 0) None else Some((n, n - 1)))` emits
+   * `3`, `2` and `1`.
    */
   def unfold[S, A](s: => S)(f: S => Option[(A, S)])(implicit trace: Trace): ZStream[Any, Nothing, A] =
     unfoldChunk(s)(f(_).map { case (a, s) => Chunk.single(a) -> s })
@@ -5822,7 +6004,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
 
   /**
    * Creates a stream by effectfully peeling off the "layers" of a value of type
-   * `S`
+   * `S`. Like `unfold`, but `f` is an effect; the stream fails when `f` fails.
+   *
+   * {{{
+   * import zio._
+   *
+   * val counted: ZStream[Any, Nothing, Int] =
+   *   ZStream.unfoldZIO(1)(n => ZIO.succeed(if (n > 3) None else Some((n, n + 1))))
+   * // emits 1, 2 and 3
+   * }}}
    */
   def unfoldZIO[R, E, A, S](s: => S)(f: S => ZIO[R, E, Option[(A, S)]])(implicit
     trace: Trace
@@ -5882,31 +6072,71 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
   def whenZIO[R, E](b: => ZIO[R, E, Boolean]) =
     new WhenZIO(() => b)
 
+  /**
+   * Partially applies the environment type of `ZStream.environmentWith`, so
+   * that the other type parameters are inferred from the function.
+   */
   final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    /**
+     * Creates a single-element stream that emits `f` applied to the
+     * environment.
+     */
     def apply[A](f: ZEnvironment[R] => A)(implicit trace: Trace): ZStream[R, Nothing, A] =
       ZStream.fromZIO(ZIO.environmentWith[R](f))
   }
 
+  /**
+   * Partially applies the environment type of `ZStream.environmentWithZIO`, so
+   * that the other type parameters are inferred from the function.
+   */
   final class EnvironmentWithZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    /**
+     * Creates a single-element stream that runs the effect returned by `f` for
+     * the environment and emits its result.
+     */
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZIO[R1, E, A])(implicit
       trace: Trace
     ): ZStream[R with R1, E, A] =
       ZStream.fromZIO(ZIO.environmentWithZIO[R](f))
   }
 
+  /**
+   * Partially applies the environment type of `ZStream.environmentWithStream`,
+   * so that the other type parameters are inferred from the function.
+   */
   final class EnvironmentWithStreamPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    /**
+     * Creates the stream returned by `f` for the environment.
+     */
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZStream[R1, E, A])(implicit
       trace: Trace
     ): ZStream[R with R1, E, A] =
       ZStream.environment[R].flatMap(f)
   }
 
+  /**
+   * Partially applies the environment type of `ZStream.scoped`, so that the
+   * other type parameters are inferred from the scoped effect.
+   */
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    /**
+     * Creates a single-element stream that acquires the scoped resource when
+     * the stream starts and releases it when the stream ends.
+     */
     def apply[E, A](zio: => ZIO[Scope with R, E, A])(implicit trace: Trace): ZStream[R, E, A] =
       new ZStream(ZChannel.scoped[R](zio.map(Chunk.single)))
   }
 
+  /**
+   * Partially applies the service type of `ZStream.serviceAt`, so that the key
+   * type is inferred from the key.
+   */
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    /**
+     * Creates a single-element stream that emits the service stored under `key`
+     * in the `Map[Key, Service]` of the environment, or `None` when the key is
+     * missing.
+     */
     def apply[Key](
       key: => Key
     )(implicit
@@ -5916,7 +6146,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZStream.environmentWith(_.getAt(key))
   }
 
+  /**
+   * Partially applies the service type of `ZStream.serviceWith`, so that the
+   * result type is inferred from the function.
+   */
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    /**
+     * Creates a single-element stream that emits `f` applied to the service.
+     */
     def apply[A](f: Service => A)(implicit
       tag: Tag[Service],
       trace: Trace
@@ -5924,7 +6161,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZStream.fromZIO(ZIO.serviceWith[Service](f))
   }
 
+  /**
+   * Partially applies the service type of `ZStream.serviceWithZIO`, so that
+   * the other type parameters are inferred from the function.
+   */
   final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    /**
+     * Creates a single-element stream that runs the effect returned by `f` for
+     * the service and emits its result.
+     */
     def apply[R <: Service, E, A](f: Service => ZIO[R, E, A])(implicit
       tag: Tag[Service],
       trace: Trace
@@ -5932,7 +6177,14 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZStream.fromZIO(ZIO.serviceWithZIO[Service](f))
   }
 
+  /**
+   * Partially applies the service type of `ZStream.serviceWithStream`, so that
+   * the other type parameters are inferred from the function.
+   */
   final class ServiceWithStreamPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+    /**
+     * Creates the stream returned by `f` for the service.
+     */
     def apply[R <: Service, E, A](f: Service => ZStream[R, E, A])(implicit
       tag: Tag[Service],
       trace: Trace
@@ -5940,7 +6192,15 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       ZStream.service[Service].flatMap(f)
   }
 
+  /**
+   * Partially applies the environment type of `ZStream.unwrapScoped`, so that
+   * the other type parameters are inferred from the scoped effect.
+   */
   final class UnwrapScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    /**
+     * Creates the stream produced by the scoped effect `fa`. The scope stays
+     * open while the stream runs and closes when it ends.
+     */
     def apply[E, A](fa: => ZIO[Scope with R, E, ZStream[R, E, A]])(implicit
       trace: Trace
     ): ZStream[R, E, A] =
@@ -5968,7 +6228,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Only consider the first n groups found in the stream.
+     * Only consider the first n groups found in the stream. The elements of
+     * the other groups are dropped.
      */
     def first(n: => Int): GroupBy[R, E, K, V] =
       new GroupBy[R, E, K, V] {
@@ -5992,7 +6253,16 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
   }
 
+  /**
+   * Partially applies the remaining environment type `R0` of
+   * `ZStream#provideSomeLayer`, so that the output type of the layer is
+   * inferred from the layer.
+   */
   final class ProvideSomeLayer[R0, -R, +E, +A](private val self: ZStream[R, E, A]) extends AnyVal {
+    /**
+     * Provides the stream with the services built by `layer`; the result still
+     * needs `R0`.
+     */
     def apply[E1 >: E, R1](
       layer: => ZLayer[R0, E1, R1]
     )(implicit
@@ -6003,14 +6273,29 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       self.asInstanceOf[ZStream[R0 with R1, E, A]].provideLayer(ZLayer.environment[R0] <*> layer)
   }
 
+  /**
+   * Partially applies the service type `M` of `ZStream#updateService`.
+   */
   final class UpdateService[-R, +E, +A, M](private val self: ZStream[R, E, A]) extends AnyVal {
+    /**
+     * Runs the stream with the service `M` of its environment replaced by `f`
+     * applied to it.
+     */
     def apply[R1 <: R with M](
       f: M => M
     )(implicit tag: Tag[M], trace: Trace): ZStream[R1, E, A] =
       self.provideSomeEnvironment(_.update(f))
   }
 
+  /**
+   * Partially applies the service type of `ZStream#updateServiceAt`, so that
+   * the key type is inferred from the key.
+   */
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZStream[R, E, A]) extends AnyVal {
+    /**
+     * Runs the stream with the service stored under `key` in the
+     * `Map[Key, Service]` of its environment replaced by `f` applied to it.
+     */
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]], trace: Trace): ZStream[R1, E, A] =
@@ -6035,6 +6320,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     def make(input: => Input)(implicit trace: Trace): Out
   }
 
+  /**
+   * The implicit [[zio.stream.ZStream.ZStreamConstructor]] instances that
+   * `ZStream.from` uses. The instances defined here take priority over those
+   * of the `ZStreamConstructorLowPriority` traits.
+   */
   object ZStreamConstructor extends ZStreamConstructorPlatformSpecific {
 
     /**
@@ -6058,7 +6348,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Constructs a `ZStream[Any, Nothing, A]` from a Queue[Chunk[A]]`.
+     * Constructs a `ZStream[Any, Nothing, A]` from a `Queue[Chunk[A]]`.
      */
     implicit def ChunkQueueConstructor[A]: WithOut[Queue[Chunk[A]], ZStream[Any, Nothing, A]] =
       new ZStreamConstructor[Queue[Chunk[A]]] {
@@ -6186,6 +6476,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
   }
 
+  /**
+   * [[zio.stream.ZStream.ZStreamConstructor]] instances for chunks, hubs,
+   * iterables, queues and effects that fail with an `Option`, used when no
+   * instance of `ZStreamConstructor` matches.
+   */
   trait ZStreamConstructorLowPriority1 extends ZStreamConstructorLowPriority2 {
 
     /**
@@ -6240,7 +6535,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Construct a `ZStream[R, E, A]` from a `ZIO[R, Option[E], A]`.
+     * Construct a `ZStream[R, Nothing, A]` from a `ZIO[R, None.type, A]`.
      */
     implicit def ZIOOptionNoneConstructor[R, A]: WithOut[ZIO[R, None.type, A], ZStream[R, Nothing, A]] =
       new ZStreamConstructor[ZIO[R, None.type, A]] {
@@ -6250,7 +6545,7 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
 
     /**
-     * Construct a `ZStream[R, E, A]` from a `ZIO[R, Option[E], A]`.
+     * Construct a `ZStream[R, E, A]` from a `ZIO[R, Some[E], A]`.
      */
     implicit def ZIOOptionSomeConstructor[R, E, A]: WithOut[ZIO[R, Some[E], A], ZStream[R, E, A]] =
       new ZStreamConstructor[ZIO[R, Some[E], A]] {
@@ -6260,6 +6555,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
   }
 
+  /**
+   * The [[zio.stream.ZStream.ZStreamConstructor]] instance for any `ZIO`
+   * effect, used when no higher-priority instance matches.
+   */
   trait ZStreamConstructorLowPriority2 extends ZStreamConstructorLowPriority3 {
 
     /**
@@ -6273,6 +6572,10 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
   }
 
+  /**
+   * The fallback [[zio.stream.ZStream.ZStreamConstructor]] instance, which
+   * turns a value of any type into a single-element stream.
+   */
   trait ZStreamConstructorLowPriority3 {
 
     /**
@@ -6282,7 +6585,8 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     type WithOut[In, Out0] = ZStreamConstructor[In] { type Out = Out0 }
 
     /**
-     * Construct a `ZStream[R, E, A]` from a `ZIO[R, E, A]`.
+     * Construct a single-element `ZStream[Any, Nothing, A]` from a value of
+     * any type `A` that no other constructor matches.
      */
     implicit def SucceedConstructor[A]: WithOut[A, ZStream[Any, Nothing, A]] =
       new ZStreamConstructor[A] {
@@ -6292,6 +6596,12 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
       }
   }
 
+  /**
+   * An effect that pulls the next chunk of a stream: it succeeds with the
+   * chunk, fails with `Some(e)` when the stream fails with `e`, and fails with
+   * `None` when the stream ends. `ZStream#toPull` returns one inside a scoped
+   * effect, and `ZStream.fromPull` builds a stream from such a scoped effect.
+   */
   type Pull[-R, +E, +A] = ZIO[R, Option[E], Chunk[A]]
 
   private[zio] object Pull {
@@ -6401,38 +6711,84 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
     }
   }
 
+  /**
+   * Holds the condition of `ZStream.whenZIO` until the stream is given.
+   */
   final class WhenZIO[R, E](private val b: () => ZIO[R, E, Boolean]) extends AnyVal {
+    /**
+     * Runs the condition, then runs `zStream` when it is `true` or ends without
+     * elements when it is `false`. The stream fails when the condition fails.
+     */
     def apply[R1 <: R, E1 >: E, O](zStream: ZStream[R1, E1, O])(implicit trace: Trace): ZStream[R1, E1, O] =
       fromZIO(b()).flatMap(if (_) zStream else ZStream.empty)
   }
 
+  /**
+   * Holds the effect of `ZStream.whenCaseZIO` until the partial function is
+   * given.
+   */
   final class WhenCaseZIO[R, E, A](private val a: () => ZIO[R, E, A]) extends AnyVal {
+    /**
+     * Runs the effect, then runs the stream that `pf` returns for its result,
+     * or ends without elements when `pf` is not defined there.
+     */
     def apply[R1 <: R, E1 >: E, O](pf: PartialFunction[A, ZStream[R1, E1, O]])(implicit
       trace: Trace
     ): ZStream[R1, E1, O] =
       fromZIO(a()).flatMap(pf.applyOrElse(_, ZStream.emptyStreamFn))
   }
 
+  /**
+   * Decides when a merged stream ends, for `merge`, `mergeLeft`, `mergeRight`
+   * and `mergeWith` of [[ZStream]]. The default of these operators is
+   * `HaltStrategy.Both`.
+   */
   sealed trait HaltStrategy
+  /**
+   * The cases of [[zio.stream.ZStream.HaltStrategy]].
+   */
   object HaltStrategy {
+    /**
+     * The merged stream ends when the left stream (the receiver) ends.
+     */
     case object Left   extends HaltStrategy
+    /**
+     * The merged stream ends when the right stream (the argument) ends.
+     */
     case object Right  extends HaltStrategy
+    /**
+     * The merged stream ends when both streams have ended.
+     */
     case object Both   extends HaltStrategy
+    /**
+     * The merged stream ends as soon as one of the two streams ends.
+     */
     case object Either extends HaltStrategy
   }
 
+  /**
+   * Adds `refineToOrDie` to streams whose error type is a `Throwable`.
+   */
   implicit final class RefineToOrDieOps[R, E <: Throwable, A](private val self: ZStream[R, E, A]) extends AnyVal {
 
     /**
-     * Keeps some of the errors, and terminates the fiber with the rest.
+     * Keeps the failures of type `E1`, and makes the stream die with the other
+     * failures.
      */
     def refineToOrDie[E1 <: E: ClassTag](implicit ev: CanFail[E], trace: Trace): ZStream[R, E1, A] =
       self.refineOrDie { case e: E1 => e }
   }
 
+  /**
+   * Adds `collectType` to streams.
+   */
   implicit final class SyntaxOps[-R, +E, O](self: ZStream[R, E, O]) {
-    /*
-     * Collect elements of the given type flowing through the stream, and filters out others.
+    /**
+     * Collect elements of the given type flowing through the stream, and
+     * filters out others. The check uses the runtime class from the
+     * `ClassTag`, so type arguments of `O1` are not checked. For a primitive
+     * type such as `Int`, the runtime class is the primitive class, so no
+     * element matches.
      */
     def collectType[O1 <: O](implicit tag: ClassTag[O1], trace: Trace): ZStream[R, E, O1] =
       self.collect { case o if tag.runtimeClass.isInstance(o) => o.asInstanceOf[O1] }
@@ -6576,6 +6932,11 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
    */
   trait Emit[+R, -E, -A, +B] extends (ZIO[R, Option[E], Chunk[A]] => B) {
 
+    /**
+     * Sends `v1` to the stream: when `v1` succeeds its chunk is emitted, when
+     * it fails with `Some(e)` the stream fails with `e`, and when it fails with
+     * `None` the stream ends.
+     */
     def apply(v1: ZIO[R, Option[E], Chunk[A]]): B
 
     /**
@@ -6655,9 +7016,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * using the specified values `defaultLeft` and `defaultRight` to fill in
      * missing values.
      *
-     * This allows zipping potentially unbounded streams of data by key in
-     * constant space but the caller is responsible for ensuring that the
-     * streams are sorted by distinct keys.
+     * This allows zipping potentially unbounded streams of data by key while
+     * holding at most one chunk of each stream at a time, but the caller is
+     * responsible for ensuring that the streams are sorted by distinct keys.
      */
     def zipAllSortedByKey[R1 <: R, E1 >: E, B](
       that: => ZStream[R1, E1, (K, B)]
@@ -6673,9 +7034,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * distinct keys. Keeps only values from this stream, using the specified
      * value `default` to fill in missing values.
      *
-     * This allows zipping potentially unbounded streams of data by key in
-     * constant space but the caller is responsible for ensuring that the
-     * streams are sorted by distinct keys.
+     * This allows zipping potentially unbounded streams of data by key while
+     * holding at most one chunk of each stream at a time, but the caller is
+     * responsible for ensuring that the streams are sorted by distinct keys.
      */
     def zipAllSortedByKeyLeft[R1 <: R, E1 >: E, B](
       that: => ZStream[R1, E1, (K, B)]
@@ -6688,9 +7049,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * distinct keys. Keeps only values from that stream, using the specified
      * value `default` to fill in missing values.
      *
-     * This allows zipping potentially unbounded streams of data by key in
-     * constant space but the caller is responsible for ensuring that the
-     * streams are sorted by distinct keys.
+     * This allows zipping potentially unbounded streams of data by key while
+     * holding at most one chunk of each stream at a time, but the caller is
+     * responsible for ensuring that the streams are sorted by distinct keys.
      */
     def zipAllSortedByKeyRight[R1 <: R, E1 >: E, B](
       that: => ZStream[R1, E1, (K, B)]
@@ -6704,9 +7065,9 @@ object ZStream extends ZStreamPlatformSpecificConstructors {
      * the cases where a key and value exist in this stream, that stream, or
      * both streams.
      *
-     * This allows zipping potentially unbounded streams of data by key in
-     * constant space but the caller is responsible for ensuring that the
-     * streams are sorted by distinct keys.
+     * This allows zipping potentially unbounded streams of data by key while
+     * holding at most one chunk of each stream at a time, but the caller is
+     * responsible for ensuring that the streams are sorted by distinct keys.
      */
     def zipAllSortedByKeyWith[R1 <: R, E1 >: E, B, C](
       that: => ZStream[R1, E1, (K, B)]
