@@ -39,7 +39,7 @@ import scala.collection.immutable.{Queue => ScalaQueue}
  *                  semaphore.withPermit(fetch(id)) // at most 2 at a time
  *                }
  *   } yield results
- * // List(page-1, page-2, page-3, page-4, page-5)
+ * // succeeds with List(page-1, page-2, page-3, page-4, page-5)
  * }}}
  *
  * If you need functionality that `Semaphore` doesn't provide, use a
@@ -56,8 +56,7 @@ sealed trait Semaphore extends Serializable {
   def available(implicit trace: Trace): UIO[Long]
 
   /**
-   * Returns the number of fibers currently waiting for permits. The default
-   * implementation returns 0.
+   * Returns the number of fibers currently waiting for permits.
    */
   def awaiting(implicit trace: Trace): UIO[Long] = ZIO.succeed(0L)
 
