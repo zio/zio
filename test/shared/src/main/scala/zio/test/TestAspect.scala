@@ -28,15 +28,38 @@ import scala.collection.immutable.SortedSet
 import scala.collection.mutable
 
 /**
- * A `TestAspect` is an aspect that can be weaved into specs. You can think of
- * an aspect as a polymorphic function, capable of transforming one test into
- * another, possibly enlarging the environment or error type.
+ * A `TestAspect` changes how the tests of a spec run without changing the
+ * tests themselves: it can time out tests, repeat or retry them, ignore them,
+ * run them only on some platforms, set the execution strategy of suites, or
+ * run effects before and after them. Apply one to a spec with `@@`. In
+ * `spec @@ a @@ b`, the aspect `a` is applied first and `b` is applied to the
+ * result.
+ *
+ * An aspect accepts specs whose environment `R` satisfies
+ * `LowerR <: R <: UpperR` and whose error type `E` satisfies
+ * `LowerE <: E <: UpperE`.
+ *
+ * {{{
+ * import zio.durationInt
+ *
+ * val spec: Spec[Any, Nothing] =
+ *   suite("aspects")(
+ *     test("adds numbers") {
+ *       assertTrue(List(1, 2, 3).sum == 6)
+ *     } @@ TestAspect.timeout(5.seconds) @@ TestAspect.nonFlaky(10),
+ *     test("not ready yet") {
+ *       assertTrue(false)
+ *     } @@ TestAspect.ignore
+ *   ) @@ TestAspect.sequential
+ * }}}
+ *
+ * @see [[https://zio.dev/reference/test/aspects/ Test Aspects]]
  */
 abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
 
   /**
-   * Applies the aspect to some tests in the spec, chosen by the provided
-   * predicate.
+   * Applies the aspect to `spec` and returns the transformed spec. This is the
+   * method that an aspect implements; `apply` and `all` call it.
    */
   def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE](spec: Spec[R, E])(implicit trace: Trace): Spec[R, E]
 
@@ -49,7 +72,9 @@ abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
     all(spec)
 
   /**
-   * Applies the aspect to every test in the spec.
+   * Applies the aspect to `spec`, the same as `some`. A per-test aspect changes
+   * each test of the spec, and an aspect such as `aroundAll` wraps the spec as
+   * a whole.
    */
   final def all[R >: LowerR <: UpperR, E >: LowerE <: UpperE](spec: Spec[R, E])(implicit
     trace: Trace
@@ -57,8 +82,8 @@ abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
     some[R, E](spec)
 
   /**
-   * Returns a new aspect that represents the sequential composition of this
-   * aspect with the specified one.
+   * Composes this aspect with `that`: the new aspect applies this aspect to a
+   * spec and then `that` to the result.
    */
   final def >>>[LowerR1 >: LowerR, UpperR1 <: UpperR, LowerE1 >: LowerE, UpperE1 <: UpperE](
     that: TestAspect[LowerR1, UpperR1, LowerE1, UpperE1]
@@ -71,25 +96,38 @@ abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
     }
 
   /**
-   * Returns a new aspect that represents the sequential composition of this
-   * aspect with the specified one.
+   * Composes this aspect with `that`, the same as `>>>`: the new aspect applies
+   * this aspect to a spec and then `that` to the result.
    */
   final def @@[LowerR1 >: LowerR, UpperR1 <: UpperR, LowerE1 >: LowerE, UpperE1 <: UpperE](
     that: TestAspect[LowerR1, UpperR1, LowerE1, UpperE1]
   ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] =
     self >>> that
 
+  /**
+   * Composes this aspect with `that`, the same as `>>>`: the new aspect applies
+   * this aspect to a spec and then `that` to the result.
+   */
   final def andThen[LowerR1 >: LowerR, UpperR1 <: UpperR, LowerE1 >: LowerE, UpperE1 <: UpperE](
     that: TestAspect[LowerR1, UpperR1, LowerE1, UpperE1]
   ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] =
     self >>> that
 }
+/**
+ * The predefined test aspects.
+ *
+ * @see [[https://zio.dev/reference/test/aspects/ Test Aspects]]
+ */
 object TestAspect extends TimeoutVariants {
 
+  /**
+   * A `ZIOAspect` that `check` applies to the effect it runs for each generated
+   * sample, as given to `checks` and `checksZIO`.
+   */
   type CheckAspect = ZIOAspect[Nothing, Any, Nothing, Any, TestResult, TestResult]
 
   /**
-   * An aspect that returns the tests unchanged
+   * An aspect that returns the tests unchanged.
    */
   val identity: TestAspectPoly =
     new TestAspectPoly {
@@ -98,7 +136,12 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that marks tests as ignored.
+   * An aspect that marks tests as ignored: they do not run and are reported as
+   * ignored. A scoped part of the spec (one that acquires resources, as
+   * `provideLayerShared` and `aroundAll` create) is dropped without acquiring
+   * its resources, and the tests inside it are not reported at all.
+   *
+   * @see [[https://zio.dev/reference/test/aspects/ Test Aspects]]
    */
   val ignore: TestAspectPoly =
     new TestAspectPoly {
@@ -149,7 +192,8 @@ object TestAspect extends TimeoutVariants {
     restoreTestClock >>> restoreTestConsole >>> restoreTestRandom >>> restoreTestSystem
 
   /**
-   * Constructs an aspect that runs the specified effect after every test.
+   * Constructs an aspect that runs the specified effect after every test,
+   * whether the test passes or fails. When `effect` fails, the test fails.
    */
   def after[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
@@ -197,7 +241,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * Constructs an aspect that runs the specified effect after every failed
-   * test.
+   * test. When `effect` fails, the test fails with that error instead.
    */
   def afterFailure[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
@@ -209,7 +253,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * Constructs an aspect that runs the specified effect after every successful
-   * test.
+   * test. When `effect` fails, the test fails.
    */
   def afterSuccess[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
@@ -220,7 +264,9 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * Annotates tests with the specified test annotation.
+   * An aspect that adds `value` to the annotation `key` of each test.
+   *
+   * @see [[https://zio.dev/reference/test/aspects/annotating-tests/ Annotating Tests]]
    */
   def annotate[V](key: TestAnnotation[V], value: V): TestAspectPoly =
     new TestAspectPoly {
@@ -231,6 +277,8 @@ object TestAspect extends TimeoutVariants {
   /**
    * Constructs an aspect that evaluates every test between two effects,
    * `before` and `after`, where the result of `before` can be used in `after`.
+   * `after` runs whether the test passes or fails; when `before` fails, the
+   * test fails without running.
    */
   def aroundWith[R0, E0, A0](
     before: ZIO[R0, E0, A0]
@@ -243,15 +291,17 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * A less powerful variant of `around` where the result of `before` is not
-   * required by after.
+   * A variant of `aroundWith` for an `after` effect that does not need the
+   * result of `before`.
    */
   def around[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
     aroundWith(before)(_ => after)
 
   /**
    * Constructs an aspect that evaluates all tests between two effects, `before`
-   * and `after`, where the result of `before` can be used in `after`.
+   * and `after`, where the result of `before` can be used in `after`. `before`
+   * runs once before the first test and `after` once after the last; when
+   * `before` fails, none of the tests run.
    */
   def aroundAllWith[R0, E0, A0](
     before: ZIO[R0, E0, A0]
@@ -271,8 +321,10 @@ object TestAspect extends TimeoutVariants {
     aroundAllWith(before)(_ => after)
 
   /**
-   * Constructs an aspect that evaluates every test inside the context of the
-   * scoped function.
+   * Constructs an aspect that runs each test inside a scope. For each test,
+   * `scoped` runs first and returns a function; the test runs, and the function
+   * is applied to its success, giving the final result. Resources that `scoped`
+   * acquires are released when the test finishes.
    */
   def aroundTest[R0, E0](
     scoped: ZIO[Scope with R0, TestFailure[E0], TestSuccess => ZIO[R0, TestFailure[E0], TestSuccess]]
@@ -299,7 +351,8 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * Constructs an aspect that runs the specified effect before every test.
+   * Constructs an aspect that runs the specified effect before every test. When
+   * `effect` fails, the test fails without running.
    */
   def before[R0, E0](effect: ZIO[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
@@ -334,19 +387,23 @@ object TestAspect extends TimeoutVariants {
    *
    * i.e.
    * {{{
+   * import zio.{ZIO, ZIOAspect}
+   *
    * test("example") {
    *   check(Gen.int) { i =>
-   *     ZIO.succeed(assert(i, Assertion.equalTo(1)))
+   *     ZIO.succeed(assert(i)(Assertion.anything))
    *   }
-   * } @@ checks(ZIOAspect.debug)
+   * } @@ TestAspect.checks(ZIOAspect.debug)
    * }}}
    *
    * is equivalent to
    *
    * {{{
+   * import zio.{ZIO, ZIOAspect}
+   *
    * test("example") {
    *   check(Gen.int) { i =>
-   *     ZIO.succeed(assert(i, Assertion.equalTo(1))) @@ ZIOAspect.debug
+   *     ZIO.succeed(assert(i)(Assertion.anything)) @@ ZIOAspect.debug
    *   }
    * }
    * }}}
@@ -358,7 +415,7 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that applies the provided zio aspect to each sample of all checks
    * in the test. The aspect will be constructed from the provided effect before
-   * each test is run.
+   * each test is run, and composed with the check aspect already in effect.
    */
   def checksZIO[R, E](
     makeAspect: ZIO[R, E, CheckAspect]
@@ -436,7 +493,10 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that retries a test until success, without limit.
+   * An aspect that retries a test until success, without limit. Any failure (a
+   * failed assertion, an error or a defect) causes a retry. The state of the
+   * test services (`TestClock`, `TestConsole`, `TestRandom` and `TestSystem`)
+   * is restored after each attempt.
    */
   val eventually: TestAspectPoly = {
     val eventually = new PerTest.Poly {
@@ -455,7 +515,7 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJS) ignore else identity
 
   /**
-   * An aspect that that applies an aspect on all platforms except ScalaJS.
+   * An aspect that applies an aspect on all platforms except ScalaJS.
    */
   def exceptJS[LowerR, UpperR, LowerE, UpperE](
     that: TestAspect[LowerR, UpperR, LowerE, UpperE]
@@ -469,7 +529,7 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isJVM) ignore else identity
 
   /**
-   * An aspect that that applies an aspect on all platforms except the JVM.
+   * An aspect that applies an aspect on all platforms except the JVM.
    */
   def exceptJVM[LowerR, UpperR, LowerE, UpperE](
     that: TestAspect[LowerR, UpperR, LowerE, UpperE]
@@ -483,7 +543,7 @@ object TestAspect extends TimeoutVariants {
     if (TestPlatform.isNative) ignore else identity
 
   /**
-   * An aspect that that applies an aspect on all platforms except ScalaNative.
+   * An aspect that applies an aspect on all platforms except ScalaNative.
    */
   def exceptNative[LowerR, UpperR, LowerE, UpperE](
     that: TestAspect[LowerR, UpperR, LowerE, UpperE]
@@ -516,7 +576,9 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that sets suites to the specified execution strategy, but only if
-   * their current strategy is inherited (undefined).
+   * their current strategy is inherited (undefined). When several of these
+   * aspects are applied, the one applied first wins: in
+   * `spec @@ sequential @@ parallel` the suites run sequentially.
    */
   def executionStrategy(exec: ExecutionStrategy): TestAspectPoly =
     new TestAspectPoly {
@@ -535,7 +597,7 @@ object TestAspect extends TimeoutVariants {
    * An aspect that makes a test that failed for the specified failure pass.
    *
    * Note that the test will:
-   *   1. Fail with a `RuntimeException` if the test passes.
+   *   1. Die with a `RuntimeException` if the test passes.
    *   1. Re-raise failures that don't satisfy the provided assertion.
    */
   def failing[E0](assertion: TestFailure[E0] => Boolean): TestAspect[Nothing, Any, Nothing, E0] =
@@ -556,8 +618,9 @@ object TestAspect extends TimeoutVariants {
    * [[TestAnnotation.fibers]].
    *
    * '''NOTE''': Since this aspect is required for the proper functioning of
-   * `TestClock.adjust`, it is applied to all tests automatically. There is no
-   * need to apply this aspect manually to tests.
+   * `TestClock.adjust`, it is applied to all tests that a spec object
+   * (`ZIOSpecDefault` or `ZIOSpec`) runs. There is no need to apply this aspect
+   * manually to tests.
    */
   @deprecated(
     "This aspect is applied automatically to all tests and no longer needs to be provided explicitly",
@@ -597,7 +660,11 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that retries a test until success, with a default limit, for use
-   * with flaky tests.
+   * with flaky tests. The limit is `TestConfig.retries` (100 by default, set
+   * with `retries`): a test that keeps failing runs that many times plus one.
+   * The state of the test services is restored after each attempt.
+   *
+   * @see [[https://zio.dev/reference/test/aspects/ Test Aspects]]
    */
   val flaky: TestAspectPoly = {
     val flaky = new PerTest.Poly {
@@ -611,7 +678,9 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that retries a test until success, with the specified limit, for
-   * use with flaky tests.
+   * use with flaky tests. A test that keeps failing runs `n + 1` times, or
+   * twice when `n` is 0. The state of the test services is restored after each
+   * attempt.
    */
   def flaky(n: Int): TestAspectPoly = {
     val flaky = new PerTest.Poly {
@@ -641,7 +710,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that provides each test with the specified layer that does not
-   * produce any services.
+   * produce any services. The layer is built once for each test.
    */
   def fromLayer[R0, E0](layer: ZLayer[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect[Nothing, R0, E0, Any] {
@@ -651,7 +720,8 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that provides all tests with a shared version of the specified
-   * layer that does not produce any services.
+   * layer that does not produce any services. The layer is built once and
+   * shared by the tests.
    */
   def fromLayerShared[R0, E0](layer: ZLayer[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect[Nothing, R0, E0, Any] {
@@ -660,7 +730,7 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * As aspect that runs each test with the specified `ZIOAspect`.
+   * An aspect that runs each test with the specified `ZIOAspect`.
    */
   def fromZIOAspect[LowerR, UpperR, LowerE, UpperE](
     zioAspect: ZIOAspect[LowerR, UpperR, TestFailure[LowerE], TestFailure[UpperE], TestSuccess, TestSuccess]
@@ -674,21 +744,24 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that only runs a test if the specified environment variable
-   * satisfies the specified assertion.
+   * satisfies the specified assertion. The variable is read from the live
+   * `System`, not from `TestSystem`; when it is not set, the test is ignored.
    */
   def ifEnv(env: String)(assertion: String => Boolean): TestAspectPoly =
     ifEnvOption(env)(_.fold(false)(assertion))
 
   /**
    * An aspect that only runs a test if the specified environment variable is
-   * not set.
+   * not set in the live `System`.
    */
   def ifEnvNotSet(env: String): TestAspectPoly =
     ifEnvOption(env)(_.isEmpty)
 
   /**
    * An aspect that only runs a test if the specified optional environment
-   * variable satisfies the specified assertion.
+   * variable satisfies the specified assertion. The variable is read from the
+   * live `System`, not from `TestSystem`. Tests that do not run are reported as
+   * ignored.
    */
   def ifEnvOption(env: String)(assertion: Option[String] => Boolean): TestAspectPoly =
     new TestAspectPoly {
@@ -698,27 +771,31 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that only runs a test if the specified environment variable is
-   * set.
+   * set in the live `System`.
    */
   def ifEnvSet(env: String): TestAspectPoly =
     ifEnvOption(env)(_.nonEmpty)
 
   /**
    * An aspect that only runs a test if the specified Java property satisfies
-   * the specified assertion.
+   * the specified assertion. The property is read from the live `System`, not
+   * from `TestSystem`; when it is not set, the test is ignored.
    */
   def ifProp(prop: String)(assertion: String => Boolean): TestAspectPoly =
     ifPropOption(prop)(_.fold(false)(assertion))
 
   /**
-   * An aspect that only runs a test if the specified Java property is not set.
+   * An aspect that only runs a test if the specified Java property is not set
+   * in the live `System`.
    */
   def ifPropNotSet(env: String): TestAspectPoly =
     ifPropOption(env)(_.isEmpty)
 
   /**
    * An aspect that only runs a test if the specified optional Java property
-   * satisfies the specified assertion.
+   * satisfies the specified assertion. The property is read from the live
+   * `System`, not from `TestSystem`. Tests that do not run are reported as
+   * ignored.
    */
   def ifPropOption(prop: String)(assertion: Option[String] => Boolean): TestAspectPoly =
     new TestAspectPoly {
@@ -727,7 +804,8 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that only runs a test if the specified Java property is set.
+   * An aspect that only runs a test if the specified Java property is set in
+   * the live `System`.
    */
   def ifPropSet(prop: String): TestAspectPoly =
     ifPropOption(prop)(_.nonEmpty)
@@ -762,13 +840,14 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that runs only on operating systems accepted by the specified
-   * predicate.
+   * predicate, given `System.os`. On other systems, the tests are ignored.
    */
   def os(f: System.OS => Boolean): TestAspectPoly =
     if (f(System.os)) identity else ignore
 
   /**
-   * Runs only on Mac operating systems.
+   * An aspect that runs tests only on Mac operating systems (`System.OS.Mac`).
+   * On other systems, the tests are ignored.
    */
   val mac: TestAspectPoly = os(_.isMac)
 
@@ -790,14 +869,17 @@ object TestAspect extends TimeoutVariants {
     java.lang.System.getProperty("org.graalvm.nativeimage.imagecode") != null
 
   /**
-   * An aspect that runs tests on all platforms except GraalVM native-image.
+   * An aspect that runs tests on all platforms except GraalVM native-image, and
+   * ignores them there. It detects native-image by the system property
+   * `org.graalvm.nativeimage.imagecode` being set.
    */
   def exceptGraalVMNativeImage: TestAspectPoly =
     if (isGraalVMNativeImage) ignore else identity
 
   /**
    * An aspect that applies the specified aspect on all platforms except GraalVM
-   * native-image.
+   * native-image, detected by the system property
+   * `org.graalvm.nativeimage.imagecode` being set.
    */
   def exceptGraalVMNativeImage[LowerR, UpperR, LowerE, UpperE](
     that: TestAspect[LowerR, UpperR, LowerE, UpperE]
@@ -805,7 +887,9 @@ object TestAspect extends TimeoutVariants {
     if (isGraalVMNativeImage) identity else that
 
   /**
-   * An aspect that applies the specified aspect on GraalVM native-image.
+   * An aspect that applies the specified aspect on GraalVM native-image only,
+   * detected by the system property `org.graalvm.nativeimage.imagecode` being
+   * set.
    */
   def graalVMNativeImage[LowerR, UpperR, LowerE, UpperE](
     that: TestAspect[LowerR, UpperR, LowerE, UpperE]
@@ -813,14 +897,21 @@ object TestAspect extends TimeoutVariants {
     if (isGraalVMNativeImage) that else identity
 
   /**
-   * An aspect that only runs tests on GraalVM native-image.
+   * An aspect that only runs tests on GraalVM native-image, and ignores them
+   * elsewhere. It detects native-image by the system property
+   * `org.graalvm.nativeimage.imagecode` being set.
    */
   def graalVMNativeImageOnly: TestAspectPoly =
     if (isGraalVMNativeImage) identity else ignore
 
   /**
    * An aspect that repeats the test a default number of times, ensuring it is
-   * stable ("non-flaky"). Stops at the first failure.
+   * stable ("non-flaky"). Stops at the first failure. The number of repeats is
+   * `TestConfig.repeats` (100 by default, set with `repeats`), so a passing
+   * test runs that many times plus one. The state of the test services is
+   * restored after each run.
+   *
+   * @see [[https://zio.dev/reference/test/aspects/ Test Aspects]]
    */
   val nonFlaky: TestAspectPoly = {
     val nonFlaky = new PerTest.Poly {
@@ -834,7 +925,9 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that repeats the test a specified number of times, ensuring it is
-   * stable ("non-flaky"). Stops at the first failure.
+   * stable ("non-flaky"). Stops at the first failure. A passing test runs
+   * `n + 1` times, or twice when `n` is 0. The state of the test services is
+   * restored after each run.
    */
   def nonFlaky(n: Int): TestAspectPoly = {
     val nonFlaky = new PerTest.Poly {
@@ -851,7 +944,8 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * Constructs an aspect that requires a test to not terminate within the
-   * specified time.
+   * specified time: the test passes when `timeout(duration)` stops it, and
+   * fails when it succeeds or fails earlier.
    */
   def nonTermination(duration: Duration): TestAspectPoly =
     timeout(duration) >>>
@@ -876,20 +970,24 @@ object TestAspect extends TimeoutVariants {
     )
 
   /**
-   * An aspect that executes the members of a suite in parallel.
+   * An aspect that executes the members of a suite in parallel, unless an
+   * aspect applied before it set another execution strategy.
    */
   val parallel: TestAspectPoly =
     executionStrategy(ExecutionStrategy.Parallel)
 
   /**
    * An aspect that executes the members of a suite in parallel, up to the
-   * specified number of concurrent fibers.
+   * specified number of concurrent fibers, unless an aspect applied before it
+   * set another execution strategy.
    */
   def parallelN(n: Int): TestAspectPoly =
     executionStrategy(ExecutionStrategy.ParallelN(n))
 
   /**
-   * An aspect that repeats successful tests according to a schedule.
+   * An aspect that repeats successful tests according to a schedule, stopping
+   * at the first failure. The schedule runs on the live clock. The state of the
+   * test services is restored after each run.
    */
   def repeat[R0](
     schedule: Schedule[R0, TestSuccess, Any]
@@ -910,7 +1008,9 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that runs each test with the number of times to repeat tests to
-   * ensure they are stable set to the specified value.
+   * ensure they are stable set to the specified value. It sets
+   * `TestConfig.repeats`, which `nonFlaky` reads; on its own it does not repeat
+   * anything. Apply it after `nonFlaky`: `test @@ nonFlaky @@ repeats(5)`.
    */
   def repeats(n: Int): TestAspectPoly =
     new PerTest.Poly {
@@ -939,7 +1039,9 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that runs each test with the number of times to retry flaky tests
-   * set to the specified value.
+   * set to the specified value. It sets `TestConfig.retries`, which `flaky`
+   * reads; on its own it does not retry anything. Apply it after `flaky`:
+   * `test @@ flaky @@ retries(5)`.
    */
   def retries(n: Int): TestAspectPoly =
     new PerTest.Poly {
@@ -959,7 +1061,9 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that retries failed tests according to a schedule.
+   * An aspect that retries failed tests according to a schedule, stopping at
+   * the first success. The schedule runs on the live clock. The state of the
+   * test services is restored after each attempt.
    */
   def retry[R0, E0](
     schedule: Schedule[R0, TestFailure[E0], Any]
@@ -978,7 +1082,8 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that runs each test with the number of sufficient samples to
-   * check for a random variable set to the specified value.
+   * check for a random variable set to the specified value: each `check` in the
+   * test runs its assertion on `n` generated samples.
    */
   def samples(n: Int): TestAspectPoly =
     new PerTest.Poly {
@@ -998,7 +1103,8 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that executes the members of a suite sequentially.
+   * An aspect that executes the members of a suite sequentially, unless an
+   * aspect applied before it set another execution strategy.
    */
   val sequential: TestAspectPoly =
     executionStrategy(ExecutionStrategy.Sequential)
@@ -1068,7 +1174,8 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that runs each test with the maximum number of shrinkings to
-   * minimize large failures set to the specified value.
+   * minimize large failures set to the specified value. With `0`, a failing
+   * `check` reports the first failing sample.
    */
   def shrinks(n: Int): TestAspectPoly =
     new PerTest.Poly {
@@ -1101,9 +1208,9 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * As aspect that runs each test with the default console logger removed so
-   * that logs are only written to the output buffer and not rendered to
-   * standard output.
+   * An aspect that runs each test with the default ZIO loggers removed, so that
+   * logs are not rendered to standard output. The test logger still receives
+   * them, and `ZTestLogger.logOutput` returns them.
    */
   val silentLogging: TestAspectPoly =
     TestAspect.fromLayer(Runtime.removeDefaultLoggers)
@@ -1127,7 +1234,9 @@ object TestAspect extends TimeoutVariants {
     size(n)
 
   /**
-   * An aspect that converts ignored tests into test failures.
+   * An aspect that converts ignored tests into test failures. It sees only the
+   * tests that are ignored when it is applied, so apply it after `ignore` or a
+   * conditional aspect.
    */
   val success: TestAspectPoly =
     new PerTest.Poly {
@@ -1142,13 +1251,16 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * Annotates tests with string tags.
+   * Annotates tests with string tags, which `Spec#filterTags`,
+   * `Spec#filterNotTags` and the test runner's tag arguments select by.
+   *
+   * @see [[https://zio.dev/reference/test/aspects/annotating-tests/ Annotating Tests]]
    */
   def tag(tag: String, tags: String*): TestAspectPoly =
     annotate(TestAnnotation.tagged, Set(tag) union tags.toSet)
 
   /**
-   * Annotates tests with their execution times.
+   * Annotates tests with their execution times, measured on the live clock.
    */
   val timed: TestAspectPoly =
     new PerTest.Poly {
@@ -1162,9 +1274,25 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * An aspect that times out tests using the specified duration.
+   * An aspect that times out tests using the specified duration. The duration
+   * is measured on the live clock, so `TestClock` does not affect it. A test
+   * that runs longer is interrupted and dies with a `TestTimeoutException`
+   * whose message names the duration. The aspect does not wait for the
+   * interruption to complete, so the test result arrives on time even when the
+   * test cannot be interrupted at once.
+   *
+   * {{{
+   * import zio.{ZIO, durationInt}
+   *
+   * test("finishes in time") {
+   *   ZIO.succeed(assertTrue(1 + 1 == 2))
+   * } @@ TestAspect.timeout(10.seconds)
+   * }}}
+   *
    * @param duration
    *   maximum test duration
+   *
+   * @see [[https://zio.dev/reference/test/aspects/timing-out-tests/ Timing-out Tests]]
    */
   def timeout(
     duration: Duration
@@ -1184,7 +1312,9 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * Verifies the specified post-condition after each test is run.
+   * Verifies the specified post-condition after each test is run. The condition
+   * is checked only after a test passes, and the test fails when the condition
+   * does not hold.
    */
   def verify[R0, E0](condition: => ZIO[R0, E0, TestResult]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect.PerTest[Nothing, R0, E0, Any] {
@@ -1195,12 +1325,15 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * Runs only on Unix / Linux operating systems.
+   * Runs only on operating systems that `System.os` reports as `OS.Unix`: those
+   * whose `os.name` contains "nix", "nux" or "aix", such as Linux. On other
+   * systems, including macOS, the tests are ignored.
    */
   val unix: TestAspectPoly = os(_.isUnix)
 
   /**
-   * Runs only on Windows operating systems.
+   * Runs only on Windows operating systems. On other systems, the tests are
+   * ignored.
    */
   val windows: TestAspectPoly = os(_.isWindows)
 
@@ -1266,12 +1399,23 @@ object TestAspect extends TimeoutVariants {
       withLiveRandom >>>
       withLiveSystem
 
+  /**
+   * A test aspect that transforms each test of a spec on its own, through
+   * `perTest`, and leaves the rest of the spec unchanged. Extend it to write an
+   * aspect that wraps each test's effect.
+   */
   abstract class PerTest[+LowerR, -UpperR, +LowerE, -UpperE] extends TestAspect[LowerR, UpperR, LowerE, UpperE] {
 
+    /**
+     * Transforms the effect of one test.
+     */
     def perTest[R >: LowerR <: UpperR, E >: LowerE <: UpperE](
       test: ZIO[R, TestFailure[E], TestSuccess]
     )(implicit trace: Trace): ZIO[R, TestFailure[E], TestSuccess]
 
+    /**
+     * Applies `perTest` to each test of `spec`.
+     */
     final def some[R >: LowerR <: UpperR, E >: LowerE <: UpperE](
       spec: Spec[R, E]
     )(implicit trace: Trace): Spec[R, E] =
@@ -1280,17 +1424,20 @@ object TestAspect extends TimeoutVariants {
         case c                                => c
       }
   }
+  /**
+   * Type aliases for common kinds of [[TestAspect.PerTest]].
+   */
   object PerTest {
 
     /**
-     * A `PerTest.AtLeast[R]` is a `TestAspect.PerTest` that that requires at
-     * least an `R` in its environment
+     * A `PerTest.AtLeastR[R]` is a `TestAspect.PerTest` that requires at least
+     * an `R` in its environment.
      */
     type AtLeastR[R] = TestAspect.PerTest[Nothing, R, Nothing, Any]
 
     /**
      * A `PerTest.Poly` is a `TestAspect.PerTest` that is completely
-     * polymorphic, having no requirements ZRTestEnv on error or environment.
+     * polymorphic, having no requirements on the error or environment.
      */
     type Poly = TestAspect.PerTest[Nothing, Any, Nothing, Any]
   }
