@@ -222,7 +222,7 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       .getOrElse(spec.spec)
 
   /**
-   * Sets the filter that selects the tests to describe and run: each label of the spec is passed to `filter` as a test description whose class is the spec class and whose method name is the label, and a test is kept when its label or the label of an enclosing suite is accepted. When the filter accepts no label and the spec has no suite built from an effect, the whole spec is kept; when it has one, no test is kept.
+   * Sets the filter that selects the tests to describe and run: each label of the spec is passed to `filter` as a test description whose class is the spec class and whose method name is the label, and a test is kept when its label or the label of an enclosing suite is accepted. When the filter accepts no label, a spec with no part built by an effect is kept whole, and a spec with such a part (for example a suite built from an effect, or a `provideShared` layer) keeps no test.
    */
   override def filter(filter: Filter): Unit =
     this.filter = filter
