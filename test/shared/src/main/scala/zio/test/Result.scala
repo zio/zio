@@ -131,7 +131,7 @@ object FailureCase {
 
   /**
    * Returns the last node of `trace`, following the right side of `>>>`, `&&`
-   * and `||`.
+   * and `||`, and the inside of `!`.
    */
   @tailrec
   def rightmostNode(trace: TestTrace[Boolean]): TestTrace.Node[Boolean] = trace match {

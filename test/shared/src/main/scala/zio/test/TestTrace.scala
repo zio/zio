@@ -13,8 +13,8 @@ import scala.annotation.tailrec
 sealed trait TestTrace[+A] { self =>
 
   /**
-   * Returns the values of the successful nodes of this trace, from left to
-   * right.
+   * Returns the values of the nodes of this trace whose result is `Succeed`,
+   * from left to right, without the nested children of a node.
    */
   def values: List[Any] =
     self.asInstanceOf[TestTrace[Any]] match {
@@ -45,7 +45,8 @@ sealed trait TestTrace[+A] { self =>
     TestTrace.prune(self.asInstanceOf[TestTrace[Boolean]], false).isEmpty
 
   /**
-   * Returns `true` when a node of this trace died with an exception.
+   * Returns `true` when a node of this trace died with an exception; the
+   * nested children of a node are not checked.
    */
   def isDie: Boolean =
     self.asInstanceOf[TestTrace[_]] match {
@@ -95,7 +96,7 @@ sealed trait TestTrace[+A] { self =>
   }
 
   /**
-   * Apply the location to every node in the tree, nested children included. A
+   * Sets the location on every node in the tree, nested children included. A
    * `None` argument leaves the trace unchanged.
    */
   def withLocation(location: Option[String]): TestTrace[A] = if (location.isDefined) {
@@ -144,7 +145,7 @@ sealed trait TestTrace[+A] { self =>
     }
 
   /**
-   * Apply the code to every node in the tree, nested children included. A
+   * Sets the code on every node in the tree, nested children included. A
    * `None` argument leaves the trace unchanged.
    */
   final def withCode(fullCode: Option[String]): TestTrace[A] = if (fullCode.isDefined) {
@@ -212,8 +213,8 @@ sealed trait TestTrace[+A] { self =>
     }
 
   /**
-   * Returns the first generator failure details found in the tree, from left to
-   * right.
+   * Returns the first generator failure details set on a node, from left to
+   * right; the nested children of a node are not searched.
    */
   def getGenFailureDetails: Option[GenFailureDetails] =
     self match {
@@ -249,7 +250,8 @@ sealed trait TestTrace[+A] { self =>
     implies(that)
 
   /**
-   * Logical equivalence: both traces succeed or both fail.
+   * Logical equivalence: both traces succeed or both fail. When either trace
+   * is a single node that died, the result fails.
    */
   final def <==>(that: TestTrace[Boolean])(implicit ev: A <:< Boolean): TestTrace[Boolean] =
     self ==> that && that ==> self.asInstanceOf[TestTrace[Boolean]]
@@ -281,7 +283,8 @@ sealed trait TestTrace[+A] { self =>
 
   /**
    * The result of this trace: the result of its node, of the last step of a
-   * `>>>` chain, or the two sides of `&&` and `||` combined.
+   * `>>>` chain, the two sides of `&&` and `||` combined, or for `!` the
+   * negated result of the inner trace.
    */
   def result: Result[A]
 }
@@ -293,8 +296,11 @@ object TestTrace {
 
   /**
    * Returns the part of `trace` that explains why it failed, or `None` when it
-   * succeeded. Nodes that died are kept. With `negated = true` the trace is
-   * read as negated, so the nodes that succeeded are kept instead.
+   * succeeded. With `negated = true` the trace is read as negated, so the
+   * nodes that succeeded are kept instead, and a negated `&&` is kept only when
+   * both of its sides are kept. A node that died is kept, but inside a negated
+   * `&&` whose other side is not kept it is dropped together with that `&&`,
+   * so `!(a && b)` can succeed even though `a` threw.
    */
   def prune(trace: TestTrace[Boolean], negated: Boolean): Option[TestTrace[Boolean]] =
     trace match {

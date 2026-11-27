@@ -64,20 +64,27 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
   /**
    * Combines this result with `that` by logical or: the combined result
-   * succeeds when at least one succeeds. When either side comes from an
-   * expression that threw an exception, the combined result fails.
+   * succeeds when at least one succeeds. When either side is an `assertTrue`
+   * whose expression threw an exception, the combined result fails, even if
+   * the other side succeeds. A thrown exception inside `&&` that is then
+   * negated is dropped when the other side of that `&&` fails, so
+   * `!(a && b) || c` can succeed even though `a` threw.
    */
   def ||(that: TestResult): TestResult = TestResult(arrow || that.arrow)
 
   /**
    * Negates this result by logical not: the negated result succeeds when this
-   * one fails. A result from an expression that threw an exception still fails.
+   * one fails. Negating an `assertTrue` whose expression threw an exception
+   * still gives a failure. A thrown exception inside `&&` that is then negated
+   * is dropped together with its other side when that side fails, so
+   * `!(a && b)` succeeds when `b` fails even though `a` threw.
    */
   def unary_! : TestResult = TestResult(!arrow)
 
   /**
    * Logical implication: the combined result succeeds when this result fails or
-   * `that` succeeds, the same as `!this || that`.
+   * `that` succeeds, the same as `!this || that`. When either side is an
+   * `assertTrue` whose expression threw an exception, the result fails.
    */
   def implies(that: TestResult): TestResult = !self || that
 
@@ -88,7 +95,8 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
   /**
    * Logical equivalence: the combined result succeeds when both results succeed
-   * or both fail.
+   * or both fail. When either side is an `assertTrue` whose expression threw an
+   * exception, the result fails.
    */
   def iff(that: TestResult): TestResult =
     (self ==> that) && (that ==> self)
@@ -112,7 +120,8 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
 
   /**
    * Returns this result with `details` about the generated input that made it
-   * fail. `check` and its variants call it for a failing sample.
+   * fail. `check` and its variants call it on the result of each sample they
+   * test.
    */
   def setGenFailureDetails(details: GenFailureDetails): TestResult =
     TestResult(arrow.setGenFailureDetails(details))
@@ -180,10 +189,11 @@ object TestResult {
 }
 
 /**
- * A step of an assertion: a function from an `A` to a [[TestTrace]] of `B`,
- * with the source code it came from. `assertTrue` compiles each expression into
- * a chain of arrows joined with `>>>`, and an [[Assertion]] wraps an arrow to
- * `Boolean`. `TestArrow.run` runs one.
+ * A step of an assertion: a function from an `A`, or from an exception thrown
+ * by an earlier step, to a [[TestTrace]] of `B`, with the source code it came
+ * from. `assertTrue` compiles each expression into a chain of arrows joined
+ * with `>>>`, and an [[Assertion]] wraps an arrow to `Boolean`.
+ * `TestArrow.run` runs one.
  */
 sealed trait TestArrow[-A, +B] { self =>
 

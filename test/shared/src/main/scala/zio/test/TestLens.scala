@@ -9,7 +9,7 @@ package zio.test
  *
  * {{{
  * sealed trait Pet
- * final case class Dog(hasBone: Boolean)     extends Pet
+ * final case class Dog(hasBone: Boolean)    extends Pet
  * final case class Cat(livesRemaining: Int) extends Pet
  *
  * val lives: CustomAssertion[Pet, Int] =
@@ -74,9 +74,10 @@ object CustomAssertion {
  * The type of a value inside `value.is(...)` in `assertTrue`. Its extension
  * methods look into the value: `some` for an `Option`, `left` and `right` for
  * an `Either`, `success`, `failure`, `die`, `cause` and `interrupted` for an
- * `Exit`, `success` and `failure` for a `Try`, and `anything`, `subtype` and
- * `custom` for any value. The `assertTrue` macro rewrites these calls; called
- * anywhere else, they throw an exception.
+ * `Exit`, `failure`, `die` and `interrupted` for a `Cause`, `success` and
+ * `failure` for a `Try`, and `anything`, `subtype` and `custom` for any value.
+ * The `assertTrue` macro rewrites these calls; called anywhere else, they
+ * throw an exception.
  *
  * {{{
  * test("nested values") {
