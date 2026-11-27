@@ -49,9 +49,7 @@ import java.util.UUID
  * }}}
  *
  * A derived generator for a case class generates each field with that field's
- * instance, and shrinks the fields with their own generators. A derived
- * generator for a sealed trait picks one of its subtypes with equal
- * probability. To use a type that is neither a case class nor a sealed trait,
+ * instance, and shrinks the fields with their own generators. A derived generator for a sealed trait picks one of its subtypes with equal probability: on Scala 2 among the case classes and objects at the leaves of the hierarchy, and on Scala 3 among the direct subtypes, so a nested sealed trait counts as one subtype. To use a type that is neither a case class nor a sealed trait,
  * give it an implicit `DeriveGen` with `DeriveGen.instance`.
  *
  * On Scala 2, derivation uses Magnolia; on Scala 3, it uses the type's
@@ -469,8 +467,7 @@ object DeriveGen {
     instance(Gen.suspend(Gen.collectAll(caseClass.parameters.map(_.typeclass.derive)).map(caseClass.rawConstruct)))
 
   /**
-   * Derives the `DeriveGen` of a sealed trait: picks one of its subtypes with
-   * equal probability and generates a value with that subtype's instance.
+   * Derives the `DeriveGen` of a sealed trait: picks one of its subtypes with equal probability, counting each case class or object of a nested sealed trait as a separate subtype, and generates a value with that subtype's instance.
    * Magnolia calls it during derivation.
    */
   def split[T](sealedTrait: SealedTrait[Typeclass, T]): Typeclass[T] =
