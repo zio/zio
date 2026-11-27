@@ -34,7 +34,8 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    *   }.provide(cacheLayer, databaseLayer)
    * }}}
    *
-   * @see [[https://zio.dev/reference/test/spec/ Spec]]
+   * @see
+   *   [[https://zio.dev/reference/test/spec/ Spec]]
    */
   def provide[E1 >: E](layer: ZLayer[_, E1, _]*): ZSpec[Any, E1, TestSuccess] =
     macro LayerMacros.provideImpl[ZSpec, R, E1, TestSuccess]
@@ -110,7 +111,8 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    *   ).provideShared(counterLayer)
    * }}}
    *
-   * @see [[https://zio.dev/reference/test/sharing-layers-between-multiple-files/ Sharing Layers between Multiple Files]]
+   * @see
+   *   [[https://zio.dev/reference/test/sharing-layers-between-multiple-files/ Sharing Layers between Multiple Files]]
    */
   def provideShared[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[Any, E1] =
     macro SpecLayerMacros.provideSharedImpl[R, E1]
@@ -209,6 +211,7 @@ final class ProvideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extend
  * `R0` fixed.
  */
 final class ProvideSomeSharedPartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
+
   /**
    * Returns the partially applied form of `Spec#provideSomeLayerShared` for
    * this spec and the remainder `R0`.
@@ -217,10 +220,10 @@ final class ProvideSomeSharedPartiallyApplied[R0, -R, +E](val self: Spec[R, E]) 
     new Spec.ProvideSomeLayerShared[R0, R, E](self)
 
   /**
-   * Builds the part of the environment that `R0` does not contain from
-   * `layer`, wiring the layers together at compile time, once for the whole
-   * spec, and shares the services between its tests, leaving a spec that
-   * requires only `R0`.
+   * Builds the part of the environment that `R0` does not contain from `layer`,
+   * wiring the layers together at compile time, once for the whole spec, and
+   * shares the services between its tests, leaving a spec that requires only
+   * `R0`.
    */
   def apply[E1 >: E](layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
     macro SpecLayerMacros.provideSomeSharedImpl[R0, R, E1]

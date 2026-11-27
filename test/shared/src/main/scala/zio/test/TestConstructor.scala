@@ -6,15 +6,17 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM
 
 /**
- * A type class that turns the body of `test` into a spec. `test` accepts a
- * body of type `In` when an instance exists: a `TestResult`, a `ZIO` or
- * `ZSTM` effect that produces one, or an `Either` whose `Right` holds one.
+ * A type class that turns the body of `test` into a spec. `test` accepts a body
+ * of type `In` when an instance exists: a `TestResult`, a `ZIO` or `ZSTM`
+ * effect that produces one, or an `Either` whose `Right` holds one.
  */
 trait TestConstructor[-Environment, In] {
+
   /**
    * The type of the spec that the test becomes.
    */
   type Out <: Spec[Environment, Any]
+
   /**
    * Builds a test labeled `label` whose body is `assertion`.
    */
@@ -25,6 +27,7 @@ trait TestConstructor[-Environment, In] {
  * The instances of [[TestConstructor]].
  */
 object TestConstructor extends TestConstructorLowPriority1 {
+
   /**
    * A `TestConstructor` whose output type is fixed to `Out0`.
    */

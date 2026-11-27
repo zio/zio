@@ -78,6 +78,7 @@ trait CompileVariants {
    *   [[https://zio.dev/reference/test/assertions/smart-assertions/ Smart Assertions]]
    */
   def assertTrue(expr: Boolean, exprs: Boolean*): TestResult = macro SmartAssertMacros.assert_impl
+
   /**
    * Checks that `expr` is `true`. The one-expression form of `assertTrue`, with
    * the same behaviour as the form that takes several expressions.

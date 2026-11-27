@@ -5,20 +5,22 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stm.ZSTM
 
 /**
- * A type class that turns one argument of `suite` into a spec. `suite`
- * accepts a member of type `In` when an instance exists: a `Spec`, a
- * collection of specs, or a `ZIO` or `ZSTM` effect that produces a collection
- * of specs.
+ * A type class that turns one argument of `suite` into a spec. `suite` accepts
+ * a member of type `In` when an instance exists: a `Spec`, a collection of
+ * specs, or a `ZIO` or `ZSTM` effect that produces a collection of specs.
  */
 trait SuiteConstructor[In] {
+
   /**
    * The environment that the resulting spec requires.
    */
   type OutEnvironment
+
   /**
    * The error type of the resulting spec.
    */
   type OutError
+
   /**
    * Turns `spec` into a spec.
    */

@@ -28,9 +28,9 @@ import scala.jdk.CollectionConverters._
 import scala.math.Numeric.DoubleIsFractional
 
 /**
- * A `Gen[R, A]` generates values of type `A` for property-based tests, using
- * an environment `R`. Each value comes as a [[Sample]] that also carries a
- * tree of simpler values, which `check` uses to shrink a failing input.
+ * A `Gen[R, A]` generates values of type `A` for property-based tests, using an
+ * environment `R`. Each value comes as a [[Sample]] that also carries a tree of
+ * simpler values, which `check` uses to shrink a failing input.
  *
  * A generator is a stream of samples. A random generator such as `Gen.int`
  * produces one sample each time it runs, and `check` runs it repeatedly. A
@@ -51,10 +51,14 @@ import scala.math.Numeric.DoubleIsFractional
  * val threeUsers: UIO[List[User]] = users.runCollectN(3)
  * }}}
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
- * @see [[https://zio.dev/reference/test/property-testing/built-in-generators/ Built-in Generators]]
- * @see [[https://zio.dev/reference/test/property-testing/how-generators-work/ How Generators Work]]
- * @see [[https://zio.dev/reference/test/property-testing/shrinking/ Shrinking]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/built-in-generators/ Built-in Generators]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/how-generators-work/ How Generators Work]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/shrinking/ Shrinking]]
  */
 final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =>
 
@@ -76,9 +80,9 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 
   /**
    * Returns a generator that generates the values of this generator and then
-   * the values of `that` generator. For two deterministic generators the
-   * result is a deterministic generator of both sequences; two random
-   * generators give one value from each.
+   * the values of `that` generator. For two deterministic generators the result
+   * is a deterministic generator of both sequences; two random generators give
+   * one value from each.
    */
   def concat[R1 <: R, A1 >: A](that: Gen[R1, A1])(implicit trace: Trace): Gen[R1, A1] =
     Gen(self.sample ++ that.sample)
@@ -94,11 +98,11 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 
   /**
    * Filters the values produced by this generator, discarding any values that
-   * do not meet the specified predicate. Shrinks that do not meet the
-   * predicate are discarded too. Using `filter` can reduce test performance,
-   * especially if many values must be discarded. It is recommended to use
-   * combinators such as `map` and `flatMap` to create generators of the
-   * desired values instead, as in this generator of even numbers:
+   * do not meet the specified predicate. Shrinks that do not meet the predicate
+   * are discarded too. Using `filter` can reduce test performance, especially
+   * if many values must be discarded. It is recommended to use combinators such
+   * as `map` and `flatMap` to create generators of the desired values instead,
+   * as in this generator of even numbers:
    *
    * {{{
    * val evens: Gen[Any, Int] = Gen.int.map(_ * 2)
@@ -130,8 +134,8 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
     filter(a => !f(a))
 
   /**
-   * The same as `filter`. A `for` comprehension over generators calls it for
-   * an `if` guard.
+   * The same as `filter`. A `for` comprehension over generators calls it for an
+   * `if` guard.
    */
   def withFilter(f: A => Boolean)(implicit trace: Trace): Gen[R, A] = filter(f)
 
@@ -171,15 +175,15 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
     Gen(sample.map(_.map(f)))
 
   /**
-   * Maps an effectual function over a generator. The function is applied to
-   * the shrinks as well.
+   * Maps an effectual function over a generator. The function is applied to the
+   * shrinks as well.
    */
   def mapZIO[R1 <: R, B](f: A => ZIO[R1, Nothing, B])(implicit trace: Trace): Gen[R1, B] =
     Gen(sample.mapZIO(_.foreach(f)))
 
   /**
-   * Discards the shrinker for this generator, so a failing value is reported
-   * as it was generated.
+   * Discards the shrinker for this generator, so a failing value is reported as
+   * it was generated.
    */
   def noShrink(implicit trace: Trace): Gen[R, A] =
     reshrink(Sample.noShrink)
@@ -208,15 +212,15 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
 
   /**
    * Repeatedly runs the generator and collects the specified number of values
-   * in a list. A deterministic generator repeats its sequence. If the
-   * generator produces no values, the effect does not complete.
+   * in a list. A deterministic generator repeats its sequence. If the generator
+   * produces no values, the effect does not complete.
    */
   def runCollectN(n: Int)(implicit trace: Trace): ZIO[R, Nothing, List[A]] =
     sample.map(_.value).forever.take(n.toLong).runCollect.map(_.toList)
 
   /**
-   * Runs the generator and returns its first value, or `None` if it produces
-   * no values.
+   * Runs the generator and returns its first value, or `None` if it produces no
+   * values.
    */
   def runHead(implicit trace: Trace): ZIO[R, Nothing, Option[A]] =
     sample.map(_.value).runHead
@@ -243,11 +247,11 @@ final case class Gen[-R, +A](sample: ZStream[R, Nothing, Sample[R, A]]) { self =
  * Constructors of [[Gen]] values: generators of numbers, characters, strings
  * and collections, of `java.time` values, of functions and of effects.
  *
- * The generators of numbers, characters and collections that take a `min` and
- * a `max` (`int(min, max)`, `listOfBounded(min, max)`, ...) die with an
- * `IllegalArgumentException` when `min` is greater than `max`.
- * A sized generator (`listOf`, `string`, `small`, ...) reads the size of the
- * [[Sized]] service, which is 100 in the test environment.
+ * The generators of numbers, characters and collections that take a `min` and a
+ * `max` (`int(min, max)`, `listOfBounded(min, max)`, ...) die with an
+ * `IllegalArgumentException` when `min` is greater than `max`. A sized
+ * generator (`listOf`, `string`, `small`, ...) reads the size of the [[Sized]]
+ * service, which is 100 in the test environment.
  */
 object Gen extends GenZIO with FunctionVariants with TimeVariants {
 
@@ -297,10 +301,9 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of big decimals between `min` and `max`, both inclusive. The
    * shrinker will shrink toward `min`.
    *
-   * The values are `min` plus a multiple of the smallest step that the scale
-   * of `max - min` allows: for `min = 0.25` and `max = 1.5` the difference
-   * `1.25` has two decimal places, so the values are `0.25`, `0.26`, ...,
-   * `1.50`.
+   * The values are `min` plus a multiple of the smallest step that the scale of
+   * `max - min` allows: for `min = 0.25` and `max = 1.5` the difference `1.25`
+   * has two decimal places, so the values are `0.25`, `0.26`, ..., `1.50`.
    */
   def bigDecimal(min: BigDecimal, max: BigDecimal)(implicit trace: Trace): Gen[Any, BigDecimal] =
     if (min > max)
@@ -316,8 +319,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
    * A generator of [[java.math.BigDecimal]] values between `min` and `max`,
    * both inclusive. The shrinker will shrink toward `min`.
    *
-   * The values are `min` plus a multiple of the smallest step that the scale
-   * of `max - min` allows, as for [[bigDecimal]].
+   * The values are `min` plus a multiple of the smallest step that the scale of
+   * `max - min` allows, as for [[bigDecimal]].
    */
   def bigDecimalJava(min: BigDecimal, max: BigDecimal)(implicit trace: Trace): Gen[Any, java.math.BigDecimal] =
     Gen.bigDecimal(min, max).map(_.underlying)
@@ -363,9 +366,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     elements(false, true)
 
   /**
-   * Passes a size between `min` and `max`, both inclusive, to `f` and
-   * generates the values of the generator it returns. The size shrinks toward
-   * `min`.
+   * Passes a size between `min` and `max`, both inclusive, to `f` and generates
+   * the values of the generator it returns. The size shrinks toward `min`.
    */
   def bounded[R, A](min: Int, max: Int)(f: Int => Gen[R, A])(implicit trace: Trace): Gen[R, A] =
     int(min, max).flatMap(f)
@@ -388,8 +390,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     int(min.toInt, max.toInt).map(_.toByte)
 
   /**
-   * A generator of characters over the whole `Char` range, surrogates
-   * included. Shrinks toward the character with code 0.
+   * A generator of characters over the whole `Char` range, surrogates included.
+   * Shrinks toward the character with code 0.
    */
   def char(implicit trace: Trace): Gen[Any, Char] =
     fromZIOSample {
@@ -441,9 +443,9 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     buildN(n)(g)(Chunk.empty[A])(_ :+ _)(identity)
 
   /**
-   * Composes the specified generators into a generator of lists, with one
-   * value from each generator in order. For deterministic generators the
-   * result is the cartesian product of their values.
+   * Composes the specified generators into a generator of lists, with one value
+   * from each generator in order. For deterministic generators the result is
+   * the cartesian product of their values.
    *
    * {{{
    * // List(List(1, 3), List(1, 4), List(2, 3), List(2, 4))
@@ -485,8 +487,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     Gen(ZStream.succeed(sample))
 
   /**
-   * A generator of the currencies that `java.util.Currency` lists as
-   * available.
+   * A generator of the currencies that `java.util.Currency` lists as available.
    */
   def currency(implicit trace: Trace): Gen[Any, java.util.Currency] =
     elements(java.util.Currency.getAvailableCurrencies.asScala.toSeq: _*)
@@ -534,8 +535,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     if (as.isEmpty) empty else int(0, as.length - 1).map(as)
 
   /**
-   * A generator that produces no values. `check` with a generator that
-   * produces no values does not complete.
+   * A generator that produces no values. `check` with a generator that produces
+   * no values does not complete.
    */
   def empty(implicit trace: Trace): Gen[Any, Nothing] =
     emptyGen
@@ -548,9 +549,9 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     uniform.map(n => -math.log(1 - n))
 
   /**
-   * Constructs a deterministic generator that generates the specified values
-   * in order. The values do not shrink unless a `shrinker` is given, which
-   * returns the shrinks of a value.
+   * Constructs a deterministic generator that generates the specified values in
+   * order. The values do not shrink unless a `shrinker` is given, which returns
+   * the shrinks of a value.
    *
    * {{{
    * val ports: Gen[Any, Int] = Gen.fromIterable(List(80, 443, 8080))
@@ -683,8 +684,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     small(listOfN(_)(g))
 
   /**
-   * A sized generator of non-empty lists. Shrinks toward a list of one
-   * element.
+   * A sized generator of non-empty lists. Shrinks toward a list of one element.
    */
   def listOf1[R, A](g: Gen[R, A])(implicit trace: Trace): Gen[R, ::[A]] =
     for {
@@ -767,8 +767,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   }
 
   /**
-   * A generator of maps whose size is between `min` and `max`, both
-   * inclusive.
+   * A generator of maps whose size is between `min` and `max`, both inclusive.
    */
   def mapOfBounded[R, A, B](min: Int, max: Int)(key: Gen[R, A], value: Gen[R, B])(implicit
     trace: Trace
@@ -812,9 +811,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
 
   /**
    * A generator that chooses one of the specified generators, each with the
-   * same probability, and generates its value. Shrinks toward the values of
-   * the first generator. With no generators it generates nothing, like
-   * [[empty]].
+   * same probability, and generates its value. Shrinks toward the values of the
+   * first generator. With no generators it generates nothing, like [[empty]].
    *
    * {{{
    * val statusCodes: Gen[Any, Int] = Gen.oneOf(Gen.int(200, 299), Gen.int(500, 599))
@@ -869,8 +867,7 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     small(setOfN(_)(gen), min = 1)
 
   /**
-   * A generator of sets whose size is between `min` and `max`, both
-   * inclusive.
+   * A generator of sets whose size is between `min` and `max`, both inclusive.
    */
   def setOfBounded[R, A](min: Int, max: Int)(g: Gen[R, A])(implicit
     trace: Trace
@@ -931,10 +928,10 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   /**
    * A sized generator that passes a size between `min` and the current size,
    * drawn from an exponential distribution, to `f`. The sizes are strongly
-   * concentrated towards the lower end of the range but a few larger sizes
-   * are generated as well: with the default size of 100 the mean size is
-   * about 4. The size shrinks toward `min`. The collection generators such as
-   * [[listOf]] use it.
+   * concentrated towards the lower end of the range but a few larger sizes are
+   * generated as well: with the default size of 100 the mean size is about 4.
+   * The size shrinks toward `min`. The collection generators such as [[listOf]]
+   * use it.
    */
   def small[R, A](f: Int => Gen[R, A], min: Int = 0)(implicit
     trace: Trace
@@ -951,8 +948,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     gen.map(Some(_))
 
   /**
-   * A sized generator of strings of [[unicodeChar]] characters. Shrinks
-   * towards the empty string.
+   * A sized generator of strings of [[unicodeChar]] characters. Shrinks towards
+   * the empty string.
    */
   def string(implicit trace: Trace): Gen[Any, String] =
     Gen.string(Gen.unicodeChar)
@@ -1012,9 +1009,9 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
     small(unfoldGenN(_)(s)(f))
 
   /**
-   * A generator of lists of the specified size, where each list is generated
-   * by repeatedly applying a function to an initial state: `f` returns the
-   * next state and the next element.
+   * A generator of lists of the specified size, where each list is generated by
+   * repeatedly applying a function to an initial state: `f` returns the next
+   * state and the next element.
    */
   def unfoldGenN[R, S, A](n: Int)(s: S)(f: S => Gen[R, (S, A)])(implicit trace: Trace): Gen[R, List[A]] = {
 
@@ -1106,8 +1103,8 @@ object Gen extends GenZIO with FunctionVariants with TimeVariants {
   }
 
   /**
-   * A generator of the characters for which `Char.isWhitespace` is `true`,
-   * each with the same probability. Shrinks toward the tab character.
+   * A generator of the characters for which `Char.isWhitespace` is `true`, each
+   * with the same probability. Shrinks toward the tab character.
    */
   def whitespaceChars(implicit trace: Trace): Gen[Any, Char] =
     Gen.elements((Char.MinValue to Char.MaxValue).filter(_.isWhitespace): _*)

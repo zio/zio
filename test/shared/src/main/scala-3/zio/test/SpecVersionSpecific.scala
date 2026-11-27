@@ -27,7 +27,8 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    *   }.provide(cacheLayer, databaseLayer)
    * }}}
    *
-   * @see [[https://zio.dev/reference/test/spec/ Spec]]
+   * @see
+   *   [[https://zio.dev/reference/test/spec/ Spec]]
    */
   inline def provide[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[Any, E1] =
     ${ SpecLayerMacros.provideImpl[Any, R, E1]('self, 'layer) }
@@ -158,7 +159,8 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    *   ).provideShared(counterLayer)
    * }}}
    *
-   * @see [[https://zio.dev/reference/test/sharing-layers-between-multiple-files/ Sharing Layers between Multiple Files]]
+   * @see
+   *   [[https://zio.dev/reference/test/sharing-layers-between-multiple-files/ Sharing Layers between Multiple Files]]
    */
   inline def provideShared[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[Any, E1] =
     ${ SpecLayerMacros.provideSharedImpl[Any, R, E1]('self, 'layer) }
@@ -194,6 +196,7 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
  * fixed.
  */
 final class ProvideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
+
   /**
    * Builds the part of the environment that `R0` does not contain from `layer`,
    * wiring the layers together at compile time, and provides it to each test,
@@ -209,11 +212,12 @@ final class ProvideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extend
  * `R0` fixed.
  */
 final class ProvideSomeSharedPartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extends AnyVal {
+
   /**
-   * Builds the part of the environment that `R0` does not contain from
-   * `layer`, wiring the layers together at compile time, once for the whole
-   * spec, and shares the services between its tests, leaving a spec that
-   * requires only `R0`.
+   * Builds the part of the environment that `R0` does not contain from `layer`,
+   * wiring the layers together at compile time, once for the whole spec, and
+   * shares the services between its tests, leaving a spec that requires only
+   * `R0`.
    */
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
     ${ SpecLayerMacros.provideSomeSharedImpl[R0, R, E1]('self, 'layer) }

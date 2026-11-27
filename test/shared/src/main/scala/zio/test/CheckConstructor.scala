@@ -7,8 +7,8 @@ import zio.stm.ZSTM
 /**
  * A type class that turns the body of a property (the function passed to
  * `check`, `checkAll`, `checkN` or `checkPar`) into an effect that produces a
- * [[TestResult]]. Instances exist for a `TestResult`, and for a `ZIO`, a
- * `ZSTM` or an `Either` whose success type is a `TestResult`.
+ * [[TestResult]]. Instances exist for a `TestResult`, and for a `ZIO`, a `ZSTM`
+ * or an `Either` whose success type is a `TestResult`.
  *
  * @tparam Environment
  *   the environment of the generator
@@ -16,10 +16,13 @@ import zio.stm.ZSTM
  *   the type of the property body
  */
 trait CheckConstructor[Environment, In] {
+
   /** The environment that the resulting effect requires. */
   type OutEnvironment <: Environment
+
   /** The error type of the resulting effect. */
   type OutError
+
   /** Turns `input` into an effect that produces its `TestResult`. */
   def apply(input: => In)(implicit trace: Trace): ZIO[OutEnvironment, OutError, TestResult]
 }
@@ -58,8 +61,8 @@ trait CheckConstructorLowPriority1 extends CheckConstructorLowPriority2 {
 
   /**
    * Uses an effect that produces a `TestResult` as it is. Its environment is
-   * added to the generator's environment, and its error type becomes the
-   * output error type.
+   * added to the generator's environment, and its error type becomes the output
+   * error type.
    */
   implicit def AssertZIOConstructor[R, R1, E, A <: TestResult]
     : CheckConstructor.WithOut[R, ZIO[R1, E, A], R with R1, E] =

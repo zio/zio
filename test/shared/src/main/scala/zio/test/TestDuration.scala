@@ -40,8 +40,8 @@ sealed trait TestDuration { self =>
     toDuration.render
 
   /**
-   * Returns the length of this duration: the time from its start to its end,
-   * or `Duration.Zero` for `TestDuration.zero`.
+   * Returns the length of this duration: the time from its start to its end, or
+   * `Duration.Zero` for `TestDuration.zero`.
    */
   final def toDuration: Duration =
     self match {

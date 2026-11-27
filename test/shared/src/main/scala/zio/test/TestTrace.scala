@@ -348,11 +348,13 @@ object TestTrace {
    * The annotations of a trace node.
    */
   object Annotation {
+
     /**
      * Marks a node that passes on an exception from an earlier step; `prune`
      * reports the earlier step instead.
      */
     case object Rethrow extends Annotation {
+
       /**
        * Returns `true` when `value` contains `Rethrow`.
        */
@@ -410,19 +412,23 @@ object TestTrace {
   /**
    * A failed trace with the default message.
    */
-  val fail: TestTrace[Nothing]                        = Node(Result.Fail)
+  val fail: TestTrace[Nothing] = Node(Result.Fail)
+
   /**
    * A failed trace with `message`.
    */
-  def fail(message: String): TestTrace[Nothing]       = Node(Result.Fail, message = ErrorMessage.text(message))
+  def fail(message: String): TestTrace[Nothing] = Node(Result.Fail, message = ErrorMessage.text(message))
+
   /**
    * A failed trace with `message`.
    */
   def fail(message: ErrorMessage): TestTrace[Nothing] = Node(Result.Fail, message = message)
+
   /**
    * A successful trace holding `value`.
    */
-  def succeed[A](value: A): TestTrace[A]              = Node(Result.succeed(value))
+  def succeed[A](value: A): TestTrace[A] = Node(Result.succeed(value))
+
   /**
    * A successful trace holding the content of `value`, or a failed one with
    * `message` when `value` is `None`.

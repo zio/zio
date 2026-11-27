@@ -54,8 +54,8 @@ final case class Sample[-R, +A](value: A, shrink: ZStream[R, Nothing, Sample[R, 
   }
 
   /**
-   * Applies the effectual function `f` to the value of this sample, and to
-   * each shrink when the shrink tree is explored.
+   * Applies the effectual function `f` to the value of this sample, and to each
+   * shrink when the shrink tree is explored.
    */
   def foreach[R1 <: R, B](f: A => ZIO[R1, Nothing, B])(implicit trace: Trace): ZIO[R1, Nothing, Sample[R1, B]] =
     f(value).map(Sample(_, shrink.mapZIO(_.foreach(f))))
@@ -103,10 +103,10 @@ object Sample {
     Sample(a, ZStream.empty)
 
   /**
-   * Creates a sample of `a` that shrinks toward `smallest`. The first shrink
-   * is halfway between `smallest` and `a`, and each next one halves the
-   * remaining distance to `a`; the list stops once that distance is below
-   * `0.001`. Following the shrinks of the shrinks reaches `smallest`.
+   * Creates a sample of `a` that shrinks toward `smallest`. The first shrink is
+   * halfway between `smallest` and `a`, and each next one halves the remaining
+   * distance to `a`; the list stops once that distance is below `0.001`.
+   * Following the shrinks of the shrinks reaches `smallest`.
    *
    * {{{
    * import zio._
@@ -130,8 +130,8 @@ object Sample {
     }
 
   /**
-   * Creates a sample of `a` that shrinks toward `smallest`. The first shrink
-   * is halfway between `smallest` and `a` (rounded toward `smallest`), and each
+   * Creates a sample of `a` that shrinks toward `smallest`. The first shrink is
+   * halfway between `smallest` and `a` (rounded toward `smallest`), and each
    * next one halves the remaining distance to `a`. Following the shrinks of the
    * shrinks reaches `smallest`.
    *

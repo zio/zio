@@ -122,6 +122,7 @@ case class TestResult(arrow: TestArrow[Any, Boolean]) { self =>
  * Constructors and conversions for [[TestResult]].
  */
 object TestResult {
+
   /**
    * Returns a result that succeeds when all the given results succeed.
    */
@@ -492,6 +493,7 @@ object TestArrow {
    * the source of an assertion.
    */
   case class Span(start: Int, end: Int) {
+
     /**
      * Returns the part of `str` from `start` to `end`, after limiting both to
      * the bounds of `str`. It returns an empty string when `start` is not less
@@ -518,34 +520,41 @@ object TestArrow {
     customLabel: Option[String],
     genFailureDetails: Option[GenFailureDetails]
   ) extends TestArrow[A, B] {
+
     /**
      * The arguments recorded with the code; empty unless set by `withCode`.
      */
     def codeArguments: Chunk[Arguments] = Chunk.empty
   }
+
   /**
    * An arrow defined by a function from a value, or an exception from an
    * earlier step, to a trace.
    */
-  case class TestArrowF[-A, +B](f: Either[Throwable, A] => TestTrace[B])       extends TestArrow[A, B]
+  case class TestArrowF[-A, +B](f: Either[Throwable, A] => TestTrace[B]) extends TestArrow[A, B]
+
   /**
    * Two arrows composed with `>>>`.
    */
-  case class AndThen[A, B, C](f: TestArrow[A, B], g: TestArrow[B, C])          extends TestArrow[A, C]
+  case class AndThen[A, B, C](f: TestArrow[A, B], g: TestArrow[B, C]) extends TestArrow[A, C]
+
   /**
    * Two Boolean arrows combined with `&&`.
    */
   case class And[A](left: TestArrow[A, Boolean], right: TestArrow[A, Boolean]) extends TestArrow[A, Boolean]
+
   /**
    * Two Boolean arrows combined with `||`.
    */
-  case class Or[A](left: TestArrow[A, Boolean], right: TestArrow[A, Boolean])  extends TestArrow[A, Boolean]
+  case class Or[A](left: TestArrow[A, Boolean], right: TestArrow[A, Boolean]) extends TestArrow[A, Boolean]
+
   /**
    * A Boolean arrow negated with `!`.
    */
-  case class Not[A](arrow: TestArrow[A, Boolean])                              extends TestArrow[A, Boolean]
+  case class Not[A](arrow: TestArrow[A, Boolean]) extends TestArrow[A, Boolean]
+
   /**
    * An arrow that builds the arrow to run from its input; see `suspend`.
    */
-  case class Suspend[A, B](f: A => TestArrow[Any, B])                          extends TestArrow[A, B]
+  case class Suspend[A, B](f: A => TestArrow[Any, B]) extends TestArrow[A, B]
 }

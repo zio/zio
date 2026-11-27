@@ -25,10 +25,11 @@ import scala.collection.immutable.SortedSet
 
 /**
  * A type of annotation: `identifier` names it, `initial` is its value before
- * anything is added, and `combine` merges two values. Two annotations are
- * equal when their identifiers and value types are equal.
+ * anything is added, and `combine` merges two values. Two annotations are equal
+ * when their identifiers and value types are equal.
  *
- * @see [[https://zio.dev/reference/test/aspects/annotating-tests/ Annotating Tests]]
+ * @see
+ *   [[https://zio.dev/reference/test/aspects/annotating-tests/ Annotating Tests]]
  */
 final class TestAnnotation[V] private (
   val identifier: String,

@@ -27,11 +27,11 @@ import scala.language.implicitConversions
 /**
  * _ZIO Test_ is a testing library for effectful programs.
  *
- * Every spec is an ordinary immutable value, built with `suite` and `test`
- * and composed like any other value. Because specs are ZIO effects, they can
- * use resources (including those requiring disposal), run sequentially or in
- * parallel, and use the ZIO combinators. Property-based tests use [[Gen]]
- * with `check`.
+ * Every spec is an ordinary immutable value, built with `suite` and `test` and
+ * composed like any other value. Because specs are ZIO effects, they can use
+ * resources (including those requiring disposal), run sequentially or in
+ * parallel, and use the ZIO combinators. Property-based tests use [[Gen]] with
+ * `check`.
  *
  * {{{
  * import zio.test._
@@ -48,9 +48,11 @@ import scala.language.implicitConversions
  * }
  * }}}
  *
- * @see [[https://zio.dev/reference/test/ ZIO Test]]
+ * @see
+ *   [[https://zio.dev/reference/test/ ZIO Test]]
  */
 package object test extends CompileVariants {
+
   /**
    * The services that ZIO Test provides to every test: [[Annotations]],
    * [[Live]], [[Sized]] and [[TestConfig]]. The test versions of the default
@@ -74,10 +76,10 @@ package object test extends CompileVariants {
      * A layer that builds a `TestEnvironment` on top of the given live `Clock`,
      * `Console`, `System` and `Random` services, which the [[Live]] service
      * gives access to. While the layer's scope is open, it installs a
-     * `TestClock`, `TestConsole`, `TestRandom` and `TestSystem` as the
-     * default services, and it restores the previous ones when the scope
-     * closes. Its `Sized` service has size 100, and its `TestConfig` has 100
-     * repeats, 100 retries, 200 samples and 1000 shrinks.
+     * `TestClock`, `TestConsole`, `TestRandom` and `TestSystem` as the default
+     * services, and it restores the previous ones when the scope closes. Its
+     * `Sized` service has size 100, and its `TestConfig` has 100 repeats, 100
+     * retries, 200 samples and 1000 shrinks.
      */
     val live: ZLayer[Clock with Console with System with Random, Nothing, TestEnvironment] =
       make(installMonotonicFiberIds = false)
@@ -461,15 +463,15 @@ package object test extends CompileVariants {
     assertImpl(true)(Assertion.isTrue)
 
   /**
-   * Returns an effect that succeeds with a test result that always succeeds,
-   * as [[assertCompletes]] does.
+   * Returns an effect that succeeds with a test result that always succeeds, as
+   * [[assertCompletes]] does.
    */
   def assertCompletesZIO(implicit trace: Trace, sourceLocation: SourceLocation): UIO[TestResult] =
     ZIO.succeed(assertCompletes)
 
   /**
-   * Returns a test result that always fails, labelled with `message`. Use it
-   * in a branch that the test should never reach.
+   * Returns a test result that always fails, labelled with `message`. Use it in
+   * a branch that the test should never reach.
    */
   def assertNever(message: String)(implicit trace: Trace, sourceLocation: SourceLocation): TestResult =
     assertImpl(true)(Assertion.equalTo(false)) ?? message
@@ -480,11 +482,10 @@ package object test extends CompileVariants {
    * default and which `TestAspect.samples` changes.
    *
    * The check stops at the first failing sample and shrinks it, trying up to
-   * the `shrinks` setting of `TestConfig` (1000 by default) smaller inputs,
-   * and the result reports the smallest failing input it found. A test effect
-   * that fails with an error counts as a failing sample, and its input is
-   * shrunk the same way. A generator that produces no values makes the check
-   * run forever.
+   * the `shrinks` setting of `TestConfig` (1000 by default) smaller inputs, and
+   * the result reports the smallest failing input it found. A test effect that
+   * fails with an error counts as a failing sample, and its input is shrunk the
+   * same way. A generator that produces no values makes the check run forever.
    *
    * {{{
    * import zio.test._
@@ -498,7 +499,8 @@ package object test extends CompileVariants {
    * }
    * }}}
    *
-   * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+   * @see
+   *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
    */
   def check[R <: ZAny, A, In](rv: Gen[R, A])(test: A => In)(implicit
     checkConstructor: CheckConstructor[R, In],
@@ -764,10 +766,10 @@ package object test extends CompileVariants {
 
   /**
    * Checks in parallel the effectual test passes for all values from the given
-   * random variable, running the test on up to `parallelism` values at the
-   * same time. This is useful for deterministic `Gen` that comprehensively
-   * explore all possibilities in a given domain. A failing value is shrunk as
-   * in `check`.
+   * random variable, running the test on up to `parallelism` values at the same
+   * time. This is useful for deterministic `Gen` that comprehensively explore
+   * all possibilities in a given domain. A failing value is shrunk as in
+   * `check`.
    */
   def checkAllPar[R <: ZAny, E, A, In](rv: Gen[R, A], parallelism: Int)(
     test: A => In
@@ -1152,6 +1154,7 @@ package object test extends CompileVariants {
      * property to check the property for `n` samples.
      */
     final class CheckN(private val n: Int) extends AnyVal {
+
       /**
        * Checks the test passes for `n` samples from the given random variable.
        * On the first failure it shrinks the failing input, as `check` does.
@@ -1161,6 +1164,7 @@ package object test extends CompileVariants {
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkStream(rv.sample.forever.take(n.toLong))(a => checkConstructor(test(a)))
+
       /** A version of `apply` that accepts two random variables. */
       def apply[R <: ZAny, A, B, In](rv1: Gen[R, A], rv2: Gen[R, B])(
         test: (A, B) => In
@@ -1169,6 +1173,7 @@ package object test extends CompileVariants {
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2)(test.tupled)
+
       /** A version of `apply` that accepts three random variables. */
       def apply[R <: ZAny, A, B, C, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C])(
         test: (A, B, C) => In
@@ -1177,6 +1182,7 @@ package object test extends CompileVariants {
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3)(test.tupled)
+
       /** A version of `apply` that accepts four random variables. */
       def apply[R <: ZAny, A, B, C, D, In](rv1: Gen[R, A], rv2: Gen[R, B], rv3: Gen[R, C], rv4: Gen[R, D])(
         test: (A, B, C, D) => In
@@ -1185,6 +1191,7 @@ package object test extends CompileVariants {
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4)(test.tupled)
+
       /** A version of `apply` that accepts five random variables. */
       def apply[R <: ZAny, A, B, C, D, F, In](
         rv1: Gen[R, A],
@@ -1199,6 +1206,7 @@ package object test extends CompileVariants {
         trace: Trace
       ): ZIO[checkConstructor.OutEnvironment, checkConstructor.OutError, TestResult] =
         checkN(n)(rv1 <*> rv2 <*> rv3 <*> rv4 <*> rv5)(test.tupled)
+
       /** A version of `apply` that accepts six random variables. */
       def apply[R <: ZAny, A, B, C, D, F, G, In](
         rv1: Gen[R, A],
@@ -1464,12 +1472,14 @@ package object test extends CompileVariants {
 
   /** Combinators for effects that produce a [[TestResult]]. */
   implicit final class TestResultZIOOps[R, E](private val self: ZIO[R, E, TestResult]) extends AnyVal {
+
     /**
      * Runs this effect and then `that` effect, and combines their results with
      * logical and (`&&`).
      */
     def &&[R1 <: R, E1 >: E](that: => ZIO[R1, E1, TestResult])(implicit trace: Trace): ZIO[R1, E1, TestResult] =
       self.zipWith(that)(_ && _)
+
     /**
      * Runs this effect and then `that` effect, and combines their results with
      * logical or (`||`).

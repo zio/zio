@@ -68,10 +68,9 @@ trait GenZIO {
   }
 
   /**
-   * Calls `chainedN` with a count drawn as in `Gen.small`, which can be 0.
-   * For a count of 0 the generator dies with an
-   * `UnsupportedOperationException`, and for any other count it generates one
-   * effect of `gen`, not a chain.
+   * Calls `chainedN` with a count drawn as in `Gen.small`, which can be 0. For
+   * a count of 0 the generator dies with an `UnsupportedOperationException`,
+   * and for any other count it generates one effect of `gen`, not a chain.
    */
   final def chained[R, Env, E, A](gen: Gen[R, ZIO[Env, E, A]])(implicit
     trace: Trace
@@ -89,9 +88,9 @@ trait GenZIO {
     Gen.listOfN(n min 1)(zio).map(_.reduce(_ *> _))
 
   /**
-   * A generator of the specified effect raced with `ZIO.never`. When the
-   * effect succeeds the result is the same as the effect's. When the effect
-   * fails, the race waits for `ZIO.never`, so the result does not complete.
+   * A generator of the specified effect raced with `ZIO.never`. When the effect
+   * succeeds the result is the same as the effect's. When the effect fails, the
+   * race waits for `ZIO.never`, so the result does not complete.
    */
   final def concurrent[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): Gen[Any, ZIO[R, E, A]] =
     Gen.const(zio.race(ZIO.never))

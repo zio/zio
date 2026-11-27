@@ -37,9 +37,9 @@ final class CustomAssertion[A, B] private[test] (private[test] val run: A => Eit
 object CustomAssertion {
 
   /**
-   * Creates a [[CustomAssertion]] from a function from `A` to
-   * `Either[String, B]`. Returning `Right(b)` continues the assertion with `b`,
-   * whereas `Left(message)` makes it fail with `message`.
+   * Creates a [[CustomAssertion]] from a function from `A` to `Either[String,
+   * B]`. Returning `Right(b)` continues the assertion with `b`, whereas
+   * `Left(message)` makes it fail with `message`.
    *
    * {{{
    * sealed trait Color
@@ -61,6 +61,7 @@ object CustomAssertion {
    * that the output type `B` is inferred from the function.
    */
   final class MakePartiallyApplied[A] {
+
     /**
      * Creates a [[CustomAssertion]] from `run`.
      */

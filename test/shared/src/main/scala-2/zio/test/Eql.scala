@@ -32,10 +32,12 @@ import scala.annotation.implicitNotFound
     "they cannot be equal."
 )
 sealed abstract class Eql[A, B]
+
 /**
  * Provides `Eql[A, B]` when `A` is a subtype of `B` or `B` is a subtype of `A`.
  */
 object Eql extends EqlLowPriority {
+
   /**
    * Provides `Eql[A, B]` when `A` is a subtype of `B`.
    */

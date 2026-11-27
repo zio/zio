@@ -10,23 +10,27 @@ import scala.collection.immutable.SortedSet
  * The `Annotations` trait provides access to an annotation map that tests can
  * add arbitrary annotations to. Each annotation consists of a string
  * identifier, an initial value, and a function for combining two values. You
- * can think of `Annotations` as a more structured logging service or as a
- * super polymorphic version of the writer monad effect. Each test gets its own
+ * can think of `Annotations` as a more structured logging service or as a super
+ * polymorphic version of the writer monad effect. Each test gets its own
  * `Annotations` service.
  *
- * @see [[https://zio.dev/reference/test/aspects/annotating-tests/ Annotating Tests]]
+ * @see
+ *   [[https://zio.dev/reference/test/aspects/annotating-tests/ Annotating Tests]]
  */
 trait Annotations extends Serializable {
+
   /**
    * Combines `value` with the current value of the annotation `key` in this
    * service's map, using the annotation's `combine` function.
    */
   def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: Trace): UIO[Unit]
+
   /**
-   * Returns the current value of the annotation `key` in this service's map,
-   * or its initial value when nothing has been added to it.
+   * Returns the current value of the annotation `key` in this service's map, or
+   * its initial value when nothing has been added to it.
    */
   def get[V](key: TestAnnotation[V])(implicit trace: Trace): UIO[V]
+
   /**
    * Returns an effect that runs `zio` and, when it finishes, adds this
    * service's current annotation map to the annotations of its result, whether
@@ -35,6 +39,7 @@ trait Annotations extends Serializable {
   def withAnnotation[R, E](zio: ZIO[R, TestFailure[E], TestSuccess])(implicit
     trace: Trace
   ): ZIO[R, TestFailure[E], TestSuccess]
+
   /**
    * Returns the fibers that ZIO Test has recorded for the current test in the
    * `TestAnnotation.fibers` annotation, without the calling fiber. The set is
@@ -43,6 +48,7 @@ trait Annotations extends Serializable {
   def supervisedFibers(implicit trace: Trace): UIO[SortedSet[Fiber.Runtime[Any, Any]]]
   private[zio] def unsafe: UnsafeAPI
   private[zio] trait UnsafeAPI {
+
     /**
      * Combines `value` with the current value of the annotation `key` right
      * away, outside of an effect.
@@ -72,18 +78,21 @@ object Annotations {
    * map in `ref`.
    */
   final case class Test(ref: Ref.Atomic[TestAnnotationMap]) extends Annotations {
+
     /**
      * Combines `value` with the current value of the annotation `key` in this
      * service's map, using the annotation's `combine` function.
      */
     def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: Trace): UIO[Unit] =
       ref.update(_.annotate(key, value))
+
     /**
      * Returns the current value of the annotation `key` in this service's map,
      * or its initial value when nothing has been added to it.
      */
     def get[V](key: TestAnnotation[V])(implicit trace: Trace): UIO[V] =
       ZIO.succeed(ref.unsafe.get(Unsafe).get(key))
+
     /**
      * Returns an effect that runs `zio` and, when it finishes, adds this
      * service's current annotation map to the annotations of its result,
@@ -93,6 +102,7 @@ object Annotations {
       trace: Trace
     ): ZIO[R, TestFailure[E], TestSuccess] =
       zio.mapBoth(_.annotated(ref.unsafe.get(Unsafe)), _.annotated(ref.unsafe.get(Unsafe)))
+
     /**
      * Returns the fibers that ZIO Test has recorded for the current test in the
      * `TestAnnotation.fibers` annotation, without the calling fiber. The set is

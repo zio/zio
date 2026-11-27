@@ -14,6 +14,7 @@ import scala.annotation.tailrec
  * the step did not hold, or `Die` when it threw an exception.
  */
 sealed trait Result[+A] { self =>
+
   /**
    * Returns `true` for `Fail` and `Die`.
    */
@@ -50,6 +51,7 @@ sealed trait Result[+A] { self =>
  * Constructors and cases of [[Result]].
  */
 object Result {
+
   /**
    * A successful result holding `value`.
    */
@@ -68,11 +70,13 @@ object Result {
   /**
    * The result of a step that did not hold.
    */
-  case object Fail                 extends Result[Nothing]
+  case object Fail extends Result[Nothing]
+
   /**
    * The result of a step that threw `err`.
    */
-  case class Die(err: Throwable)   extends Result[Nothing]
+  case class Die(err: Throwable) extends Result[Nothing]
+
   /**
    * The result of a step that produced `value`.
    */
@@ -99,6 +103,7 @@ case class FailureCase(
  * Builds [[FailureCase]] values from a [[TestTrace]].
  */
 object FailureCase {
+
   /**
    * Formats `string` for the test report, marking the part in `span`, and the
    * enclosing part in `parentSpan` when it contains `span`.

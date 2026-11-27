@@ -28,16 +28,15 @@ import scala.collection.immutable.SortedSet
 import scala.collection.mutable
 
 /**
- * A `TestAspect` changes how the tests of a spec run without changing the
- * tests themselves: it can time out tests, repeat or retry them, ignore them,
- * run them only on some platforms, set the execution strategy of suites, or
- * run effects before and after them. Apply one to a spec with `@@`. In
- * `spec @@ a @@ b`, the aspect `a` is applied first and `b` is applied to the
- * result.
+ * A `TestAspect` changes how the tests of a spec run without changing the tests
+ * themselves: it can time out tests, repeat or retry them, ignore them, run
+ * them only on some platforms, set the execution strategy of suites, or run
+ * effects before and after them. Apply one to a spec with `@@`. When several
+ * aspects are chained with `@@`, the leftmost one is applied first and each
+ * later one is applied to the result.
  *
- * An aspect accepts specs whose environment `R` satisfies
- * `LowerR <: R <: UpperR` and whose error type `E` satisfies
- * `LowerE <: E <: UpperE`.
+ * An aspect accepts specs whose environment `R` satisfies `LowerR <: R <:
+ * UpperR` and whose error type `E` satisfies `LowerE <: E <: UpperE`.
  *
  * {{{
  * import zio.durationInt
@@ -53,7 +52,8 @@ import scala.collection.mutable
  *   ) @@ TestAspect.sequential
  * }}}
  *
- * @see [[https://zio.dev/reference/test/aspects/ Test Aspects]]
+ * @see
+ *   [[https://zio.dev/reference/test/aspects/ Test Aspects]]
  */
 abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
 
@@ -113,10 +113,12 @@ abstract class TestAspect[+LowerR, -UpperR, +LowerE, -UpperE] { self =>
   ): TestAspect[LowerR1, UpperR1, LowerE1, UpperE1] =
     self >>> that
 }
+
 /**
  * The predefined test aspects.
  *
- * @see [[https://zio.dev/reference/test/aspects/ Test Aspects]]
+ * @see
+ *   [[https://zio.dev/reference/test/aspects/ Test Aspects]]
  */
 object TestAspect extends TimeoutVariants {
 
@@ -141,7 +143,8 @@ object TestAspect extends TimeoutVariants {
    * `provideLayerShared` and `aroundAll` create) is dropped without acquiring
    * its resources, and the tests inside it are not reported at all.
    *
-   * @see [[https://zio.dev/reference/test/aspects/ Test Aspects]]
+   * @see
+   *   [[https://zio.dev/reference/test/aspects/ Test Aspects]]
    */
   val ignore: TestAspectPoly =
     new TestAspectPoly {
@@ -266,7 +269,8 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that adds `value` to the annotation `key` of each test.
    *
-   * @see [[https://zio.dev/reference/test/aspects/annotating-tests/ Annotating Tests]]
+   * @see
+   *   [[https://zio.dev/reference/test/aspects/annotating-tests/ Annotating Tests]]
    */
   def annotate[V](key: TestAnnotation[V], value: V): TestAspectPoly =
     new TestAspectPoly {
@@ -577,8 +581,8 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that sets suites to the specified execution strategy, but only if
    * their current strategy is inherited (undefined). When several of these
-   * aspects are applied, the one applied first wins: in
-   * `spec @@ sequential @@ parallel` the suites run sequentially.
+   * aspects are applied, the one applied first wins: in `spec @@ sequential @@
+   * parallel` the suites run sequentially.
    */
   def executionStrategy(exec: ExecutionStrategy): TestAspectPoly =
     new TestAspectPoly {
@@ -664,7 +668,8 @@ object TestAspect extends TimeoutVariants {
    * with `retries`): a test that keeps failing runs that many times plus one.
    * The state of the test services is restored after each attempt.
    *
-   * @see [[https://zio.dev/reference/test/aspects/ Test Aspects]]
+   * @see
+   *   [[https://zio.dev/reference/test/aspects/ Test Aspects]]
    */
   val flaky: TestAspectPoly = {
     val flaky = new PerTest.Poly {
@@ -911,7 +916,8 @@ object TestAspect extends TimeoutVariants {
    * test runs that many times plus one. The state of the test services is
    * restored after each run.
    *
-   * @see [[https://zio.dev/reference/test/aspects/ Test Aspects]]
+   * @see
+   *   [[https://zio.dev/reference/test/aspects/ Test Aspects]]
    */
   val nonFlaky: TestAspectPoly = {
     val nonFlaky = new PerTest.Poly {
@@ -925,8 +931,8 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that repeats the test a specified number of times, ensuring it is
-   * stable ("non-flaky"). Stops at the first failure. A passing test runs
-   * `n + 1` times, or twice when `n` is 0. The state of the test services is
+   * stable ("non-flaky"). Stops at the first failure. A passing test runs `n +
+   * 1` times, or twice when `n` is 0. The state of the test services is
    * restored after each run.
    */
   def nonFlaky(n: Int): TestAspectPoly = {
@@ -1040,8 +1046,9 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that runs each test with the number of times to retry flaky tests
    * set to the specified value. It sets `TestConfig.retries`, which `flaky`
-   * reads; on its own it does not retry anything. Apply it after `flaky`:
-   * `test @@ flaky @@ retries(5)`.
+   * reads; on its own it does not retry anything. Apply it after `flaky` (to
+   * the right of it in an `@@` chain) so that `flaky` reads the new value;
+   * applied before `flaky`, it does not change how often `flaky` retries.
    */
   def retries(n: Int): TestAspectPoly =
     new PerTest.Poly {
@@ -1254,7 +1261,8 @@ object TestAspect extends TimeoutVariants {
    * Annotates tests with string tags, which `Spec#filterTags`,
    * `Spec#filterNotTags` and the test runner's tag arguments select by.
    *
-   * @see [[https://zio.dev/reference/test/aspects/annotating-tests/ Annotating Tests]]
+   * @see
+   *   [[https://zio.dev/reference/test/aspects/annotating-tests/ Annotating Tests]]
    */
   def tag(tag: String, tags: String*): TestAspectPoly =
     annotate(TestAnnotation.tagged, Set(tag) union tags.toSet)
@@ -1292,7 +1300,8 @@ object TestAspect extends TimeoutVariants {
    * @param duration
    *   maximum test duration
    *
-   * @see [[https://zio.dev/reference/test/aspects/timing-out-tests/ Timing-out Tests]]
+   * @see
+   *   [[https://zio.dev/reference/test/aspects/timing-out-tests/ Timing-out Tests]]
    */
   def timeout(
     duration: Duration
@@ -1424,6 +1433,7 @@ object TestAspect extends TimeoutVariants {
         case c                                => c
       }
   }
+
   /**
    * Type aliases for common kinds of [[TestAspect.PerTest]].
    */

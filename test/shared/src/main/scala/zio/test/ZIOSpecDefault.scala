@@ -27,7 +27,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * }
  * }}}
  *
- * @see [[https://zio.dev/reference/test/ ZIO Test]]
+ * @see
+ *   [[https://zio.dev/reference/test/ ZIO Test]]
  */
 abstract class ZIOSpecDefault extends ZIOSpec[TestEnvironment] {
 

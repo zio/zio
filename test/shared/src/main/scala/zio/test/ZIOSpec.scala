@@ -22,9 +22,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * The base class for a test suite whose tests need an environment `R` in
- * addition to `TestEnvironment`. Define `bootstrap` as a layer that builds
- * `R`: ZIO Test builds it before the tests run and shares its services with
- * all of them. `ZIOSpecDefault` is the variant without extra services.
+ * addition to `TestEnvironment`. Define `bootstrap` as a layer that builds `R`:
+ * ZIO Test builds it before the tests run and shares its services with all of
+ * them. `ZIOSpecDefault` is the variant without extra services.
  *
  * {{{
  * import zio.{ULayer, ZIO, ZLayer}
@@ -44,9 +44,11 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * }
  * }}}
  *
- * @see [[https://zio.dev/reference/test/sharing-layers-between-multiple-files/ Sharing Layers between Multiple Files]]
+ * @see
+ *   [[https://zio.dev/reference/test/sharing-layers-between-multiple-files/ Sharing Layers between Multiple Files]]
  */
 abstract class ZIOSpec[R: EnvironmentTag] extends ZIOSpecAbstract with ZIOSpecVersionSpecific[R] { self =>
+
   /**
    * The environment that `bootstrap` builds: `R`.
    */

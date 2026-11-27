@@ -1161,6 +1161,7 @@ object Assertion extends AssertionVariants {
         name.map(n => s"$n=$value").getOrElse(s"$value")
     }
   }
+
   /**
    * Constructors and cases of `Arguments`.
    */
@@ -1212,11 +1213,13 @@ object Assertion extends AssertionVariants {
     /**
      * An argument that is itself an assertion.
      */
-    final case class AssertionArgument[A](assertion: Assertion[A])           extends Arguments
+    final case class AssertionArgument[A](assertion: Assertion[A]) extends Arguments
+
     /**
      * An argument that is a type, given by its `ClassTag`.
      */
-    final case class TypeArgument[A](classTag: ClassTag[A])                  extends Arguments
+    final case class TypeArgument[A](classTag: ClassTag[A]) extends Arguments
+
     /**
      * An argument that is a value, with an optional parameter name.
      */

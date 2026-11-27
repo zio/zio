@@ -30,7 +30,8 @@ private[test] trait ZIOSpecVersionSpecific[R] { self: ZIOSpec[R] =>
    * }
    * }}}
    *
-   * @see [[https://zio.dev/reference/test/test-hierarchies-and-organization/ Test Hierarchies and Organization]]
+   * @see
+   *   [[https://zio.dev/reference/test/test-hierarchies-and-organization/ Test Hierarchies and Organization]]
    */
   transparent inline def suiteAll(inline name: String)(inline spec: Any): Any =
     ${ ZIOSpecVersionSpecificMacros.suiteAllImpl('name, 'spec) }

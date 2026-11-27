@@ -7,14 +7,17 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 /**
  * A service that holds the size parameter of a test. Sized generators such as
  * `Gen.listOf`, `Gen.string` and `Gen.small` read it to bound the size of the
- * values they generate. The test environment provides a `Sized` with size
- * 100, and `TestAspect.size` changes it for a test.
+ * values they generate. The test environment provides a `Sized` with size 100,
+ * and `TestAspect.size` changes it for a test.
  */
 trait Sized extends Serializable {
+
   /** Returns the current size. */
   def size(implicit trace: Trace): UIO[Int]
+
   /** Runs `zio` with the given size, then restores the previous size. */
   def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
+
   /** Returns a generator that runs `gen` with the size set to `size`. */
   def withSizeGen[R, A](size: Int)(gen: Gen[R, A])(implicit trace: Trace): Gen[R, A]
 }
@@ -32,12 +35,15 @@ object Sized {
 
   /** The implementation of [[Sized]] that keeps the size in a `FiberRef`. */
   final case class Test(fiberRef: FiberRef[Int]) extends Sized {
+
     /** Returns the size stored in the `FiberRef`. */
     def size(implicit trace: Trace): UIO[Int] =
       fiberRef.get
+
     /** Runs `zio` with the given size, then restores the previous size. */
     def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       fiberRef.locally(size)(zio)
+
     /**
      * Returns a generator that runs `gen` with the size set to `size`. The
      * previous size is restored before each generated value is emitted.
@@ -74,8 +80,8 @@ object Sized {
     sizedWith(_.size)
 
   /**
-   * Runs `zio` with the size of the current `Sized` service set to `size`,
-   * then restores the previous size.
+   * Runs `zio` with the size of the current `Sized` service set to `size`, then
+   * restores the previous size.
    */
   def withSize[R, E, A](size: Int)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     sizedWith(_.withSize(size)(zio))

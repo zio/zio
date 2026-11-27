@@ -30,7 +30,8 @@ import scala.annotation.nowarn
  * `bootstrap` layer that builds its `Environment`, and the aspects applied to
  * the whole spec.
  *
- * @see [[https://zio.dev/reference/test/ ZIO Test]]
+ * @see
+ *   [[https://zio.dev/reference/test/ ZIO Test]]
  */
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecific {

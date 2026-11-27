@@ -29,7 +29,8 @@ private[test] trait ZIOSpecVersionSpecific[R] {
    * }
    * }}}
    *
-   * @see [[https://zio.dev/reference/test/test-hierarchies-and-organization/ Test Hierarchies and Organization]]
+   * @see
+   *   [[https://zio.dev/reference/test/test-hierarchies-and-organization/ Test Hierarchies and Organization]]
    */
   def suiteAll(name: String)(spec: Any): Spec[Nothing, Any] =
     macro SmartSpecMacros.suiteImpl

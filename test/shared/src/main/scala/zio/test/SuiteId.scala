@@ -6,8 +6,8 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Identifies one group of specs while a spec runs, so that execution events
- * can name the group they belong to.
+ * Identifies one group of specs while a spec runs, so that execution events can
+ * name the group they belong to.
  *
  * @param id
  *   the number of the group. Each group gets a new number, and the tests in a
@@ -19,9 +19,10 @@ case class SuiteId(id: Int)
  * Constructors of [[SuiteId]].
  */
 object SuiteId {
+
   /**
-   * The id with number 0, which stands for the top level of a run,
-   * outside every group.
+   * The id with number 0, which stands for the top level of a run, outside
+   * every group.
    */
   val global: SuiteId = SuiteId(0)
 
