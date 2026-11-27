@@ -195,16 +195,14 @@ object TestConsole extends Serializable {
       consoleState.get.map(_.errOutput)
 
     /**
-     * Writes the specified string to the output buffer. Dies with a
-     * `NullPointerException` when `line` is `null`.
+     * Writes the specified string to the output buffer.
      */
     override def print(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
       ZIO.succeed(unsafe.print(line)(Unsafe.unsafe)) *>
         live.provide(Console.print(line)).whenZIO(debugState.get).unit
 
     /**
-     * Writes the specified string to the error buffer. Dies with a
-     * `NullPointerException` when `line` is `null`.
+     * Writes the specified string to the error buffer.
      */
     override def printError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
       ZIO.succeed(unsafe.printError(line)(Unsafe.unsafe)) *>
@@ -212,9 +210,7 @@ object TestConsole extends Serializable {
 
     /**
      * Writes the specified string to the output buffer followed by a newline
-     * character. Throws a `java.lang.NullPointerException` when `line` is
-     * `null`, at the call itself rather than when the effect runs; through
-     * `Console.printLine` the effect dies with it.
+     * character.
      */
     override def printLine(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
       annotations.annotate(TestAnnotation.output, Chunk(ConsoleIO.Output(line.toString))) *>
@@ -223,7 +219,7 @@ object TestConsole extends Serializable {
 
     /**
      * Writes the specified string to the error buffer followed by a newline
-     * character. A `null` line is written as `"null\n"`.
+     * character.
      */
     override def printLineError(line: => Any)(implicit trace: Trace): IO[IOException, Unit] =
       ZIO.succeed(unsafe.printLineError(line)(Unsafe.unsafe)) *>
