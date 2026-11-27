@@ -24,8 +24,7 @@ trait DiffInstances extends LowPriDiff {
    *   - Two single-line strings give a `Different` with no custom rendering
    *     when either is shorter than 20 characters. Otherwise they are diffed word by word when each of them has more than one word (splitting on whitespace) and its length divided by its number of words is less than 12, and character by character otherwise.
    *   - When either string has more than one line, they are diffed line by
-   *     line. Strings whose lines are equal after splitting on newlines, such
-   *     as `"a\nb"` and `"a\nb\n"`, give `Identical`.
+   *     line.
    */
   implicit val stringDiff: Diff[String] = { (x: String, y: String) =>
     if (x == y) {

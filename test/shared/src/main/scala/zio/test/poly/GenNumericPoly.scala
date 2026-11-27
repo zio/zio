@@ -26,12 +26,6 @@ import zio.Trace
  * properties that do arithmetic on generated values of a type that changes from
  * sample to sample.
  *
- * The trait defines `ordT` as `numT`, but it sets `ordT` while the trait
- * initializes, before the instances built by `GenNumericPoly.apply`,
- * `GenIntegralPoly.apply` and `GenFractionalPoly.apply` set `numT`. On those
- * instances `ordT` is `null`; `numT` is a `Numeric[T]`, which is also an
- * `Ordering[T]`.
- *
  * {{{
  * import zio.test._
  *
@@ -70,8 +64,7 @@ object GenNumericPoly {
 
   /**
    * Constructs an instance of `GenNumericPoly` using the specified `Gen` and
-   * `Numeric` instances, existentially hiding the underlying type. The
-   * instance's `ordT` is `null`; `numT` holds the ordering.
+   * `Numeric` instances, existentially hiding the underlying type.
    */
   def apply[A](gen: Gen[Any, A], num: Numeric[A]): GenNumericPoly =
     new GenNumericPoly {

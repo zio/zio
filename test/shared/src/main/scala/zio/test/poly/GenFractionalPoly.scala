@@ -24,9 +24,7 @@ import zio.Trace
  * `GenFractionalPoly` provides evidence that instances of `Gen[T]` and
  * `Fractional[T]` exist for some concrete but unknown type `T`. Use it for
  * properties that divide generated values of a type that changes from sample to
- * sample. The instances built by `GenFractionalPoly.apply`, which include the
- * predefined ones of the companion, have a `null` `ordT` (see
- * [[GenNumericPoly]]); `numT` holds the ordering.
+ * sample.
  *
  * {{{
  * import zio.test._
@@ -61,8 +59,7 @@ object GenFractionalPoly {
 
   /**
    * Constructs an instance of `GenFractionalPoly` using the specified `Gen` and
-   * `Fractional` instances, existentially hiding the underlying type. The
-   * instance's `ordT` is `null`; `numT` holds the ordering.
+   * `Fractional` instances, existentially hiding the underlying type.
    */
   def apply[A](gen: Gen[Any, A], num: Fractional[A]): GenFractionalPoly =
     new GenFractionalPoly {

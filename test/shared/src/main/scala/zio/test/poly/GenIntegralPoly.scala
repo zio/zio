@@ -24,9 +24,7 @@ import zio.Trace
  * `GenIntegralPoly` provides evidence that instances of `Gen[T]` and
  * `Integral[T]` exist for some concrete but unknown type `T`. Use it for
  * properties of integer arithmetic, such as division with remainder, on a type
- * that changes from sample to sample. The instances built by
- * `GenIntegralPoly.apply`, which include the predefined ones of the companion,
- * have a `null` `ordT` (see [[GenNumericPoly]]); `numT` holds the ordering.
+ * that changes from sample to sample.
  *
  * {{{
  * import zio.test._
@@ -61,8 +59,7 @@ object GenIntegralPoly {
 
   /**
    * Constructs an instance of `GenIntegralPoly` using the specified `Gen` and
-   * `Integral` instances, existentially hiding the underlying type. The
-   * instance's `ordT` is `null`; `numT` holds the ordering.
+   * `Integral` instances, existentially hiding the underlying type.
    */
   def apply[A](gen: Gen[Any, A], num: Integral[A]): GenIntegralPoly =
     new GenIntegralPoly {
