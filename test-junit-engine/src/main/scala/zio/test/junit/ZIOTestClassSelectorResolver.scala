@@ -35,7 +35,7 @@ import scala.jdk.CollectionConverters._
  * to [[ZIOTestClassDescriptor]]s.
  *
  * It accepts the public, non-abstract classes that aren't inner classes and
- * that extend [[zio.test.ZIOSpecAbstract]] or have a companion object that
+ * that extend `zio.test.ZIOSpecAbstract` or have a companion object that
  * does. An object's class and its companion class (`MySpec\$` and `MySpec`)
  * resolve to one descriptor.
  */

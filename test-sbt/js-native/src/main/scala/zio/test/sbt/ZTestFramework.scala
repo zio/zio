@@ -18,7 +18,7 @@ package zio.test.sbt
 
 /**
  * The sbt test framework of ZIO Test. sbt uses it to find the spec objects
- * (objects that extend [[zio.test.ZIOSpecAbstract]], such as `ZIOSpecDefault`)
+ * (objects that extend `zio.test.ZIOSpecAbstract`, such as `ZIOSpecDefault`)
  * and to run them with `sbt test` and `sbt testOnly`. sbt 1.8.0 and later
  * register it when `zio-test-sbt` is on the test classpath; older versions need
  * `zio.test.sbt.ZTestFramework` in the `testFrameworks` setting.

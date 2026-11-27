@@ -5,7 +5,7 @@ import zio.test.ZIOSpecAbstract
 
 /**
  * The sbt fingerprint of ZIO Test specs: sbt runs the Scala objects (not
- * classes) that extend [[zio.test.ZIOSpecAbstract]], such as objects that
+ * classes) that extend `zio.test.ZIOSpecAbstract`, such as objects that
  * extend `ZIOSpecDefault`.
  */
 object ZioSpecFingerprint extends SubclassFingerprint {

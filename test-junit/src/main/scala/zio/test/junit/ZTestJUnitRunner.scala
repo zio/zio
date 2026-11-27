@@ -31,7 +31,7 @@ import zio.test.render.LogLine.Message
 
 /**
  * A JUnit 4 runner for ZIO Test specs. A spec class that extends
- * [[zio.test.ZIOSpecAbstract]] (such as `ZIOSpecDefault`) and is annotated with
+ * `zio.test.ZIOSpecAbstract` (such as `ZIOSpecDefault`) and is annotated with
  * `@RunWith(classOf[ZTestJUnitRunner])` runs in IDEs and build tools that run
  * JUnit 4 tests, such as Maven and Gradle. A spec class can also extend
  * [[JUnitRunnableSpec]], which carries the annotation.
