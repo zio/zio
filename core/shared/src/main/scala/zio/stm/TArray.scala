@@ -320,11 +320,7 @@ final class TArray[A] private[stm] (private[stm] val array: Array[TRef[A]]) exte
 
   /**
    * Combines the elements from first to last with `op`, or returns `None` when
-   * the array is empty. While the running result is `null` (the first element
-   * is `null`, or `op` returned `null`), the next element replaces it instead
-   * of being passed to `op`, and a final `null` result gives `None`. For
-   * example, the elements `null, "b", null, "c"` with `_ + _` give
-   * `Some("bnullc")`.
+   * the array is empty.
    */
   def reduceOption(op: (A, A) => A): USTM[Option[A]] =
     ZSTM.Effect { (journal, _, _) =>
