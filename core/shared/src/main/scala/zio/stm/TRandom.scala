@@ -24,8 +24,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * A pseudo-random number generator whose operations are transactions, so they
  * can be combined with other `STM` operations and committed together. The
  * generator keeps its seed in a [[TRef]]. When a transaction that drew a value
- * fails or retries, the seed keeps its old value, so the next draw returns the
- * same value again.
+ * fails or retries, the seed keeps its old value.
  *
  * `TRandom` is not part of the default ZIO environment: provide it with
  * `TRandom.live`. The accessors on the companion object, such as
@@ -47,9 +46,7 @@ trait TRandom {
   def nextBoolean: STM[Nothing, Boolean]
 
   /**
-   * Returns `length` pseudo-random bytes. The bytes come from the global
-   * `scala.util.Random` object, not from this generator's seed, so `setSeed`
-   * does not make them repeatable. On the JVM, dies with a
+   * Returns `length` pseudo-random bytes. On the JVM, dies with a
    * `java.lang.NegativeArraySizeException` when `length` is negative.
    */
   def nextBytes(length: Int): STM[Nothing, Chunk[Byte]]
@@ -131,8 +128,7 @@ trait TRandom {
   def nextString(length: Int): STM[Nothing, String]
 
   /**
-   * Sets the seed of this generator. After the same seed is set, the same calls
-   * return the same values again, except `nextBytes`.
+   * Sets the seed of this generator.
    */
   def setSeed(seed: Long): STM[Nothing, Unit]
 
@@ -186,9 +182,7 @@ object TRandom extends Serializable {
 
   /**
    * Generates a pseudo-random chunk of bytes of the specified length inside a
-   * transaction. The bytes come from the global `scala.util.Random` object, not
-   * from the seed of the `TRandom` service, so `setSeed` does not make them
-   * repeatable.
+   * transaction.
    */
   def nextBytes(length: => Int): URSTM[TRandom, Chunk[Byte]] =
     ZSTM.serviceWithSTM(_.nextBytes(length))
