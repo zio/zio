@@ -1161,6 +1161,9 @@ object Assertion extends AssertionVariants {
         name.map(n => s"$n=$value").getOrElse(s"$value")
     }
   }
+  /**
+   * Constructors and cases of `Arguments`.
+   */
   object Arguments {
 
     /**
