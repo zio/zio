@@ -21,37 +21,31 @@ import zio.test.Gen
 import zio.Trace
 
 /**
- * `GenPoly` provides evidence that an instance of `Gen[T]` exists for some
- * concrete but unknown type `T`. Subtypes of `GenPoly` provide additional
- * constraints on the type of `T`, such as that an instance of `Ordering[T]` or
- * `Numeric[T]` exists. Users can also extend `GenPoly` to add their own
- * constraints.
+ * `GenPoly` provides evidence that an instance of `Gen[T]` exists for some concrete but unknown type `T`. Subtypes of `GenPoly` provide additional constraints on the type of `T`: [[GenOrderingPoly]] adds an `Ordering[T]`, [[GenNumericPoly]] a `Numeric[T]`, and [[GenIntegralPoly]] and [[GenFractionalPoly]] an `Integral[T]` or a `Fractional[T]`. Users can also extend `GenPoly` to add their own constraints.
  *
- * This allows construction of polymorphic generators where the the type is
- * known to satisfy certain constraints even though the type itself is unknown.
+ * This allows construction of polymorphic generators, where the type is known to satisfy certain constraints even though the type itself is unknown.
  *
- * For instance, consider the following generalized algebraic data type:
+ * For instance, consider a generalized algebraic data type `Expr` of values and mappings, and the property that fusing two nested mappings into one keeps the value of an expression. The property should hold for expressions with several layers of nested mappings and with mappings between different types. Since the generated types need no constraints, `GenPoly` is enough: `GenPoly.genPoly` picks a type for each layer, and the generators in the example make sure that the types of each mapping line up:
  *
  * {{{
+ * import zio.test._
+ * import zio.test.Assertion._
+ *
  * sealed trait Expr[+A] extends Product with Serializable
  *
  * final case class Value[+A](value: A) extends Expr[A]
  * final case class Mapping[A, +B](expr: Expr[A], f: A => B) extends Expr[B]
- * }}}
  *
- * We would like to test that for any expression we can fuse two mappings. We
- * want to create instances of `Expr` that reflect the full range of values that
- * an `Expr` can take, including multiple layers of nested mappings and mappings
- * between different types.
+ * def eval[A](expr: Expr[A]): A = expr match {
+ *   case Value(a)      => a
+ *   case Mapping(x, f) => f(eval(x))
+ * }
  *
- * Since we do not need any constraints on the generated types we can simply use
- * `GenPoly`. `GenPoly` includes a convenient generator in its companion object,
- * `genPoly`, that generates instances of 40 different types including primitive
- * types and various collections.
+ * def fuse[A](expr: Expr[A]): Expr[A] = expr match {
+ *   case Mapping(Mapping(x, f), g) => fuse(Mapping(x, f andThen g))
+ *   case x                         => x
+ * }
  *
- * Using it we can define polymorphic generators for expressions:
- *
- * {{{
  * def genValue(t: GenPoly): Gen[Any, Expr[t.T]] =
  *   t.genT.map(Value(_))
  *
@@ -68,37 +62,43 @@ import zio.Trace
  *
  * def genExpr(t: GenPoly): Gen[Any, Expr[t.T]] =
  *   Gen.oneOf(genMapping(t), genValue(t))
- * }}}
  *
- * Finally, we can test our property:
- *
- * {{{
- * test("map fusion") {
- *   check(GenPoly.genPoly.flatMap(genExpr(_))) { expr =>
- *     assert(eval(fuse(expr)))(equalTo(eval(expr)))
+ * val mapFusion =
+ *   test("map fusion") {
+ *     check(GenPoly.genPoly.flatMap(genExpr(_))) { expr =>
+ *       assert(eval(fuse(expr)))(equalTo(eval(expr)))
+ *     }
  *   }
- * }
  * }}}
  *
- * This will generate expressions with multiple levels of nesting and
- * polymorphic mappings between different types, making sure that the types line
- * up for each mapping. This provides a higher level of confidence in properties
- * than testing with a monomorphic value.
+ * This generates expressions with several levels of nesting and polymorphic mappings between different types. This provides a higher level of confidence in properties than testing with a monomorphic value.
  *
- * Inspired by Erik Osheim's presentation "Galaxy Brain: type-dependence and
- * state-dependence in property-based testing"
- * [[http://plastic-idolatry.com/erik/oslo2019.pdf]].
+ * Inspired by Erik Osheim's presentation "Galaxy Brain: type-dependence and state-dependence in property-based testing" [[http://plastic-idolatry.com/erik/oslo2019.pdf]].
+ *
+ * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 trait GenPoly {
+
+  /**
+   * The type of the generated values. It is concrete for each instance, but code that only sees a `GenPoly` does not know which type it is.
+   */
   type T
+
+  /**
+   * The generator of `T` values.
+   */
   val genT: Gen[Any, T]
 }
 
+/**
+ * Constructors of [[GenPoly]] instances for primitive types and for `List`, `Option` and `Vector` of another `GenPoly`, and `genPoly`, a generator that picks among them.
+ *
+ * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ */
 object GenPoly {
 
   /**
-   * Constructs an instance of `TypeWith` using the specified value,
-   * existentially hiding the underlying type.
+   * Constructs an instance of `GenPoly` using the specified `Gen` instance, existentially hiding the underlying type.
    */
   def apply[A](gen: Gen[Any, A]): GenPoly =
     new GenPoly {
@@ -107,91 +107,85 @@ object GenPoly {
     }
 
   /**
-   * Provides evidence that instances of `Gen` and a `Ordering` exist for
-   * booleans.
+   * Returns a `GenPoly` for `Boolean` values, generated by `Gen.boolean`.
    */
   def boolean(implicit trace: Trace): GenPoly =
     GenOrderingPoly(Gen.boolean, Ordering.Boolean)
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for bytes.
+   * Returns a `GenPoly` for `Byte` values, generated by `Gen.byte`.
    */
   def byte(implicit trace: Trace): GenPoly =
     GenIntegralPoly.byte
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for
-   * characters.
+   * Returns a `GenPoly` for `Char` values, generated by `Gen.char`.
    */
   def char(implicit trace: Trace): GenPoly =
     GenIntegralPoly.char
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for doubles.
+   * Returns a `GenPoly` for `Double` values, generated by `Gen.double`.
    */
   def double(implicit trace: Trace): GenPoly =
     GenFractionalPoly.double
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for floats.
+   * Returns a `GenPoly` for `Float` values, generated by `Gen.float`.
    */
   def float(implicit trace: Trace): GenPoly =
     GenFractionalPoly.float
 
+  /**
+   * A generator of `GenPoly` instances, the same as `GenOrderingPoly.genOrderingPoly`. It picks one of `boolean`, `byte`, `char`, `int`, `double`, `float`, `long`, `short`, `string` and `unit`, or a `list`, `option` or `vector` of one of them. Since `short` generates `Long` values, the value types are `Boolean`, `Byte`, `Char`, `Int`, `Double`, `Float`, `Long`, `String` and `Unit`, and `List`, `Option` and `Vector` of those.
+   */
   def genPoly(implicit trace: Trace): Gen[Any, GenPoly] =
     GenOrderingPoly.genOrderingPoly
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for
-   * integers.
+   * Returns a `GenPoly` for `Int` values, generated by `Gen.int`.
    */
   def int(implicit trace: Trace): GenPoly =
     GenIntegralPoly.int
 
   /**
-   * Provides evidence that instances of `Gen[List[T]]` and `Ordering[List[T]]`
-   * exist for any type for which `Gen[T]` and `Ordering[T]` exist.
+   * Returns a `GenPoly` for lists of the values of `poly`, generated by `Gen.listOf(poly.genT)`.
    */
   def list(poly: GenPoly)(implicit trace: Trace): GenPoly =
     GenPoly(Gen.listOf(poly.genT))
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for longs.
+   * Returns a `GenPoly` for `Long` values, generated by `Gen.long`.
    */
   def long(implicit trace: Trace): GenPoly =
     GenIntegralPoly.long
 
   /**
-   * Provides evidence that instances of `Gen[Option[T]]` and
-   * `Ordering[Option[T]]` exist for any type for which `Gen[T]` and
-   * `Ordering[T]` exist.
+   * Returns a `GenPoly` for options of the values of `poly`, generated by `Gen.option(poly.genT)`.
    */
   def option(poly: GenPoly)(implicit trace: Trace): GenPoly =
     GenPoly(Gen.option(poly.genT))
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for shorts.
+   * Returns a `GenPoly` whose values are `Long`s, generated by `Gen.long`: it is the same generator as `long` (`GenIntegralPoly.long`).
    */
   def short(implicit trace: Trace): GenPoly =
     GenIntegralPoly.long
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for strings.
+   * Returns a `GenPoly` for `String` values, generated by `Gen.string`.
    */
   def string(implicit trace: Trace): GenPoly =
     GenOrderingPoly(Gen.string, Ordering.String)
 
   /**
-   * Provides evidence that instances of `Gen` and `Ordering` exist for the unit
-   * value.
+   * Returns a `GenPoly` for the unit value, generated by `Gen.unit`.
    */
   def unit(implicit trace: Trace): GenPoly =
     GenOrderingPoly(Gen.unit, Ordering.Unit)
 
   /**
-   * Provides evidence that instances of `Gen[Vector[T]]` and
-   * `Ordering[Vector[T]]` exist for any type for which `Gen[T]` and
-   * `Ordering[T]` exist.
+   * Returns a `GenPoly` for vectors of the values of `poly`, generated by `Gen.vectorOf(poly.genT)`.
    */
   def vector(poly: GenPoly)(implicit trace: Trace): GenPoly =
     GenPoly(Gen.vectorOf(poly.genT))

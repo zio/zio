@@ -21,18 +21,40 @@ import zio.test.Gen
 import zio.Trace
 
 /**
- * `GenIntegralPoly` provides evidence that instances of `Gen[T]` and
- * `Integral[T]` exist for some concrete but unknown type `T`.
+ * `GenIntegralPoly` provides evidence that instances of `Gen[T]` and `Integral[T]` exist for some concrete but unknown type `T`. Use it for properties of integer arithmetic, such as division with remainder, on a type that changes from sample to sample. The instances built by `GenIntegralPoly.apply`, which include the predefined ones of the companion, have a `null` `ordT` (see [[GenNumericPoly]]); `numT` holds the ordering.
+ *
+ * {{{
+ * import zio.test._
+ *
+ * val division =
+ *   test("quotient and remainder rebuild the dividend") {
+ *     check(GenIntegralPoly.genIntegralPoly) { poly =>
+ *       val num = poly.numT
+ *       check(poly.genT, poly.genT.filter(_ != num.zero)) { (a, b) =>
+ *         val rebuilt = num.plus(num.times(num.quot(a, b), b), num.rem(a, b))
+ *         assertTrue(rebuilt == a)
+ *       }
+ *     }
+ *   }
+ * }}}
+ *
+ * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 trait GenIntegralPoly extends GenNumericPoly {
   override val numT: Integral[T]
 }
 
+/**
+ * Constructors of [[GenIntegralPoly]] instances for `Byte`, `Char`, `Int`, `Long` and `Short`, and `genIntegralPoly`, a generator that picks among them.
+ *
+ * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ */
 object GenIntegralPoly {
 
   /**
    * Constructs an instance of `GenIntegralPoly` using the specified `Gen` and
-   * `Integral` instances, existentially hiding the underlying type.
+   * `Integral` instances, existentially hiding the underlying type. The
+   * instance's `ordT` is `null`; `numT` holds the ordering.
    */
   def apply[A](gen: Gen[Any, A], num: Integral[A]): GenIntegralPoly =
     new GenIntegralPoly {
@@ -42,40 +64,44 @@ object GenIntegralPoly {
     }
 
   /**
-   * Provides evidence that instances of `Gen` and `Integral` exist for bytes.
+   * Provides evidence that instances of `Gen` and `Integral` exist for bytes,
+   * using `Gen.byte` and `Numeric.ByteIsIntegral`.
    */
   def byte(implicit trace: Trace): GenIntegralPoly =
     GenIntegralPoly(Gen.byte, Numeric.ByteIsIntegral)
 
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for
-   * characters.
+   * characters, using `Gen.char` and `Numeric.CharIsIntegral`.
    */
   def char(implicit trace: Trace): GenIntegralPoly =
     GenIntegralPoly(Gen.char, Numeric.CharIsIntegral)
 
   /**
-   * A generator of polymorphic values constrainted to have an `Integral`
-   * instance.
+   * A generator of polymorphic values constrained to have an `Integral`
+   * instance. It picks one of `byte`, `char`, `int`, `long` and `short` with
+   * equal weight.
    */
   def genIntegralPoly(implicit trace: Trace): Gen[Any, GenIntegralPoly] =
     Gen.elements(byte, char, int, long, short)
 
   /**
    * Provides evidence that instances of `Gen` and `Integral` exist for
-   * integers.
+   * integers, using `Gen.int` and `Numeric.IntIsIntegral`.
    */
   def int(implicit trace: Trace): GenIntegralPoly =
     GenIntegralPoly(Gen.int, Numeric.IntIsIntegral)
 
   /**
-   * Provides evidence that instances of `Gen` and `Integral` exist for longs.
+   * Provides evidence that instances of `Gen` and `Integral` exist for longs,
+   * using `Gen.long` and `Numeric.LongIsIntegral`.
    */
   def long(implicit trace: Trace): GenIntegralPoly =
     GenIntegralPoly(Gen.long, Numeric.LongIsIntegral)
 
   /**
-   * Provides evidence that instances of `Gen` and `Integral` exist for shorts.
+   * Provides evidence that instances of `Gen` and `Integral` exist for shorts,
+   * using `Gen.short` and `Numeric.ShortIsIntegral`.
    */
   def short(implicit trace: Trace): GenIntegralPoly =
     GenIntegralPoly(Gen.short, Numeric.ShortIsIntegral)
