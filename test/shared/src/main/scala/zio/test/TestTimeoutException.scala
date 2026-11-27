@@ -18,4 +18,8 @@ package zio.test
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * The exception that `TestAspect.timeout` puts in the `Cause` of a test that
+ * runs longer than the given duration. It carries no stack trace.
+ */
 final case class TestTimeoutException(message: String) extends Throwable(message, null, true, false)
