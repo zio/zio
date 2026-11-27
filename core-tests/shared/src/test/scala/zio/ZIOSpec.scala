@@ -2581,6 +2581,51 @@ object ZIOSpec extends ZIOBaseSpec {
           .flatMap(_.interrupt)
           .as(assertCompletes)
       } @@ TestAspect.withLiveClock @@ nonFlaky(10000),
+      test("timeout forks a single fiber") {
+        val started = new java.util.concurrent.atomic.AtomicInteger(0)
+        val supervisor = new Supervisor[Int] {
+          def value(implicit trace: Trace): UIO[Int] = ZIO.succeed(started.get)
+          def onStart[R, E, A](
+            environment: ZEnvironment[R],
+            effect: ZIO[R, E, A],
+            parent: Option[Fiber.Runtime[Any, Any]],
+            fiber: Fiber.Runtime[E, A]
+          )(implicit unsafe: Unsafe): Unit = { started.incrementAndGet(); () }
+          def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
+        }
+        for {
+          result <- ZIO.succeed(42).timeout(1.hour).supervised(supervisor)
+          forks  <- supervisor.value
+        } yield assert(result)(isSome(equalTo(42))) && assert(forks)(equalTo(1))
+      } @@ TestAspect.withLiveClock,
+      test("interrupting a timeout does not leave fibers running") {
+        for {
+          supervisor <- Supervisor.track(false)
+          started    <- Promise.make[Nothing, Unit]
+          fiber      <- (started.succeed(()) *> ZIO.never).timeout(1.hour).supervised(supervisor).fork
+          _          <- started.await
+          _          <- fiber.interrupt
+          fibers     <- supervisor.value
+          running    <- ZIO.filterNot(fibers)(_.status.map(_.isDone))
+        } yield assert(running)(isEmpty)
+      } @@ TestAspect.withLiveClock @@ zioTag(interruption),
+      test("timeout evaluates the duration once") {
+        for {
+          ref    <- Ref.make(0)
+          calls   = new java.util.concurrent.atomic.AtomicInteger(0)
+          result <- ref.get.timeout { calls.incrementAndGet(); 1.hour }
+        } yield assert(result)(isSome(equalTo(0))) && assert(calls.get)(equalTo(1))
+      } @@ TestAspect.withLiveClock,
+      test("timeout with a zero duration times out an effect that does not complete") {
+        assertZIO(ZIO.never.timeout(Duration.Zero))(isNone)
+      } @@ TestAspect.withLiveClock,
+      test("timeout inherits fiber refs from the timed effect") {
+        for {
+          fiberRef <- FiberRef.make(0)
+          result   <- (fiberRef.set(1) *> ZIO.yieldNow).timeout(1.hour)
+          value    <- fiberRef.get
+        } yield assert(result)(isSome(isUnit)) && assert(value)(equalTo(1))
+      } @@ TestAspect.withLiveClock,
       test("catchAllCause") {
         val io =
           for {
