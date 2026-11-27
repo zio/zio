@@ -25,10 +25,9 @@ import zio.{Chunk, ChunkBuilder, NonEmptyChunk, Unsafe}
  * A `TMap` is a mutable hash map that is read and changed inside STM
  * transactions. It keeps its bindings in a [[TArray]] of buckets held in a
  * [[TRef]], and keys whose hashes fall in the same bucket share a list in that
- * bucket. Keys are compared with `==` and hashed with `hashCode`, so a `null`
- * key makes the transaction die with a `java.lang.NullPointerException`.
- * Methods that visit several bindings (`fold`, `foreach`, `toList`, `find`,
- * `takeFirst`, ...) visit them in an unspecified order.
+ * bucket. Keys are compared with `==` and hashed with `hashCode`. Methods that
+ * visit several bindings (`fold`, `foreach`, `toList`, `find`, `takeFirst`,
+ * ...) visit them in an unspecified order.
  *
  * {{{
  * import zio._

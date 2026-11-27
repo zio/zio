@@ -56,10 +56,8 @@ final class TRef[A] private (
 
   /**
    * Builds a `TRef` that holds `versioned.value`, with the callbacks of the
-   * suspended transactions in `todo`. Kept for binary compatibility: its
-   * parameter types are private to the `zio.stm` package, so code outside that
-   * package can pass it only `null`, which throws a
-   * `java.lang.NullPointerException`. Use `TRef.make` instead.
+   * suspended transactions in `todo`. Kept for binary compatibility only; use
+   * `TRef.make` instead.
    */
   @deprecated("kept for binary compatibility only", "2.1.8")
   def this(versioned: Versioned[A], todo: AtomicReference[Map[TxnId, Todo]]) =
