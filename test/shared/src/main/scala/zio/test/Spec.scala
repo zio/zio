@@ -21,15 +21,38 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Spec._
 
 /**
- * A `Spec[R, E]` is the backbone of _ZIO Test_. Every spec is either a suite,
- * which contains other specs, or a test. All specs require an environment of
- * type `R` and may potentially fail with an error of type `E`.
+ * A `Spec[R, E]` is a tree of tests. Each node is a test, a labeled suite of
+ * other specs, a group of specs, a node that sets the execution strategy of
+ * the specs below it, or a scoped node that acquires resources for them. `R`
+ * is the environment that the tests need and `E` is the error type with which
+ * they can fail.
+ *
+ * The `suite` and `test` constructors build specs, `@@` applies a
+ * [[TestAspect]], and the `provide` methods supply the environment.
+ *
+ * {{{
+ * import zio.ZIO
+ *
+ * val spec: Spec[Any, Nothing] =
+ *   suite("arithmetic")(
+ *     test("addition") {
+ *       assertTrue(1 + 1 == 2)
+ *     },
+ *     test("an effect") {
+ *       ZIO.succeed(6 * 7).map(n => assertTrue(n == 42))
+ *     }
+ *   ) @@ TestAspect.sequential
+ * }}}
+ *
+ * @see [[https://zio.dev/reference/test/spec/ Spec]]
  */
 final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends SpecVersionSpecific[R, E] {
   self =>
 
   /**
-   * Combines this spec with the specified spec.
+   * Combines this spec and `that` into one unlabeled group that holds both.
+   * When either side is already an unlabeled group, its members are added to
+   * the new group one by one instead of as a nested group.
    */
   def +[R1 <: R, E1 >: E](that: Spec[R1, E1]): Spec[R1, E1] =
     (self.caseValue, that.caseValue) match {
@@ -40,10 +63,18 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     }
 
   /**
-   * Syntax for adding aspects.
+   * Applies the test aspect `aspect` to this spec and returns the result. In
+   * `spec @@ a @@ b`, the aspect `a` is applied first and `b` is applied to
+   * the result.
+   *
    * {{{
-   * test("foo") { assert(42, equalTo(42)) } @@ ignore
+   * val ignored: Spec[Any, Nothing] =
+   *   test("answer") {
+   *     assert(42)(Assertion.equalTo(42))
+   *   } @@ TestAspect.ignore
    * }}}
+   *
+   * @see [[https://zio.dev/reference/test/aspects/ Test Aspects]]
    */
   final def @@[R0 <: R1, R1 <: R, E0 >: E, E1 >: E0](aspect: TestAspect[R0, R1, E0, E1])(implicit
     trace: Trace
@@ -51,7 +82,9 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     aspect(self)
 
   /**
-   * Annotates each test in this spec with the specified test annotation.
+   * Adds `value` to the annotation `key` of each test in this spec, combining
+   * it with the value the test already has with the annotation's `combine`
+   * function.
    */
   final def annotate[V](key: TestAnnotation[V], value: V)(implicit trace: Trace): Spec[R, E] =
     transform[R, E] {
@@ -60,7 +93,9 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     }
 
   /**
-   * Returns a new spec with the annotation map at each node.
+   * Returns a spec whose tests, when they finish, add the annotations recorded
+   * so far through the current test's [[Annotations]] service to the
+   * annotations of their result, whether the test passes or fails.
    */
   final def annotated(implicit trace: Trace): Spec[R, E] =
     transform[R, E] {
@@ -69,7 +104,10 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     }
 
   /**
-   * Returns an effect that models execution of this spec.
+   * Returns an effect that runs every test of this spec with the environment
+   * it requires, and returns a spec of the same shape whose tests hold the
+   * results. Suites that do not set their own execution strategy use
+   * `defExec`.
    */
   final def execute(defExec: ExecutionStrategy)(implicit
     trace: Trace
@@ -77,9 +115,10 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     ZIO.environmentWithZIO(provideEnvironment(_).foreachExec(defExec)(Exit.failCause, ZIO.successFn))
 
   /**
-   * Returns a new spec with only those tests with annotations satisfying the
-   * specified predicate. If no annotations satisfy the specified predicate then
-   * returns `Some` with an empty suite if this is a suite or `None` otherwise.
+   * Returns a new spec with only those tests whose value for the annotation
+   * `key` satisfies `f`. Returns `None` when no test matches. A scoped node
+   * (one that acquires resources, as `provideLayerShared` and `aroundAll`
+   * create) is kept, and is left with no tests when none of its tests match.
    */
   final def filterAnnotations[V](
     key: TestAnnotation[V]
@@ -99,12 +138,19 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * specified predicate. If a suite label satisfies the predicate the entire
    * suite will be included in the new spec. Otherwise only those specs in a
    * suite that satisfy the specified predicate will be included in the new
-   * spec. If no labels satisfy the specified predicate then returns `Some` with
-   * an empty suite if this is a suite or `None` otherwise.
+   * spec. Returns `None` when no label matches. A scoped node (one that
+   * acquires resources, as `provideLayerShared` and `aroundAll` create) is
+   * kept, and is left with no tests when none of its labels match.
    */
   final def filterLabels(f: String => Boolean)(implicit trace: Trace): Option[Spec[R, E]] =
     filterLabels(f, prefix = "", accumulatePrefix = false)
 
+  /**
+   * Filters the spec by label as the one-argument `filterLabels` does. When
+   * `accumulatePrefix` is `true`, `f` sees each label joined to the labels of
+   * its enclosing suites with `" - "`, starting from `prefix`; when it is
+   * `false`, `f` sees each label on its own.
+   */
   final def filterLabels(f: String => Boolean, prefix: String, accumulatePrefix: Boolean)(implicit
     trace: Trace
   ): Option[Spec[R, E]] =
@@ -124,26 +170,32 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     }
 
   /**
-   * Returns a new spec with only those suites and tests with tags satisfying
-   * the specified predicate. If no tags satisfy the specified predicate then
-   * returns `Some` with an empty suite with the root label if this is a suite
-   * or `None` otherwise.
+   * Returns a new spec with only those tests that have at least one tag (set
+   * with `TestAspect.tag`) satisfying `f`. Returns `None` when no test
+   * matches. A scoped node (one that acquires resources, as
+   * `provideLayerShared` and `aroundAll` create) is kept, and is left with no
+   * tests when none of its tests match.
    */
   final def filterTags(f: String => Boolean)(implicit trace: Trace): Option[Spec[R, E]] =
     filterAnnotations(TestAnnotation.tagged)(_.exists(f))
 
   /**
-   * Returns a new spec with only those suites and tests except for the ones
-   * with tags satisfying the predicate. If all tests or suites have tags that
-   * satisfy the specified predicate then returns `Some` with an empty suite
-   * with the root label if this is a suite or `None` otherwise.
+   * Returns a new spec without the tests that have at least one tag (set with
+   * `TestAspect.tag`) satisfying `f`. Returns `None` when every test is
+   * removed. A scoped node (one that acquires resources, as
+   * `provideLayerShared` and `aroundAll` create) is kept, and is left with no
+   * tests when all of its tests are removed.
    */
   final def filterNotTags(f: String => Boolean)(implicit trace: Trace): Option[Spec[R, E]] =
     filterAnnotations(TestAnnotation.tagged)(!_.exists(f))
 
   /**
-   * Effectfully folds over all nodes according to the execution strategy of
-   * suites, utilizing the specified default for other cases.
+   * Folds the spec bottom-up with the effectful function `f`, which receives
+   * each node with its children already folded. The members of a group are
+   * folded with the execution strategy of the nearest enclosing `Spec.exec`
+   * node (which `TestAspect.sequential` and `TestAspect.parallel` add), or
+   * with `defExec` when there is none. A scoped node whose effect fails is
+   * passed to `f` with that failure.
    */
   final def foldScoped[R1 <: R, E1, Z](
     defExec: ExecutionStrategy
@@ -164,9 +216,11 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     }
 
   /**
-   * Iterates over the spec with the specified default execution strategy, and
-   * effectfully transforming every test with the provided function, finally
-   * reconstructing the spec with the same structure.
+   * Runs every test of this spec and passes each result to `failure` or
+   * `success`, returning a spec of the same shape whose tests are the effects
+   * those functions return. A scoped node whose effect fails becomes a test
+   * built from `failure`. Groups that have no execution strategy of their own
+   * run their members with `defExec`.
    */
   final def foreachExec[R1 <: R, E1](
     defExec: ExecutionStrategy
@@ -194,9 +248,8 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     }
 
   /**
-   * Iterates over the spec with the sequential strategy as the default, and
-   * effectfully transforming every test with the provided function, finally
-   * reconstructing the spec with the same structure.
+   * Same as `foreachExec`, with `ExecutionStrategy.Sequential` as the default
+   * execution strategy.
    */
   final def foreach[R1 <: R, E1](
     failure: Cause[TestFailure[E]] => ZIO[R1, TestFailure[E1], TestSuccess],
@@ -205,9 +258,8 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     foreachExec(ExecutionStrategy.Sequential)(failure, success)
 
   /**
-   * Iterates over the spec with the parallel strategy as the default, and
-   * effectfully transforming every test with the provided function, finally
-   * reconstructing the spec with the same structure.
+   * Same as `foreachExec`, with `ExecutionStrategy.Parallel` as the default
+   * execution strategy.
    */
   final def foreachPar[R1 <: R, E1](
     failure: Cause[TestFailure[E]] => ZIO[R1, TestFailure[E1], TestSuccess],
@@ -216,9 +268,8 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     foreachExec(ExecutionStrategy.Parallel)(failure, success)
 
   /**
-   * Iterates over the spec with the parallel (`n`) strategy as the default, and
-   * effectfully transforming every test with the provided function, finally
-   * reconstructing the spec with the same structure.
+   * Same as `foreachExec`, with `ExecutionStrategy.ParallelN(n)` as the
+   * default execution strategy.
    */
   final def foreachParN[R1 <: R, E1](
     n: Int
@@ -231,7 +282,9 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     foreachExec(ExecutionStrategy.ParallelN(n))(failure, success)
 
   /**
-   * Returns a new spec with remapped errors.
+   * Returns a spec whose tests and scoped nodes fail with `f(e)` where they
+   * would fail with the error `e`. Assertion failures and defects are left
+   * unchanged.
    */
   final def mapError[E1](f: E => E1)(implicit ev: CanFail[E], trace: Trace): Spec[R, E1] =
     transform[R, E1] {
@@ -243,7 +296,8 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     }
 
   /**
-   * Returns a new spec with remapped labels.
+   * Returns a new spec in which each suite and test label is replaced by
+   * `f(label)`.
    */
   final def mapLabel(f: String => String)(implicit trace: Trace): Spec[R, E] =
     transform[R, E] {
@@ -254,14 +308,20 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Provides each test with the part of the environment that is not part of the
    * `TestEnvironment`, leaving a spec that only depends on the
-   * `TestEnvironment`.
+   * `TestEnvironment`. The layer is built once for each test.
    *
    * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   * import zio.{ULayer, ZIO, ZLayer}
    *
-   * val spec: Spec[TestEnvironment with Logging, Nothing] = ???
+   * trait Logging
    *
-   * val spec2 = spec.provideCustomLayer(loggingLayer)
+   * val loggingLayer: ULayer[Logging] = ZLayer.succeed(new Logging {})
+   *
+   * val spec: Spec[TestEnvironment with Logging, Nothing] =
+   *   test("logs")(ZIO.service[Logging].as(assertCompletes))
+   *
+   * val spec2: Spec[TestEnvironment, Nothing] =
+   *   spec.provideCustomLayer(loggingLayer)
    * }}}
    */
   @deprecated("use provideLayer", "2.0.2")
@@ -275,14 +335,20 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Provides all tests with a shared version of the part of the environment
    * that is not part of the `TestEnvironment`, leaving a spec that only depends
-   * on the `TestEnvironment`.
+   * on the `TestEnvironment`. The layer is built once and shared by the tests.
    *
    * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   * import zio.{ULayer, ZIO, ZLayer}
    *
-   * val spec: Spec[TestEnvironment with Logging, Nothing] = ???
+   * trait Logging
    *
-   * val spec2 = spec.provideCustomLayerShared(loggingLayer)
+   * val loggingLayer: ULayer[Logging] = ZLayer.succeed(new Logging {})
+   *
+   * val spec: Spec[TestEnvironment with Logging, Nothing] =
+   *   test("logs")(ZIO.service[Logging].as(assertCompletes))
+   *
+   * val spec2: Spec[TestEnvironment, Nothing] =
+   *   spec.provideCustomLayerShared(loggingLayer)
    * }}}
    */
   @deprecated("use provideLayerShared", "2.0.2")
@@ -294,13 +360,16 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     provideSomeLayerShared(layer)
 
   /**
-   * Provides each test in this spec with its required environment
+   * Provides each test in this spec with its required environment `r`.
    */
   final def provideEnvironment(r: ZEnvironment[R])(implicit trace: Trace): Spec[Any, E] =
     provideSomeEnvironment(_ => r)
 
   /**
-   * Provides a layer to the spec, translating it up a level.
+   * Provides each test in this spec with the services of `layer`, leaving a
+   * spec that requires only the layer's input `R0`. The layer is built once
+   * for each test, so tests do not share its services; a failure to build it
+   * fails the test.
    */
   final def provideLayer[E1 >: E, R0](
     layer: ZLayer[R0, E1, R]
@@ -317,7 +386,10 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     }
 
   /**
-   * Provides a layer to the spec, sharing services between all tests.
+   * Provides the tests in this spec with the services of `layer`, built once
+   * and shared by all of them, leaving a spec that requires only the layer's
+   * input `R0`. The services are released when the spec finishes. A failure to
+   * build the layer fails the tests.
    */
   final def provideLayerShared[E1 >: E, R0](
     layer: ZLayer[R0, E1, R]
@@ -369,14 +441,24 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
 
   /**
    * Splits the environment into two parts, providing each test with one part
-   * using the specified layer and leaving the remainder `R0`.
+   * using the specified layer and leaving the remainder `R0`. The layer is
+   * built once for each test.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * import zio.{ULayer, ZIO, ZLayer}
    *
-   * val spec: Spec[Clock with Random, Nothing] = ???
+   * trait Database
+   * trait Cache
    *
-   * val spec2 = spec.provideSomeLayer[Random](clockLayer)
+   * val databaseLayer: ULayer[Database] = ZLayer.succeed(new Database {})
+   *
+   * val spec: Spec[Database with Cache, Nothing] =
+   *   test("reads through the cache") {
+   *     ZIO.service[Database].zip(ZIO.service[Cache]).as(assertCompletes)
+   *   }
+   *
+   * val spec2: Spec[Cache, Nothing] =
+   *   spec.provideSomeLayer[Cache](databaseLayer)
    * }}}
    */
   final def provideSomeLayer[R0]: Spec.ProvideSomeLayer[R0, R, E] =
@@ -385,21 +467,36 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Splits the environment into two parts, providing all tests with a shared
    * version of one part using the specified layer and leaving the remainder
-   * `R0`.
+   * `R0`. The layer is built once and shared by the tests.
    *
    * {{{
-   * val clockLayer: ZLayer[Any, Nothing, Clock] = ???
+   * import zio.{ULayer, ZIO, ZLayer}
    *
-   * val spec: Spec[Clock with Random, Nothing] = ???
+   * trait Database
+   * trait Cache
    *
-   * val spec2 = spec.provideSomeLayerShared[Random](clockLayer)
+   * val databaseLayer: ULayer[Database] = ZLayer.succeed(new Database {})
+   *
+   * val spec: Spec[Database with Cache, Nothing] =
+   *   suite("queries")(
+   *     test("first") {
+   *       ZIO.service[Database].zip(ZIO.service[Cache]).as(assertCompletes)
+   *     },
+   *     test("second") {
+   *       ZIO.service[Database].as(assertCompletes)
+   *     }
+   *   )
+   *
+   * val spec2: Spec[Cache, Nothing] =
+   *   spec.provideSomeLayerShared[Cache](databaseLayer)
    * }}}
    */
   final def provideSomeLayerShared[R0]: Spec.ProvideSomeLayerShared[R0, R, E] =
     new Spec.ProvideSomeLayerShared[R0, R, E](self)
 
   /**
-   * Transforms the spec one layer at a time.
+   * Rebuilds the spec bottom-up, applying `f` to each node after the node's
+   * children have been transformed.
    */
   final def transform[R1, E1](
     f: SpecCase[R, E, Spec[R1, E1]] => SpecCase[R1, E1, Spec[R1, E1]]
@@ -413,25 +510,34 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     }
 
   /**
-   * Updates a service in the environment of this effect.
+   * Updates the service of type `M` in the environment of each test in this
+   * spec with a function, given as `spec.updateService[M](f)`.
    */
   final def updateService[M] =
     new Spec.UpdateService[R, E, M](self)
 
   /**
-   * Updates a service at the specified key in the environment of this effect.
+   * Updates the service stored under a key in a `Map[Key, Service]` in the
+   * environment of each test in this spec, given as
+   * `spec.updateServiceAt[Service](key)(f)`.
    */
   final def updateServiceAt[Service]: Spec.UpdateServiceAt[R, E, Service] =
     new Spec.UpdateServiceAt[R, E, Service](self)
 
   /**
-   * Runs the spec only if the specified predicate is satisfied.
+   * Runs the spec only if `b` is `true`, as `whenZIO` does with an effect.
+   * `b` is evaluated again for each test and scoped node.
    */
   final def when(b: => Boolean)(implicit trace: Trace): Spec[R, E] =
     whenZIO(ZIO.succeed(b))
 
   /**
-   * Runs the spec only if the specified effectual predicate is satisfied.
+   * Runs the spec only if the effect `b` succeeds with `true`. `b` runs once
+   * for each test and for each scoped node (one that acquires resources, as
+   * `provideLayerShared` creates). When it returns `false`, a test is reported
+   * as ignored, and a scoped node is replaced by an empty spec without
+   * acquiring its resources, so the tests inside it are not reported at all.
+   * When `b` fails, the guarded tests and scoped nodes fail with its error.
    */
   final def whenZIO[R1 <: R, E1 >: E](b: ZIO[R1, E1, Boolean])(implicit trace: Trace): Spec[R1, E1] =
     caseValue match {
@@ -456,8 +562,19 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
     }
 }
 
+/**
+ * The node types of [[Spec]] and the constructors that build one node.
+ */
 object Spec {
+  /**
+   * One node of a [[Spec]] tree. `A` is the type of the node's children: a
+   * `Spec` inside a spec, or the result of a fold.
+   */
   sealed abstract class SpecCase[-R, +E, +A] { self =>
+    /**
+     * Applies `f` to the children of this node. A test node has no children and
+     * is returned unchanged.
+     */
     final def map[B](f: A => B)(implicit trace: Trace): SpecCase[R, E, B] =
       self match {
         case ExecCase(exec, spec)     => ExecCase(exec, f(spec))
@@ -467,34 +584,83 @@ object Spec {
         case t: TestCase[R, E]        => t
       }
   }
+  /**
+   * A node that runs the groups inside `spec` with the execution strategy
+   * `exec`, unless a nested node sets another one.
+   */
   final case class ExecCase[+Spec](exec: ExecutionStrategy, spec: Spec) extends SpecCase[Any, Nothing, Spec]
+  /**
+   * A node that gives `spec` the label `label`, as `suite` and `test` do.
+   */
   final case class LabeledCase[+Spec](label: String, spec: Spec)        extends SpecCase[Any, Nothing, Spec]
+  /**
+   * A node whose child spec is produced by the scoped effect `scoped`. When the
+   * spec runs, the resources that `scoped` acquires stay open until the child
+   * spec has finished.
+   */
   final case class ScopedCase[-R, +E, +Spec](scoped: ZIO[Scope with R, TestFailure[E], Spec])
       extends SpecCase[R, E, Spec]
+  /**
+   * A node that groups `specs`, running them with the execution strategy in
+   * effect.
+   */
   final case class MultipleCase[+Spec](specs: Chunk[Spec]) extends SpecCase[Any, Nothing, Spec]
+  /**
+   * A single test: the effect `test` and the annotations given to it before it
+   * runs.
+   */
   final case class TestCase[-R, +E](test: ZIO[R, TestFailure[E], TestSuccess], annotations: TestAnnotationMap)
       extends SpecCase[R, E, Nothing]
 
+  /**
+   * Returns `spec` with its groups run with the execution strategy `exec`.
+   */
   final def exec[R, E](exec: ExecutionStrategy, spec: Spec[R, E]): Spec[R, E] =
     Spec(ExecCase(exec, spec))
 
+  /**
+   * Returns `spec` with the label `label`.
+   */
   final def labeled[R, E](label: String, spec: Spec[R, E]): Spec[R, E] =
     Spec(LabeledCase(label, spec))
 
+  /**
+   * Creates a spec from a scoped effect that produces it, given as
+   * `Spec.scoped[R](effect)`. Resources that the effect acquires stay open
+   * until the produced spec has finished.
+   */
   final def scoped[R]: ScopedPartiallyApplied[R] =
     new ScopedPartiallyApplied[R]
 
+  /**
+   * Groups `specs` into one spec without a label.
+   */
   final def multiple[R, E](specs: Chunk[Spec[R, E]]): Spec[R, E] =
     Spec(MultipleCase(specs))
 
+  /**
+   * Creates a spec with a single test from the effect `test` and its initial
+   * `annotations`. The test has no label of its own.
+   */
   final def test[R, E](test: ZIO[R, TestFailure[E], TestSuccess], annotations: TestAnnotationMap)(implicit
     trace: Trace
   ): Spec[R, E] =
     Spec(TestCase(test, annotations))
 
+  /**
+   * A spec with no tests.
+   */
   val empty: Spec[Any, Nothing] = Spec.multiple(Chunk.empty)
 
+  /**
+   * The partially applied form of `Spec#provideSomeLayer`, with the remainder
+   * type `R0` fixed.
+   */
   final class ProvideSomeLayer[R0, -R, +E](private val self: Spec[R, E]) extends AnyVal {
+    /**
+     * Provides each test with the services of `layer`, built once for each
+     * test, and leaves the remainder `R0` to be provided later.
+     */
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
     )(implicit
@@ -505,7 +671,15 @@ object Spec {
       self.asInstanceOf[Spec[R0 with R1, E]].provideLayer(ZLayer.environment[R0] <*> layer)
   }
 
+  /**
+   * The partially applied form of `Spec#provideSomeLayerShared`, with the
+   * remainder type `R0` fixed.
+   */
   final class ProvideSomeLayerShared[R0, -R, +E](private val self: Spec[R, E]) extends AnyVal {
+    /**
+     * Provides the tests with the services of `layer`, built once and shared by
+     * all of them, and leaves the remainder `R0` to be provided later.
+     */
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
     )(implicit
@@ -543,19 +717,43 @@ object Spec {
       }
   }
 
+  /**
+   * The partially applied form of `Spec.scoped`, with the environment type `R`
+   * fixed.
+   */
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+    /**
+     * Creates a spec from the scoped effect `scoped` that produces it.
+     */
     def apply[E, T](scoped: => ZIO[Scope with R, TestFailure[E], Spec[R, E]]): Spec[R, E] =
       Spec(ScopedCase[R, E, Spec[R, E]](scoped))
   }
 
+  /**
+   * The partially applied form of `Spec#updateService`, with the service type
+   * `M` fixed.
+   */
   final class UpdateService[-R, +E, M](private val self: Spec[R, E]) extends AnyVal {
+    /**
+     * Replaces the service of type `M` in the environment of each test with
+     * `f` applied to it.
+     */
     def apply[R1 <: R with M](
       f: M => M
     )(implicit tag: Tag[M], trace: Trace): Spec[R1, E] =
       self.provideSomeEnvironment(_.update(f))
   }
 
+  /**
+   * The partially applied form of `Spec#updateServiceAt`, with the service type
+   * `Service` fixed.
+   */
   final class UpdateServiceAt[-R, +E, Service](private val self: Spec[R, E]) extends AnyVal {
+    /**
+     * Replaces the service stored under `key` in the `Map[Key, Service]` of
+     * each test's environment with `f` applied to it. When the map has no entry
+     * for `key`, the test fails with a `java.util.NoSuchElementException`.
+     */
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]], trace: Trace): Spec[R1, E] =
