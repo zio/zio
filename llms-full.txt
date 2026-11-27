@@ -2607,12 +2607,12 @@ Let's create some `Ref`s from immutable values:
 val counterRef = Ref.make(0)
 // counterRef: UIO[Ref[Int]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.counterRef(ref.md:14)",
-//   eval = zio.Ref$$$Lambda$20597/0x00007059edfcb270@70ef8d91
+//   eval = zio.Ref$$$Lambda$20552/0x00007aecd1ef1da0@37668ff2
 // )
 val stringRef = Ref.make("initial") 
 // stringRef: UIO[Ref[String]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stringRef(ref.md:17)",
-//   eval = zio.Ref$$$Lambda$20597/0x00007059edfcb270@349e769d
+//   eval = zio.Ref$$$Lambda$20552/0x00007aecd1ef1da0@41c53fbf
 // )
 
 sealed trait State
@@ -2623,7 +2623,7 @@ case object Closed  extends State
 val stateRef = Ref.make(Active) 
 // stateRef: UIO[Ref[Active.type]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.stateRef(ref.md:32)",
-//   eval = zio.Ref$$$Lambda$20597/0x00007059edfcb270@6037f97f
+//   eval = zio.Ref$$$Lambda$20552/0x00007aecd1ef1da0@6766257f
 // )
 ```
 
@@ -2640,7 +2640,7 @@ val init = collection.mutable.Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[collection.mutable.Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:42)",
-//   eval = zio.Ref$$$Lambda$20597/0x00007059edfcb270@2856aa23
+//   eval = zio.Ref$$$Lambda$20552/0x00007aecd1ef1da0@724ab76f
 // )
 ```
 
@@ -2652,7 +2652,7 @@ val init = Seq(1,3,5)
 val counterRef = Ref.make(init)
 // counterRef: UIO[Ref[Seq[Int]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.<local MdocApp>.counterRef(ref.md:52)",
-//   eval = zio.Ref$$$Lambda$20597/0x00007059edfcb270@229d04f6
+//   eval = zio.Ref$$$Lambda$20552/0x00007aecd1ef1da0@79ca4e81
 // )
 ```
 
@@ -15762,25 +15762,25 @@ import zio._
 // 1. Build a minimal logger from a pure function
 val msgLogger: ZLogger[String, Unit] =
   ZLogger.simple[String, Unit](msg => println(s"LOG: $msg"))
-// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@1f2485b8
+// msgLogger: ZLogger[String, Unit] = zio.ZLogger$$anon$6@6c44c686
 
 // 2. Adapt it to accept integers as messages
 val intLogger: ZLogger[Int, Unit] =
   msgLogger.contramap[Int](_.toString)
-// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@4ebe2ad9
+// intLogger: ZLogger[Int, Unit] = zio.ZLogger$$anon$2@4ec0c8d9
 
 // 3. Filter so only Warning and above produce output
 val warnLogger: ZLogger[String, Option[Unit]] =
   msgLogger.filterLogLevel(_ >= LogLevel.Warning)
-// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@dbbb36b
+// warnLogger: ZLogger[String, Option[Unit]] = zio.ZLogger$$anon$3@376b7d7b
 
 // 4. Test the formatted output of ZLogger.default without a running fiber
 val sampleLine: String = ZLogger.default.test("something happened")
-// sampleLine: String = "timestamp=2026-11-25T15:24:04.325046554Z level=INFO thread=#zio-fiber- message=\"something happened\""
+// sampleLine: String = "timestamp=2026-11-27T16:27:46.184259515Z level=INFO thread=#zio-fiber- message=\"something happened\""
 
 // 5. Fan both loggers together; Zippable[String, Unit].Out = String
 val combined: ZLogger[String, String] = ZLogger.default ++ msgLogger
-// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@7739cae
+// combined: ZLogger[String, String] = zio.ZLogger$$anon$1@64794e8a
 ```
 
 ### Construction / Creating Instances
@@ -16894,7 +16894,7 @@ The `track` creates a new supervisor that tracks children in a set. It takes a b
 val supervisor = Supervisor.track(true)
 // supervisor: zio.package.UIO[Supervisor[zio.Chunk[zio.Fiber.Runtime[Any, Any]]]] = Sync(
 //   trace = "repl.MdocSession.MdocApp.supervisor(supervisor.md:14)",
-//   eval = zio.Supervisor$$$Lambda$20718/0x00007059ef00ea48@189bcbb9
+//   eval = zio.Supervisor$$$Lambda$20673/0x00007aecd1efec50@3c3cc69e
 // )
 ```
 
@@ -17723,7 +17723,7 @@ source("cool.txt").flatMap { source =>
 //   first = DynamicNoBox(
 //     trace = "repl.MdocSession.MdocApp.source(scope.md:79)",
 //     update = 1L,
-//     f = zio.ZIO$$$Lambda$19732/0x00007059eef135b8@4f70ef9a
+//     f = zio.ZIO$$$Lambda$19687/0x00007aecd2f1ba50@4c744eb1
 //   ),
 //   successK = <function1>
 // )
@@ -18504,7 +18504,7 @@ import zio._
 // Retry with exponential backoff, at most 5 additional attempts, with random jitter
 val policy: Schedule[Any, Any, Long] =
   Schedule.recurs(5) <* Schedule.exponential(100.millis).jittered
-// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@47a727ee
+// policy: Schedule[Any, Any, Long] = zio.Schedule$$anon$13@1d9d222
 
 // Retry an HTTP call up to 5 times, waiting 100ms, 200ms, 400ms … between attempts
 val result: ZIO[Any, Nothing, String] =
@@ -18517,12 +18517,12 @@ val result: ZIO[Any, Nothing, String] =
 //     trace = "repl.MdocSession.MdocApp0.result(schedule.md:20)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18868/0x00007059eed330c0@634c0cad
+//       eval = zio.ZIO$$$Lambda$18836/0x00007aecd2d3f558@9dfc308
 //     ),
-//     successK = zio.ZIO$$$Lambda$19722/0x00007059eef0c788@131905ff
+//     successK = zio.ZIO$$$Lambda$19677/0x00007aecd2f138a0@4c26120b
 //   ),
-//   successK = zio.ZIO$$$Lambda$18877/0x00007059eed35338@15c8811d,
-//   failureK = zio.ZIO$$Lambda$20514/0x00007059ee280690@ff9d02
+//   successK = zio.ZIO$$$Lambda$18839/0x00007aecd2d45810@39c3962e,
+//   failureK = zio.ZIO$$Lambda$20469/0x00007aecd1e4b798@78f839aa
 // )
 
 // The same schedule type drives repeat for polling or heartbeat loops:
@@ -18534,11 +18534,11 @@ val heartbeat: ZIO[Any, Nothing, Long] =
 //     trace = "repl.MdocSession.MdocApp0.heartbeat(schedule.md:25)",
 //     first = Sync(
 //       trace = "",
-//       eval = zio.ZIO$$$Lambda$18868/0x00007059eed330c0@634c0cad
+//       eval = zio.ZIO$$$Lambda$18836/0x00007aecd2d3f558@9dfc308
 //     ),
-//     successK = zio.ZIO$$$Lambda$19722/0x00007059eef0c788@cff5dd8
+//     successK = zio.ZIO$$$Lambda$19677/0x00007aecd2f138a0@51cc1c87
 //   ),
-//   successK = zio.ZIO$$Lambda$20744/0x00007059ef02c868@7c6edb1b
+//   successK = zio.ZIO$$Lambda$20699/0x00007aecd21ecb58@4f2c65ae
 // )
 ```
 
@@ -23842,7 +23842,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@47133362
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp1$$anon$1@4f8fedb4
 
 def logMessage(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -23870,9 +23870,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp1.example(threadlocal-bridge.md:65)",
-//     eval = zio.Scope$$$Lambda$20196/0x00007059edde99d0@25073262
+//     eval = zio.Scope$$$Lambda$20151/0x00007aecd2ff0000@5bf721bc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20197/0x00007059edde9c88@79ea6851
+//   successK = zio.ZIO$$$Lambda$20152/0x00007aecd2ff02b8@1ff2aefc
 // )
 ```
 
@@ -23921,7 +23921,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@486c23c0
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp3$$anon$2@e797e20
 
 // Step 2: Define a logging function that reads from the ThreadLocal
 def logWithRequestId(message: String): ZIO[Any, Nothing, Unit] =
@@ -23951,9 +23951,9 @@ val program = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp3.program(threadlocal-bridge.md:121)",
-//     eval = zio.Scope$$$Lambda$20196/0x00007059edde99d0@25073262
+//     eval = zio.Scope$$$Lambda$20151/0x00007aecd2ff0000@5bf721bc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20197/0x00007059edde9c88@7ead07dd
+//   successK = zio.ZIO$$$Lambda$20152/0x00007aecd2ff02b8@614f5b3e
 // )
 ```
 
@@ -23984,7 +23984,7 @@ import zio._
 val requestIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@71e22c57
+// requestIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp5$$anon$3@4c1f474f
 
 def example: ZIO[Scope with ThreadLocalBridge, Nothing, Unit] =
   ThreadLocalBridge.makeFiberRef[String]("initial")(id =>
@@ -23999,9 +23999,9 @@ val withBridge = ZIO.scoped(example).provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp5.withBridge(threadlocal-bridge.md:163)",
-//     eval = zio.Scope$$$Lambda$20196/0x00007059edde99d0@25073262
+//     eval = zio.Scope$$$Lambda$20151/0x00007aecd2ff0000@5bf721bc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20197/0x00007059edde9c88@1551e387
+//   successK = zio.ZIO$$$Lambda$20152/0x00007aecd2ff02b8@4a8ef07b
 // )
 ```
 
@@ -24045,7 +24045,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@754d96c5
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp7$$anon$4@604737a
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24062,9 +24062,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp7.example(threadlocal-bridge.md:207)",
-//     eval = zio.Scope$$$Lambda$20196/0x00007059edde99d0@25073262
+//     eval = zio.Scope$$$Lambda$20151/0x00007aecd2ff0000@5bf721bc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20197/0x00007059edde9c88@722467d0
+//   successK = zio.ZIO$$$Lambda$20152/0x00007aecd2ff02b8@1ebe4fde
 // )
 ```
 
@@ -24096,7 +24096,7 @@ import zio._
 val counterThreadLocal = new ThreadLocal[Option[Int]] {
   override def initialValue() = None
 }
-// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@314c2d4b
+// counterThreadLocal: ThreadLocal[Option[Int]]{def initialValue(): None.type} = repl.MdocSession$MdocApp9$$anon$5@93aa4b7
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[Int](0)(count =>
@@ -24113,9 +24113,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp9.example(threadlocal-bridge.md:251)",
-//     eval = zio.Scope$$$Lambda$20196/0x00007059edde99d0@25073262
+//     eval = zio.Scope$$$Lambda$20151/0x00007aecd2ff0000@5bf721bc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20197/0x00007059edde9c88@7c098784
+//   successK = zio.ZIO$$$Lambda$20152/0x00007aecd2ff02b8@2c1135c7
 // )
 ```
 
@@ -24147,7 +24147,7 @@ import zio._
 val userIdThreadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@2d48c7ec
+// userIdThreadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp11$$anon$6@3f7329e0
 
 def logWithUserId(message: String): ZIO[Any, Nothing, Unit] =
   ZIO.succeed {
@@ -24178,9 +24178,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp11.example(threadlocal-bridge.md:310)",
-//     eval = zio.Scope$$$Lambda$20196/0x00007059edde99d0@25073262
+//     eval = zio.Scope$$$Lambda$20151/0x00007aecd2ff0000@5bf721bc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20197/0x00007059edde9c88@1dd3aa72
+//   successK = zio.ZIO$$$Lambda$20152/0x00007aecd2ff02b8@59d52a8d
 // )
 ```
 
@@ -24213,7 +24213,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@1f819cb
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp13$$anon$7@7a0960c8
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24229,9 +24229,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp13.example(threadlocal-bridge.md:353)",
-//     eval = zio.Scope$$$Lambda$20196/0x00007059edde99d0@25073262
+//     eval = zio.Scope$$$Lambda$20151/0x00007aecd2ff0000@5bf721bc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20197/0x00007059edde9c88@3f79550a
+//   successK = zio.ZIO$$$Lambda$20152/0x00007aecd2ff02b8@11dea53e
 // )
 ```
 
@@ -24262,7 +24262,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@4ec2f2c
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp14$$anon$8@7792b563
 
 // Helper to read current ThreadLocal value
 def checkThreadLocal(message: String): ZIO[Any, Nothing, Unit] = {
@@ -24289,9 +24289,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp14.example(threadlocal-bridge.md:390)",
-//     eval = zio.Scope$$$Lambda$20196/0x00007059edde99d0@25073262
+//     eval = zio.Scope$$$Lambda$20151/0x00007aecd2ff0000@5bf721bc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20197/0x00007059edde9c88@38e9dbac
+//   successK = zio.ZIO$$$Lambda$20152/0x00007aecd2ff02b8@7021fc1e
 // )
 ```
 
@@ -24311,7 +24311,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@5dba4b3
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp15$$anon$9@2cec707e
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("initial")(value =>
@@ -24334,9 +24334,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp15.example(threadlocal-bridge.md:423)",
-//     eval = zio.Scope$$$Lambda$20196/0x00007059edde99d0@25073262
+//     eval = zio.Scope$$$Lambda$20151/0x00007aecd2ff0000@5bf721bc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20197/0x00007059edde9c88@59b8079b
+//   successK = zio.ZIO$$$Lambda$20152/0x00007aecd2ff02b8@609f3bc9
 // )
 ```
 
@@ -24352,7 +24352,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@41dd4544
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp16$$anon$10@6180e46
 
 val example = ZIO.scoped {
   ThreadLocalBridge.makeFiberRef[String]("task")(taskId =>
@@ -24374,9 +24374,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp16.example(threadlocal-bridge.md:455)",
-//     eval = zio.Scope$$$Lambda$20196/0x00007059edde99d0@25073262
+//     eval = zio.Scope$$$Lambda$20151/0x00007aecd2ff0000@5bf721bc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20197/0x00007059edde9c88@3e4a8e5d
+//   successK = zio.ZIO$$$Lambda$20152/0x00007aecd2ff02b8@44c9f43c
 // )
 ```
 
@@ -24392,7 +24392,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = None
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@232f5517
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): None.type} = repl.MdocSession$MdocApp17$$anon$11@2fce189b
 
 val example = ZIO.scoped {
   // Defensive approach: validate input and avoid potential failures
@@ -24412,9 +24412,9 @@ val example = ZIO.scoped {
 //   trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp17.example(threadlocal-bridge.md:485)",
-//     eval = zio.Scope$$$Lambda$20196/0x00007059edde99d0@25073262
+//     eval = zio.Scope$$$Lambda$20151/0x00007aecd2ff0000@5bf721bc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20197/0x00007059edde9c88@5c2bddb6
+//   successK = zio.ZIO$$$Lambda$20152/0x00007aecd2ff02b8@415aabc1
 // )
 ```
 
@@ -24432,7 +24432,7 @@ import zio._
 val threadLocal = new ThreadLocal[Option[String]] {
   override def initialValue() = Some("initial")
 }
-// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@5740f67d
+// threadLocal: ThreadLocal[Option[String]]{def initialValue(): Some[String]} = repl.MdocSession$MdocApp18$$anon$12@5277e363
 
 val example = {
   val scoped = ZIO.scoped {
@@ -24454,9 +24454,9 @@ val example = {
 //     trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
 //     first = Sync(
 //       trace = "repl.MdocSession.MdocApp18.example(threadlocal-bridge.md:512)",
-//       eval = zio.Scope$$$Lambda$20196/0x00007059edde99d0@25073262
+//       eval = zio.Scope$$$Lambda$20151/0x00007aecd2ff0000@5bf721bc
 //     ),
-//     successK = zio.ZIO$$$Lambda$20197/0x00007059edde9c88@1293548c
+//     successK = zio.ZIO$$$Lambda$20152/0x00007aecd2ff02b8@20285c29
 //   ),
 //   successK = <function1>
 // )
@@ -28461,14 +28461,14 @@ We can create a stream from a `Chunk`:
 
 ```scala
 val s1 = ZStream.fromChunk(Chunk(1, 2, 3))
-// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@21c2073
+// s1: ZStream[Any, Nothing, Int] = zio.stream.ZStream@6773f03a
 ```
 
 Or from multiple `Chunks`:
 
 ```scala
 val s2 = ZStream.fromChunks(Chunk(1, 2, 3), Chunk(4, 5, 6))
-// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@7b218e84
+// s2: ZStream[Any, Nothing, Int] = zio.stream.ZStream@436c8a98
 ```
 
 ### From ZIO
@@ -35202,9 +35202,9 @@ test("Use setSeed to generate stable values") {
 //           trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
 //           first = Stateful(
 //             trace = "repl.MdocSession.MdocApp.res0(random.md:17)",
-//             onState = zio.ZIO$$$Lambda$20206/0x00007059eddfdd20@788b9678
+//             onState = zio.ZIO$$$Lambda$20161/0x00007aecd2ff85b0@3d7a8bf6
 //           ),
-//           successK = zio.test.package$ZTest$$$Lambda$20214/0x00007059ede07508@3d89170d
+//           successK = zio.test.package$ZTest$$$Lambda$20169/0x00007aecd3001930@7878123d
 //         ),
 //         annotations = Map(zio.test.TestAnnotation@b4aaf9ee -> List(SourceLocation(random.md,17)))
 //       )
@@ -38196,7 +38196,7 @@ Include ZIO in your Scala.js project by adding the following to your `build.sbt`
 ```
 scalaJSUseMainModuleInitializer := true
 resolvers += Resolver.sonatypeRepo("snapshots")
-libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+118-ee3a637f-SNAPSHOT"
+libraryDependencies += "dev.zio" %%% "zio" % "2.1.27+133-44f37fea-SNAPSHOT"
 ```
 
 ### Example
@@ -50187,9 +50187,9 @@ SimpleRequestTracker.trackRequest().provide(ThreadLocalBridge.live)
 //   trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
 //   first = Sync(
 //     trace = "repl.MdocSession.MdocApp2.res3(getting-started-threadlocal-bridge.md:169)",
-//     eval = zio.Scope$$$Lambda$20196/0x00007059edde99d0@25073262
+//     eval = zio.Scope$$$Lambda$20151/0x00007aecd2ff0000@5bf721bc
 //   ),
-//   successK = zio.ZIO$$$Lambda$20197/0x00007059edde9c88@7401fc1f
+//   successK = zio.ZIO$$$Lambda$20152/0x00007aecd2ff02b8@49cc0f70
 // )
 ```
 
@@ -54924,11 +54924,12 @@ object MySpec extends AkkaZIOSpecDefault {
 
 ## ZIO Ecosystem
 
-ZIO has a rich ecosystem of libraries and tools that enhance its capabilities and provide additional functionality. This ecosystem includes libraries for various purposes, such as web development, data processing, testing, and more.
+ZIO has a rich ecosystem of libraries and tools that enhance its capabilities and provide additional functionality, for web development, data processing, testing, and more.
 
-Browse the libraries by purpose in the sidebar, or jump to the complete lists below: the [official libraries](#official-libraries), maintained by the ZIO team under the [ZIO Organization](https://github.com/zio), the [community libraries](#community-libraries), maintained by members of the ZIO community, and the [compatible libraries](#compatible-libraries) that work with ZIO.
+Find a library by name or by purpose below. **Official** libraries are maintained by the ZIO team under the [ZIO organization](https://github.com/zio/), and include the blocks of [ZIO Blocks](https://zioblocks.com), which [zioblocks.com/reference](https://zioblocks.com/reference/) groups by the same categories. **Community** libraries are maintained by members of the ZIO community, and **compatible** libraries work with ZIO.
 
-Below are some of the highlights from the official libraries:
+<details>
+<summary>Full list, with descriptions</summary>
 
 ### Official Libraries
 
@@ -54950,66 +54951,83 @@ Each project in the ZIO organization namespace has a _Stage Badge_ which indicat
 #### Web & APIs
 
 - [ZIO HTTP](https://ziohttp.com) — A type-safe, composable, and feature-rich HTTP library built on top of ZIO.
+- ZIO Blocks: [MediaType](https://zioblocks.com/reference/media-type/), [HTTP Model](https://zioblocks.com/reference/http-model/), [HTTP Model Schema](https://zioblocks.com/reference/http-model/schema/), [Endpoint](https://zioblocks.com/reference/endpoint/), [OpenAPI](https://zioblocks.com/reference/openapi/), [JWT](https://zioblocks.com/reference/jwt/), [HTML](https://zioblocks.com/reference/html/), [Datastar](https://zioblocks.com/reference/datastar/), [HTMX](https://zioblocks.com/reference/htmx/)
 
 #### Data Access
 
-- [ZIO DynamoDB](/zio-dynamodb/) — Simple, type-safe, and efficient access to AWS DynamoDB.
-- [ZIO Query](/zio-query/) — A library for writing optimized queries to data sources in a compositional style, with batching, pipelining, and caching.
+- [ZIO DynamoDB](/zio-dynamodb/) · API — Simple, type-safe, and efficient access to AWS DynamoDB.
+- [ZIO Query](/zio-query/) · API — A library for writing optimized queries to data sources in a compositional style, with batching, pipelining, and caching.
 - [ZIO Quill](/zio-quill/) — A quoted domain-specific language for expressing queries in Scala and executing them as SQL or CQL.
-- [ZIO Redis](/zio-redis/) — A type-safe and performant ZIO-native Redis client.
-- [ZIO RocksDB](/zio-rocksdb/) — A ZIO-based interface to RocksDB.
+- [ZIO Redis](/zio-redis/) · API — A type-safe and performant ZIO-native Redis client.
+- [ZIO Rocksdb](/zio-rocksdb/) · API — A ZIO-based interface to RocksDB.
+- ZIO Blocks: [SQL Module](https://zioblocks.com/reference/sql/), [ZIO Integration](https://zioblocks.com/reference/sql-zio/), [Data Migration](https://zioblocks.com/reference/data-migration/), [Projection](https://zioblocks.com/reference/projection/)
 
-#### Messaging & Pipelines
+#### Streaming & Messaging
 
-- [ZIO AMQP](/zio-amqp/) — A ZIO-based wrapper around the RabbitMQ client with a streaming interface to AMQP queues.
-- [ZIO Kafka](/zio-kafka/) — A purely functional, streams-based Kafka client for ZIO.
-- [ZIO SQS](/zio-sqs/) — A ZIO-powered client for AWS SQS, built on top of ZIO AWS.
+- [ZIO AMQP](/zio-amqp/) · API — A ZIO-based wrapper around the RabbitMQ client with a streaming interface to AMQP queues.
+- [ZIO Kafka](/zio-kafka/) · API — A purely functional, streams-based Kafka client for ZIO.
+- [ZIO SQS](/zio-sqs/) · API — A ZIO-powered client for AWS SQS, built on top of ZIO AWS.
+- ZIO Blocks: [Streams](https://zioblocks.com/reference/streams/)
 
-#### Serialization & Formats
+#### Schemas & Serialization
 
-- [ZIO Bson](/zio-bson/) — A BSON library with tight ZIO integration and native support for BSON types.
-- [ZIO JSON](/zio-json/) — A fast and secure JSON library with tight ZIO integration.
-- [ZIO Parser](/zio-parser/) — A library for constructing parsers and pretty printers from invertible syntax descriptions.
-- [ZIO Schema](/zio-schema/) — A library for modeling the schema of data structures as first-class values, enabling serialization, deserialization, and data migration.
-- [ZIO Streams Compress](/zio-streams-compress/) — A library that integrates compression algorithms and archive formats with ZIO Streams.
+- [ZIO BSON](/zio-bson/) · API — A BSON library with tight ZIO integration and native support for BSON types.
+- [ZIO JSON](/zio-json/) · API — A fast and secure JSON library with tight ZIO integration.
+- [ZIO Parser](/zio-parser/) · API — A library for constructing parsers and pretty printers from invertible syntax descriptions.
+- [ZIO Schema](/zio-schema/) · API — A library for modeling the schema of data structures as first-class values, enabling serialization, deserialization, and data migration.
+- [ZIO Streams Compress](/zio-streams-compress/) · API — A library that integrates compression algorithms and archive formats with ZIO Streams.
+- ZIO Blocks: [Schema](https://zioblocks.com/reference/schema/), [Avro Codec](https://zioblocks.com/reference/schema/built-in-codecs/avro/), [BSON Codec](https://zioblocks.com/reference/schema/built-in-codecs/bson/), [CSV Codec](https://zioblocks.com/reference/schema/built-in-codecs/csv/), [MessagePack Codec](https://zioblocks.com/reference/schema/built-in-codecs/messagepack/), [Thrift Codec](https://zioblocks.com/reference/schema/built-in-codecs/thrift/), [TOON Codec](https://zioblocks.com/reference/schema/built-in-codecs/toon/), [XML Codec](https://zioblocks.com/reference/schema/built-in-codecs/xml/), [YAML Codec](https://zioblocks.com/reference/schema/built-in-codecs/yaml/)
 
 #### Observability
 
-- [ZIO Logging](/zio-logging/) — Simple logging for ZIO applications, with correlation, context, and pluggable backends.
-- [ZIO Metrics Connectors](/zio-metrics-connectors/) — Integrations between ZIO metrics and monitoring systems such as Prometheus and Datadog.
-- [ZIO Profiling](/zio-profiling/) — A collection of profilers for understanding the runtime behavior of ZIO programs.
-- [ZIO Telemetry](/zio-telemetry/) — Purely functional and type-safe clients for OpenTracing, OpenCensus, and OpenTelemetry.
+- [ZIO Logging](/zio-logging/) · API — Simple logging for ZIO applications, with correlation, context, and pluggable backends.
+- [ZIO Metrics Connectors](/zio-metrics-connectors/) · API — Integrations between ZIO metrics and monitoring systems such as Prometheus and Datadog.
+- [ZIO Profiling](/zio-profiling/) · API — A collection of profilers for understanding the runtime behavior of ZIO programs.
+- [ZIO Telemetry](/zio-telemetry/) · API — Purely functional and type-safe clients for OpenTracing, OpenCensus, and OpenTelemetry.
+- ZIO Blocks: [Telemetry](https://zioblocks.com/reference/telemetry/), [OTLP Export](https://zioblocks.com/reference/telemetry/otel/)
 
-#### Cloud & Infrastructure
+#### Configuration & CLI
 
-- [ZIO AWS](/zio-aws/) — A ZIO wrapper for all AWS services, built on the AWS Java SDK v2.
-- [ZIO FTP](/zio-ftp/) — A thin wrapper over (s)FTP clients for ZIO.
-- [ZIO Lambda](/zio-lambda/) — A ZIO-based AWS Custom Runtime compatible with GraalVM Native Image.
-- [ZIO S3](/zio-s3/) — A thin wrapper over the S3 async client for ZIO.
+- [ZIO Cli](/zio-cli/) · API — A library for rapidly building powerful command-line applications powered by ZIO.
+- [ZIO Config](/zio-config/) · API — A ZIO-based library that extends ZIO's `Config` with support for various sources and automatic derivation.
+- [ZIO Process](/zio-process/) · API — A library for interacting with external processes and command-line programs, backed by ZIO Streams.
+- ZIO Blocks: [Configuration](https://zioblocks.com/reference/config/), [Config YAML](https://zioblocks.com/reference/config/formats/), [Config JSON](https://zioblocks.com/reference/config/formats/), [Config HOCON](https://zioblocks.com/reference/config/formats/)
 
-#### Config & App Wiring
+#### Resource Management
 
-- [ZIO CLI](/zio-cli/) — A library for rapidly building powerful command-line applications powered by ZIO.
-- [ZIO Config](/zio-config/) — A ZIO-based library that extends ZIO's `Config` with support for various sources and automatic derivation.
-- [ZIO Process](/zio-process/) — A library for interacting with external processes and command-line programs, backed by ZIO Streams.
+- ZIO Blocks: [Scope](https://zioblocks.com/reference/resource-management/), [Resource](https://zioblocks.com/reference/resource-management/resource/), [Unscoped](https://zioblocks.com/reference/resource-management/unscoped/), [DeferHandle](https://zioblocks.com/reference/resource-management/defer-handle/), [Finalizer](https://zioblocks.com/reference/resource-management/finalizer/), [Finalization](https://zioblocks.com/reference/resource-management/finalization/)
 
-#### Resilience & Scaling
+#### Dependency Injection
 
-- [ZIO Cache](/zio-cache/) — A library for optimizing the performance of an application by caching values.
+- ZIO Blocks: [Wire](https://zioblocks.com/reference/resource-management/wire/), [Context](https://zioblocks.com/reference/context/)
+
+#### Concurrency & Resilience
+
+- [ZIO Cache](/zio-cache/) · API — A library for optimizing the performance of an application by caching values.
+- ZIO Blocks: [Async](https://zioblocks.com/reference/async/), [Mux](https://zioblocks.com/reference/mux/), [RingBuffer](https://zioblocks.com/reference/ringbuffer/)
 
 #### Types & Abstractions
 
 - [Izumi Reflect](/izumi-reflect/) — A fast, lightweight, portable and efficient alternative to `TypeTag` from `scala-reflect`.
 - [ZIO 2.x Interop Cats 2.x](/zio2-interop-cats2/) — Legacy interoperability layer for ZIO 2 and Cats Effect 2. No longer maintained; use interop-cats for Cats Effect 3.
 - [ZIO 2.x Interop Cats 3.x](/interop-cats/) — An interoperability layer that lets ZIO 2 work with Cats Effect 3 and its ecosystem, including fs2, doobie and http4s.
-- [ZIO Constraintless](/zio-constraintless/) — A library for building programs as descriptions with maximum polymorphism and modularity, and zero abstraction leakage.
-- [ZIO Direct Style](/zio-direct/) — A library for writing ZIO programs in a direct, imperative style, based on the Monadless paradigm.
-- [ZIO Prelude](/zio-prelude/) — A lightweight, distinctly Scala take on functional abstractions, with tight ZIO integration.
+- [ZIO Constraintless](/zio-constraintless/) · API — A library for building programs as descriptions with maximum polymorphism and modularity, and zero abstraction leakage.
+- [ZIO Direct Style](/zio-direct/) · API — A library for writing ZIO programs in a direct, imperative style, based on the Monadless paradigm.
+- [ZIO Prelude](/zio-prelude/) · API — A lightweight, distinctly Scala take on functional abstractions, with tight ZIO integration.
+- ZIO Blocks: [Chunk](https://zioblocks.com/reference/chunk/), [Maybe](https://zioblocks.com/reference/maybe/), [Combinators](https://zioblocks.com/reference/combinators/), [TypeId](https://zioblocks.com/reference/typeid/)
 
-#### Testing & Dev Tools
+#### Cloud & Infrastructure
+
+- [ZIO AWS](/zio-aws/) — A ZIO wrapper for all AWS services, built on the AWS Java SDK v2.
+- [ZIO Ftp](/zio-ftp/) · API — A thin wrapper over (s)FTP clients for ZIO.
+- [ZIO Lambda](/zio-lambda/) · API — A ZIO-based AWS Custom Runtime compatible with GraalVM Native Image.
+- [ZIO S3](/zio-s3/) · API — A thin wrapper over the S3 async client for ZIO.
+
+#### Tooling & Testing
 
 - [ZIO IntelliJ](https://github.com/zio/zio-intellij) — A plugin for IntelliJ IDEA that brings enhancements when using ZIO in your projects.
 - [ZIO SBT](/zio-sbt/) — A collection of sbt plugins that simplify the development of ZIO projects.
+- ZIO Blocks: [Code Generation](https://zioblocks.com/reference/codegen/), [Docs](https://zioblocks.com/reference/docs/), [Smithy](https://zioblocks.com/reference/smithy/)
 
 {/* END GENERATED: official libraries */}
 
@@ -55036,13 +55054,13 @@ If you know a useful library that has first-class ZIO support, please consider [
 - [ZIO LMDB](/ecosystem/community/zio-lmdb) — An embedded, ACID, key-value database for ZIO, stored in a single file.
 - [ZIO MongoDB](/ecosystem/community/zio-mongodb) — A ZIO wrapper around the official MongoDB Java driver, with compile-time codecs and a type-safe query DSL.
 
-#### Messaging & Pipelines
+#### Streaming & Messaging
 
 - [tamer](/ecosystem/community/tamer) — A multi-functional Kafka connector for producing data, based on ZIO Kafka.
 - [ZIO Kinesis](/ecosystem/community/zio-kinesis) — A ZIO-based AWS Kinesis client for consuming and producing data.
 - [ZIO Spark](/ecosystem/community/zio-spark) — A functional wrapper around Spark that makes it work with ZIO and improves error management.
 
-#### Serialization & Formats
+#### Schemas & Serialization
 
 - [ZIO Apache Parquet](/ecosystem/community/zio-apache-parquet) — A ZIO-powered library for reading and writing Parquet files without running a Spark cluster.
 
@@ -55051,16 +55069,11 @@ If you know a useful library that has first-class ZIO support, please consider [
 - [LogStage](/ecosystem/community/logstage) — A zero-cost structural logging framework for Scala and Scala.js.
 - [Tofu ZIO 2 Logging](/ecosystem/community/tofu-zio2-logging) — Logging integration of Tofu, a functional toolkit based on the tagless-final approach, with ZIO 2.
 
-#### Cloud & Infrastructure
-
-- [Scala k8s](/ecosystem/community/scala-k8s) — A Kubernetes client, data models, and typesafe manifest generation for Scala, Scala.js, and Scala Native.
-- [ZIO K8s](/ecosystem/community/zio-k8s) — An idiomatic ZIO client for the Kubernetes API, with code generation for custom resources and operators.
-
-#### Config & App Wiring
+#### Dependency Injection
 
 - [Distage](/ecosystem/community/distage) — A compile-time safe, transparent, and debuggable dependency injection framework for pure FP Scala.
 
-#### Resilience & Scaling
+#### Concurrency & Resilience
 
 - [Rezilience](/ecosystem/community/rezilience) — A ZIO-native fault tolerance library with policies for making asynchronous systems more resilient to failures.
 - [Shard](/ecosystem/community/shard) — A library for distributing entities across multiple servers and sending them messages by ID, without knowing their location. It is the successor of Shardcake.
@@ -55069,7 +55082,12 @@ If you know a useful library that has first-class ZIO support, please consider [
 
 - [Neotype](/ecosystem/community/neotype) — A friendly newtype library for Scala 3 with compile-time validation and integrations with ZIO JSON, ZIO Quill, ZIO Config, and ZIO Schema.
 
-#### Testing & Dev Tools
+#### Cloud & Infrastructure
+
+- [Scala k8s](/ecosystem/community/scala-k8s) — A Kubernetes client, data models, and typesafe manifest generation for Scala, Scala.js, and Scala Native.
+- [ZIO K8s](/ecosystem/community/zio-k8s) — An idiomatic ZIO client for the Kubernetes API, with code generation for custom resources and operators.
+
+#### Tooling & Testing
 
 - [MUnit ZIO](/ecosystem/community/munit-zio) — An integration library between MUnit and ZIO.
 - [ZIO Test Akka HTTP](/ecosystem/community/zio-test-akka-http) — An Akka HTTP route test kit for ZIO Test.
@@ -55079,6 +55097,8 @@ If you know a useful library that has first-class ZIO support, please consider [
 ### Compatible Libraries
 
 List of ZIO compatible libraries:
+
+{/* BEGIN GENERATED: compatible libraries */}
 
 - [d4s](https://github.com/PlayQ/d4s) — "Dynamo DB Database done Scala way". A library that allows accessing the DynamoDB in a purely functional way
 - [Edomata](https://github.com/hnaderi/edomata) — Production ready event-driven automata for Scala, Scala.js and scala native
@@ -55090,10 +55110,14 @@ List of ZIO compatible libraries:
 - [doobie](https://github.com/tpolecat/doobie) — Functional JDBC layer for Scala.
 - [fs2](https://github.com/typelevel/fs2) — Compositional, streaming I/O library for Scala
 - [http4s](https://github.com/http4s/http4s) — A minimal, idiomatic Scala interface for HTTP
-- [Automorph](https://automorph.org) - RPC in a few lines of Scala code
+- [Automorph](https://automorph.org) — RPC in a few lines of Scala code
 - [ldbc](https://github.com/takapi327/ldbc) — Pure functional JDBC layer for Scala 3 built on Cats Effect, usable with ZIO through the `ldbc-zio-interop` module
 - [Iron](https://github.com/iltotore/iron) — Strong type constraints for Scala 3, with the `iron-zio`, `iron-zio-json`, and `iron-zio-blocks-schema` modules for ZIO
 - [sttp-ai](https://github.com/softwaremill/sttp-ai) — A Scala toolkit for working with third-party LLMs such as OpenAI and Claude, with a ZIO backend
+
+{/* END GENERATED: compatible libraries */}
+
+</details>
 
 ---
 
@@ -159759,11 +159783,9 @@ ZIO SQS enables us to produce and consume elements to/from the Amazon SQS servic
 ZIO SQS is published for Scala 2.13 and Scala 3 on the JVM only. To use it, we add the following to the `build.sbt` file:
 
 ```scala
-libraryDependencies ++= Seq(
-  // ZIO SQS client: producers, consumer streams and queue helpers (JVM only).
-  // It brings the zio-aws SQS client and the Netty HTTP client as dependencies.
-  "dev.zio" %% "zio-sqs" % "0.12.7"
-)
+// ZIO SQS client: producers, consumer streams and queue helpers (JVM only).
+// It brings the zio-aws SQS client and the Netty HTTP client as dependencies.
+libraryDependencies += "dev.zio" %% "zio-sqs" % "0.12.8"
 ```
 
 ### Example

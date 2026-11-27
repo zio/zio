@@ -1,4 +1,4 @@
-<!DOCTYPE html><html data-pathToRoot="../../" data-rawLocation="zio/Chunk/IntArray" data-dynamicSideMenu="true"><head><meta charset="utf-8"></meta><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></meta><title>IntArray</title><link rel="icon" href="/img/favicon.png"><script type="text/javascript" src="../../scripts/theme.js"></script><script type="text/javascript" src="../../scripts/searchData.js" defer="true"></script><script type="text/javascript" src="../../scripts/scastieConfiguration.js" defer="true"></script><link rel="stylesheet" href="../../styles/theme/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/components/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/components/button/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/layout/bundle.css"></link><link rel="stylesheet" href="../../styles/dotty-icons.css"></link><link rel="stylesheet" href="../../styles/filter-bar.css"></link><link rel="stylesheet" href="../../styles/searchbar.css"></link><link rel="stylesheet" href="../../styles/social-links.css"></link><link rel="stylesheet" href="../../styles/versions-dropdown.css"></link><link rel="stylesheet" href="../../styles/content-contributors.css"></link><script type="text/javascript" src="../../hljs/highlight.pack.js" defer="true"></script><script type="text/javascript" src="../../scripts/hljs-scala3.js" defer="true"></script><script type="text/javascript" src="../../scripts/ux.js" defer="true"></script><script type="text/javascript" src="../../scripts/common/component.js" defer="true"></script><script type="text/javascript" src="../../scripts/common/utils.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/FilterBar.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/DocumentableList.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/Input.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/FilterGroup.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/Filter.js" defer="true"></script><script type="text/javascript" src="../../scripts/scaladoc-scalajs.js" defer="true"></script><script type="text/javascript" src="../../scripts/contributors.js" defer="true"></script><script type="text/javascript" src="/api/scripts/vendor/d3/d3.v6.7.0.min.js" defer="true"></script><script type="text/javascript" src="/api/scripts/vendor/graphlib-dot/graphlib-dot.0.6.2.min.js" defer="true"></script><script type="text/javascript" src="/api/scripts/vendor/dagre-d3/dagre-d3.0.6.1.min.js" defer="true"></script><script type="text/javascript" src="../../scripts/data.js" defer="true"></script><script>var pathToRoot = "../../";</script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=fallback"><link rel="stylesheet" href="/api/styles/zio-api.css"></head><body><div id=""><div id="header" class="za-navbar"><div class="za-navbar__left"><span id="mobile-menu-toggle" class="za-navbar__toggle" role="button" tabindex="0" aria-label="Toggle navigation bar"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"/></svg></span><a class="za-navbar__brand" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><span id="dropdown-trigger" hidden></span><div id="version-dropdown" hidden></div><a class="za-navbar__link" href="/overview/getting-started">Overview</a><a class="za-navbar__link" href="/reference/">Reference</a><a class="za-navbar__link za-navbar__link--active" href="/api/" aria-current="page">API</a><a class="za-navbar__link" href="/guides/">Guides</a><a class="za-navbar__link" href="/ecosystem/">Ecosystem</a><a class="za-navbar__link" href="/resources/">Resources</a><a class="za-navbar__link" href="/events/">Events</a></div><div class="za-navbar__right"><a class="za-navbar__link" href="/blog">Blog</a><a class="za-navbar__link za-navbar__link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a><button type="button" class="za-navbar__icon za-onboard" data-onboard-prompt="Fetch https://zio.dev/start.md and follow the instructions to set up my environment for ZIO development." title="Copy the prompt to onboard your coding agent to ZIO" aria-label="Copy the ZIO agent onboarding prompt to the clipboard"><svg class="za-onboard__idle" viewBox="0 0 576 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M9.4 86.6C-3.1 74.1-3.1 53.9 9.4 41.4s32.8-12.5 45.3 0l192 192c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L178.7 256 9.4 86.6zM256 416l288 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-288 0c-17.7 0-32-14.3-32-32s14.3-32 32-32z"/></svg><svg class="za-onboard__done" viewBox="0 0 448 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></svg></button><button type="button" class="za-navbar__icon za-mode" data-color-mode-toggle title="light mode" aria-label="Switch between dark and light mode (currently light mode)"><svg class="za-mode__light" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg class="za-mode__dark" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg></button><button type="button" id="search-toggle" class="za-search" title="Search the API" aria-label="Search the API"><svg width="20" height="20" class="za-search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"/><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="za-search__label">Search</span></button></div></div><div id="mobile-menu"><div class="mobile-menu-header body-small"><a class="mobile-menu-logo" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><button id="mobile-menu-close" class="icon-button close"></button></div><div class="mobile-menu-container body-medium"><input id="mobile-scaladoc-searchbar-input" class="scaladoc-searchbar-input" type="search" placeholder="Find anything"></input><nav class="za-mobile-links"><a class="za-mobile-link" href="/overview/getting-started">Overview</a><a class="za-mobile-link" href="/reference/">Reference</a><a class="za-mobile-link za-mobile-link--active" href="/api/" aria-current="page">API</a><a class="za-mobile-link" href="/guides/">Guides</a><a class="za-mobile-link" href="/ecosystem/">Ecosystem</a><a class="za-mobile-link" href="/resources/">Resources</a><a class="za-mobile-link" href="/events/">Events</a><a class="za-mobile-link" href="/blog">Blog</a><a class="za-mobile-link za-mobile-link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a></nav><span id="mobile-theme-toggle" class="mobile-menu-item mode"></span></div></div><span id="mobile-sidebar-toggle" class="floating-button"></span><div id="leftColumn" class="body-small"></div><div id="scaladoc-searchBar"></div><div id="main"><div id="content" class="body-medium"><div><nav class="za-breadcrumbs" aria-label="Breadcrumbs"><ul class="za-breadcrumbs__list"><li class="za-breadcrumbs__item"><a aria-label="Home page" class="za-breadcrumbs__link" href="/"><svg viewBox="0 0 24 24" class="za-breadcrumbs__home"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/api/"><span>API</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../../zio"><span>zio</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../Chunk$"><span>Chunk</span></a></li><li class="za-breadcrumbs__item za-breadcrumbs__item--active"><span class="za-breadcrumbs__link">IntArray</span></li></ul></nav><div class="cover-header">
+<!DOCTYPE html><html data-za-announcement-id="announcementBar-zioblocks" data-pathToRoot="../../" data-rawLocation="zio/Chunk/IntArray" data-dynamicSideMenu="true"><head><meta charset="utf-8"></meta><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></meta><title>IntArray</title><link rel="icon" href="/img/favicon.png"><script type="text/javascript" src="../../scripts/theme.js"></script><script type="text/javascript" src="../../scripts/searchData.js" defer="true"></script><script type="text/javascript" src="../../scripts/scastieConfiguration.js" defer="true"></script><link rel="stylesheet" href="../../styles/theme/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/components/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/components/button/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/layout/bundle.css"></link><link rel="stylesheet" href="../../styles/dotty-icons.css"></link><link rel="stylesheet" href="../../styles/filter-bar.css"></link><link rel="stylesheet" href="../../styles/searchbar.css"></link><link rel="stylesheet" href="../../styles/social-links.css"></link><link rel="stylesheet" href="../../styles/versions-dropdown.css"></link><link rel="stylesheet" href="../../styles/content-contributors.css"></link><script type="text/javascript" src="../../hljs/highlight.pack.js" defer="true"></script><script type="text/javascript" src="../../scripts/hljs-scala3.js" defer="true"></script><script type="text/javascript" src="../../scripts/ux.js" defer="true"></script><script type="text/javascript" src="../../scripts/common/component.js" defer="true"></script><script type="text/javascript" src="../../scripts/common/utils.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/FilterBar.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/DocumentableList.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/Input.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/FilterGroup.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/Filter.js" defer="true"></script><script type="text/javascript" src="../../scripts/scaladoc-scalajs.js" defer="true"></script><script type="text/javascript" src="../../scripts/contributors.js" defer="true"></script><script type="text/javascript" src="/api/scripts/vendor/d3/d3.v6.7.0.min.js" defer="true"></script><script type="text/javascript" src="/api/scripts/vendor/graphlib-dot/graphlib-dot.0.6.2.min.js" defer="true"></script><script type="text/javascript" src="/api/scripts/vendor/dagre-d3/dagre-d3.0.6.1.min.js" defer="true"></script><script type="text/javascript" src="../../scripts/data.js" defer="true"></script><script>var pathToRoot = "../../";</script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=fallback"><link rel="stylesheet" href="/api/styles/zio-api.css"></head><body><div class="za-announcement theme-announcement-bar" role="banner" style="background-color:#ececec;color:#1a1a1a"><div class="za-announcement__placeholder"></div><div class="za-announcement__content"><img src="/img/ecosystem/zio-blocks-icon.svg" alt="" style="height: 1.1em; vertical-align: middle;"> <b>ZIO Blocks</b> has a new website! Visit <a href="https://zioblocks.com" target="_blank">zioblocks.com</a> to explore the docs 🚀</div><button type="button" aria-label="Close" class="za-announcement__close"><svg viewBox="0 0 15 15" width="14" height="14" aria-hidden="true"><g stroke="currentColor" stroke-width="3.1"><path d="M.75.75l13.5 13.5M14.25.75L.75 14.25"></path></g></svg></button></div><script>window.zaPlaceAnnouncement&&zaPlaceAnnouncement()</script><div id=""><div id="header" class="za-navbar"><div class="za-navbar__left"><span id="mobile-menu-toggle" class="za-navbar__toggle" role="button" tabindex="0" aria-label="Toggle navigation bar"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"/></svg></span><a class="za-navbar__brand" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><span id="dropdown-trigger" hidden></span><div id="version-dropdown" hidden></div><a class="za-navbar__link" href="/overview/getting-started">Overview</a><a class="za-navbar__link" href="/reference/">Reference</a><a class="za-navbar__link za-navbar__link--active" href="/api/" aria-current="page">API</a><a class="za-navbar__link" href="/guides/">Guides</a><a class="za-navbar__link" href="/ecosystem/">Ecosystem</a><a class="za-navbar__link" href="/resources/">Resources</a><a class="za-navbar__link" href="/events/">Events</a></div><div class="za-navbar__right"><a class="za-navbar__link" href="/blog">Blog</a><a class="za-navbar__link za-navbar__link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a><button type="button" class="za-navbar__icon za-onboard" data-onboard-prompt="Fetch https://zio.dev/start.md and follow the instructions to set up my environment for ZIO development." title="Copy the prompt to onboard your coding agent to ZIO" aria-label="Copy the ZIO agent onboarding prompt to the clipboard"><svg class="za-onboard__idle" viewBox="0 0 576 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M9.4 86.6C-3.1 74.1-3.1 53.9 9.4 41.4s32.8-12.5 45.3 0l192 192c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L178.7 256 9.4 86.6zM256 416l288 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-288 0c-17.7 0-32-14.3-32-32s14.3-32 32-32z"/></svg><svg class="za-onboard__done" viewBox="0 0 448 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></svg></button><button type="button" class="za-navbar__icon za-mode" data-color-mode-toggle title="light mode" aria-label="Switch between dark and light mode (currently light mode)"><svg class="za-mode__light" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg class="za-mode__dark" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg></button><button type="button" id="search-toggle" class="za-search" title="Search the API" aria-label="Search the API"><svg width="20" height="20" class="za-search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"/><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="za-search__label">Search</span></button></div></div><div id="mobile-menu"><div class="mobile-menu-header body-small"><a class="mobile-menu-logo" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><button id="mobile-menu-close" class="icon-button close"></button></div><div class="mobile-menu-container body-medium"><input id="mobile-scaladoc-searchbar-input" class="scaladoc-searchbar-input" type="search" placeholder="Find anything"></input><nav class="za-mobile-links"><a class="za-mobile-link" href="/overview/getting-started">Overview</a><a class="za-mobile-link" href="/reference/">Reference</a><a class="za-mobile-link za-mobile-link--active" href="/api/" aria-current="page">API</a><a class="za-mobile-link" href="/guides/">Guides</a><a class="za-mobile-link" href="/ecosystem/">Ecosystem</a><a class="za-mobile-link" href="/resources/">Resources</a><a class="za-mobile-link" href="/events/">Events</a><a class="za-mobile-link" href="/blog">Blog</a><a class="za-mobile-link za-mobile-link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a></nav><span id="mobile-theme-toggle" class="mobile-menu-item mode"></span></div></div><span id="mobile-sidebar-toggle" class="floating-button"></span><div id="leftColumn" class="body-small"></div><div id="scaladoc-searchBar"></div><div id="main"><div id="content" class="body-medium"><div><nav class="za-breadcrumbs" aria-label="Breadcrumbs"><ul class="za-breadcrumbs__list"><li class="za-breadcrumbs__item"><a aria-label="Home page" class="za-breadcrumbs__link" href="/"><svg viewBox="0 0 24 24" class="za-breadcrumbs__home"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/api/"><span>API</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../../zio"><span>zio</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../Chunk$"><span>Chunk</span></a></li><li class="za-breadcrumbs__item za-breadcrumbs__item--active"><span class="za-breadcrumbs__link">IntArray</span></li></ul></nav><div class="cover-header">
  <span class="icon"><span class="micon cl"></span></span>
  <h1 class="h600 single">IntArray</h1>
 </div>
@@ -11,13 +11,15 @@
  </div>
 </div>
 <div class="cover">
- <div class="doc"></div>
+ <div class="doc">
+  <p>A chunk backed by an array of <code>Int</code> values. It holds the <code>length</code> elements of <code>array</code> that start at index <code>offset</code>, without copying them. <code>Chunk.fromArray</code> creates it with offset <code>0</code> and the full length of the array. With another offset or length, some operations still read the whole array: for example <code>foreach</code>, <code>iterator</code> and <code>foldRight</code> visit every element of the array, and <code>toArray</code> copies from index <code>0</code>.</p>
+ </div>
  <section id="attributes">
   <h2 class="h500">Attributes</h2>
   <dl class="attributes">
    <dt class="body-small">Source</dt>
    <dd class="body-medium">
-    <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L2658" target="_blank">Chunk.scala</a>
+    <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L3071" target="_blank">Chunk.scala</a>
    </dd>
    <dt class="body-small">Graph</dt>
    <dd class="body-medium">
@@ -312,13 +314,18 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the element at <code>index</code>, read from <code>array(index + offset)</code> without checking <code>index</code> against <code>length</code>.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Returns the element at <code>index</code>, read from <code>array(index + offset)</code> without checking <code>index</code> against <code>length</code>.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L2661" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L3079" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -340,13 +347,18 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns this chunk, which is its own <code>ChunkIterator</code>.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Returns this chunk, which is its own <code>ChunkIterator</code>.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L2663" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L3085" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -369,11 +381,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns a filtered subset of this chunk.</p>
+             <p>Returns the elements of this chunk that satisfy the predicate, in their original order.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns a filtered subset of this chunk.</p>
+              <p>Returns the elements of this chunk that satisfy the predicate, in their original order.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -385,7 +397,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L2665" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L3087" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -408,17 +420,17 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Checks if the chunk iterator has another element.</p>
+             <p>Returns <code>true</code> when <code>index</code> is less than <code>length</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Checks if the chunk iterator has another element.</p>
+              <p>Returns <code>true</code> when <code>index</code> is less than <code>length</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L2683" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L3109" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -441,11 +453,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Get the element at the specified index.</p>
+             <p>Returns the element at the specified index as an <code>Int</code>. On a chunk backed by an array of <code>Int</code> values it reads the array without boxing.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Get the element at the specified index.</p>
+              <p>Returns the element at the specified index as an <code>Int</code>. On a chunk backed by an array of <code>Int</code> values it reads the array without boxing.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -457,7 +469,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L2685" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L3111" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -480,17 +492,17 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Gets the next element from the chunk iterator.</p>
+             <p>Returns the element at <code>index</code>, read from <code>array(index + offset)</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Gets the next element from the chunk iterator.</p>
+              <p>Returns the element at <code>index</code>, read from <code>array(index + offset)</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L2716" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L3146" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -513,17 +525,17 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns a new iterator that is a slice of this iterator.</p>
+             <p>Returns an iterator over at most <code>length</code> elements starting at <code>offset</code>, sharing the array. Returns this chunk when the slice covers all of it, and an empty iterator when <code>offset</code> is at least the length of this chunk or <code>length &amp;lt;= 0</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns a new iterator that is a slice of this iterator.</p>
+              <p>Returns an iterator over at most <code>length</code> elements starting at <code>offset</code>, sharing the array. Returns this chunk when the slice covers all of it, and an empty iterator when <code>offset</code> is at least the length of this chunk or <code>length &amp;lt;= 0</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L2718" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L3155" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -562,7 +574,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L2722" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L3159" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -593,11 +605,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns the bitwise AND of this chunk and the specified chunk.</p>
+             <p>Returns the bitwise AND of this chunk of booleans and the specified chunk, element by element. The result has the length of the shorter chunk.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns the bitwise AND of this chunk and the specified chunk.</p>
+              <p>Returns the bitwise AND of this chunk of booleans and the specified chunk, element by element. The result has the length of the shorter chunk.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -607,7 +619,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L103" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L130" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -644,7 +656,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L3154" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L3753" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -667,11 +679,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns the concatenation of this chunk with the specified chunk.</p>
+             <p>Concatenates this chunk with the specified non-empty chunk, and returns the result as a <code>NonEmptyChunk</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns the concatenation of this chunk with the specified chunk.</p>
+              <p>Concatenates this chunk with the specified non-empty chunk, and returns the result as a <code>NonEmptyChunk</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -681,7 +693,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L97" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L123" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -704,11 +716,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns the concatenation of this chunk with the specified chunk.</p>
+             <p>Concatenates this chunk with the specified chunk: the result holds the elements of this chunk followed by those of <code>that</code>, so <code>Chunk(1, 2) ++ Chunk(3)</code> is <code>Chunk(1, 2, 3)</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns the concatenation of this chunk with the specified chunk.</p>
+              <p>Concatenates this chunk with the specified chunk: the result holds the elements of this chunk followed by those of <code>that</code>, so <code>Chunk(1, 2) ++ Chunk(3)</code> is <code>Chunk(1, 2, 3)</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -718,7 +730,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L50" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L75" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -887,11 +899,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns the bitwise XOR of this chunk and the specified chunk.</p>
+             <p>Returns the bitwise XOR (exclusive or) of this chunk of booleans and the specified chunk, element by element. The result has the length of the shorter chunk.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns the bitwise XOR of this chunk and the specified chunk.</p>
+              <p>Returns the bitwise XOR (exclusive or) of this chunk of booleans and the specified chunk, element by element. The result has the length of the shorter chunk.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -901,7 +913,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L115" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L145" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1069,8 +1081,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns a chunk with <code>a1</code> added at the end.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Returns a chunk with <code>a1</code> added at the end.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Definition Classes</dt>
@@ -1085,7 +1102,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L49" target="_blank">ChunkLike.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L52" target="_blank">ChunkLike.scala</a>
               </dd>
              </dl>
             </div>
@@ -1170,11 +1187,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Crates a base64 encoded string based on the chunk's data.</p>
+             <p>Encodes this chunk as a Base64 string. A chunk of bytes is encoded as it is. A chunk of chars is encoded from the low 8 bits of each char, so chars above U+00FF lose their high bits. A chunk of strings is concatenated and encoded with the platform's default charset.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Crates a base64 encoded string based on the chunk's data.</p>
+              <p>Encodes this chunk as a Base64 string. A chunk of bytes is encoded as it is. A chunk of chars is encoded from the low 8 bits of each char, so chars above U+00FF lose their high bits. A chunk of strings is concatenated and encoded with the platform's default charset.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -1184,7 +1201,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L153" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L187" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1207,11 +1224,17 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Converts a chunk of bytes to a chunk of bits.</p>
+             <p>Converts a chunk of bytes to a chunk of bits, 8 bits per byte, starting at the most significant bit of each byte. An empty chunk gives an empty chunk.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Converts a chunk of bytes to a chunk of bits.</p>
+              <p>Converts a chunk of bytes to a chunk of bits, 8 bits per byte, starting at the most significant bit of each byte. An empty chunk gives an empty chunk.</p>
+              <div class="snippet mono-small-block">
+               <pre><code class="language-"><span line-number="1" class=""><span class="tooltip-container"></span>val bits: Chunk[Boolean] = Chunk(5.toByte).asBitsByte
+</span><span line-number="2" class=""><span class="tooltip-container"></span>// bits.toBinaryString == "00000101"
+</span></code></pre>
+               <div class="buttons"></div>
+              </div>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -1221,7 +1244,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L182" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L228" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1244,11 +1267,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Converts a chunk of ints to a chunk of bits.</p>
+             <p>Converts a chunk of ints to a chunk of bits, 32 bits per int. With <code>BigEndian</code> the bits of each int start at its most significant bit; with <code>LittleEndian</code> they start at its least significant bit. An empty chunk gives an empty chunk.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Converts a chunk of ints to a chunk of bits.</p>
+              <p>Converts a chunk of ints to a chunk of bits, 32 bits per int. With <code>BigEndian</code> the bits of each int start at its most significant bit; with <code>LittleEndian</code> they start at its least significant bit. An empty chunk gives an empty chunk.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -1258,7 +1281,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L168" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L205" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1281,11 +1304,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Converts a chunk of longs to a chunk of bits.</p>
+             <p>Converts a chunk of longs to a chunk of bits, 64 bits per long. With <code>BigEndian</code> the bits of each long start at its most significant bit; with <code>LittleEndian</code> they start at its least significant bit. An empty chunk gives an empty chunk.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Converts a chunk of longs to a chunk of bits.</p>
+              <p>Converts a chunk of longs to a chunk of bits, 64 bits per long. With <code>BigEndian</code> the bits of each long start at its most significant bit; with <code>LittleEndian</code> they start at its least significant bit. An empty chunk gives an empty chunk.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -1295,7 +1318,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L175" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L215" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1318,11 +1341,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Crates a new String based on this chunk of bytes and using the given charset.</p>
+             <p>Decodes this chunk of bytes into a string with the given charset.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Crates a new String based on this chunk of bytes and using the given charset.</p>
+              <p>Decodes this chunk of bytes into a string with the given charset.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -1332,7 +1355,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L205" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L275" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1355,11 +1378,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Crates a new String based on this chunks data.</p>
+             <p>Converts this chunk to a string. A chunk of bytes is decoded with the platform's default charset, a chunk of chars gives the string of those chars, and a chunk of strings is concatenated.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Crates a new String based on this chunks data.</p>
+              <p>Converts this chunk to a string. A chunk of bytes is decoded with the platform's default charset, a chunk of chars gives the string of those chars, and a chunk of strings is concatenated.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -1369,7 +1392,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L199" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L270" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1392,11 +1415,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Get the element at the specified index.</p>
+             <p>Returns the element at the specified index as a <code>Boolean</code>. On a chunk backed by an array of <code>Boolean</code> values it reads the array without boxing.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Get the element at the specified index.</p>
+              <p>Returns the element at the specified index as a <code>Boolean</code>. On a chunk backed by an array of <code>Boolean</code> values it reads the array without boxing.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -1406,7 +1429,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L213" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L284" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1429,11 +1452,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Get the element at the specified index.</p>
+             <p>Returns the element at the specified index as a <code>Byte</code>. On a chunk backed by an array of <code>Byte</code> values it reads the array without boxing.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Get the element at the specified index.</p>
+              <p>Returns the element at the specified index as a <code>Byte</code>. On a chunk backed by an array of <code>Byte</code> values it reads the array without boxing.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -1443,7 +1466,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L219" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L291" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1500,11 +1523,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Get the element at the specified index.</p>
+             <p>Returns the element at the specified index as a <code>Char</code>. On a chunk backed by an array of <code>Char</code> values it reads the array without boxing.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Get the element at the specified index.</p>
+              <p>Returns the element at the specified index as a <code>Char</code>. On a chunk backed by an array of <code>Char</code> values it reads the array without boxing.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -1514,7 +1537,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L225" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L298" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1537,11 +1560,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns a filtered, mapped subset of the elements of this <code>Chunk</code>.</p>
+             <p>Returns a filtered, mapped subset of the elements of this chunk. Elements for which <code>pf</code> returns <code>null</code> are left out of the result. On Scala 2.12, when the builder factory is not a <code>ChunkCanBuildFrom</code> or the reusable one of <code>immutable.IndexedSeq</code>, <code>immutable.Seq</code> or <code>collection.Seq</code> (for example <code>collection.breakOut</code> to a <code>Vector</code>, or a <code>Chunk</code> whose static type is <code>collection.IndexedSeq</code>), they are kept.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns a filtered, mapped subset of the elements of this <code>Chunk</code>.</p>
+              <p>Returns a filtered, mapped subset of the elements of this chunk. Elements for which <code>pf</code> returns <code>null</code> are left out of the result. On Scala 2.12, when the builder factory is not a <code>ChunkCanBuildFrom</code> or the reusable one of <code>immutable.IndexedSeq</code>, <code>immutable.Seq</code> or <code>collection.Seq</code> (for example <code>collection.breakOut</code> to a <code>Vector</code>, or a <code>Chunk</code> whose static type is <code>collection.IndexedSeq</code>), they are kept.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -1557,7 +1580,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L58" target="_blank">ChunkLike.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L69" target="_blank">ChunkLike.scala</a>
               </dd>
              </dl>
             </div>
@@ -1580,11 +1603,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns a filtered, mapped subset of the elements of this chunk.</p>
+             <p>Returns a filtered, mapped subset of the elements of this chunk. A <code>null</code> result of <code>pf</code> adds nothing to the result.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns a filtered, mapped subset of the elements of this chunk.</p>
+              <p>Returns a filtered, mapped subset of the elements of this chunk. A <code>null</code> result of <code>pf</code> adds nothing to the result.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -1600,7 +1623,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L1755" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L2018" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1651,11 +1674,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Transforms all elements of the chunk for as long as the specified partial function is defined.</p>
+             <p>Transforms the elements of the chunk with the specified partial function, from the first element, for as long as the function is defined, and stops at the first element where it is not. A <code>null</code> result of <code>pf</code> also stops the transformation.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Transforms all elements of the chunk for as long as the specified partial function is defined.</p>
+              <p>Transforms the elements of the chunk with the specified partial function, from the first element, for as long as the function is defined, and stops at the first element where it is not. A <code>null</code> result of <code>pf</code> also stops the transformation.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -1671,7 +1694,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L1622" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1885" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1693,8 +1716,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Runs the effects that <code>pf</code> returns, one element at a time from the first, for as long as <code>pf</code> is defined, and collects their results. Stops at the first element where <code>pf</code> is not defined or whose effect succeeds with <code>null</code>, and fails with the first failure.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Runs the effects that <code>pf</code> returns, one element at a time from the first, for as long as <code>pf</code> is defined, and collects their results. Stops at the first element where <code>pf</code> is not defined or whose effect succeeds with <code>null</code>, and fails with the first failure.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Definition Classes</dt>
@@ -1709,7 +1737,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L1645" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1908" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1732,11 +1760,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns a filtered, mapped subset of the elements of this chunk based on a .</p>
+             <p>Runs the effect that <code>pf</code> returns for each element where <code>pf</code> is defined, one element at a time from the first, and collects the results. Elements where <code>pf</code> is not defined, and effects that succeed with <code>null</code>, add nothing to the result. Fails with the first failure.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns a filtered, mapped subset of the elements of this chunk based on a .</p>
+              <p>Runs the effect that <code>pf</code> returns for each element where <code>pf</code> is defined, one element at a time from the first, and collects the results. Elements where <code>pf</code> is not defined, and effects that succeed with <code>null</code>, add nothing to the result. Fails with the first failure.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -1752,7 +1780,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L1602" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1865" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -1948,8 +1976,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Copies up to <code>length</code> elements of this chunk, starting from its first element, into <code>dest</code> at <code>destPos</code>, stopping at the end of <code>dest</code>. It copies nothing when <code>length</code> is zero or negative, or when <code>destPos</code> is at or past the end of <code>dest</code>. It throws a <code>java.lang.ArrayIndexOutOfBoundsException</code> when <code>destPos</code> is negative and there are elements to copy. On Scala 2.13 and Scala 3, it returns the number of elements copied.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Copies up to <code>length</code> elements of this chunk, starting from its first element, into <code>dest</code> at <code>destPos</code>, stopping at the end of <code>dest</code>. It copies nothing when <code>length</code> is zero or negative, or when <code>destPos</code> is at or past the end of <code>dest</code>. It throws a <code>java.lang.ArrayIndexOutOfBoundsException</code> when <code>destPos</code> is negative and there are elements to copy. On Scala 2.13 and Scala 3, it returns the number of elements copied.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Definition Classes</dt>
@@ -1964,7 +1997,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L61" target="_blank">ChunkLike.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L80" target="_blank">ChunkLike.scala</a>
               </dd>
              </dl>
             </div>
@@ -2057,7 +2090,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L252" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L335" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2164,11 +2197,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Deduplicates adjacent elements that are identical.</p>
+             <p>Removes adjacent duplicates, compared with <code>==</code>, keeping the first element of each run: <code>Chunk(1, 1, 2, 2, 1).dedupe</code> is <code>Chunk(1, 2, 1)</code>. <code>null</code> elements at the start of the chunk are removed as well.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Deduplicates adjacent elements that are identical.</p>
+              <p>Removes adjacent duplicates, compared with <code>==</code>, keeping the first element of each run: <code>Chunk(1, 1, 2, 2, 1).dedupe</code> is <code>Chunk(1, 2, 1)</code>. <code>null</code> elements at the start of the chunk are removed as well.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -2178,7 +2211,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L271" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L356" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2297,11 +2330,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Get the element at the specified index.</p>
+             <p>Returns the element at the specified index as a <code>Double</code>. On a chunk backed by an array of <code>Double</code> values it reads the array without boxing.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Get the element at the specified index.</p>
+              <p>Returns the element at the specified index as a <code>Double</code>. On a chunk backed by an array of <code>Double</code> values it reads the array without boxing.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -2311,7 +2344,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L288" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L374" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2334,11 +2367,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Drops the first <code>n</code> elements of the chunk.</p>
+             <p>Drops the first <code>n</code> elements of the chunk. Returns the chunk unchanged when <code>n &amp;lt;= 0</code>, and an empty chunk when <code>n</code> is at least the length. On the chunks of booleans that <code>asBitsByte</code>, <code>asBitsInt</code>, <code>asBitsLong</code>, <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>negate</code> and <code>ChunkBuilder.Boolean</code> return, a negative <code>n</code> gives a chunk with more elements than the original instead.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Drops the first <code>n</code> elements of the chunk.</p>
+              <p>Drops the first <code>n</code> elements of the chunk. Returns the chunk unchanged when <code>n &amp;lt;= 0</code>, and an empty chunk when <code>n</code> is at least the length. On the chunks of booleans that <code>asBitsByte</code>, <code>asBitsInt</code>, <code>asBitsLong</code>, <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>negate</code> and <code>ChunkBuilder.Boolean</code> return, a negative <code>n</code> gives a chunk with more elements than the original instead.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -2354,7 +2387,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L294" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L384" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2377,11 +2410,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Drops the last <code>n</code> elements of the chunk.</p>
+             <p>Drops the last <code>n</code> elements of the chunk. Returns the chunk unchanged when <code>n &amp;lt;= 0</code>, and an empty chunk when <code>n</code> is at least the length.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Drops the last <code>n</code> elements of the chunk.</p>
+              <p>Drops the last <code>n</code> elements of the chunk. Returns the chunk unchanged when <code>n &amp;lt;= 0</code>, and an empty chunk when <code>n</code> is at least the length.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -2397,7 +2430,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L314" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L405" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2420,11 +2453,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Drops all elements until the predicate returns true.</p>
+             <p>Drops the elements up to and including the first one that satisfies <code>f</code>: <code>Chunk(1, 2, 3, 4).dropUntil(_ == 2)</code> is <code>Chunk(3, 4)</code>. Returns an empty chunk when no element satisfies <code>f</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Drops all elements until the predicate returns true.</p>
+              <p>Drops the elements up to and including the first one that satisfies <code>f</code>: <code>Chunk(1, 2, 3, 4).dropUntil(_ == 2)</code> is <code>Chunk(3, 4)</code>. Returns an empty chunk when no element satisfies <code>f</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -2434,7 +2467,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L334" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L427" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2457,11 +2490,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Drops all elements until the effectful predicate returns true.</p>
+             <p>Drops the elements up to and including the first one for which the effectful predicate succeeds with <code>true</code>. The predicate runs one element at a time from the first, and does not run on the elements after that one. Returns an empty chunk when no element matches, and fails with the first failure of the predicate.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Drops all elements until the effectful predicate returns true.</p>
+              <p>Drops the elements up to and including the first one for which the effectful predicate succeeds with <code>true</code>. The predicate runs one element at a time from the first, and does not run on the elements after that one. Returns an empty chunk when no element matches, and fails with the first failure of the predicate.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -2471,7 +2504,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L349" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L446" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2494,11 +2527,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Drops all elements so long as the predicate returns true.</p>
+             <p>Drops the elements at the start of the chunk for as long as the predicate returns <code>true</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Drops all elements so long as the predicate returns true.</p>
+              <p>Drops the elements at the start of the chunk for as long as the predicate returns <code>true</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -2514,7 +2547,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L1670" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1933" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2537,11 +2570,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Drops all elements so long as the effectful predicate returns true.</p>
+             <p>Drops the elements at the start of the chunk for as long as the effectful predicate succeeds with <code>true</code>. The predicate runs one element at a time from the first, and does not run on the elements after the first <code>false</code>. Fails with the first failure of the predicate.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Drops all elements so long as the effectful predicate returns true.</p>
+              <p>Drops the elements at the start of the chunk for as long as the effectful predicate succeeds with <code>true</code>. The predicate runs one element at a time from the first, and does not run on the elements after the first <code>false</code>. Fails with the first failure of the predicate.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -2551,7 +2584,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L383" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L484" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2664,32 +2697,14 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Compares the receiver object (<code>this</code>) with the argument object (<code>that</code>) for equivalence.</p>
+             <p>Returns <code>true</code> when <code>that</code> is a <code>Seq</code> with the same elements in the same order, compared with <code>==</code>, so <code>Chunk(1, 2) == List(1, 2)</code> is <code>true</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Compares the receiver object (<code>this</code>) with the argument object (<code>that</code>) for equivalence.</p>
-              <p>Any implementation of this method should be an <a href="https://en.wikipedia.org/wiki/Equivalence_relation">equivalence relation</a>:</p>
-              <ul>
-               <li>It is reflexive: for any instance <code>x</code> of type <code>Any</code>, <code>x.equals(x)</code> should return <code>true</code>.</li>
-               <li>It is symmetric: for any instances <code>x</code> and <code>y</code> of type <code>Any</code>, <code>x.equals(y)</code> should return <code>true</code> if and only if <code>y.equals(x)</code> returns <code>true</code>.</li>
-               <li>It is transitive: for any instances <code>x</code>, <code>y</code>, and <code>z</code> of type <code>Any</code> if <code>x.equals(y)</code> returns <code>true</code> and <code>y.equals(z)</code> returns <code>true</code>, then <code>x.equals(z)</code> should return <code>true</code>.</li>
-              </ul>
-              <p>If you override this method, you should verify that your implementation remains an equivalence relation. Additionally, when overriding this method it is usually necessary to override <code>hashCode</code> to ensure that objects which are "equal" (<code>o1.equals(o2)</code> returns <code>true</code>) hash to the same <a href="https://www.scala-lang.org/api/2.13.18/scala/Int.html">scala.Int</a>. (<code>o1.hashCode.equals(o2.hashCode)</code>).</p>
+              <p>Returns <code>true</code> when <code>that</code> is a <code>Seq</code> with the same elements in the same order, compared with <code>==</code>, so <code>Chunk(1, 2) == List(1, 2)</code> is <code>true</code>.</p>
              </div>
-             <h2 class="h200">Value parameters</h2>
-             <dl class="attributes attributes-small">
-              <dt class="body-small">that</dt>
-              <dd class="body-medium">
-               <p>the object to compare against this object for equality.</p>
-              </dd>
-             </dl>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
-              <dt class="body-small">Returns</dt>
-              <dd class="body-medium">
-               <p><code>true</code> if the receiver object is equivalent to the argument; <code>false</code> otherwise.</p>
-              </dd>
               <dt class="body-small">Definition Classes</dt>
               <dd class="body-medium">
                <div>
@@ -2702,7 +2717,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L396" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L501" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2745,7 +2760,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L406" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L511" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2802,11 +2817,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Filters this chunk by the specified effectful predicate, retaining all elements for which the predicate evaluates to true.</p>
+             <p>Filters this chunk by the specified effectful predicate, retaining all elements for which the predicate evaluates to true. The predicate runs one element at a time from the first, and the result fails with the first failure.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Filters this chunk by the specified effectful predicate, retaining all elements for which the predicate evaluates to true.</p>
+              <p>Filters this chunk by the specified effectful predicate, retaining all elements for which the predicate evaluates to true. The predicate runs one element at a time from the first, and the result fails with the first failure.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -2816,7 +2831,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L440" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L548" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2839,11 +2854,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns the first element that satisfies the predicate.</p>
+             <p>Returns the first element that satisfies the predicate, or <code>None</code> when no element does.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns the first element that satisfies the predicate.</p>
+              <p>Returns the first element that satisfies the predicate, or <code>None</code> when no element does.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -2859,7 +2874,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L446" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L555" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2910,11 +2925,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns the first element that satisfies the effectful predicate.</p>
+             <p>Returns the first element that satisfies the effectful predicate, or <code>None</code> when no element does. The predicate runs one element at a time from the first, and does not run on the elements after the first match.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns the first element that satisfies the effectful predicate.</p>
+              <p>Returns the first element that satisfies the effectful predicate, or <code>None</code> when no element does. The predicate runs one element at a time from the first, and does not run on the elements after the first match.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -2924,7 +2939,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L463" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L574" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -2967,7 +2982,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L73" target="_blank">ChunkLike.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L92" target="_blank">ChunkLike.scala</a>
               </dd>
              </dl>
             </div>
@@ -3010,7 +3025,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L110" target="_blank">ChunkLike.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L129" target="_blank">ChunkLike.scala</a>
               </dd>
              </dl>
             </div>
@@ -3033,11 +3048,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Get the element at the specified index.</p>
+             <p>Returns the element at the specified index as a <code>Float</code>. On a chunk backed by an array of <code>Float</code> values it reads the array without boxing.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Get the element at the specified index.</p>
+              <p>Returns the element at the specified index as a <code>Float</code>. On a chunk backed by an array of <code>Float</code> values it reads the array without boxing.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -3047,7 +3062,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L487" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L599" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -3118,7 +3133,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L1701" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1964" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -3161,7 +3176,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L1714" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1977" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -3184,11 +3199,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Folds over the elements in this chunk from the left. Stops the fold early when the condition is not fulfilled.</p>
+             <p>Folds over the elements in this chunk from the left. Stops the fold early when the condition is not fulfilled: <code>pred</code> is checked on the initial state and after each step, and the fold returns the current state as soon as it is <code>false</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Folds over the elements in this chunk from the left. Stops the fold early when the condition is not fulfilled.</p>
+              <p>Folds over the elements in this chunk from the left. Stops the fold early when the condition is not fulfilled: <code>pred</code> is checked on the initial state and after each step, and the fold returns the current state as soon as it is <code>false</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -3198,7 +3213,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L528" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L650" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -3220,8 +3235,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Effectfully folds over the elements in this chunk from the left, for as long as <code>pred</code> holds for the current state. <code>pred</code> is checked before each element; when it is <code>false</code>, the fold succeeds with the current state. Fails with the first failure of <code>f</code>.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Effectfully folds over the elements in this chunk from the left, for as long as <code>pred</code> holds for the current state. <code>pred</code> is checked before each element; when it is <code>false</code>, the fold succeeds with the current state. Fails with the first failure of <code>f</code>.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Inherited from:</dt>
@@ -3230,7 +3250,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L542" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L670" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -3253,11 +3273,18 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Effectfully folds over the elements in this chunk from the left.</p>
+             <p>Effectfully folds over the elements in this chunk from the left, one element at a time. Fails with the first failure of <code>f</code>, without running it on the remaining elements.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Effectfully folds over the elements in this chunk from the left.</p>
+              <p>Effectfully folds over the elements in this chunk from the left, one element at a time. Fails with the first failure of <code>f</code>, without running it on the remaining elements.</p>
+              <div class="snippet mono-small-block">
+               <pre><code class="language-"><span line-number="1" class=""><span class="tooltip-container"></span>val total: UIO[Int] =
+</span><span line-number="2" class=""><span class="tooltip-container"></span> Chunk(1, 2, 3).foldZIO(0)((sum, n) =&gt; ZIO.succeed(sum + n))
+</span><span line-number="3" class=""><span class="tooltip-container"></span>// succeeds with 6
+</span></code></pre>
+               <div class="buttons"></div>
+              </div>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -3267,7 +3294,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L508" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L628" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -3310,7 +3337,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L561" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L689" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -3348,7 +3375,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L1728" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1991" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -3511,20 +3538,14 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Calculates a hash code value for the object.</p>
+             <p>Returns a hash code computed from the elements in order. A chunk has the same hash code as a <code>List</code> or a <code>Vector</code> with the same elements.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Calculates a hash code value for the object.</p>
-              <p>The default hashing algorithm is platform dependent.</p>
-              <p>Note that it is allowed for two objects to have identical hash codes (<code>o1.hashCode.equals(o2.hashCode)</code>) yet not be equal (<code>o1.equals(o2)</code> returns <code>false</code>). A degenerate implementation could always return <code>0</code>. However, it is required that if two objects are equal (<code>o1.equals(o2)</code> returns <code>true</code>) that they have identical hash codes (<code>o1.hashCode.equals(o2.hashCode)</code>). Therefore, when overriding this method, be sure to verify that the behavior is consistent with the <code>equals</code> method.</p>
+              <p>Returns a hash code computed from the elements in order. A chunk has the same hash code as a <code>List</code> or a <code>Vector</code> with the same elements.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
-              <dt class="body-small">Returns</dt>
-              <dd class="body-medium">
-               <p>the hash code value for this object.</p>
-              </dd>
               <dt class="body-small">Definition Classes</dt>
               <dd class="body-medium">
                <div>
@@ -3537,7 +3558,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L573" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L705" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -3560,11 +3581,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns the first element of this chunk. Note that this method is partial in that it will throw an exception if the chunk is empty. Consider using <code>headOption</code> to explicitly handle the possibility that the chunk is empty or iterating over the elements of the chunk in lower level, performance sensitive code unless you really only need the first element of the chunk.</p>
+             <p>Returns the first element of this chunk. Note that this method is partial: it throws an <code>IndexOutOfBoundsException</code> if the chunk is empty. Consider using <code>headOption</code> to explicitly handle the possibility that the chunk is empty, or iterating over the elements of the chunk in lower level, performance sensitive code unless you really only need the first element of the chunk.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns the first element of this chunk. Note that this method is partial in that it will throw an exception if the chunk is empty. Consider using <code>headOption</code> to explicitly handle the possibility that the chunk is empty or iterating over the elements of the chunk in lower level, performance sensitive code unless you really only need the first element of the chunk.</p>
+              <p>Returns the first element of this chunk. Note that this method is partial: it throws an <code>IndexOutOfBoundsException</code> if the chunk is empty. Consider using <code>headOption</code> to explicitly handle the possibility that the chunk is empty, or iterating over the elements of the chunk in lower level, performance sensitive code unless you really only need the first element of the chunk.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -3580,7 +3601,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L586" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L719" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -3623,7 +3644,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L592" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L725" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -3758,11 +3779,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns the first index for which the given predicate is satisfied after or at some given index.</p>
+             <p>Returns the first index for which the given predicate is satisfied after or at some given index, or <code>-1</code> when there is none. A negative <code>from</code> searches from index <code>0</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns the first index for which the given predicate is satisfied after or at some given index.</p>
+              <p>Returns the first index for which the given predicate is satisfied after or at some given index, or <code>-1</code> when there is none. A negative <code>from</code> searches from index <code>0</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -3778,7 +3799,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L599" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L733" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -3995,7 +4016,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L622" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L757" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -4072,7 +4093,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L118" target="_blank">ChunkLike.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L137" target="_blank">ChunkLike.scala</a>
               </dd>
              </dl>
             </div>
@@ -4110,7 +4131,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L1731" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1994" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -4361,7 +4382,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L628" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L763" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -4536,11 +4557,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Get the element at the specified index.</p>
+             <p>Returns the element at the specified index as a <code>Long</code>. On a chunk backed by an array of <code>Long</code> values it reads the array without boxing.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Get the element at the specified index.</p>
+              <p>Returns the element at the specified index as a <code>Long</code>. On a chunk backed by an array of <code>Long</code> values it reads the array without boxing.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -4550,7 +4571,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L634" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L770" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -4593,7 +4614,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L124" target="_blank">ChunkLike.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L143" target="_blank">ChunkLike.scala</a>
               </dd>
              </dl>
             </div>
@@ -4616,11 +4637,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Statefully maps over the chunk, producing new elements of type <code>B</code>.</p>
+             <p>Statefully maps over the chunk, producing new elements of type <code>B</code>. Returns the final state and the new elements.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Statefully maps over the chunk, producing new elements of type <code>B</code>.</p>
+              <p>Statefully maps over the chunk, producing new elements of type <code>B</code>. Returns the final state and the new elements.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -4630,7 +4651,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L640" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L777" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -4653,11 +4674,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Statefully and effectfully maps over the elements of this chunk to produce new elements.</p>
+             <p>Statefully and effectfully maps over the elements of this chunk to produce new elements, one element at a time from the first. Succeeds with the final state and the new elements, or fails with the first failure.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Statefully and effectfully maps over the elements of this chunk to produce new elements.</p>
+              <p>Statefully and effectfully maps over the elements of this chunk to produce new elements, one element at a time from the first. Succeeds with the final state and the new elements, or fails with the first failure.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -4667,7 +4688,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L660" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L798" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -4690,11 +4711,18 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Effectfully maps the elements of this chunk.</p>
+             <p>Effectfully maps the elements of this chunk, one element at a time from the first. Fails with the first failure of <code>f</code>, without running it on the remaining elements.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Effectfully maps the elements of this chunk.</p>
+              <p>Effectfully maps the elements of this chunk, one element at a time from the first. Fails with the first failure of <code>f</code>, without running it on the remaining elements.</p>
+              <div class="snippet mono-small-block">
+               <pre><code class="language-"><span line-number="1" class=""><span class="tooltip-container"></span>val doubled: UIO[Chunk[Int]] =
+</span><span line-number="2" class=""><span class="tooltip-container"></span> Chunk(1, 2, 3).mapZIO(n =&gt; ZIO.succeed(n * 2))
+</span><span line-number="3" class=""><span class="tooltip-container"></span>// succeeds with Chunk(2, 4, 6)
+</span></code></pre>
+               <div class="buttons"></div>
+              </div>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -4704,7 +4732,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L685" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L831" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -4727,11 +4755,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Effectfully maps the elements of this chunk purely for the effects.</p>
+             <p>Effectfully maps the elements of this chunk purely for the effects, one element at a time from the first. Fails with the first failure of <code>f</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Effectfully maps the elements of this chunk purely for the effects.</p>
+              <p>Effectfully maps the elements of this chunk purely for the effects, one element at a time from the first. Fails with the first failure of <code>f</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -4741,7 +4769,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L691" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L838" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -4764,11 +4792,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Effectfully maps the elements of this chunk in parallel.</p>
+             <p>Effectfully maps the elements of this chunk in parallel. The results keep the order of the elements. When one effect fails, the others are interrupted and the result fails.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Effectfully maps the elements of this chunk in parallel.</p>
+              <p>Effectfully maps the elements of this chunk in parallel. The results keep the order of the elements. When one effect fails, the others are interrupted and the result fails.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -4778,7 +4806,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L697" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L846" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -4801,11 +4829,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Effectfully maps the elements of this chunk in parallel purely for the effects.</p>
+             <p>Effectfully maps the elements of this chunk in parallel purely for the effects. When one effect fails, the others are interrupted and the result fails.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Effectfully maps the elements of this chunk in parallel purely for the effects.</p>
+              <p>Effectfully maps the elements of this chunk in parallel purely for the effects. When one effect fails, the others are interrupted and the result fails.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -4815,7 +4843,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L704" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L854" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -4838,11 +4866,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Materializes a chunk into a chunk backed by an array. This method can improve the performance of bulk operations.</p>
+             <p>Materializes a chunk into a chunk backed by an array. This method can improve the performance of bulk operations. A chunk that is already backed by an array is returned as it is, and an empty chunk gives an empty chunk.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Materializes a chunk into a chunk backed by an array. This method can improve the performance of bulk operations.</p>
+              <p>Materializes a chunk into a chunk backed by an array. This method can improve the performance of bulk operations. A chunk that is already backed by an array is returned as it is, and an empty chunk gives an empty chunk.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -4858,7 +4886,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L1734" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1997" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -5189,11 +5217,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns the bitwise NOT of this chunk.</p>
+             <p>Returns the bitwise NOT of this chunk of booleans: each <code>true</code> becomes <code>false</code> and each <code>false</code> becomes <code>true</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns the bitwise NOT of this chunk.</p>
+              <p>Returns the bitwise NOT of this chunk of booleans: each <code>true</code> becomes <code>false</code> and each <code>false</code> becomes <code>true</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -5203,7 +5231,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L121" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L152" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -5282,11 +5310,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Runs <code>fn</code> if a <code>chunk</code> is not empty or returns default value</p>
+             <p>Returns <code>ifEmpty</code> when this chunk is empty; otherwise applies <code>fn</code> to this chunk as a <code>NonEmptyChunk</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Runs <code>fn</code> if a <code>chunk</code> is not empty or returns default value</p>
+              <p>Returns <code>ifEmpty</code> when this chunk is empty; otherwise applies <code>fn</code> to this chunk as a <code>NonEmptyChunk</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -5296,7 +5324,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L720" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L872" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -5435,7 +5463,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L727" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L879" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -5519,8 +5547,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns a chunk with <code>a1</code> added at the beginning.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Returns a chunk with <code>a1</code> added at the beginning.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Definition Classes</dt>
@@ -5535,7 +5568,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L52" target="_blank">ChunkLike.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L58" target="_blank">ChunkLike.scala</a>
               </dd>
              </dl>
             </div>
@@ -6418,11 +6451,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Get the element at the specified index.</p>
+             <p>Returns the element at the specified index as a <code>Short</code>. On a chunk backed by an array of <code>Short</code> values it reads the array without boxing.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Get the element at the specified index.</p>
+              <p>Returns the element at the specified index as a <code>Short</code>. On a chunk backed by an array of <code>Short</code> values it reads the array without boxing.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -6432,7 +6465,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L742" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L895" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -6584,8 +6617,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the elements from index <code>from</code> (inclusive) to index <code>until</code> (exclusive). Both indices are clamped to the bounds of the chunk, so <code>Chunk(1, 2, 3, 4).slice(-2, 2)</code> is <code>Chunk(1, 2)</code>, and <code>until &amp;lt;= from</code> gives an empty chunk.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Returns the elements from index <code>from</code> (inclusive) to index <code>until</code> (exclusive). Both indices are clamped to the bounds of the chunk, so <code>Chunk(1, 2, 3, 4).slice(-2, 2)</code> is <code>Chunk(1, 2)</code>, and <code>until &amp;lt;= from</code> gives an empty chunk.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Definition Classes</dt>
@@ -6600,7 +6638,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L745" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L904" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -6740,8 +6778,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the elements sorted with <code>ord</code>. With the natural ordering of <code>Byte</code>, <code>Char</code>, <code>Double</code>, <code>Float</code>, <code>Int</code>, <code>Long</code> or <code>Short</code> on a chunk of that primitive type, it sorts the unboxed values with <code>java.util.Arrays.sort</code>, which puts <code>-0.0</code> before <code>0.0</code> and <code>NaN</code> last.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Returns the elements sorted with <code>ord</code>. With the natural ordering of <code>Byte</code>, <code>Char</code>, <code>Double</code>, <code>Float</code>, <code>Int</code>, <code>Long</code> or <code>Short</code> on a chunk of that primitive type, it sorts the unboxed values with <code>java.util.Arrays.sort</code>, which puts <code>-0.0</code> before <code>0.0</code> and <code>NaN</code> last.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Definition Classes</dt>
@@ -6756,7 +6799,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L127" target="_blank">ChunkLike.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L152" target="_blank">ChunkLike.scala</a>
               </dd>
              </dl>
             </div>
@@ -6778,8 +6821,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Splits this chunk into the longest prefix whose elements satisfy <code>f</code>, and the remaining elements.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Splits this chunk into the longest prefix whose elements satisfy <code>f</code>, and the remaining elements.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Definition Classes</dt>
@@ -6794,7 +6842,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L752" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L915" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -6817,11 +6865,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Splits this chunk into <code>n</code> equally sized chunks.</p>
+             <p>Splits this chunk into <code>n</code> chunks whose sizes differ by at most one, the longer ones first: <code>Chunk(1, 2, 3, 4, 5, 6, 7).split(3)</code> is <code>Chunk(Chunk(1, 2, 3), Chunk(4, 5), Chunk(6, 7))</code>. A chunk with fewer than <code>n</code> elements gives one chunk per element. <code>split(0)</code> throws an <code>ArithmeticException</code>. A negative <code>n</code> does not split the chunk into <code>n</code> parts: <code>Chunk(1, 2).split(-5)</code> is <code>Chunk(Chunk(1), Chunk(2))</code>, <code>Chunk(1, 2, 3, 4, 5).split(-2)</code> is <code>Chunk(Chunk())</code> and <code>Chunk(1, 2, 3, 4, 5).split(-3)</code> is <code>Chunk(Chunk(), Chunk())</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Splits this chunk into <code>n</code> equally sized chunks.</p>
+              <p>Splits this chunk into <code>n</code> chunks whose sizes differ by at most one, the longer ones first: <code>Chunk(1, 2, 3, 4, 5, 6, 7).split(3)</code> is <code>Chunk(Chunk(1, 2, 3), Chunk(4, 5), Chunk(6, 7))</code>. A chunk with fewer than <code>n</code> elements gives one chunk per element. <code>split(0)</code> throws an <code>ArithmeticException</code>. A negative <code>n</code> does not split the chunk into <code>n</code> parts: <code>Chunk(1, 2).split(-5)</code> is <code>Chunk(Chunk(1), Chunk(2))</code>, <code>Chunk(1, 2, 3, 4, 5).split(-2)</code> is <code>Chunk(Chunk())</code> and <code>Chunk(1, 2, 3, 4, 5).split(-3)</code> is <code>Chunk(Chunk(), Chunk())</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -6831,7 +6879,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L758" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L928" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -6854,11 +6902,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns two splits of this chunk at the specified index.</p>
+             <p>Returns two splits of this chunk at the specified index: <code>(take(n), drop(n))</code>, the first <code>n</code> elements and the rest. A negative <code>n</code> gives an empty first chunk, and an <code>n</code> past the end an empty second chunk.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns two splits of this chunk at the specified index.</p>
+              <p>Returns two splits of this chunk at the specified index: <code>(take(n), drop(n))</code>, the first <code>n</code> elements and the rest. A negative <code>n</code> gives an empty first chunk, and an <code>n</code> past the end an empty second chunk.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -6874,7 +6922,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L796" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L968" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -6897,11 +6945,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Splits this chunk on the first element that matches this predicate.</p>
+             <p>Splits this chunk on the first element that matches this predicate. That element starts the second chunk; when no element matches, the second chunk is empty.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Splits this chunk on the first element that matches this predicate.</p>
+              <p>Splits this chunk on the first element that matches this predicate. That element starts the second chunk; when no element matches, the second chunk is empty.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -6911,7 +6959,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L802" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L976" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -7080,11 +7128,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Takes the first <code>n</code> elements of the chunk.</p>
+             <p>Takes the first <code>n</code> elements of the chunk. Returns an empty chunk when <code>n &amp;lt;= 0</code>, and the chunk unchanged when <code>n</code> is at least the length. On the chunks of booleans that <code>asBitsByte</code>, <code>asBitsInt</code>, <code>asBitsLong</code>, <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>negate</code> and <code>ChunkBuilder.Boolean</code> return, a negative <code>n</code> gives a chunk with a negative length instead.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Takes the first <code>n</code> elements of the chunk.</p>
+              <p>Takes the first <code>n</code> elements of the chunk. Returns an empty chunk when <code>n &amp;lt;= 0</code>, and the chunk unchanged when <code>n</code> is at least the length. On the chunks of booleans that <code>asBitsByte</code>, <code>asBitsInt</code>, <code>asBitsLong</code>, <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>negate</code> and <code>ChunkBuilder.Boolean</code> return, a negative <code>n</code> gives a chunk with a negative length instead.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -7100,7 +7148,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L820" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L998" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -7123,11 +7171,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Takes the last <code>n</code> elements of the chunk.</p>
+             <p>Takes the last <code>n</code> elements of the chunk. Returns an empty chunk when <code>n &amp;lt;= 0</code>, and the chunk unchanged when <code>n</code> is at least the length.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Takes the last <code>n</code> elements of the chunk.</p>
+              <p>Takes the last <code>n</code> elements of the chunk. Returns an empty chunk when <code>n &amp;lt;= 0</code>, and the chunk unchanged when <code>n</code> is at least the length.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -7143,7 +7191,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L837" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1016" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -7166,11 +7214,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Takes all elements so long as the effectual predicate returns true.</p>
+             <p>Takes all elements so long as the effectual predicate returns true. The predicate runs one element at a time from the first, and does not run on the elements after the first <code>false</code>. Fails with the first failure of the predicate.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Takes all elements so long as the effectual predicate returns true.</p>
+              <p>Takes all elements so long as the effectual predicate returns true. The predicate runs one element at a time from the first, and does not run on the elements after the first <code>false</code>. Fails with the first failure of the predicate.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -7180,7 +7228,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L872" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1054" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -7265,11 +7313,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Converts the chunk into an array.</p>
+             <p>Converts the chunk into a new array. A chunk of primitive values gives a primitive array: <code>Chunk(1, 2).toArray</code> is an <code>Array[Int]</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Converts the chunk into an array.</p>
+              <p>Converts the chunk into a new array. A chunk of primitive values gives a primitive array: <code>Chunk(1, 2).toArray</code> is an <code>Array[Int]</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -7285,7 +7333,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L888" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1071" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -7308,11 +7356,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Renders this chunk of bits as a binary string.</p>
+             <p>Renders this chunk of bits as a binary string, with <code>1</code> for <code>true</code> and <code>0</code> for <code>false</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Renders this chunk of bits as a binary string.</p>
+              <p>Renders this chunk of bits as a binary string, with <code>1</code> for <code>true</code> and <code>0</code> for <code>false</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -7322,7 +7370,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L905" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1089" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -7406,8 +7454,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the elements of this chunk as a <code>List</code>.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Returns the elements of this chunk as a <code>List</code>.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Definition Classes</dt>
@@ -7422,7 +7475,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L912" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1099" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -7472,8 +7525,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Packs this chunk of booleans into bytes, 8 booleans per byte, the first boolean of each group in the most significant bit. When the length is not a multiple of 8, the last byte holds the remaining booleans in its low bits: <code>Chunk(true, false, true).toPackedByte</code> is <code>Chunk(5)</code>. It reverses <code>asBitsByte</code>.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Packs this chunk of booleans into bytes, 8 booleans per byte, the first boolean of each group in the most significant bit. When the length is not a multiple of 8, the last byte holds the remaining booleans in its low bits: <code>Chunk(true, false, true).toPackedByte</code> is <code>Chunk(5)</code>. It reverses <code>asBitsByte</code>.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Inherited from:</dt>
@@ -7482,7 +7540,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L186" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L239" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -7504,8 +7562,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Packs this chunk of booleans into ints, 32 booleans per int. With <code>BigEndian</code> the first boolean of each group goes to the most significant bit, and a last, shorter group fills the low bits. With <code>LittleEndian</code> each int is the bit-reversed <code>BigEndian</code> value. It reverses <code>asBitsInt</code> with the same endianness.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Packs this chunk of booleans into ints, 32 booleans per int. With <code>BigEndian</code> the first boolean of each group goes to the most significant bit, and a last, shorter group fills the low bits. With <code>LittleEndian</code> each int is the bit-reversed <code>BigEndian</code> value. It reverses <code>asBitsInt</code> with the same endianness.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Inherited from:</dt>
@@ -7514,7 +7577,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L189" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L250" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -7536,8 +7599,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Packs this chunk of booleans into longs, 64 booleans per long. With <code>BigEndian</code> the first boolean of each group goes to the most significant bit, and a last, shorter group fills the low bits. With <code>LittleEndian</code> each long is the bit-reversed <code>BigEndian</code> value. It reverses <code>asBitsLong</code> with the same endianness.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Packs this chunk of booleans into longs, 64 booleans per long. With <code>BigEndian</code> the first boolean of each group goes to the most significant bit, and a last, shorter group fills the low bits. With <code>LittleEndian</code> each long is the bit-reversed <code>BigEndian</code> value. It reverses <code>asBitsLong</code> with the same endianness.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Inherited from:</dt>
@@ -7546,7 +7614,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L192" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L261" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -7631,19 +7699,14 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns a string representation of the object.</p>
+             <p>Renders this chunk as <code>Chunk(</code> followed by its elements separated by commas without spaces and <code>)</code>, for example <code>Chunk(1,2,3)</code>.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns a string representation of the object.</p>
-              <p>The default representation is platform dependent.</p>
+              <p>Renders this chunk as <code>Chunk(</code> followed by its elements separated by commas without spaces and <code>)</code>, for example <code>Chunk(1,2,3)</code>.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
-              <dt class="body-small">Returns</dt>
-              <dd class="body-medium">
-               <p>a string representation of the object.</p>
-              </dd>
               <dt class="body-small">Definition Classes</dt>
               <dd class="body-medium">
                <div>
@@ -7656,7 +7719,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L922" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1116" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -7678,8 +7741,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the elements of this chunk as a <code>Vector</code>.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Returns the elements of this chunk as a <code>Vector</code>.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Definition Classes</dt>
@@ -7694,7 +7762,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L917" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1107" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -7840,8 +7908,13 @@ node40 -> node22;
           <div>
            <div class="originInfo"></div>
            <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns a chunk with the element at <code>index</code> replaced by <code>elem</code>. Throws a <code>java.lang.IndexOutOfBoundsException</code> when <code>index</code> is negative or not less than the length of the chunk. When <code>elem</code> is <code>null</code>, index access on the result does not return it: on <code>Chunk("a", "b").updated(0, null)</code>, <code>apply(0)</code> returns <code>"a"</code>, while <code>toList</code> gives <code>List(null, "b")</code>.</p>
+            </div>
             <div class="cover">
-             <div class="doc"></div>
+             <div class="doc">
+              <p>Returns a chunk with the element at <code>index</code> replaced by <code>elem</code>. Throws a <code>java.lang.IndexOutOfBoundsException</code> when <code>index</code> is negative or not less than the length of the chunk. When <code>elem</code> is <code>null</code>, index access on the result does not return it: on <code>Chunk("a", "b").updated(0, null)</code>, <code>apply(0)</code> returns <code>"a"</code>, while <code>toList</code> gives <code>List(null, "b")</code>.</p>
+             </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
               <dt class="body-small">Definition Classes</dt>
@@ -7856,7 +7929,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L171" target="_blank">ChunkLike.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L203" target="_blank">ChunkLike.scala</a>
               </dd>
              </dl>
             </div>
@@ -7941,11 +8014,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Zips this chunk with the specified chunk to produce a new chunk with pairs of elements from each chunk. The returned chunk will have the length of the shorter chunk.</p>
+             <p>Zips this chunk with the specified chunk to produce a new chunk with pairs of elements from each chunk. The returned chunk will have the length of the shorter chunk. Elements are combined with <code>Zippable</code>, so tuples are flattened (<code>Chunk((1, 2)).zip(Chunk(3))</code> is <code>Chunk((1, 2, 3))</code>) and zipping with a chunk of <code>Unit</code> keeps the elements of this chunk.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Zips this chunk with the specified chunk to produce a new chunk with pairs of elements from each chunk. The returned chunk will have the length of the shorter chunk.</p>
+              <p>Zips this chunk with the specified chunk to produce a new chunk with pairs of elements from each chunk. The returned chunk will have the length of the shorter chunk. Elements are combined with <code>Zippable</code>, so tuples are flattened (<code>Chunk((1, 2)).zip(Chunk(3))</code> is <code>Chunk((1, 2, 3))</code>) and zipping with a chunk of <code>Unit</code> keeps the elements of this chunk.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -7955,7 +8028,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L933" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1129" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -8026,7 +8099,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L942" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1138" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -8077,11 +8150,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Zips with chunk with the specified chunk to produce a new chunk with pairs of elements from each chunk combined using the specified function <code>both</code>. If one chunk is shorter than the other uses the specified function <code>left</code> or <code>right</code> to map the element that does exist to the result type.</p>
+             <p>Zips this chunk with the specified chunk to produce a new chunk with pairs of elements from each chunk combined using the specified function <code>both</code>. If one chunk is shorter than the other uses the specified function <code>left</code> or <code>right</code> to map the element that does exist to the result type. The returned chunk has the length of the longer chunk.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Zips with chunk with the specified chunk to produce a new chunk with pairs of elements from each chunk combined using the specified function <code>both</code>. If one chunk is shorter than the other uses the specified function <code>left</code> or <code>right</code> to map the element that does exist to the result type.</p>
+              <p>Zips this chunk with the specified chunk to produce a new chunk with pairs of elements from each chunk combined using the specified function <code>both</code>. If one chunk is shorter than the other uses the specified function <code>left</code> or <code>right</code> to map the element that does exist to the result type. The returned chunk has the length of the longer chunk.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -8091,7 +8164,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L951" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1148" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -8114,11 +8187,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Zips this chunk with the specified chunk using the specified combiner.</p>
+             <p>Zips this chunk with the specified chunk using the specified combiner. The returned chunk has the length of the shorter chunk.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Zips this chunk with the specified chunk using the specified combiner.</p>
+              <p>Zips this chunk with the specified chunk using the specified combiner. The returned chunk has the length of the shorter chunk.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -8128,7 +8201,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L988" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1186" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -8171,7 +8244,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L177" target="_blank">ChunkLike.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala-2.13+/zio/ChunkLike.scala#L209" target="_blank">ChunkLike.scala</a>
               </dd>
              </dl>
             </div>
@@ -8208,7 +8281,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L1012" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1210" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -8231,11 +8304,11 @@ node40 -> node22;
            <div class="originInfo"></div>
            <div class="memberDocumentation">
             <div class="documentableBrief doc">
-             <p>Returns the bitwise OR of this chunk and the specified chunk.</p>
+             <p>Returns the bitwise OR of this chunk of booleans and the specified chunk, element by element. The result has the length of the shorter chunk.</p>
             </div>
             <div class="cover">
              <div class="doc">
-              <p>Returns the bitwise OR of this chunk and the specified chunk.</p>
+              <p>Returns the bitwise OR of this chunk of booleans and the specified chunk, element by element. The result has the length of the shorter chunk.</p>
              </div>
              <h2 class="h200">Attributes</h2>
              <dl class="attributes attributes-small">
@@ -8245,7 +8318,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L109" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L137" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>
@@ -8818,7 +8891,7 @@ node40 -> node22;
               </dd>
               <dt class="body-small">Source</dt>
               <dd class="body-medium">
-               <a href="https://github.com/zio/zio/blob/ee3a637f3af3c401d37d6652b574154a51c5a957/core/shared/src/main/scala/zio/Chunk.scala#L1599" target="_blank">Chunk.scala</a>
+               <a href="https://github.com/zio/zio/blob/44f37feaa9be5474f743457e1285a488085e35ed/core/shared/src/main/scala/zio/Chunk.scala#L1862" target="_blank">Chunk.scala</a>
               </dd>
              </dl>
             </div>

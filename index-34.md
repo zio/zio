@@ -11,11 +11,9 @@ ZIO SQS enables us to produce and consume elements to/from the Amazon SQS servic
 ZIO SQS is published for Scala 2.13 and Scala 3 on the JVM only. To use it, we add the following to the `build.sbt` file:
 
 ```scala
-libraryDependencies ++= Seq(
-  // ZIO SQS client: producers, consumer streams and queue helpers (JVM only).
-  // It brings the zio-aws SQS client and the Netty HTTP client as dependencies.
-  "dev.zio" %% "zio-sqs" % "0.12.7"
-)
+// ZIO SQS client: producers, consumer streams and queue helpers (JVM only).
+// It brings the zio-aws SQS client and the Netty HTTP client as dependencies.
+libraryDependencies += "dev.zio" %% "zio-sqs" % "0.12.8"
 ```
 
 ## Example

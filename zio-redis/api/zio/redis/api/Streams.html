@@ -1,0 +1,2129 @@
+<!DOCTYPE html><html data-za-announcement-id="announcementBar-zioblocks" data-pathToRoot="../../../" data-rawLocation="zio/redis/api/Streams" data-dynamicSideMenu="true"><head><meta charset="utf-8"></meta><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></meta><title>Streams</title><link rel="icon" href="/img/favicon.png"><script type="text/javascript" src="../../../scripts/theme.js"></script><script type="text/javascript" src="../../../scripts/searchData.js" defer="true"></script><script type="text/javascript" src="../../../scripts/scastieConfiguration.js" defer="true"></script><link rel="stylesheet" href="../../../styles/theme/bundle.css"></link><link rel="stylesheet" href="../../../styles/theme/components/bundle.css"></link><link rel="stylesheet" href="../../../styles/theme/components/button/bundle.css"></link><link rel="stylesheet" href="../../../styles/theme/layout/bundle.css"></link><link rel="stylesheet" href="../../../styles/dotty-icons.css"></link><link rel="stylesheet" href="../../../styles/filter-bar.css"></link><link rel="stylesheet" href="../../../styles/searchbar.css"></link><link rel="stylesheet" href="../../../styles/social-links.css"></link><link rel="stylesheet" href="../../../styles/versions-dropdown.css"></link><link rel="stylesheet" href="../../../styles/content-contributors.css"></link><script type="text/javascript" src="../../../hljs/highlight.pack.js" defer="true"></script><script type="text/javascript" src="../../../scripts/hljs-scala3.js" defer="true"></script><script type="text/javascript" src="../../../scripts/ux.js" defer="true"></script><script type="text/javascript" src="../../../scripts/common/component.js" defer="true"></script><script type="text/javascript" src="../../../scripts/common/utils.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/FilterBar.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/DocumentableList.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/Input.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/FilterGroup.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/Filter.js" defer="true"></script><script type="text/javascript" src="../../../scripts/scaladoc-scalajs.js" defer="true"></script><script type="text/javascript" src="../../../scripts/contributors.js" defer="true"></script><script type="text/javascript" src="/zio-redis/api/scripts/vendor/d3/d3.v6.7.0.min.js" defer="true"></script><script type="text/javascript" src="/zio-redis/api/scripts/vendor/graphlib-dot/graphlib-dot.0.6.2.min.js" defer="true"></script><script type="text/javascript" src="/zio-redis/api/scripts/vendor/dagre-d3/dagre-d3.0.6.1.min.js" defer="true"></script><script type="text/javascript" src="../../../scripts/data.js" defer="true"></script><script>var pathToRoot = "../../../";</script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=fallback"><link rel="stylesheet" href="/zio-redis/api/styles/zio-api.css"></head><body><div class="za-announcement theme-announcement-bar" role="banner" style="background-color:#ececec;color:#1a1a1a"><div class="za-announcement__placeholder"></div><div class="za-announcement__content"><img src="/img/ecosystem/zio-blocks-icon.svg" alt="" style="height: 1.1em; vertical-align: middle;"> <b>ZIO Blocks</b> has a new website! Visit <a href="https://zioblocks.com" target="_blank">zioblocks.com</a> to explore the docs 🚀</div><button type="button" aria-label="Close" class="za-announcement__close"><svg viewBox="0 0 15 15" width="14" height="14" aria-hidden="true"><g stroke="currentColor" stroke-width="3.1"><path d="M.75.75l13.5 13.5M14.25.75L.75 14.25"></path></g></svg></button></div><script>window.zaPlaceAnnouncement&&zaPlaceAnnouncement()</script><div id=""><div id="header" class="za-navbar"><div class="za-navbar__left"><span id="mobile-menu-toggle" class="za-navbar__toggle" role="button" tabindex="0" aria-label="Toggle navigation bar"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"/></svg></span><a class="za-navbar__brand" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><span id="dropdown-trigger" hidden></span><div id="version-dropdown" hidden></div><a class="za-navbar__link" href="/overview/getting-started">Overview</a><a class="za-navbar__link" href="/reference/">Reference</a><a class="za-navbar__link" href="/api/">API</a><a class="za-navbar__link" href="/guides/">Guides</a><a class="za-navbar__link za-navbar__link--active" href="/ecosystem/" aria-current="page">Ecosystem</a><a class="za-navbar__link" href="/resources/">Resources</a><a class="za-navbar__link" href="/events/">Events</a></div><div class="za-navbar__right"><a class="za-navbar__link" href="/blog">Blog</a><a class="za-navbar__link za-navbar__link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a><button type="button" class="za-navbar__icon za-onboard" data-onboard-prompt="Fetch https://zio.dev/start.md and follow the instructions to set up my environment for ZIO development." title="Copy the prompt to onboard your coding agent to ZIO" aria-label="Copy the ZIO agent onboarding prompt to the clipboard"><svg class="za-onboard__idle" viewBox="0 0 576 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M9.4 86.6C-3.1 74.1-3.1 53.9 9.4 41.4s32.8-12.5 45.3 0l192 192c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L178.7 256 9.4 86.6zM256 416l288 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-288 0c-17.7 0-32-14.3-32-32s14.3-32 32-32z"/></svg><svg class="za-onboard__done" viewBox="0 0 448 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></svg></button><button type="button" class="za-navbar__icon za-mode" data-color-mode-toggle title="light mode" aria-label="Switch between dark and light mode (currently light mode)"><svg class="za-mode__light" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg class="za-mode__dark" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg></button><button type="button" id="search-toggle" class="za-search" title="Search the API" aria-label="Search the API"><svg width="20" height="20" class="za-search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"/><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="za-search__label">Search</span></button></div></div><div id="mobile-menu"><div class="mobile-menu-header body-small"><a class="mobile-menu-logo" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><button id="mobile-menu-close" class="icon-button close"></button></div><div class="mobile-menu-container body-medium"><input id="mobile-scaladoc-searchbar-input" class="scaladoc-searchbar-input" type="search" placeholder="Find anything"></input><nav class="za-mobile-links"><a class="za-mobile-link" href="/overview/getting-started">Overview</a><a class="za-mobile-link" href="/reference/">Reference</a><a class="za-mobile-link" href="/api/">API</a><a class="za-mobile-link" href="/guides/">Guides</a><a class="za-mobile-link za-mobile-link--active" href="/ecosystem/" aria-current="page">Ecosystem</a><a class="za-mobile-link" href="/resources/">Resources</a><a class="za-mobile-link" href="/events/">Events</a><a class="za-mobile-link" href="/blog">Blog</a><a class="za-mobile-link za-mobile-link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a></nav><span id="mobile-theme-toggle" class="mobile-menu-item mode"></span></div></div><span id="mobile-sidebar-toggle" class="floating-button"></span><div id="leftColumn" class="body-small"><a class="za-back-link" href="/zio-redis/">← ZIO Redis docs</a></div><div id="scaladoc-searchBar"></div><div id="main"><div id="content" class="body-medium"><div><nav class="za-breadcrumbs" aria-label="Breadcrumbs"><ul class="za-breadcrumbs__list"><li class="za-breadcrumbs__item"><a aria-label="Home page" class="za-breadcrumbs__link" href="/"><svg viewBox="0 0 24 24" class="za-breadcrumbs__home"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/zio-redis/"><span>ZIO Redis</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/zio-redis/api/"><span>API</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../../redis"><span>zio.redis</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../api"><span>api</span></a></li><li class="za-breadcrumbs__item za-breadcrumbs__item--active"><span class="za-breadcrumbs__link">Streams</span></li></ul></nav><div class="cover-header">
+ <span class="icon"><span class="micon tr"></span></span>
+ <h1 class="h600 single">Streams</h1>
+</div>
+<div class="fqname body-large">
+ <span>zio.redis.api.Streams</span>
+</div>
+<div class="main-signature mono-small-block">
+ <div class="signature">
+  <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="Streams" t="n" class="documentableName ">Streams</a>[<span t="k"></span><span data-unresolved-link="" t="t">G</span>[<span t="t">_</span>]]
+ </div>
+</div>
+<div class="cover">
+ <div class="doc"></div>
+ <section id="attributes">
+  <h2 class="h500">Attributes</h2>
+  <dl class="attributes">
+   <dt class="body-small">Source</dt>
+   <dd class="body-medium">
+    <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L26" target="_blank">Streams.scala</a>
+   </dd>
+   <dt class="body-small">Graph</dt>
+   <dd class="body-medium">
+    <div id="inheritance-diagram" class="diagram-class showGraph">
+     <button type="button" class="label-only-button" onclick="zoomOut()">Reset zoom</button><button type="button" class="label-only-button" onclick="hideGraph()">Hide graph</button><button type="button" class="label-only-button" onclick="showGraph()">Show graph</button>
+     <svg id="graph"></svg>
+     <script type="text/dot" id="dot"> digraph g {
+ node0 [id=node0, label="<span style=\"color: #FFFFFF;\">trait <a href=\"Streams.html\" t=\"n\">Streams</a>[<span t=\"t\">G</span>]</span>", class="trait vertex"];
+node1 [id=node1, label="<span style=\"color: #FFFFFF;\">class <span data-unresolved-link=\"\" t=\"n\">Object</span></span>", class="class vertex"];
+node2 [id=node2, label="<span style=\"color: #FFFFFF;\">class <span data-unresolved-link=\"\" t=\"n\">Any</span></span>", class="class vertex"];
+node3 [id=node3, label="<span style=\"color: #FFFFFF;\">trait <span data-unresolved-link=\"\" t=\"n\">Matchable</span></span>", class="trait vertex"];
+
+
+ node0 -> node1;
+node1 -> node2;
+node1 -> node3;
+node3 -> node2;
+
+}
+</script>
+    </div>
+   </dd>
+   <dt class="body-small">Supertypes</dt>
+   <dd class="body-medium">
+    <div class="mono-small-block supertypes">
+     <div>
+      class <span data-unresolved-link="" t="n">Object</span>
+     </div>
+     <div>
+      trait <span data-unresolved-link="" t="n">Matchable</span>
+     </div>
+     <div>
+      class <span data-unresolved-link="" t="n">Any</span>
+     </div>
+     <span></span>
+    </div>
+   </dd>
+  </dl>
+ </section>
+</div>
+<section id="members-list">
+ <h2 class="h500">Members list</h2>
+ <div class="documentableFilter">
+  <div class="filtersContainer"></div>
+  <input class="filterableInput" placeholder="Filter by any phrase" data-test-id="filterBarInput" type="search"><button class="clearButton label-only-button" data-test-id="filterBarClearButton">Clear all</button>
+ </div>
+ <div class="membersList expand">
+  <div class="tabs">
+   <div class="contents">
+    <section id="Type-members">
+     <div data-togglable="Type members" class="tab expand">
+      <div class="member-group-header">
+       <h3 data-togglable="Type members" class="h400">Type members</h3>
+      </div>
+      <section id="Inherited-classlikes">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Inherited classlikes</h4>
+        </div>
+        <div class="documentableElement" data-f-visibility="protected" data-f-keywords="final,implicit" data-f-inherited="RedisEnvironment">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final implicit protected </span></span><span class="kind"><span t="k">class </span></span><a href="../internal/RedisEnvironment$RunOps" t="n" class="documentableName ">RunOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">In</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">cmd</span>: <span t="t">RedisCommand</span>[<span data-unresolved-link="" t="t">In</span>, <span data-unresolved-link="" t="t">Out</span>])
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Inherited from:</dt>
+              <dd class="body-medium">
+               <a href="../internal/RedisEnvironment$RunOps">RedisEnvironment (hidden)</a>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/internal/RedisEnvironment.scala#L27" target="_blank">RedisEnvironment.scala</a>
+              </dd>
+              <dt class="body-small">Supertypes</dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div>
+                <span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+     </div>
+    </section>
+    <section id="Value-members">
+     <div data-togglable="Value members" class="tab expand">
+      <div class="member-group-header">
+       <h3 data-togglable="Value members" class="h400">Value members</h3>
+      </div>
+      <section id="Concrete-methods">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Concrete methods</h4>
+        </div>
+        <div class="documentableElement" id="xAck-7c" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xAck-7c" t="n" class="documentableName ">xAck</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">GG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">GG</span>, <span t="k"></span><span data-unresolved-link="" t="n">id</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">ids</span>: <span data-unresolved-link="" t="t">I</span>*): <span t="t">G</span>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Removes one or multiple messages from the pending entries list (PEL) of a stream consumer group.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Removes one or multiple messages from the pending entries list (PEL) of a stream consumer group.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">id</dt>
+              <dd class="body-medium">
+               <p>ID of the message</p>
+              </dd>
+              <dt class="body-small">ids</dt>
+              <dd class="body-medium">
+               <p>IDs of the rest of the messages</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>the number of messages successfully acknowledged.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L45" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xAdd-fffffb77" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xAdd-fffffb77" t="n" class="documentableName ">xAdd</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">K</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">V</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">id</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">noMakeStream</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a> = ...)(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">pair</span>: (<span data-unresolved-link="" t="t">K</span>, <span data-unresolved-link="" t="t">V</span>), <span t="k"></span><span data-unresolved-link="" t="n">pairs</span>: (<span data-unresolved-link="" t="t">K</span>, <span data-unresolved-link="" t="t">V</span>)*): <a href="../ResultBuilder/ResultBuilder1" t="t">ResultBuilder1</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Appends the specified stream entry to the stream at the specified key.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Appends the specified stream entry to the stream at the specified key.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">id</dt>
+              <dd class="body-medium">
+               <p>ID of the message</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">noMakeStream</dt>
+              <dd class="body-medium">
+               <p>The creation of stream's key can be disabled with the noMakeStream option</p>
+              </dd>
+              <dt class="body-small">pair</dt>
+              <dd class="body-medium">
+               <p>field and value pair</p>
+              </dd>
+              <dt class="body-small">pairs</dt>
+              <dd class="body-medium">
+               <p>rest of the field and value pairs</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>ID of the added entry.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L75" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xAddWithMaxLen-fffff51c" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xAddWithMaxLen-fffff51c" t="n" class="documentableName ">xAddWithMaxLen</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">K</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">V</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">id</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">count</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>, <span t="k"></span><span data-unresolved-link="" t="n">approximate</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a> = ..., <span t="k"></span><span data-unresolved-link="" t="n">limit</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>] = ..., <span t="k"></span><span data-unresolved-link="" t="n">noMakeStream</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a> = ...)(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">pair</span>: (<span data-unresolved-link="" t="t">K</span>, <span data-unresolved-link="" t="t">V</span>), <span t="k"></span><span data-unresolved-link="" t="n">pairs</span>: (<span data-unresolved-link="" t="t">K</span>, <span data-unresolved-link="" t="t">V</span>)*): <a href="../ResultBuilder/ResultBuilder1" t="t">ResultBuilder1</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Appends the specified stream entry to the stream at the specified key while limiting the size of the stream.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Appends the specified stream entry to the stream at the specified key while limiting the size of the stream.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">approximate</dt>
+              <dd class="body-medium">
+               <p>flag that indicates if a stream should be limited to the exact number of elements</p>
+              </dd>
+              <dt class="body-small">count</dt>
+              <dd class="body-medium">
+               <p>maximum number of elements in a stream</p>
+              </dd>
+              <dt class="body-small">id</dt>
+              <dd class="body-medium">
+               <p>ID of the message</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">limit</dt>
+              <dd class="body-medium">
+               <p>limit parameter</p>
+              </dd>
+              <dt class="body-small">noMakeStream</dt>
+              <dd class="body-medium">
+               <p>the creation of stream's key can be disabled with the NOMKSTREAM option.</p>
+              </dd>
+              <dt class="body-small">pair</dt>
+              <dd class="body-medium">
+               <p>field and value pair</p>
+              </dd>
+              <dt class="body-small">pairs</dt>
+              <dd class="body-medium">
+               <p>rest of the field and value pairs</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>ID of the added entry.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L119" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xAddWithMinId-fed" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xAddWithMinId-fed" t="n" class="documentableName ">xAddWithMinId</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">K</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">V</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">id</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">minId</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">approximate</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a> = ..., <span t="k"></span><span data-unresolved-link="" t="n">limit</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>] = ..., <span t="k"></span><span data-unresolved-link="" t="n">noMakeStream</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a> = ...)(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">pair</span>: (<span data-unresolved-link="" t="t">K</span>, <span data-unresolved-link="" t="t">V</span>), <span t="k"></span><span data-unresolved-link="" t="n">pairs</span>: (<span data-unresolved-link="" t="t">K</span>, <span data-unresolved-link="" t="t">V</span>)*): <a href="../ResultBuilder/ResultBuilder1" t="t">ResultBuilder1</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Appends the specified stream entry to the stream at the specified key while limiting the size of the stream.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Appends the specified stream entry to the stream at the specified key while limiting the size of the stream.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">approximate</dt>
+              <dd class="body-medium">
+               <p>flag that indicates if a stream should be limited to the exact number of elements</p>
+              </dd>
+              <dt class="body-small">id</dt>
+              <dd class="body-medium">
+               <p>ID of the message</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">limit</dt>
+              <dd class="body-medium">
+               <p>limit parameter</p>
+              </dd>
+              <dt class="body-small">minId</dt>
+              <dd class="body-medium">
+               <p>Evicts entries with IDs lower than minId, where minId is a stream ID.</p>
+              </dd>
+              <dt class="body-small">noMakeStream</dt>
+              <dd class="body-medium">
+               <p>the creation of stream's key can be disabled with the NOMKSTREAM option.</p>
+              </dd>
+              <dt class="body-small">pair</dt>
+              <dd class="body-medium">
+               <p>field and value pair</p>
+              </dd>
+              <dt class="body-small">pairs</dt>
+              <dd class="body-medium">
+               <p>rest of the field and value pairs</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>ID of the added entry.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L188" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xAutoClaim-fffffed6" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xAutoClaim-fffffed6" t="n" class="documentableName ">xAutoClaim</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SC</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>, <span t="k"></span><span data-unresolved-link="" t="n">consumer</span>: <span data-unresolved-link="" t="t">SC</span>, <span t="k"></span><span data-unresolved-link="" t="n">minIdleTime</span>: <a href="/api/zio/DurationModule#Duration-0" t="t">Duration</a>, <span t="k"></span><span data-unresolved-link="" t="n">count</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="../options/Shared$Count" t="t">Count</a>] = ...)(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">start</span>: <span data-unresolved-link="" t="t">I</span>): <a href="../ResultBuilder/ResultBuilder3" t="t">ResultBuilder3</a>[{ <span t="k">type </span>lambda<span t="k"> = </span>[<span t="t">x</span>, <span t="t">y</span>, <span t="t">z</span>]<span t="k"> =&gt;&gt; </span><a href="../options/Streams$StreamClaimedEntries" t="t">StreamClaimedEntries</a>[<span t="t">x</span>, <span data-unresolved-link="" t="t">I</span>, <span t="t">y</span>, <span t="t">z</span>]; }<span t="k">#</span><span data-unresolved-link="" t="t">&lt;none&gt;</span>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Transfers ownership of pending stream entries that match the specified criteria.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Transfers ownership of pending stream entries that match the specified criteria.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">consumer</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer</p>
+              </dd>
+              <dt class="body-small">count</dt>
+              <dd class="body-medium">
+               <p>the upper limit of the number of entries that attempts to claim</p>
+              </dd>
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">minIdleTime</dt>
+              <dd class="body-medium">
+               <p>minimum idle time of a message</p>
+              </dd>
+              <dt class="body-small">start</dt>
+              <dd class="body-medium">
+               <p>command will claim only IDs that are equal or greater than this ID</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>messages successfully claimed.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L253" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xAutoClaimWithJustId-fffffed4" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xAutoClaimWithJustId-fffffed4" t="n" class="documentableName ">xAutoClaimWithJustId</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SC</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>, <span t="k"></span><span data-unresolved-link="" t="n">consumer</span>: <span data-unresolved-link="" t="t">SC</span>, <span t="k"></span><span data-unresolved-link="" t="n">minIdleTime</span>: <a href="/api/zio/DurationModule#Duration-0" t="t">Duration</a>, <span t="k"></span><span data-unresolved-link="" t="n">count</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="../options/Shared$Count" t="t">Count</a>] = ...)(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">start</span>: <span data-unresolved-link="" t="t">I</span>): <a href="../ResultBuilder/ResultBuilder1" t="t">ResultBuilder1</a>[{ <span t="k">type </span>lambda<span t="k"> = </span>[<span t="t">x</span>]<span t="k"> =&gt;&gt; </span><a href="../options/Streams$StreamClaimedIdChunk" t="t">StreamClaimedIdChunk</a>[<span t="t">x</span>, <span data-unresolved-link="" t="t">I</span>]; }<span t="k">#</span><span data-unresolved-link="" t="t">&lt;none&gt;</span>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Transfers ownership of pending stream entries that match the specified criteria.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Transfers ownership of pending stream entries that match the specified criteria.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">consumer</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer</p>
+              </dd>
+              <dt class="body-small">count</dt>
+              <dd class="body-medium">
+               <p>the upper limit of the number of entries that attempts to claim</p>
+              </dd>
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">minIdleTime</dt>
+              <dd class="body-medium">
+               <p>minimum idle time of a message</p>
+              </dd>
+              <dt class="body-small">start</dt>
+              <dd class="body-medium">
+               <p>command will claim only IDs that are equal or greater than this ID</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>IDs of the messages that are successfully claimed.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L296" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xClaim-24d" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xClaim-24d" t="n" class="documentableName ">xClaim</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SC</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>, <span t="k"></span><span data-unresolved-link="" t="n">consumer</span>: <span data-unresolved-link="" t="t">SC</span>, <span t="k"></span><span data-unresolved-link="" t="n">minIdleTime</span>: <a href="/api/zio/DurationModule#Duration-0" t="t">Duration</a>, <span t="k"></span><span data-unresolved-link="" t="n">idle</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="/api/zio/DurationModule#Duration-0" t="t">Duration</a>] = ..., <span t="k"></span><span data-unresolved-link="" t="n">time</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="/api/zio/DurationModule#Duration-0" t="t">Duration</a>] = ..., <span t="k"></span><span data-unresolved-link="" t="n">retryCount</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>] = ..., <span t="k"></span><span data-unresolved-link="" t="n">force</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a> = ..., <span t="k"></span><span data-unresolved-link="" t="n">lastId</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<span data-unresolved-link="" t="t">I</span>] = ...)(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">id</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">ids</span>: <span data-unresolved-link="" t="t">I</span>*): <a href="../ResultBuilder/ResultBuilder2" t="t">ResultBuilder2</a>[{ <span t="k">type </span>lambda<span t="k"> = </span>[<span t="t">x</span>, <span t="t">y</span>]<span t="k"> =&gt;&gt; </span><a href="../options/Streams#StreamEntries-0" t="t">StreamEntries</a>[<span data-unresolved-link="" t="t">I</span>, <span t="t">x</span>, <span t="t">y</span>]; }<span t="k">#</span><span data-unresolved-link="" t="t">&lt;none&gt;</span>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Changes the ownership of a pending message.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Changes the ownership of a pending message.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">consumer</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer</p>
+              </dd>
+              <dt class="body-small">force</dt>
+              <dd class="body-medium">
+               <p>flag that indicates that a message doesn't have to be in a pending entries list (PEL)</p>
+              </dd>
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">id</dt>
+              <dd class="body-medium">
+               <p>ID of a message</p>
+              </dd>
+              <dt class="body-small">idle</dt>
+              <dd class="body-medium">
+               <p>idle time (last time it was delivered) of the message that will be set</p>
+              </dd>
+              <dt class="body-small">ids</dt>
+              <dd class="body-medium">
+               <p>IDs of the rest of the messages</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">minIdleTime</dt>
+              <dd class="body-medium">
+               <p>minimum idle time of a message</p>
+              </dd>
+              <dt class="body-small">retryCount</dt>
+              <dd class="body-medium">
+               <p>retry counter of a message that will be set</p>
+              </dd>
+              <dt class="body-small">time</dt>
+              <dd class="body-medium">
+               <p>same as idle but instead of a relative amount of milliseconds, it sets the idle time to a specific Unix time (in milliseconds)</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>messages successfully claimed.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L349" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xClaimWithJustId-24c" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xClaimWithJustId-24c" t="n" class="documentableName ">xClaimWithJustId</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SC</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>, <span t="k"></span><span data-unresolved-link="" t="n">consumer</span>: <span data-unresolved-link="" t="t">SC</span>, <span t="k"></span><span data-unresolved-link="" t="n">minIdleTime</span>: <a href="/api/zio/DurationModule#Duration-0" t="t">Duration</a>, <span t="k"></span><span data-unresolved-link="" t="n">idle</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="/api/zio/DurationModule#Duration-0" t="t">Duration</a>] = ..., <span t="k"></span><span data-unresolved-link="" t="n">time</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="/api/zio/DurationModule#Duration-0" t="t">Duration</a>] = ..., <span t="k"></span><span data-unresolved-link="" t="n">retryCount</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>] = ..., <span t="k"></span><span data-unresolved-link="" t="n">force</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a> = ..., <span t="k"></span><span data-unresolved-link="" t="n">lastId</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<span data-unresolved-link="" t="t">I</span>] = ...)(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">id</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">ids</span>: <span data-unresolved-link="" t="t">I</span>*): <a href="../ResultBuilder/ResultBuilder1" t="t">ResultBuilder1</a>[<a href="/api/zio/Chunk" t="t">Chunk</a>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Changes the ownership of a pending message.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Changes the ownership of a pending message.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">consumer</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer</p>
+              </dd>
+              <dt class="body-small">force</dt>
+              <dd class="body-medium">
+               <p>flag that indicates that a message doesn't have to be in a pending entries list (PEL)</p>
+              </dd>
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">id</dt>
+              <dd class="body-medium">
+               <p>ID of a message</p>
+              </dd>
+              <dt class="body-small">idle</dt>
+              <dd class="body-medium">
+               <p>idle time (last time it was delivered) of the message that will be set</p>
+              </dd>
+              <dt class="body-small">ids</dt>
+              <dd class="body-medium">
+               <p>IDs of the rest of the messages</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">minIdleTime</dt>
+              <dd class="body-medium">
+               <p>minimum idle time of a message</p>
+              </dd>
+              <dt class="body-small">retryCount</dt>
+              <dd class="body-medium">
+               <p>retry counter of a message that will be set</p>
+              </dd>
+              <dt class="body-small">time</dt>
+              <dd class="body-medium">
+               <p>same as idle but instead of a relative amount of milliseconds, it sets the idle time to a specific Unix time (in milliseconds)</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>IDs of the messages that are successfully claimed.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L414" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xDel-fffff456" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xDel-fffff456" t="n" class="documentableName ">xDel</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">id</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">ids</span>: <span data-unresolved-link="" t="t">I</span>*): <span t="t">G</span>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Removes the specified entries from a stream.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Removes the specified entries from a stream.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">id</dt>
+              <dd class="body-medium">
+               <p>ID of the message</p>
+              </dd>
+              <dt class="body-small">ids</dt>
+              <dd class="body-medium">
+               <p>IDs of the rest of the messages</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>the number of entries deleted.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L475" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xGroupCreate-a22" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xGroupCreate-a22" t="n" class="documentableName ">xGroupCreate</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>, <span t="k"></span><span data-unresolved-link="" t="n">id</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">mkStream</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a> = ..., <span t="k"></span><span data-unresolved-link="" t="n">entriesRead</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>] = ...): <span t="t">G</span>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Unit.html" t="t">Unit</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Create a new consumer group associated with a stream.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Create a new consumer group associated with a stream.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">entriesRead</dt>
+              <dd class="body-medium">
+               <p>Enable consumer group lag tracking</p>
+              </dd>
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">id</dt>
+              <dd class="body-medium">
+               <p>ID of the last item in the stream to consider already delivered</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">mkStream</dt>
+              <dd class="body-medium">
+               <p>ID of the last item in the stream to consider already delivered</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L495" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xGroupCreateConsumer-187" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xGroupCreateConsumer-187" t="n" class="documentableName ">xGroupCreateConsumer</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SC</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>, <span t="k"></span><span data-unresolved-link="" t="n">consumer</span>: <span data-unresolved-link="" t="t">SC</span>): <span t="t">G</span>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Create a new consumer associated with a consumer group.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Create a new consumer associated with a consumer group.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">consumer</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer</p>
+              </dd>
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>the number of created consumer groups.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L544" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xGroupCreateLastEntry-fffff598" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xGroupCreateLastEntry-fffff598" t="n" class="documentableName ">xGroupCreateLastEntry</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>, <span t="k"></span><span data-unresolved-link="" t="n">mkStream</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a> = ..., <span t="k"></span><span data-unresolved-link="" t="n">entriesRead</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>] = ...): <span t="t">G</span>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Unit.html" t="t">Unit</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Create a new consumer group associated with a stream.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Create a new consumer group associated with a stream.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">entriesRead</dt>
+              <dd class="body-medium">
+               <p>Enable consumer group lag tracking</p>
+              </dd>
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">mkStream</dt>
+              <dd class="body-medium">
+               <p>ID of the last item in the stream to consider already delivered</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L525" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xGroupDelConsumer-187" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xGroupDelConsumer-187" t="n" class="documentableName ">xGroupDelConsumer</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SC</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>, <span t="k"></span><span data-unresolved-link="" t="n">consumer</span>: <span data-unresolved-link="" t="t">SC</span>): <span t="t">G</span>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Remove a specific consumer from a consumer group.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Remove a specific consumer from a consumer group.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">consumer</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer</p>
+              </dd>
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>the number of pending messages that the consumer had before it was deleted.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L565" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xGroupDestroy-4eb" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xGroupDestroy-4eb" t="n" class="documentableName ">xGroupDestroy</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>): <span t="t">G</span>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Destroy a consumer group.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Destroy a consumer group.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>flag that indicates if the deletion was successful.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L584" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xGroupSetId-fffff02a" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xGroupSetId-fffff02a" t="n" class="documentableName ">xGroupSetId</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>, <span t="k"></span><span data-unresolved-link="" t="n">id</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">entriesRead</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>] = ...): <span t="t">G</span>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Unit.html" t="t">Unit</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Set the consumer group last delivered ID to something else.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Set the consumer group last delivered ID to something else.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">entriesRead</dt>
+              <dd class="body-medium">
+               <p>Enable consumer group lag tracking</p>
+              </dd>
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">id</dt>
+              <dd class="body-medium">
+               <p>last delivered ID to set</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L599" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xGroupSetIdLastEntry-fffffde8" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xGroupSetIdLastEntry-fffffde8" t="n" class="documentableName ">xGroupSetIdLastEntry</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>, <span t="k"></span><span data-unresolved-link="" t="n">entriesRead</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>] = ...): <span t="t">G</span>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Unit.html" t="t">Unit</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Set the consumer group last delivered ID to something else.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Set the consumer group last delivered ID to something else.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">entriesRead</dt>
+              <dd class="body-medium">
+               <p>Enable consumer group lag tracking</p>
+              </dd>
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">id</dt>
+              <dd class="body-medium">
+               <p>last delivered ID to set</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L622" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xInfoConsumers-4eb" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xInfoConsumers-4eb" t="n" class="documentableName ">xInfoConsumers</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>): <span t="t">G</span>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<a href="../options/Streams$StreamConsumersInfo" t="t">StreamConsumersInfo</a>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>An introspection command used in order to retrieve different information about the consumers.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>An introspection command used in order to retrieve different information about the consumers.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>List of every consumer in a specific consumer group.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L638" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xInfoGroups-eaf" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xInfoGroups-eaf" t="n" class="documentableName ">xInfoGroups</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>): <span t="t">G</span>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<a href="../options/Streams$StreamGroupsInfo" t="t">StreamGroupsInfo</a>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>An introspection command used in order to retrieve different information about the group.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>An introspection command used in order to retrieve different information about the group.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>List of consumer groups associated with the stream stored at the specified key.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L659" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xInfoStream-fffff960" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xInfoStream-fffff960" t="n" class="documentableName ">xInfoStream</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>): <a href="../ResultBuilder/ResultBuilder3" t="t">ResultBuilder3</a>[<a href="../options/Streams$StreamInfo" t="t">StreamInfo</a>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>An introspection command used in order to retrieve different information about the stream.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>An introspection command used in order to retrieve different information about the stream.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>General information about the stream stored at the specified key.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L672" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xInfoStreamFull-fffff960" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xInfoStreamFull-fffff960" t="n" class="documentableName ">xInfoStreamFull</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>): <a href="../ResultBuilder/ResultBuilder3" t="t">ResultBuilder3</a>[<a href="../options/Streams$StreamInfoWithFull/FullStreamInfo" t="t">FullStreamInfo</a>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the entire state of the stream, including entries, groups, consumers and PELs.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the entire state of the stream, including entries, groups, consumers and PELs.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>General information about the stream stored at the specified key.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L689" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xInfoStreamFull-fffffea4" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xInfoStreamFull-fffffea4" t="n" class="documentableName ">xInfoStreamFull</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">count</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>): <a href="../ResultBuilder/ResultBuilder3" t="t">ResultBuilder3</a>[<a href="../options/Streams$StreamInfoWithFull/FullStreamInfo" t="t">FullStreamInfo</a>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the entire state of the stream, including entries, groups, consumers and PELs.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the entire state of the stream, including entries, groups, consumers and PELs.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">count</dt>
+              <dd class="body-medium">
+               <p>limit the amount of stream/PEL entries that are returned (The first entries are returned)</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>General information about the stream stored at the specified key.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L712" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xLen-eaf" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xLen-eaf" t="n" class="documentableName ">xLen</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>): <span t="t">G</span>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Fetches the number of entries inside a stream.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Fetches the number of entries inside a stream.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>the number of entries inside a stream.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L734" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xPending-4eb" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xPending-4eb" t="n" class="documentableName ">xPending</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>): <span t="t">G</span>[<a href="../options/Streams$PendingInfo" t="t">PendingInfo</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Inspects the list of pending messages.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Inspects the list of pending messages.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>summary about the pending messages in a given consumer group.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L749" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xPending-c51" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xPending-c51" t="n" class="documentableName ">xPending</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SC</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>, <span t="k"></span><span data-unresolved-link="" t="n">start</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">end</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">count</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>, <span t="k"></span><span data-unresolved-link="" t="n">consumer</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<span data-unresolved-link="" t="t">SC</span>] = ..., <span t="k"></span><span data-unresolved-link="" t="n">idle</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="/api/zio/DurationModule#Duration-0" t="t">Duration</a>] = ...): <span t="t">G</span>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<a href="../options/Streams$PendingMessage" t="t">PendingMessage</a>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Inspects the list of pending messages.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Inspects the list of pending messages.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">consumer</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer</p>
+              </dd>
+              <dt class="body-small">count</dt>
+              <dd class="body-medium">
+               <p>maximum number of messages returned</p>
+              </dd>
+              <dt class="body-small">end</dt>
+              <dd class="body-medium">
+               <p>end of the range of IDs</p>
+              </dd>
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">idle</dt>
+              <dd class="body-medium">
+               <p>idle time of a pending message by which message are filtered</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">start</dt>
+              <dd class="body-medium">
+               <p>start of the range of IDs</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>detailed information for each message in the pending entries list.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L778" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xRange-fffff370" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xRange-fffff370" t="n" class="documentableName ">xRange</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">start</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">end</span>: <span data-unresolved-link="" t="t">I</span>): <a href="../ResultBuilder/ResultBuilder2" t="t">ResultBuilder2</a>[{ <span t="k">type </span>lambda<span t="k"> = </span>[<span t="t">x</span>, <span t="t">y</span>]<span t="k"> =&gt;&gt; </span><a href="../options/Streams#StreamEntries-0" t="t">StreamEntries</a>[<span data-unresolved-link="" t="t">I</span>, <span t="t">x</span>, <span t="t">y</span>]; }<span t="k">#</span><span data-unresolved-link="" t="t">&lt;none&gt;</span>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Fetches the stream entries matching a given range of IDs.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Fetches the stream entries matching a given range of IDs.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">end</dt>
+              <dd class="body-medium">
+               <p>end of the range of IDs</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">start</dt>
+              <dd class="body-medium">
+               <p>start of the range of IDs</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>the complete entries with IDs matching the specified range.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L815" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xRange-fffffb6c" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xRange-fffffb6c" t="n" class="documentableName ">xRange</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">start</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">end</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">count</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>): <a href="../ResultBuilder/ResultBuilder2" t="t">ResultBuilder2</a>[{ <span t="k">type </span>lambda<span t="k"> = </span>[<span t="t">x</span>, <span t="t">y</span>]<span t="k"> =&gt;&gt; </span><a href="../options/Streams#StreamEntries-0" t="t">StreamEntries</a>[<span data-unresolved-link="" t="t">I</span>, <span t="t">x</span>, <span t="t">y</span>]; }<span t="k">#</span><span data-unresolved-link="" t="t">&lt;none&gt;</span>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Fetches the stream entries matching a given range of IDs.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Fetches the stream entries matching a given range of IDs.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">count</dt>
+              <dd class="body-medium">
+               <p>maximum number of entries returned</p>
+              </dd>
+              <dt class="body-small">end</dt>
+              <dd class="body-medium">
+               <p>end of the range of IDs</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">start</dt>
+              <dd class="body-medium">
+               <p>start of the range of IDs</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>the complete entries with IDs matching the specified range.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L850" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xRead-212" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xRead-212" t="n" class="documentableName ">xRead</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">count</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>] = ..., <span t="k"></span><span data-unresolved-link="" t="n">block</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="/api/zio/DurationModule#Duration-0" t="t">Duration</a>] = ...)(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">stream</span>: (<span data-unresolved-link="" t="t">SK</span>, <span data-unresolved-link="" t="t">I</span>), <span t="k"></span><span data-unresolved-link="" t="n">streams</span>: (<span data-unresolved-link="" t="t">SK</span>, <span data-unresolved-link="" t="t">I</span>)*): <a href="../ResultBuilder/ResultBuilder2" t="t">ResultBuilder2</a>[{ <span t="k">type </span>lambda<span t="k"> = </span>[<span t="t">x</span>, <span t="t">y</span>]<span t="k"> =&gt;&gt; </span><a href="../options/Streams#StreamChunks-0" t="t">StreamChunks</a>[<span data-unresolved-link="" t="t">SK</span>, <span data-unresolved-link="" t="t">I</span>, <span t="t">x</span>, <span t="t">y</span>]; }<span t="k">#</span><span data-unresolved-link="" t="t">&lt;none&gt;</span>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Read data from one or multiple streams.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Read data from one or multiple streams.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">block</dt>
+              <dd class="body-medium">
+               <p>duration for which we want to block before timing out</p>
+              </dd>
+              <dt class="body-small">count</dt>
+              <dd class="body-medium">
+               <p>maximum number of elements returned per stream</p>
+              </dd>
+              <dt class="body-small">stream</dt>
+              <dd class="body-medium">
+               <p>pair that contains stream ID and the last ID that the consumer received for that stream</p>
+              </dd>
+              <dt class="body-small">streams</dt>
+              <dd class="body-medium">
+               <p>rest of the pairs</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>complete entries with an ID greater than the last received ID per stream.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L886" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xReadGroup-fffff7f2" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xReadGroup-fffff7f2" t="n" class="documentableName ">xReadGroup</a>[<span t="k"></span><span data-unresolved-link="" t="t">SG</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SC</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">group</span>: <span data-unresolved-link="" t="t">SG</span>, <span t="k"></span><span data-unresolved-link="" t="n">consumer</span>: <span data-unresolved-link="" t="t">SC</span>, <span t="k"></span><span data-unresolved-link="" t="n">count</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>] = ..., <span t="k"></span><span data-unresolved-link="" t="n">block</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="/api/zio/DurationModule#Duration-0" t="t">Duration</a>] = ..., <span t="k"></span><span data-unresolved-link="" t="n">noAck</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a> = ...)(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">stream</span>: (<span data-unresolved-link="" t="t">SK</span>, <span data-unresolved-link="" t="t">I</span>), <span t="k"></span><span data-unresolved-link="" t="n">streams</span>: (<span data-unresolved-link="" t="t">SK</span>, <span data-unresolved-link="" t="t">I</span>)*): <a href="../ResultBuilder/ResultBuilder2" t="t">ResultBuilder2</a>[{ <span t="k">type </span>lambda<span t="k"> = </span>[<span t="t">x</span>, <span t="t">y</span>]<span t="k"> =&gt;&gt; </span><a href="../options/Streams#StreamChunks-0" t="t">StreamChunks</a>[<span data-unresolved-link="" t="t">SK</span>, <span data-unresolved-link="" t="t">I</span>, <span t="t">x</span>, <span t="t">y</span>]; }<span t="k">#</span><span data-unresolved-link="" t="t">&lt;none&gt;</span>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Read data from one or multiple streams using consumer group.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Read data from one or multiple streams using consumer group.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">block</dt>
+              <dd class="body-medium">
+               <p>duration for which we want to block before timing out</p>
+              </dd>
+              <dt class="body-small">consumer</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer</p>
+              </dd>
+              <dt class="body-small">count</dt>
+              <dd class="body-medium">
+               <p>maximum number of elements returned per stream</p>
+              </dd>
+              <dt class="body-small">group</dt>
+              <dd class="body-medium">
+               <p>ID of the consumer group</p>
+              </dd>
+              <dt class="body-small">noAck</dt>
+              <dd class="body-medium">
+               <p>flag that indicates that the read messages shouldn't be added to the pending entries list (PEL)</p>
+              </dd>
+              <dt class="body-small">stream</dt>
+              <dd class="body-medium">
+               <p>pair that contains stream ID and the last ID that the consumer received for that stream</p>
+              </dd>
+              <dt class="body-small">streams</dt>
+              <dd class="body-medium">
+               <p>rest of the pairs</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>complete entries with an ID greater than the last received ID per stream.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L924" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xRevRange-fffff370" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xRevRange-fffff370" t="n" class="documentableName ">xRevRange</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">end</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">start</span>: <span data-unresolved-link="" t="t">I</span>): <a href="../ResultBuilder/ResultBuilder2" t="t">ResultBuilder2</a>[{ <span t="k">type </span>lambda<span t="k"> = </span>[<span t="t">x</span>, <span t="t">y</span>]<span t="k"> =&gt;&gt; </span><a href="../options/Streams#StreamEntries-0" t="t">StreamEntries</a>[<span data-unresolved-link="" t="t">I</span>, <span t="t">x</span>, <span t="t">y</span>]; }<span t="k">#</span><span data-unresolved-link="" t="t">&lt;none&gt;</span>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Fetches the stream entries matching a given range of IDs in the reverse order.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Fetches the stream entries matching a given range of IDs in the reverse order.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">end</dt>
+              <dd class="body-medium">
+               <p>end of the range of IDs</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">start</dt>
+              <dd class="body-medium">
+               <p>start of the range of IDs</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>the complete entries with IDs matching the specified range in the reverse order.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L967" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xRevRange-fffffb6c" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xRevRange-fffffb6c" t="n" class="documentableName ">xRevRange</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">end</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">start</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">count</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>): <a href="../ResultBuilder/ResultBuilder2" t="t">ResultBuilder2</a>[{ <span t="k">type </span>lambda<span t="k"> = </span>[<span t="t">x</span>, <span t="t">y</span>]<span t="k"> =&gt;&gt; </span><a href="../options/Streams#StreamEntries-0" t="t">StreamEntries</a>[<span data-unresolved-link="" t="t">I</span>, <span t="t">x</span>, <span t="t">y</span>]; }<span t="k">#</span><span data-unresolved-link="" t="t">&lt;none&gt;</span>, <span t="t">G</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Fetches the stream entries matching a given range of IDs in the reverse order.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Fetches the stream entries matching a given range of IDs in the reverse order.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">count</dt>
+              <dd class="body-medium">
+               <p>maximum number of entries returned</p>
+              </dd>
+              <dt class="body-small">end</dt>
+              <dd class="body-medium">
+               <p>end of the range of IDs</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">start</dt>
+              <dd class="body-medium">
+               <p>start of the range of IDs</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>the complete entries with IDs matching the specified range in the reverse order.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L1002" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xTrimWithMaxLen-fffff6fe" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xTrimWithMaxLen-fffff6fe" t="n" class="documentableName ">xTrimWithMaxLen</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">threshold</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>, <span t="k"></span><span data-unresolved-link="" t="n">approximate</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a> = ..., <span t="k"></span><span data-unresolved-link="" t="n">limit</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>] = ...): <span t="t">G</span>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Trims the stream to a given number of items, evicting older items (items with lower IDs) if needed.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Trims the stream to a given number of items, evicting older items (items with lower IDs) if needed.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">approximate</dt>
+              <dd class="body-medium">
+               <p>flag that indicates if the stream length should be exactly count or few tens of entries more</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">threshold</dt>
+              <dd class="body-medium">
+               <p>Evicts entries as long as the stream's length exceeds the specified threshold</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>the number of entries deleted from the stream.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L1036" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="xTrimWithMinId-fffff598" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#xTrimWithMinId-fffff598" t="n" class="documentableName ">xTrimWithMinId</a>[<span t="k"></span><span data-unresolved-link="" t="t">SK</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>, <span t="k"></span><span data-unresolved-link="" t="t">I</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">key</span>: <span data-unresolved-link="" t="t">SK</span>, <span t="k"></span><span data-unresolved-link="" t="n">threshold</span>: <span data-unresolved-link="" t="t">I</span>, <span t="k"></span><span data-unresolved-link="" t="n">approximate</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Boolean.html" t="t">Boolean</a> = ..., <span t="k"></span><span data-unresolved-link="" t="n">limit</span>: <a href="https://www.scala-lang.org/api/3.9.0/scala/Option.html" t="t">Option</a>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>] = ...): <span t="t">G</span>[<a href="https://www.scala-lang.org/api/3.9.0/scala/Long.html" t="t">Long</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Trims the stream to a given number of items, evicting older items (items with lower IDs) if needed.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Trims the stream to a given number of items, evicting older items (items with lower IDs) if needed.</p>
+             </div>
+             <h2 class="h200">Value parameters</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">approximate</dt>
+              <dd class="body-medium">
+               <p>flag that indicates if the stream length should be exactly count or few tens of entries more</p>
+              </dd>
+              <dt class="body-small">key</dt>
+              <dd class="body-medium">
+               <p>ID of the stream</p>
+              </dd>
+              <dt class="body-small">threshold</dt>
+              <dd class="body-medium">
+               <p>Evicts entries with IDs lower than threshold, where threshold is a stream ID</p>
+              </dd>
+             </dl>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Returns</dt>
+              <dd class="body-medium">
+               <p>the number of entries deleted from the stream.</p>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/api/Streams.scala#L1062" target="_blank">Streams.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+      <section id="Inherited-and-Abstract-methods">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Inherited and Abstract methods</h4>
+        </div>
+        <div class="documentableElement" id="codecSupplier-0" data-f-visibility="protected" data-f-inherited="RedisEnvironment">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">protected </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#codecSupplier-0" t="n" class="documentableName ">codecSupplier</a>: <a href="../CodecSupplier" t="t">CodecSupplier</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Inherited from:</dt>
+              <dd class="body-medium">
+               <span data-unresolved-link="">RedisEnvironment (hidden)</span>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/internal/RedisEnvironment.scala#L25" target="_blank">RedisEnvironment.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="executor-0" data-f-visibility="protected" data-f-inherited="RedisEnvironment">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">protected </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#executor-0" t="n" class="documentableName ">executor</a>: <span t="t">RedisExecutor</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Inherited from:</dt>
+              <dd class="body-medium">
+               <span data-unresolved-link="">RedisEnvironment (hidden)</span>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/internal/RedisEnvironment.scala#L26" target="_blank">RedisEnvironment.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="lift-974" data-f-visibility="protected" data-f-inherited="RedisEnvironment">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">protected </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#lift-974" t="n" class="documentableName ">lift</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">in</span>: <a href="/api/zio#UIO-0" t="t">UIO</a>[<a href="/api/zio#IO-0" t="t">IO</a>[<a href="../RedisError" t="t">RedisError</a>, <span data-unresolved-link="" t="t">A</span>]]): <span t="t">G</span>[<span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Inherited from:</dt>
+              <dd class="body-medium">
+               <span data-unresolved-link="">RedisEnvironment (hidden)</span>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/internal/RedisEnvironment.scala#L35" target="_blank">RedisEnvironment.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+     </div>
+    </section>
+    <section id="Implicits">
+     <div data-togglable="Implicits" class="tab expand">
+      <div class="member-group-header">
+       <h3 data-togglable="Implicits" class="h400">Implicits</h3>
+      </div>
+      <section id="Inherited-implicits">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Inherited implicits</h4>
+        </div>
+        <div class="documentableElement" id="RunOps-fffff4bb" data-f-visibility="protected" data-f-keywords="final,implicit" data-f-inherited="RedisEnvironment">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final implicit protected </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#RunOps-fffff4bb" t="n" class="documentableName ">RunOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">In</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">cmd</span>: <span t="t">RedisCommand</span>[<span data-unresolved-link="" t="t">In</span>, <span data-unresolved-link="" t="t">Out</span>]): <a href="../internal/RedisEnvironment$RunOps" t="t">RunOps</a>[<span data-unresolved-link="" t="t">In</span>, <span data-unresolved-link="" t="t">Out</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Inherited from:</dt>
+              <dd class="body-medium">
+               <span data-unresolved-link="">RedisEnvironment (hidden)</span>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/internal/RedisEnvironment.scala#L27" target="_blank">RedisEnvironment.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="codec-fffffe6d" data-f-visibility="protected" data-f-keywords="final,implicit" data-f-inherited="RedisEnvironment">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final implicit protected </span></span><span class="kind"><span t="k">def </span></span><a href="Streams#codec-fffffe6d" t="n" class="documentableName ">codec</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span> : <a href="/zio-schema/api/zio/schema/Schema" t="t">Schema</a>]: <a href="/zio-schema/api/zio/schema/codec/BinaryCodec" t="t">BinaryCodec</a>[<span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Inherited from:</dt>
+              <dd class="body-medium">
+               <span data-unresolved-link="">RedisEnvironment (hidden)</span>
+              </dd>
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/internal/RedisEnvironment.scala#L37" target="_blank">RedisEnvironment.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+     </div>
+    </section>
+   </div>
+  </div>
+ </div>
+</section></div><div id="toc" class="body-small"><div id="toc-container"><span class="toc-title h200">In this article</span><nav class="toc-nav"><ul class="toc-list"><li><a href="#attributes">Attributes</a></li><li><a href="#members-list">Members list</a><ul><li><a href="#Type-members">Type members</a><ul><li><a href="#Inherited-classlikes">Inherited classlikes</a></li></ul></li><li><a href="#Value-members">Value members</a><ul><li><a href="#Concrete-methods">Concrete methods</a></li><li><a href="#Inherited-and-Abstract-methods">Inherited and Abstract methods</a></li></ul></li><li><a href="#Implicits">Implicits</a><ul><li><a href="#Inherited-implicits">Inherited implicits</a></li></ul></li></ul></li></ul></nav></div></div></div></div></div></body></html>

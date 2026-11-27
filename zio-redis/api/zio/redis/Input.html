@@ -1,0 +1,668 @@
+<!DOCTYPE html><html data-za-announcement-id="announcementBar-zioblocks" data-pathToRoot="../../" data-rawLocation="zio/redis/Input" data-dynamicSideMenu="true"><head><meta charset="utf-8"></meta><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></meta><title>Input</title><link rel="icon" href="/img/favicon.png"><script type="text/javascript" src="../../scripts/theme.js"></script><script type="text/javascript" src="../../scripts/searchData.js" defer="true"></script><script type="text/javascript" src="../../scripts/scastieConfiguration.js" defer="true"></script><link rel="stylesheet" href="../../styles/theme/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/components/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/components/button/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/layout/bundle.css"></link><link rel="stylesheet" href="../../styles/dotty-icons.css"></link><link rel="stylesheet" href="../../styles/filter-bar.css"></link><link rel="stylesheet" href="../../styles/searchbar.css"></link><link rel="stylesheet" href="../../styles/social-links.css"></link><link rel="stylesheet" href="../../styles/versions-dropdown.css"></link><link rel="stylesheet" href="../../styles/content-contributors.css"></link><script type="text/javascript" src="../../hljs/highlight.pack.js" defer="true"></script><script type="text/javascript" src="../../scripts/hljs-scala3.js" defer="true"></script><script type="text/javascript" src="../../scripts/ux.js" defer="true"></script><script type="text/javascript" src="../../scripts/common/component.js" defer="true"></script><script type="text/javascript" src="../../scripts/common/utils.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/FilterBar.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/DocumentableList.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/Input.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/FilterGroup.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/Filter.js" defer="true"></script><script type="text/javascript" src="../../scripts/scaladoc-scalajs.js" defer="true"></script><script type="text/javascript" src="../../scripts/contributors.js" defer="true"></script><script type="text/javascript" src="/zio-redis/api/scripts/vendor/d3/d3.v6.7.0.min.js" defer="true"></script><script type="text/javascript" src="/zio-redis/api/scripts/vendor/graphlib-dot/graphlib-dot.0.6.2.min.js" defer="true"></script><script type="text/javascript" src="/zio-redis/api/scripts/vendor/dagre-d3/dagre-d3.0.6.1.min.js" defer="true"></script><script type="text/javascript" src="../../scripts/data.js" defer="true"></script><script>var pathToRoot = "../../";</script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=fallback"><link rel="stylesheet" href="/zio-redis/api/styles/zio-api.css"></head><body><div class="za-announcement theme-announcement-bar" role="banner" style="background-color:#ececec;color:#1a1a1a"><div class="za-announcement__placeholder"></div><div class="za-announcement__content"><img src="/img/ecosystem/zio-blocks-icon.svg" alt="" style="height: 1.1em; vertical-align: middle;"> <b>ZIO Blocks</b> has a new website! Visit <a href="https://zioblocks.com" target="_blank">zioblocks.com</a> to explore the docs 🚀</div><button type="button" aria-label="Close" class="za-announcement__close"><svg viewBox="0 0 15 15" width="14" height="14" aria-hidden="true"><g stroke="currentColor" stroke-width="3.1"><path d="M.75.75l13.5 13.5M14.25.75L.75 14.25"></path></g></svg></button></div><script>window.zaPlaceAnnouncement&&zaPlaceAnnouncement()</script><div id=""><div id="header" class="za-navbar"><div class="za-navbar__left"><span id="mobile-menu-toggle" class="za-navbar__toggle" role="button" tabindex="0" aria-label="Toggle navigation bar"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"/></svg></span><a class="za-navbar__brand" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><span id="dropdown-trigger" hidden></span><div id="version-dropdown" hidden></div><a class="za-navbar__link" href="/overview/getting-started">Overview</a><a class="za-navbar__link" href="/reference/">Reference</a><a class="za-navbar__link" href="/api/">API</a><a class="za-navbar__link" href="/guides/">Guides</a><a class="za-navbar__link za-navbar__link--active" href="/ecosystem/" aria-current="page">Ecosystem</a><a class="za-navbar__link" href="/resources/">Resources</a><a class="za-navbar__link" href="/events/">Events</a></div><div class="za-navbar__right"><a class="za-navbar__link" href="/blog">Blog</a><a class="za-navbar__link za-navbar__link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a><button type="button" class="za-navbar__icon za-onboard" data-onboard-prompt="Fetch https://zio.dev/start.md and follow the instructions to set up my environment for ZIO development." title="Copy the prompt to onboard your coding agent to ZIO" aria-label="Copy the ZIO agent onboarding prompt to the clipboard"><svg class="za-onboard__idle" viewBox="0 0 576 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M9.4 86.6C-3.1 74.1-3.1 53.9 9.4 41.4s32.8-12.5 45.3 0l192 192c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L178.7 256 9.4 86.6zM256 416l288 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-288 0c-17.7 0-32-14.3-32-32s14.3-32 32-32z"/></svg><svg class="za-onboard__done" viewBox="0 0 448 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></svg></button><button type="button" class="za-navbar__icon za-mode" data-color-mode-toggle title="light mode" aria-label="Switch between dark and light mode (currently light mode)"><svg class="za-mode__light" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg class="za-mode__dark" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg></button><button type="button" id="search-toggle" class="za-search" title="Search the API" aria-label="Search the API"><svg width="20" height="20" class="za-search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"/><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="za-search__label">Search</span></button></div></div><div id="mobile-menu"><div class="mobile-menu-header body-small"><a class="mobile-menu-logo" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><button id="mobile-menu-close" class="icon-button close"></button></div><div class="mobile-menu-container body-medium"><input id="mobile-scaladoc-searchbar-input" class="scaladoc-searchbar-input" type="search" placeholder="Find anything"></input><nav class="za-mobile-links"><a class="za-mobile-link" href="/overview/getting-started">Overview</a><a class="za-mobile-link" href="/reference/">Reference</a><a class="za-mobile-link" href="/api/">API</a><a class="za-mobile-link" href="/guides/">Guides</a><a class="za-mobile-link za-mobile-link--active" href="/ecosystem/" aria-current="page">Ecosystem</a><a class="za-mobile-link" href="/resources/">Resources</a><a class="za-mobile-link" href="/events/">Events</a><a class="za-mobile-link" href="/blog">Blog</a><a class="za-mobile-link za-mobile-link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a></nav><span id="mobile-theme-toggle" class="mobile-menu-item mode"></span></div></div><span id="mobile-sidebar-toggle" class="floating-button"></span><div id="leftColumn" class="body-small"><a class="za-back-link" href="/zio-redis/">← ZIO Redis docs</a></div><div id="scaladoc-searchBar"></div><div id="main"><div id="content" class="body-medium"><div><nav class="za-breadcrumbs" aria-label="Breadcrumbs"><ul class="za-breadcrumbs__list"><li class="za-breadcrumbs__item"><a aria-label="Home page" class="za-breadcrumbs__link" href="/"><svg viewBox="0 0 24 24" class="za-breadcrumbs__home"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/zio-redis/"><span>ZIO Redis</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/zio-redis/api/"><span>API</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../redis"><span>zio.redis</span></a></li><li class="za-breadcrumbs__item za-breadcrumbs__item--active"><span class="za-breadcrumbs__link">Input</span></li></ul></nav><div class="cover-header">
+ <a href="Input$"><span class="icon"><span class="micon tr"></span><span class="micon companion ob"></span></span></a>
+ <h1 class="h600 multi">Input</h1>
+</div>
+<div class="fqname body-large">
+ <span>zio.redis.Input</span>
+</div>
+<div class="companion-badge body-small">
+ <span>See the<span class="micon ob"></span><a href="Input$">Input</a> companion object</span>
+</div>
+<div class="main-signature mono-small-block">
+ <div class="signature">
+  <span class="modifiers"><span t="k">sealed </span></span><span class="kind"><span t="k">trait </span></span><a href="Input" t="n" class="documentableName ">Input</a>[<span t="k">-</span><span data-unresolved-link="" t="t">A</span>]
+ </div>
+</div>
+<div class="cover">
+ <div class="doc"></div>
+ <section id="attributes">
+  <h2 class="h500">Attributes</h2>
+  <dl class="attributes">
+   <dt class="body-small">Companion</dt>
+   <dd class="body-medium">
+    <a href="Input$">object</a>
+   </dd>
+   <dt class="body-small">Source</dt>
+   <dd class="body-medium">
+    <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/Input.scala#L26" target="_blank">Input.scala</a>
+   </dd>
+   <dt class="body-small">Graph</dt>
+   <dd class="body-medium">
+    <div id="inheritance-diagram" class="diagram-class showGraph">
+     <button type="button" class="label-only-button" onclick="zoomOut()">Reset zoom</button><button type="button" class="label-only-button" onclick="hideGraph()">Hide graph</button><button type="button" class="label-only-button" onclick="showGraph()">Show graph</button>
+     <svg id="graph"></svg>
+     <script type="text/dot" id="dot"> digraph g {
+ node0 [id=node0, label="<span style=\"color: #FFFFFF;\">sealed trait <a href=\"Input.html\" t=\"n\">Input</a>[<span t=\"t\">A</span>]</span>", class="trait vertex"];
+node1 [id=node1, label="<span style=\"color: #FFFFFF;\">class <span data-unresolved-link=\"\" t=\"n\">Object</span></span>", class="class vertex"];
+node2 [id=node2, label="<span style=\"color: #FFFFFF;\">class <span data-unresolved-link=\"\" t=\"n\">Any</span></span>", class="class vertex"];
+node3 [id=node3, label="<span style=\"color: #FFFFFF;\">trait <span data-unresolved-link=\"\" t=\"n\">Matchable</span></span>", class="trait vertex"];
+node4 [id=node4, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$AbsTtlInput$.html\" t=\"n\">AbsTtlInput</a></span>", class="object vertex"];
+node5 [id=node5, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$AddressInput$.html\" t=\"n\">AddressInput</a></span>", class="object vertex"];
+node6 [id=node6, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$AggregateInput$.html\" t=\"n\">AggregateInput</a></span>", class="object vertex"];
+node7 [id=node7, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$AlphaInput$.html\" t=\"n\">AlphaInput</a></span>", class="object vertex"];
+node8 [id=node8, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$ArbitraryKeyInput.html\" t=\"n\">ArbitraryKeyInput</a>[<span t=\"t\">A</span>]</span>", class="class vertex"];
+node9 [id=node9, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$ArbitraryValueInput.html\" t=\"n\">ArbitraryValueInput</a>[<span t=\"t\">A</span>]</span>", class="class vertex"];
+node10 [id=node10, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$AuthInput$.html\" t=\"n\">AuthInput</a></span>", class="object vertex"];
+node11 [id=node11, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$BitFieldCommandInput$.html\" t=\"n\">BitFieldCommandInput</a></span>", class="object vertex"];
+node12 [id=node12, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$BitOperationInput$.html\" t=\"n\">BitOperationInput</a></span>", class="object vertex"];
+node13 [id=node13, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$BitPosRangeInput$.html\" t=\"n\">BitPosRangeInput</a></span>", class="object vertex"];
+node14 [id=node14, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$BlockInput$.html\" t=\"n\">BlockInput</a></span>", class="object vertex"];
+node15 [id=node15, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$BoolInput$.html\" t=\"n\">BoolInput</a></span>", class="object vertex"];
+node16 [id=node16, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$ByInput$.html\" t=\"n\">ByInput</a></span>", class="object vertex"];
+node17 [id=node17, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$ByRadiusInput$.html\" t=\"n\">ByRadiusInput</a></span>", class="object vertex"];
+node18 [id=node18, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$ChangedInput$.html\" t=\"n\">ChangedInput</a></span>", class="object vertex"];
+node19 [id=node19, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$CommandNameInput$.html\" t=\"n\">CommandNameInput</a></span>", class="object vertex"];
+node20 [id=node20, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$CopyInput$.html\" t=\"n\">CopyInput</a></span>", class="object vertex"];
+node21 [id=node21, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$CountInput$.html\" t=\"n\">CountInput</a></span>", class="object vertex"];
+node22 [id=node22, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$DbInput$.html\" t=\"n\">DbInput</a></span>", class="object vertex"];
+node23 [id=node23, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$DoubleInput$.html\" t=\"n\">DoubleInput</a></span>", class="object vertex"];
+node24 [id=node24, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$DurationMillisecondsInput$.html\" t=\"n\">DurationMillisecondsInput</a></span>", class="object vertex"];
+node25 [id=node25, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$DurationSecondsInput$.html\" t=\"n\">DurationSecondsInput</a></span>", class="object vertex"];
+node26 [id=node26, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$DurationTtlInput$.html\" t=\"n\">DurationTtlInput</a></span>", class="object vertex"];
+node27 [id=node27, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$EvalInput.html\" t=\"n\">EvalInput</a>[<span t=\"t\">K</span>, <span t=\"t\">V</span>]</span>", class="class vertex"];
+node28 [id=node28, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$FreqInput$.html\" t=\"n\">FreqInput</a></span>", class="object vertex"];
+node29 [id=node29, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$FromLonLatInput$.html\" t=\"n\">FromLonLatInput</a></span>", class="object vertex"];
+node30 [id=node30, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$FromMemberInput.html\" t=\"n\">FromMemberInput</a>[<span t=\"t\">A</span>]</span>", class="class vertex"];
+node31 [id=node31, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$GetExAtInput.html\" t=\"n\">GetExAtInput</a>[<span t=\"t\">K</span>]</span>", class="class vertex"];
+node32 [id=node32, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$GetExInput.html\" t=\"n\">GetExInput</a>[<span t=\"t\">K</span>]</span>", class="class vertex"];
+node33 [id=node33, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$GetExPersistInput.html\" t=\"n\">GetExPersistInput</a>[<span t=\"t\">K</span>]</span>", class="class vertex"];
+node34 [id=node34, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$GetInput$.html\" t=\"n\">GetInput</a></span>", class="object vertex"];
+node35 [id=node35, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$GetKeywordInput$.html\" t=\"n\">GetKeywordInput</a></span>", class="object vertex"];
+node36 [id=node36, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$IdInput$.html\" t=\"n\">IdInput</a></span>", class="object vertex"];
+node37 [id=node37, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$IdleInput$.html\" t=\"n\">IdleInput</a></span>", class="object vertex"];
+node38 [id=node38, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$IdleTimeInput$.html\" t=\"n\">IdleTimeInput</a></span>", class="object vertex"];
+node39 [id=node39, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$IdsInput$.html\" t=\"n\">IdsInput</a></span>", class="object vertex"];
+node40 [id=node40, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$IncrementInput$.html\" t=\"n\">IncrementInput</a></span>", class="object vertex"];
+node41 [id=node41, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$IntInput$.html\" t=\"n\">IntInput</a></span>", class="object vertex"];
+node42 [id=node42, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$KeepTtlInput$.html\" t=\"n\">KeepTtlInput</a></span>", class="object vertex"];
+node43 [id=node43, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$LastIdInput.html\" t=\"n\">LastIdInput</a>[<span t=\"t\">I</span>]</span>", class="class vertex"];
+node44 [id=node44, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$LcsQueryTypeInput$.html\" t=\"n\">LcsQueryTypeInput</a></span>", class="object vertex"];
+node45 [id=node45, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$LegacyStoreInput$.html\" t=\"n\">LegacyStoreInput</a></span>", class="object vertex"];
+node46 [id=node46, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$LimitInput$.html\" t=\"n\">LimitInput</a></span>", class="object vertex"];
+node47 [id=node47, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$ListMaxLenInput$.html\" t=\"n\">ListMaxLenInput</a></span>", class="object vertex"];
+node48 [id=node48, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$LongInput$.html\" t=\"n\">LongInput</a></span>", class="object vertex"];
+node49 [id=node49, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$LongLatInput$.html\" t=\"n\">LongLatInput</a></span>", class="object vertex"];
+node50 [id=node50, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$MaxInput$.html\" t=\"n\">MaxInput</a></span>", class="object vertex"];
+node51 [id=node51, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$MaxLenApproxInput$.html\" t=\"n\">MaxLenApproxInput</a></span>", class="object vertex"];
+node52 [id=node52, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$MaxLenExactInput$.html\" t=\"n\">MaxLenExactInput</a></span>", class="object vertex"];
+node53 [id=node53, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$MemberScoreInput.html\" t=\"n\">MemberScoreInput</a>[<span t=\"t\">M</span>]</span>", class="class vertex"];
+node54 [id=node54, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$MinIdApproxInput.html\" t=\"n\">MinIdApproxInput</a>[<span t=\"t\">I</span>]</span>", class="class vertex"];
+node55 [id=node55, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$MinIdExactInput.html\" t=\"n\">MinIdExactInput</a>[<span t=\"t\">I</span>]</span>", class="class vertex"];
+node56 [id=node56, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$MinInput$.html\" t=\"n\">MinInput</a></span>", class="object vertex"];
+node57 [id=node57, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$MkStreamInput$.html\" t=\"n\">MkStreamInput</a></span>", class="object vertex"];
+node58 [id=node58, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$NoAckInput$.html\" t=\"n\">NoAckInput</a></span>", class="object vertex"];
+node59 [id=node59, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$NoInput$.html\" t=\"n\">NoInput</a></span>", class="object vertex"];
+node60 [id=node60, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$NoMkStreamInput$.html\" t=\"n\">NoMkStreamInput</a></span>", class="object vertex"];
+node61 [id=node61, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$NonEmptyList.html\" t=\"n\">NonEmptyList</a>[<span t=\"t\">A</span>]</span>", class="class vertex"];
+node62 [id=node62, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$OptionalInput.html\" t=\"n\">OptionalInput</a>[<span t=\"t\">A</span>]</span>", class="class vertex"];
+node63 [id=node63, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$OrderInput$.html\" t=\"n\">OrderInput</a></span>", class="object vertex"];
+node64 [id=node64, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$PatternInput$.html\" t=\"n\">PatternInput</a></span>", class="object vertex"];
+node65 [id=node65, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$PositionInput$.html\" t=\"n\">PositionInput</a></span>", class="object vertex"];
+node66 [id=node66, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$RadiusUnitInput$.html\" t=\"n\">RadiusUnitInput</a></span>", class="object vertex"];
+node67 [id=node67, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$RangeInput$.html\" t=\"n\">RangeInput</a></span>", class="object vertex"];
+node68 [id=node68, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$RankInput$.html\" t=\"n\">RankInput</a></span>", class="object vertex"];
+node69 [id=node69, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$RedisTypeInput$.html\" t=\"n\">RedisTypeInput</a></span>", class="object vertex"];
+node70 [id=node70, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$ReplaceInput$.html\" t=\"n\">ReplaceInput</a></span>", class="object vertex"];
+node71 [id=node71, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$RetryCountInput$.html\" t=\"n\">RetryCountInput</a></span>", class="object vertex"];
+node72 [id=node72, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$ScriptDebugInput$.html\" t=\"n\">ScriptDebugInput</a></span>", class="object vertex"];
+node73 [id=node73, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$ScriptFlushInput$.html\" t=\"n\">ScriptFlushInput</a></span>", class="object vertex"];
+node74 [id=node74, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$SideInput$.html\" t=\"n\">SideInput</a></span>", class="object vertex"];
+node75 [id=node75, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$SimpleLimitInput$.html\" t=\"n\">SimpleLimitInput</a></span>", class="object vertex"];
+node76 [id=node76, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$StoreDistInput$.html\" t=\"n\">StoreDistInput</a></span>", class="object vertex"];
+node77 [id=node77, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$StoreInput$.html\" t=\"n\">StoreInput</a></span>", class="object vertex"];
+node78 [id=node78, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$StreamsInput.html\" t=\"n\">StreamsInput</a>[<span t=\"t\">K</span>, <span t=\"t\">V</span>]</span>", class="class vertex"];
+node79 [id=node79, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$StringInput$.html\" t=\"n\">StringInput</a></span>", class="object vertex"];
+node80 [id=node80, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$TimeInput$.html\" t=\"n\">TimeInput</a></span>", class="object vertex"];
+node81 [id=node81, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$TimeMillisecondsInput$.html\" t=\"n\">TimeMillisecondsInput</a></span>", class="object vertex"];
+node82 [id=node82, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$TimeSecondsInput$.html\" t=\"n\">TimeSecondsInput</a></span>", class="object vertex"];
+node83 [id=node83, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$Tuple10.html\" t=\"n\">Tuple10</a>[<span t=\"t\">A</span>, <span t=\"t\">B</span>, <span t=\"t\">C</span>, <span t=\"t\">D</span>, <span t=\"t\">E</span>, <span t=\"t\">F</span>, <span t=\"t\">G</span>, <span t=\"t\">H</span>, <span t=\"t\">I</span>, <span t=\"t\">J</span>]</span>", class="class vertex"];
+node84 [id=node84, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$Tuple11.html\" t=\"n\">Tuple11</a>[<span t=\"t\">A</span>, <span t=\"t\">B</span>, <span t=\"t\">C</span>, <span t=\"t\">D</span>, <span t=\"t\">E</span>, <span t=\"t\">F</span>, <span t=\"t\">G</span>, <span t=\"t\">H</span>, <span t=\"t\">I</span>, <span t=\"t\">J</span>, <span t=\"t\">K</span>]</span>", class="class vertex"];
+node85 [id=node85, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$Tuple2.html\" t=\"n\">Tuple2</a>[<span t=\"t\">A</span>, <span t=\"t\">B</span>]</span>", class="class vertex"];
+node86 [id=node86, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$Tuple3.html\" t=\"n\">Tuple3</a>[<span t=\"t\">A</span>, <span t=\"t\">B</span>, <span t=\"t\">C</span>]</span>", class="class vertex"];
+node87 [id=node87, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$Tuple4.html\" t=\"n\">Tuple4</a>[<span t=\"t\">A</span>, <span t=\"t\">B</span>, <span t=\"t\">C</span>, <span t=\"t\">D</span>]</span>", class="class vertex"];
+node88 [id=node88, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$Tuple5.html\" t=\"n\">Tuple5</a>[<span t=\"t\">A</span>, <span t=\"t\">B</span>, <span t=\"t\">C</span>, <span t=\"t\">D</span>, <span t=\"t\">E</span>]</span>", class="class vertex"];
+node89 [id=node89, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$Tuple6.html\" t=\"n\">Tuple6</a>[<span t=\"t\">A</span>, <span t=\"t\">B</span>, <span t=\"t\">C</span>, <span t=\"t\">D</span>, <span t=\"t\">E</span>, <span t=\"t\">F</span>]</span>", class="class vertex"];
+node90 [id=node90, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$Tuple7.html\" t=\"n\">Tuple7</a>[<span t=\"t\">A</span>, <span t=\"t\">B</span>, <span t=\"t\">C</span>, <span t=\"t\">D</span>, <span t=\"t\">E</span>, <span t=\"t\">F</span>, <span t=\"t\">G</span>]</span>", class="class vertex"];
+node91 [id=node91, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$Tuple8.html\" t=\"n\">Tuple8</a>[<span t=\"t\">A</span>, <span t=\"t\">B</span>, <span t=\"t\">C</span>, <span t=\"t\">D</span>, <span t=\"t\">E</span>, <span t=\"t\">F</span>, <span t=\"t\">G</span>, <span t=\"t\">H</span>]</span>", class="class vertex"];
+node92 [id=node92, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$Tuple9.html\" t=\"n\">Tuple9</a>[<span t=\"t\">A</span>, <span t=\"t\">B</span>, <span t=\"t\">C</span>, <span t=\"t\">D</span>, <span t=\"t\">E</span>, <span t=\"t\">F</span>, <span t=\"t\">G</span>, <span t=\"t\">H</span>, <span t=\"t\">I</span>]</span>", class="class vertex"];
+node93 [id=node93, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$UpdateInput$.html\" t=\"n\">UpdateInput</a></span>", class="object vertex"];
+node94 [id=node94, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$ValueInput$.html\" t=\"n\">ValueInput</a></span>", class="object vertex"];
+node95 [id=node95, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$Varargs.html\" t=\"n\">Varargs</a>[<span t=\"t\">A</span>]</span>", class="class vertex"];
+node96 [id=node96, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$WeightsInput$.html\" t=\"n\">WeightsInput</a></span>", class="object vertex"];
+node97 [id=node97, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$WithCoordInput$.html\" t=\"n\">WithCoordInput</a></span>", class="object vertex"];
+node98 [id=node98, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$WithDistInput$.html\" t=\"n\">WithDistInput</a></span>", class="object vertex"];
+node99 [id=node99, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$WithEntriesReadInput$.html\" t=\"n\">WithEntriesReadInput</a></span>", class="object vertex"];
+node100 [id=node100, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$WithForceInput$.html\" t=\"n\">WithForceInput</a></span>", class="object vertex"];
+node101 [id=node101, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$WithHashInput$.html\" t=\"n\">WithHashInput</a></span>", class="object vertex"];
+node102 [id=node102, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$WithJustIdInput$.html\" t=\"n\">WithJustIdInput</a></span>", class="object vertex"];
+node103 [id=node103, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$WithScoreInput$.html\" t=\"n\">WithScoreInput</a></span>", class="object vertex"];
+node104 [id=node104, label="<span style=\"color: #FFFFFF;\">object <a href=\"Input$$WithScoresInput$.html\" t=\"n\">WithScoresInput</a></span>", class="object vertex"];
+node105 [id=node105, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$XGroupCreateConsumerInput.html\" t=\"n\">XGroupCreateConsumerInput</a>[<span t=\"t\">K</span>, <span t=\"t\">G</span>, <span t=\"t\">C</span>]</span>", class="class vertex"];
+node106 [id=node106, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$XGroupCreateInput.html\" t=\"n\">XGroupCreateInput</a>[<span t=\"t\">K</span>, <span t=\"t\">G</span>, <span t=\"t\">I</span>]</span>", class="class vertex"];
+node107 [id=node107, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$XGroupDelConsumerInput.html\" t=\"n\">XGroupDelConsumerInput</a>[<span t=\"t\">K</span>, <span t=\"t\">G</span>, <span t=\"t\">C</span>]</span>", class="class vertex"];
+node108 [id=node108, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$XGroupDestroyInput.html\" t=\"n\">XGroupDestroyInput</a>[<span t=\"t\">K</span>, <span t=\"t\">G</span>]</span>", class="class vertex"];
+node109 [id=node109, label="<span style=\"color: #FFFFFF;\">class <a href=\"Input$$XGroupSetIdInput.html\" t=\"n\">XGroupSetIdInput</a>[<span t=\"t\">K</span>, <span t=\"t\">G</span>, <span t=\"t\">I</span>]</span>", class="class vertex"];
+
+
+ node0 -> node1;
+node1 -> node2;
+node1 -> node3;
+node3 -> node2;
+node4 -> node0;
+node5 -> node0;
+node6 -> node0;
+node7 -> node0;
+node8 -> node0;
+node9 -> node0;
+node10 -> node0;
+node11 -> node0;
+node12 -> node0;
+node13 -> node0;
+node14 -> node0;
+node15 -> node0;
+node16 -> node0;
+node17 -> node0;
+node18 -> node0;
+node19 -> node0;
+node20 -> node0;
+node21 -> node0;
+node22 -> node0;
+node23 -> node0;
+node24 -> node0;
+node25 -> node0;
+node26 -> node0;
+node27 -> node0;
+node28 -> node0;
+node29 -> node0;
+node30 -> node0;
+node31 -> node0;
+node32 -> node0;
+node33 -> node0;
+node34 -> node0;
+node35 -> node0;
+node36 -> node0;
+node37 -> node0;
+node38 -> node0;
+node39 -> node0;
+node40 -> node0;
+node41 -> node0;
+node42 -> node0;
+node43 -> node0;
+node44 -> node0;
+node45 -> node0;
+node46 -> node0;
+node47 -> node0;
+node48 -> node0;
+node49 -> node0;
+node50 -> node0;
+node51 -> node0;
+node52 -> node0;
+node53 -> node0;
+node54 -> node0;
+node55 -> node0;
+node56 -> node0;
+node57 -> node0;
+node58 -> node0;
+node59 -> node0;
+node60 -> node0;
+node61 -> node0;
+node62 -> node0;
+node63 -> node0;
+node64 -> node0;
+node65 -> node0;
+node66 -> node0;
+node67 -> node0;
+node68 -> node0;
+node69 -> node0;
+node70 -> node0;
+node71 -> node0;
+node72 -> node0;
+node73 -> node0;
+node74 -> node0;
+node75 -> node0;
+node76 -> node0;
+node77 -> node0;
+node78 -> node0;
+node79 -> node0;
+node80 -> node0;
+node81 -> node0;
+node82 -> node0;
+node83 -> node0;
+node84 -> node0;
+node85 -> node0;
+node86 -> node0;
+node87 -> node0;
+node88 -> node0;
+node89 -> node0;
+node90 -> node0;
+node91 -> node0;
+node92 -> node0;
+node93 -> node0;
+node94 -> node0;
+node95 -> node0;
+node96 -> node0;
+node97 -> node0;
+node98 -> node0;
+node99 -> node0;
+node100 -> node0;
+node101 -> node0;
+node102 -> node0;
+node103 -> node0;
+node104 -> node0;
+node105 -> node0;
+node106 -> node0;
+node107 -> node0;
+node108 -> node0;
+node109 -> node0;
+
+}
+</script>
+    </div>
+   </dd>
+   <dt class="body-small">Supertypes</dt>
+   <dd class="body-medium">
+    <div class="mono-small-block supertypes">
+     <div>
+      class <span data-unresolved-link="" t="n">Object</span>
+     </div>
+     <div>
+      trait <span data-unresolved-link="" t="n">Matchable</span>
+     </div>
+     <div>
+      class <span data-unresolved-link="" t="n">Any</span>
+     </div>
+     <span></span>
+    </div>
+   </dd>
+   <dt class="body-small">Known subtypes</dt>
+   <dd class="body-medium">
+    <div class="mono-small-block subtypes">
+     <div>
+      object <a href="Input/AbsTtlInput$" t="n">AbsTtlInput</a>
+     </div>
+     <div>
+      object <a href="Input/AddressInput$" t="n">AddressInput</a>
+     </div>
+     <div>
+      object <a href="Input/AggregateInput$" t="n">AggregateInput</a>
+     </div>
+     <div>
+      object <a href="Input/AlphaInput$" t="n">AlphaInput</a>
+     </div>
+     <div>
+      class <a href="Input/ArbitraryKeyInput" t="n">ArbitraryKeyInput</a>[<span t="t">A</span>]
+     </div>
+     <div>
+      class <a href="Input/ArbitraryValueInput" t="n">ArbitraryValueInput</a>[<span t="t">A</span>]
+     </div>
+     <div>
+      object <a href="Input/AuthInput$" t="n">AuthInput</a>
+     </div>
+     <div>
+      object <a href="Input/BitFieldCommandInput$" t="n">BitFieldCommandInput</a>
+     </div>
+     <div>
+      object <a href="Input/BitOperationInput$" t="n">BitOperationInput</a>
+     </div>
+     <div>
+      object <a href="Input/BitPosRangeInput$" t="n">BitPosRangeInput</a>
+     </div>
+     <div>
+      object <a href="Input/BlockInput$" t="n">BlockInput</a>
+     </div>
+     <div>
+      object <a href="Input/BoolInput$" t="n">BoolInput</a>
+     </div>
+     <div>
+      object <a href="Input/ByInput$" t="n">ByInput</a>
+     </div>
+     <div>
+      object <a href="Input/ByRadiusInput$" t="n">ByRadiusInput</a>
+     </div>
+     <div>
+      object <a href="Input/ChangedInput$" t="n">ChangedInput</a>
+     </div>
+     <div>
+      object <a href="Input/CommandNameInput$" t="n">CommandNameInput</a>
+     </div>
+     <div>
+      object <a href="Input/CopyInput$" t="n">CopyInput</a>
+     </div>
+     <div>
+      object <a href="Input/CountInput$" t="n">CountInput</a>
+     </div>
+     <div>
+      object <a href="Input/DbInput$" t="n">DbInput</a>
+     </div>
+     <div>
+      object <a href="Input/DoubleInput$" t="n">DoubleInput</a>
+     </div>
+     <div>
+      object <a href="Input/DurationMillisecondsInput$" t="n">DurationMillisecondsInput</a>
+     </div>
+     <div>
+      object <a href="Input/DurationSecondsInput$" t="n">DurationSecondsInput</a>
+     </div>
+     <div>
+      object <a href="Input/DurationTtlInput$" t="n">DurationTtlInput</a>
+     </div>
+     <div>
+      class <a href="Input/EvalInput" t="n">EvalInput</a>[<span t="t">K</span>, <span t="t">V</span>]
+     </div>
+     <div>
+      object <a href="Input/FreqInput$" t="n">FreqInput</a>
+     </div>
+     <div>
+      object <a href="Input/FromLonLatInput$" t="n">FromLonLatInput</a>
+     </div>
+     <div>
+      class <a href="Input/FromMemberInput" t="n">FromMemberInput</a>[<span t="t">A</span>]
+     </div>
+     <div>
+      class <a href="Input/GetExAtInput" t="n">GetExAtInput</a>[<span t="t">K</span>]
+     </div>
+     <div>
+      class <a href="Input/GetExInput" t="n">GetExInput</a>[<span t="t">K</span>]
+     </div>
+     <div>
+      class <a href="Input/GetExPersistInput" t="n">GetExPersistInput</a>[<span t="t">K</span>]
+     </div>
+     <div>
+      object <a href="Input/GetInput$" t="n">GetInput</a>
+     </div>
+     <div>
+      object <a href="Input/GetKeywordInput$" t="n">GetKeywordInput</a>
+     </div>
+     <div>
+      object <a href="Input/IdInput$" t="n">IdInput</a>
+     </div>
+     <div>
+      object <a href="Input/IdleInput$" t="n">IdleInput</a>
+     </div>
+     <div>
+      object <a href="Input/IdleTimeInput$" t="n">IdleTimeInput</a>
+     </div>
+     <div>
+      object <a href="Input/IdsInput$" t="n">IdsInput</a>
+     </div>
+     <div>
+      object <a href="Input/IncrementInput$" t="n">IncrementInput</a>
+     </div>
+     <div>
+      object <a href="Input/IntInput$" t="n">IntInput</a>
+     </div>
+     <div>
+      object <a href="Input/KeepTtlInput$" t="n">KeepTtlInput</a>
+     </div>
+     <div>
+      class <a href="Input/LastIdInput" t="n">LastIdInput</a>[<span t="t">I</span>]
+     </div>
+     <div>
+      object <a href="Input/LcsQueryTypeInput$" t="n">LcsQueryTypeInput</a>
+     </div>
+     <div>
+      object <a href="Input/LegacyStoreInput$" t="n">LegacyStoreInput</a>
+     </div>
+     <div>
+      object <a href="Input/LimitInput$" t="n">LimitInput</a>
+     </div>
+     <div>
+      object <a href="Input/ListMaxLenInput$" t="n">ListMaxLenInput</a>
+     </div>
+     <div>
+      object <a href="Input/LongInput$" t="n">LongInput</a>
+     </div>
+     <div>
+      object <a href="Input/LongLatInput$" t="n">LongLatInput</a>
+     </div>
+     <div>
+      object <a href="Input/MaxInput$" t="n">MaxInput</a>
+     </div>
+     <div>
+      object <a href="Input/MaxLenApproxInput$" t="n">MaxLenApproxInput</a>
+     </div>
+     <div>
+      object <a href="Input/MaxLenExactInput$" t="n">MaxLenExactInput</a>
+     </div>
+     <div>
+      class <a href="Input/MemberScoreInput" t="n">MemberScoreInput</a>[<span t="t">M</span>]
+     </div>
+     <div>
+      class <a href="Input/MinIdApproxInput" t="n">MinIdApproxInput</a>[<span t="t">I</span>]
+     </div>
+     <div>
+      class <a href="Input/MinIdExactInput" t="n">MinIdExactInput</a>[<span t="t">I</span>]
+     </div>
+     <div>
+      object <a href="Input/MinInput$" t="n">MinInput</a>
+     </div>
+     <div>
+      object <a href="Input/MkStreamInput$" t="n">MkStreamInput</a>
+     </div>
+     <div>
+      object <a href="Input/NoAckInput$" t="n">NoAckInput</a>
+     </div>
+     <div>
+      object <a href="Input/NoInput$" t="n">NoInput</a>
+     </div>
+     <div>
+      object <a href="Input/NoMkStreamInput$" t="n">NoMkStreamInput</a>
+     </div>
+     <div>
+      class <a href="Input/NonEmptyList" t="n">NonEmptyList</a>[<span t="t">A</span>]
+     </div>
+     <div>
+      class <a href="Input/OptionalInput" t="n">OptionalInput</a>[<span t="t">A</span>]
+     </div>
+     <div>
+      object <a href="Input/OrderInput$" t="n">OrderInput</a>
+     </div>
+     <div>
+      object <a href="Input/PatternInput$" t="n">PatternInput</a>
+     </div>
+     <div>
+      object <a href="Input/PositionInput$" t="n">PositionInput</a>
+     </div>
+     <div>
+      object <a href="Input/RadiusUnitInput$" t="n">RadiusUnitInput</a>
+     </div>
+     <div>
+      object <a href="Input/RangeInput$" t="n">RangeInput</a>
+     </div>
+     <div>
+      object <a href="Input/RankInput$" t="n">RankInput</a>
+     </div>
+     <div>
+      object <a href="Input/RedisTypeInput$" t="n">RedisTypeInput</a>
+     </div>
+     <div>
+      object <a href="Input/ReplaceInput$" t="n">ReplaceInput</a>
+     </div>
+     <div>
+      object <a href="Input/RetryCountInput$" t="n">RetryCountInput</a>
+     </div>
+     <div>
+      object <a href="Input/ScriptDebugInput$" t="n">ScriptDebugInput</a>
+     </div>
+     <div>
+      object <a href="Input/ScriptFlushInput$" t="n">ScriptFlushInput</a>
+     </div>
+     <div>
+      object <a href="Input/SideInput$" t="n">SideInput</a>
+     </div>
+     <div>
+      object <a href="Input/SimpleLimitInput$" t="n">SimpleLimitInput</a>
+     </div>
+     <div>
+      object <a href="Input/StoreDistInput$" t="n">StoreDistInput</a>
+     </div>
+     <div>
+      object <a href="Input/StoreInput$" t="n">StoreInput</a>
+     </div>
+     <div>
+      class <a href="Input/StreamsInput" t="n">StreamsInput</a>[<span t="t">K</span>, <span t="t">V</span>]
+     </div>
+     <div>
+      object <a href="Input/StringInput$" t="n">StringInput</a>
+     </div>
+     <div>
+      object <a href="Input/TimeInput$" t="n">TimeInput</a>
+     </div>
+     <div>
+      object <a href="Input/TimeMillisecondsInput$" t="n">TimeMillisecondsInput</a>
+     </div>
+     <div>
+      object <a href="Input/TimeSecondsInput$" t="n">TimeSecondsInput</a>
+     </div>
+     <div>
+      class <a href="Input/Tuple10" t="n">Tuple10</a>[<span t="t">A</span>, <span t="t">B</span>, <span t="t">C</span>, <span t="t">D</span>, <span t="t">E</span>, <span t="t">F</span>, <span t="t">G</span>, <span t="t">H</span>, <span t="t">I</span>, <span t="t">J</span>]
+     </div>
+     <div>
+      class <a href="Input/Tuple11" t="n">Tuple11</a>[<span t="t">A</span>, <span t="t">B</span>, <span t="t">C</span>, <span t="t">D</span>, <span t="t">E</span>, <span t="t">F</span>, <span t="t">G</span>, <span t="t">H</span>, <span t="t">I</span>, <span t="t">J</span>, <span t="t">K</span>]
+     </div>
+     <div>
+      class <a href="Input/Tuple2" t="n">Tuple2</a>[<span t="t">A</span>, <span t="t">B</span>]
+     </div>
+     <div>
+      class <a href="Input/Tuple3" t="n">Tuple3</a>[<span t="t">A</span>, <span t="t">B</span>, <span t="t">C</span>]
+     </div>
+     <div>
+      class <a href="Input/Tuple4" t="n">Tuple4</a>[<span t="t">A</span>, <span t="t">B</span>, <span t="t">C</span>, <span t="t">D</span>]
+     </div>
+     <div>
+      class <a href="Input/Tuple5" t="n">Tuple5</a>[<span t="t">A</span>, <span t="t">B</span>, <span t="t">C</span>, <span t="t">D</span>, <span t="t">E</span>]
+     </div>
+     <div>
+      class <a href="Input/Tuple6" t="n">Tuple6</a>[<span t="t">A</span>, <span t="t">B</span>, <span t="t">C</span>, <span t="t">D</span>, <span t="t">E</span>, <span t="t">F</span>]
+     </div>
+     <div>
+      class <a href="Input/Tuple7" t="n">Tuple7</a>[<span t="t">A</span>, <span t="t">B</span>, <span t="t">C</span>, <span t="t">D</span>, <span t="t">E</span>, <span t="t">F</span>, <span t="t">G</span>]
+     </div>
+     <div>
+      class <a href="Input/Tuple8" t="n">Tuple8</a>[<span t="t">A</span>, <span t="t">B</span>, <span t="t">C</span>, <span t="t">D</span>, <span t="t">E</span>, <span t="t">F</span>, <span t="t">G</span>, <span t="t">H</span>]
+     </div>
+     <div>
+      class <a href="Input/Tuple9" t="n">Tuple9</a>[<span t="t">A</span>, <span t="t">B</span>, <span t="t">C</span>, <span t="t">D</span>, <span t="t">E</span>, <span t="t">F</span>, <span t="t">G</span>, <span t="t">H</span>, <span t="t">I</span>]
+     </div>
+     <div>
+      object <a href="Input/UpdateInput$" t="n">UpdateInput</a>
+     </div>
+     <div>
+      object <a href="Input/ValueInput$" t="n">ValueInput</a>
+     </div>
+     <div>
+      class <a href="Input/Varargs" t="n">Varargs</a>[<span t="t">A</span>]
+     </div>
+     <div>
+      object <a href="Input/WeightsInput$" t="n">WeightsInput</a>
+     </div>
+     <div>
+      object <a href="Input/WithCoordInput$" t="n">WithCoordInput</a>
+     </div>
+     <div>
+      object <a href="Input/WithDistInput$" t="n">WithDistInput</a>
+     </div>
+     <div>
+      object <a href="Input/WithEntriesReadInput$" t="n">WithEntriesReadInput</a>
+     </div>
+     <div>
+      object <a href="Input/WithForceInput$" t="n">WithForceInput</a>
+     </div>
+     <div>
+      object <a href="Input/WithHashInput$" t="n">WithHashInput</a>
+     </div>
+     <div>
+      object <a href="Input/WithJustIdInput$" t="n">WithJustIdInput</a>
+     </div>
+     <div>
+      object <a href="Input/WithScoreInput$" t="n">WithScoreInput</a>
+     </div>
+     <div>
+      object <a href="Input/WithScoresInput$" t="n">WithScoresInput</a>
+     </div>
+     <div>
+      class <a href="Input/XGroupCreateConsumerInput" t="n">XGroupCreateConsumerInput</a>[<span t="t">K</span>, <span t="t">G</span>, <span t="t">C</span>]
+     </div>
+     <div>
+      class <a href="Input/XGroupCreateInput" t="n">XGroupCreateInput</a>[<span t="t">K</span>, <span t="t">G</span>, <span t="t">I</span>]
+     </div>
+     <div>
+      class <a href="Input/XGroupDelConsumerInput" t="n">XGroupDelConsumerInput</a>[<span t="t">K</span>, <span t="t">G</span>, <span t="t">C</span>]
+     </div>
+     <div>
+      class <a href="Input/XGroupDestroyInput" t="n">XGroupDestroyInput</a>[<span t="t">K</span>, <span t="t">G</span>]
+     </div>
+     <div>
+      class <a href="Input/XGroupSetIdInput" t="n">XGroupSetIdInput</a>[<span t="t">K</span>, <span t="t">G</span>, <span t="t">I</span>]
+     </div>
+     <span class="show-all-code show-content text-button h100">Show all</span>
+    </div>
+   </dd>
+   <dt class="body-small">Self type</dt>
+   <dd class="body-medium">
+    <div class="mono-small-block supertypes">
+     <span></span>
+     <div>
+      <a href="Input" t="n">Input</a>[<span t="t">A</span>]
+     </div>
+    </div>
+   </dd>
+  </dl>
+ </section>
+</div>
+<section id="members-list">
+ <h2 class="h500">Members list</h2>
+ <div class="documentableFilter">
+  <div class="filtersContainer"></div>
+  <input class="filterableInput" placeholder="Filter by any phrase" data-test-id="filterBarInput" type="search"><button class="clearButton label-only-button" data-test-id="filterBarClearButton">Clear all</button>
+ </div>
+ <div class="membersList expand">
+  <div class="tabs">
+   <div class="contents">
+    <section id="Value-members">
+     <div data-togglable="Value members" class="tab expand">
+      <div class="member-group-header">
+       <h3 data-togglable="Value members" class="h400">Value members</h3>
+      </div>
+      <section id="Concrete-methods">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Concrete methods</h4>
+        </div>
+        <div class="documentableElement" id="contramap-fffffb69" data-f-keywords="final">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Input#contramap-fffffb69" t="n" class="documentableName ">contramap</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span data-unresolved-link="" t="t">B</span> <span t="k">=&gt;</span> <span t="t">A</span>): <a href="Input" t="t">Input</a>[<span data-unresolved-link="" t="t">B</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">Source</dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-redis/blob/v1.3.3/modules/redis/src/main/scala/zio/redis/Input.scala#L29" target="_blank">Input.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+     </div>
+    </section>
+   </div>
+  </div>
+ </div>
+</section></div><div id="toc" class="body-small"><div id="toc-container"><span class="toc-title h200">In this article</span><nav class="toc-nav"><ul class="toc-list"><li><a href="#attributes">Attributes</a></li><li><a href="#members-list">Members list</a><ul><li><a href="#Value-members">Value members</a><ul><li><a href="#Concrete-methods">Concrete methods</a></li></ul></li></ul></li></ul></nav></div></div></div></div></div></body></html>

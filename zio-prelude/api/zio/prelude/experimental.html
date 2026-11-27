@@ -1,0 +1,3269 @@
+<!DOCTYPE html><html data-za-announcement-id="announcementBar-zioblocks" data-pathToRoot="../../" data-rawLocation="zio/prelude/experimental" data-dynamicSideMenu="true"><head><meta charset="utf-8"></meta><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></meta><title>zio.prelude.experimental</title><link rel="icon" href="/img/favicon.png"><script type="text/javascript" src="../../scripts/theme.js"></script><script type="text/javascript" src="../../scripts/searchData.js" defer="true"></script><script type="text/javascript" src="../../scripts/scastieConfiguration.js" defer="true"></script><link rel="stylesheet" href="../../styles/theme/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/components/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/components/button/bundle.css"></link><link rel="stylesheet" href="../../styles/theme/layout/bundle.css"></link><link rel="stylesheet" href="../../styles/nord-light.css"></link><link rel="stylesheet" href="../../styles/dotty-icons.css"></link><link rel="stylesheet" href="../../styles/filter-bar.css"></link><link rel="stylesheet" href="../../styles/code-snippets.css"></link><link rel="stylesheet" href="../../styles/searchbar.css"></link><link rel="stylesheet" href="../../styles/social-links.css"></link><link rel="stylesheet" href="../../styles/versions-dropdown.css"></link><link rel="stylesheet" href="../../styles/content-contributors.css"></link><link rel="stylesheet" href="../../styles/fontawesome.css"></link><script type="text/javascript" src="../../hljs/highlight.pack.js" defer="true"></script><script type="text/javascript" src="../../scripts/hljs-scala3.js" defer="true"></script><script type="text/javascript" src="../../scripts/ux.js" defer="true"></script><script type="text/javascript" src="../../scripts/common/component.js" defer="true"></script><script type="text/javascript" src="../../scripts/common/utils.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/FilterBar.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/DocumentableList.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/Input.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/FilterGroup.js" defer="true"></script><script type="text/javascript" src="../../scripts/components/Filter.js" defer="true"></script><script type="text/javascript" src="../../scripts/scaladoc-scalajs.js" defer="true"></script><script type="text/javascript" src="../../scripts/contributors.js" defer="true"></script><script type="text/javascript" src="https://code.jquery.com/jquery-3.5.1.min.js" defer="true"></script><script type="text/javascript" src="/zio-prelude/api/scripts/vendor/d3/d3.v6.7.0.min.js" defer="true"></script><script type="text/javascript" src="/zio-prelude/api/scripts/vendor/graphlib-dot/graphlib-dot.0.6.2.min.js" defer="true"></script><script type="text/javascript" src="/zio-prelude/api/scripts/vendor/dagre-d3/dagre-d3.0.6.1.min.js" defer="true"></script><script type="text/javascript" src="../../scripts/data.js" defer="true"></script><link rel="stylesheet" href="../../styles/apistyles.css"></link><script>var pathToRoot = "../../";</script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=fallback"><link rel="stylesheet" href="/zio-prelude/api/styles/zio-api.css"></head><body><div class="za-announcement theme-announcement-bar" role="banner" style="background-color:#ececec;color:#1a1a1a"><div class="za-announcement__placeholder"></div><div class="za-announcement__content"><img src="/img/ecosystem/zio-blocks-icon.svg" alt="" style="height: 1.1em; vertical-align: middle;"> <b>ZIO Blocks</b> has a new website! Visit <a href="https://zioblocks.com" target="_blank">zioblocks.com</a> to explore the docs 🚀</div><button type="button" aria-label="Close" class="za-announcement__close"><svg viewBox="0 0 15 15" width="14" height="14" aria-hidden="true"><g stroke="currentColor" stroke-width="3.1"><path d="M.75.75l13.5 13.5M14.25.75L.75 14.25"></path></g></svg></button></div><script>window.zaPlaceAnnouncement&&zaPlaceAnnouncement()</script><div id=""><div id="header" class="za-navbar"><div class="za-navbar__left"><span id="mobile-menu-toggle" class="za-navbar__toggle" role="button" tabindex="0" aria-label="Toggle navigation bar"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"/></svg></span><a class="za-navbar__brand" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><span id="dropdown-trigger" hidden></span><div id="version-dropdown" hidden></div><a class="za-navbar__link" href="/overview/getting-started">Overview</a><a class="za-navbar__link" href="/reference/">Reference</a><a class="za-navbar__link" href="/api/">API</a><a class="za-navbar__link" href="/guides/">Guides</a><a class="za-navbar__link za-navbar__link--active" href="/ecosystem/" aria-current="page">Ecosystem</a><a class="za-navbar__link" href="/resources/">Resources</a><a class="za-navbar__link" href="/events/">Events</a></div><div class="za-navbar__right"><a class="za-navbar__link" href="/blog">Blog</a><a class="za-navbar__link za-navbar__link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a><button type="button" class="za-navbar__icon za-onboard" data-onboard-prompt="Fetch https://zio.dev/start.md and follow the instructions to set up my environment for ZIO development." title="Copy the prompt to onboard your coding agent to ZIO" aria-label="Copy the ZIO agent onboarding prompt to the clipboard"><svg class="za-onboard__idle" viewBox="0 0 576 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M9.4 86.6C-3.1 74.1-3.1 53.9 9.4 41.4s32.8-12.5 45.3 0l192 192c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L178.7 256 9.4 86.6zM256 416l288 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-288 0c-17.7 0-32-14.3-32-32s14.3-32 32-32z"/></svg><svg class="za-onboard__done" viewBox="0 0 448 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></svg></button><button type="button" class="za-navbar__icon za-mode" data-color-mode-toggle title="light mode" aria-label="Switch between dark and light mode (currently light mode)"><svg class="za-mode__light" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg class="za-mode__dark" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg></button><button type="button" id="search-toggle" class="za-search" title="Search the API" aria-label="Search the API"><svg width="20" height="20" class="za-search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"/><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="za-search__label">Search</span></button></div></div><div id="mobile-menu"><div class="mobile-menu-header body-small"><a class="mobile-menu-logo" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><button id="mobile-menu-close" class="icon-button close"></button></div><div class="mobile-menu-container body-medium"><input id="mobile-scaladoc-searchbar-input" class="scaladoc-searchbar-input" type="search" placeholder="Find anything"></input><nav class="za-mobile-links"><a class="za-mobile-link" href="/overview/getting-started">Overview</a><a class="za-mobile-link" href="/reference/">Reference</a><a class="za-mobile-link" href="/api/">API</a><a class="za-mobile-link" href="/guides/">Guides</a><a class="za-mobile-link za-mobile-link--active" href="/ecosystem/" aria-current="page">Ecosystem</a><a class="za-mobile-link" href="/resources/">Resources</a><a class="za-mobile-link" href="/events/">Events</a><a class="za-mobile-link" href="/blog">Blog</a><a class="za-mobile-link za-mobile-link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a></nav><span id="mobile-theme-toggle" class="mobile-menu-item mode"></span></div></div><span id="mobile-sidebar-toggle" class="floating-button"></span><div id="leftColumn" class="body-small"><a class="za-back-link" href="/zio-prelude/">← ZIO Prelude docs</a></div><div id="scaladoc-searchBar"></div><div id="main"><div id="content" class="body-medium"><div><nav class="za-breadcrumbs" aria-label="Breadcrumbs"><ul class="za-breadcrumbs__list"><li class="za-breadcrumbs__item"><a aria-label="Home page" class="za-breadcrumbs__link" href="/"><svg viewBox="0 0 24 24" class="za-breadcrumbs__home"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/zio-prelude/"><span>ZIO Prelude</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/zio-prelude/api/"><span>API</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../prelude"><span>zio.prelude</span></a></li><li class="za-breadcrumbs__item za-breadcrumbs__item--active"><span class="za-breadcrumbs__link">experimental</span></li></ul></nav><div class="cover-header">
+ <span class="icon"><span class="micon pa"></span></span>
+ <h1 class="h600 single">zio.prelude.experimental</h1>
+</div>
+<div class="fqname body-large">
+ <span></span>
+</div>
+<div class="main-signature mono-small-block">
+ <div class="signature">
+  <span class="modifiers"></span><span class="kind"><span t="k">package </span></span><a href="experimental" t="n" class="documentableName ">zio.prelude.experimental</a>
+ </div>
+</div>
+<section id="members-list">
+ <h2 class="h500">Members list</h2>
+ <div class="documentableFilter">
+  <div class="filtersContainer"></div><input class="filterableInput" placeholder="Filter by any phrase" data-test-id="filterBarInput" type="search"><button class="clearButton label-only-button" data-test-id="filterBarClearButton">Clear all</button>
+ </div>
+ <div class="membersList expand">
+  <div class="tabs">
+   <div class="contents">
+    <section id="Packages">
+     <div data-togglable="packages" class="tab expand">
+      <div class="documentableList expand">
+       <div class="documentableList-expander">
+        <button class="icon-button show-content expand"></button>
+        <h3 class="groupHeader h400">Packages</h3>
+       </div>
+       <div class="documentableElement">
+        <div class="documentableElement-expander">
+         <div class="header monospace mono-medium">
+          <div class="signature">
+           <span class="modifiers"></span><span class="kind"><span t="k">package </span></span><a href="experimental/coherent" t="n" class="documentableName ">zio.prelude.experimental.coherent</a>
+          </div>
+         </div>
+        </div>
+       </div>
+       <div class="documentableElement">
+        <div class="documentableElement-expander">
+         <div class="header monospace mono-medium">
+          <div class="signature">
+           <span class="modifiers"></span><span class="kind"><span t="k">package </span></span><a href="experimental/laws" t="n" class="documentableName ">zio.prelude.experimental.laws</a>
+          </div>
+         </div>
+        </div>
+       </div>
+      </div>
+     </div>
+    </section>
+    <section id="Type-members">
+     <div data-togglable="Type members" class="tab expand">
+      <div class="member-group-header">
+       <h3 data-togglable="Type members" class="h400">Type members</h3>
+      </div>
+      <section id="Classlikes">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Classlikes</h4>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="experimental/Absorption$" t="n" class="documentableName ">Absorption</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/Absorption">trait</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Absorption.scala#L13" target="_blank">Absorption.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Self type
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="experimental/Absorption$" t="n">Absorption</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/Absorption" t="n" class="documentableName ">Absorption</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/Absorption$">object</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Absorption.scala#L6" target="_blank">Absorption.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Known subtypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="experimental/coherent/AbsorptionEqual" t="n">AbsorptionEqual</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/coherent/DistributiveAbsorptionEqual" t="n">DistributiveAbsorptionEqual</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/coherent/ExcludedMiddleEqual" t="n">ExcludedMiddleEqual</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/coherent/InvolutionEqual" t="n">InvolutionEqual</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/coherent/NoncontradictionEqual" t="n">NoncontradictionEqual</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Complement" t="n">Complement</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/ExcludedMiddle" t="n">ExcludedMiddle</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Involution" t="n">Involution</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Noncontradiction" t="n">Noncontradiction</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/DistributiveAbsorption" t="n">DistributiveAbsorption</a>[<span t="t">A</span>]
+                </div><span class="show-all-code show-content text-button h100">Show all</span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/AbsorptionSyntax" t="n" class="documentableName ">AbsorptionSyntax</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Absorption.scala#L40" target="_blank">Absorption.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/Annihilation" t="n" class="documentableName ">Annihilation</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]<span t="k"> extends </span><a href="experimental/DistributiveProd" t="t">DistributiveProd</a>[<span t="t">A</span>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/Annihilation$">object</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Annihilation.scala#L6" target="_blank">Annihilation.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="experimental/DistributiveProd" t="n">DistributiveProd</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Known subtypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="experimental/coherent/AnnihilationEqual" t="n">AnnihilationEqual</a>[<span t="t">A</span>]
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="experimental/Annihilation$" t="n" class="documentableName ">Annihilation</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/Annihilation">trait</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Annihilation.scala#L11" target="_blank">Annihilation.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Self type
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="experimental/Annihilation$" t="n">Annihilation</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/ApplicationCompose" t="n" class="documentableName ">ApplicationCompose</a>[<span t="k"></span><span data-unresolved-link="" t="t">=&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>]]<span t="k"> extends </span><a href="experimental/BothCompose" t="t">BothCompose</a>[<span t="t">=&gt;:</span>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/ApplicationCompose$">object</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/ApplicationCompose.scala#L20" target="_blank">ApplicationCompose.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="experimental/BothCompose" t="n">BothCompose</a>[<span t="t">=&gt;:</span>]
+                </div>
+                <div>
+                 trait <a href="AssociativeCompose" t="n">AssociativeCompose</a>[<span t="t">=&gt;:</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="experimental/ApplicationCompose$" t="n" class="documentableName ">ApplicationCompose</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/ApplicationCompose">trait</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/ApplicationCompose.scala#L43" target="_blank">ApplicationCompose.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Self type
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="experimental/ApplicationCompose$" t="n">ApplicationCompose</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/ApplicationComposeSyntax" t="n" class="documentableName ">ApplicationComposeSyntax</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/ApplicationCompose.scala#L50" target="_blank">ApplicationCompose.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/BothCompose" t="n" class="documentableName ">BothCompose</a>[<span t="k"></span><span data-unresolved-link="" t="t">=&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>]]<span t="k"> extends </span><a href="AssociativeCompose" t="t">AssociativeCompose</a>[<span t="t">=&gt;:</span>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/BothCompose$">object</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/BothCompose.scala#L20" target="_blank">BothCompose.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="AssociativeCompose" t="n">AssociativeCompose</a>[<span t="t">=&gt;:</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Known subtypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="experimental/ApplicationCompose" t="n">ApplicationCompose</a>[<span t="t">=&gt;:</span>]
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="experimental/BothCompose$" t="n" class="documentableName ">BothCompose</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/BothCompose">trait</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/BothCompose.scala#L41" target="_blank">BothCompose.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Self type
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="experimental/BothCompose$" t="n">BothCompose</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/BothComposeSyntax" t="n" class="documentableName ">BothComposeSyntax</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/BothCompose.scala#L79" target="_blank">BothCompose.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="case">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">case </span></span><span class="kind"><span t="k">object </span></span><a href="experimental/BuildInfo$" t="n" class="documentableName ">BuildInfo</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>This object was generated by sbt-buildinfo.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>This object was generated by sbt-buildinfo.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/jvm/target/scala-3.3.8/src_managed/main/sbt-buildinfo/BuildInfo.scala#L5" target="_blank">BuildInfo.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.3.8/scala/deriving/Mirror$$Singleton.html" t="n">Singleton</a>
+                </div>
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.3.8/scala/deriving/Mirror$$Product.html" t="n">Product</a>
+                </div>
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.3.8/scala/deriving/Mirror.html" t="n">Mirror</a>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Serializable</span>
+                </div>
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.3.8/scala/Product.html" t="n">Product</a>
+                </div>
+                <div>
+                 trait <a href="https://www.scala-lang.org/api/3.3.8/scala/Equals.html" t="n">Equals</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span class="show-all-code show-content text-button h100">Show all</span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Self type
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="experimental/BuildInfo$" t="n">BuildInfo</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/Complement" t="n" class="documentableName ">Complement</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]<span t="k"> extends </span><a href="experimental/Absorption" t="t">Absorption</a>[<span t="t">A</span>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/Complement$">object</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Complement.scala#L4" target="_blank">Complement.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="experimental/Absorption" t="n">Absorption</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Known subtypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="experimental/ExcludedMiddle" t="n">ExcludedMiddle</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/coherent/ExcludedMiddleEqual" t="n">ExcludedMiddleEqual</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/coherent/InvolutionEqual" t="n">InvolutionEqual</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Involution" t="n">Involution</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Noncontradiction" t="n">Noncontradiction</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/coherent/NoncontradictionEqual" t="n">NoncontradictionEqual</a>[<span t="t">A</span>]
+                </div><span class="show-all-code show-content text-button h100">Show all</span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="experimental/Complement$" t="n" class="documentableName ">Complement</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/Complement">trait</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Complement.scala#L8" target="_blank">Complement.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Self type
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="experimental/Complement$" t="n">Complement</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/ComplementSyntax" t="n" class="documentableName ">ComplementSyntax</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Complement.scala#L16" target="_blank">Complement.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/DistributiveAbsorption" t="n" class="documentableName ">DistributiveAbsorption</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]<span t="k"> extends </span><a href="experimental/Absorption" t="t">Absorption</a>[<span t="t">A</span>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/DistributiveAbsorption$">object</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/DistributiveAbsorption.scala#L4" target="_blank">DistributiveAbsorption.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="experimental/Absorption" t="n">Absorption</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Known subtypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="experimental/coherent/DistributiveAbsorptionEqual" t="n">DistributiveAbsorptionEqual</a>[<span t="t">A</span>]
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="experimental/DistributiveAbsorption$" t="n" class="documentableName ">DistributiveAbsorption</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/DistributiveAbsorption">trait</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/DistributiveAbsorption.scala#L6" target="_blank">DistributiveAbsorption.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Self type
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="experimental/DistributiveAbsorption$" t="n">DistributiveAbsorption</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="experimental/DistributiveProd$" t="n" class="documentableName ">DistributiveProd</a><span t="k"> extends </span><a href="experimental/DistributiveProdLowPriorityImplicits" t="t">DistributiveProdLowPriorityImplicits</a></span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/DistributiveProd">trait</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/DistributiveProd.scala#L13" target="_blank">DistributiveProd.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="experimental/DistributiveProdLowPriorityImplicits" t="n">DistributiveProdLowPriorityImplicits</a>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Self type
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="experimental/DistributiveProd$" t="n">DistributiveProd</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/DistributiveProd" t="n" class="documentableName ">DistributiveProd</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/DistributiveProd$">object</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/DistributiveProd.scala#L6" target="_blank">DistributiveProd.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Known subtypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="experimental/coherent/DistributiveProdEqual" t="n">DistributiveProdEqual</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/coherent/AnnihilationEqual" t="n">AnnihilationEqual</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Annihilation" t="n">Annihilation</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/PartialDivide" t="n">PartialDivide</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Divide" t="n">Divide</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Subtract" t="n">Subtract</a>[<span t="t">A</span>]
+                </div><span class="show-all-code show-content text-button h100">Show all</span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/DistributiveProdLowPriorityImplicits" t="n" class="documentableName ">DistributiveProdLowPriorityImplicits</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/DistributiveProd.scala#L125" target="_blank">DistributiveProd.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Known subtypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 object <a href="experimental/DistributiveProd$" t="n">DistributiveProd</a>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/DistributiveProdSyntax" t="n" class="documentableName ">DistributiveProdSyntax</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/DistributiveProd.scala#L135" target="_blank">DistributiveProd.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/Divide" t="n" class="documentableName ">Divide</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]<span t="k"> extends </span><a href="experimental/PartialDivide" t="t">PartialDivide</a>[<span t="t">A</span>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Divide.scala#L6" target="_blank">Divide.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="experimental/PartialDivide" t="n">PartialDivide</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/DistributiveProd" t="n">DistributiveProd</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/DivideSyntax" t="n" class="documentableName ">DivideSyntax</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Divide.scala#L11" target="_blank">Divide.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/EitherCompose" t="n" class="documentableName ">EitherCompose</a>[<span t="k"></span><span data-unresolved-link="" t="t">=&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>]]<span t="k"> extends </span><a href="AssociativeCompose" t="t">AssociativeCompose</a>[<span t="t">=&gt;:</span>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/EitherCompose$">object</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/EitherCompose.scala#L20" target="_blank">EitherCompose.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="AssociativeCompose" t="n">AssociativeCompose</a>[<span t="t">=&gt;:</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="experimental/EitherCompose$" t="n" class="documentableName ">EitherCompose</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/EitherCompose">trait</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/EitherCompose.scala#L41" target="_blank">EitherCompose.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Self type
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="experimental/EitherCompose$" t="n">EitherCompose</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/EitherComposeSyntax" t="n" class="documentableName ">EitherComposeSyntax</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/EitherCompose.scala#L66" target="_blank">EitherCompose.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="experimental/ExcludedMiddle$" t="n" class="documentableName ">ExcludedMiddle</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/ExcludedMiddle">trait</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/ExcludedMiddle.scala#L10" target="_blank">ExcludedMiddle.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Self type
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="experimental/ExcludedMiddle$" t="n">ExcludedMiddle</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/ExcludedMiddle" t="n" class="documentableName ">ExcludedMiddle</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]<span t="k"> extends </span><a href="experimental/Complement" t="t">Complement</a>[<span t="t">A</span>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/ExcludedMiddle$">object</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/ExcludedMiddle.scala#L5" target="_blank">ExcludedMiddle.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="experimental/Complement" t="n">Complement</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Absorption" t="n">Absorption</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Known subtypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="experimental/coherent/ExcludedMiddleEqual" t="n">ExcludedMiddleEqual</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/coherent/InvolutionEqual" t="n">InvolutionEqual</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Involution" t="n">Involution</a>[<span t="t">A</span>]
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/Involution" t="n" class="documentableName ">Involution</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]<span t="k"> extends </span><a href="experimental/ExcludedMiddle" t="t">ExcludedMiddle</a>[<span t="t">A</span>]<span t="k">, </span></span><span class="signature-long"><a href="experimental/Noncontradiction" t="t">Noncontradiction</a>[<span t="t">A</span>]</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/Involution$">object</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Involution.scala#L4" target="_blank">Involution.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="experimental/Noncontradiction" t="n">Noncontradiction</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/ExcludedMiddle" t="n">ExcludedMiddle</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Complement" t="n">Complement</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Absorption" t="n">Absorption</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span class="show-all-code show-content text-button h100">Show all</span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Known subtypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="experimental/coherent/InvolutionEqual" t="n">InvolutionEqual</a>[<span t="t">A</span>]
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="experimental/Involution$" t="n" class="documentableName ">Involution</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/Involution">trait</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Involution.scala#L6" target="_blank">Involution.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Self type
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="experimental/Involution$" t="n">Involution</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/Noncontradiction" t="n" class="documentableName ">Noncontradiction</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]<span t="k"> extends </span><a href="experimental/Complement" t="t">Complement</a>[<span t="t">A</span>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/Noncontradiction$">object</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Noncontradiction.scala#L5" target="_blank">Noncontradiction.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="experimental/Complement" t="n">Complement</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Absorption" t="n">Absorption</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Known subtypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="experimental/coherent/NoncontradictionEqual" t="n">NoncontradictionEqual</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/coherent/InvolutionEqual" t="n">InvolutionEqual</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 trait <a href="experimental/Involution" t="n">Involution</a>[<span t="t">A</span>]
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="experimental/Noncontradiction$" t="n" class="documentableName ">Noncontradiction</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Companion
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/Noncontradiction">trait</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Noncontradiction.scala#L10" target="_blank">Noncontradiction.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Self type
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="experimental/Noncontradiction$" t="n">Noncontradiction</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/PartialDivide" t="n" class="documentableName ">PartialDivide</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]<span t="k"> extends </span><a href="experimental/DistributiveProd" t="t">DistributiveProd</a>[<span t="t">A</span>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/PartialDivide.scala#L6" target="_blank">PartialDivide.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="experimental/DistributiveProd" t="n">DistributiveProd</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Known subtypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block subtypes">
+                <div>
+                 trait <a href="experimental/Divide" t="n">Divide</a>[<span t="t">A</span>]
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/PartialDivideSyntax" t="n" class="documentableName ">PartialDivideSyntax</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/PartialDivide.scala#L11" target="_blank">PartialDivide.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="signature-short"><span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/Subtract" t="n" class="documentableName ">Subtract</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>]<span t="k"> extends </span><a href="experimental/DistributiveProd" t="t">DistributiveProd</a>[<span t="t">A</span>]</span><span class="signature-long"></span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Subtract.scala#L5" target="_blank">Subtract.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 trait <a href="experimental/DistributiveProd" t="n">DistributiveProd</a>[<span t="t">A</span>]
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">trait </span></span><a href="experimental/SubtractSyntax" t="n" class="documentableName ">SubtractSyntax</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Subtract.scala#L10" target="_blank">Subtract.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">object </span></span><a href="experimental/classic$" t="n" class="documentableName ">classic</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/package.scala#L30" target="_blank">package.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Self type
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <span></span>
+                <div>
+                 <a href="experimental/classic$" t="n">classic</a>.<span t="k">type</span>
+                </div>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+      <section id="Inherited-classlikes">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Inherited classlikes</h4>
+        </div>
+        <div class="documentableElement" data-f-keywords="implicit" data-f-inherited="AbsorptionSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">implicit </span></span><span class="kind"><span t="k">class </span></span><a href="experimental/AbsorptionSyntax$AbsorptionOps" t="n" class="documentableName ">AbsorptionOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">l</span>: <span data-unresolved-link="" t="t">A</span>)
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Provides infix syntax for joining or meeting two values.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Provides infix syntax for joining or meeting two values.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/AbsorptionSyntax$AbsorptionOps">AbsorptionSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Absorption.scala#L45" target="_blank">Absorption.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="implicit" data-f-inherited="ApplicationComposeSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">implicit </span></span><span class="kind"><span t="k">class </span></span><a href="experimental/ApplicationComposeSyntax$ApplicationComposeCurryOps" t="n" class="documentableName ">ApplicationComposeCurryOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>, <span t="k"></span><span data-unresolved-link="" t="t">B</span>, <span t="k"></span><span data-unresolved-link="" t="t">C</span>, <span t="k"></span><span data-unresolved-link="" t="t">=&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>], <span t="k"></span><span data-unresolved-link="" t="t">:*:</span>[<span t="t">_</span>, <span t="t">_</span>], <span t="k"></span><span data-unresolved-link="" t="t">--&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>]](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">ab2c</span>: (<span data-unresolved-link="" t="t">A</span> <span data-unresolved-link="" t="t">:*:</span> <span data-unresolved-link="" t="t">B</span>) <span data-unresolved-link="" t="t">=&gt;:</span> <span data-unresolved-link="" t="t">C</span>)
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/ApplicationComposeSyntax$ApplicationComposeCurryOps">ApplicationComposeSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/ApplicationCompose.scala#L52" target="_blank">ApplicationCompose.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="implicit" data-f-inherited="ApplicationComposeSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">implicit </span></span><span class="kind"><span t="k">class </span></span><a href="experimental/ApplicationComposeSyntax$ApplicationComposeUncurryOps" t="n" class="documentableName ">ApplicationComposeUncurryOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>, <span t="k"></span><span data-unresolved-link="" t="t">B</span>, <span t="k"></span><span data-unresolved-link="" t="t">C</span>, <span t="k"></span><span data-unresolved-link="" t="t">=&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>], <span t="k"></span><span data-unresolved-link="" t="t">:*:</span>[<span t="t">_</span>, <span t="t">_</span>], <span t="k"></span><span data-unresolved-link="" t="t">--&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>]](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">a2b2c</span>: <span data-unresolved-link="" t="t">A</span> <span data-unresolved-link="" t="t">=&gt;:</span> (<span data-unresolved-link="" t="t">B</span> <span data-unresolved-link="" t="t">--&gt;:</span> <span data-unresolved-link="" t="t">C</span>))
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/ApplicationComposeSyntax$ApplicationComposeUncurryOps">ApplicationComposeSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/ApplicationCompose.scala#L61" target="_blank">ApplicationCompose.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="implicit" data-f-inherited="BothComposeSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">implicit </span></span><span class="kind"><span t="k">class </span></span><a href="experimental/BothComposeSyntax$BothComposeOps" t="n" class="documentableName ">BothComposeOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>, <span t="k"></span><span data-unresolved-link="" t="t">B</span>, <span t="k"></span><span data-unresolved-link="" t="t">=&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>]](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">a2b</span>: <span data-unresolved-link="" t="t">A</span> <span data-unresolved-link="" t="t">=&gt;:</span> <span data-unresolved-link="" t="t">B</span>)
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/BothComposeSyntax$BothComposeOps">BothComposeSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/BothCompose.scala#L80" target="_blank">BothCompose.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="implicit" data-f-inherited="ComplementSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">implicit </span></span><span class="kind"><span t="k">class </span></span><a href="experimental/ComplementSyntax$ComplementOps" t="n" class="documentableName ">ComplementOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">self</span>: <span data-unresolved-link="" t="t">A</span>)(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">instance</span>: <a href="experimental/Complement" t="t">Complement</a>[<span data-unresolved-link="" t="t">A</span>])
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Provides infix syntax for the Complement of the value.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Provides infix syntax for the Complement of the value.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/ComplementSyntax$ComplementOps">ComplementSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Complement.scala#L21" target="_blank">Complement.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="implicit" data-f-inherited="DistributiveProdSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">implicit </span></span><span class="kind"><span t="k">class </span></span><a href="experimental/DistributiveProdSyntax$DistributiveProdOps" t="n" class="documentableName ">DistributiveProdOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">l</span>: <span data-unresolved-link="" t="t">A</span>)
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Provides infix syntax for adding or multiplying two values.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Provides infix syntax for adding or multiplying two values.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/DistributiveProdSyntax$DistributiveProdOps">DistributiveProdSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/DistributiveProd.scala#L140" target="_blank">DistributiveProd.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="implicit" data-f-inherited="DivideSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">implicit </span></span><span class="kind"><span t="k">class </span></span><a href="experimental/DivideSyntax$DivideOps" t="n" class="documentableName ">DivideOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">l</span>: <span data-unresolved-link="" t="t">A</span>)
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Provides infix syntax for dividing two values.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Provides infix syntax for dividing two values.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/DivideSyntax$DivideOps">DivideSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Divide.scala#L16" target="_blank">Divide.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="implicit" data-f-inherited="EitherComposeSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">implicit </span></span><span class="kind"><span t="k">class </span></span><a href="experimental/EitherComposeSyntax$EitherComposeOps" t="n" class="documentableName ">EitherComposeOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>, <span t="k"></span><span data-unresolved-link="" t="t">C</span>, <span t="k"></span><span data-unresolved-link="" t="t">=&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>]](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">a2b</span>: <span data-unresolved-link="" t="t">A</span> <span data-unresolved-link="" t="t">=&gt;:</span> <span data-unresolved-link="" t="t">C</span>)
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/EitherComposeSyntax$EitherComposeOps">EitherComposeSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/EitherCompose.scala#L67" target="_blank">EitherCompose.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="implicit" data-f-inherited="PartialDivideSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">implicit </span></span><span class="kind"><span t="k">class </span></span><a href="experimental/PartialDivideSyntax$PartialDivideOps" t="n" class="documentableName ">PartialDivideOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">l</span>: <span data-unresolved-link="" t="t">A</span>)
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Provides infix syntax for dividing two values, with possible failure.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Provides infix syntax for dividing two values, with possible failure.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/PartialDivideSyntax$PartialDivideOps">PartialDivideSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/PartialDivide.scala#L16" target="_blank">PartialDivide.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" data-f-keywords="implicit" data-f-inherited="SubtractSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">implicit </span></span><span class="kind"><span t="k">class </span></span><a href="experimental/SubtractSyntax$SubtractOps" t="n" class="documentableName ">SubtractOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">l</span>: <span data-unresolved-link="" t="t">A</span>)
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Provides infix syntax for subtracting two values.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Provides infix syntax for subtracting two values.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/SubtractSyntax$SubtractOps">SubtractSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Subtract.scala#L15" target="_blank">Subtract.scala</a>
+              </dd>
+              <dt class="body-small">
+               Supertypes
+              </dt>
+              <dd class="body-medium">
+               <div class="mono-small-block supertypes">
+                <div>
+                 class <span data-unresolved-link="" t="n">Object</span>
+                </div>
+                <div>
+                 trait <span data-unresolved-link="" t="n">Matchable</span>
+                </div>
+                <div>
+                 class <span data-unresolved-link="" t="n">Any</span>
+                </div><span></span>
+               </div>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+     </div>
+    </section>
+    <section id="Implicits">
+     <div data-togglable="Implicits" class="tab expand">
+      <div class="member-group-header">
+       <h3 data-togglable="Implicits" class="h400">Implicits</h3>
+      </div>
+      <section id="Inherited-implicits">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Inherited implicits</h4>
+        </div>
+        <div class="documentableElement" id="AbsorptionOps-fffff63a" data-f-keywords="final,implicit" data-f-inherited="AbsorptionSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final implicit </span></span><span class="kind"><span t="k">def </span></span><a href="experimental#AbsorptionOps-fffff63a" t="n" class="documentableName ">AbsorptionOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">l</span>: <span t="t">A</span>): <a href="experimental/AbsorptionSyntax$AbsorptionOps" t="t">AbsorptionOps</a>[<span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Provides infix syntax for joining or meeting two values.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Provides infix syntax for joining or meeting two values.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/AbsorptionSyntax#AbsorptionOps-fffff63a">AbsorptionSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Absorption.scala#L45" target="_blank">Absorption.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="ApplicationComposeCurryOps-fffffe08" data-f-keywords="final,implicit" data-f-inherited="ApplicationComposeSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final implicit </span></span><span class="kind"><span t="k">def </span></span><a href="experimental#ApplicationComposeCurryOps-fffffe08" t="n" class="documentableName ">ApplicationComposeCurryOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>, <span t="k"></span><span data-unresolved-link="" t="t">B</span>, <span t="k"></span><span data-unresolved-link="" t="t">C</span>, <span t="k"></span><span data-unresolved-link="" t="t">=&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>], <span t="k"></span><span data-unresolved-link="" t="t">:*:</span>[<span t="t">_</span>, <span t="t">_</span>], <span t="k"></span><span data-unresolved-link="" t="t">--&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>]](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">ab2c</span>: <span t="t">=&gt;:</span>[<span t="t">:*:</span>[<span t="t">A</span>, <span t="t">B</span>], <span t="t">C</span>]): <a href="experimental/ApplicationComposeSyntax$ApplicationComposeCurryOps" t="t">ApplicationComposeCurryOps</a>[<span data-unresolved-link="" t="t">A</span>, <span data-unresolved-link="" t="t">B</span>, <span data-unresolved-link="" t="t">C</span>, <span data-unresolved-link="" t="t">=&gt;:</span>, <span data-unresolved-link="" t="t">:*:</span>, <span data-unresolved-link="" t="t">--&gt;:</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/ApplicationComposeSyntax#ApplicationComposeCurryOps-fffffe08">ApplicationComposeSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/ApplicationCompose.scala#L52" target="_blank">ApplicationCompose.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="ApplicationComposeUncurryOps-61" data-f-keywords="final,implicit" data-f-inherited="ApplicationComposeSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final implicit </span></span><span class="kind"><span t="k">def </span></span><a href="experimental#ApplicationComposeUncurryOps-61" t="n" class="documentableName ">ApplicationComposeUncurryOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>, <span t="k"></span><span data-unresolved-link="" t="t">B</span>, <span t="k"></span><span data-unresolved-link="" t="t">C</span>, <span t="k"></span><span data-unresolved-link="" t="t">=&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>], <span t="k"></span><span data-unresolved-link="" t="t">:*:</span>[<span t="t">_</span>, <span t="t">_</span>], <span t="k"></span><span data-unresolved-link="" t="t">--&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>]](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">a2b2c</span>: <span t="t">=&gt;:</span>[<span t="t">A</span>, <span t="t">--&gt;:</span>[<span t="t">B</span>, <span t="t">C</span>]]): <a href="experimental/ApplicationComposeSyntax$ApplicationComposeUncurryOps" t="t">ApplicationComposeUncurryOps</a>[<span data-unresolved-link="" t="t">A</span>, <span data-unresolved-link="" t="t">B</span>, <span data-unresolved-link="" t="t">C</span>, <span data-unresolved-link="" t="t">=&gt;:</span>, <span data-unresolved-link="" t="t">:*:</span>, <span data-unresolved-link="" t="t">--&gt;:</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/ApplicationComposeSyntax#ApplicationComposeUncurryOps-61">ApplicationComposeSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/ApplicationCompose.scala#L61" target="_blank">ApplicationCompose.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="BothComposeOps-fffff12c" data-f-keywords="final,implicit" data-f-inherited="BothComposeSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final implicit </span></span><span class="kind"><span t="k">def </span></span><a href="experimental#BothComposeOps-fffff12c" t="n" class="documentableName ">BothComposeOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>, <span t="k"></span><span data-unresolved-link="" t="t">B</span>, <span t="k"></span><span data-unresolved-link="" t="t">=&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>]](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">a2b</span>: <span t="t">=&gt;:</span>[<span t="t">A</span>, <span t="t">B</span>]): <a href="experimental/BothComposeSyntax$BothComposeOps" t="t">BothComposeOps</a>[<span data-unresolved-link="" t="t">A</span>, <span data-unresolved-link="" t="t">B</span>, <span data-unresolved-link="" t="t">=&gt;:</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/BothComposeSyntax#BothComposeOps-fffff12c">BothComposeSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/BothCompose.scala#L80" target="_blank">BothCompose.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="ComplementOps-fffff185" data-f-keywords="final,implicit" data-f-inherited="ComplementSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final implicit </span></span><span class="kind"><span t="k">def </span></span><a href="experimental#ComplementOps-fffff185" t="n" class="documentableName ">ComplementOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">self</span>: <span t="t">A</span>)(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">instance</span>: <a href="experimental/Complement" t="t">Complement</a>[<span t="t">A</span>]): <a href="experimental/ComplementSyntax$ComplementOps" t="t">ComplementOps</a>[<span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Provides infix syntax for the Complement of the value.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Provides infix syntax for the Complement of the value.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/ComplementSyntax#ComplementOps-fffff185">ComplementSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Complement.scala#L21" target="_blank">Complement.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="DistributiveProdOps-fffffa3a" data-f-keywords="final,implicit" data-f-inherited="DistributiveProdSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final implicit </span></span><span class="kind"><span t="k">def </span></span><a href="experimental#DistributiveProdOps-fffffa3a" t="n" class="documentableName ">DistributiveProdOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">l</span>: <span t="t">A</span>): <a href="experimental/DistributiveProdSyntax$DistributiveProdOps" t="t">DistributiveProdOps</a>[<span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Provides infix syntax for adding or multiplying two values.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Provides infix syntax for adding or multiplying two values.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/DistributiveProdSyntax#DistributiveProdOps-fffffa3a">DistributiveProdSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/DistributiveProd.scala#L140" target="_blank">DistributiveProd.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="DivideOps-efa" data-f-keywords="final,implicit" data-f-inherited="DivideSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final implicit </span></span><span class="kind"><span t="k">def </span></span><a href="experimental#DivideOps-efa" t="n" class="documentableName ">DivideOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">l</span>: <span t="t">A</span>): <a href="experimental/DivideSyntax$DivideOps" t="t">DivideOps</a>[<span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Provides infix syntax for dividing two values.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Provides infix syntax for dividing two values.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/DivideSyntax#DivideOps-efa">DivideSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Divide.scala#L16" target="_blank">Divide.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="EitherComposeOps-fffff0b4" data-f-keywords="final,implicit" data-f-inherited="EitherComposeSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final implicit </span></span><span class="kind"><span t="k">def </span></span><a href="experimental#EitherComposeOps-fffff0b4" t="n" class="documentableName ">EitherComposeOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>, <span t="k"></span><span data-unresolved-link="" t="t">C</span>, <span t="k"></span><span data-unresolved-link="" t="t">=&gt;:</span>[<span t="t">_</span>, <span t="t">_</span>]](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">a2b</span>: <span t="t">=&gt;:</span>[<span t="t">A</span>, <span t="t">C</span>]): <a href="experimental/EitherComposeSyntax$EitherComposeOps" t="t">EitherComposeOps</a>[<span data-unresolved-link="" t="t">A</span>, <span data-unresolved-link="" t="t">C</span>, <span data-unresolved-link="" t="t">=&gt;:</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/EitherComposeSyntax#EitherComposeOps-fffff0b4">EitherComposeSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/EitherCompose.scala#L67" target="_blank">EitherCompose.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="PartialDivideOps-ffffff1c" data-f-keywords="final,implicit" data-f-inherited="PartialDivideSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final implicit </span></span><span class="kind"><span t="k">def </span></span><a href="experimental#PartialDivideOps-ffffff1c" t="n" class="documentableName ">PartialDivideOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">l</span>: <span t="t">A</span>): <a href="experimental/PartialDivideSyntax$PartialDivideOps" t="t">PartialDivideOps</a>[<span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Provides infix syntax for dividing two values, with possible failure.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Provides infix syntax for dividing two values, with possible failure.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/PartialDivideSyntax#PartialDivideOps-ffffff1c">PartialDivideSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/PartialDivide.scala#L16" target="_blank">PartialDivide.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="SubtractOps-f5a" data-f-keywords="final,implicit" data-f-inherited="SubtractSyntax">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final implicit </span></span><span class="kind"><span t="k">def </span></span><a href="experimental#SubtractOps-f5a" t="n" class="documentableName ">SubtractOps</a>[<span t="k"></span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">l</span>: <span t="t">A</span>): <a href="experimental/SubtractSyntax$SubtractOps" t="t">SubtractOps</a>[<span data-unresolved-link="" t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Provides infix syntax for subtracting two values.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Provides infix syntax for subtracting two values.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="experimental/SubtractSyntax#SubtractOps-f5a">SubtractSyntax</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/experimental/shared/src/main/scala/zio/prelude/experimental/Subtract.scala#L15" target="_blank">Subtract.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+     </div>
+    </section>
+   </div>
+  </div>
+ </div>
+</section></div><div id="toc" class="body-small"><div id="toc-container"><span class="toc-title h200">In this article</span><nav class="toc-nav"><ul class="toc-list"><li><a href="#members-list">Members list</a><ul><li><a href="#Packages">Packages</a></li><li><a href="#Type-members">Type members</a><ul><li><a href="#Classlikes">Classlikes</a></li><li><a href="#Inherited-classlikes">Inherited classlikes</a></li></ul></li><li><a href="#Implicits">Implicits</a><ul><li><a href="#Inherited-implicits">Inherited implicits</a></li></ul></li></ul></li></ul></nav></div></div></div></div></div></body></html>

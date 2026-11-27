@@ -1,0 +1,3235 @@
+<!DOCTYPE html><html data-za-announcement-id="announcementBar-zioblocks" data-pathToRoot="../../../" data-rawLocation="zio/prelude/NonEmptyList/Cons" data-dynamicSideMenu="true"><head><meta charset="utf-8"></meta><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></meta><title>Cons</title><link rel="icon" href="/img/favicon.png"><script type="text/javascript" src="../../../scripts/theme.js"></script><script type="text/javascript" src="../../../scripts/searchData.js" defer="true"></script><script type="text/javascript" src="../../../scripts/scastieConfiguration.js" defer="true"></script><link rel="stylesheet" href="../../../styles/theme/bundle.css"></link><link rel="stylesheet" href="../../../styles/theme/components/bundle.css"></link><link rel="stylesheet" href="../../../styles/theme/components/button/bundle.css"></link><link rel="stylesheet" href="../../../styles/theme/layout/bundle.css"></link><link rel="stylesheet" href="../../../styles/nord-light.css"></link><link rel="stylesheet" href="../../../styles/dotty-icons.css"></link><link rel="stylesheet" href="../../../styles/filter-bar.css"></link><link rel="stylesheet" href="../../../styles/code-snippets.css"></link><link rel="stylesheet" href="../../../styles/searchbar.css"></link><link rel="stylesheet" href="../../../styles/social-links.css"></link><link rel="stylesheet" href="../../../styles/versions-dropdown.css"></link><link rel="stylesheet" href="../../../styles/content-contributors.css"></link><link rel="stylesheet" href="../../../styles/fontawesome.css"></link><script type="text/javascript" src="../../../hljs/highlight.pack.js" defer="true"></script><script type="text/javascript" src="../../../scripts/hljs-scala3.js" defer="true"></script><script type="text/javascript" src="../../../scripts/ux.js" defer="true"></script><script type="text/javascript" src="../../../scripts/common/component.js" defer="true"></script><script type="text/javascript" src="../../../scripts/common/utils.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/FilterBar.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/DocumentableList.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/Input.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/FilterGroup.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/Filter.js" defer="true"></script><script type="text/javascript" src="../../../scripts/scaladoc-scalajs.js" defer="true"></script><script type="text/javascript" src="../../../scripts/contributors.js" defer="true"></script><script type="text/javascript" src="https://code.jquery.com/jquery-3.5.1.min.js" defer="true"></script><script type="text/javascript" src="/zio-prelude/api/scripts/vendor/d3/d3.v6.7.0.min.js" defer="true"></script><script type="text/javascript" src="/zio-prelude/api/scripts/vendor/graphlib-dot/graphlib-dot.0.6.2.min.js" defer="true"></script><script type="text/javascript" src="/zio-prelude/api/scripts/vendor/dagre-d3/dagre-d3.0.6.1.min.js" defer="true"></script><script type="text/javascript" src="../../../scripts/data.js" defer="true"></script><link rel="stylesheet" href="../../../styles/apistyles.css"></link><script>var pathToRoot = "../../../";</script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=fallback"><link rel="stylesheet" href="/zio-prelude/api/styles/zio-api.css"></head><body><div class="za-announcement theme-announcement-bar" role="banner" style="background-color:#ececec;color:#1a1a1a"><div class="za-announcement__placeholder"></div><div class="za-announcement__content"><img src="/img/ecosystem/zio-blocks-icon.svg" alt="" style="height: 1.1em; vertical-align: middle;"> <b>ZIO Blocks</b> has a new website! Visit <a href="https://zioblocks.com" target="_blank">zioblocks.com</a> to explore the docs 🚀</div><button type="button" aria-label="Close" class="za-announcement__close"><svg viewBox="0 0 15 15" width="14" height="14" aria-hidden="true"><g stroke="currentColor" stroke-width="3.1"><path d="M.75.75l13.5 13.5M14.25.75L.75 14.25"></path></g></svg></button></div><script>window.zaPlaceAnnouncement&&zaPlaceAnnouncement()</script><div id=""><div id="header" class="za-navbar"><div class="za-navbar__left"><span id="mobile-menu-toggle" class="za-navbar__toggle" role="button" tabindex="0" aria-label="Toggle navigation bar"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"/></svg></span><a class="za-navbar__brand" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><span id="dropdown-trigger" hidden></span><div id="version-dropdown" hidden></div><a class="za-navbar__link" href="/overview/getting-started">Overview</a><a class="za-navbar__link" href="/reference/">Reference</a><a class="za-navbar__link" href="/api/">API</a><a class="za-navbar__link" href="/guides/">Guides</a><a class="za-navbar__link za-navbar__link--active" href="/ecosystem/" aria-current="page">Ecosystem</a><a class="za-navbar__link" href="/resources/">Resources</a><a class="za-navbar__link" href="/events/">Events</a></div><div class="za-navbar__right"><a class="za-navbar__link" href="/blog">Blog</a><a class="za-navbar__link za-navbar__link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a><button type="button" class="za-navbar__icon za-onboard" data-onboard-prompt="Fetch https://zio.dev/start.md and follow the instructions to set up my environment for ZIO development." title="Copy the prompt to onboard your coding agent to ZIO" aria-label="Copy the ZIO agent onboarding prompt to the clipboard"><svg class="za-onboard__idle" viewBox="0 0 576 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M9.4 86.6C-3.1 74.1-3.1 53.9 9.4 41.4s32.8-12.5 45.3 0l192 192c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L178.7 256 9.4 86.6zM256 416l288 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-288 0c-17.7 0-32-14.3-32-32s14.3-32 32-32z"/></svg><svg class="za-onboard__done" viewBox="0 0 448 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></svg></button><button type="button" class="za-navbar__icon za-mode" data-color-mode-toggle title="light mode" aria-label="Switch between dark and light mode (currently light mode)"><svg class="za-mode__light" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg class="za-mode__dark" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg></button><button type="button" id="search-toggle" class="za-search" title="Search the API" aria-label="Search the API"><svg width="20" height="20" class="za-search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"/><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="za-search__label">Search</span></button></div></div><div id="mobile-menu"><div class="mobile-menu-header body-small"><a class="mobile-menu-logo" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><button id="mobile-menu-close" class="icon-button close"></button></div><div class="mobile-menu-container body-medium"><input id="mobile-scaladoc-searchbar-input" class="scaladoc-searchbar-input" type="search" placeholder="Find anything"></input><nav class="za-mobile-links"><a class="za-mobile-link" href="/overview/getting-started">Overview</a><a class="za-mobile-link" href="/reference/">Reference</a><a class="za-mobile-link" href="/api/">API</a><a class="za-mobile-link" href="/guides/">Guides</a><a class="za-mobile-link za-mobile-link--active" href="/ecosystem/" aria-current="page">Ecosystem</a><a class="za-mobile-link" href="/resources/">Resources</a><a class="za-mobile-link" href="/events/">Events</a><a class="za-mobile-link" href="/blog">Blog</a><a class="za-mobile-link za-mobile-link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a></nav><span id="mobile-theme-toggle" class="mobile-menu-item mode"></span></div></div><span id="mobile-sidebar-toggle" class="floating-button"></span><div id="leftColumn" class="body-small"><a class="za-back-link" href="/zio-prelude/">← ZIO Prelude docs</a></div><div id="scaladoc-searchBar"></div><div id="main"><div id="content" class="body-medium"><div><nav class="za-breadcrumbs" aria-label="Breadcrumbs"><ul class="za-breadcrumbs__list"><li class="za-breadcrumbs__item"><a aria-label="Home page" class="za-breadcrumbs__link" href="/"><svg viewBox="0 0 24 24" class="za-breadcrumbs__home"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/zio-prelude/"><span>ZIO Prelude</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/zio-prelude/api/"><span>API</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../../prelude"><span>zio.prelude</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../NonEmptyList$"><span>NonEmptyList</span></a></li><li class="za-breadcrumbs__item za-breadcrumbs__item--active"><span class="za-breadcrumbs__link">Cons</span></li></ul></nav><div class="cover-header">
+ <span class="icon"><span class="micon cl"></span></span>
+ <h1 class="h600 single">Cons</h1>
+</div>
+<div class="fqname body-large">
+ <span>zio.prelude.NonEmptyList.Cons</span>
+</div>
+<div class="main-signature mono-small-block">
+ <div class="signature">
+  <span class="signature-short"><span class="modifiers"><span t="k">final case </span></span><span class="kind"><span t="k">class </span></span><a href="Cons" t="n" class="documentableName ">Cons</a>[<span t="k">+</span><span data-unresolved-link="" t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">head</span>: <span data-unresolved-link="" t="t">A</span>, <span t="k"></span><span data-unresolved-link="" t="n">tail0</span>: <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">A</span>])<span t="k"> extends </span><a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">A</span>]</span><span class="signature-long"></span>
+ </div>
+</div>
+<div class="cover">
+ <div class="doc"></div>
+ <section id="attributes">
+  <h2 class="h500">Attributes</h2>
+  <dl class="attributes">
+   <dt class="body-small">
+    Source
+   </dt>
+   <dd class="body-medium">
+    <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L606" target="_blank">NonEmptyList.scala</a>
+   </dd>
+   <dt class="body-small">
+    Graph
+   </dt>
+   <dd class="body-medium">
+    <div id="inheritance-diagram" class="diagram-class showGraph">
+     <button type="button" class="label-only-button" onclick="zoomOut()">Reset zoom</button><button type="button" class="label-only-button" onclick="hideGraph()">Hide graph</button><button type="button" class="label-only-button" onclick="showGraph()">Show graph</button>
+     <svg id="graph"></svg>
+     <script type="text/dot" id="dot"> digraph g {
+ node0 [id=node0, label="<span style=\"color: #FFFFFF;\">class <a href=\"NonEmptyList$$Cons.html\" t=\"n\">Cons</a>[<span t=\"t\">A</span>]</span>", class="class vertex"];
+node1 [id=node1, label="<span style=\"color: #FFFFFF;\">class <span data-unresolved-link=\"\" t=\"n\">Object</span></span>", class="class vertex"];
+node2 [id=node2, label="<span style=\"color: #FFFFFF;\">class <span data-unresolved-link=\"\" t=\"n\">Any</span></span>", class="class vertex"];
+node3 [id=node3, label="<span style=\"color: #FFFFFF;\">trait <span data-unresolved-link=\"\" t=\"n\">Matchable</span></span>", class="trait vertex"];
+node4 [id=node4, label="<span style=\"color: #FFFFFF;\">sealed trait <a href=\"NonEmptyList.html\" t=\"n\">NonEmptyList</a>[<span t=\"t\">A</span>]</span>", class="trait vertex"];
+node5 [id=node5, label="<span style=\"color: #FFFFFF;\">trait <a href=\"https://zio.dev/api/zio/NonEmptySeq.html\" t=\"n\">NonEmptySeq</a>[<span t=\"t\">A</span>, <a href=\"NonEmptyList.html\" t=\"t\">NonEmptyList</a>, <a href=\"https://www.scala-lang.org/api/3.3.8/scala.html#List-0\" t=\"t\">List</a>]</span>", class="trait vertex"];
+node6 [id=node6, label="<span style=\"color: #FFFFFF;\">trait <a href=\"https://zio.dev/api/zio/NonEmptyOps.html\" t=\"n\">NonEmptyOps</a>[<span t=\"t\">A</span>, <a href=\"NonEmptyList.html\" t=\"t\">NonEmptyList</a>, <a href=\"https://www.scala-lang.org/api/3.3.8/scala.html#List-0\" t=\"t\">List</a>]</span>", class="trait vertex"];
+node7 [id=node7, label="<span style=\"color: #FFFFFF;\">trait <a href=\"https://www.scala-lang.org/api/3.3.8/scala/Product.html\" t=\"n\">Product</a></span>", class="trait vertex"];
+node8 [id=node8, label="<span style=\"color: #FFFFFF;\">trait <a href=\"https://www.scala-lang.org/api/3.3.8/scala/Equals.html\" t=\"n\">Equals</a></span>", class="trait vertex"];
+node9 [id=node9, label="<span style=\"color: #FFFFFF;\">class <a href=\"https://www.scala-lang.org/api/3.3.8/scala.html#Serializable-0\" t=\"n\">Serializable</a></span>", class="class vertex"];
+
+
+ node0 -> node1;
+node1 -> node2;
+node1 -> node3;
+node3 -> node2;
+node0 -> node4;
+node4 -> node1;
+node4 -> node5;
+node5 -> node1;
+node5 -> node6;
+node6 -> node1;
+node0 -> node7;
+node7 -> node2;
+node7 -> node8;
+node8 -> node2;
+node0 -> node9;
+node9 -> node2;
+
+}
+</script>
+    </div>
+   </dd>
+   <dt class="body-small">
+    Supertypes
+   </dt>
+   <dd class="body-medium">
+    <div class="mono-small-block supertypes">
+     <div>
+      trait <span data-unresolved-link="" t="n">Serializable</span>
+     </div>
+     <div>
+      trait <a href="https://www.scala-lang.org/api/3.3.8/scala/Product.html" t="n">Product</a>
+     </div>
+     <div>
+      trait <a href="https://www.scala-lang.org/api/3.3.8/scala/Equals.html" t="n">Equals</a>
+     </div>
+     <div>
+      trait <a href="../NonEmptyList" t="n">NonEmptyList</a>[<span t="t">A</span>]
+     </div>
+     <div>
+      trait <a href="/api/zio/NonEmptySeq" t="n">NonEmptySeq</a>[<span t="t">A</span>, <a href="../NonEmptyList" t="t">NonEmptyList</a>, <a href="https://www.scala-lang.org/api/3.3.8/scala.html#List-0" t="t">List</a>]
+     </div>
+     <div>
+      trait <a href="/api/zio/NonEmptyOps" t="n">NonEmptyOps</a>[<span t="t">A</span>, <a href="../NonEmptyList" t="t">NonEmptyList</a>, <a href="https://www.scala-lang.org/api/3.3.8/scala.html#List-0" t="t">List</a>]
+     </div>
+     <div>
+      class <span data-unresolved-link="" t="n">Object</span>
+     </div>
+     <div>
+      trait <span data-unresolved-link="" t="n">Matchable</span>
+     </div>
+     <div>
+      class <span data-unresolved-link="" t="n">Any</span>
+     </div><span class="show-all-code show-content text-button h100">Show all</span>
+    </div>
+   </dd>
+  </dl>
+ </section>
+</div>
+<section id="members-list">
+ <h2 class="h500">Members list</h2>
+ <div class="documentableFilter">
+  <div class="filtersContainer"></div><input class="filterableInput" placeholder="Filter by any phrase" data-test-id="filterBarInput" type="search"><button class="clearButton label-only-button" data-test-id="filterBarClearButton">Clear all</button>
+ </div>
+ <div class="membersList expand">
+  <div class="tabs">
+   <div class="contents">
+    <section id="Value-members">
+     <div data-togglable="Value members" class="tab expand">
+      <div class="member-group-header">
+       <h3 data-togglable="Value members" class="h400">Value members</h3>
+      </div>
+      <section id="Inherited-methods">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Inherited methods</h4>
+        </div>
+        <div class="documentableElement" id="++-fffffff6" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#++-fffffff6" t="n" class="documentableName ">++</a>[<span t="k"></span><span data-unresolved-link="" t="t">A1</span><span t="k"> &gt;: </span><span t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/Iterable.html" t="t">Iterable</a>[<span t="t">A1</span>]): <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">A1</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Concatenates this <code>NonEmptyList</code> with the specified <code>Iterable</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Concatenates this <code>NonEmptyList</code> with the specified <code>Iterable</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#++-fffffff6">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L50" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="++-ccb" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#++-ccb" t="n" class="documentableName ">++</a>[<span t="k"></span><span data-unresolved-link="" t="t">A1</span><span t="k"> &gt;: </span><span t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">A1</span>]): <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">A1</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Concatenates this <code>NonEmptyList</code> with the specified <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Concatenates this <code>NonEmptyList</code> with the specified <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#++-ccb">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L44" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="::-91" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#::-91" t="n" class="documentableName ">::</a>[<span t="k"></span><span data-unresolved-link="" t="t">A1</span><span t="k"> &gt;: </span><span t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">a</span>: <span t="t">A1</span>): <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">A1</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Prepends the specified value to this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Prepends the specified value to this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#::-91">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L56" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="appended-91" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#appended-91" t="n" class="documentableName ">appended</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span><span t="k"> &gt;: </span><span t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">elem</span>: <span t="t">B</span>): <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">B</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Prepends the specified value to this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Prepends the specified value to this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#appended-91">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptySeq">NonEmptySeq</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#appended-91">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L62" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="collect-fffffc32" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#collect-fffffc32" t="n" class="documentableName ">collect</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">pf</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/PartialFunction.html" t="t">PartialFunction</a>[<span t="t">A</span>, <span t="t">B</span>]): <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/List.html" t="t">List</a>[<span data-unresolved-link="" t="t">B</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Collects all elements of this <code>NonEmptyList</code> that match the specified partial function.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Collects all elements of this <code>NonEmptyList</code> that match the specified partial function.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#collect-fffffc32">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#collect-fffffc32">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L74" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="collectFirst-25d" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#collectFirst-25d" t="n" class="documentableName ">collectFirst</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">pf</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/PartialFunction.html" t="t">PartialFunction</a>[<span t="t">A</span>, <span t="t">B</span>]): <a href="https://www.scala-lang.org/api/3.3.8/scala/Option.html" t="t">Option</a>[<span data-unresolved-link="" t="t">B</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Selects the first element of this <code>NonEmptyList</code> that matches the specified partial function.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Selects the first element of this <code>NonEmptyList</code> that matches the specified partial function.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#collectFirst-25d">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptySeq">NonEmptySeq</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#collectFirst-25d">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L68" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="contains-fffff3bf" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#contains-fffff3bf" t="n" class="documentableName ">contains</a>[<span t="k"></span><span data-unresolved-link="" t="t">A1</span><span t="k"> &gt;: </span><span t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">a</span>: <span t="t">A1</span>)(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">A</span>: <a href="../Equal" t="t">Equal</a>[<span t="t">A1</span>]): <a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns whether this <code>NonEmptyList</code> contains the specified element.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns whether this <code>NonEmptyList</code> contains the specified element.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#contains-fffff3bf">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L80" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="corresponds-90c" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#corresponds-90c" t="n" class="documentableName ">corresponds</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">B</span>])(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: (<span t="t">A</span>, <span t="t">B</span>)<span t="k"> =&gt; </span><a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Determines whether this <code>NonEmptyList</code> and the specified <code>NonEmptyList</code> have the same length and every pair of corresponding elements of this <code>NonEmptyList</code> and the specified <code>NonEmptyList</code> satisfy the specified predicate.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Determines whether this <code>NonEmptyList</code> and the specified <code>NonEmptyList</code> have the same length and every pair of corresponding elements of this <code>NonEmptyList</code> and the specified <code>NonEmptyList</code> satisfy the specified predicate.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#corresponds-90c">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L90" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="count-db6" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#count-db6" t="n" class="documentableName ">count</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/Int.html" t="t">Int</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the number of elements in this <code>NonEmptyList</code> that satisfy the specified predicate.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the number of elements in this <code>NonEmptyList</code> that satisfy the specified predicate.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#count-db6">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L101" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="distinct-0" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#distinct-0" t="n" class="documentableName ">distinct</a>: <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Removes duplicate elements from this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Removes duplicate elements from this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#distinct-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L107" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="drop-fffff84b" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#drop-fffff84b" t="n" class="documentableName ">drop</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">n</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Int.html" t="t">Int</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/List.html" t="t">List</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Drops the first <code>n</code> elements from this <code>NonEmptyList</code> returning a <code>List</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Drops the first <code>n</code> elements from this <code>NonEmptyList</code> returning a <code>List</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#drop-fffff84b">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L131" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="dropRight-fffff84b" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#dropRight-fffff84b" t="n" class="documentableName ">dropRight</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">n</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Int.html" t="t">Int</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/List.html" t="t">List</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Drops the last <code>n</code> elements from this <code>NonEmptyList</code> returning a <code>List</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Drops the last <code>n</code> elements from this <code>NonEmptyList</code> returning a <code>List</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#dropRight-fffff84b">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L142" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="dropWhile-5a1" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#dropWhile-5a1" t="n" class="documentableName ">dropWhile</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/List.html" t="t">List</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Drops elements from the start of this <code>NonEmptyList</code> that satisfy the specified predicate returning a <code>List</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Drops elements from the start of this <code>NonEmptyList</code> that satisfy the specified predicate returning a <code>List</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#dropWhile-5a1">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L150" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="equals-4ad" data-f-keywords="final,override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#equals-4ad" t="n" class="documentableName ">equals</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <span data-unresolved-link="" t="t">Any</span>): <a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns whether this <code>NonEmptyList</code> and the specified <code>NonEmptyList</code> are equal to each other.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns whether this <code>NonEmptyList</code> and the specified <code>NonEmptyList</code> are equal to each other.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#equals-4ad">NonEmptyList</a> -&gt; <span data-unresolved-link="">Any</span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#equals-4ad">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L160" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="exists-fffff66f" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#exists-fffff66f" t="n" class="documentableName ">exists</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns whether an element exists in this <code>NonEmptyList</code> satisfying the specified predicate.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns whether an element exists in this <code>NonEmptyList</code> satisfying the specified predicate.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#exists-fffff66f">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L172" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="filter-5a1" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#filter-5a1" t="n" class="documentableName ">filter</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">p</span>: <span t="t">A</span><span t="k"> =&gt; </span><a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/List.html" t="t">List</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Filters elements of this <code>NonEmptyList</code> that satisfy the specified predicate.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Filters elements of this <code>NonEmptyList</code> that satisfy the specified predicate.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#filter-5a1">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#filter-5a1">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L181" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="filterNot-5a1" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#filterNot-5a1" t="n" class="documentableName ">filterNot</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">p</span>: <span t="t">A</span><span t="k"> =&gt; </span><a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/List.html" t="t">List</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Filters elements of this <code>NonEmptyList</code> that satisfy the specified predicate.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Filters elements of this <code>NonEmptyList</code> that satisfy the specified predicate.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#filterNot-5a1">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#filterNot-5a1">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L187" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="find-94e" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#find-94e" t="n" class="documentableName ">find</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/Option.html" t="t">Option</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the first element in this <code>NonEmptyList</code> satisfying the specified predicate or <code>None</code> otherwise.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the first element in this <code>NonEmptyList</code> satisfying the specified predicate or <code>None</code> otherwise.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#find-94e">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L195" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="flatMap-10d" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#flatMap-10d" t="n" class="documentableName ">flatMap</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">B</span>]): <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">B</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Transforms each element of this <code>NonEmptyList</code> to a <code>NonEmptyList</code> and combines them into a single <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Transforms each element of this <code>NonEmptyList</code> to a <code>NonEmptyList</code> and combines them into a single <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#flatMap-10d">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L205" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="flatten-fffff492" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#flatten-fffff492" t="n" class="documentableName ">flatten</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">ev</span>: <span t="t">A</span> <a href="https://www.scala-lang.org/api/3.3.8/scala/$less$colon$less$.html" t="t">&lt;:&lt;</a> <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">B</span>]): <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">B</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Flattens a <code>NonEmptyList</code> of <code>NonEmptyList</code> values into a single <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Flattens a <code>NonEmptyList</code> of <code>NonEmptyList</code> values into a single <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#flatten-fffff492">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L212" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="foldLeft-fffff9e1" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#foldLeft-fffff9e1" t="n" class="documentableName ">foldLeft</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">z</span>: <span t="t">B</span>)(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: (<span t="t">B</span>, <span t="t">A</span>)<span t="k"> =&gt; </span><span t="t">B</span>): <span data-unresolved-link="" t="t">B</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Folds over the elements of this <code>NonEmptyList</code> from left to right using the specified initial value and combining function</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Folds over the elements of this <code>NonEmptyList</code> from left to right using the specified initial value and combining function</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#foldLeft-fffff9e1">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L220" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="foldRight-fffff9e1" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#foldRight-fffff9e1" t="n" class="documentableName ">foldRight</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">z</span>: <span t="t">B</span>)(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">op</span>: (<span t="t">A</span>, <span t="t">B</span>)<span t="k"> =&gt; </span><span t="t">B</span>): <span data-unresolved-link="" t="t">B</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Folds over the elements of this <code>NonEmptyList</code> from right to left using the specified initial value and combining function.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Folds over the elements of this <code>NonEmptyList</code> from right to left using the specified initial value and combining function.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#foldRight-fffff9e1">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L230" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="forEach-479" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#forEach-479" t="n" class="documentableName ">forEach</a>[<span t="k"></span><span data-unresolved-link="" t="t">F</span>[<span t="t">_</span>] : <a href="../Covariant" t="t">Covariant</a>, <span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><span t="t">F</span>[<span t="t">B</span>]): <span data-unresolved-link="" t="t">F</span>[<a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">B</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Transforms each element of this <code>NonEmptyList</code> with the specified effectual function.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Transforms each element of this <code>NonEmptyList</code> with the specified effectual function.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#forEach-479">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L248" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="forall-fffff66f" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#forall-fffff66f" t="n" class="documentableName ">forall</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns whether all elements of this <code>NonEmptyList</code> satisfy the specified predicate.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns whether all elements of this <code>NonEmptyList</code> satisfy the specified predicate.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#forall-fffff66f">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L238" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="grouped-fffffbef" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#grouped-fffffbef" t="n" class="documentableName ">grouped</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">size</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Int.html" t="t">Int</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/Iterator.html" t="t">Iterator</a>[<a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">A</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Groups elements of this <code>NonEmptyList</code> into an <code>Iterator</code> of <code>NonEmptyList</code>s of the specified size. The last group may be smaller than the specified size.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Groups elements of this <code>NonEmptyList</code> into an <code>Iterator</code> of <code>NonEmptyList</code>s of the specified size. The last group may be smaller than the specified size.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#grouped-fffffbef">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#grouped-fffffbef">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L255" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="hashCode-0" data-f-keywords="final,override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#hashCode-0" t="n" class="documentableName ">hashCode</a>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Int.html" t="t">Int</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the hashCode of this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the hashCode of this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#hashCode-0">NonEmptyList</a> -&gt; <span data-unresolved-link="">Any</span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#hashCode-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L263" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="init-0" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#init-0" t="n" class="documentableName ">init</a>: <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/List.html" t="t">List</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#init-0">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#init-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L275" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="iterator-0" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#iterator-0" t="n" class="documentableName ">iterator</a>: <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/Iterator.html" t="t">Iterator</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Iterates over the elements of this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Iterates over the elements of this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#iterator-0">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#iterator-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L281" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="last-0" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#last-0" t="n" class="documentableName ">last</a>: <span t="t">A</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the last element in this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the last element in this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#last-0">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#last-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L305" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="length-0" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#length-0" t="n" class="documentableName ">length</a>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Int.html" t="t">Int</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the length of this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the length of this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#length-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L311" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="map-10d" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#map-10d" t="n" class="documentableName ">map</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><span t="t">B</span>): <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">B</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Transforms the elements of this <code>NonEmptyList</code> with the specified function.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Transforms the elements of this <code>NonEmptyList</code> with the specified function.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#map-10d">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L318" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="mapZIO-fffff974" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#mapZIO-fffff974" t="n" class="documentableName ">mapZIO</a>[<span t="k"></span><span data-unresolved-link="" t="t">R</span>, <span t="k"></span><span data-unresolved-link="" t="t">E</span>, <span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><a href="/api/zio/ZIO" t="t">ZIO</a>[<span t="t">R</span>, <span t="t">E</span>, <span t="t">B</span>]): <a href="/api/zio/ZIO" t="t">ZIO</a>[<span data-unresolved-link="" t="t">R</span>, <span data-unresolved-link="" t="t">E</span>, <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">B</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Effectfully maps the elements of this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Effectfully maps the elements of this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#mapZIO-fffff974">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L324" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="mapZIOPar-fffff974" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#mapZIOPar-fffff974" t="n" class="documentableName ">mapZIOPar</a>[<span t="k"></span><span data-unresolved-link="" t="t">R</span>, <span t="k"></span><span data-unresolved-link="" t="t">E</span>, <span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><a href="/api/zio/ZIO" t="t">ZIO</a>[<span t="t">R</span>, <span t="t">E</span>, <span t="t">B</span>]): <a href="/api/zio/ZIO" t="t">ZIO</a>[<span data-unresolved-link="" t="t">R</span>, <span data-unresolved-link="" t="t">E</span>, <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">B</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Effectfully maps the elements of this <code>NonEmptyList</code> in parallel.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Effectfully maps the elements of this <code>NonEmptyList</code> in parallel.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#mapZIOPar-fffff974">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L332" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="max-fffffa05" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#max-fffffa05" t="n" class="documentableName ">max</a>(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">A</span>: <a href="../Ord" t="t">Ord</a>[<span t="t">A</span>]): <span t="t">A</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the maximum element in this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the maximum element in this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#max-fffffa05">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L340" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="maxBy-5c5" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#maxBy-5c5" t="n" class="documentableName ">maxBy</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><span t="t">B</span>)(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">B</span>: <a href="../Ord" t="t">Ord</a>[<span t="t">B</span>]): <span t="t">A</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the maximum element in this <code>NonEmptyList</code> using the specified function to map values of type <code>A</code> to values of type <code>B</code> that an ordering is defined on.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the maximum element in this <code>NonEmptyList</code> using the specified function to map values of type <code>A</code> to values of type <code>B</code> that an ordering is defined on.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#maxBy-5c5">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L348" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="min-fffffa05" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#min-fffffa05" t="n" class="documentableName ">min</a>(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">A</span>: <a href="../Ord" t="t">Ord</a>[<span t="t">A</span>]): <span t="t">A</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the minimum element in this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the minimum element in this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#min-fffffa05">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L356" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="minBy-5c5" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#minBy-5c5" t="n" class="documentableName ">minBy</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><span t="t">B</span>)(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">B</span>: <a href="../Ord" t="t">Ord</a>[<span t="t">B</span>]): <span t="t">A</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the minimum element in this <code>NonEmptyList</code> using the specified function to map values of type <code>A</code> to values of type <code>B</code> that an ordering is defined on.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the minimum element in this <code>NonEmptyList</code> using the specified function to map values of type <code>A</code> to values of type <code>B</code> that an ordering is defined on.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#minBy-5c5">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L364" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="mkString-d94" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#mkString-d94" t="n" class="documentableName ">mkString</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">start</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Predef$.html#String-0" t="t">String</a>, <span t="k"></span><span data-unresolved-link="" t="n">sep</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Predef$.html#String-0" t="t">String</a>, <span t="k"></span><span data-unresolved-link="" t="n">end</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Predef$.html#String-0" t="t">String</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/Predef$.html#String-0" t="t">String</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Renders the elements of this <code>NonEmptyList</code> as a <code>String</code> using the specified separator and start and end values.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Renders the elements of this <code>NonEmptyList</code> as a <code>String</code> using the specified separator and start and end values.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#mkString-d94">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L386" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="mkString-fffff2ca" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#mkString-fffff2ca" t="n" class="documentableName ">mkString</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">sep</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Predef$.html#String-0" t="t">String</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/Predef$.html#String-0" t="t">String</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Renders the elements of this <code>NonEmptyList</code> as a <code>String</code> using the specified separator.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Renders the elements of this <code>NonEmptyList</code> as a <code>String</code> using the specified separator.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#mkString-fffff2ca">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L379" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="mkString-0" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#mkString-0" t="n" class="documentableName ">mkString</a>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Predef$.html#String-0" t="t">String</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Renders the elements of this <code>NonEmptyList</code> as a <code>String</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Renders the elements of this <code>NonEmptyList</code> as a <code>String</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#mkString-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L372" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="peel-0" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#peel-0" t="n" class="documentableName ">peel</a>: (<span t="t">A</span>, <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/List.html" t="t">List</a>[<span t="t">A</span>])
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Decomposes the <code>NonEmptyList</code> into an element and a (possibly empty) <code>List</code></p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Decomposes the <code>NonEmptyList</code> into an element and a (possibly empty) <code>List</code></p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#peel-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L113" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="peelNonEmpty-0" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#peelNonEmpty-0" t="n" class="documentableName ">peelNonEmpty</a>: (<span t="t">A</span>, <a href="https://www.scala-lang.org/api/3.3.8/scala/Option.html" t="t">Option</a>[<a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">A</span>]])
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns an element of this <code>NonEmptyList</code> and the remainder or <code>None</code>, if the remainder is empty.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns an element of this <code>NonEmptyList</code> and the remainder or <code>None</code>, if the remainder is empty.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#peelNonEmpty-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L122" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="prepended-91" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#prepended-91" t="n" class="documentableName ">prepended</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span><span t="k"> &gt;: </span><span t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">elem</span>: <span t="t">B</span>): <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">B</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Prepends the specified value to this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Prepends the specified value to this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#prepended-91">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptySeq">NonEmptySeq</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#prepended-91">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L392" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="product-224" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#product-224" t="n" class="documentableName ">product</a>[<span t="k"></span><span data-unresolved-link="" t="t">A1</span><span t="k"> &gt;: </span><span t="t">A</span>](<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">A</span>: <a href="../Associative" t="t">Associative</a>[subtypeF.<span data-unresolved-link="" t="t">Type</span>[<span t="t">A1</span>]]): <span data-unresolved-link="" t="t">A1</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the product of the elements of this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the product of the elements of this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#product-224">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L398" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="productElementNames-0" data-f-inherited="Product">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="Cons#productElementNames-0" t="n" class="documentableName ">productElementNames</a>: <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/Iterator.html" t="t">Iterator</a>[<a href="https://www.scala-lang.org/api/3.3.8/scala/Predef$.html#String-0" t="t">String</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="https://www.scala-lang.org/api/3.3.8/scala/Product.html#productElementNames-0">Product</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="productIterator-0" data-f-inherited="Product">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="Cons#productIterator-0" t="n" class="documentableName ">productIterator</a>: <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/Iterator.html" t="t">Iterator</a>[<span data-unresolved-link="" t="t">Any</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="https://www.scala-lang.org/api/3.3.8/scala/Product.html#productIterator-0">Product</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="reduce-fffff3d4" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#reduce-fffff3d4" t="n" class="documentableName ">reduce</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span><span t="k"> &gt;: </span><span t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">op</span>: (<span t="t">B</span>, <span t="t">B</span>)<span t="k"> =&gt; </span><span t="t">B</span>): <span data-unresolved-link="" t="t">B</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Reduces the elements of this <code>NonEmptyList</code> from left to right using the specified function.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Reduces the elements of this <code>NonEmptyList</code> from left to right using the specified function.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#reduce-fffff3d4">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#reduce-fffff3d4">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L412" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="reduce-224" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#reduce-224" t="n" class="documentableName ">reduce</a>[<span t="k"></span><span data-unresolved-link="" t="t">A1</span><span t="k"> &gt;: </span><span t="t">A</span>](<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">A</span>: <a href="../Associative" t="t">Associative</a>[<span t="t">A1</span>]): <span data-unresolved-link="" t="t">A1</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Reduces the elements of this <code>NonEmptyList</code> using the specified associative operator.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Reduces the elements of this <code>NonEmptyList</code> using the specified associative operator.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#reduce-224">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L405" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="reduceLeft-fffff3d4" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#reduceLeft-fffff3d4" t="n" class="documentableName ">reduceLeft</a>[<span t="k"></span><span data-unresolved-link="" t="t">A1</span><span t="k"> &gt;: </span><span t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: (<span t="t">A1</span>, <span t="t">A1</span>)<span t="k"> =&gt; </span><span t="t">A1</span>): <span data-unresolved-link="" t="t">A1</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Reduces the elements of this <code>NonEmptyList</code> from left to right using the specified function.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Reduces the elements of this <code>NonEmptyList</code> from left to right using the specified function.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#reduceLeft-fffff3d4">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L419" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="reduceMap-fffff335" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#reduceMap-fffff335" t="n" class="documentableName ">reduceMap</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><span t="t">B</span>)(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">B</span>: <a href="../Associative" t="t">Associative</a>[<span t="t">B</span>]): <span data-unresolved-link="" t="t">B</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Maps each element of this <code>NonEmptyList</code> to a type <code>B</code> that has an associative operation then combines them all with the associative operation.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Maps each element of this <code>NonEmptyList</code> to a type <code>B</code> that has an associative operation then combines them all with the associative operation.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#reduceMap-fffff335">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L427" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="reduceMapLeft-5e5" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#reduceMapLeft-5e5" t="n" class="documentableName ">reduceMapLeft</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">map</span>: <span t="t">A</span><span t="k"> =&gt; </span><span t="t">B</span>)(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">reduce</span>: (<span t="t">B</span>, <span t="t">A</span>)<span t="k"> =&gt; </span><span t="t">B</span>): <span data-unresolved-link="" t="t">B</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Reduces the elements of this <code>NonEmptyList</code> from left to right using the function <code>map</code> to transform the first value to the type <code>B</code> and then the function <code>reduceAll</code> to combine the <code>B</code> value with each other <code>A</code> value.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Reduces the elements of this <code>NonEmptyList</code> from left to right using the function <code>map</code> to transform the first value to the type <code>B</code> and then the function <code>reduceAll</code> to combine the <code>B</code> value with each other <code>A</code> value.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#reduceMapLeft-5e5">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L435" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="reduceMapRight-5e5" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#reduceMapRight-5e5" t="n" class="documentableName ">reduceMapRight</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">map</span>: <span t="t">A</span><span t="k"> =&gt; </span><span t="t">B</span>)(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">reduce</span>: (<span t="t">A</span>, <span t="t">B</span>)<span t="k"> =&gt; </span><span t="t">B</span>): <span data-unresolved-link="" t="t">B</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Reduces the elements of this <code>NonEmptyList</code> from right to left using the function <code>map</code> to transform the first value to the type <code>B</code> and then the function <code>reduceAll</code> to combine the <code>B</code> value with each other <code>A</code> value.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Reduces the elements of this <code>NonEmptyList</code> from right to left using the function <code>map</code> to transform the first value to the type <code>B</code> and then the function <code>reduceAll</code> to combine the <code>B</code> value with each other <code>A</code> value.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#reduceMapRight-5e5">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L446" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="reduceRight-fffff3d4" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#reduceRight-fffff3d4" t="n" class="documentableName ">reduceRight</a>[<span t="k"></span><span data-unresolved-link="" t="t">A1</span><span t="k"> &gt;: </span><span t="t">A</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: (<span t="t">A1</span>, <span t="t">A1</span>)<span t="k"> =&gt; </span><span t="t">A1</span>): <span data-unresolved-link="" t="t">A1</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Reduces the elements of this <code>NonEmptyList</code> from right to left using the specified function.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Reduces the elements of this <code>NonEmptyList</code> from right to left using the specified function.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#reduceRight-fffff3d4">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L453" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="reverse-0" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#reverse-0" t="n" class="documentableName ">reverse</a>: <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Reverses the order of elements in this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Reverses the order of elements in this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#reverse-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L459" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="size-0" data-f-inherited="NonEmptyOps">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="Cons#size-0" t="n" class="documentableName ">size</a>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Int.html" t="t">Int</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="/api/zio/NonEmptyOps#size-0">NonEmptyOps</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/NonEmptyOps.scala#L20" target="_blank">NonEmptyOps.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="sortBy-9ff" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#sortBy-9ff" t="n" class="documentableName ">sortBy</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><span t="t">B</span>)(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">ord</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/math/Ordering.html" t="t">Ordering</a>[<span t="t">B</span>]): <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#sortBy-9ff">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptySeq">NonEmptySeq</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#sortBy-9ff">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L462" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="sorted-fffff96e" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#sorted-fffff96e" t="n" class="documentableName ">sorted</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span><span t="k"> &gt;: </span><span t="t">A</span>](<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">ord</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/math/Ordering.html" t="t">Ordering</a>[<span t="t">B</span>]): <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">B</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#sorted-fffff96e">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptySeq">NonEmptySeq</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#sorted-fffff96e">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L467" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="sum-224" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#sum-224" t="n" class="documentableName ">sum</a>[<span t="k"></span><span data-unresolved-link="" t="t">A1</span><span t="k"> &gt;: </span><span t="t">A</span>](<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">A</span>: <a href="../Associative" t="t">Associative</a>[subtypeF.<span data-unresolved-link="" t="t">Type</span>[<span t="t">A1</span>]]): <span data-unresolved-link="" t="t">A1</span>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the sum of the elements of this <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the sum of the elements of this <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#sum-224">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L475" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="tail-0" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#tail-0" t="n" class="documentableName ">tail</a>: <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/List.html" t="t">List</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#tail-0">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#tail-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L478" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="tailNonEmpty-0" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#tailNonEmpty-0" t="n" class="documentableName ">tailNonEmpty</a>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Option.html" t="t">Option</a>[<a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">A</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns the tail of this <code>NonEmptyList</code> if it exists or <code>None</code> otherwise.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns the tail of this <code>NonEmptyList</code> if it exists or <code>None</code> otherwise.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#tailNonEmpty-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L484" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="tails-0" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#tails-0" t="n" class="documentableName ">tails</a>: <a href="../NonEmptyList" t="t">NonEmptyList</a>[<a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">A</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Returns a new <code>NonEmptyList</code> composed of this <code>NonEmptyList</code> followed by each of its tails, ending with a singleton <code>NonEmptyList</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Returns a new <code>NonEmptyList</code> composed of this <code>NonEmptyList</code> followed by each of its tails, ending with a singleton <code>NonEmptyList</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#tails-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L494" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="take-fffff84b" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#take-fffff84b" t="n" class="documentableName ">take</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">n</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Int.html" t="t">Int</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/List.html" t="t">List</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Takes the first <code>n</code> elements from this <code>NonEmptyList</code> returning a <code>List</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Takes the first <code>n</code> elements from this <code>NonEmptyList</code> returning a <code>List</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#take-fffff84b">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L500" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="takeRight-fffff84b" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#takeRight-fffff84b" t="n" class="documentableName ">takeRight</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">n</span>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Int.html" t="t">Int</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/List.html" t="t">List</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Takes the last <code>n</code> elements from this <code>NonEmptyList</code> returning a <code>List</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Takes the last <code>n</code> elements from this <code>NonEmptyList</code> returning a <code>List</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#takeRight-fffff84b">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L516" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="takeWhile-5a1" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#takeWhile-5a1" t="n" class="documentableName ">takeWhile</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">A</span><span t="k"> =&gt; </span><a href="https://www.scala-lang.org/api/3.3.8/scala/Boolean.html" t="t">Boolean</a>): <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/List.html" t="t">List</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Takes elements from the start of this <code>NonEmptyList</code> that satisfy the specified predicate returning a <code>List</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Takes elements from the start of this <code>NonEmptyList</code> that satisfy the specified predicate returning a <code>List</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#takeWhile-5a1">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L523" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="toArray-fffff5df" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#toArray-fffff5df" t="n" class="documentableName ">toArray</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span><span t="k"> &gt;: </span><span t="t">A</span> : <a href="https://www.scala-lang.org/api/3.3.8/scala/reflect/ClassTag.html" t="t">ClassTag</a>]: <a href="https://www.scala-lang.org/api/3.3.8/scala/Array.html" t="t">Array</a>[<span data-unresolved-link="" t="t">B</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#toArray-fffff5df">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#toArray-fffff5df">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L534" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="toCons-fffffd43" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#toCons-fffffd43" t="n" class="documentableName ">toCons</a>[<span t="k"></span><span data-unresolved-link="" t="t">A1</span><span t="k"> &gt;: </span><span t="t">A</span>]: <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/$colon$colon$.html" t="t">::</a>[<span data-unresolved-link="" t="t">A1</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Converts this <code>NonEmptyList</code> to the <code>::</code> case of a <code>List</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Converts this <code>NonEmptyList</code> to the <code>::</code> case of a <code>List</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#toCons-fffffd43">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L547" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="toIterable-0" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#toIterable-0" t="n" class="documentableName ">toIterable</a>: <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/Iterable.html" t="t">Iterable</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#toIterable-0">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#toIterable-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L553" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="toList-0" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#toList-0" t="n" class="documentableName ">toList</a>: <a href="https://www.scala-lang.org/api/3.3.8/scala/collection/immutable/List.html" t="t">List</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#toList-0">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#toList-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L556" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="toNonEmptyChunk-0" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#toNonEmptyChunk-0" t="n" class="documentableName ">toNonEmptyChunk</a>: <a href="/api/zio/NonEmptyChunk" t="t">NonEmptyChunk</a>[<span t="t">A</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Converts this <code>NonEmptyList</code> to a <code>NonEmptyChunk</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Converts this <code>NonEmptyList</code> to a <code>NonEmptyChunk</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#toNonEmptyChunk-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L568" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="toString-0" data-f-keywords="final,override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#toString-0" t="n" class="documentableName ">toString</a>: <a href="https://www.scala-lang.org/api/3.3.8/scala/Predef$.html#String-0" t="t">String</a>
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Renders this <code>NonEmptyList</code> as a <code>String</code>.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Renders this <code>NonEmptyList</code> as a <code>String</code>.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#toString-0">NonEmptyList</a> -&gt; <span data-unresolved-link="">Any</span>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#toString-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L562" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="zip-142" data-f-keywords="override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#zip-142" t="n" class="documentableName ">zip</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">B</span>])(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">zippable</span>: <a href="/api/zio/Zippable" t="t">Zippable</a>[<span t="t">A</span>, <span t="t">B</span>]): <a href="../NonEmptyList" t="t">NonEmptyList</a>[zippable.<a href="/api/zio/Zippable#Out-0" t="t">Out</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Zips this <code>NonEmptyList</code> together with the specified <code>NonEmptyList</code>, returning a new <code>NonEmptyList</code> with a length equal to the minimum of the two and elements combined pairwise.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Zips this <code>NonEmptyList</code> together with the specified <code>NonEmptyList</code>, returning a new <code>NonEmptyList</code> with a length equal to the minimum of the two and elements combined pairwise.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#zip-142">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#zip-142">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L576" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="zipWith-fffff380" data-f-keywords="final" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#zipWith-fffff380" t="n" class="documentableName ">zipWith</a>[<span t="k"></span><span data-unresolved-link="" t="t">B</span>, <span t="k"></span><span data-unresolved-link="" t="t">C</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span t="t">B</span>])(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: (<span t="t">A</span>, <span t="t">B</span>)<span t="k"> =&gt; </span><span t="t">C</span>): <a href="../NonEmptyList" t="t">NonEmptyList</a>[<span data-unresolved-link="" t="t">C</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Zips this <code>NonEmptyList</code> together with the specified <code>NonEmptyList</code>, returning a new <code>NonEmptyList</code> with a length equal to the minimum of the two and elements combined pairwise using the specified function.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Zips this <code>NonEmptyList</code> together with the specified <code>NonEmptyList</code>, returning a new <code>NonEmptyList</code> with a length equal to the minimum of the two and elements combined pairwise using the specified function.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#zipWith-fffff380">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L584" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="zipWithIndex-0" data-f-keywords="final,override" data-f-inherited="NonEmptyList">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final override </span></span><span class="kind"><span t="k">def </span></span><a href="Cons#zipWithIndex-0" t="n" class="documentableName ">zipWithIndex</a>: <a href="../NonEmptyList" t="t">NonEmptyList</a>[(<span t="t">A</span>, <a href="https://www.scala-lang.org/api/3.3.8/scala/Int.html" t="t">Int</a>)]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Annotates each element of this <code>NonEmptyList</code> with its index.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Annotates each element of this <code>NonEmptyList</code> with its index.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Definition Classes
+              </dt>
+              <dd class="body-medium">
+               <div>
+                <a href="../NonEmptyList#zipWithIndex-0">NonEmptyList</a> -&gt; <a href="/api/zio/NonEmptyOps">NonEmptyOps</a>
+               </div>
+              </dd>
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../NonEmptyList#zipWithIndex-0">NonEmptyList</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-prelude/blob/v1.0.0-RC49/core/shared/src/main/scala/zio/prelude/NonEmptyList.scala#L595" target="_blank">NonEmptyList.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+     </div>
+    </section>
+   </div>
+  </div>
+ </div>
+</section></div><div id="toc" class="body-small"><div id="toc-container"><span class="toc-title h200">In this article</span><nav class="toc-nav"><ul class="toc-list"><li><a href="#attributes">Attributes</a></li><li><a href="#members-list">Members list</a><ul><li><a href="#Value-members">Value members</a><ul><li><a href="#Inherited-methods">Inherited methods</a></li></ul></li></ul></li></ul></nav></div></div></div></div></div></body></html>

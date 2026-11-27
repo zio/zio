@@ -1,0 +1,1495 @@
+<!DOCTYPE html><html data-za-announcement-id="announcementBar-zioblocks" data-pathToRoot="../../../" data-rawLocation="zio/parser/Printer/Repeat" data-dynamicSideMenu="true"><head><meta charset="utf-8"></meta><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></meta><title>Repeat</title><link rel="icon" href="/img/favicon.png"><script type="text/javascript" src="../../../scripts/theme.js"></script><script type="text/javascript" src="../../../scripts/searchData.js" defer="true"></script><script type="text/javascript" src="../../../scripts/scastieConfiguration.js" defer="true"></script><link rel="stylesheet" href="../../../styles/theme/bundle.css"></link><link rel="stylesheet" href="../../../styles/theme/components/bundle.css"></link><link rel="stylesheet" href="../../../styles/theme/components/button/bundle.css"></link><link rel="stylesheet" href="../../../styles/theme/layout/bundle.css"></link><link rel="stylesheet" href="../../../styles/nord-light.css"></link><link rel="stylesheet" href="../../../styles/dotty-icons.css"></link><link rel="stylesheet" href="../../../styles/filter-bar.css"></link><link rel="stylesheet" href="../../../styles/code-snippets.css"></link><link rel="stylesheet" href="../../../styles/searchbar.css"></link><link rel="stylesheet" href="../../../styles/social-links.css"></link><link rel="stylesheet" href="../../../styles/versions-dropdown.css"></link><link rel="stylesheet" href="../../../styles/content-contributors.css"></link><link rel="stylesheet" href="../../../styles/fontawesome.css"></link><script type="text/javascript" src="../../../hljs/highlight.pack.js" defer="true"></script><script type="text/javascript" src="../../../scripts/hljs-scala3.js" defer="true"></script><script type="text/javascript" src="../../../scripts/ux.js" defer="true"></script><script type="text/javascript" src="../../../scripts/common/component.js" defer="true"></script><script type="text/javascript" src="../../../scripts/common/utils.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/FilterBar.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/DocumentableList.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/Input.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/FilterGroup.js" defer="true"></script><script type="text/javascript" src="../../../scripts/components/Filter.js" defer="true"></script><script type="text/javascript" src="../../../scripts/scaladoc-scalajs.js" defer="true"></script><script type="text/javascript" src="../../../scripts/contributors.js" defer="true"></script><script type="text/javascript" src="https://code.jquery.com/jquery-3.5.1.min.js" defer="true"></script><script type="text/javascript" src="/zio-parser/api/scripts/vendor/d3/d3.v6.7.0.min.js" defer="true"></script><script type="text/javascript" src="/zio-parser/api/scripts/vendor/graphlib-dot/graphlib-dot.0.6.2.min.js" defer="true"></script><script type="text/javascript" src="/zio-parser/api/scripts/vendor/dagre-d3/dagre-d3.0.6.1.min.js" defer="true"></script><script type="text/javascript" src="../../../scripts/data.js" defer="true"></script><link rel="stylesheet" href="../../../styles/apistyles.css"></link><script>var pathToRoot = "../../../";</script><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&display=fallback"><link rel="stylesheet" href="/zio-parser/api/styles/zio-api.css"></head><body><div class="za-announcement theme-announcement-bar" role="banner" style="background-color:#ececec;color:#1a1a1a"><div class="za-announcement__placeholder"></div><div class="za-announcement__content"><img src="/img/ecosystem/zio-blocks-icon.svg" alt="" style="height: 1.1em; vertical-align: middle;"> <b>ZIO Blocks</b> has a new website! Visit <a href="https://zioblocks.com" target="_blank">zioblocks.com</a> to explore the docs 🚀</div><button type="button" aria-label="Close" class="za-announcement__close"><svg viewBox="0 0 15 15" width="14" height="14" aria-hidden="true"><g stroke="currentColor" stroke-width="3.1"><path d="M.75.75l13.5 13.5M14.25.75L.75 14.25"></path></g></svg></button></div><script>window.zaPlaceAnnouncement&&zaPlaceAnnouncement()</script><div id=""><div id="header" class="za-navbar"><div class="za-navbar__left"><span id="mobile-menu-toggle" class="za-navbar__toggle" role="button" tabindex="0" aria-label="Toggle navigation bar"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"/></svg></span><a class="za-navbar__brand" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><span id="dropdown-trigger" hidden></span><div id="version-dropdown" hidden></div><a class="za-navbar__link" href="/overview/getting-started">Overview</a><a class="za-navbar__link" href="/reference/">Reference</a><a class="za-navbar__link" href="/api/">API</a><a class="za-navbar__link" href="/guides/">Guides</a><a class="za-navbar__link za-navbar__link--active" href="/ecosystem/" aria-current="page">Ecosystem</a><a class="za-navbar__link" href="/resources/">Resources</a><a class="za-navbar__link" href="/events/">Events</a></div><div class="za-navbar__right"><a class="za-navbar__link" href="/blog">Blog</a><a class="za-navbar__link za-navbar__link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a><button type="button" class="za-navbar__icon za-onboard" data-onboard-prompt="Fetch https://zio.dev/start.md and follow the instructions to set up my environment for ZIO development." title="Copy the prompt to onboard your coding agent to ZIO" aria-label="Copy the ZIO agent onboarding prompt to the clipboard"><svg class="za-onboard__idle" viewBox="0 0 576 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M9.4 86.6C-3.1 74.1-3.1 53.9 9.4 41.4s32.8-12.5 45.3 0l192 192c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L178.7 256 9.4 86.6zM256 416l288 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-288 0c-17.7 0-32-14.3-32-32s14.3-32 32-32z"/></svg><svg class="za-onboard__done" viewBox="0 0 448 512" width="1em" height="1em" aria-hidden="true"><path fill="currentColor" d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></svg></button><button type="button" class="za-navbar__icon za-mode" data-color-mode-toggle title="light mode" aria-label="Switch between dark and light mode (currently light mode)"><svg class="za-mode__light" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"/></svg><svg class="za-mode__dark" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"/></svg></button><button type="button" id="search-toggle" class="za-search" title="Search the API" aria-label="Search the API"><svg width="20" height="20" class="za-search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8" stroke="currentColor" fill="none" stroke-width="1.4"/><path d="m21 21-4.3-4.3" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="za-search__label">Search</span></button></div></div><div id="mobile-menu"><div class="mobile-menu-header body-small"><a class="mobile-menu-logo" href="/"><img class="za-logo" src="/img/navbar_brand.png" alt="ZIO" height="32"></a><button id="mobile-menu-close" class="icon-button close"></button></div><div class="mobile-menu-container body-medium"><input id="mobile-scaladoc-searchbar-input" class="scaladoc-searchbar-input" type="search" placeholder="Find anything"></input><nav class="za-mobile-links"><a class="za-mobile-link" href="/overview/getting-started">Overview</a><a class="za-mobile-link" href="/reference/">Reference</a><a class="za-mobile-link" href="/api/">API</a><a class="za-mobile-link" href="/guides/">Guides</a><a class="za-mobile-link za-mobile-link--active" href="/ecosystem/" aria-current="page">Ecosystem</a><a class="za-mobile-link" href="/resources/">Resources</a><a class="za-mobile-link" href="/events/">Events</a><a class="za-mobile-link" href="/blog">Blog</a><a class="za-mobile-link za-mobile-link--github" href="https://github.com/zio/zio" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a></nav><span id="mobile-theme-toggle" class="mobile-menu-item mode"></span></div></div><span id="mobile-sidebar-toggle" class="floating-button"></span><div id="leftColumn" class="body-small"><a class="za-back-link" href="/zio-parser/">← ZIO Parser docs</a></div><div id="scaladoc-searchBar"></div><div id="main"><div id="content" class="body-medium"><div><nav class="za-breadcrumbs" aria-label="Breadcrumbs"><ul class="za-breadcrumbs__list"><li class="za-breadcrumbs__item"><a aria-label="Home page" class="za-breadcrumbs__link" href="/"><svg viewBox="0 0 24 24" class="za-breadcrumbs__home"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/zio-parser/"><span>ZIO Parser</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="/zio-parser/api/"><span>API</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../../parser"><span>zio.parser</span></a></li><li class="za-breadcrumbs__item"><a class="za-breadcrumbs__link" href="../Printer$"><span>Printer</span></a></li><li class="za-breadcrumbs__item za-breadcrumbs__item--active"><span class="za-breadcrumbs__link">Repeat</span></li></ul></nav><div class="cover-header">
+ <span class="icon"><span class="micon cl"></span></span>
+ <h1 class="h600 single">Repeat</h1>
+</div>
+<div class="fqname body-large">
+ <span>zio.parser.Printer.Repeat</span>
+</div>
+<div class="main-signature mono-small-block">
+ <div class="signature">
+  <span class="signature-short"><span class="modifiers"><span t="k">final case </span></span><span class="kind"><span t="k">class </span></span><a href="Repeat" t="n" class="documentableName ">Repeat</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out</span>, <span t="k"></span><span data-unresolved-link="" t="t">Value</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">printer</span>: <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err</span>, <span data-unresolved-link="" t="t">Out</span>, <span data-unresolved-link="" t="t">Value</span>], <span t="k"></span><span data-unresolved-link="" t="n">min</span>: <a href="https://www.scala-lang.org/api/3.3.4/scala/Int.html" t="t">Int</a>, <span t="k"></span><span data-unresolved-link="" t="n">max</span>: <a href="https://www.scala-lang.org/api/3.3.4/scala/Option.html" t="t">Option</a>[<a href="https://www.scala-lang.org/api/3.3.4/scala/Int.html" t="t">Int</a>])<span t="k"> extends </span><a href="../Printer" t="t">Printer</a>[<span t="t">Err</span>, <span t="t">Out</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]</span><span class="signature-long"></span>
+ </div>
+</div>
+<div class="cover">
+ <div class="doc"></div>
+ <section id="attributes">
+  <h2 class="h500">Attributes</h2>
+  <dl class="attributes">
+   <dt class="body-small">
+    Source
+   </dt>
+   <dd class="body-medium">
+    <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L278" target="_blank">Printer.scala</a>
+   </dd>
+   <dt class="body-small">
+    Graph
+   </dt>
+   <dd class="body-medium">
+    <div id="inheritance-diagram" class="diagram-class showGraph">
+     <button type="button" class="label-only-button" onclick="zoomOut()">Reset zoom</button><button type="button" class="label-only-button" onclick="hideGraph()">Hide graph</button><button type="button" class="label-only-button" onclick="showGraph()">Show graph</button>
+     <svg id="graph"></svg>
+     <script type="text/dot" id="dot"> digraph g {
+ node0 [id=node0, label="<span style=\"color: #FFFFFF;\">class <a href=\"Printer$$Repeat.html\" t=\"n\">Repeat</a>[<span t=\"t\">Err</span>, <span t=\"t\">Out</span>, <span t=\"t\">Value</span>]</span>", class="class vertex"];
+node1 [id=node1, label="<span style=\"color: #FFFFFF;\">class <span data-unresolved-link=\"\" t=\"n\">Object</span></span>", class="class vertex"];
+node2 [id=node2, label="<span style=\"color: #FFFFFF;\">class <span data-unresolved-link=\"\" t=\"n\">Any</span></span>", class="class vertex"];
+node3 [id=node3, label="<span style=\"color: #FFFFFF;\">trait <span data-unresolved-link=\"\" t=\"n\">Matchable</span></span>", class="trait vertex"];
+node4 [id=node4, label="<span style=\"color: #FFFFFF;\">sealed trait <a href=\"Printer.html\" t=\"n\">Printer</a>[<span t=\"t\">Err</span>, <span t=\"t\">Out</span>, <a href=\"https://zio.dev/api/zio/Chunk.html\" t=\"t\">Chunk</a>[<span t=\"t\">Value</span>]]</span>", class="trait vertex"];
+node5 [id=node5, label="<span style=\"color: #FFFFFF;\">trait <a href=\"VersionSpecificPrinter.html\" t=\"n\">VersionSpecificPrinter</a>[<span t=\"t\">Err</span>, <span t=\"t\">Out</span>, <a href=\"https://zio.dev/api/zio/Chunk.html\" t=\"t\">Chunk</a>[<span t=\"t\">Value</span>]]</span>", class="trait vertex"];
+node6 [id=node6, label="<span style=\"color: #FFFFFF;\">trait <a href=\"https://www.scala-lang.org/api/3.3.4/scala/Product.html\" t=\"n\">Product</a></span>", class="trait vertex"];
+node7 [id=node7, label="<span style=\"color: #FFFFFF;\">trait <a href=\"https://www.scala-lang.org/api/3.3.4/scala/Equals.html\" t=\"n\">Equals</a></span>", class="trait vertex"];
+node8 [id=node8, label="<span style=\"color: #FFFFFF;\">class <a href=\"https://www.scala-lang.org/api/3.3.4/scala.html#Serializable-0\" t=\"n\">Serializable</a></span>", class="class vertex"];
+
+
+ node0 -> node1;
+node1 -> node2;
+node1 -> node3;
+node3 -> node2;
+node0 -> node4;
+node4 -> node1;
+node4 -> node5;
+node5 -> node1;
+node0 -> node6;
+node6 -> node2;
+node6 -> node7;
+node7 -> node2;
+node0 -> node8;
+node8 -> node2;
+
+}
+</script>
+    </div>
+   </dd>
+   <dt class="body-small">
+    Supertypes
+   </dt>
+   <dd class="body-medium">
+    <div class="mono-small-block supertypes">
+     <div>
+      trait <span data-unresolved-link="" t="n">Serializable</span>
+     </div>
+     <div>
+      trait <a href="https://www.scala-lang.org/api/3.3.4/scala/Product.html" t="n">Product</a>
+     </div>
+     <div>
+      trait <a href="https://www.scala-lang.org/api/3.3.4/scala/Equals.html" t="n">Equals</a>
+     </div>
+     <div>
+      trait <a href="../Printer" t="n">Printer</a>[<span t="t">Err</span>, <span t="t">Out</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]
+     </div>
+     <div>
+      trait <a href="../VersionSpecificPrinter" t="n">VersionSpecificPrinter</a>[<span t="t">Err</span>, <span t="t">Out</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]
+     </div>
+     <div>
+      class <span data-unresolved-link="" t="n">Object</span>
+     </div>
+     <div>
+      trait <span data-unresolved-link="" t="n">Matchable</span>
+     </div>
+     <div>
+      class <span data-unresolved-link="" t="n">Any</span>
+     </div><span class="show-all-code show-content text-button h100">Show all</span>
+    </div>
+   </dd>
+  </dl>
+ </section>
+</div>
+<section id="members-list">
+ <h2 class="h500">Members list</h2>
+ <div class="documentableFilter">
+  <div class="filtersContainer"></div><input class="filterableInput" placeholder="Filter by any phrase" data-test-id="filterBarInput" type="search"><button class="clearButton label-only-button" data-test-id="filterBarClearButton">Clear all</button>
+ </div>
+ <div class="membersList expand">
+  <div class="tabs">
+   <div class="contents">
+    <section id="Value-members">
+     <div data-togglable="Value members" class="tab expand">
+      <div class="member-group-header">
+       <h3 data-togglable="Value members" class="h400">Value members</h3>
+      </div>
+      <section id="Inherited-methods">
+       <div class="documentableList expand">
+        <div class="documentableList-expander">
+         <button class="icon-button show-content expand"></button>
+         <h4 class="groupHeader h200">Inherited methods</h4>
+        </div>
+        <div class="documentableElement" id="*-0" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#*-0" t="n" class="documentableName ">*</a>: <a href="../Printer" t="t">Printer</a>[<span t="t">Err</span>, <span t="t">Out</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Symbolic alias for repeat0</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Symbolic alias for repeat0</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#*-0">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L107" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="+-0" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#+-0" t="n" class="documentableName ">+</a>: <a href="../Printer" t="t">Printer</a>[<span t="t">Err</span>, <span t="t">Out</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Symbolic alias for repeat</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Symbolic alias for repeat</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#+-0">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L100" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="<+>-c76" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#%3C+%3E-c76" t="n" class="documentableName ">&lt;+&gt;</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>, <span t="k"></span><span data-unresolved-link="" t="t">Value2</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <span t="k">=&gt; </span><a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <span t="t">Value2</span>]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span data-unresolved-link="" t="t">Out2</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/util/Either.html" t="t">Either</a>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>], <span data-unresolved-link="" t="t">Value2</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Symbolic alias for orElseEither</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Symbolic alias for orElseEither</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#%3C+%3E-c76">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L84" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="<>-c76" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#%3C%3E-c76" t="n" class="documentableName ">&lt;&gt;</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>, <span t="k"></span><span data-unresolved-link="" t="t">Value2</span><span t="k"> &lt;: </span><a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <span t="k">=&gt; </span><a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <span t="t">Value2</span>]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span data-unresolved-link="" t="t">Out2</span>, <span data-unresolved-link="" t="t">Value2</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Symbolic alias for orElse</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Symbolic alias for orElse</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#%3C%3E-c76">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L73" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="<~-fffff857" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#%3C~-fffff857" t="n" class="documentableName ">&lt;~</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <span t="k">=&gt; </span><a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/Unit.html" t="t">Unit</a>]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span data-unresolved-link="" t="t">Out2</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Symbolic alias for zipLeft</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Symbolic alias for zipLeft</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#%3C~-fffff857">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L50" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="?-0" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#?-0" t="n" class="documentableName ">?</a>: <a href="../Printer" t="t">Printer</a>[<span t="t">Err</span>, <span t="t">Out</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/Option.html" t="t">Option</a>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Symbolic alias for optional</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Symbolic alias for optional</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#?-0">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L137" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="apply-fffff48c" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#apply-fffff48c" t="n" class="documentableName ">apply</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">value</span>: <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]): <a href="../Printer" t="t">Printer</a>[<span t="t">Err</span>, <span t="t">Out</span>, <span data-unresolved-link="" t="t">Any</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Provide this printer it's input value</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Provide this printer it's input value</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#apply-fffff48c">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L180" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="asPrinted-b50" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#asPrinted-b50" t="n" class="documentableName ">asPrinted</a>[<span t="k"></span><span data-unresolved-link="" t="t">Value2</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">matches</span>: <span t="t">Value2</span>, <span t="k"></span><span data-unresolved-link="" t="n">value</span>: <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]): <a href="../Printer" t="t">Printer</a>[<span t="t">Err</span>, <span t="t">Out</span>, <span data-unresolved-link="" t="t">Value2</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Ignores the printer's result and input and use 'result' and 'value' instead</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Ignores the printer's result and input and use 'result' and 'value' instead</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#asPrinted-b50">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L172" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="between-ffffff1d" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#between-ffffff1d" t="n" class="documentableName ">between</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">left</span>: <a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/Unit.html" t="t">Unit</a>], <span t="k"></span><span data-unresolved-link="" t="n">right</span>: <a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/Unit.html" t="t">Unit</a>]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span data-unresolved-link="" t="t">Out2</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Surround this printer with 'left' and 'right', each getting Unit as value to be printed.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Surround this printer with 'left' and 'right', each getting Unit as value to be printed.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#between-ffffff1d">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L140" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="contramap-fffff5f9" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#contramap-fffff5f9" t="n" class="documentableName ">contramap</a>[<span t="k"></span><span data-unresolved-link="" t="t">Value2</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">Value2</span><span t="k"> =&gt; </span><a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]): <a href="../Printer" t="t">Printer</a>[<span t="t">Err</span>, <span t="t">Out</span>, <span data-unresolved-link="" t="t">Value2</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Maps the printer's input value with function 'f'</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Maps the printer's input value with function 'f'</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#contramap-fffff5f9">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L176" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="contramapEither-fffffa18" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#contramapEither-fffffa18" t="n" class="documentableName ">contramapEither</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span>, <span t="k"></span><span data-unresolved-link="" t="t">Value2</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">from</span>: <span t="t">Value2</span><span t="k"> =&gt; </span><a href="https://www.scala-lang.org/api/3.3.4/scala/util/Either.html" t="t">Either</a>[<span t="t">Err2</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span t="t">Out</span>, <span data-unresolved-link="" t="t">Value2</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Maps the printer's result with function 'to' and its input value with 'from'. Both functions can fail the printer.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Maps the printer's result with function 'to' and its input value with 'from'. Both functions can fail the printer.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#contramapEither-fffffa18">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L25" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="contramapTo-fffffb8b" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#contramapTo-fffffb8b" t="n" class="documentableName ">contramapTo</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Value2</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">from</span>: <a href="https://www.scala-lang.org/api/3.3.4/scala/PartialFunction.html" t="t">PartialFunction</a>[<span t="t">Value2</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]], <span t="k"></span><span data-unresolved-link="" t="n">failure</span>: <span t="t">Err2</span>): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span t="t">Out</span>, <span data-unresolved-link="" t="t">Value2</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Maps the result of the printer with the function 'to', and the value to be printed with the partial function 'from'. It the partial function is not defined on the value, the printer fails with 'failure'.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Maps the result of the printer with the function 'to', and the value to be printed with the partial function 'from'. It the partial function is not defined on the value, the printer fails with 'failure'.</p>
+              <p>This can be used to define separate syntaxes for subtypes, that can be later combined.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#contramapTo-fffffb8b">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L43" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="filter-fffff6eb" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#filter-fffff6eb" t="n" class="documentableName ">filter</a>[<span t="k"></span><span data-unresolved-link="" t="t">E2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Value2</span><span t="k"> &lt;: </span><a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">condition</span>: <span t="t">Value2</span><span t="k"> =&gt; </span><a href="https://www.scala-lang.org/api/3.3.4/scala/Boolean.html" t="t">Boolean</a>, <span t="k"></span><span data-unresolved-link="" t="n">failure</span>: <span t="t">E2</span>): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">E2</span>, <span t="t">Out</span>, <span data-unresolved-link="" t="t">Value2</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Specifies a filter condition 'condition' that gets checked on both the printed and the result value and in case it evaluates to false, fails with 'failure'.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Specifies a filter condition 'condition' that gets checked on both the printed and the result value and in case it evaluates to false, fails with 'failure'.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#filter-fffff6eb">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L64" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="flatten-80f" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#flatten-80f" t="n" class="documentableName ">flatten</a>(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">ev1</span>: <a href="/api/zio/Chunk" t="t">Chunk</a>[<a href="https://www.scala-lang.org/api/3.3.4/scala/Predef$.html#String-0" t="t">String</a>] <a href="https://www.scala-lang.org/api/3.3.4/scala/$less$colon$less$.html" t="t">&lt;:&lt;</a> <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]): <a href="../Printer" t="t">Printer</a>[<span t="t">Err</span>, <span t="t">Out</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/Predef$.html#String-0" t="t">String</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Concatenates a chunk of string to be printed</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Concatenates a chunk of string to be printed</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#flatten-80f">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L157" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="mapError-fffff5f9" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#mapError-fffff5f9" t="n" class="documentableName ">mapError</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">f</span>: <span t="t">Err</span><span t="k"> =&gt; </span><span t="t">Err2</span>): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span t="t">Out</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Maps the error with function 'f'</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Maps the error with function 'f'</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#mapError-fffff5f9">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L153" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="optional-0" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#optional-0" t="n" class="documentableName ">optional</a>: <a href="../Printer" t="t">Printer</a>[<span t="t">Err</span>, <span t="t">Out</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/Option.html" t="t">Option</a>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Print option values</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Print option values</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#optional-0">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L133" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="orElse-c76" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#orElse-c76" t="n" class="documentableName ">orElse</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>, <span t="k"></span><span data-unresolved-link="" t="t">Value2</span><span t="k"> &lt;: </span><a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <span t="k">=&gt; </span><a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <span t="t">Value2</span>]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span data-unresolved-link="" t="t">Out2</span>, <span data-unresolved-link="" t="t">Value2</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Prints this and if it fails, ignore the printed output and print 'that' instead.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Prints this and if it fails, ignore the printed output and print 'that' instead.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#orElse-c76">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L78" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="orElseEither-c76" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#orElseEither-c76" t="n" class="documentableName ">orElseEither</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>, <span t="k"></span><span data-unresolved-link="" t="t">Value2</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <span t="k">=&gt; </span><a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <span t="t">Value2</span>]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span data-unresolved-link="" t="t">Out2</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/util/Either.html" t="t">Either</a>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>], <span data-unresolved-link="" t="t">Value2</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Prints this if the input is 'Left', or print 'that' if the input is 'Right'</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Prints this if the input is 'Left', or print 'that' if the input is 'Right'</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#orElseEither-c76">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L90" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="orElseU-fffffc8b" data-f-keywords="final" data-f-inherited="VersionSpecificPrinter">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#orElseU-fffffc8b" t="n" class="documentableName ">orElseU</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>, <span t="k"></span><span data-unresolved-link="" t="t">Value1</span><span t="k"> &lt;: </span><a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>], <span t="k"></span><span data-unresolved-link="" t="t">Value2</span> : <a href="https://www.scala-lang.org/api/3.3.4/scala/reflect/ClassTag.html" t="t">ClassTag</a>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <span t="k">=&gt; </span><a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <span t="t">Value2</span>])(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">evidence$1</span>: <a href="https://www.scala-lang.org/api/3.3.4/scala/reflect/ClassTag.html" t="t">ClassTag</a>[<span data-unresolved-link="" t="t">Value2</span>], <span t="k"></span><span data-unresolved-link="" t="n">vtag</span>: <a href="https://www.scala-lang.org/api/3.3.4/scala/reflect/ClassTag.html" t="t">ClassTag</a>[<span t="t">Value1</span>]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span data-unresolved-link="" t="t">Out2</span>, <span data-unresolved-link="" t="t">Value1</span><span t="k"> | </span><span data-unresolved-link="" t="t">Value2</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Prints this and if it fails, ignore the printed output and print 'that' instead.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Prints this and if it fails, ignore the printed output and print 'that' instead.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../VersionSpecificPrinter#orElseU-fffffc8b">VersionSpecificPrinter</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala-3/zio/parser/VersionSpecificPrinter.scala#L8" target="_blank">VersionSpecificPrinter.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="print-a76" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#print-a76" t="n" class="documentableName ">print</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">value</span>: <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]): <a href="https://www.scala-lang.org/api/3.3.4/scala/util/Either.html" t="t">Either</a>[<span t="t">Err</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Out</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Print the given 'value' to a chunk of output elements</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Print the given 'value' to a chunk of output elements</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#print-a76">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L191" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="print-4d8" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#print-4d8" t="n" class="documentableName ">print</a>[<span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">value</span>: <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>], <span t="k"></span><span data-unresolved-link="" t="n">target</span>: <a href="../target/Target" t="t">Target</a>[<span t="t">Out2</span>]): <a href="https://www.scala-lang.org/api/3.3.4/scala/util/Either.html" t="t">Either</a>[<span t="t">Err</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/Unit.html" t="t">Unit</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Print the given 'value' to the given 'target' implementation</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Print the given 'value' to the given 'target' implementation</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#print-4d8">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L185" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="printString-266" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#printString-266" t="n" class="documentableName ">printString</a>(<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">value</span>: <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>])(<span t="k">implicit </span><span t="k"></span><span data-unresolved-link="" t="n">ev</span>: <span t="t">Out</span> <a href="https://www.scala-lang.org/api/3.3.4/scala/$less$colon$less$.html" t="t">&lt;:&lt;</a> <a href="https://www.scala-lang.org/api/3.3.4/scala/Char.html" t="t">Char</a>): <a href="https://www.scala-lang.org/api/3.3.4/scala/util/Either.html" t="t">Either</a>[<span t="t">Err</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/Predef$.html#String-0" t="t">String</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Print the given 'value' to a string</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Print the given 'value' to a string</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#printString-266">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L197" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="productElementNames-0" data-f-inherited="Product">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="Repeat#productElementNames-0" t="n" class="documentableName ">productElementNames</a>: <a href="https://www.scala-lang.org/api/3.3.4/scala/collection/Iterator.html" t="t">Iterator</a>[<a href="https://www.scala-lang.org/api/3.3.4/scala/Predef$.html#String-0" t="t">String</a>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="https://www.scala-lang.org/api/3.3.4/scala/Product.html#productElementNames-0">Product</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="productIterator-0" data-f-inherited="Product">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"></span><span class="kind"><span t="k">def </span></span><a href="Repeat#productIterator-0" t="n" class="documentableName ">productIterator</a>: <a href="https://www.scala-lang.org/api/3.3.4/scala/collection/Iterator.html" t="t">Iterator</a>[<span data-unresolved-link="" t="t">Any</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="cover">
+             <div class="doc"></div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="https://www.scala-lang.org/api/3.3.4/scala/Product.html#productIterator-0">Product</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="repeat-0" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#repeat-0" t="n" class="documentableName ">repeat</a>: <a href="../Printer" t="t">Printer</a>[<span t="t">Err</span>, <span t="t">Out</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Repeats this printer for each element of the input chunk, assuming it has at least one element</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Repeats this printer for each element of the input chunk, assuming it has at least one element</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#repeat-0">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L96" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="repeat0-0" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#repeat0-0" t="n" class="documentableName ">repeat0</a>: <a href="../Printer" t="t">Printer</a>[<span t="t">Err</span>, <span t="t">Out</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Repeats this printer for each element of the input chunk, zero or more times</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Repeats this printer for each element of the input chunk, zero or more times</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#repeat0-0">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L103" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="repeatUntil-fffff664" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#repeatUntil-fffff664" t="n" class="documentableName ">repeatUntil</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">stopCondition</span>: <a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/Unit.html" t="t">Unit</a>]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span data-unresolved-link="" t="t">Out2</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Repeat this printer for each element of the input chunk, verifying the 'stopConfition' after each.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Repeat this printer for each element of the input chunk, verifying the 'stopConfition' after each.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#repeatUntil-fffff664">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L127" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="repeatWithSep-fffff664" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#repeatWithSep-fffff664" t="n" class="documentableName ">repeatWithSep</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">sep</span>: <a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/Unit.html" t="t">Unit</a>]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span data-unresolved-link="" t="t">Out2</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Repeats this printer for each element of the input chunk, separated by the 'sep' printer (which gets Unit to be printed)</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Repeats this printer for each element of the input chunk, separated by the 'sep' printer (which gets Unit to be printed)</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#repeatWithSep-fffff664">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L112" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="repeatWithSep0-fffff664" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#repeatWithSep0-fffff664" t="n" class="documentableName ">repeatWithSep0</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">sep</span>: <a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/Unit.html" t="t">Unit</a>]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span data-unresolved-link="" t="t">Out2</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Repeats this printer for each element of the input chunk that can be empty, separated by the 'sep' printer (which gets Unit to be printed)</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Repeats this printer for each element of the input chunk that can be empty, separated by the 'sep' printer (which gets Unit to be printed)</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#repeatWithSep0-fffff664">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L120" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="surroundedBy-fffff664" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#surroundedBy-fffff664" t="n" class="documentableName ">surroundedBy</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">other</span>: <a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/Unit.html" t="t">Unit</a>]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span data-unresolved-link="" t="t">Out2</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Surround this printer with 'other', which will get Unit as value to be printed.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Surround this printer with 'other', which will get Unit as value to be printed.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#surroundedBy-fffff664">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L147" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="transformOption-fffff5f9" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#transformOption-fffff5f9" t="n" class="documentableName ">transformOption</a>[<span t="k"></span><span data-unresolved-link="" t="t">Value2</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">from</span>: <span t="t">Value2</span><span t="k"> =&gt; </span><a href="https://www.scala-lang.org/api/3.3.4/scala/Option.html" t="t">Option</a>[<a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]): <a href="../Printer" t="t">Printer</a>[<a href="https://www.scala-lang.org/api/3.3.4/scala/Option.html" t="t">Option</a>[<span t="t">Err</span>], <span t="t">Out</span>, <span data-unresolved-link="" t="t">Value2</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Maps the printer's result with function 'to' and its input value with 'from'. Both functions can fail the printer. Failure is indicated by None on the error channel.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Maps the printer's result with function 'to' and its input value with 'from'. Both functions can fail the printer. Failure is indicated by None on the error channel.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#transformOption-fffff5f9">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L33" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="widenWith-fffffb8b" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#widenWith-fffffb8b" t="n" class="documentableName ">widenWith</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Value2</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">narrow</span>: <a href="https://www.scala-lang.org/api/3.3.4/scala/PartialFunction.html" t="t">PartialFunction</a>[<span t="t">Value2</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]], <span t="k"></span><span data-unresolved-link="" t="n">failure</span>: <span t="t">Err2</span>): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span t="t">Out</span>, <span data-unresolved-link="" t="t">Value2</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Widen this printer's printed value type by specifying a partial function to narrow it back to the set of supported subtypes.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Widen this printer's printed value type by specifying a partial function to narrow it back to the set of supported subtypes.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#widenWith-fffffb8b">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L165" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="zipLeft-fffff857" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#zipLeft-fffff857" t="n" class="documentableName ">zipLeft</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <span t="k">=&gt; </span><a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <a href="https://www.scala-lang.org/api/3.3.4/scala/Unit.html" t="t">Unit</a>]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span data-unresolved-link="" t="t">Out2</span>, <a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Print 'that' by providing the unit value to it after printing this. The result is this printer's result.</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Print 'that' by providing the unit value to it after printing this. The result is this printer's result.</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#zipLeft-fffff857">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L56" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+        <div class="documentableElement" id="|-c76" data-f-keywords="final" data-f-inherited="Printer">
+         <div class="documentableElement-expander">
+          <button class="icon-button ar show-content"></button>
+          <div class="header monospace mono-medium">
+           <div class="signature">
+            <span class="modifiers"><span t="k">final </span></span><span class="kind"><span t="k">def </span></span><a href="Repeat#|-c76" t="n" class="documentableName ">|</a>[<span t="k"></span><span data-unresolved-link="" t="t">Err2</span><span t="k"> &gt;: </span><span t="t">Err</span>, <span t="k"></span><span data-unresolved-link="" t="t">Out2</span><span t="k"> &gt;: </span><span t="t">Out</span>, <span t="k"></span><span data-unresolved-link="" t="t">Value2</span><span t="k"> &lt;: </span><a href="/api/zio/Chunk" t="t">Chunk</a>[<span t="t">Value</span>]](<span t="k"></span><span t="k"></span><span data-unresolved-link="" t="n">that</span>: <span t="k">=&gt; </span><a href="../Printer" t="t">Printer</a>[<span t="t">Err2</span>, <span t="t">Out2</span>, <span t="t">Value2</span>]): <a href="../Printer" t="t">Printer</a>[<span data-unresolved-link="" t="t">Err2</span>, <span data-unresolved-link="" t="t">Out2</span>, <span data-unresolved-link="" t="t">Value2</span>]
+           </div>
+          </div>
+         </div>
+         <div class="docs">
+          <span class="modifiers"></span>
+          <div>
+           <div class="originInfo"></div>
+           <div class="memberDocumentation">
+            <div class="documentableBrief doc">
+             <p>Symbolic alias for orElse</p>
+            </div>
+            <div class="cover">
+             <div class="doc">
+              <p>Symbolic alias for orElse</p>
+             </div>
+             <h2 class="h200">Attributes</h2>
+             <dl class="attributes attributes-small">
+              <dt class="body-small">
+               Inherited from:
+              </dt>
+              <dd class="body-medium">
+               <a href="../Printer#|-c76">Printer</a>
+              </dd>
+              <dt class="body-small">
+               Source
+              </dt>
+              <dd class="body-medium">
+               <a href="https://github.com/zio/zio-parser/blob/v0.1.13/zio-parser/shared/src/main/scala/zio/parser/Printer.scala#L68" target="_blank">Printer.scala</a>
+              </dd>
+             </dl>
+            </div>
+           </div>
+          </div>
+         </div>
+        </div>
+       </div>
+      </section>
+     </div>
+    </section>
+   </div>
+  </div>
+ </div>
+</section></div><div id="toc" class="body-small"><div id="toc-container"><span class="toc-title h200">In this article</span><nav class="toc-nav"><ul class="toc-list"><li><a href="#attributes">Attributes</a></li><li><a href="#members-list">Members list</a><ul><li><a href="#Value-members">Value members</a><ul><li><a href="#Inherited-methods">Inherited methods</a></li></ul></li></ul></li></ul></nav></div></div></div></div></div></body></html>
