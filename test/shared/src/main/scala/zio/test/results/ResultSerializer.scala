@@ -22,8 +22,7 @@ object ResultSerializer {
   object Json extends ResultSerializer {
 
     /**
-     * Turns one finished test event into the text written to the JSON results
-     * file, used by `ResultPrinter.json`.
+     * Turns one test event into the text for the JSON results file, used by `ResultPrinter.json`.
      */
     def render[E](executionEvent: ExecutionEvent.Test[E]): String =
       executionEvent match {

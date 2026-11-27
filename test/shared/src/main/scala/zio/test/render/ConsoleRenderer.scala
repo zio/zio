@@ -151,9 +151,6 @@ trait ConsoleRenderer extends TestRenderer {
    * result. Each test or suite result gets its summary lines, its annotations
    * rendered with `testAnnotationRenderer` and the console output recorded for
    * the test; an `Other` result gets its streaming lines.
-   *
-   * Throws a `scala.MatchError` for a test or suite result with the status
-   * `Started`.
    */
   def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
     results.map { result =>

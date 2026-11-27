@@ -218,9 +218,7 @@ trait TestRenderer {
     }
 
   /**
-   * Renders one [[zio.test.FailureCase]] and its nested failure cases as lines.
-   * The lines of the case itself get the offset `offset + 1`, and the lines of
-   * a directly nested case get `2 * offset + 3`.
+   * Renders one [[zio.test.FailureCase]] and its nested failure cases as lines. The lines of the case itself get the offset `offset + 1`.
    *
    * @param testLabel
    *   a label shown with the assertion code, when defined

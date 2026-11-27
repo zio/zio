@@ -43,9 +43,7 @@ object LogLine {
     def +:(line: Line) = Message(line +: lines)
 
     /**
-     * Adds `fragment` at the start of the first line, not at the end of the
-     * message. The changed first line gets offset 0. On an empty message,
-     * returns a message with one line that holds `fragment`.
+     * Adds `fragment` to this message. On an empty message, returns a message with one line that holds `fragment`.
      */
     def :+(fragment: Fragment): Message = Message(lines match {
       case line +: lines => (fragment +: line) +: lines
@@ -119,20 +117,13 @@ object LogLine {
    */
   case class Line(fragments: Vector[Fragment] = Vector.empty, offset: Int = 0) { self =>
 
-    /**
-     * Returns a line with `fragment` added at the start. The result has offset
-     * 0.
-     */
+    /** Returns a line with `fragment` added at the start. */
     def +:(fragment: Fragment): Line = Line(fragment +: fragments)
 
-    /**
-     * Returns a line with `fragment` added at the end. The result has offset 0.
-     */
+    /** Returns a line with `fragment` added at the end. */
     def :+(fragment: Fragment): Line = Line(fragments :+ fragment)
 
-    /**
-     * Returns a line with `fragment` added at the end. The result has offset 0.
-     */
+    /** Returns a line with `fragment` added at the end. */
     def +(fragment: Fragment): Line = Line(fragments :+ fragment)
 
     /** Returns `message` with this line added as its first line. */

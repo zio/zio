@@ -61,15 +61,9 @@ case class ExecutionResult(
    *
    *   - this result is `Started` or `Ignored`: returns `that`
    *   - `that` is `Ignored`: returns this result
-   *   - both are `Failed`: returns this result with the streaming lines of
-   *     `that`, except its first line, appended; throws a
-   *     `java.lang.UnsupportedOperationException` when `that` has no streaming
-   *     lines
+   *   - both are `Failed`: returns this result with the streaming lines of `that`, except its first line, appended
    *   - this result is `Passed`: returns `that`
    *   - `that` is `Passed`: returns this result
-   *
-   * This result `Failed` with `that` `Started` matches no case and throws a
-   * `scala.MatchError`.
    */
   def &&(that: ExecutionResult): ExecutionResult =
     (self.status, that.status) match {
@@ -87,15 +81,9 @@ case class ExecutionResult(
    *
    *   - this result is `Started` or `Ignored`: returns `that`
    *   - `that` is `Ignored`: returns this result
-   *   - both are `Failed`: returns this result with the streaming lines of
-   *     `that`, except its first line, appended; throws a
-   *     `java.lang.UnsupportedOperationException` when `that` has no streaming
-   *     lines
+   *   - both are `Failed`: returns this result with the streaming lines of `that`, except its first line, appended
    *   - this result is `Passed`: returns this result
    *   - `that` is `Passed`: returns `that`
-   *
-   * This result `Failed` with `that` `Started` matches no case and throws a
-   * `scala.MatchError`.
    */
   def ||(that: ExecutionResult): ExecutionResult =
     (self.status, that.status) match {
