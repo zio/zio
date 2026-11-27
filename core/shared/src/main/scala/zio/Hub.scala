@@ -25,13 +25,17 @@ import java.util.concurrent.atomic.AtomicBoolean
  * A `Hub` is an asynchronous message hub. Publishers can offer messages to the
  * hub and subscribers can subscribe to take messages from the hub.
  *
- * Every subscriber receives each message published while it is subscribed,
- * whereas each value offered to a [[Queue]] goes to one taker. `subscribe`
+ * Subscribers do not compete for messages: each subscriber takes them on its
+ * own, whereas each value offered to a [[Queue]] goes to one taker. With
+ * `Hub.bounded` and `Hub.unbounded`, a subscriber receives each message
+ * published while it is subscribed. With `Hub.dropping` and `Hub.sliding`, it
+ * can miss the messages that the hub dropped while it was full. `subscribe`
  * returns a [[Dequeue]] that stays subscribed until its `Scope` closes. A
  * message published while there are no subscribers is not kept.
  *
- * A bounded hub keeps each message until every subscriber has taken it. When it
- * is full, what `publish` does depends on how the hub was made:
+ * A bounded hub keeps each message until every subscriber has taken it, or,
+ * with `Hub.sliding`, until a newer message replaces it. When it is full, what
+ * `publish` does depends on how the hub was made:
  *   - `Hub.bounded` suspends the publishing fiber until there is room (back
  *     pressure).
  *   - `Hub.dropping` drops the new message, and `publish` returns `false`.
@@ -50,7 +54,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  *       b      <- second.takeN(2)
  *     } yield (a, b)
  *   }
- * // (Chunk(a,b),Chunk(a,b))
+ * // succeeds with (Chunk(a,b),Chunk(a,b))
  * }}}
  *
  * @see
