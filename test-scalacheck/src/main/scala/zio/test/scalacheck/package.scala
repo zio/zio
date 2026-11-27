@@ -7,19 +7,15 @@ import zio._
 import zio.test.{ErrorMessage => M}
 
 /**
- * This package provides helpers to integrate *some* ScalaCheck primitives to
- * their ZIO equivalents. Currently available helpers:
+ * Connects ScalaCheck to ZIO Test. Importing `zio.test.scalacheck._` adds three extension methods:
  *
- *   - Converting ScalaCheck Generators to ZIO Generators
- *   - Asserting a ScalaCheck `Prop` with ZIO
- *   - Asserting a ScalaCheck `Properties` with ZIO
+ *   - `toGenZIO` on a ScalaCheck `Gen`, which converts it to a ZIO Test `zio.test.Gen`
+ *   - `assertZIO` on a ScalaCheck `Prop`, which checks it and returns a `zio.test.TestResult`
+ *   - `assertZIO` on ScalaCheck `Properties`, which checks each property and returns a `zio.test.TestResult`
  *
- * **Generators**
+ * '''Generators'''
  *
- * This functionality converts legacy ScalaCheck generators to ZIO Test
- * generators to support upgrading to ZIO Test without having to reimplement
- * existing generators. To use it import this module and then call `toGenZIO` on
- * any existing ScalaCheck generator. For example:
+ * `toGenZIO` converts existing ScalaCheck generators to ZIO Test generators, so that you can move to ZIO Test without reimplementing them. To use it, import this package and call `toGenZIO` on a ScalaCheck generator. For example:
  *
  * {{{
  * import org.scalacheck.Arbitrary
@@ -32,11 +28,9 @@ import zio.test.{ErrorMessage => M}
  *   Arbitrary.arbitrary[Int].toGenZIO
  * }}}
  *
- * **Asserting ScalaCheck `Prop` and `Properties`**
+ * '''Asserting ScalaCheck `Prop` and `Properties`'''
  *
- * This functionality generates ZIO Assertions from either ScalaCheck `Prop` or
- * `Properties`. This helps with integrating other libraries that provide
- * ScalaCheck properties as helpers, i.e. cats-laws.
+ * `assertZIO` checks a ScalaCheck `Prop` or `Properties` with ScalaCheck's test runner and returns the outcome as a ZIO Test `TestResult`. This helps with libraries that provide their checks as ScalaCheck properties, such as cats-laws.
  *
  * `Prop` example:
  *
@@ -73,20 +67,25 @@ import zio.test.{ErrorMessage => M}
  *   }
  * }
  *
- * * val resultDefault: TestResult = MyProperties.assertZIO()
+ * val resultDefault: TestResult = MyProperties.assertZIO()
  *
- * // Beware that we can't provide a custom name here, it will be
- * // taken from the `Properties` name parameter
+ * // There is no name parameter here: each failing property
+ * // is reported by its own name
  * val resultWithCustomizations: TestResult =
  *   MyProperties.assertZIO(ScalaCheckParameters.default.withMaxSize(10))
  * }}}
+ *
+ * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 package object scalacheck {
 
+  /**
+   * Adds `toGenZIO` to a ScalaCheck `Gen`.
+   */
   implicit final class ScalaCheckGenSyntax[A](private val self: org.scalacheck.Gen[A]) extends AnyVal {
 
     /**
-     * Converts a legacy ScalaCheck `Gen` to a ZIO Test `Gen`.
+     * Converts this ScalaCheck `Gen` to a ZIO Test `Gen`. Each sample runs the ScalaCheck generator with a seed taken from ZIO's `Random` service and with the size from ZIO Test's `Sized` service (100 in the default test environment), so the samples are the same for the same `TestRandom` seed. The resulting generator does not shrink. When the ScalaCheck generator yields no value, for example because a `suchThat` filter rejects every candidate, the effect dies with `org.scalacheck.Gen.RetrievalError`.
      */
     def toGenZIO: Gen[Any, A] =
       Gen.fromZIO {
@@ -98,10 +97,16 @@ package object scalacheck {
       }
   }
 
+  /**
+   * Adds `assertZIO` to a ScalaCheck `Prop`.
+   */
   implicit final class ScalaCheckPropSyntax(private val self: Prop) extends AnyVal {
 
     /**
-     * Asserts a ScalaCheck `Prop` and provides a ZIO `TestResult`.
+     * Checks this ScalaCheck `Prop` with ScalaCheck's test runner and returns a ZIO Test `TestResult` that succeeds when the check passes. The check uses `testParams`, not ZIO Test's `check` settings.
+     *
+     * @param name the name of the assertion, shown when it fails (`ScalaCheck Prop Assertion` unless given)
+     * @param testParams the ScalaCheck test parameters, `Test.Parameters.default` unless given
      */
     def assertZIO(
       name: String = "ScalaCheck Prop Assertion",
@@ -110,10 +115,15 @@ package object scalacheck {
       Assertion.assertion[Prop](name)(prop => CheckTest.check(testParams, prop).passed).run(self)
   }
 
+  /**
+   * Adds `assertZIO` to ScalaCheck `Properties`.
+   */
   implicit final class ScalaCheckPropertiesSyntax(private val self: Properties) extends AnyVal {
 
     /**
-     * Asserts ScalaCheck `Properties` and provides a ZIO `TestResult`.
+     * Checks each property of these ScalaCheck `Properties` with ScalaCheck's test runner and returns a ZIO Test `TestResult` that succeeds when all of them pass. Each failing property is reported by its name. The check uses `testParams`, not ZIO Test's `check` settings. When the `Properties` has no properties, the test fails with a `java.lang.UnsupportedOperationException`.
+     *
+     * @param testParams the ScalaCheck test parameters, `Test.Parameters.default` unless given
      */
     def assertZIO(
       testParams: CheckTest.Parameters = CheckTest.Parameters.default
