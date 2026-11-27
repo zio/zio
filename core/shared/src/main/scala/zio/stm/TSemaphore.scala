@@ -20,49 +20,68 @@ import zio.{Scope, UIO, Unsafe, Trace, ZIO}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * A `TSemaphore` is a semaphore that can be composed transactionally. Because
- * of the extremely high performance of ZIO's implementation of software
- * transactional memory `TSemaphore` can support both controlling access to some
- * resource on a standalone basis as well as composing with other STM data
- * structures to solve more advanced concurrency problems.
+ * A `TSemaphore` is a semaphore that can be composed transactionally. It holds
+ * a number of permits, and its `acquire` and `release` operations are STM
+ * transactions. It can control access to a resource on its own, or be combined
+ * with other STM data structures in one transaction.
  *
- * For basic use cases, the most idiomatic way to work with a semaphore is to
- * use the `withPermit` operator, which acquires a permit before executing some
- * `ZIO` effect and release the permit immediately afterward. The permit is
- * guaranteed to be released immediately after the effect completes execution,
- * whether by success, failure, or interruption. Attempting to acquire a permit
- * when a sufficient number of permits are not available will semantically block
- * until permits become available without blocking any underlying operating
- * system threads. If you want to acquire more than one permit at a time you can
- * use `withPermits`, which allows specifying a number of permits to acquire.
- * You can also use `withPermitScoped` or `withPermitsScoped` to acquire and
- * release permits within the context of a scoped effect for composing with
- * other resources.
+ * For basic use cases, use `withPermit`, which acquires a permit before running
+ * a `ZIO` effect and releases it after the effect completes, whether by
+ * success, failure, or interruption. When not enough permits are available, the
+ * acquiring transaction retries, so the fiber suspends until permits are
+ * released, without blocking an operating system thread; the wait can be
+ * interrupted. `withPermits` acquires several permits at a time, and
+ * `withPermitScoped` and `withPermitsScoped` release the permits when a scope
+ * closes.
  *
- * For more advanced concurrency problems you can use the `acquire` and
- * `release` operators directly, or their variants `acquireN` and `releaseN`,
- * all of which return STM transactions. Thus, they can be composed to form
- * larger STM transactions, for example acquiring permits from two different
- * semaphores transactionally and later releasing them transactionally to safely
- * synchronize on access to two different mutable variables.
+ * For more advanced concurrency problems, use `acquire` and `release`, or
+ * `acquireN` and `releaseN`, directly. They return STM transactions, so they
+ * can be composed into larger transactions, for example to acquire permits from
+ * two semaphores in one transaction: if either semaphore lacks permits, neither
+ * is changed and the transaction retries.
+ *
+ * {{{
+ * import zio._
+ *
+ * val program: UIO[(Long, Long)] =
+ *   for {
+ *     left   <- TSemaphore.makeCommit(1L)
+ *     right  <- TSemaphore.makeCommit(2L)
+ *     _      <- (left.acquire *> right.acquire).commit
+ *     during <- (left.available zip right.available).commit
+ *     _      <- (left.release *> right.release).commit
+ *     _      <- right.withPermit(ZIO.succeed("work"))
+ *   } yield during
+ * // (0,1)
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/stm/tsemaphore/ TSemaphore]]
  */
 final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
 
   /**
-   * Acquires a single permit in transactional context.
+   * Acquires a single permit. When no permit is available, the transaction
+   * retries, so the fiber suspends until a permit is released.
    */
   def acquire: USTM[Unit] =
     acquireBetween(1L, 1L).unit
 
   /**
-   * Acquires the specified number of permits in a transactional context.
+   * Acquires `n` permits. When fewer than `n` are available, the transaction
+   * retries without acquiring any, so the fiber suspends until enough permits
+   * are released. A negative `n` dies with a
+   * `java.lang.IllegalArgumentException`.
    */
   def acquireN(n: Long): USTM[Unit] =
     acquireBetween(n, n).unit
 
   /**
-   * Acquire at least `min` permits and at most `max` permits in a transactional
-   * context.
+   * Acquires as many available permits as possible, at least `min` and at most
+   * `max`, and succeeds with the number acquired. When fewer than `min` are
+   * available, the transaction retries, so the fiber suspends until enough
+   * permits are released. Dies with a `java.lang.IllegalArgumentException` when
+   * `min` is greater than `max` or either is negative.
    */
   def acquireBetween(min: Long, max: Long): USTM[Long] =
     ZSTM.Effect { (journal, _, _) =>
@@ -80,25 +99,28 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     }
 
   /**
-   * Acquire at most `max` permits in a transactional context.
+   * Acquires as many available permits as possible, at most `max`, and succeeds
+   * with the number acquired, which is 0 when the available count is 0. A
+   * negative `max` dies with a `java.lang.IllegalArgumentException`.
    */
   def acquireUpTo(max: Long): USTM[Long] =
     acquireBetween(0, max)
 
   /**
-   * Returns the number of available permits in a transactional context.
+   * Returns the number of available permits.
    */
   def available: USTM[Long] =
     permits.get
 
   /**
-   * Releases a single permit in a transactional context.
+   * Releases a single permit, adding it to the available permits.
    */
   def release: USTM[Unit] =
     releaseN(1L)
 
   /**
-   * Releases the specified number of permits in a transactional context
+   * Releases `n` permits, adding them to the available permits. A negative `n`
+   * dies with a `java.lang.IllegalArgumentException`.
    */
   def releaseN(n: Long): USTM[Unit] =
     ZSTM.Effect { (journal, _, _) =>
@@ -109,14 +131,15 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     }
 
   /**
-   * Tries to acquire a single permit in a transactional context. Returns `true`
-   * if the permit was acquired, otherwise `false`.
+   * Tries to acquire a single permit without waiting. Returns `true` if the
+   * permit was acquired, otherwise `false`.
    */
   def tryAcquire: USTM[Boolean] = tryAcquireN(1L)
 
   /**
-   * Tries to acquire the specified number of permits in a transactional
-   * context. Returns `true` if the permits were acquired, otherwise `false`.
+   * Tries to acquire `n` permits without waiting. Returns `true` if the permits
+   * were acquired, otherwise `false`, in which case no permit is acquired. A
+   * negative `n` dies with a `java.lang.IllegalArgumentException`.
    */
   def tryAcquireN(n: Long): USTM[Boolean] =
     ZSTM.Effect { (journal, _, _) =>
@@ -130,17 +153,17 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     }
 
   /**
-   * Executes the specified effect, acquiring `1` permit if available and
-   * releasing them after execution. Returns `None` if no permits were
-   * available.
+   * Executes the specified effect, acquiring 1 permit if available and
+   * releasing it after execution. Returns `None` without running the effect if
+   * no permit was available.
    */
   def tryWithPermit[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
     tryWithPermits(1L)(zio)
 
   /**
    * Executes the specified effect, acquiring `n` permits if available and
-   * releasing them after execution. Returns `None` if no permits were
-   * available.
+   * releasing them after execution. Returns `None` without running the effect
+   * if fewer than `n` permits were available.
    */
   def tryWithPermits[R, E, A](n: Long)(zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, Option[A]] =
     ZSTM.acquireReleaseWith(tryAcquireN(n))(releaseN(n).commit.whenDiscard(_))(zio.when(_))
@@ -154,8 +177,8 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     withPermits(1L)(zio)
 
   /**
-   * Returns a scoped effect that describes acquiring a permit as the `acquire`
-   * action and releasing it as the `release` action.
+   * Returns a scoped effect that acquires a permit, waiting until one is
+   * available, and releases it when the scope is closed.
    */
   def withPermitScoped(implicit trace: Trace): ZIO[Scope, Nothing, Unit] =
     withPermitsScoped(1L)
@@ -218,6 +241,9 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     require(n >= 0, s"Unexpected negative `$n` permits requested.")
 }
 
+/**
+ * Constructors for [[TSemaphore]].
+ */
 object TSemaphore {
 
   /**
@@ -233,7 +259,16 @@ object TSemaphore {
   def makeCommit(permits: => Long)(implicit trace: Trace): UIO[TSemaphore] =
     make(permits).commit
 
+  /**
+   * Constructors that run outside of a transaction and need an implicit
+   * `Unsafe`.
+   */
   object unsafe {
+
+    /**
+     * Creates a `TSemaphore` with the specified number of permits right away,
+     * outside of a transaction.
+     */
     def make(permits: Long)(implicit unsafe: Unsafe): TSemaphore =
       new TSemaphore(TRef.unsafeMake(permits))
   }

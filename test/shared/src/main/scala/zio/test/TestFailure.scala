@@ -19,6 +19,11 @@ package zio.test
 import zio.{Cause, ZIO}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * The reason a test failed: an `Assertion` failure when an assertion did not
+ * hold, or a `Runtime` failure with the `Cause` of an error, a defect or an
+ * interruption.
+ */
 sealed abstract class TestFailure[+E] { self =>
 
   /**
@@ -45,9 +50,21 @@ sealed abstract class TestFailure[+E] { self =>
     }
 }
 
+/**
+ * Constructors for [[TestFailure]] values.
+ */
 object TestFailure {
+
+  /**
+   * A failure caused by an assertion that did not hold, with its `TestResult`.
+   */
   final case class Assertion(result: TestResult, annotations: TestAnnotationMap = TestAnnotationMap.empty)
       extends TestFailure[Nothing]
+
+  /**
+   * A failure described by a `Cause`: the test's effect failed, died or was
+   * interrupted, or a layer it needs failed to build.
+   */
   final case class Runtime[+E](cause: Cause[E], annotations: TestAnnotationMap = TestAnnotationMap.empty)
       extends TestFailure[E]
 

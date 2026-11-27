@@ -22,11 +22,26 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import scala.collection.immutable.SortedMap
 
 /**
- * A `TPriorityQueue` contains values of type `A` that an `Ordering` is defined
- * on. Unlike a `TQueue`, `take` returns the highest priority value (the value
- * that is first in the specified ordering) as opposed to the first value
- * offered to the queue. The ordering that elements with the same priority will
- * be taken from the queue is not guaranteed.
+ * A `TPriorityQueue` is a transactional, unbounded queue of values of type `A`
+ * that an `Ordering` is defined on. Unlike a [[TQueue]], `take` returns the
+ * highest priority value (the value that is first in the specified ordering) as
+ * opposed to the first value offered to the queue. Values that compare as equal
+ * are not guaranteed to be taken in the order they were offered.
+ *
+ * {{{
+ * import zio.Chunk
+ *
+ * val sorted: USTM[Chunk[Int]] =
+ *   for {
+ *     queue  <- TPriorityQueue.empty[Int]
+ *     _      <- queue.offerAll(List(2, 4, 6, 3, 5, 6))
+ *     values <- queue.takeAll
+ *   } yield values
+ * // Chunk(2,3,4,5,6,6)
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/stm/tpriorityqueue/ TPriorityQueue]]
  */
 final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]]) extends AnyVal {
 
@@ -37,13 +52,14 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ref.get.map(_.isEmpty)
 
   /**
-   * Checks whether the queue is not empty..
+   * Checks whether the queue is not empty.
    */
   def nonEmpty: USTM[Boolean] =
     ref.get.map(_.nonEmpty)
 
   /**
-   * Offers the specified value to the queue.
+   * Offers the specified value to the queue. The queue is unbounded, so the
+   * offer does not wait.
    */
   def offer(a: A): USTM[Unit] =
     ref.update(map => map.updated(a, map.get(a).fold(::(a, Nil))(::(a, _))))
@@ -55,8 +71,9 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ref.update(map => values.foldLeft(map)((map, a) => map.updated(a, map.get(a).fold(::(a, Nil))(::(a, _)))))
 
   /**
-   * Peeks at the first value in the queue without removing it, retrying until a
-   * value is in the queue.
+   * Peeks at the first value in the queue without removing it. On an empty
+   * queue the transaction retries, so the fiber suspends until a value is in
+   * the queue.
    */
   def peek: USTM[A] =
     ZSTM.Effect((journal, _, _) =>
@@ -99,7 +116,8 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     ref.modify(map => (map.foldLeft(0) { case (n, (_, as)) => n + as.length }, map))
 
   /**
-   * Takes a value from the queue, retrying until a value is in the queue.
+   * Takes the first value in the queue. On an empty queue the transaction
+   * retries, so the fiber suspends until a value is in the queue.
    */
   def take: USTM[A] =
     ZSTM.Effect { (journal, _, _) =>
@@ -119,7 +137,8 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     }
 
   /**
-   * Takes all values from the queue.
+   * Takes all values from the queue, in priority order, without waiting. The
+   * result is empty when the queue is empty.
    */
   def takeAll: USTM[Chunk[A]] =
     ref.modify { map =>
@@ -129,7 +148,8 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     }
 
   /**
-   * Takes up to the specified maximum number of elements from the queue.
+   * Takes up to `n` elements from the queue, in priority order, without
+   * waiting. The result is empty when the queue is empty or `n` is 0 or less.
    */
   def takeUpTo(n: Int): USTM[Chunk[A]] =
     ref.modify { map =>
@@ -172,7 +192,7 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     }
 
   /**
-   * Collects all values into a chunk.
+   * Collects all values into a chunk, in priority order, without removing them.
    */
   def toChunk: USTM[Chunk[A]] =
     ref.modify { map =>
@@ -182,18 +202,23 @@ final class TPriorityQueue[A] private (private val ref: TRef[SortedMap[A, ::[A]]
     }
 
   /**
-   * Collects all values into a list.
+   * Collects all values into a list, in priority order, without removing them.
    */
   def toList: USTM[List[A]] =
     toChunk.map(_.toList)
 
   /**
-   * Collects all values into a vector.
+   * Collects all values into a vector, in priority order, without removing
+   * them.
    */
   def toVector: USTM[Vector[A]] =
     toChunk.map(_.toVector)
 }
 
+/**
+ * Constructors for [[TPriorityQueue]]. Each takes the `Ordering` that decides
+ * the priority of the values.
+ */
 object TPriorityQueue {
 
   /**

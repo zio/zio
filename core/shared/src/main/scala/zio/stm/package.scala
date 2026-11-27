@@ -20,9 +20,30 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 package object stm extends EitherCompat {
 
-  type RSTM[-R, +A]  = ZSTM[R, Throwable, A]
+  /**
+   * A transaction that needs an environment `R` and can fail with a
+   * `Throwable`.
+   */
+  type RSTM[-R, +A] = ZSTM[R, Throwable, A]
+
+  /**
+   * A transaction that needs an environment `R` and cannot fail with a typed
+   * error.
+   */
   type URSTM[-R, +A] = ZSTM[R, Nothing, A]
-  type STM[+E, +A]   = ZSTM[Any, E, A]
-  type USTM[+A]      = ZSTM[Any, Nothing, A]
-  type TaskSTM[+A]   = ZSTM[Any, Throwable, A]
+
+  /**
+   * A transaction that needs no environment and can fail with an `E`.
+   */
+  type STM[+E, +A] = ZSTM[Any, E, A]
+
+  /**
+   * A transaction that needs no environment and cannot fail with a typed error.
+   */
+  type USTM[+A] = ZSTM[Any, Nothing, A]
+
+  /**
+   * A transaction that needs no environment and can fail with a `Throwable`.
+   */
+  type TaskSTM[+A] = ZSTM[Any, Throwable, A]
 }

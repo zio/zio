@@ -3,7 +3,14 @@ package zio.test
 import zio.test.results.ResultPrinter
 import zio.{Console, ZIO, ZLayer}
 
+/**
+ * Prints execution events to the destinations of a test run.
+ */
 private[test] trait ExecutionEventPrinter {
+
+  /**
+   * Prints one event.
+   */
   def print(event: ExecutionEvent): ZIO[Any, Nothing, Unit]
 }
 
@@ -17,6 +24,11 @@ private[test] object ExecutionEventPrinter {
         })
   }
 
+  /**
+   * Builds a printer that writes each event to `console` with `eventRenderer`
+   * and, on the JVM and Scala Native, each test result to the JSON results file
+   * under `reportsParent`.
+   */
   def live(
     console: Console,
     eventRenderer: ReporterEventRenderer,

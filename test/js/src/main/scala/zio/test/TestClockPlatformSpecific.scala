@@ -19,8 +19,21 @@ package zio.test
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.{Duration, Scheduler, Trace, UIO, Unsafe, ZIO}
 
+/**
+ * The members of `TestClock.Test` whose implementation differs by platform.
+ */
 private[test] trait TestClockPlatformSpecific { self: TestClock.Test =>
 
+  /**
+   * Returns a `Scheduler` driven by this `TestClock`. A task scheduled with a
+   * delay runs on a forked fiber once `adjust` or `setTime` moves the clock
+   * time to or past the clock time at scheduling plus the delay; a zero or
+   * negative delay runs it without an adjustment. The cancel token interrupts
+   * that fiber and returns `true` when the task had not run yet, and `false`
+   * after it ran. On the JVM and Scala Native, the scheduler's
+   * `asScheduledExecutorService` also runs its tasks on this clock; on Scala.js
+   * a `Scheduler` has no `asScheduledExecutorService`.
+   */
   def scheduler(implicit trace: Trace): UIO[Scheduler] =
     ZIO.runtime[Any].map { runtime =>
       new Scheduler.Internal {

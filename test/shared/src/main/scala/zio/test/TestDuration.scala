@@ -5,17 +5,17 @@ import zio._
 import java.time.Instant
 
 /**
- * The time span in which one or more tests ran, as the `TestAnnotation.timing`
- * annotation stores it: either zero or the interval between a start and an end
- * instant.
+ * The time a test took, as the interval from a start to an end instant, or
+ * zero. `TestAspect.timed` records it in the `TestAnnotation.timing`
+ * annotation.
  */
 sealed trait TestDuration { self =>
   import TestDuration._
 
   /**
-   * Combines two durations into the smallest interval that covers both, from
-   * the earlier start to the later end. Combining with `TestDuration.zero`
-   * returns the other duration.
+   * Combines two durations into the span from the earliest start to the latest
+   * end: overlapping intervals are counted once, and the gap between disjoint
+   * intervals is included. Combining with `zero` returns the other duration.
    */
   final def <>(that: TestDuration): TestDuration =
     (self, that) match {
@@ -28,20 +28,22 @@ sealed trait TestDuration { self =>
     }
 
   /**
-   * Returns `true` when the length of this duration is zero.
+   * Returns `true` for `zero` and for an interval whose start and end are the
+   * same instant.
    */
   final def isZero: Boolean =
     toDuration.isZero
 
   /**
-   * Returns the length of this duration as human-readable text.
+   * Returns the duration as text, using the `render` method of `zio.Duration`.
    */
   final def render: String =
     toDuration.render
 
   /**
-   * Returns the length of this duration: the time from its start to its end, or
-   * `Duration.Zero` for `TestDuration.zero`.
+   * Returns the length of the interval as a `zio.Duration`, or `Duration.Zero`
+   * for `zero`. An interval whose end is before its start gives a negative
+   * duration.
    */
   final def toDuration: Duration =
     self match {
@@ -50,20 +52,20 @@ sealed trait TestDuration { self =>
     }
 
   /**
-   * Returns the length of this duration in milliseconds.
+   * Returns the length of the duration in milliseconds.
    */
   final def toMillis: Long =
     toDuration.toMillis
 
   /**
-   * Returns the length of this duration in nanoseconds.
+   * Returns the length of the duration in nanoseconds.
    */
   final def toNanos: Long =
     toDuration.toNanos
 }
 
 /**
- * Constructors of [[TestDuration]].
+ * Constructors for [[TestDuration]].
  */
 object TestDuration {
 
@@ -71,14 +73,14 @@ object TestDuration {
   private case object Zero                                      extends TestDuration
 
   /**
-   * Returns the duration from `start` to `end`. The order is not checked: an
-   * `end` before `start` gives a negative length.
+   * Creates the duration of the interval from `start` to `end`.
    */
   def fromInterval(start: Instant, end: Instant): TestDuration =
     Finite(start, end)
 
   /**
-   * The duration of length zero, which `<>` treats as no interval.
+   * The zero duration. Combining it with another duration with `<>` returns the
+   * other duration.
    */
   val zero: TestDuration =
     Zero

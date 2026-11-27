@@ -19,6 +19,20 @@ package zio.test
 import zio.{UIO, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * A test service whose state can be saved and later restored. `TestClock`,
+ * `TestConsole`, `TestRandom` and `TestSystem` are restorable, and
+ * `TestAspect.restore` uses `save` to put a service back in its starting state
+ * after each run of a test.
+ *
+ * @see
+ *   [[https://zio.dev/reference/test/aspects/restoring-state-of-test-services/ Restoring State of Test Services]]
+ */
 trait Restorable extends Serializable {
+
+  /**
+   * Saves the current state of the service and returns an effect that, when
+   * run, restores the service to that state.
+   */
   def save(implicit trace: Trace): UIO[UIO[Unit]]
 }

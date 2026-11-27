@@ -25,7 +25,15 @@ import scala.collection.immutable.SortedSet
 
 /**
  * A `Supervisor[A]` is allowed to supervise the launching and termination of
- * fibers, producing some visible value of type `A` from the supervision.
+ * fibers, producing some visible value of type `A` from the supervision. The
+ * runtime calls `onStart` when a fiber starts and `onEnd` when it ends,
+ * `onResume` and `onSuspend` when it starts and stops running on a thread, and,
+ * while `RuntimeFlag.OpSupervision` is enabled, `onEffect` for each operation
+ * it runs. The runtime calls these methods synchronously, on the thread that
+ * runs or forks the fiber, so they should return quickly.
+ *
+ * Install a supervisor with `ZIO#supervised`, which applies it to the fibers
+ * forked inside a region, or with the `Runtime.addSupervisor` layer.
  */
 abstract class Supervisor[+A] { self =>
 
@@ -59,6 +67,11 @@ abstract class Supervisor[+A] { self =>
     if (contains(self, that)) self else self ++ that
   }
 
+  /**
+   * Called when `fiber` is created to run `effect` with `environment`, before
+   * it starts running. `parent` is the forking fiber, or `None` for a fiber
+   * started by a `Runtime`.
+   */
   def onStart[R, E, A](
     environment: ZEnvironment[R],
     effect: ZIO[R, E, A],
@@ -66,32 +79,65 @@ abstract class Supervisor[+A] { self =>
     fiber: Fiber.Runtime[E, A]
   )(implicit unsafe: Unsafe): Unit
 
+  /**
+   * Called when `fiber` ends with the exit `value`, before the fibers waiting
+   * for it are resumed.
+   */
   def onEnd[R, E, A](value: Exit[E, A], fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit
 
+  /**
+   * Called before `fiber` runs each operation `effect`, only while
+   * `RuntimeFlag.OpSupervision` is enabled. Does nothing unless overridden.
+   */
   def onEffect[E, A](fiber: Fiber.Runtime[E, A], effect: ZIO[_, _, _])(implicit unsafe: Unsafe): Unit = ()
 
+  /**
+   * Called when `fiber` stops running on its current thread: when it suspends,
+   * yields or ends. Does nothing unless overridden.
+   */
   def onSuspend[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
 
+  /**
+   * Called when `fiber` starts or resumes running on a thread. Does nothing
+   * unless overridden.
+   */
   def onResume[E, A](fiber: Fiber.Runtime[E, A])(implicit unsafe: Unsafe): Unit = ()
 }
+
+/**
+ * Constructors of [[Supervisor]] values, and the patches that the runtime uses
+ * to update the supervisor of a fiber.
+ */
 object Supervisor {
 
   import zio.internal._
 
   /**
-   * Creates a new supervisor that tracks children in a set.
+   * Creates a new supervisor that tracks children in a set. A fiber is added
+   * when it starts under the supervisor and removed when it ends, so the value
+   * lists the fibers that are still running. Under `ZIO#supervised`, that
+   * includes the fibers that the forked fibers fork in turn, but not the fiber
+   * that called `supervised`.
    *
    * @param weak
    *   Whether or not to track the children in a weak set, if possible
-   *   (platform-dependent).
+   *   (platform-dependent). On the JVM and Scala Native a weak set does not
+   *   keep a fiber from being garbage-collected; on Scala.js the set is an
+   *   ordinary one.
    */
   def track(weak: Boolean)(implicit trace: Trace): UIO[Supervisor[Chunk[Fiber.Runtime[Any, Any]]]] =
     ZIO.succeed(unsafe.track(weak)(Unsafe.unsafe))
 
+  /**
+   * Creates a supervisor that ignores the supervision events and whose value is
+   * the result of `value`.
+   */
   def fromZIO[A](value: UIO[A]): Supervisor[A] = new ConstSupervisor(_ => value)
 
   /**
-   * Creates a new supervisor that tracks children in a set.
+   * Creates a new supervisor that tracks children in a set: it adds each fiber
+   * to the set in `ref` when the fiber starts and removes it when the fiber
+   * ends. Its value is the current content of `ref`.
    */
   def fibersIn(
     ref: AtomicReference[SortedSet[Fiber.Runtime[Any, Any]]]
@@ -198,6 +244,11 @@ object Supervisor {
       underlying.onResume(fiber)
   }
 
+  /**
+   * A change to a supervisor that adds or removes supervisors. The runtime uses
+   * patches to carry supervisor changes from one fiber to another, for example
+   * when a fiber is joined.
+   */
   sealed trait Patch { self =>
     import Patch._
 
@@ -226,11 +277,16 @@ object Supervisor {
       AndThen(self, that)
   }
 
+  /**
+   * Constructors of `Supervisor.Patch` values.
+   */
   object Patch {
 
     /**
      * Constructs a patch that describes the updates necessary to transform the
-     * specified old environment into the specified new environment.
+     * specified old supervisor into the specified new supervisor: it adds the
+     * supervisors that only `newValue` contains and removes those that only
+     * `oldValue` contains.
      */
     def diff(oldValue: Supervisor[Any], newValue: Supervisor[Any]): Patch =
       if (oldValue == newValue) Empty
@@ -246,6 +302,7 @@ object Supervisor {
         added.combine(removed)
       }
 
+    /** The patch that leaves a supervisor unchanged. */
     val empty: Patch =
       Empty
 

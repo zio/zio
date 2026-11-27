@@ -19,6 +19,10 @@ package zio.test
 import zio.Exit
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * The result of a test that did not fail: `Succeeded` when it ran and passed,
+ * or `Ignored` when it was skipped, for example with `TestAspect.ignore`.
+ */
 sealed abstract class TestSuccess { self =>
 
   /**
@@ -36,10 +40,24 @@ sealed abstract class TestSuccess { self =>
     }
 }
 
+/**
+ * The kinds of [[TestSuccess]].
+ */
 object TestSuccess {
-  final case class Succeeded(annotations: TestAnnotationMap = TestAnnotationMap.empty) extends TestSuccess
-  final case class Ignored(annotations: TestAnnotationMap = TestAnnotationMap.empty)   extends TestSuccess
 
+  /**
+   * The result of a test that ran and passed.
+   */
+  final case class Succeeded(annotations: TestAnnotationMap = TestAnnotationMap.empty) extends TestSuccess
+
+  /**
+   * The result of a test that was skipped.
+   */
+  final case class Ignored(annotations: TestAnnotationMap = TestAnnotationMap.empty) extends TestSuccess
+
+  /**
+   * An `Ignored` result with no annotations.
+   */
   val ignored: TestSuccess           = Ignored()
   private[test] val succeedEmptyExit = Exit.succeed(Succeeded())
 }

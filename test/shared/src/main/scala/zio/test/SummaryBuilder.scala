@@ -21,8 +21,17 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.ExecutionEvent.{RuntimeFailure, SectionEnd, SectionStart, Test, TestStarted, TopLevelFlush}
 import zio.test.render.ConsoleRenderer
 
+/**
+ * Updates a [[Summary]] with execution events.
+ */
 object SummaryBuilder {
 
+  /**
+   * Returns `oldSummary` updated with `reporterEvent`. A `Test` event adds one
+   * to the success, fail or ignore count; a failed `Test` event and a
+   * `RuntimeFailure` event also add their failure to the failure details; other
+   * events leave the counts and failure details unchanged.
+   */
   def buildSummary(reporterEvent: ExecutionEvent, oldSummary: Summary)(implicit trace: Trace): Summary = {
     val success = countTestResults(reporterEvent) {
       case Right(TestSuccess.Succeeded(_)) => true

@@ -28,21 +28,33 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * of wind-down mode.
  */
 sealed abstract class InterruptStatus(val isInterruptible: Boolean) extends Serializable with Product {
+
+  /** Returns `true` for [[InterruptStatus.Uninterruptible]]. */
   final def isUninterruptible: Boolean = !isInterruptible
 
   private[zio] final def toBoolean: Boolean = isInterruptible
 }
+
+/**
+ * The two values of [[InterruptStatus]].
+ */
 object InterruptStatus {
-  def interruptible: InterruptStatus   = Interruptible
+
+  /** Returns [[InterruptStatus.Interruptible]]. */
+  def interruptible: InterruptStatus = Interruptible
+
+  /** Returns [[InterruptStatus.Uninterruptible]]. */
   def uninterruptible: InterruptStatus = Uninterruptible
 
   /**
-   * Indicates the fiber can be interrupted right now.
+   * Indicates the fiber is in an interruptible region, so it can be interrupted
+   * unless it is in wind-down mode.
    */
   case object Interruptible extends InterruptStatus(true)
 
   /**
-   * Indicates the fiber cannot be interrupted right now.
+   * Indicates the fiber is in an uninterruptible region, so it cannot be
+   * interrupted right now.
    */
   case object Uninterruptible extends InterruptStatus(false)
 

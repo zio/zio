@@ -24,19 +24,50 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * capabilities and all of the laws that those capabilities are expected to
  * satisfy.
  *
+ * The companion object of a capability usually extends it (through the `Lawful`
+ * alias when the laws need no environment), so that `checkAllLaws` can check an
+ * instance against all of its laws.
+ *
  * {{{
+ * import zio.UIO
+ * import zio.test._
+ *
  * trait Equal[-A] {
  *   def equal(a1: A, a2: A): Boolean
  * }
  *
  * object Equal extends Lawful[Equal] {
- *   val laws = ???
+ *   val reflexive: Laws.Law1[Equal] =
+ *     new Laws.Law1[Equal]("reflexive") {
+ *       def apply[A: Equal](a1: A): TestResult =
+ *         assertTrue(implicitly[Equal[A]].equal(a1, a1))
+ *     }
+ *
+ *   val laws: Laws[Equal] = reflexive
+ *
+ *   implicit val stringEqual: Equal[String] = new Equal[String] {
+ *     def equal(a1: String, a2: String): Boolean = a1 == a2
+ *   }
  * }
+ *
+ * val result: UIO[TestResult] = checkAllLaws(Equal)(Gen.alphaNumericString)
  * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 trait ZLawful[-Caps[_], -R] { self =>
+
+  /**
+   * The laws that instances with the capability `Caps` are expected to satisfy.
+   */
   def laws: ZLaws[Caps, R]
 
+  /**
+   * Combines this lawful instance with `that`, giving a lawful instance whose
+   * laws are `laws + that.laws`. Checking the result needs one instance that
+   * has both capabilities.
+   */
   def +[Caps1[x] <: Caps[x], R1 <: R](that: ZLawful[Caps1, R1]): ZLawful[Caps1, R1] =
     new ZLawful[Caps1, R1] {
       val laws = self.laws + that.laws

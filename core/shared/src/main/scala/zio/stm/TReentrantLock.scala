@@ -23,32 +23,59 @@ import zio.{FiberId, Scope, Trace, Unsafe, ZIO}
 /**
  * A `TReentrantLock` is a reentrant read/write lock. Multiple readers may all
  * concurrently acquire read locks. Only one writer is allowed to acquire a
- * write lock at any given time. Read locks may be upgraded into write locks. A
- * fiber that has a write lock may acquire other write locks or read locks.
+ * write lock at any given time. A fiber's read lock is upgraded into a write
+ * lock when it acquires a write lock while no other fiber holds a read lock;
+ * when two readers both try to upgrade, they wait for each other and neither
+ * upgrade completes. A fiber that has a write lock may acquire other write
+ * locks or read locks.
+ *
+ * Locks belong to the fiber that commits the acquiring transaction, so release
+ * them on that same fiber. A fiber forked while its parent holds a lock does
+ * not share it, and operators that run an effect on another fiber, such as
+ * `timeout`, acquire the lock for that other fiber.
  *
  * The two primary methods of this structure are `readLock`, which acquires a
  * read lock in a scoped context, and `writeLock`, which acquires a write lock
  * in a scoped context.
  *
  * Although located in the STM package, there is no need for locks within STM
- * transactions. However, this lock can be quite useful in effectful code, to
- * provide consistent read/write access to mutable state; and being in STM
- * allows this structure to be composed into more complicated concurrent
- * structures that are consumed from effectful code.
+ * transactions. However, this lock can be useful in effectful code, to provide
+ * consistent read/write access to mutable state; and being in STM allows this
+ * structure to be composed into more complicated concurrent structures that are
+ * consumed from effectful code.
+ *
+ * {{{
+ * import zio._
+ *
+ * val program: UIO[(Int, Int)] =
+ *   for {
+ *     lock    <- TReentrantLock.make.commit
+ *     counter <- Ref.make(0)
+ *     _       <- ZIO.foreachParDiscard(1 to 10) { _ =>
+ *                  lock.withWriteLock(counter.update(_ + 1))
+ *                }
+ *     readers <- ZIO.scoped(lock.readLock *> lock.readLock)
+ *     total   <- counter.get
+ *   } yield (readers, total)
+ * // (2,10)
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/stm/treentrantlock/ TReentrantLock]]
  */
 final class TReentrantLock private (data: TRef[LockState]) {
 
   /**
    * Acquires a read lock. The transaction will suspend until no other fiber is
-   * holding a write lock. Succeeds with the number of read locks held by this
-   * fiber.
+   * holding a write lock. Succeeds with the number of read locks held by the
+   * fiber that commits it.
    */
   lazy val acquireRead: USTM[Int] = adjustRead(1)
 
   /**
    * Acquires a write lock. The transaction will suspend until no other fibers
    * are holding read or write locks. Succeeds with the number of write locks
-   * held by this fiber.
+   * held by the fiber that commits it.
    */
   lazy val acquireWrite: USTM[Int] =
     ZSTM.Effect((journal, fiberId, _) =>
@@ -67,10 +94,9 @@ final class TReentrantLock private (data: TRef[LockState]) {
     )
 
   /**
-   * Just a convenience method for applications that only need reentrant locks,
-   * without needing a distinction between readers / writers.
-   *
-   * See [[writeLock]].
+   * Acquires a write lock in a scoped context, for applications that only need
+   * a reentrant lock, without a distinction between readers and writers. The
+   * same as `writeLock`.
    */
   def lock(implicit trace: Trace): ZIO[Scope, Nothing, Int] = writeLock
 
@@ -81,24 +107,28 @@ final class TReentrantLock private (data: TRef[LockState]) {
     (readLocked zipWith writeLocked)(_ || _)
 
   /**
-   * Obtains a read lock in a scoped context.
+   * Obtains a read lock in a scoped context, waiting while another fiber holds
+   * a write lock, and releases it when the scope is closed. Succeeds with the
+   * number of read locks the fiber holds.
    */
   def readLock(implicit trace: Trace): ZIO[Scope, Nothing, Int] =
     ZIO.acquireRelease(acquireRead.commit)(_ => releaseRead.commit)
 
   /**
-   * Retrieves the total number of acquired read locks.
+   * Retrieves the total number of acquired read locks, across all fibers.
    */
   def readLocks: USTM[Int] = data.get.map(_.readLocks)
 
   /**
-   * Retrieves the number of acquired read locks for this fiber.
+   * Retrieves the number of read locks held by the fiber that commits the
+   * transaction.
    */
   def fiberReadLocks: USTM[Int] =
     ZSTM.Effect((journal, fiberId, _) => data.unsafeGet(journal).readLocks(fiberId))
 
   /**
-   * Retrieves the number of acquired write locks for this fiber.
+   * Retrieves the number of write locks held by the fiber that commits the
+   * transaction.
    */
   def fiberWriteLocks: USTM[Int] =
     ZSTM.Effect((journal, fiberId, _) => data.unsafeGet(journal).writeLocks(fiberId))
@@ -109,14 +139,17 @@ final class TReentrantLock private (data: TRef[LockState]) {
   def readLocked: USTM[Boolean] = data.get.map(_.readLocks > 0)
 
   /**
-   * Releases a read lock held by this fiber. Succeeds with the outstanding
-   * number of read locks held by this fiber.
+   * Releases a read lock held by the fiber that commits the transaction.
+   * Succeeds with the number of read locks that fiber still holds.
    */
   lazy val releaseRead: USTM[Int] = adjustRead(-1)
 
   /**
-   * Releases a write lock held by this fiber. Succeeds with the outstanding
-   * number of write locks held by this fiber.
+   * Releases a write lock held by the fiber that commits the transaction.
+   * Succeeds with the number of write locks that fiber still holds. Releasing
+   * the last write lock keeps the read locks the fiber holds. When the fiber
+   * holds no write lock, the transaction dies with a
+   * `java.lang.RuntimeException`.
    */
   lazy val releaseWrite: USTM[Int] =
     ZSTM.Effect { (journal, fiberId, _) =>
@@ -131,25 +164,31 @@ final class TReentrantLock private (data: TRef[LockState]) {
     }
 
   /**
-   * Runs the specified workflow with a lock.
+   * Runs the specified workflow with a write lock. The same as `withWriteLock`.
    */
   def withLock[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     withWriteLock(zio)
 
   /**
-   * Runs the specified workflow with a read lock.
+   * Runs the specified workflow with a read lock, waiting while another fiber
+   * holds a write lock. The lock is released when the workflow completes,
+   * whether by success, failure, or interruption.
    */
   def withReadLock[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.uninterruptibleMask(restore => restore(acquireRead.commit) *> restore(zio).ensuring(releaseRead.commit))
 
   /**
-   * Runs the specified workflow with a write lock.
+   * Runs the specified workflow with a write lock, waiting while another fiber
+   * holds a read or write lock. The lock is released when the workflow
+   * completes, whether by success, failure, or interruption.
    */
   def withWriteLock[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     ZIO.uninterruptibleMask(restore => restore(acquireWrite.commit) *> restore(zio).ensuring(releaseWrite.commit))
 
   /**
-   * Obtains a write lock in a scoped context.
+   * Obtains a write lock in a scoped context, waiting while another fiber holds
+   * a read or write lock, and releases it when the scope is closed. Succeeds
+   * with the number of write locks the fiber holds.
    */
   def writeLock(implicit trace: Trace): ZIO[Scope, Nothing, Int] =
     ZIO.acquireRelease(acquireWrite.commit)(_ => releaseWrite.commit)
@@ -160,7 +199,9 @@ final class TReentrantLock private (data: TRef[LockState]) {
   def writeLocked: USTM[Boolean] = data.get.map(_.writeLocks > 0)
 
   /**
-   * Computes the number of write locks held by fibers.
+   * Computes the number of write locks held. At most one fiber holds write
+   * locks, and it may hold several by reentrancy; the result is 0 when no fiber
+   * holds one.
    */
   def writeLocks: USTM[Int] = data.get.map(_.writeLocks)
 
@@ -185,6 +226,10 @@ final class TReentrantLock private (data: TRef[LockState]) {
       }
     )
 }
+
+/**
+ * Constructors for [[TReentrantLock]].
+ */
 object TReentrantLock {
 
   private[stm] sealed abstract class LockState {
@@ -206,10 +251,10 @@ object TReentrantLock {
   }
 
   /**
-   * This data structure describes the state of the lock when multiple fibers
-   * have acquired read locks. The state is tracked as a map from fiber identity
-   * to number of read locks acquired by the fiber. This level of detail permits
-   * upgrading a read lock to a write lock.
+   * This data structure describes the state of the lock when no fiber holds a
+   * write lock, and zero or more fibers hold read locks. The state is tracked
+   * as a map from fiber identity to number of read locks acquired by the fiber.
+   * This level of detail permits upgrading a read lock to a write lock.
    */
   private[stm] final class ReadLock(readers: Map[FiberId, Int]) extends LockState {
 
@@ -233,7 +278,8 @@ object TReentrantLock {
     def readLocks(fiberId: FiberId): Int = readers.getOrElse(fiberId, 0)
 
     /**
-     * Adjusts the number of read locks held by the specified fiber id.
+     * Adjusts the number of read locks held by the specified fiber id. Throws a
+     * `java.lang.RuntimeException` when the result would be negative.
      */
     def adjust(fiberId: FiberId, adjust: Int): ReadLock = {
       val total = readLocks(fiberId)
@@ -272,7 +318,16 @@ object TReentrantLock {
   def make: USTM[TReentrantLock] =
     ZSTM.succeed(unsafe.make()(Unsafe.unsafe))
 
+  /**
+   * Constructors that run outside of a transaction and need an implicit
+   * `Unsafe`.
+   */
   object unsafe {
+
+    /**
+     * Creates a `TReentrantLock` that no fiber holds, right away, outside of a
+     * transaction.
+     */
     def make()(implicit unsafe: Unsafe): TReentrantLock =
       new TReentrantLock(TRef.unsafeMake[LockState](ReadLock.empty))
   }

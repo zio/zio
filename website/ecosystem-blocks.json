@@ -1,0 +1,560 @@
+{
+  "blocks": [
+    {
+      "name": "MediaType",
+      "href": "https://zioblocks.com/reference/media-type/",
+      "artifact": "zio-blocks-mediatype",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Type-safe IANA media types with 2,600+ predefined types",
+      "category": "web"
+    },
+    {
+      "name": "HTTP Model",
+      "href": "https://zioblocks.com/reference/http-model/",
+      "artifact": "zio-blocks-http-model",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Pure HTTP data model with URL parsing, headers, cookies, and forms",
+      "category": "web"
+    },
+    {
+      "name": "HTTP Model Schema",
+      "href": "https://zioblocks.com/reference/http-model/schema/",
+      "artifact": "zio-blocks-http-model-schema",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Schema-based typed access to the HTTP model",
+      "category": "web"
+    },
+    {
+      "name": "Endpoint",
+      "href": "https://zioblocks.com/reference/endpoint/",
+      "artifact": "zio-blocks-endpoint",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Type-safe HTTP endpoint descriptors with composable codecs and typed auth",
+      "category": "web"
+    },
+    {
+      "name": "OpenAPI",
+      "href": "https://zioblocks.com/reference/openapi/",
+      "artifact": "zio-blocks-openapi",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Type-safe OpenAPI 3.1 specification generation and rendering",
+      "category": "web"
+    },
+    {
+      "name": "JWT",
+      "href": "https://zioblocks.com/reference/jwt/",
+      "artifact": "zio-blocks-jwt",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Zero-dependency JWT signing and verification with HMAC, RSA, ECDSA and EdDSA support",
+      "category": "web"
+    },
+    {
+      "name": "HTML",
+      "href": "https://zioblocks.com/reference/html/",
+      "artifact": "zio-blocks-html",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Type-safe HTML templating with XSS protection",
+      "category": "web"
+    },
+    {
+      "name": "Datastar",
+      "href": "https://zioblocks.com/reference/datastar/",
+      "artifact": "zio-blocks-datastar",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Typed Datastar attribute and signal DSL, plus the SSE events that patch a live page",
+      "category": "web"
+    },
+    {
+      "name": "HTMX",
+      "href": "https://zioblocks.com/reference/htmx/",
+      "artifact": "zio-blocks-http-htmx",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Typed HTMX DSL for compile-time-checked HTMX attributes",
+      "category": "web"
+    },
+    {
+      "name": "SQL Module",
+      "href": "https://zioblocks.com/reference/sql/",
+      "artifact": "zio-blocks-sql",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Type-safe JDBC wrapper with schema-derived codecs and a CRUD repository",
+      "category": "data"
+    },
+    {
+      "name": "ZIO Integration",
+      "href": "https://zioblocks.com/reference/sql-zio/",
+      "artifact": "zio-blocks-sql-zio",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "description": "ZIO integration with `ZIO.attemptBlocking` and `ZLayer`",
+      "category": "data"
+    },
+    {
+      "name": "Data Migration",
+      "href": "https://zioblocks.com/reference/data-migration/",
+      "artifact": "zio-blocks-data-migration",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Typed, online database schema migrations in three execution models, with no hand-written SQL",
+      "category": "data"
+    },
+    {
+      "name": "Projection",
+      "href": "https://zioblocks.com/reference/projection/",
+      "artifact": "zio-blocks-projection",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "description": "Event-sourced projections with per-entity SQLite storage",
+      "category": "data"
+    },
+    {
+      "name": "Streams",
+      "href": "https://zioblocks.com/reference/streams/",
+      "artifact": "zio-blocks-streams",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Pull-based streaming with typed errors, zero boxing, and synchronous or asynchronous execution",
+      "category": "streaming"
+    },
+    {
+      "name": "Schema",
+      "href": "https://zioblocks.com/reference/schema/",
+      "artifact": "zio-blocks-schema",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "2.13 (JVM) · 3.x",
+      "description": "Type-safe schemas with automatic codec, optic, and validator derivation",
+      "category": "serialization"
+    },
+    {
+      "name": "Avro Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/avro/",
+      "artifact": "zio-blocks-schema-avro",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "description": "Apache Avro binary serialization with automatic schema generation",
+      "category": "serialization"
+    },
+    {
+      "name": "BSON Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/bson/",
+      "artifact": "zio-blocks-schema-bson",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "description": "MongoDB-compatible BSON serialization with native type support",
+      "category": "serialization"
+    },
+    {
+      "name": "CSV Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/csv/",
+      "artifact": "zio-blocks-schema-csv",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "RFC 4180-compliant CSV serialization",
+      "category": "serialization"
+    },
+    {
+      "name": "MessagePack Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/messagepack/",
+      "artifact": "zio-blocks-schema-messagepack",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Compact binary serialization with optimized streaming",
+      "category": "serialization"
+    },
+    {
+      "name": "Thrift Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/thrift/",
+      "artifact": "zio-blocks-schema-thrift",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "description": "Apache Thrift binary serialization with TBinaryProtocol",
+      "category": "serialization"
+    },
+    {
+      "name": "TOON Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/toon/",
+      "artifact": "zio-blocks-schema-toon",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Token-oriented notation 30–60% smaller than JSON, tuned for LLM prompts",
+      "category": "serialization"
+    },
+    {
+      "name": "XML Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/xml/",
+      "artifact": "zio-blocks-schema-xml",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Zero-dependency XML serialization with fluent navigation and patching",
+      "category": "serialization"
+    },
+    {
+      "name": "YAML Codec",
+      "href": "https://zioblocks.com/reference/schema/built-in-codecs/yaml/",
+      "artifact": "zio-blocks-schema-yaml",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Human-readable YAML serialization with JSON interop",
+      "category": "serialization"
+    },
+    {
+      "name": "Telemetry",
+      "href": "https://zioblocks.com/reference/telemetry/",
+      "artifact": "zio-blocks-telemetry",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Zero-dependency OpenTelemetry-aligned tracing, logging, and metrics",
+      "category": "observability"
+    },
+    {
+      "name": "OTLP Export",
+      "href": "https://zioblocks.com/reference/telemetry/otel/",
+      "artifact": "zio-blocks-telemetry-otel",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "description": "OTLP exporters bridging telemetry signals to an OpenTelemetry collector",
+      "category": "observability"
+    },
+    {
+      "name": "Configuration",
+      "href": "https://zioblocks.com/reference/config/",
+      "artifact": "zio-blocks-config",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Typed configuration loading, feature flags, and rollout rules",
+      "category": "config"
+    },
+    {
+      "name": "Config YAML",
+      "href": "https://zioblocks.com/reference/config/formats/",
+      "artifact": "zio-blocks-config-yaml",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "YAML source adapter for `ConfigSource`",
+      "category": "config"
+    },
+    {
+      "name": "Config JSON",
+      "href": "https://zioblocks.com/reference/config/formats/",
+      "artifact": "zio-blocks-config-json",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "JSON source adapter for `ConfigSource`",
+      "category": "config"
+    },
+    {
+      "name": "Config HOCON",
+      "href": "https://zioblocks.com/reference/config/formats/",
+      "artifact": "zio-blocks-config-hocon",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "HOCON source adapter for `ConfigSource`",
+      "category": "config"
+    },
+    {
+      "name": "Scope",
+      "href": "https://zioblocks.com/reference/resource-management/",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Compile-time safe resource boundaries that keep values from escaping their lifetime",
+      "category": "resources"
+    },
+    {
+      "name": "Resource",
+      "href": "https://zioblocks.com/reference/resource-management/resource/",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Lazy recipes that pair acquisition with finalization, composable with `map`, `flatMap`, and `zip`",
+      "category": "resources"
+    },
+    {
+      "name": "Unscoped",
+      "href": "https://zioblocks.com/reference/resource-management/unscoped/",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Marker typeclass for plain data that can safely leave a scope",
+      "category": "resources"
+    },
+    {
+      "name": "DeferHandle",
+      "href": "https://zioblocks.com/reference/resource-management/defer-handle/",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Handle returned by `Scope.defer` for cancelling a registered finalizer",
+      "category": "resources"
+    },
+    {
+      "name": "Finalizer",
+      "href": "https://zioblocks.com/reference/resource-management/finalizer/",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Minimal capability interface for registering cleanup actions",
+      "category": "resources"
+    },
+    {
+      "name": "Finalization",
+      "href": "https://zioblocks.com/reference/resource-management/finalization/",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Result of running a scope's finalizers, including any cleanup errors",
+      "category": "resources"
+    },
+    {
+      "name": "Wire",
+      "href": "https://zioblocks.com/reference/resource-management/wire/",
+      "artifact": "zio-blocks-scope",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Compile-time safe recipes for constructing a service and its dependencies",
+      "category": "di"
+    },
+    {
+      "name": "Context",
+      "href": "https://zioblocks.com/reference/context/",
+      "artifact": "zio-blocks-context",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Type-indexed heterogeneous collections",
+      "category": "di"
+    },
+    {
+      "name": "Async",
+      "href": "https://zioblocks.com/reference/async/",
+      "artifact": "zio-blocks-async",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Zero-allocation asynchronous effect type with direct-style `await`",
+      "category": "concurrency"
+    },
+    {
+      "name": "Mux",
+      "href": "https://zioblocks.com/reference/mux/",
+      "artifact": "zio-blocks-mux",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Thread-safe multiplexer for HTTP/2, QUIC, and WebSocket-style protocols",
+      "category": "concurrency"
+    },
+    {
+      "name": "RingBuffer",
+      "href": "https://zioblocks.com/reference/ringbuffer/",
+      "artifact": "zio-blocks-ringbuffer",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Lock-free bounded ring buffers (SPSC, SPMC, MPSC, MPMC)",
+      "category": "concurrency"
+    },
+    {
+      "name": "Chunk",
+      "href": "https://zioblocks.com/reference/chunk/",
+      "artifact": "zio-blocks-chunk",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "2.13 (JVM) · 3.x",
+      "description": "High-performance immutable indexed sequences with zero-boxing builders",
+      "category": "types"
+    },
+    {
+      "name": "Maybe",
+      "href": "https://zioblocks.com/reference/maybe/",
+      "artifact": "zio-blocks-maybe",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "2.13 (JVM) · 3.x",
+      "description": "Optional values that store a present reference as is, without a wrapper object (Scala 3)",
+      "category": "types"
+    },
+    {
+      "name": "Combinators",
+      "href": "https://zioblocks.com/reference/combinators/",
+      "artifact": "zio-blocks-combinators",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "3.x",
+      "description": "Compile-time composition and decomposition of tuples, eithers, and unions",
+      "category": "types"
+    },
+    {
+      "name": "TypeId",
+      "href": "https://zioblocks.com/reference/typeid/",
+      "artifact": "zio-blocks-typeid",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "2.13 (JVM) · 3.x",
+      "description": "Compile-time type identity with rich metadata",
+      "category": "types"
+    },
+    {
+      "name": "Code Generation",
+      "href": "https://zioblocks.com/reference/codegen/",
+      "artifact": "zio-blocks-codegen",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "description": "Generic Scala code generation IR and emitter",
+      "category": "tooling"
+    },
+    {
+      "name": "Docs",
+      "href": "https://zioblocks.com/reference/docs/",
+      "artifact": "zio-blocks-markdown",
+      "platforms": [
+        "JVM",
+        "JS"
+      ],
+      "scala": "2.13 (JVM) · 3.x",
+      "description": "GitHub Flavored Markdown parsing, rendering, and programmatic construction",
+      "category": "tooling"
+    },
+    {
+      "name": "Smithy",
+      "href": "https://zioblocks.com/reference/smithy/",
+      "artifact": "zio-blocks-smithy",
+      "platforms": [
+        "JVM"
+      ],
+      "scala": "3.x",
+      "description": "Smithy IDL parser and AST library for API modeling",
+      "category": "tooling"
+    }
+  ]
+}

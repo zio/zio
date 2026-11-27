@@ -27,19 +27,21 @@ import scala.collection.immutable.Queue
 import scala.math.{log, sqrt}
 
 /**
- * `TestRandom` allows for deterministically testing effects involving
- * randomness.
+ * `TestRandom` lets a test check effects that involve randomness, with values
+ * it can repeat or feed.
  *
  * `TestRandom` operates in two modes. In the first mode, `TestRandom` is a
- * purely functional pseudo-random number generator. It will generate
- * pseudo-random values just like `scala.util.Random` except that no internal
- * state is mutated. Instead, methods like `nextInt` describe state transitions
- * from one random state to another that are automatically composed together
- * through methods like `flatMap`. The random seed can be set using `setSeed`
- * and `TestRandom` is guaranteed to return the same sequence of values for any
- * given seed. This is useful for deterministically generating a sequence of
- * pseudo-random values and powers the property based testing functionality in
- * ZIO Test.
+ * seeded pseudo-random number generator that keeps its seed in a `Ref`, which
+ * each call such as `nextInt` advances. For `nextInt`, `nextIntBounded`,
+ * `nextIntBetween`, `nextLong`, `nextDouble`, `nextDoubleBetween`, `nextFloat`,
+ * `nextFloatBetween`, `nextBoolean`, `nextBytes`, `nextPrintableChar`,
+ * `nextString` and `shuffle` it returns the same values as a
+ * `scala.util.Random` created with the same seed; `nextLongBounded` and
+ * `nextLongBetween` return different values, and `nextGaussian` can differ in
+ * the last digit. The random seed can be set using `setSeed`, and `TestRandom`
+ * returns the same sequence of values each time the same seed is set. This is
+ * useful for generating a repeatable sequence of pseudo-random values, and
+ * `Gen` draws its samples from it in property based tests.
  *
  * In the second mode, `TestRandom` maintains an internal buffer of values that
  * can be "fed" with methods such as `feedInts` and then when random values of
@@ -48,51 +50,196 @@ import scala.math.{log, sqrt}
  * sequence of "random" inputs.
  *
  * {{{
- * import zio.Random
- * import zio.test.TestRandom
+ * import zio._
+ * import zio.test.{test, _}
  *
- * for {
- *   _ <- TestRandom.feedInts(4, 5, 2)
- *   x <- Random.nextIntBounded(6)
- *   y <- Random.nextIntBounded(6)
- *   z <- Random.nextIntBounded(6)
- * } yield x + y + z == 11
+ * test("fed values come back first") {
+ *   for {
+ *     _ <- TestRandom.feedInts(4, 5, 2)
+ *     x <- Random.nextIntBounded(6)
+ *     y <- Random.nextIntBounded(6)
+ *     z <- Random.nextIntBounded(6)
+ *   } yield assertTrue(x + y + z == 11)
+ * }
+ *
+ * test("the same seed gives the same values") {
+ *   for {
+ *     _ <- TestRandom.setSeed(42L)
+ *     a <- Random.nextIntBounded(100)
+ *     _ <- TestRandom.setSeed(42L)
+ *     b <- Random.nextIntBounded(100)
+ *   } yield assertTrue(a == b)
+ * }
  * }}}
  *
  * `TestRandom` will automatically take values from the buffer if a value of the
  * appropriate type is available and otherwise generate a pseudo-random value,
- * so there is nothing you need to do to switch between the two modes. Just
- * generate random values as you normally would to get pseudo-random values, or
- * feed in values of your own to get those values back. You can also use methods
- * like `clearInts` to clear the buffer of values of a given type so you can
- * fill the buffer with new values or go back to pseudo-random number
- * generation.
+ * so there is nothing you need to do to switch between the two modes. Generate
+ * random values as you normally would to get pseudo-random values, or feed in
+ * values of your own to get those values back. You can also use methods like
+ * `clearInts` to clear the buffer of values of a given type so you can fill the
+ * buffer with new values or go back to pseudo-random number generation.
+ * Buffered values are returned unchanged, even when they lie outside the range
+ * that a method such as `nextIntBounded` asks for, and taking a buffered value
+ * does not advance the seed.
+ *
+ * ZIO Test gives each test its own `TestRandom`, created from
+ * [[TestRandom.DefaultData]], so every test starts from the same seed and with
+ * empty buffers. The accessors on the companion object use the `TestRandom` of
+ * the current fiber; outside a test, where `Random` is the live service, they
+ * die with a `java.lang.Error` saying that `TestRandom` could not be found.
+ *
+ * @see
+ *   [[https://zio.dev/reference/test/services/random/ TestRandom]]
+ * @see
+ *   [[https://zio.dev/reference/test/aspects/restoring-state-of-test-services/ Restoring State of Test Services]]
  */
 trait TestRandom extends Random with Restorable {
+
+  /**
+   * Clears the buffer of booleans, so that `nextBoolean` generates
+   * pseudo-random booleans again.
+   */
   def clearBooleans(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Clears the buffer of bytes, so that `nextBytes` generates pseudo-random
+   * bytes again.
+   */
   def clearBytes(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Clears the buffer of characters, so that `nextPrintableChar` generates
+   * pseudo-random characters again.
+   */
   def clearChars(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Clears the buffer of doubles, so that `nextDouble`, `nextDoubleBetween` and
+   * `nextGaussian` generate pseudo-random doubles again.
+   */
   def clearDoubles(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Clears the buffer of floats, so that `nextFloat` and `nextFloatBetween`
+   * generate pseudo-random floats again.
+   */
   def clearFloats(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Clears the buffer of integers, so that `nextInt`, `nextIntBounded` and
+   * `nextIntBetween` generate pseudo-random integers again.
+   */
   def clearInts(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Clears the buffer of longs, so that `nextLong`, `nextLongBounded`,
+   * `nextLongBetween` and `nextUUID` generate pseudo-random values again.
+   */
   def clearLongs(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Clears the buffer of strings, so that `nextString` generates pseudo-random
+   * strings again.
+   */
   def clearStrings(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Clears the buffer of UUIDs, so that `nextUUID` builds its UUIDs from longs
+   * again.
+   */
   def clearUUIDs(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Feeds the buffer with the specified booleans, which `nextBoolean` returns
+   * in order before any values that were previously in the buffer.
+   */
   def feedBooleans(booleans: Boolean*)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Feeds the buffer with the bytes of the specified chunks, in order, before
+   * any bytes that were previously in the buffer. `nextBytes(n)` takes up to
+   * `n` bytes from the buffer and generates the rest.
+   */
   def feedBytes(bytes: Chunk[Byte]*)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Feeds the buffer with the specified characters, which `nextPrintableChar`
+   * returns in order, and unchanged, before any values that were previously in
+   * the buffer.
+   */
   def feedChars(chars: Char*)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Feeds the buffer with the specified doubles, which `nextDouble`,
+   * `nextDoubleBetween` and `nextGaussian` return in order, and unchanged,
+   * before any values that were previously in the buffer.
+   */
   def feedDoubles(doubles: Double*)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Feeds the buffer with the specified floats, which `nextFloat` and
+   * `nextFloatBetween` return in order, and unchanged, before any values that
+   * were previously in the buffer.
+   */
   def feedFloats(floats: Float*)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Feeds the buffer with the specified integers, which `nextInt`,
+   * `nextIntBounded` and `nextIntBetween` return in order, and unchanged,
+   * before any values that were previously in the buffer. `shuffle` does not
+   * read this buffer.
+   */
   def feedInts(ints: Int*)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Feeds the buffer with the specified longs, which `nextLong`,
+   * `nextLongBounded` and `nextLongBetween` return in order, and unchanged,
+   * before any values that were previously in the buffer. When the buffer of
+   * UUIDs is empty, `nextUUID` also takes two longs from this buffer.
+   */
   def feedLongs(longs: Long*)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Feeds the buffer with the specified strings, which `nextString` returns in
+   * order, whatever length it asks for, before any values that were previously
+   * in the buffer.
+   */
   def feedStrings(strings: String*)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Feeds the buffer with the specified UUIDs, which `nextUUID` returns in
+   * order, and unchanged, before any values that were previously in the buffer.
+   */
   def feedUUIDs(UUIDs: UUID*)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Returns the current seed of the generator, which changes each time a
+   * pseudo-random value is generated. Passing it to `setSeed` continues the
+   * same sequence of values once `setSeed` has been called or a value has been
+   * generated, except for `nextGaussian`: `setSeed` drops the second value that
+   * `nextGaussian` keeps for its next call.
+   */
   def getSeed(implicit trace: Trace): UIO[Long]
+
+  /**
+   * Sets the seed of the generator to the lower 48 bits of the specified value.
+   * The buffers are left unchanged. It also drops the value that `nextGaussian`
+   * keeps for its next call.
+   */
   def setSeed(seed: => Long)(implicit trace: Trace): UIO[Unit]
 }
 
+/**
+ * Constructors, layers and accessors for [[TestRandom]]. The accessors such as
+ * `feedInts` and `setSeed` use the `TestRandom` of the current fiber, which ZIO
+ * Test installs for each test.
+ */
 object TestRandom extends Serializable {
 
+  /**
+   * The `Tag` that identifies the `TestRandom` service in a `ZEnvironment`.
+   */
   implicit val tag: Tag[TestRandom] = Tag(EnvironmentTag.tagFromTagMacro[TestRandom])
 
   private[test] object unsafe {
@@ -101,6 +248,9 @@ object TestRandom extends Serializable {
   }
 
   /**
+   * The implementation of [[TestRandom]], which keeps the seed in `randomState`
+   * and the fed values in `bufferState`.
+   *
    * Adapted from @gzmo work in Scala.js
    * (https://github.com/scala-js/scala-js/pull/780)
    */
@@ -233,7 +383,8 @@ object TestRandom extends Serializable {
       bufferState.update(data => data.copy(uuids = uuids.toList ::: data.uuids))
 
     /**
-     * Gets the seed of this `TestRandom`.
+     * Gets the current seed of this `TestRandom`, which changes each time a
+     * pseudo-random value is generated.
      */
     def getSeed(implicit trace: Trace): UIO[Long] =
       randomState.get.map { case Data(seed1, seed2, _) =>
@@ -248,8 +399,8 @@ object TestRandom extends Serializable {
       ZIO.succeed(unsafe.nextBoolean()(Unsafe.unsafe))
 
     /**
-     * Takes a chunk of bytes from the buffer if one exists or else generates a
-     * pseudo-random chunk of bytes of the specified length.
+     * Takes up to `length` bytes from the buffer and generates pseudo-random
+     * bytes for the rest, returning a chunk of the specified length.
      */
     def nextBytes(length: => Int)(implicit trace: Trace): UIO[Chunk[Byte]] =
       ZIO.succeed(unsafe.nextBytes(length)(Unsafe.unsafe))
@@ -263,7 +414,8 @@ object TestRandom extends Serializable {
 
     /**
      * Takes a double from the buffer if one exists or else generates a
-     * pseudo-random double in the specified range.
+     * pseudo-random double in the specified range. A buffered double is
+     * returned unchanged, even when it lies outside the range.
      */
     def nextDoubleBetween(minInclusive: => Double, maxExclusive: => Double)(implicit
       trace: Trace
@@ -279,7 +431,8 @@ object TestRandom extends Serializable {
 
     /**
      * Takes a float from the buffer if one exists or else generates a
-     * pseudo-random float in the specified range.
+     * pseudo-random float in the specified range. A buffered float is returned
+     * unchanged, even when it lies outside the range.
      */
     def nextFloatBetween(minInclusive: => Float, maxExclusive: => Float)(implicit trace: Trace): UIO[Float] =
       ZIO.succeed(unsafe.nextFloatBetween(minInclusive, maxExclusive)(Unsafe.unsafe))
@@ -301,7 +454,10 @@ object TestRandom extends Serializable {
 
     /**
      * Takes an integer from the buffer if one exists or else generates a
-     * pseudo-random integer in the specified range.
+     * pseudo-random integer in the specified range. A buffered integer is
+     * returned unchanged, even when it lies outside the range. With an empty
+     * buffer, dies with an `IllegalArgumentException` when `minInclusive` is
+     * not less than `maxExclusive`.
      */
     def nextIntBetween(minInclusive: => Int, maxExclusive: => Int)(implicit trace: Trace): UIO[Int] =
       ZIO.succeed(unsafe.nextIntBetween(minInclusive, maxExclusive)(Unsafe.unsafe))
@@ -309,7 +465,9 @@ object TestRandom extends Serializable {
     /**
      * Takes an integer from the buffer if one exists or else generates a
      * pseudo-random integer between 0 (inclusive) and the specified value
-     * (exclusive).
+     * (exclusive). A buffered integer is returned unchanged, even when it lies
+     * outside the range. With an empty buffer, dies with an
+     * `IllegalArgumentException` when `n` is not positive.
      */
     def nextIntBounded(n: => Int)(implicit trace: Trace): UIO[Int] =
       ZIO.succeed(unsafe.nextIntBounded(n)(Unsafe.unsafe))
@@ -323,7 +481,8 @@ object TestRandom extends Serializable {
 
     /**
      * Takes a long from the buffer if one exists or else generates a
-     * pseudo-random long in the specified range.
+     * pseudo-random long in the specified range. A buffered long is returned
+     * unchanged, even when it lies outside the range.
      */
     def nextLongBetween(minInclusive: => Long, maxExclusive: => Long)(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafe.nextLongBetween(minInclusive, maxExclusive)(Unsafe.unsafe))
@@ -331,35 +490,40 @@ object TestRandom extends Serializable {
     /**
      * Takes a long from the buffer if one exists or else generates a
      * pseudo-random long between 0 (inclusive) and the specified value
-     * (exclusive).
+     * (exclusive). A buffered long is returned unchanged, even when it lies
+     * outside the range.
      */
     def nextLongBounded(n: => Long)(implicit trace: Trace): UIO[Long] =
       ZIO.succeed(unsafe.nextLongBounded(n)(Unsafe.unsafe))
 
     /**
      * Takes a character from the buffer if one exists or else generates a
-     * pseudo-random character from the ASCII range 33-126.
+     * pseudo-random character from the ASCII range 33-126. A buffered character
+     * is returned unchanged, even when it is not printable.
      */
     def nextPrintableChar(implicit trace: Trace): UIO[Char] =
       ZIO.succeed(unsafe.nextPrintableChar()(Unsafe.unsafe))
 
     /**
      * Takes a string from the buffer if one exists or else generates a
-     * pseudo-random string of the specified length.
+     * pseudo-random string of the specified length. A buffered string is
+     * returned whatever its length.
      */
     def nextString(length: => Int)(implicit trace: Trace): UIO[String] =
       ZIO.succeed(unsafe.nextString(length)(Unsafe.unsafe))
 
     /**
      * Takes a UUID from the buffer if one exists or else generates a
-     * pseudo-random UUID.
+     * pseudo-random UUID from two values of `nextLong`, which takes them from
+     * the buffer of longs first.
      */
     def nextUUID(implicit trace: Trace): UIO[UUID] =
       ZIO.succeed(unsafe.nextUUID()(Unsafe.unsafe))
 
     /**
      * Saves the `TestRandom`'s current state in an effect which, when run, will
-     * restore the `TestRandom` state to the saved state.
+     * restore the `TestRandom` state to the saved state. The saved state holds
+     * both the seed and the buffers.
      */
     def save(implicit trace: Trace): UIO[UIO[Unit]] =
       for {
@@ -368,13 +532,16 @@ object TestRandom extends Serializable {
       } yield randomState.set(randomData) *> bufferState.set(bufferData)
 
     /**
-     * Sets the seed of this `TestRandom` to the specified value.
+     * Sets the seed of this `TestRandom` to the lower 48 bits of the specified
+     * value. The buffers are left unchanged. It also drops the value that
+     * `nextGaussian` keeps for its next call.
      */
     def setSeed(seed: => Long)(implicit trace: Trace): UIO[Unit] =
       ZIO.succeed(unsafe.setSeed(seed)(Unsafe.unsafe))
 
     /**
-     * Randomly shuffles the specified list.
+     * Returns the elements of the specified collection in a pseudo-random order
+     * drawn from the seed. It does not read the buffer of integers.
      */
     def shuffle[A, Collection[+Element] <: Iterable[Element]](
       list: => Collection[A]
@@ -644,12 +811,14 @@ object TestRandom extends Serializable {
   }
 
   /**
-   * An arbitrary initial seed for the `TestRandom`.
+   * An arbitrary initial seed for the `TestRandom`. ZIO Test creates the
+   * `TestRandom` of each test from it.
    */
   val DefaultData: Data = Data(1071905196, 1911589680)
 
   /**
-   * The seed of the `TestRandom`.
+   * The seed of the `TestRandom`, split into its upper half (`seed1`) and its
+   * lower half (`seed2`).
    */
   final case class Data(
     seed1: Int,
@@ -658,133 +827,125 @@ object TestRandom extends Serializable {
   )
 
   /**
-   * Accesses a `TestRandom` instance in the environment and clears the buffer
-   * of booleans.
+   * Accesses the current `TestRandom` and clears the buffer of booleans.
    */
   def clearBooleans(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearBooleans)
 
   /**
-   * Accesses a `TestRandom` instance in the environment and clears the buffer
-   * of bytes.
+   * Accesses the current `TestRandom` and clears the buffer of bytes.
    */
   def clearBytes(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearBytes)
 
   /**
-   * Accesses a `TestRandom` instance in the environment and clears the buffer
-   * of characters.
+   * Accesses the current `TestRandom` and clears the buffer of characters.
    */
   def clearChars(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearChars)
 
   /**
-   * Accesses a `TestRandom` instance in the environment and clears the buffer
-   * of doubles.
+   * Accesses the current `TestRandom` and clears the buffer of doubles.
    */
   def clearDoubles(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearDoubles)
 
   /**
-   * Accesses a `TestRandom` instance in the environment and clears the buffer
-   * of floats.
+   * Accesses the current `TestRandom` and clears the buffer of floats.
    */
   def clearFloats(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearFloats)
 
   /**
-   * Accesses a `TestRandom` instance in the environment and clears the buffer
-   * of integers.
+   * Accesses the current `TestRandom` and clears the buffer of integers.
    */
   def clearInts(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearInts)
 
   /**
-   * Accesses a `TestRandom` instance in the environment and clears the buffer
-   * of longs.
+   * Accesses the current `TestRandom` and clears the buffer of longs.
    */
   def clearLongs(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearLongs)
 
   /**
-   * Accesses a `TestRandom` instance in the environment and clears the buffer
-   * of strings.
+   * Accesses the current `TestRandom` and clears the buffer of strings.
    */
   def clearStrings(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearStrings)
 
   /**
-   * Accesses a `TestRandom` instance in the environment and clears the buffer
-   * of UUIDs.
+   * Accesses the current `TestRandom` and clears the buffer of UUIDs.
    */
   def clearUUIDs(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.clearUUIDs)
 
   /**
-   * Accesses a `TestRandom` instance in the environment and feeds the buffer
-   * with the specified sequence of booleans.
+   * Accesses the current `TestRandom` and feeds the buffer with the specified
+   * sequence of booleans.
    */
   def feedBooleans(booleans: Boolean*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedBooleans(booleans: _*))
 
   /**
-   * Accesses a `TestRandom` instance in the environment and feeds the buffer
-   * with the specified sequence of chunks of bytes.
+   * Accesses the current `TestRandom` and feeds the buffer with the specified
+   * sequence of chunks of bytes.
    */
   def feedBytes(bytes: Chunk[Byte]*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedBytes(bytes: _*))
 
   /**
-   * Accesses a `TestRandom` instance in the environment and feeds the buffer
-   * with the specified sequence of characters.
+   * Accesses the current `TestRandom` and feeds the buffer with the specified
+   * sequence of characters.
    */
   def feedChars(chars: Char*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedChars(chars: _*))
 
   /**
-   * Accesses a `TestRandom` instance in the environment and feeds the buffer
-   * with the specified sequence of doubles.
+   * Accesses the current `TestRandom` and feeds the buffer with the specified
+   * sequence of doubles.
    */
   def feedDoubles(doubles: Double*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedDoubles(doubles: _*))
 
   /**
-   * Accesses a `TestRandom` instance in the environment and feeds the buffer
-   * with the specified sequence of floats.
+   * Accesses the current `TestRandom` and feeds the buffer with the specified
+   * sequence of floats.
    */
   def feedFloats(floats: Float*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedFloats(floats: _*))
 
   /**
-   * Accesses a `TestRandom` instance in the environment and feeds the buffer
-   * with the specified sequence of integers.
+   * Accesses the current `TestRandom` and feeds the buffer with the specified
+   * sequence of integers.
    */
   def feedInts(ints: Int*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedInts(ints: _*))
 
   /**
-   * Accesses a `TestRandom` instance in the environment and feeds the buffer
-   * with the specified sequence of longs.
+   * Accesses the current `TestRandom` and feeds the buffer with the specified
+   * sequence of longs.
    */
   def feedLongs(longs: Long*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedLongs(longs: _*))
 
   /**
-   * Accesses a `TestRandom` instance in the environment and feeds the buffer
-   * with the specified sequence of strings.
+   * Accesses the current `TestRandom` and feeds the buffer with the specified
+   * sequence of strings.
    */
   def feedStrings(strings: String*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedStrings(strings: _*))
 
   /**
-   * Accesses a `TestRandom` instance in the environment and feeds the buffer
-   * with the specified sequence of UUIDs.
+   * Accesses the current `TestRandom` and feeds the buffer with the specified
+   * sequence of UUIDs.
    */
   def feedUUIDs(uuids: UUID*)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.feedUUIDs(uuids: _*))
 
   /**
-   * Accesses a `TestRandom` instance in the environment and gets the seed.
+   * Accesses the current `TestRandom` and gets its current seed, which changes
+   * each time a pseudo-random value is generated.
    */
   def getSeed(implicit trace: Trace): UIO[Long] =
     testRandomWith(_.getSeed)
@@ -792,7 +953,8 @@ object TestRandom extends Serializable {
   /**
    * Constructs a new `TestRandom` with the specified initial state. This can be
    * useful for providing the required environment to an effect that requires a
-   * `Random`, such as with `ZIO#provide`.
+   * `Random`, such as with `ZIO#provideLayer`. While the layer is in scope,
+   * `Random` methods and the `TestRandom` accessors use the new service.
    */
   def make(data: Data): Layer[Nothing, TestRandom] = {
     implicit val trace = Tracer.newTrace
@@ -802,12 +964,23 @@ object TestRandom extends Serializable {
     }
   }
 
+  /**
+   * A layer that passes on the `TestRandom` already in its input environment.
+   */
   val any: ZLayer[TestRandom, Nothing, TestRandom] =
     ZLayer.environment[TestRandom](Tracer.newTrace)
 
+  /**
+   * A layer that constructs a `TestRandom` from [[TestRandom.DefaultData]], so
+   * it generates the same values on every run.
+   */
   val deterministic: Layer[Nothing, TestRandom] =
     make(DefaultData)
 
+  /**
+   * A layer that constructs a `TestRandom` and sets its seed to the `nanoTime`
+   * of the `Clock` in its input, so each run generates different values.
+   */
   val random: ZLayer[Clock, Nothing, TestRandom] = {
     implicit val trace = Tracer.newTrace
     val layer = ZLayer {
@@ -821,30 +994,30 @@ object TestRandom extends Serializable {
   }
 
   /**
-   * Constructs a new `Test` object that implements the `TestRandom` interface.
-   * This can be useful for mixing in with implementations of other interfaces.
+   * Constructs a new `Test` object that implements the `TestRandom` interface,
+   * with the specified initial state. It is not installed as the `Random`
+   * service; run an effect with it through `ZIO.withRandom`.
    */
   def makeTest(data: Data)(implicit trace: Trace): UIO[Test] = ZIO.succeedUnsafe { implicit unsafe =>
     TestRandom.unsafe.make(data)
   }
 
   /**
-   * Accesses a `TestRandom` instance in the environment and saves the random
-   * state in an effect which, when run, will restore the `TestRandom` to the
-   * saved state.
+   * Accesses the current `TestRandom` and saves the random state in an effect
+   * which, when run, will restore the `TestRandom` to the saved state.
    */
   def save(implicit trace: Trace): UIO[UIO[Unit]] =
     testRandomWith(_.save)
 
   /**
-   * Accesses a `TestRandom` instance in the environment and sets the seed to
-   * the specified value.
+   * Accesses the current `TestRandom` and sets the seed to the specified value.
    */
   def setSeed(seed: => Long)(implicit trace: Trace): UIO[Unit] =
     testRandomWith(_.setSeed(seed))
 
   /**
-   * The buffer of the `TestRandom`.
+   * The buffer of the `TestRandom`: one list of fed values per type, taken from
+   * the head.
    */
   final case class Buffer(
     booleans: List[Boolean] = List.empty,
