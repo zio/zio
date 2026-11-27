@@ -47,7 +47,7 @@ import scala.annotation.tailrec
  *     first <- queue.take
  *     rest  <- queue.takeN(2)
  *   } yield (first, rest)
- * // (1,Chunk(2,3))
+ * // succeeds with (1,Chunk(2,3))
  * }}}
  *
  * @see

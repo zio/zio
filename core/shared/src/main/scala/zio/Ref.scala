@@ -48,7 +48,7 @@ import java.util.concurrent.atomic.AtomicReference
  *     _   <- ZIO.foreachParDiscard(1 to 100)(_ => ref.update(_ + 1))
  *     n   <- ref.get
  *   } yield n
- * // 100
+ * // succeeds with 100
  * }}}
  *
  * @see
@@ -76,7 +76,7 @@ sealed abstract class Ref[A] extends Serializable {
    *     next <- Ref.make(41)
    *     n    <- next.modify(n => (s"ticket-\$n", n + 1))
    *   } yield n
-   * // ticket-41, and the Ref now holds 42
+   * // succeeds with ticket-41, and the Ref then holds 42
    * }}}
    */
   def modify[B](f: A => (B, A))(implicit trace: Trace): UIO[B]
@@ -265,7 +265,7 @@ object Ref extends Serializable {
    *          }
    *     m <- cache.get
    *   } yield m.toList.sortBy(_._1)
-   * // List((1,user-1), (2,user-2))
+   * // succeeds with List((1,user-1), (2,user-2))
    * }}}
    *
    * @see

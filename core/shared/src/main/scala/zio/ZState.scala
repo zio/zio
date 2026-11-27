@@ -33,7 +33,7 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  *   } yield count
  *
  * val program: UIO[Int] = ZIO.stateful(MyState(0))(increment)
- * // 1
+ * // succeeds with 1
  * }}}
  *
  * Because `ZState` is typically used as part of the environment, it is

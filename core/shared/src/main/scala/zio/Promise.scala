@@ -43,7 +43,7 @@ import java.util.concurrent.atomic.AtomicReference
  *     _       <- promise.succeed(42).delay(1.second).fork
  *     value   <- promise.await // resumes when the forked fiber completes it
  *   } yield value
- * // 42
+ * // succeeds with 42
  * }}}
  *
  * @see
