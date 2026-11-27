@@ -55,8 +55,8 @@ import scala.annotation.tailrec
  * builds pipelines from functions (`map`, `mapZIO`, `filter`), from a sink
  * (`fromSink`), from a channel (`fromChannel`), from a push function
  * (`fromPush`) or from a stream transformation (`fromFunction`), and has many
- * constructors that mirror methods of [[ZStream]]. Pipelines compose with
- * `>>>` and are applied to a stream with `ZStream#via` or `apply`.
+ * constructors that mirror methods of [[ZStream]]. Pipelines compose with `>>>`
+ * and are applied to a stream with `ZStream#via` or `apply`.
  *
  * {{{
  * import zio._
@@ -70,7 +70,8 @@ import scala.annotation.tailrec
  * // Chunk(one,two)
  * }}}
  *
- * @see [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
+ * @see
+ *   [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
  */
 final class ZPipeline[-Env, +Err, -In, +Out] private (
   val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any]
@@ -188,8 +189,8 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
 
   /**
    * Returns a new pipeline that emits an element only when it differs from the
-   * element immediately before it in the input, using the effectful function `f` to
-   * decide whether two elements are equal. The first element is always
+   * element immediately before it in the input, using the effectful function
+   * `f` to decide whether two elements are equal. The first element is always
    * emitted.
    */
   def changesWithZIO(f: (Out, Out) => UIO[Boolean])(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
@@ -416,8 +417,8 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
 
   /**
    * Groups the elements emitted by this pipeline into chunks of `chunkSize`
-   * elements; the last chunk can be smaller. A `chunkSize` less than 1 is treated
-   * as 1.
+   * elements; the last chunk can be smaller. A `chunkSize` less than 1 is
+   * treated as 1.
    *
    * @param chunkSize
    *   size of the chunk
@@ -743,10 +744,10 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
 }
 
 /**
- * Constructors for [[ZPipeline]]: from functions and effects (`map`,
- * `mapZIO`, `filter`), from a sink, channel, push function or stream
- * transformation (`fromSink`, `fromChannel`, `fromPush`, `fromFunction`),
- * text decoders, encoders and line splitting (`utf8Decode`, `utf8Encode`, `splitLines`), and
+ * Constructors for [[ZPipeline]]: from functions and effects (`map`, `mapZIO`,
+ * `filter`), from a sink, channel, push function or stream transformation
+ * (`fromSink`, `fromChannel`, `fromPush`, `fromFunction`), text decoders,
+ * encoders and line splitting (`utf8Decode`, `utf8Encode`, `splitLines`), and
  * pipelines that mirror methods of [[ZStream]].
  */
 object ZPipeline extends ZPipelinePlatformSpecificConstructors {
@@ -892,8 +893,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
    * Creates a pipeline that emits an element only when it differs from the
-   * element immediately before it in the input, using the effectful function `f` to
-   * decide whether two elements are equal. The first element is always emitted.
+   * element immediately before it in the input, using the effectful function
+   * `f` to decide whether two elements are equal. The first element is always
+   * emitted.
    */
   def changesWithZIO[Env, Err, In](
     f: (In, In) => ZIO[Env, Err, Boolean]
@@ -986,8 +988,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   }
 
   /**
-   * Creates a pipeline that emits the values inside `Left` elements and ends the
-   * stream at the first `Right`.
+   * Creates a pipeline that emits the values inside `Left` elements and ends
+   * the stream at the first `Right`.
    */
   def collectWhileLeft[Err, A, B](implicit trace: Trace): ZPipeline[Any, Err, Either[A, B], A] =
     collectWhile { case Left(a) => a }
@@ -1000,15 +1002,15 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     collectWhile { case Right(b) => b }
 
   /**
-   * Creates a pipeline that emits the values inside `Some` elements and ends the
-   * stream at the first `None`.
+   * Creates a pipeline that emits the values inside `Some` elements and ends
+   * the stream at the first `None`.
    */
   def collectWhileSome[Err, A](implicit trace: Trace): ZPipeline[Any, Err, Option[A], A] =
     collectWhile { case Some(a) => a }
 
   /**
-   * Creates a pipeline that emits the values of `Exit.Success` elements and ends
-   * the stream at the first `Exit.Failure`, without failing.
+   * Creates a pipeline that emits the values of `Exit.Success` elements and
+   * ends the stream at the first `Exit.Failure`, without failing.
    */
   def collectWhileSuccess[Err, A](implicit trace: Trace): ZPipeline[Any, Nothing, Exit[Err, A], A] =
     collectWhile { case Exit.Success(a) => a }
@@ -1631,8 +1633,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
    * Creates a pipeline that groups elements into chunks of `chunkSize`
-   * elements; the last chunk can be smaller. A `chunkSize` less than 1 is treated as
-   * 1.
+   * elements; the last chunk can be smaller. A `chunkSize` less than 1 is
+   * treated as 1.
    *
    * {{{
    * import zio.Chunk
@@ -3017,6 +3019,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * the environment type `Env`.
    */
   final class EnvironmentWithPipelinePartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+
     /**
      * Creates a pipeline that reads the environment and runs the pipeline that
      * `f` builds from it.
@@ -3032,6 +3035,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * service type `Service`.
    */
   final class ServiceWithPipelinePartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+
     /**
      * Creates a pipeline that reads the `Service` from the environment and runs
      * the pipeline that `f` builds from it.
@@ -3048,6 +3052,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * environment type `Env`.
    */
   final class UnwrapScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+
     /**
      * Creates a pipeline from the scoped effect `scoped`. The scope closes when
      * the pipeline completes.

@@ -34,8 +34,8 @@ import scala.reflect.ClassTag
  * a sink repeatedly to a stream with `ZStream#transduce`.
  *
  * A sink stops reading once it has its result. Sinks compose in sequence
- * (`zip`, `flatMap`: the next sink first receives the leftovers of the
- * previous one) and in parallel (`zipPar`, `race`).
+ * (`zip`, `flatMap`: the next sink first receives the leftovers of the previous
+ * one) and in parallel (`zipPar`, `race`).
  *
  * {{{
  * import zio._
@@ -45,7 +45,8 @@ import scala.reflect.ClassTag
  * // (Chunk(3,1),10)
  * }}}
  *
- * @see [[https://zio.dev/reference/stream/zsink/ ZSink]]
+ * @see
+ *   [[https://zio.dev/reference/stream/zsink/ ZSink]]
  */
 final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z])
     extends AnyVal {
@@ -435,8 +436,9 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     new ZSink(channel.mapZIO(f))
 
   /**
-   * Switches to `that` sink when this sink fails with a typed error. Input
-   * that this sink already consumed is not fed to `that`. A failure without a typed error (a defect or an interruption) is passed on unchanged.
+   * Switches to `that` sink when this sink fails with a typed error. Input that
+   * this sink already consumed is not fed to `that`. A failure without a typed
+   * error (a defect or an interruption) is passed on unchanged.
    */
   def orElse[R1 <: R, In1 <: In, E2, L1 >: L, Z1 >: Z](
     that: => ZSink[R1, E2, In1, L1, Z1]
@@ -462,8 +464,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     new ZSink(channel.provideSomeEnvironment(f))
 
   /**
-   * Provides a layer to the sink, which builds the environment `R` from
-   * `R0`.
+   * Provides a layer to the sink, which builds the environment `R` from `R0`.
    */
   def provideLayer[E1 >: E, R0](
     layer: => ZLayer[R0, E1, R]
@@ -488,8 +489,8 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     new ZSink.ProvideSomeLayer[R0, R, E, In, L, Z](self.channel)
 
   /**
-   * Runs both sinks in parallel on the input, returning the result or the
-   * error from the one that finishes first.
+   * Runs both sinks in parallel on the input, returning the result or the error
+   * from the one that finishes first.
    */
   def race[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L, Z1 >: Z](
     that: => ZSink[R1, E1, In1, L1, Z1]
@@ -733,10 +734,10 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
 }
 
 /**
- * Constructors for [[ZSink]]: sinks that collect (`collectAll`, `take`,
- * `head`, `last`), fold (`foldLeft`, `fold`), count and sum (`count`, `sum`),
- * run an effect per element (`foreach`), or are built from an effect or a
- * value (`fromZIO`, `succeed`, `fail`).
+ * Constructors for [[ZSink]]: sinks that collect (`collectAll`, `take`, `head`,
+ * `last`), fold (`foldLeft`, `fold`), count and sum (`count`, `sum`), run an
+ * effect per element (`foreach`), or are built from an effect or a value
+ * (`fromZIO`, `succeed`, `fail`).
  */
 object ZSink extends ZSinkPlatformSpecificConstructors {
 
@@ -1667,7 +1668,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     ZSink.fromZIO(ZIO.log(message))
 
   /**
-   * Runs `sink` with the specified log annotations added to each log emitted while it runs, including logs from the stream that feeds it.
+   * Runs `sink` with the specified log annotations added to each log emitted
+   * while it runs, including logs from the stream that feeds it.
    */
   def logAnnotate[R, E, In, L, Z](key: => String, value: => String)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: Trace
@@ -1675,7 +1677,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     logAnnotate(LogAnnotation(key, value))(sink)
 
   /**
-   * Runs `sink` with the specified log annotations added to each log emitted while it runs, including logs from the stream that feeds it.
+   * Runs `sink` with the specified log annotations added to each log emitted
+   * while it runs, including logs from the stream that feeds it.
    */
   def logAnnotate[R, E, In, L, Z](annotation: => LogAnnotation, annotations: LogAnnotation*)(
     sink: ZSink[R, E, In, L, Z]
@@ -1685,7 +1688,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     logAnnotate(Set(annotation) ++ annotations.toSet)(sink)
 
   /**
-   * Runs `sink` with the specified log annotations added to each log emitted while it runs, including logs from the stream that feeds it.
+   * Runs `sink` with the specified log annotations added to each log emitted
+   * while it runs, including logs from the stream that feeds it.
    */
   def logAnnotate[R, E, In, L, Z](annotations: => Set[LogAnnotation])(sink: ZSink[R, E, In, L, Z])(implicit
     trace: Trace
@@ -1729,7 +1733,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     ZSink.fromZIO(ZIO.logInfo(message))
 
   /**
-   * Runs `sink` with the log level set to `level`. The level also applies to the stream that feeds it while `sink` runs.
+   * Runs `sink` with the log level set to `level`. The level also applies to
+   * the stream that feeds it while `sink` runs.
    */
   def logLevel[R, E, In, L, Z](level: LogLevel)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: Trace
@@ -1737,7 +1742,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     ZSink.unwrapScoped(ZIO.logLevelScoped(level).as(sink))
 
   /**
-   * Runs `sink` inside a log span with the specified label. The span also applies to the stream that feeds it while `sink` runs.
+   * Runs `sink` inside a log span with the specified label. The span also
+   * applies to the stream that feeds it while `sink` runs.
    */
   def logSpan[R, E, In, L, Z](label: => String)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: Trace
@@ -1860,9 +1866,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     ZSink.fromZIO(ZIO.tags)
 
   /**
-   * A sink that takes the specified number of values. The elements it read
-   * past the first `n` are left over. When `n` is 0 or negative, it returns an
-   * empty chunk without reading any input.
+   * A sink that takes the specified number of values. The elements it read past
+   * the first `n` are left over. When `n` is 0 or negative, it returns an empty
+   * chunk without reading any input.
    */
   def take[In](n: Int)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Chunk[In]] =
     ZSink.unwrap {

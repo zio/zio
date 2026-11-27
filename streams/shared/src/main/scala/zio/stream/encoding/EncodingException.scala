@@ -24,7 +24,10 @@ case class EncodingException private (message: String, cause: Exception) extends
 /** Constructors for `EncodingException`. */
 object EncodingException {
 
-  /** Creates an exception with the given message and, if present, the given cause. */
+  /**
+   * Creates an exception with the given message and, if present, the given
+   * cause.
+   */
   def apply(message: String, cause: Option[Exception] = None) = new EncodingException(message, cause.getOrElse(null))
 
   /** Creates an exception that wraps `cause` and uses its message. */

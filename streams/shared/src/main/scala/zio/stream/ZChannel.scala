@@ -33,7 +33,8 @@ import java.util.concurrent.atomic.AtomicReference
  *     channels, which are all concatenated together. The first channel and the
  *     function that makes the other channels can be composed into a channel.
  *
- * This example pipes three elements into a channel that reads each element and writes it doubled:
+ * This example pipes three elements into a channel that reads each element and
+ * writes it doubled:
  *
  * {{{
  * import zio._
@@ -50,13 +51,17 @@ import java.util.concurrent.atomic.AtomicReference
  * // (Chunk(2,4,6),())
  * }}}
  *
- * @see [[https://zio.dev/reference/stream/zchannel/ ZChannel]]
+ * @see
+ *   [[https://zio.dev/reference/stream/zchannel/ ZChannel]]
  */
 sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone] { self =>
 
   /**
    * Returns a new channel that is the sequential composition of this channel
-   * and the specified channel. The returned channel terminates with both terminal values combined by `Zippable`: `Unit` values are dropped and nested tuples are flattened, so `1` and `()` give `1`, and `(1, "a")` and `true` give `(1, "a", true)`.
+   * and the specified channel. The returned channel terminates with both
+   * terminal values combined by `Zippable`: `Unit` values are dropped and
+   * nested tuples are flattened, so `1` and `()` give `1`, and `(1, "a")` and
+   * `true` give `(1, "a", true)`.
    *
    * This is a symbol operator for [[ZChannel#zip]].
    */
@@ -146,7 +151,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * errors for any typed error, then the returned channel will switch over to
    * using the fallback channel returned by the specified error handler.
    *
-   * A cause without a typed error (a defect or an interruption) is propagated unchanged.
+   * A cause without a typed error (a defect or an interruption) is propagated
+   * unchanged.
    */
   final def catchAll[
     Env1 <: Env,
@@ -162,9 +168,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     catchAllCause((cause: Cause[OutErr]) => cause.failureOrCause.fold(f(_), ZChannel.refailCause))
 
   /**
-   * Returns a new channel that is the same as this one, except if this channel fails with a cause, then the returned channel switches over to the fallback channel returned by the specified error handler.
+   * Returns a new channel that is the same as this one, except if this channel
+   * fails with a cause, then the returned channel switches over to the fallback
+   * channel returned by the specified error handler.
    *
-   * The handler receives typed errors, defects and interruption causes that the channel fails with (for example through [[ZChannel.interruptAs]]). It does not run when the fiber running the channel is interrupted from outside.
+   * The handler receives typed errors, defects and interruption causes that the
+   * channel fails with (for example through [[ZChannel.interruptAs]]). It does
+   * not run when the fiber running the channel is interrupted from outside.
    */
   final def catchAllCause[
     Env1 <: Env,
@@ -196,7 +206,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * sequentially concatenated together, and all their outputs appear as outputs
    * of the newly returned channel.
    *
-   * `g` combines the terminal values of the created channels, in order. `h` then combines that result with the terminal value of this channel to give the terminal value of the returned channel.
+   * `g` combines the terminal values of the created channels, in order. `h`
+   * then combines that result with the terminal value of this channel to give
+   * the terminal value of the returned channel.
    */
   final def concatMapWith[
     Env1 <: Env,
@@ -288,9 +300,13 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   }
 
   /**
-   * Returns a new channel which is the same as this one but handles a typed error from upstream with the given ZIO function.
+   * Returns a new channel which is the same as this one but handles a typed
+   * error from upstream with the given ZIO function.
    *
-   * When upstream fails with a typed error, `f` runs: if it succeeds, this channel sees upstream finish with that value; if it fails, this channel sees that failure as the upstream error. An upstream cause without a typed error (a defect or an interruption) reaches this channel unchanged.
+   * When upstream fails with a typed error, `f` runs: if it succeeds, this
+   * channel sees upstream finish with that value; if it fails, this channel
+   * sees that failure as the upstream error. An upstream cause without a typed
+   * error (a defect or an interruption) reaches this channel unchanged.
    */
   final def contramapErrorZIO[InErr0, Env1 <: Env](
     f: InErr0 => ZIO[Env1, InErr, InDone]
@@ -382,7 +398,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     }
 
   /**
-   * Returns a new channel which discards every element that this channel writes, then terminates with the terminal value of this channel.
+   * Returns a new channel which discards every element that this channel
+   * writes, then terminates with the terminal value of this channel.
    */
   final def drain(implicit trace: Trace): ZChannel[Env, InErr, InElem, InDone, OutErr, Nothing, OutDone] = {
     lazy val drainer: ZChannel[Env, OutErr, OutElem, OutDone, OutErr, Nothing, OutDone] =
@@ -417,7 +434,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * returned channel will yield the success value of the underlying channel as
    * its terminal value.
    *
-   * If the effect fails first, the returned channel fails with its error. If the underlying channel finishes or fails first, the effect is interrupted.
+   * If the effect fails first, the returned channel fails with its error. If
+   * the underlying channel finishes or fails first, the effect is interrupted.
    */
   final def interruptWhen[Env1 <: Env, OutErr1 >: OutErr, OutDone1 >: OutDone](
     io: ZIO[Env1, OutErr1, OutDone1]
@@ -512,7 +530,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     )
 
   /**
-   * Folds over the result of this channel: `onSucc` receives the terminal value and `onErr` receives a typed error. A failure without a typed error (a defect or an interruption) is propagated unchanged.
+   * Folds over the result of this channel: `onSucc` receives the terminal value
+   * and `onErr` receives a typed error. A failure without a typed error (a
+   * defect or an interruption) is propagated unchanged.
    */
   final def foldChannel[
     Env1 <: Env,
@@ -535,7 +555,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     )
 
   /**
-   * Folds over the result of this channel including any cause of termination: `onSucc` receives the terminal value and `onErr` receives the full cause of a failure.
+   * Folds over the result of this channel including any cause of termination:
+   * `onSucc` receives the terminal value and `onErr` receives the full cause of
+   * a failure.
    */
   final def foldCauseChannel[
     Env1 <: Env,
@@ -552,7 +574,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.Fold(self, new ZChannel.Fold.K(onSucc, onErr))
 
   /**
-   * Returns a new channel that will perform the operations of this one, until it fails with a typed error, and then it will switch over to the operations of the specified fallback channel. A failure without a typed error (a defect or an interruption) is propagated unchanged.
+   * Returns a new channel that will perform the operations of this one, until
+   * it fails with a typed error, and then it will switch over to the operations
+   * of the specified fallback channel. A failure without a typed error (a
+   * defect or an interruption) is propagated unchanged.
    */
   final def orElse[
     Env1 <: Env,
@@ -588,7 +613,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     mapErrorCause(_.map(f))
 
   /**
-   * Returns a new channel, which is the same as this one, except the failure cause of the returned channel is created by applying the specified function to the full [[Cause]] of this channel's failure.
+   * Returns a new channel, which is the same as this one, except the failure
+   * cause of the returned channel is created by applying the specified function
+   * to the full [[Cause]] of this channel's failure.
    */
   final def mapErrorCause[OutErr2](
     f: Cause[OutErr] => Cause[OutErr2]
@@ -604,7 +631,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   }
 
   /**
-   * Returns a new channel, which is the same as this one, except the failure value of the returned channel is the result of the specified effect, run on the typed error of this channel. A failure without a typed error (a defect or an interruption) is propagated unchanged.
+   * Returns a new channel, which is the same as this one, except the failure
+   * value of the returned channel is the result of the specified effect, run on
+   * the typed error of this channel. A failure without a typed error (a defect
+   * or an interruption) is propagated unchanged.
    */
   final def mapErrorZIO[Env1 <: Env, OutErr2](
     f: OutErr => URIO[Env1, OutErr2]
@@ -664,7 +694,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
   }
 
   /**
-   * Creates a channel that is like this channel but the given ZIO function gets applied to each emitted output element, running `f` on up to `n` elements at the same time. Results are written in the order of the input elements.
+   * Creates a channel that is like this channel but the given ZIO function gets
+   * applied to each emitted output element, running `f` on up to `n` elements
+   * at the same time. Results are written in the order of the input elements.
    */
   final def mapOutZIOPar[Env1 <: Env, OutErr1 >: OutErr, OutElem2](n: Int)(
     f: OutElem => ZIO[Env1, OutErr1, OutElem2]
@@ -672,7 +704,11 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     mapOutZIOPar[Env1, OutErr1, OutElem2](n, bufferSize = 16)(f)
 
   /**
-   * Creates a channel that is like this channel but the given ZIO function gets applied to each emitted output element, running `f` on up to `n` elements at the same time. Results are written in the order of the input elements. When `f` fails, the running effects are interrupted and the returned channel fails with that error.
+   * Creates a channel that is like this channel but the given ZIO function gets
+   * applied to each emitted output element, running `f` on up to `n` elements
+   * at the same time. Results are written in the order of the input elements.
+   * When `f` fails, the running effects are interrupted and the returned
+   * channel fails with that error.
    *
    * @param n
    *   The maximum number of elements to map in parallel
@@ -763,7 +799,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 
   /**
    * Creates a channel that is like this channel but the given ZIO function gets
-   * applied to each emitted output element, running `f` on up to `n` elements at the same time. Results are written in the order in which the effects complete, so the order of the input elements is not preserved.
+   * applied to each emitted output element, running `f` on up to `n` elements
+   * at the same time. Results are written in the order in which the effects
+   * complete, so the order of the input elements is not preserved.
    *
    * @param n
    *   The maximum number of elements to map in parallel
@@ -849,12 +887,18 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     }
 
   /**
-   * Returns a new channel which creates a new channel for each emitted element and runs up to `n` of them at the same time, merging their outputs. With `BackPressure`, a new channel waits while `n` are running. With `BufferSliding`, the new channel starts without waiting, and an earlier channel that is still running may be interrupted. See [[ZChannel.mergeAll]].
+   * Returns a new channel which creates a new channel for each emitted element
+   * and runs up to `n` of them at the same time, merging their outputs. With
+   * `BackPressure`, a new channel waits while `n` are running. With
+   * `BufferSliding`, the new channel starts without waiting, and an earlier
+   * channel that is still running may be interrupted. See
+   * [[ZChannel.mergeAll]].
    *
    * @param n
    *   The maximum number of channels to merge
    * @param bufferSize
-   *   Capacity of the queue that holds the elements written by the merged channels until downstream reads them
+   *   Capacity of the queue that holds the elements written by the merged
+   *   channels until downstream reads them
    * @param mergeStrategy
    *   Merge strategy, either back pressure or sliding.
    * @param f
@@ -907,7 +951,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * termination is decided by the specified `leftDone` and `rightDone` merge
    * decisions.
    *
-   * Both channels run at the same time and their output elements are interleaved. They read from the same upstream input, and each upstream element goes to one of them.
+   * Both channels run at the same time and their output elements are
+   * interleaved. They read from the same upstream input, and each upstream
+   * element goes to one of them.
    */
   final def mergeWith[
     Env1 <: Env,
@@ -1099,7 +1145,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * specified channel and preserves this channel's failures without providing
    * them to the other channel as typed errors.
    *
-   * The other channel sees a failure of this channel as a defect. When the other channel propagates that cause, the returned channel fails with the original cause of this channel.
+   * The other channel sees a failure of this channel as a defect. When the
+   * other channel propagates that cause, the returned channel fails with the
+   * original cause of this channel.
    */
   final def pipeToOrFail[Env1 <: Env, OutErr1 >: OutErr, OutElem2, OutDone2](
     that: => ZChannel[Env1, Nothing, OutElem, OutDone, OutErr1, OutElem2, OutDone2]
@@ -1179,7 +1227,8 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZChannel.Provide(() => env, self)
 
   /**
-   * Provides a layer to the channel. The layer is built when the channel starts and released when the channel finishes.
+   * Provides a layer to the channel. The layer is built when the channel starts
+   * and released when the channel finishes.
    */
   final def provideLayer[OutErr1 >: OutErr, Env0](
     layer: => ZLayer[Env0, OutErr1, Env]
@@ -1237,7 +1286,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     self.drain.run
 
   /**
-   * Runs the channel like `run`, but adds closing the channel to `scope` as a finalizer: the finalizers that are still open when the channel finishes run when `scope` closes. The channel must not read any input or write any output.
+   * Runs the channel like `run`, but adds closing the channel to `scope` as a
+   * finalizer: the finalizers that are still open when the channel finishes run
+   * when `scope` closes. The channel must not read any input or write any
+   * output.
    */
   final def runIn(
     scope: => Scope
@@ -1301,7 +1353,12 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
    * Run the channel until it finishes with a done value or fails with an error.
    * The channel must not read any input or write any output.
    *
-   * Closing the channel is added to the current scope as a finalizer: the finalizers that are still open when the channel finishes run when that scope closes. Finalizers that already ran before the channel finished, such as those of the left side of `*>`, are not delayed. The finalizers of the upstream side of `>>>` can still be open at that point, even when upstream finished first.
+   * Closing the channel is added to the current scope as a finalizer: the
+   * finalizers that are still open when the channel finishes run when that
+   * scope closes. Finalizers that already ran before the channel finished, such
+   * as those of the left side of `*>`, are not delayed. The finalizers of the
+   * upstream side of `>>>` can still be open at that point, even when upstream
+   * finished first.
    */
   final def runScoped(implicit
     ev1: Any <:< InElem,
@@ -1341,7 +1398,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     ZIO.scopeWith(self.toPullIn(_))
 
   /**
-   * Returns an effect that can be used to repeatedly pull elements from the channel, like `toPull`, adding the channel's finalizers to `scope`. The pull effect fails with the channel's failure, or succeeds with `Right` of an emitted element or `Left` of the done value.
+   * Returns an effect that can be used to repeatedly pull elements from the
+   * channel, like `toPull`, adding the channel's finalizers to `scope`. The
+   * pull effect fails with the channel's failure, or succeeds with `Right` of
+   * an emitted element or `Left` of the done value.
    */
   final def toPullIn(
     scope: => Scope
@@ -1396,7 +1456,10 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     }
 
   /**
-   * Returns an effect that can be used to repeatedly pull elements from the channel, adding the channel's finalizers to `scope`. The pull effect succeeds with an emitted element. Once the channel has finished, it fails with `Left` of the channel's typed error or `Right` of its done value.
+   * Returns an effect that can be used to repeatedly pull elements from the
+   * channel, adding the channel's finalizers to `scope`. The pull effect
+   * succeeds with an emitted element. Once the channel has finished, it fails
+   * with `Left` of the channel's typed error or `Right` of its done value.
    */
   final def toPullInAlt(
     scope: => Scope
@@ -1527,7 +1590,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
     (self zip that).map(_._1)
 
   /**
-   * Creates a new channel which runs in parallel this and the other channel and when both succeed finishes with both done values combined by `Zippable` (`Unit` values are dropped and nested tuples are flattened).
+   * Creates a new channel which runs in parallel this and the other channel and
+   * when both succeed finishes with both done values combined by `Zippable`
+   * (`Unit` values are dropped and nested tuples are flattened).
    */
   final def zipPar[
     Env1 <: Env,
@@ -1602,7 +1667,9 @@ sealed trait ZChannel[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDon
 }
 
 /**
- * Constructors for [[ZChannel]] values, and the types that configure how channels are merged ([[ZChannel.MergeDecision]] and [[ZChannel.MergeStrategy]]).
+ * Constructors for [[ZChannel]] values, and the types that configure how
+ * channels are merged ([[ZChannel.MergeDecision]] and
+ * [[ZChannel.MergeStrategy]]).
  */
 object ZChannel {
   private val failLeftUnit = Exit.fail(Left(()))
@@ -1665,10 +1732,12 @@ object ZChannel {
     value: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
     k: Fold.K[Env, InErr, InElem, InDone, OutErr, OutErr2, OutElem, OutDone, OutDone2]
   ) extends ZChannel[Env, InErr, InElem, InDone, OutErr2, OutElem, OutDone2]
+
   /**
    * Continuations used internally by the channel interpreter.
    */
   object Fold {
+
     /**
      * Continuation used internally by the channel interpreter.
      */
@@ -1741,9 +1810,13 @@ object ZChannel {
   ) extends ZChannel[Any, InErr, InElem, InDone, OutErr, OutElem, OutDone]
 
   /**
-   * Creates a channel that runs `acquire` uninterruptibly, writes the acquired value as its only output element and runs `release` on it when the channel is closed. When the element is consumed by `concatMap` or by a downstream channel (`>>>`), the channel is closed after that consumer has finished.
+   * Creates a channel that runs `acquire` uninterruptibly, writes the acquired
+   * value as its only output element and runs `release` on it when the channel
+   * is closed. When the element is consumed by `concatMap` or by a downstream
+   * channel (`>>>`), the channel is closed after that consumer has finished.
    *
-   * If `acquire` fails, the channel fails with that error and `release` does not run.
+   * If `acquire` fails, the channel fails with that error and `release` does
+   * not run.
    */
   def acquireReleaseOutWith[Env, OutErr, Acquired](acquire: => ZIO[Env, OutErr, Acquired])(
     release: Acquired => URIO[Env, Any]
@@ -1751,7 +1824,11 @@ object ZChannel {
     acquireReleaseOutExitWith(acquire)((z, _) => release(z))
 
   /**
-   * Creates a channel that runs `acquire` uninterruptibly, writes the acquired value as its only output element and runs `release` on it when the channel is closed, like `acquireReleaseOutWith`. `release` also receives the `Exit` the channel is closed with: for example, when a `concatMap` consumer of the element fails, `release` receives that failure.
+   * Creates a channel that runs `acquire` uninterruptibly, writes the acquired
+   * value as its only output element and runs `release` on it when the channel
+   * is closed, like `acquireReleaseOutWith`. `release` also receives the `Exit`
+   * the channel is closed with: for example, when a `concatMap` consumer of the
+   * element fails, `release` receives that failure.
    */
   def acquireReleaseOutExitWith[Env, OutErr, Acquired](acquire: => ZIO[Env, OutErr, Acquired])(
     release: (Acquired, Exit[Any, Any]) => URIO[Env, Any]
@@ -1759,7 +1836,10 @@ object ZChannel {
     BracketOut(() => acquire, release)
 
   /**
-   * Creates a channel that runs `acquire` uninterruptibly, continues as the channel that `use` creates from the acquired value, and runs `release` when that channel finishes, fails or is interrupted. If `acquire` fails, the channel fails with that error and `release` does not run.
+   * Creates a channel that runs `acquire` uninterruptibly, continues as the
+   * channel that `use` creates from the acquired value, and runs `release` when
+   * that channel finishes, fails or is interrupted. If `acquire` fails, the
+   * channel fails with that error and `release` does not run.
    */
   def acquireReleaseWith[Env, InErr, InElem, InDone, OutErr, Acquired, OutElem2, OutDone](
     acquire: => ZIO[Env, OutErr, Acquired]
@@ -1771,7 +1851,11 @@ object ZChannel {
     )(use)
 
   /**
-   * Creates a channel that runs `acquire` uninterruptibly, continues as the channel that `use` creates from the acquired value, and runs `release` with the `Exit` of that channel when it finishes, fails or is interrupted. If `acquire` fails, the channel fails with that error and `release` does not run.
+   * Creates a channel that runs `acquire` uninterruptibly, continues as the
+   * channel that `use` creates from the acquired value, and runs `release` with
+   * the `Exit` of that channel when it finishes, fails or is interrupted. If
+   * `acquire` fails, the channel fails with that error and `release` does not
+   * run.
    */
   def acquireReleaseExitWith[Env, InErr, InElem, InDone, OutErr, Acquired, OutElem2, OutDone](
     acquire: => ZIO[Env, OutErr, Acquired]
@@ -1796,7 +1880,10 @@ object ZChannel {
     }
 
   /**
-   * Creates a channel backed by a buffer. When the buffer is empty, the channel passes its input through as output. When the buffer is non-empty, the channel first writes the value inside the buffer and resets the buffer to `empty`.
+   * Creates a channel backed by a buffer. When the buffer is empty, the channel
+   * passes its input through as output. When the buffer is non-empty, the
+   * channel first writes the value inside the buffer and resets the buffer to
+   * `empty`.
    */
   def buffer[InErr, InElem, InDone](
     empty: => InElem,
@@ -1829,7 +1916,10 @@ object ZChannel {
     }
 
   /**
-   * Creates a channel backed by a buffer of chunks, like `buffer` with the empty chunk as the empty value: when the buffer holds a non-empty chunk, the channel first writes that chunk and empties the buffer, then passes its input through.
+   * Creates a channel backed by a buffer of chunks, like `buffer` with the
+   * empty chunk as the empty value: when the buffer holds a non-empty chunk,
+   * the channel first writes that chunk and empties the buffer, then passes its
+   * input through.
    */
   def bufferChunk[InErr, InElem, InDone](
     ref: => Ref[Chunk[InElem]]
@@ -1837,7 +1927,9 @@ object ZChannel {
     buffer[InErr, Chunk[InElem], InDone](Chunk.empty, _.isEmpty, ref)
 
   /**
-   * Creates a channel that runs each channel written by `channels` in turn, to completion, and writes all their output elements. The terminal values are discarded.
+   * Creates a channel that runs each channel written by `channels` in turn, to
+   * completion, and writes all their output elements. The terminal values are
+   * discarded.
    */
   def concatAll[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     channels: => ZChannel[
@@ -1853,9 +1945,12 @@ object ZChannel {
     concatAllWith(channels)(unitFn2, unitFn2)
 
   /**
-   * Creates a channel that runs each channel written by `channels` in turn, to completion, and writes all their output elements.
+   * Creates a channel that runs each channel written by `channels` in turn, to
+   * completion, and writes all their output elements.
    *
-   * `f` combines the terminal values of the inner channels, in order, and `g` combines that result with the terminal value of `channels` to give the terminal value of the returned channel.
+   * `f` combines the terminal values of the inner channels, in order, and `g`
+   * combines that result with the terminal value of `channels` to give the
+   * terminal value of the returned channel.
    */
   def concatAllWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone, OutDone2, OutDone3](
     channels: => ZChannel[
@@ -1879,13 +1974,15 @@ object ZChannel {
     )
 
   /**
-   * Creates a channel that succeeds immediately with the given value. Unlike `succeed`, the value is evaluated when this method is called.
+   * Creates a channel that succeeds immediately with the given value. Unlike
+   * `succeed`, the value is evaluated when this method is called.
    */
   def succeedNow[Z](result: Z)(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Nothing, Z] =
     SucceedNow(result)
 
   /**
-   * Creates a channel that succeeds with the result of applying `f` to the environment of the channel.
+   * Creates a channel that succeeds with the result of applying `f` to the
+   * environment of the channel.
    */
   def succeedWith[R, Z](f: ZEnvironment[R] => Z)(implicit
     trace: Trace
@@ -1893,19 +1990,22 @@ object ZChannel {
     ZChannel.fromZIO(ZIO.environmentWith[R](f))
 
   /**
-   * Creates a channel that writes the given element as its only output element and succeeds with `Unit`.
+   * Creates a channel that writes the given element as its only output element
+   * and succeeds with `Unit`.
    */
   def write[Out](out: Out)(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
     Emit(out)
 
   /**
-   * Creates a channel that writes the given elements one by one, in order, and succeeds with `Unit`.
+   * Creates a channel that writes the given elements one by one, in order, and
+   * succeeds with `Unit`.
    */
   def writeAll[Out](outs: Out*)(implicit trace: Trace): ZChannel[Any, Any, Any, Any, Nothing, Out, Unit] =
     writeChunk(Chunk.fromIterable(outs))
 
   /**
-   * Creates a channel that writes the elements of the given chunk one by one, in order, as separate output elements, and succeeds with `Unit`.
+   * Creates a channel that writes the elements of the given chunk one by one,
+   * in order, as separate output elements, and succeeds with `Unit`.
    */
   def writeChunk[Out](
     outs: Chunk[Out]
@@ -1944,13 +2044,15 @@ object ZChannel {
     new ZChannel.EnvironmentWithZIOPartiallyApplied[Env]
 
   /**
-   * Creates a channel that fails with the given error. The error is evaluated lazily, when the channel runs.
+   * Creates a channel that fails with the given error. The error is evaluated
+   * lazily, when the channel runs.
    */
   def fail[E](e: => E)(implicit trace: Trace): ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
     failCause(Cause.fail(e))
 
   /**
-   * Creates a channel that fails with the value of a `Left` or succeeds with the value of a `Right`. The `Either` is evaluated when the channel runs.
+   * Creates a channel that fails with the value of a `Left` or succeeds with
+   * the value of a `Right`. The `Either` is evaluated when the channel runs.
    */
   def fromEither[E, A](either: => Either[E, A])(implicit
     trace: Trace
@@ -1958,7 +2060,10 @@ object ZChannel {
     ZChannel.suspend(either.fold(ZChannel.fail(_), ZChannel.succeed(_)))
 
   /**
-   * Creates a channel that subscribes to the hub when it starts and writes the value of each `Right` it receives. The first `Left` ends the channel: it fails or succeeds as that `Exit` does. The subscription is closed when the channel finishes.
+   * Creates a channel that subscribes to the hub when it starts and writes the
+   * value of each `Right` it receives. The first `Left` ends the channel: it
+   * fails or succeeds as that `Exit` does. The subscription is closed when the
+   * channel finishes.
    */
   def fromHub[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
@@ -1966,7 +2071,10 @@ object ZChannel {
     ZChannel.unwrapScoped(hub.subscribe.map(fromQueue(_)))
 
   /**
-   * Subscribes to the hub in the current scope and returns a channel that writes the value of each `Right` it receives. The first `Left` ends the channel: it fails or succeeds as that `Exit` does. The subscription stays open until the scope closes.
+   * Subscribes to the hub in the current scope and returns a channel that
+   * writes the value of each `Right` it receives. The first `Left` ends the
+   * channel: it fails or succeeds as that `Exit` does. The subscription stays
+   * open until the scope closes.
    */
   def fromHubScoped[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
@@ -1974,7 +2082,9 @@ object ZChannel {
     hub.subscribe.map(fromQueue(_))
 
   /**
-   * Creates a channel that succeeds with the value of a `Some`, or fails with `None` when the option is empty. The option is evaluated when the channel runs.
+   * Creates a channel that succeeds with the value of a `Some`, or fails with
+   * `None` when the option is empty. The option is evaluated when the channel
+   * runs.
    */
   def fromOption[A](option: => Option[A])(implicit
     trace: Trace
@@ -1984,7 +2094,9 @@ object ZChannel {
     )
 
   /**
-   * Creates a channel that takes values from the queue and writes the value of each `Right`. The first `Left` ends the channel: it fails or succeeds as that `Exit` does, and later queue values are not taken.
+   * Creates a channel that takes values from the queue and writes the value of
+   * each `Right`. The first `Left` ends the channel: it fails or succeeds as
+   * that `Exit` does, and later queue values are not taken.
    */
   def fromQueue[Err, Done, Elem](
     queue: => Dequeue[Either[Exit[Err, Done], Elem]]
@@ -2004,13 +2116,16 @@ object ZChannel {
     }
 
   /**
-   * Creates a channel that runs the given effect when the channel runs and succeeds with its result, or fails with its error. The channel writes no output.
+   * Creates a channel that runs the given effect when the channel runs and
+   * succeeds with its result, or fails with its error. The channel writes no
+   * output.
    */
   def fromZIO[R, E, A](zio: => ZIO[R, E, A])(implicit trace: Trace): ZChannel[R, Any, Any, Any, E, Nothing, A] =
     FromZIO(() => zio)
 
   /**
-   * Creates a channel that fails with the given cause. The cause is evaluated lazily, when the channel runs.
+   * Creates a channel that fails with the given cause. The cause is evaluated
+   * lazily, when the channel runs.
    */
   def failCause[E](cause: => Cause[E])(implicit
     trace: Trace
@@ -2018,13 +2133,15 @@ object ZChannel {
     Fail(() => cause)
 
   /**
-   * Creates a channel that writes every element it reads and passes upstream failures and the upstream done value through unchanged.
+   * Creates a channel that writes every element it reads and passes upstream
+   * failures and the upstream done value through unchanged.
    */
   def identity[Err, Elem, Done](implicit trace: Trace): ZChannel[Any, Err, Elem, Done, Err, Elem, Done] =
     identityAny.asInstanceOf[ZChannel[Any, Err, Elem, Done, Err, Elem, Done]]
 
   /**
-   * Creates a channel that fails with an interruption cause carrying the given fiber id.
+   * Creates a channel that fails with an interruption cause carrying the given
+   * fiber id.
    */
   def interruptAs(fiberId: => FiberId)(implicit
     trace: Trace
@@ -2032,21 +2149,34 @@ object ZChannel {
     failCause(Cause.interrupt(fiberId))
 
   /**
-   * Creates a channel that runs the scoped effect in a new scope, writes its result as the only output element and closes the scope when the channel is closed. When the element is consumed by `concatMap`, the scope closes after that consumer has finished.
+   * Creates a channel that runs the scoped effect in a new scope, writes its
+   * result as the only output element and closes the scope when the channel is
+   * closed. When the element is consumed by `concatMap`, the scope closes after
+   * that consumer has finished.
    */
   def scoped[R]: ScopedPartiallyApplied[R] =
     new ScopedPartiallyApplied[R]
 
   /**
-   * Creates a channel that runs `f` with a new scope, writes its result as the only output element and closes the scope when the channel is closed. When the element is consumed by `concatMap`, the scope closes after that consumer has finished.
+   * Creates a channel that runs `f` with a new scope, writes its result as the
+   * only output element and closes the scope when the channel is closed. When
+   * the element is consumed by `concatMap`, the scope closes after that
+   * consumer has finished.
    */
   def scopedWith[R, E, A](f: Scope => ZIO[R, E, A])(implicit trace: Trace): ZChannel[R, Any, Any, Any, E, A, Any] =
     ZChannel.unwrapScoped(ZIO.scopeWith(scope => Exit.succeed(ZChannel.fromZIO(f(scope)).flatMap(ZChannel.write))))
 
   /**
-   * Creates a channel that runs the channels written by `channels`, up to `n` of them at the same time, and writes their output elements in the order they arrive. When one of them fails, the others are interrupted and the returned channel fails with that error.
+   * Creates a channel that runs the channels written by `channels`, up to `n`
+   * of them at the same time, and writes their output elements in the order
+   * they arrive. When one of them fails, the others are interrupted and the
+   * returned channel fails with that error.
    *
-   * When a new channel is written, `MergeStrategy.BackPressure` waits while `n` channels are running. `MergeStrategy.BufferSliding` starts the new channel without waiting, and an earlier channel that is still running may be interrupted. `bufferSize` is the capacity of the queue that holds output elements until downstream reads them.
+   * When a new channel is written, `MergeStrategy.BackPressure` waits while `n`
+   * channels are running. `MergeStrategy.BufferSliding` starts the new channel
+   * without waiting, and an earlier channel that is still running may be
+   * interrupted. `bufferSize` is the capacity of the queue that holds output
+   * elements until downstream reads them.
    */
   def mergeAll[Env, InErr, InElem, InDone, OutErr, OutElem](
     channels: => ZChannel[
@@ -2065,7 +2195,9 @@ object ZChannel {
     mergeAllWith(channels, n, bufferSize, mergeStrategy)(unitFn2)
 
   /**
-   * Creates a channel that runs all the channels written by `channels` at the same time and writes their output elements in the order they arrive, like `mergeAll` with `n` set to `Int.MaxValue`.
+   * Creates a channel that runs all the channels written by `channels` at the
+   * same time and writes their output elements in the order they arrive, like
+   * `mergeAll` with `n` set to `Int.MaxValue`.
    */
   def mergeAllUnbounded[Env, InErr, InElem, InDone, OutErr, OutElem](
     channels: => ZChannel[
@@ -2081,7 +2213,9 @@ object ZChannel {
     mergeAll(channels, Int.MaxValue)
 
   /**
-   * Creates a channel that runs all the channels written by `channels` at the same time, like `mergeAllWith` with `n` set to `Int.MaxValue`. `f` combines the terminal values of the inner channels and of `channels`.
+   * Creates a channel that runs all the channels written by `channels` at the
+   * same time, like `mergeAllWith` with `n` set to `Int.MaxValue`. `f` combines
+   * the terminal values of the inner channels and of `channels`.
    */
   def mergeAllUnboundedWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     channels: => ZChannel[
@@ -2099,9 +2233,14 @@ object ZChannel {
     mergeAllWith(channels, Int.MaxValue)(f)
 
   /**
-   * Creates a channel that runs the channels written by `channels`, up to `n` of them at the same time, and writes their output elements in the order they arrive, like `mergeAll`.
+   * Creates a channel that runs the channels written by `channels`, up to `n`
+   * of them at the same time, and writes their output elements in the order
+   * they arrive, like `mergeAll`.
    *
-   * `f` combines the terminal values of the inner channels in the order they finish, and then combines that result with the terminal value of `channels`. When `channels` writes no channel, the returned channel succeeds with the terminal value of `channels`.
+   * `f` combines the terminal values of the inner channels in the order they
+   * finish, and then combines that result with the terminal value of
+   * `channels`. When `channels` writes no channel, the returned channel
+   * succeeds with the terminal value of `channels`.
    */
   def mergeAllWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     channels: ZChannel[
@@ -2253,7 +2392,11 @@ object ZChannel {
   }
 
   /**
-   * Creates a channel that runs the channels written by `channels`, up to `n` of them at the same time, with the back pressure merge strategy, like the other `mergeAllWith` overload. Passing `MergeStrategy.BackPressure` as the argument selects this overload. To call the other one, omit the argument or pass a value typed as `MergeStrategy`.
+   * Creates a channel that runs the channels written by `channels`, up to `n`
+   * of them at the same time, with the back pressure merge strategy, like the
+   * other `mergeAllWith` overload. Passing `MergeStrategy.BackPressure` as the
+   * argument selects this overload. To call the other one, omit the argument or
+   * pass a value typed as `MergeStrategy`.
    */
   @deprecated("use mergeAllWith with `MergeStrategy`", "2.1.7")
   def mergeAllWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
@@ -2279,7 +2422,9 @@ object ZChannel {
     ZChannel.fromZIO(ZIO.never)
 
   /**
-   * Provides the part `Env` of the environment of `channel` with the given layer, leaving the remainder `Env1` to be provided. The layer is built when the channel starts and released when the channel finishes.
+   * Provides the part `Env` of the environment of `channel` with the given
+   * layer, leaving the remainder `Env1` to be provided. The layer is built when
+   * the channel starts and released when the channel finishes.
    */
   def provideLayer[Env0, Env, Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone](layer: ZLayer[Env0, OutErr, Env])(
     channel: => ZChannel[Env with Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]
@@ -2291,7 +2436,10 @@ object ZChannel {
     ZChannel.suspend(channel.provideSomeLayer[Env0 with Env1](ZLayer.environment[Env1] <*> layer))
 
   /**
-   * Creates a channel that reads one input: `in` receives the next upstream element, `halt` receives the cause of an upstream failure and `done` receives the upstream done value. The returned channel continues as the channel that the called function creates.
+   * Creates a channel that reads one input: `in` receives the next upstream
+   * element, `halt` receives the cause of an upstream failure and `done`
+   * receives the upstream done value. The returned channel continues as the
+   * channel that the called function creates.
    */
   def readWithCause[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     in: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
@@ -2301,9 +2449,13 @@ object ZChannel {
     Read[Env, InErr, InElem, InDone, InErr, OutErr, OutElem, OutElem, InDone, OutDone](in, new Fold.K(done, halt))
 
   /**
-   * Creates a channel that reads one input: `in` receives the next upstream element, `error` receives a typed upstream error and `done` receives the upstream done value. The returned channel continues as the channel that the called function creates.
+   * Creates a channel that reads one input: `in` receives the next upstream
+   * element, `error` receives a typed upstream error and `done` receives the
+   * upstream done value. The returned channel continues as the channel that the
+   * called function creates.
    *
-   * An upstream cause without a typed error (a defect or an interruption) makes the returned channel fail with that cause.
+   * An upstream cause without a typed error (a defect or an interruption) makes
+   * the returned channel fail with that cause.
    */
   def readWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     in: InElem => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone],
@@ -2313,7 +2465,8 @@ object ZChannel {
     readWithCause(in, (c: Cause[InErr]) => c.failureOrCause.fold(error, ZChannel.refailCause(_)), done)
 
   /**
-   * Creates a channel that reads one element and succeeds with it. When upstream finishes or fails instead, the channel fails with `e`.
+   * Creates a channel that reads one element and succeeds with it. When
+   * upstream finishes or fails instead, the channel fails with `e`.
    */
   def readOrFail[E, In](e: => E)(implicit trace: Trace): ZChannel[Any, Any, In, Any, E, Nothing, In] =
     Read[Any, Any, In, Any, Any, E, Nothing, Nothing, In, In](
@@ -2322,13 +2475,15 @@ object ZChannel {
     )
 
   /**
-   * Creates a channel that reads one element and succeeds with it. When upstream finishes or fails instead, the channel fails with `None`.
+   * Creates a channel that reads one element and succeeds with it. When
+   * upstream finishes or fails instead, the channel fails with `None`.
    */
   def read[In](implicit trace: Trace): ZChannel[Any, Any, In, Any, None.type, Nothing, In] =
     readOrFail(None)
 
   /**
-   * Creates a channel that fails with the given cause, which is already evaluated. Use it to propagate a cause received from another channel.
+   * Creates a channel that fails with the given cause, which is already
+   * evaluated. Use it to propagate a cause received from another channel.
    */
   def refailCause[E](cause: Cause[E]): ZChannel[Any, Any, Any, Any, E, Nothing, Nothing] =
     Fail(() => cause)
@@ -2384,7 +2539,9 @@ object ZChannel {
     succeedNow(())(Trace.empty)
 
   /**
-   * Creates a channel that runs the given effect and then continues as the channel it produces. If the effect fails, the channel fails with that error.
+   * Creates a channel that runs the given effect and then continues as the
+   * channel it produces. If the effect fails, the channel fails with that
+   * error.
    */
   def unwrap[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     channel: => ZIO[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
@@ -2392,13 +2549,16 @@ object ZChannel {
     ZChannel.fromZIO(channel).flatten
 
   /**
-   * Creates a channel that runs the scoped effect in a new scope and then continues as the channel it produces. The scope closes when that channel finishes.
+   * Creates a channel that runs the scoped effect in a new scope and then
+   * continues as the channel it produces. The scope closes when that channel
+   * finishes.
    */
   def unwrapScoped[Env]: UnwrapScopedPartiallyApplied[Env] =
     new UnwrapScopedPartiallyApplied[Env]
 
   /**
-   * Creates a channel that runs `f` with a new scope and then continues as the channel it produces. The scope closes when that channel finishes.
+   * Creates a channel that runs `f` with a new scope and then continues as the
+   * channel it produces. The scope closes when that channel finishes.
    */
   def unwrapScopedWith[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
     f: Scope => ZIO[Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
@@ -2406,7 +2566,9 @@ object ZChannel {
     ZChannel.concatAllWith(ZChannel.scopedWith(f))((d, _) => d, (d, _) => d)
 
   /**
-   * Creates a channel that publishes every element it reads to the hub as a `Right`. When upstream finishes or fails, it publishes a `Left` holding that `Exit` and finishes.
+   * Creates a channel that publishes every element it reads to the hub as a
+   * `Right`. When upstream finishes or fails, it publishes a `Left` holding
+   * that `Exit` and finishes.
    */
   def toHub[Err, Done, Elem](
     hub: => Hub[Either[Exit[Err, Done], Elem]]
@@ -2414,7 +2576,9 @@ object ZChannel {
     toQueue(hub)
 
   /**
-   * Creates a channel that offers every element it reads to the queue as a `Right`. When upstream finishes or fails, it offers a `Left` holding that `Exit` and finishes.
+   * Creates a channel that offers every element it reads to the queue as a
+   * `Right`. When upstream finishes or fails, it offers a `Left` holding that
+   * `Exit` and finishes.
    */
   def toQueue[Err, Done, Elem](
     queue: => Enqueue[Either[Exit[Err, Done], Elem]]
@@ -2466,7 +2630,9 @@ object ZChannel {
   }
 
   /**
-   * Decides what a channel built with `ZChannel#mergeWith` does when one of the two merged channels finishes: either finish now, or wait for the other channel.
+   * Decides what a channel built with `ZChannel#mergeWith` does when one of the
+   * two merged channels finishes: either finish now, or wait for the other
+   * channel.
    */
   sealed abstract class MergeDecision[-R, -E0, -Z0, +E, +Z]
 
@@ -2476,33 +2642,42 @@ object ZChannel {
   object MergeDecision {
 
     /**
-     * Interrupts the other channel and finishes the merged channel with the result of `zio`.
+     * Interrupts the other channel and finishes the merged channel with the
+     * result of `zio`.
      */
     case class Done[R, E, Z](zio: ZIO[R, E, Z]) extends MergeDecision[R, Any, Any, E, Z]
 
     /**
-     * Keeps writing the output of the other channel until it finishes, then finishes the merged channel with the result of `f` applied to the `Exit` of the other channel.
+     * Keeps writing the output of the other channel until it finishes, then
+     * finishes the merged channel with the result of `f` applied to the `Exit`
+     * of the other channel.
      */
     case class Await[R, E0, Z0, E, Z](f: Exit[E0, Z0] => ZIO[R, E, Z]) extends MergeDecision[R, E0, Z0, E, Z]
 
     /**
-     * Interrupts the other channel and finishes the merged channel with the result of `zio`.
+     * Interrupts the other channel and finishes the merged channel with the
+     * result of `zio`.
      */
     def done[R, E, Z](zio: ZIO[R, E, Z]): MergeDecision[R, Any, Any, E, Z] = Done(zio)
 
     /**
-     * Keeps writing the output of the other channel until it finishes, then finishes the merged channel with the result of `f` applied to the `Exit` of the other channel.
+     * Keeps writing the output of the other channel until it finishes, then
+     * finishes the merged channel with the result of `f` applied to the `Exit`
+     * of the other channel.
      */
     def await[R, E0, Z0, E, Z](f: Exit[E0, Z0] => ZIO[R, E, Z]): MergeDecision[R, E0, Z0, E, Z] = Await(f)
 
     /**
-     * Keeps writing the output of the other channel until it finishes, then finishes the merged channel with the result of `zio`, ignoring how the other channel ended.
+     * Keeps writing the output of the other channel until it finishes, then
+     * finishes the merged channel with the result of `zio`, ignoring how the
+     * other channel ended.
      */
     def awaitConst[R, E, Z](zio: ZIO[R, E, Z]): MergeDecision[R, Any, Any, E, Z] = Await(_ => zio)
   }
 
   /**
-   * Decides how `ZChannel.mergeAll` and `ZChannel#mergeMap` limit the number of channels that run at the same time.
+   * Decides how `ZChannel.mergeAll` and `ZChannel#mergeMap` limit the number of
+   * channels that run at the same time.
    */
   sealed trait MergeStrategy
 
@@ -2512,22 +2687,28 @@ object ZChannel {
   object MergeStrategy {
 
     /**
-     * When `n` channels are running, waits until one of them finishes before starting the new one.
+     * When `n` channels are running, waits until one of them finishes before
+     * starting the new one.
      */
     case object BackPressure extends MergeStrategy
 
     /**
-     * Starts the new channel without waiting for a running channel to finish, and may interrupt a channel that was started earlier and is still running.
+     * Starts the new channel without waiting for a running channel to finish,
+     * and may interrupt a channel that was started earlier and is still
+     * running.
      */
     case object BufferSliding extends MergeStrategy
   }
 
   /**
-   * Partially applied form of `ZChannel.environmentWith`, which fixes the environment type.
+   * Partially applied form of `ZChannel.environmentWith`, which fixes the
+   * environment type.
    */
   final class EnvironmentWithPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+
     /**
-     * Creates a channel that succeeds with the result of applying `f` to the environment.
+     * Creates a channel that succeeds with the result of applying `f` to the
+     * environment.
      */
     def apply[OutDone](f: ZEnvironment[Env] => OutDone)(implicit
       trace: Trace
@@ -2536,11 +2717,14 @@ object ZChannel {
   }
 
   /**
-   * Partially applied form of `ZChannel.environmentWithChannel`, which fixes the environment type.
+   * Partially applied form of `ZChannel.environmentWithChannel`, which fixes
+   * the environment type.
    */
   final class EnvironmentWithChannelPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+
     /**
-     * Creates a channel that continues as the channel that `f` creates from the environment.
+     * Creates a channel that continues as the channel that `f` creates from the
+     * environment.
      */
     def apply[Env1 <: Env, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       f: ZEnvironment[Env] => ZChannel[Env1, InErr, InElem, InDone, OutErr, OutElem, OutDone]
@@ -2549,11 +2733,14 @@ object ZChannel {
   }
 
   /**
-   * Partially applied form of `ZChannel.environmentWithZIO`, which fixes the environment type.
+   * Partially applied form of `ZChannel.environmentWithZIO`, which fixes the
+   * environment type.
    */
   final class EnvironmentWithZIOPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+
     /**
-     * Creates a channel that runs the effect that `f` creates from the environment and succeeds with its result.
+     * Creates a channel that runs the effect that `f` creates from the
+     * environment and succeeds with its result.
      */
     def apply[Env1 <: Env, OutErr, OutDone](f: ZEnvironment[Env] => ZIO[Env1, OutErr, OutDone])(implicit
       trace: Trace
@@ -2562,13 +2749,17 @@ object ZChannel {
   }
 
   /**
-   * Partially applied form of `ZChannel#provideSomeLayer`, which fixes the type `Env0` of the environment that remains to be provided.
+   * Partially applied form of `ZChannel#provideSomeLayer`, which fixes the type
+   * `Env0` of the environment that remains to be provided.
    */
   final class ProvideSomeLayer[Env0, -Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone](
     private val self: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   ) extends AnyVal {
+
     /**
-     * Provides the part `Env1` of the environment with the given layer, leaving `Env0` to be provided. The layer is built when the channel starts and released when the channel finishes.
+     * Provides the part `Env1` of the environment with the given layer, leaving
+     * `Env0` to be provided. The layer is built when the channel starts and
+     * released when the channel finishes.
      */
     def apply[OutErr1 >: OutErr, Env1](
       layer: => ZLayer[Env0, OutErr1, Env1]
@@ -2583,11 +2774,16 @@ object ZChannel {
   }
 
   /**
-   * Partially applied form of `ZChannel.scoped`, which fixes the environment type.
+   * Partially applied form of `ZChannel.scoped`, which fixes the environment
+   * type.
    */
   final class ScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+
     /**
-     * Creates a channel that runs the scoped effect in a new scope, writes its result as the only output element and closes the scope when the channel is closed. If the effect fails, the scope is closed and the channel fails with that error.
+     * Creates a channel that runs the scoped effect in a new scope, writes its
+     * result as the only output element and closes the scope when the channel
+     * is closed. If the effect fails, the scope is closed and the channel fails
+     * with that error.
      */
     def apply[E, A](
       zio: => ZIO[Scope with R, E, A]
@@ -2606,11 +2802,14 @@ object ZChannel {
   }
 
   /**
-   * Partially applied form of `ZChannel.serviceAt`, which fixes the service type.
+   * Partially applied form of `ZChannel.serviceAt`, which fixes the service
+   * type.
    */
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+
     /**
-     * Creates a channel that succeeds with `Some` of the service stored under `key` in the `Map` environment, or `None` when there is no such key.
+     * Creates a channel that succeeds with `Some` of the service stored under
+     * `key` in the `Map` environment, or `None` when there is no such key.
      */
     def apply[Key](
       key: => Key
@@ -2622,11 +2821,14 @@ object ZChannel {
   }
 
   /**
-   * Partially applied form of `ZChannel.serviceWith`, which fixes the service type.
+   * Partially applied form of `ZChannel.serviceWith`, which fixes the service
+   * type.
    */
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+
     /**
-     * Creates a channel that succeeds with the result of applying `f` to the service.
+     * Creates a channel that succeeds with the result of applying `f` to the
+     * service.
      */
     def apply[OutDone](f: Service => OutDone)(implicit
       tag: Tag[Service],
@@ -2636,11 +2838,14 @@ object ZChannel {
   }
 
   /**
-   * Partially applied form of `ZChannel.serviceWithChannel`, which fixes the service type.
+   * Partially applied form of `ZChannel.serviceWithChannel`, which fixes the
+   * service type.
    */
   final class ServiceWithChannelPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+
     /**
-     * Creates a channel that continues as the channel that `f` creates from the service.
+     * Creates a channel that continues as the channel that `f` creates from the
+     * service.
      */
     def apply[Env <: Service, InErr, InElem, InDone, OutErr, OutElem, OutDone](
       f: Service => ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
@@ -2652,11 +2857,14 @@ object ZChannel {
   }
 
   /**
-   * Partially applied form of `ZChannel.serviceWithZIO`, which fixes the service type.
+   * Partially applied form of `ZChannel.serviceWithZIO`, which fixes the
+   * service type.
    */
   final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+
     /**
-     * Creates a channel that runs the effect that `f` creates from the service and succeeds with its result.
+     * Creates a channel that runs the effect that `f` creates from the service
+     * and succeeds with its result.
      */
     def apply[Env <: Service, OutErr, OutDone](f: Service => ZIO[Env, OutErr, OutDone])(implicit
       tag: Tag[Service],
@@ -2666,11 +2874,15 @@ object ZChannel {
   }
 
   /**
-   * Partially applied form of `ZChannel.unwrapScoped`, which fixes the environment type.
+   * Partially applied form of `ZChannel.unwrapScoped`, which fixes the
+   * environment type.
    */
   final class UnwrapScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+
     /**
-     * Creates a channel that runs the scoped effect in a new scope and then continues as the channel it produces. The scope closes when that channel finishes.
+     * Creates a channel that runs the scoped effect in a new scope and then
+     * continues as the channel it produces. The scope closes when that channel
+     * finishes.
      */
     def apply[InErr, InElem, InDone, OutErr, OutElem, OutDone](
       channel: => ZIO[Scope with Env, OutErr, ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]]
@@ -2681,13 +2893,16 @@ object ZChannel {
   }
 
   /**
-   * Partially applied form of `ZChannel#updateService`, which fixes the service type.
+   * Partially applied form of `ZChannel#updateService`, which fixes the service
+   * type.
    */
   final class UpdateService[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone, Service](
     private val self: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   ) extends AnyVal {
+
     /**
-     * Returns the channel with the service in its environment replaced by the result of applying `f` to it.
+     * Returns the channel with the service in its environment replaced by the
+     * result of applying `f` to it.
      */
     def apply[Env1 <: Env with Service](
       f: Service => Service
@@ -2699,13 +2914,16 @@ object ZChannel {
   }
 
   /**
-   * Partially applied form of `ZChannel#updateServiceAt`, which fixes the service type.
+   * Partially applied form of `ZChannel#updateServiceAt`, which fixes the
+   * service type.
    */
   final class UpdateServiceAt[-Env, -InErr, -InElem, -InDone, +OutErr, +OutElem, +OutDone, Service](
     private val self: ZChannel[Env, InErr, InElem, InDone, OutErr, OutElem, OutDone]
   ) extends AnyVal {
+
     /**
-     * Returns the channel with the service stored under `key` in its `Map` environment replaced by the result of applying `f` to it.
+     * Returns the channel with the service stored under `key` in its `Map`
+     * environment replaced by the result of applying `f` to it.
      */
     def apply[Env1 <: Env with Map[Key, Service], Key](key: => Key)(
       f: Service => Service

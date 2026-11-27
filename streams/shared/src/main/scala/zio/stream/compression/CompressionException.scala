@@ -24,7 +24,10 @@ class CompressionException private (message: String, cause: Exception) extends E
 /** Constructors for `CompressionException`. */
 object CompressionException {
 
-  /** Creates an exception with the given message and, if present, the given cause. */
+  /**
+   * Creates an exception with the given message and, if present, the given
+   * cause.
+   */
   def apply(message: String, cause: Option[Exception] = None) = new CompressionException(message, cause.getOrElse(null))
 
   /** Creates an exception that wraps `cause` and uses its message. */
