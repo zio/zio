@@ -22,24 +22,61 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.scalajs.js.Dynamic.{global => jsglobal}
 
+/**
+ * The platform's default runtime settings, which the [[Runtime]] companion
+ * object inherits.
+ */
 private[zio] trait RuntimePlatformSpecific {
 
+  /**
+   * The executor that runs fibers by default. On the JVM and Scala Native it is
+   * ZIO's work-stealing scheduler, with one worker thread per available
+   * processor; on Scala.js it runs each task as a JavaScript macrotask through
+   * `MacrotaskExecutor`.
+   */
   final val defaultExecutor: Executor =
     Executor.fromExecutionContext(MacrotaskExecutor)
 
+  /**
+   * The executor that runs blocking effects, such as `ZIO.attemptBlocking`, by
+   * default. On the JVM and Scala Native it is a thread pool that starts a
+   * daemon thread named `zio-default-blocking-N` whenever no idle thread is
+   * free, with no upper limit, and stops threads that stay idle for 60 seconds.
+   * On Scala.js, which has a single thread, it is `defaultExecutor`.
+   */
   final val defaultBlockingExecutor: Executor =
     defaultExecutor
 
+  /**
+   * An `IsFatal` that matches `VirtualMachineError`s, such as
+   * `StackOverflowError`, and no other error. Kept for binary compatibility:
+   * which errors count as fatal is no longer configurable.
+   */
   @deprecated("IsFatal is deprecated, kept only for binary compatability.", "2.1.23")
   final val defaultFatal: IsFatal =
     IsFatal.empty
 
+  /**
+   * The function that the runtime calls by default with a fatal error. On the
+   * JVM it prints the stack trace, calls `java.lang.System.exit(-1)` and throws
+   * the error if the program does not end. On Scala.js and Scala Native it
+   * prints the stack trace and throws the error.
+   */
   final val defaultReportFatal: Throwable => Nothing =
     (t: Throwable) => {
       t.printStackTrace()
       throw t
     }
 
+  /**
+   * The loggers of a new runtime: one logger that writes the entries of level
+   * `Info` and above in the format of `ZLogger.default` (`timestamp=...
+   * level=INFO thread=#zio-fiber-... message="..."`). On the JVM and Scala
+   * Native it prints them to standard output. On Scala.js it writes them to the
+   * JavaScript console, with `console.error` for `Error` and `Fatal` entries
+   * and `console.log` for the others, and ignores exceptions thrown while
+   * logging.
+   */
   final val defaultLoggers: Set[ZLogger[String, Any]] = {
     val logger: ZLogger[String, Unit] =
       (
@@ -70,6 +107,9 @@ private[zio] trait RuntimePlatformSpecific {
     Set(logger.filterLogLevel(_ >= LogLevel.Info))
   }
 
+  /**
+   * The supervisor of a new runtime: `Supervisor.none`.
+   */
   final val defaultSupervisor: Supervisor[Any] =
     Supervisor.none
 }
