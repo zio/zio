@@ -20,8 +20,11 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.Trace
 
 /**
- * Filters a given `Spec` based on the command-line arguments. If no arguments
- * were specified, the spec returns unchanged.
+ * Filters a given `Spec` based on the command-line arguments. It keeps the
+ * tests and suites whose label, joined with the labels of the suites around it,
+ * contains one of the `-t` search terms, then removes the tests tagged with an
+ * `-ignore-tags` tag, then keeps the tests tagged with a `-tags` tag. If none
+ * of these arguments were specified, the spec returns unchanged.
  */
 private[zio] object FilteredSpec {
 
