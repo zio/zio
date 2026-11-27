@@ -131,10 +131,10 @@ const config = {
     footer: {
       links: [
         {
-          title: 'Learn!',
+          title: 'Learn',
           items: [
             {
-              label: 'Getting Started!',
+              label: 'Getting Started',
               href: '/overview/getting-started',
             },
             {

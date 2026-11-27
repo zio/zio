@@ -107,8 +107,8 @@ export default function CodeShowcase() {
             ))}
           </ul>
           <div className={styles.ctaWrap}>
-            <Link className={styles.ctaButton} to="/overview/getting-started">
-              <span>Explore the Docs</span>
+            <Link className="hover:bg-primary-500 bg-primary inline-flex items-center gap-2 rounded-full px-6 py-2.5 font-semibold text-white transition-colors hover:text-white hover:no-underline" to="/overview/getting-started">
+              <span>Get Started</span>
               <FaArrowRight aria-hidden="true" />
             </Link>
           </div>
