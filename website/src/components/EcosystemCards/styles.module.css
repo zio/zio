@@ -166,8 +166,27 @@
   margin: 0.6rem 0 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.6rem;
+}
+
+/* At most four cards in a row, fewer as the screen narrows. */
+@media (max-width: 1199px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 899px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 519px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .card {
@@ -248,6 +267,26 @@
 .external {
   color: var(--ifm-color-emphasis-600);
   font-size: 0.8em;
+}
+
+.tags {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.blockIcon {
+  align-self: center;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.blockTag {
+  color: var(--eco-blocks-ink);
+  background: var(--eco-blocks-soft);
 }
 
 .kind,

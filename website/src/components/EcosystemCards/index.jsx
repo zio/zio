@@ -70,15 +70,19 @@ function Card({ card, first }) {
   return (
     <li className={clsx(styles.card, block && styles.block, first && styles.first)}>
       <div className={styles.top}>
+        {block && <img className={styles.blockIcon} src="/img/ecosystem/zio-blocks-icon.svg" alt="" />}
         <CardLink className={styles.name} href={card.href}>
           <Name name={card.name} />
           {isExternal(card.href) && !block && <span className={styles.external} aria-label="(external site)"> ↗</span>}
         </CardLink>
-        {first ? (
-          <span className={styles.enter} aria-hidden="true">Enter ↵</span>
-        ) : (
-          <span className={clsx(styles.kind, styles[card.kind])}>{KIND_LABEL[card.kind]}</span>
-        )}
+        <span className={styles.tags}>
+          {first ? (
+            <span className={styles.enter} aria-hidden="true">Enter ↵</span>
+          ) : (
+            <span className={clsx(styles.kind, styles[card.kind])}>{KIND_LABEL[card.kind]}</span>
+          )}
+          {block && <span className={clsx(styles.kind, styles.blockTag)}>Block</span>}
+        </span>
       </div>
       <p className={styles.description}><Text>{card.description}</Text></p>
       <div className={styles.footer}>
