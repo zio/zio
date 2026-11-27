@@ -7,7 +7,8 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
   /**
    * Builds the environment of this spec from `layer`, wiring the layers
    * together at compile time, and provides it to each test. The layers are
-   * built once for each test, so tests do not share their services;
+   * built once for each test, and once more for each scoped node (such as one
+   * that `aroundAll` creates), so tests do not share their services;
    * `provideShared` builds them once for the whole spec. A missing layer is a
    * compile error, and a layer that is not needed gives a compiler warning.
    *
@@ -37,7 +38,8 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    * Splits the environment into two parts, providing each test with one part
    * using the specified layers and leaving the remainder `R0`. Use it as
    * `spec.provideSome[R0](layer1, layer2)`; the layers are wired together at
-   * compile time and built once for each test.
+   * compile time and built once for each test, and once more for each scoped
+   * node (such as one that `aroundAll` creates).
    *
    * {{{
    * import zio.{ULayer, ZIO, ZLayer}
@@ -117,8 +119,9 @@ private[test] trait SpecVersionSpecific[-R, +E] { self: Spec[R, E] =>
    * Builds the part of the environment that is not part of `TestEnvironment`
    * from `layer`, wiring the layers together at compile time, and provides it
    * to each test, leaving a spec that only depends on `TestEnvironment`. The
-   * layers are built once for each test. Layer inputs that `TestEnvironment`
-   * contains are taken from that remainder.
+   * layers are built once for each test, and once more for each scoped node
+   * (such as one that `aroundAll` creates). Layer inputs that
+   * `TestEnvironment` contains are taken from that remainder.
    *
    * {{{
    * import zio.{ULayer, ZIO, ZLayer}
@@ -201,7 +204,8 @@ final class ProvideSomePartiallyApplied[R0, -R, +E](val self: Spec[R, E]) extend
    * Builds the part of the environment that `R0` does not contain from `layer`,
    * wiring the layers together at compile time, and provides it to each test,
    * leaving a spec that requires only `R0`. The layers are built once for each
-   * test.
+   * test, and once more for each scoped node (such as one that `aroundAll`
+   * creates).
    */
   inline def apply[E1 >: E](inline layer: ZLayer[_, E1, _]*): Spec[R0, E1] =
     ${ SpecLayerMacros.provideSomeImpl[R0, R, E1]('self, 'layer) } // TODO:

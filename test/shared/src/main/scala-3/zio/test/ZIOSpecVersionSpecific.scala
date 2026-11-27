@@ -9,7 +9,10 @@ private[test] trait ZIOSpecVersionSpecific[R] { self: ZIOSpec[R] =>
    * block whose type is a `Spec` (a `test`, or a nested `suiteAll` or `suite`)
    * becomes a member of the suite, in the order written. The other statements,
    * such as `val`, `def` and `case class` definitions, stay in the block and
-   * are visible to the tests after them.
+   * are visible to the tests after them. On Scala 2, an expression whose type
+   * is a `Chunk` of specs, or a `ZIO` effect that produces one, is also taken
+   * as a member, and the block then fails to compile; on Scala 3 such an
+   * expression is a statement, and its specs are not added to the suite.
    *
    * {{{
    * object GreetingSpec extends ZIOSpecDefault {

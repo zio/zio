@@ -67,8 +67,8 @@ object TestAnnotation {
     TestAnnotation("ignored", 0, _ + _)
 
   /**
-   * An annotation which tracks output produced by a test: the lines it writes
-   * to and reads from `TestConsole`.
+   * An annotation which tracks output produced by a test: the lines it prints
+   * with `printLine` and reads with `readLine` through `TestConsole`.
    */
   val output: TestAnnotation[Chunk[ConsoleIO]] =
     TestAnnotation("output", Chunk.empty, _ ++ _)

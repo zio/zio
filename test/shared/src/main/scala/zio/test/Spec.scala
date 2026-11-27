@@ -21,8 +21,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.test.Spec._
 
 /**
- * A `Spec[R, E]` is a tree of tests. Each node is a test, a labeled suite of
- * other specs, a group of specs, a node that sets the execution strategy of the
+ * A `Spec[R, E]` is a tree of tests. Each node is a test, a label on a test or
+ * suite, a group of specs, a node that sets the execution strategy of the
  * specs inside it, or a scoped node that acquires resources for them. `R` is
  * the environment that the tests need and `E` is the error type with which they
  * can fail.
@@ -108,7 +108,8 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Returns an effect that runs every test of this spec with the environment it
    * requires, and returns a spec of the same shape whose tests hold the
-   * results. Suites that do not set their own execution strategy use `defExec`.
+   * results. Groups with no enclosing `Spec.exec` node run their members with
+   * `defExec`.
    */
   final def execute(defExec: ExecutionStrategy)(implicit
     trace: Trace
@@ -117,9 +118,10 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
 
   /**
    * Returns a new spec with only those tests whose value for the annotation
-   * `key` satisfies `f`. Returns `None` when no test matches. A scoped node
-   * (one that acquires resources, as `provideLayerShared` and `aroundAll`
-   * create) is kept, and is left with no tests when none of its tests match.
+   * `key` satisfies `f`. Returns `None` when no test matches and the spec has
+   * no scoped node. A scoped node (one that acquires resources, as
+   * `provideLayerShared` and `aroundAll` create) is kept, and is left with no
+   * tests when none of its tests match.
    */
   final def filterAnnotations[V](
     key: TestAnnotation[V]
@@ -139,9 +141,10 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * specified predicate. If a suite label satisfies the predicate the entire
    * suite will be included in the new spec. Otherwise only those specs in a
    * suite that satisfy the specified predicate will be included in the new
-   * spec. Returns `None` when no label matches. A scoped node (one that
-   * acquires resources, as `provideLayerShared` and `aroundAll` create) is
-   * kept, and is left with no tests when none of its labels match.
+   * spec. Returns `None` when no label matches and the spec has no scoped
+   * node. A scoped node (one that acquires resources, as `provideLayerShared`
+   * and `aroundAll` create) is kept, and is left with no tests when none of its
+   * labels match.
    */
   final def filterLabels(f: String => Boolean)(implicit trace: Trace): Option[Spec[R, E]] =
     filterLabels(f, prefix = "", accumulatePrefix = false)
@@ -172,10 +175,10 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
 
   /**
    * Returns a new spec with only those tests that have at least one tag (set
-   * with `TestAspect.tag`) satisfying `f`. Returns `None` when no test matches.
-   * A scoped node (one that acquires resources, as `provideLayerShared` and
-   * `aroundAll` create) is kept, and is left with no tests when none of its
-   * tests match.
+   * with `TestAspect.tag`) satisfying `f`. Returns `None` when no test matches
+   * and the spec has no scoped node. A scoped node (one that acquires
+   * resources, as `provideLayerShared` and `aroundAll` create) is kept, and is
+   * left with no tests when none of its tests match.
    */
   final def filterTags(f: String => Boolean)(implicit trace: Trace): Option[Spec[R, E]] =
     filterAnnotations(TestAnnotation.tagged)(_.exists(f))
@@ -183,9 +186,9 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Returns a new spec without the tests that have at least one tag (set with
    * `TestAspect.tag`) satisfying `f`. Returns `None` when every test is
-   * removed. A scoped node (one that acquires resources, as
-   * `provideLayerShared` and `aroundAll` create) is kept, and is left with no
-   * tests when all of its tests are removed.
+   * removed and the spec has no scoped node. A scoped node (one that acquires
+   * resources, as `provideLayerShared` and `aroundAll` create) is kept, and is
+   * left with no tests when all of its tests are removed.
    */
   final def filterNotTags(f: String => Boolean)(implicit trace: Trace): Option[Spec[R, E]] =
     filterAnnotations(TestAnnotation.tagged)(!_.exists(f))
@@ -220,8 +223,8 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
    * Runs every test of this spec and passes each result to `failure` or
    * `success`, returning a spec of the same shape whose tests are the effects
    * those functions return. A scoped node whose effect fails becomes a test
-   * built from `failure`. Groups that have no execution strategy of their own
-   * run their members with `defExec`.
+   * built from `failure`. Groups with no enclosing `Spec.exec` node run their
+   * members with `defExec`.
    */
   final def foreachExec[R1 <: R, E1](
     defExec: ExecutionStrategy
@@ -309,7 +312,8 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Provides each test with the part of the environment that is not part of the
    * `TestEnvironment`, leaving a spec that only depends on the
-   * `TestEnvironment`. The layer is built once for each test.
+   * `TestEnvironment`. The layer is built once for each test, and once more
+   * for each scoped node (such as one that `aroundAll` creates).
    *
    * {{{
    * import zio.{ULayer, ZIO, ZLayer}
@@ -369,8 +373,9 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Provides each test in this spec with the services of `layer`, leaving a
    * spec that requires only the layer's input `R0`. The layer is built once for
-   * each test, so tests do not share its services; a failure to build it fails
-   * the test.
+   * each test, and once more for each scoped node (such as one that
+   * `aroundAll` creates), so tests do not share its services; a failure to
+   * build it fails the test.
    */
   final def provideLayer[E1 >: E, R0](
     layer: ZLayer[R0, E1, R]
@@ -443,7 +448,8 @@ final case class Spec[-R, +E](caseValue: SpecCase[R, E, Spec[R, E]]) extends Spe
   /**
    * Splits the environment into two parts, providing each test with one part
    * using the specified layer and leaving the remainder `R0`. The layer is
-   * built once for each test.
+   * built once for each test, and once more for each scoped node (such as one
+   * that `aroundAll` creates).
    *
    * {{{
    * import zio.{ULayer, ZIO, ZLayer}
@@ -668,7 +674,8 @@ object Spec {
 
     /**
      * Provides each test with the services of `layer`, built once for each
-     * test, and leaves the remainder `R0` to be provided later.
+     * test and once more for each scoped node (such as one that `aroundAll`
+     * creates), and leaves the remainder `R0` to be provided later.
      */
     def apply[E1 >: E, R1](
       layer: ZLayer[R0, E1, R1]
