@@ -26,6 +26,27 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.annotation.tailrec
 import scala.reflect.ClassTag
 
+/**
+ * A `ZSink[R, E, In, L, Z]` consumes elements of type `In` from a stream and
+ * produces a result of type `Z`. It needs an environment `R`, may fail with an
+ * error `E`, and can hand back the elements it read but did not use as
+ * leftovers of type `L`. Run a stream into a sink with `ZStream#run`, or apply
+ * a sink repeatedly to a stream with `ZStream#transduce`.
+ *
+ * A sink stops reading once it has its result. Sinks compose in sequence
+ * (`zip`, `flatMap`: the next sink first receives the leftovers of the
+ * previous one) and in parallel (`zipPar`, `race`).
+ *
+ * {{{
+ * import zio._
+ *
+ * val firstTwoAndSum: UIO[(Chunk[Int], Int)] =
+ *   ZStream(3, 1, 4, 1, 5).run(ZSink.take[Int](2).zip(ZSink.sum[Int]))
+ * // (Chunk(3,1),10)
+ * }}}
+ *
+ * @see [[https://zio.dev/reference/stream/zsink/ ZSink]]
+ */
 final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z])
     extends AnyVal {
   self =>
@@ -210,7 +231,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
 
   /**
    * Effectfully transforms both input chunks and result of this sink using the
-   * provided functions. `f` and `g` must preserve chunking-invariance
+   * provided functions. `f` must preserve chunking-invariance.
    */
   def dimapChunksZIO[R1 <: R, E1 >: E, In1, Z1](
     f: Chunk[In1] => ZIO[R1, E1, Chunk[In]],
@@ -263,7 +284,9 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     contramapChunksZIO(_.filterZIO(p))
 
   /**
-   * Creates a sink that produces values until one verifies the predicate `f`.
+   * Runs this sink repeatedly until one of its results satisfies `f`, and
+   * returns that result in a `Some`. Returns `None` when the input ends before
+   * a result satisfies `f`.
    */
   def findZIO[R1 <: R, E1 >: E](
     f: Z => ZIO[R1, E1, Boolean]
@@ -314,7 +337,13 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
   )(implicit ev: L <:< In1, trace: Trace): ZSink[R1, E1, In1, L1, Z1] =
     foldSink(ZSink.fail(_), f)
 
-  /** Folds over the result of the sink */
+  /**
+   * Continues with the sink returned by `success` when this sink succeeds, or
+   * with the sink returned by `failure` when it fails with a typed error. On
+   * success, the leftovers of this sink are fed to the next sink first. A cause
+   * that holds no typed failure (a defect or an interruption) fails the
+   * resulting sink with that cause.
+   */
   def foldSink[R1 <: R, E2, In1 <: In, L1 >: L <: In1, Z1](
     failure: E => ZSink[R1, E2, In1, L1, Z1],
     success: Z => ZSink[R1, E2, In1, L1, Z1]
@@ -327,6 +356,11 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
       success
     )
 
+  /**
+   * Like `foldSink`, but `failure` receives the full `Cause` of the failure,
+   * including defects and interruptions. On success, the leftovers of this sink
+   * are fed to the sink returned by `success` first.
+   */
   def foldCauseSink[R1 <: R, E2, In1 <: In, L1 >: L <: In1, Z1](
     failure: Cause[E] => ZSink[R1, E2, In1, L1, Z1],
     success: Z => ZSink[R1, E2, In1, L1, Z1]
@@ -356,7 +390,10 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
       )
     )
 
-  /** Drains the remaining elements from the stream after the sink finishes */
+  /**
+   * Discards the leftovers of this sink. It does not read the rest of the
+   * stream; the discarded elements are lost to any sink that runs after it.
+   */
   def ignoreLeftover(implicit trace: Trace): ZSink[R, E, In, Nothing, Z] =
     new ZSink(channel.drain)
 
@@ -397,7 +434,10 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
   ): ZSink[R1, E1, In, L, Z1] =
     new ZSink(channel.mapZIO(f))
 
-  /** Switch to another sink in case of failure */
+  /**
+   * Switches to `that` sink when this sink fails with a typed error. Input
+   * that this sink already consumed is not fed to `that`. A failure without a typed error (a defect or an interruption) is passed on unchanged.
+   */
   def orElse[R1 <: R, In1 <: In, E2, L1 >: L, Z1 >: Z](
     that: => ZSink[R1, E2, In1, L1, Z1]
   )(implicit trace: Trace): ZSink[R1, E2, In1, L1, Z1] =
@@ -422,7 +462,8 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     new ZSink(channel.provideSomeEnvironment(f))
 
   /**
-   * Provides a layer to the sink, which translates it to another level.
+   * Provides a layer to the sink, which builds the environment `R` from
+   * `R0`.
    */
   def provideLayer[E1 >: E, R0](
     layer: => ZLayer[R0, E1, R]
@@ -434,18 +475,20 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
    * specified layer and leaving the remainder `R0`.
    *
    * {{{
-   * val loggingLayer: ZLayer[Any, Nothing, Logging] = ???
+   * import zio._
    *
-   * val sink: ZSink[Logging with Database, Nothing, Unit] = ???
+   * val sink: ZSink[String with Int, Nothing, Any, Nothing, String] =
+   *   ZSink.serviceWith[String](identity).zipWith(ZSink.service[Int])((s, n) => s + n)
    *
-   * val sink2 = sink.provideSomeLayer[Database](loggingLayer)
+   * val sink2: ZSink[Int, Nothing, Any, Nothing, String] =
+   *   sink.provideSomeLayer[Int](ZLayer.succeed("id-"))
    * }}}
    */
   def provideSomeLayer[R0]: ZSink.ProvideSomeLayer[R0, R, E, In, L, Z] =
     new ZSink.ProvideSomeLayer[R0, R, E, In, L, Z](self.channel)
 
   /**
-   * Runs both sinks in parallel on the input, , returning the result or the
+   * Runs both sinks in parallel on the input, returning the result or the
    * error from the one that finishes first.
    */
   def race[R1 <: R, E1 >: E, A0, In1 <: In, L1 >: L, Z1 >: Z](
@@ -496,11 +539,20 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     ZSink.unwrapScopedWith(scoped)
   }
 
+  /**
+   * Keeps the typed errors for which `pf` is defined, mapped by `pf`, and turns
+   * the other typed errors into defects.
+   */
   def refineOrDie[E1](
     pf: PartialFunction[E, E1]
   )(implicit ev1: E IsSubtypeOfError Throwable, ev2: CanFail[E], trace: Trace): ZSink[R, E1, In, L, Z] =
     refineOrDieWith(pf)(ev1(_))
 
+  /**
+   * Keeps the typed errors for which `pf` is defined, mapped by `pf`, and turns
+   * the other typed errors into defects, using `f` to convert each of them to
+   * the `Throwable` the sink dies with.
+   */
   def refineOrDieWith[E1](
     pf: PartialFunction[E, E1]
   )(f: E => Throwable)(implicit ev: CanFail[E], trace: Trace): ZSink[R, E1, In, L, Z] =
@@ -584,7 +636,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
       }
     )
 
-  /** Converts ths sink to its underlying channel */
+  /** Converts this sink to its underlying channel. */
   def toChannel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z] =
     self.channel
 
@@ -603,7 +655,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     zipWith[R1, E1, In1, L1, Z1, zippable.Out](that)(zippable.zip(_, _))
 
   /**
-   * Like [[zip]], but keeps only the result from the `that` sink.
+   * Like [[zip]], but keeps only the result from this sink.
    */
   def zipLeft[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
     that: => ZSink[R1, E1, In1, L1, Z1]
@@ -636,7 +688,7 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     zipWithPar[R1, E1, In1, L1, Z1, Z1](that)((_, c) => c)
 
   /**
-   * Like [[zip]], but keeps only the result from this sink.
+   * Like [[zip]], but keeps only the result from the `that` sink.
    */
   def zipRight[R1 <: R, In1 <: In, E1 >: E, L1 >: L <: In1, Z1](
     that: => ZSink[R1, E1, In1, L1, Z1]
@@ -680,8 +732,18 @@ final class ZSink[-R, +E, -In, +L, +Z] private (val channel: ZChannel[R, ZNothin
     )
 }
 
+/**
+ * Constructors for [[ZSink]]: sinks that collect (`collectAll`, `take`,
+ * `head`, `last`), fold (`foldLeft`, `fold`), count and sum (`count`, `sum`),
+ * run an effect per element (`foreach`), or are built from an effect or a
+ * value (`fromZIO`, `succeed`, `fail`).
+ */
 object ZSink extends ZSinkPlatformSpecificConstructors {
 
+  /**
+   * A sink that collects all of its inputs into a chunk. On empty input it
+   * returns an empty chunk.
+   */
   def collectAll[In](implicit trace: Trace): ZSink[Any, Nothing, In, Nothing, Chunk[In]] = {
     def loop(acc: Chunk[In]): ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Nothing, Chunk[In]] =
       ZChannel.readWithCause(
@@ -694,7 +756,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   }
 
   /**
-   * A sink that collects first `n` elements into a chunk.
+   * A sink that collects first `n` elements into a chunk. The elements it read
+   * past the first `n` are left over.
    */
   def collectAllN[In](n: => Int)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Chunk[In]] = {
 
@@ -739,7 +802,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
 
   /**
    * A sink that collects first `n` keys into a map. The keys are calculated
-   * from inputs using the keying function `key`; if multiple inputs use the the
+   * from inputs using the keying function `key`; if multiple inputs use the
    * same key, they are merged using the `f` function.
    */
   def collectAllToMapN[Err, In, K](
@@ -754,9 +817,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
 
   /**
    * A sink that collects all of its inputs into a map. The keys are extracted
-   * from inputs using the keying function `key`; The values are extracted using
-   * the value function `value` if multiple inputs use the same key, they are
-   * merged using the `f` function.
+   * from inputs using the keying function `key`; the values are extracted using
+   * the value function `value`. If multiple inputs use the same key, their
+   * values are merged using the `f` function.
    */
   def collectAllToMapValue[In, K, V](
     key: In => K
@@ -775,9 +838,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
 
   /**
    * A sink that collects first `n` keys into a map. The keys are calculated
-   * from inputs using the keying function `key`; The values are extracted using
-   * * the value function `value` if multiple inputs use the the same key, they
-   * are merged using the `f` function.
+   * from inputs using the keying function `key`; the values are extracted using
+   * the value function `value`. If multiple inputs use the same key, their
+   * values are merged using the `f` function.
    */
   def collectAllToMapValueN[Err, In, K, V](
     n: => Long
@@ -802,8 +865,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     foldWeighted[In, Set[In]](Set())((acc, in) => if (acc.contains(in)) 0 else 1, n)(_ + _)
 
   /**
-   * Accumulates incoming elements into a chunk until predicate `p` is
-   * satisfied.
+   * Accumulates incoming elements into a chunk until an element satisfies the
+   * predicate `p`. The result includes that element; the elements after it in
+   * the same chunk are left over.
    */
   def collectAllUntil[In](p: In => Boolean)(implicit
     trace: Trace
@@ -815,8 +879,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     }
 
   /**
-   * Accumulates incoming elements into a chunk until effectful predicate `p` is
-   * satisfied.
+   * Accumulates incoming elements into a chunk until an element satisfies the
+   * effectful predicate `p`. The result includes that element; the elements
+   * after it in the same chunk are left over.
    */
   def collectAllUntilZIO[Env, Err, In](p: In => ZIO[Env, Err, Boolean])(implicit
     trace: Trace
@@ -874,7 +939,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   }
 
   /**
-   * A sink that counts the number of elements fed to it.
+   * A sink that counts the number of elements fed to it. On empty input it
+   * returns 0.
    */
   def count(implicit trace: Trace): ZSink[Any, Nothing, Any, Nothing, Long] =
     foldLeftChunks(0L)((s, chunk) => s + chunk.length)
@@ -899,13 +965,17 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     new ZSink(ZPipeline.drain.toChannel.unit)
 
   /**
-   * Drops incoming elements until the predicate `p` is satisfied.
+   * Drops incoming elements up to and including the first element that
+   * satisfies the predicate `p`. The elements after it in the same chunk are
+   * left over.
    */
   def dropUntil[In](p: In => Boolean)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Any] =
     ZSink.dropWhile((x: In) => !p(x)) *> ZSink.head
 
   /**
-   * Drops incoming elements until the effectful predicate `p` is satisfied.
+   * Drops incoming elements up to and including the first element that
+   * satisfies the effectful predicate `p`. The elements after it in the same
+   * chunk are left over.
    */
   def dropUntilZIO[R, InErr, In](
     p: In => ZIO[R, InErr, Boolean]
@@ -1179,19 +1249,22 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
    * The `decompose` function will be used for decomposing elements that cause
    * an `S` aggregate to cross `max` into smaller elements. For example:
    * {{{
-   * Stream(1, 5, 1)
-   *   .transduce(
-   *     ZSink
-   *       .foldWeightedDecompose(List[Int]())((i: Int) => i.toLong, 4,
-   *         (i: Int) => Chunk(i - 1, 1)) { (acc, el) =>
-   *         el :: acc
-   *       }
-   *       .map(_.reverse)
-   *   )
-   *   .runCollect
-   * }}}
+   * import zio._
    *
-   * The stream would emit the elements `List(1), List(4), List(1, 1)`.
+   * val groups: UIO[Chunk[List[Int]]] =
+   *   ZStream(1, 5, 1)
+   *     .transduce(
+   *       ZSink
+   *         .foldWeightedDecompose(List[Int]())(
+   *           (_, i: Int) => i.toLong,
+   *           4,
+   *           (i: Int) => if (i > 1) Chunk(i - 1, 1) else Chunk(i)
+   *         )((acc, el) => el :: acc)
+   *         .map(_.reverse)
+   *     )
+   *     .runCollect
+   * // Chunk(List(1, 3),List(1, 1, 1))
+   * }}}
    *
    * Be vigilant with this function, it has to generate "simpler" values or the
    * fold may never end. A value is considered indivisible if `decompose` yields
@@ -1524,7 +1597,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   }
 
   /**
-   * Creates a single-value sink produced from an effect
+   * Creates a single-value sink produced from an effect. The sink consumes no
+   * input.
    */
   def fromZIO[R, E, Z](b: => ZIO[R, E, Z])(implicit trace: Trace): ZSink[R, E, Any, Nothing, Z] =
     new ZSink(ZChannel.fromZIO(b))
@@ -1564,7 +1638,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     fromQueueWithShutdown(hub)
 
   /**
-   * Creates a sink containing the first value.
+   * Creates a sink containing the first value, or `None` on empty input. The
+   * elements after the first one in the same chunk are left over.
    */
   def head[In](implicit trace: Trace): ZSink[Any, Nothing, In, In, Option[In]] =
     fold(None: Option[In])(_.isEmpty) {
@@ -1573,7 +1648,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     }
 
   /**
-   * Creates a sink containing the last value.
+   * Creates a sink containing the last value, or `None` on empty input.
    */
   def last[In](implicit trace: Trace): ZSink[Any, Nothing, In, Nothing, Option[In]] =
     foldLeftChunks[In, Option[In]](None)((s, in) => in.lastOption.orElse(s))
@@ -1592,8 +1667,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     ZSink.fromZIO(ZIO.log(message))
 
   /**
-   * Annotates each log in streams composed after this with the specified log
-   * annotation.
+   * Runs `sink` with the specified log annotations added to each log emitted while it runs, including logs from the stream that feeds it.
    */
   def logAnnotate[R, E, In, L, Z](key: => String, value: => String)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: Trace
@@ -1601,8 +1675,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     logAnnotate(LogAnnotation(key, value))(sink)
 
   /**
-   * Annotates each log in streams composed after this with the specified log
-   * annotation.
+   * Runs `sink` with the specified log annotations added to each log emitted while it runs, including logs from the stream that feeds it.
    */
   def logAnnotate[R, E, In, L, Z](annotation: => LogAnnotation, annotations: LogAnnotation*)(
     sink: ZSink[R, E, In, L, Z]
@@ -1612,8 +1685,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     logAnnotate(Set(annotation) ++ annotations.toSet)(sink)
 
   /**
-   * Annotates each log in streams composed after this with the specified log
-   * annotation.
+   * Runs `sink` with the specified log annotations added to each log emitted while it runs, including logs from the stream that feeds it.
    */
   def logAnnotate[R, E, In, L, Z](annotations: => Set[LogAnnotation])(sink: ZSink[R, E, In, L, Z])(implicit
     trace: Trace
@@ -1657,7 +1729,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     ZSink.fromZIO(ZIO.logInfo(message))
 
   /**
-   * Sets the log level for streams composed after this.
+   * Runs `sink` with the log level set to `level`. The level also applies to the stream that feeds it while `sink` runs.
    */
   def logLevel[R, E, In, L, Z](level: LogLevel)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: Trace
@@ -1665,7 +1737,7 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     ZSink.unwrapScoped(ZIO.logLevelScoped(level).as(sink))
 
   /**
-   * Adjusts the label for the logging span for streams composed after this.
+   * Runs `sink` inside a log span with the specified label. The span also applies to the stream that feeds it while `sink` runs.
    */
   def logSpan[R, E, In, L, Z](label: => String)(sink: ZSink[R, E, In, L, Z])(implicit
     trace: Trace
@@ -1684,6 +1756,10 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   def logWarning(message: => String)(implicit trace: Trace): ZSink[Any, Nothing, Any, Nothing, Unit] =
     ZSink.fromZIO(ZIO.logWarning(message))
 
+  /**
+   * A sink that concatenates the `toString` of each input into one string. On
+   * empty input it returns the empty string.
+   */
   def mkString(implicit trace: Trace): ZSink[Any, Nothing, Any, Nothing, String] =
     ZSink.suspend {
       val builder = new StringBuilder()
@@ -1693,11 +1769,14 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       )
     }
 
+  /**
+   * A sink that never completes. It consumes no input.
+   */
   def never(implicit trace: Trace): ZSink[Any, Nothing, Any, Nothing, Nothing] =
     ZSink.fromZIO(ZIO.never)
 
   /**
-   * Accesses the specified service in the environment of the effect.
+   * Accesses the specified service in the environment of the sink.
    */
   def service[Z: Tag](implicit trace: Trace): ZSink[Z, Nothing, Any, Nothing, Z] =
     ZSink.serviceWith(identity)
@@ -1744,7 +1823,8 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     new ZSink(ZChannel.suspend(sink.channel))
 
   /**
-   * A sink that sums incoming numeric values.
+   * A sink that sums incoming numeric values. On empty input it returns the
+   * zero of the `Numeric` instance.
    */
   def sum[A](implicit A: Numeric[A], trace: Trace): ZSink[Any, Nothing, A, Nothing, A] =
     foldLeftChunks(A.zero)((acc, chunk) => A.plus(acc, chunk.sum))
@@ -1780,7 +1860,9 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
     ZSink.fromZIO(ZIO.tags)
 
   /**
-   * A sink that takes the specified number of values.
+   * A sink that takes the specified number of values. The elements it read
+   * past the first `n` are left over. When `n` is 0 or negative, it returns an
+   * empty chunk without reading any input.
    */
   def take[In](n: Int)(implicit trace: Trace): ZSink[Any, Nothing, In, In, Chunk[In]] =
     ZSink.unwrap {
@@ -1794,6 +1876,10 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       }
     }
 
+  /**
+   * A sink that drains its input and returns how long that took, measured with
+   * `Clock.nanoTime`.
+   */
   def timed(implicit trace: Trace): ZSink[Any, Nothing, Any, Nothing, Duration] =
     ZSink.drain.timed.map(_._2)
 
@@ -1819,28 +1905,64 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
   )(implicit trace: Trace): ZSink[R, E, In, L, Z] =
     new ZSink(ZChannel.unwrapScopedWith(scope => f(scope).map(_.channel)))
 
+  /**
+   * The partially applied form of `ZSink.environmentWith`, which fixes the
+   * environment type `R`.
+   */
   final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Creates a sink that returns `f` applied to the environment. It consumes
+     * no input.
+     */
     def apply[Z](
       f: ZEnvironment[R] => Z
     )(implicit trace: Trace): ZSink[R, Nothing, Any, Nothing, Z] =
       ZSink.environment[R].map(f)
   }
 
+  /**
+   * The partially applied form of `ZSink.environmentWithZIO`, which fixes the
+   * environment type `R`.
+   */
   final class EnvironmentWithZIOPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Creates a sink that runs the effect returned by `f` for the environment
+     * and returns its result. It consumes no input.
+     */
     def apply[R1 <: R, E, Z](
       f: ZEnvironment[R] => ZIO[R1, E, Z]
     )(implicit trace: Trace): ZSink[R with R1, E, Any, Nothing, Z] =
       ZSink.environment[R].mapZIO(f)
   }
 
+  /**
+   * The partially applied form of `ZSink.environmentWithSink`, which fixes the
+   * environment type `R`.
+   */
   final class EnvironmentWithSinkPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Creates a sink that behaves like the sink returned by `f` for the
+     * environment.
+     */
     def apply[R1 <: R, E, In, L, Z](
       f: ZEnvironment[R] => ZSink[R1, E, In, L, Z]
     )(implicit trace: Trace): ZSink[R with R1, E, In, L, Z] =
       new ZSink(ZChannel.unwrap(ZIO.environmentWith[R](f(_).channel)))
   }
 
+  /**
+   * A partially applied sink constructor that fixes the `Service` type.
+   */
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Creates a sink that returns the service stored under `key` in the
+     * `Map[Key, Service]` of the environment, or `None` when the key is
+     * missing. It consumes no input.
+     */
     def apply[Key](
       key: => Key
     )(implicit
@@ -1850,7 +1972,16 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       ZSink.environmentWith(_.getAt(key))
   }
 
+  /**
+   * The partially applied form of `ZSink.serviceWith`, which fixes the
+   * `Service` type.
+   */
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Creates a sink that returns `f` applied to the `Service` in the
+     * environment. It consumes no input.
+     */
     def apply[Z](f: Service => Z)(implicit
       tag: Tag[Service],
       trace: Trace
@@ -1858,7 +1989,16 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       ZSink.fromZIO(ZIO.serviceWith[Service](f))
   }
 
+  /**
+   * The partially applied form of `ZSink.serviceWithZIO`, which fixes the
+   * `Service` type.
+   */
   final class ServiceWithZIOPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Creates a sink that runs the effect returned by `f` for the `Service` in
+     * the environment and returns its result. It consumes no input.
+     */
     def apply[R <: Service, E, Z](f: Service => ZIO[R, E, Z])(implicit
       tag: Tag[Service],
       trace: Trace
@@ -1866,7 +2006,16 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       ZSink.fromZIO(ZIO.serviceWithZIO[Service](f))
   }
 
+  /**
+   * The partially applied form of `ZSink.serviceWithSink`, which fixes the
+   * `Service` type.
+   */
   final class ServiceWithSinkPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Creates a sink that behaves like the sink returned by `f` for the
+     * `Service` in the environment.
+     */
     def apply[R <: Service, E, In, L, Z](f: Service => ZSink[R, E, In, L, Z])(implicit
       tag: Tag[Service],
       trace: Trace
@@ -1874,16 +2023,34 @@ object ZSink extends ZSinkPlatformSpecificConstructors {
       new ZSink(ZChannel.unwrap(ZIO.serviceWith[Service](f(_).channel)))
   }
 
+  /**
+   * The partially applied form of `ZSink.unwrapScoped`, which fixes the
+   * environment type `R`.
+   */
   final class UnwrapScopedPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Creates a sink from a scoped effect that returns a sink. The scope closes
+     * after the returned sink completes.
+     */
     def apply[E, In, L, Z](scoped: => ZIO[Scope with R, E, ZSink[R, E, In, L, Z]])(implicit
       trace: Trace
     ): ZSink[R, E, In, L, Z] =
       new ZSink(ZChannel.unwrapScoped[R](scoped.map(_.channel)))
   }
 
+  /**
+   * The partially applied form of `ZSink#provideSomeLayer`, which fixes the
+   * remaining environment type `R0`.
+   */
   final class ProvideSomeLayer[R0, -R, +E, -In, +L, +Z](
     private val channel: ZChannel[R, ZNothing, Chunk[In], Any, E, Chunk[L], Z]
   ) extends AnyVal {
+
+    /**
+     * Builds the part `R1` of the environment with `layer` and provides it to
+     * the sink, which then needs only `R0`.
+     */
     def apply[E1 >: E, R1](
       layer: => ZLayer[R0, E1, R1]
     )(implicit
