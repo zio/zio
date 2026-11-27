@@ -6456,8 +6456,17 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
     def apply[B1 >: B](f: A => B1)(duration: => Duration)(implicit
       trace: Trace
     ): ZIO[R, E, B1] =
+      ZIO.clockWith { clock =>
+        val d = duration
+        // Fast path: with the live clock a single child fiber plus a scheduled timer is enough, there is no
+        // need to fork (and later interrupt) a second fiber just to sleep.
+        if ((clock eq Clock.ClockLive) && (d ne Duration.Infinity) && !d.isZero && !d.isNegative) timeoutLive(f, d)
+        else timeoutRace(f, d)
+      }
+
+    private def timeoutRace[B1 >: B](f: A => B1, d: Duration)(implicit trace: Trace): ZIO[R, E, B1] =
       ZIO.fiberIdWith { parentFiberId =>
-        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(duration).interruptible)(
+        self.raceFibersWith[R, Nothing, E, Unit, B1](ZIO.sleep(d).interruptible)(
           (winner, loser) =>
             winner.await.flatMap { exit =>
               loser.interruptAs(parentFiberId) *> winner.inheritAll *> exit.mapExit(f)
@@ -6471,6 +6480,41 @@ object ZIO extends ZIOCompanionPlatformSpecific with ZIOCompanionVersionSpecific
             },
           null,
           FiberScope.global
+        )
+      }
+
+    private def timeoutLive[B1 >: B](f: A => B1, d: Duration)(implicit trace: Trace): ZIO[R, E, B1] =
+      ZIO.withFiberRuntime[R, E, B1] { (parentFiber, parentStatus) =>
+        import java.util.concurrent.atomic.AtomicBoolean
+
+        val effect = ZIO.Grafter(parentFiber).applyOnExit(self)
+        val child =
+          ZIO.unsafe.makeChildFiber(trace, effect, parentFiber, parentStatus.runtimeFlags, null)(Unsafe)
+        val start = child.startSuspended()(Unsafe)
+
+        ZIO.asyncInterrupt[R, E, B1](
+          { cb =>
+            val raceIndicator = new AtomicBoolean(false)
+
+            val cancelTimer = Clock.globalScheduler.schedule(
+              () =>
+                if (raceIndicator.compareAndSet(false, true)) {
+                  cb(child.interruptAs(parentFiber.id) *> child.inheritAll.as(b()))
+                },
+              d
+            )(Unsafe)
+
+            child.addObserver { exit =>
+              if (raceIndicator.compareAndSet(false, true)) {
+                cancelTimer()
+                cb(child.inheritAll *> exit.mapExit(f))
+              }
+            }(Unsafe)
+
+            start(effect)
+            Left(ZIO.succeed { raceIndicator.set(true); cancelTimer() } *> child.interruptAs(parentFiber.id))
+          },
+          child.id
         )
       }
   }

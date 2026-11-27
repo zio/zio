@@ -4164,6 +4164,90 @@ object ZIOSpec extends ZIOBaseSpec {
         } yield assert(result)(fails(equalTo("die"))) && assert(effect)(isTrue)
       }
     ),
+    suite("timeout (live clock)")(
+      test("returns the result when the effect completes before the deadline") {
+        for {
+          a <- ZIO.succeed(1).timeout(1.minute)
+          b <- (ZIO.yieldNow *> ZIO.succeed(2)).timeout(1.minute)
+        } yield assertTrue(a == Some(1), b == Some(2))
+      },
+      test("times out and interrupts a long running effect, awaiting its finalizer") {
+        for {
+          started     <- Promise.make[Nothing, Unit]
+          interrupted <- Ref.make(false)
+          result <- (started.succeed(()) *> ZIO.never)
+                      .onInterrupt(ZIO.sleep(20.millis) *> interrupted.set(true))
+                      .timeout(50.millis)
+          done <- interrupted.get
+        } yield assertTrue(result.isEmpty, done)
+      },
+      test("timeoutTo uses the fallback value on timeout") {
+        ZIO.never.timeoutTo("fallback")(_ => "value")(20.millis).map(r => assertTrue(r == "fallback"))
+      },
+      test("propagates failures and defects of the effect") {
+        for {
+          failure <- ZIO.fail("boom").timeout(1.minute).exit
+          defect  <- ZIO.die(new RuntimeException("dead")).timeout(1.minute).exit
+        } yield assert(failure)(fails(equalTo("boom"))) && assert(defect)(dies(hasMessage(equalTo("dead"))))
+      },
+      test("inherits the FiberRefs of the effect when it completes in time") {
+        for {
+          ref <- FiberRef.make(0)
+          _   <- (ref.set(42) *> ZIO.succeed(1)).timeout(1.minute)
+          v   <- ref.get
+        } yield assertTrue(v == 42)
+      },
+      test("preserves the interruptibility of the effect") {
+        for {
+          normal <- ZIO.checkInterruptible(ZIO.succeed(_)).timeout(1.minute)
+          unint  <- ZIO.checkInterruptible(ZIO.succeed(_)).uninterruptible.timeout(1.minute)
+        } yield assertTrue(
+          normal == Some(InterruptStatus.Interruptible),
+          unint == Some(InterruptStatus.Uninterruptible)
+        )
+      },
+      test("waits for an uninterruptible effect before timing out") {
+        for {
+          done   <- Ref.make(false)
+          result <- (ZIO.sleep(100.millis) *> done.set(true)).uninterruptible.timeout(10.millis)
+          isDone <- done.get
+        } yield assertTrue(result.isEmpty, isDone)
+      },
+      test("interrupting the timed effect runs the finalizers of the child") {
+        for {
+          started <- Promise.make[Nothing, Unit]
+          fin     <- Promise.make[Nothing, Unit]
+          fiber   <- (started.succeed(()) *> ZIO.never).onInterrupt(fin.succeed(())).timeout(1.minute).fork
+          _       <- started.await
+          _       <- fiber.interrupt
+          _       <- fin.await
+        } yield assertCompletes
+      },
+      test("forks a single child fiber") {
+        val count = new java.util.concurrent.atomic.AtomicInteger(0)
+        val supervisor = new Supervisor[Unit] {
+          def value(implicit trace: Trace): UIO[Unit] = ZIO.unit
+          def onStart[R, E, A_](
+            environment: ZEnvironment[R],
+            effect: ZIO[R, E, A_],
+            parent: Option[Fiber.Runtime[Any, Any]],
+            fiber: Fiber.Runtime[E, A_]
+          )(implicit unsafe: Unsafe): Unit =
+            if (parent.isDefined) { val _ = count.incrementAndGet() }
+          def onEnd[R, E, A_](value: Exit[E, A_], fiber: Fiber.Runtime[E, A_])(implicit unsafe: Unsafe): Unit = ()
+        }
+        ZIO.succeed(1).timeout(1.minute).supervised(supervisor).map(_ => assertTrue(count.get == 1))
+      }
+    ) @@ withLiveClock,
+    suite("timeout (test clock)")(
+      test("fires once the test clock is adjusted") {
+        for {
+          fiber <- ZIO.never.timeout(10.seconds).fork
+          _     <- TestClock.adjust(10.seconds)
+          r     <- fiber.join
+        } yield assertTrue(r.isEmpty)
+      }
+    ),
     suite("timeout disconnect")(
       test("returns `Some` with the produced value if the effect completes before the timeout elapses") {
         assertZIO(ZIO.unit.disconnect.timeout(100.millis))(isSome(isUnit))
