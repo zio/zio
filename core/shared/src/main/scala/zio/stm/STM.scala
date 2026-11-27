@@ -21,6 +21,34 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import scala.util.Try
 
+/**
+ * Constructors and combinators for `STM` transactions, which need no
+ * environment. Each member forwards to the [[ZSTM]] member of the same name.
+ * `ZSTM` also has the members that read the environment (`environment`,
+ * `service` and others), `acquireReleaseWith`, `collect`, `interrupt` and
+ * `interruptAs`.
+ *
+ * {{{
+ * import zio._
+ *
+ * def transfer(
+ *   from: TRef[Long],
+ *   to: TRef[Long],
+ *   amount: Long
+ * ): IO[String, Long] =
+ *   STM.atomically {
+ *     for {
+ *       balance  <- from.get
+ *       _        <- STM.when(balance < amount)(STM.fail("Not enough money"))
+ *       _        <- from.update(_ - amount)
+ *       received <- to.updateAndGet(_ + amount)
+ *     } yield received
+ *   }
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/stm/ Software Transactional Memory]]
+ */
 object STM {
 
   /**
@@ -39,7 +67,7 @@ object STM {
 
   /**
    * @see
-   *   See [[zio.stm.ZSTM.partition]]
+   *   See [[zio.stm.ZSTM.attempt]]
    */
   def attempt[A](a: => A): STM[Throwable, A] =
     ZSTM.attempt(a)
@@ -111,7 +139,7 @@ object STM {
 
   /**
    * @see
-   *   See [[zio.stm.ZSTM.done]]
+   *   See [[zio.stm.ZSTM.exists]]
    */
   def exists[E, A](as: Iterable[A])(f: A => STM[E, Boolean]): STM[E, Boolean] =
     ZSTM.exists(as)(f)

@@ -26,36 +26,57 @@ import scala.util.control.ControlThrowable
 import scala.util.{Failure, Success, Try}
 
 /**
- * `STM[E, A]` represents an effect that can be performed transactionally,
- * resulting in a failure `E` or a value `A`.
+ * A `ZSTM[R, E, A]` is a transaction: a description of reads and writes of
+ * transactional values such as [[TRef]] that needs an environment `R`, and that
+ * fails with an `E`, succeeds with an `A`, or retries. `STM[E, A]`, `USTM[A]`
+ * and the other aliases in the `zio.stm` package fix some of the type
+ * parameters.
+ *
+ * Nothing runs until the transaction is committed with `commit` or
+ * `STM.atomically`, which turn it into a `ZIO`. The writes of a successful
+ * transaction are committed together, so other transactions see all of them or
+ * none of them; `orElse` describes a case where the writes made before it are
+ * not committed. A transaction that fails or dies commits none of its writes.
+ * When another transaction changes a `TRef` that this one has read before this
+ * one commits, this one runs again from the start, so code inside `STM.succeed`
+ * can run more than once. The iterators that `ZSTM.foreachDiscard`,
+ * `ZSTM.collectAllDiscard`, `ZSTM.replicateSTMDiscard`, `ZSTM.exists`,
+ * `ZSTM.forall` and `ZSTM.collectFirst` create when they are called are the
+ * exception: a new run goes on from where the previous run stopped.
+ *
+ * `STM.retry`, and the operators built on it such as `STM.check`, `retryUntil`
+ * and `retryWhile`, abandon the current run. The fiber that commits the
+ * transaction then waits, without holding a thread, until one of the `TRef`s
+ * the transaction has read changes, and runs the transaction again. `orTry` and
+ * `orElse` run an alternative instead of waiting.
  *
  * {{{
- * def transfer(receiver: TRef[Int],
- *               sender: TRef[Int], much: Int): UIO[Int] =
- *   STM.atomically {
- *     for {
- *       balance <- sender.get
- *       _       <- STM.check(balance >= much)
- *       _       <- receiver.update(_ + much)
- *       _       <- sender.update(_ - much)
- *       newAmnt <- receiver.get
- *     } yield newAmnt
- *   }
+ * import zio._
  *
- *   val action: UIO[Int] =
- *     for {
- *       t <- STM.atomically(TRef.make(0).zip(TRef.make(20000)))
- *       (receiver, sender) = t
- *       balance <- transfer(receiver, sender, 1000)
- *     } yield balance
+ * def transfer(from: TRef[Int], to: TRef[Int], amount: Int): USTM[Unit] =
+ *   for {
+ *     balance <- from.get
+ *     _       <- STM.check(balance >= amount)
+ *     _       <- from.update(_ - amount)
+ *     _       <- to.update(_ + amount)
+ *   } yield ()
+ *
+ * val balances: UIO[(Int, Int)] =
+ *   for {
+ *     alice <- TRef.make(100).commit
+ *     bob   <- TRef.make(0).commit
+ *     _     <- transfer(alice, bob, 30).commit
+ *     a     <- alice.get.commit
+ *     b     <- bob.get.commit
+ *   } yield (a, b)
+ * // (70,30)
  * }}}
  *
- * Software Transactional Memory is a technique which allows composition of
- * arbitrary atomic operations. It is the software analog of transactions in
- * database systems.
+ * When `from` holds less than `amount`, `transfer(...).commit` waits until
+ * another fiber adds enough to `from`.
  *
- * The API is lifted directly from the Haskell package Control.Concurrent.STM
- * although the implementation does not resemble the Haskell one at all.
+ * The API follows the Haskell package `Control.Concurrent.STM`; the
+ * implementation is different.
  * [[http://hackage.haskell.org/package/stm-2.5.0.0/docs/Control-Concurrent-STM.html]]
  *
  * STM in Haskell was introduced in: Composable memory transactions, by Tim
@@ -64,10 +85,13 @@ import scala.util.{Failure, Success, Try}
  * [[https://www.microsoft.com/en-us/research/publication/composable-memory-transactions/]]
  *
  * See also: Lock Free Data Structures using STMs in Haskell, by Anthony
- * Discolo, Tim Harris, Simon Marlow, Simon Peyton Jones, Satnam Singh) FLOPS
+ * Discolo, Tim Harris, Simon Marlow, Simon Peyton Jones and Satnam Singh, FLOPS
  * 2006: Eighth International Symposium on Functional and Logic Programming,
- * Fuji Susono, JAPAN, April 2006
+ * Fuji Susono, Japan, April 2006.
  * [[https://www.microsoft.com/en-us/research/publication/lock-free-data-structures-using-stms-in-haskell/]]
+ *
+ * @see
+ *   [[https://zio.dev/reference/stm/ Software Transactional Memory]]
  */
 sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   import ZSTM._
@@ -108,22 +132,25 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     self.orElseEither(that)
 
   /**
-   * Tries this effect first, and if it fails or retries, tries the other
-   * effect.
+   * Tries this effect first, and if it fails or retries, discards its writes
+   * and tries the other effect. A symbolic alias for `orElse`, which describes
+   * when the writes made before it are not committed.
    */
   def <>[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
     orElse(that)
 
   /**
-   * Tries this effect first, and if it enters retry, then it tries the other
-   * effect. This is an equivalent of haskell's orElse.
+   * Tries this effect first, and if it retries, tries the other effect. A
+   * failure of this effect is not caught. The writes this effect made before it
+   * retried are kept, so the other effect sees them. A symbolic alias for
+   * `orTry`.
    */
   def <|>[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
     orTry(that)
 
   /**
    * Returns an effect that submerges the error case of an `Either` into the
-   * `STM`. The inverse operation of `STM.either`.
+   * `STM`. The inverse operation of `either`.
    */
   def absolve[E1 >: E, B](implicit ev: A <:< Either[E1, B]): ZSTM[R, E1, B] =
     ZSTM.absolve(self.map(ev))
@@ -146,7 +173,17 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     mapError(Some(_))
 
   /**
-   * Recovers from all errors.
+   * Recovers from a failure of this transaction (a value passed to `STM.fail`)
+   * by running the transaction that `h` returns for it. It does not catch
+   * `STM.retry` or defects (`STM.die`, or an exception thrown inside `map` or
+   * `STM.succeed`). The writes made before the failure are kept, so `h` sees
+   * them; `orElse` discards them instead.
+   *
+   * {{{
+   * val recovered: USTM[String] =
+   *   STM.fail("boom").catchAll(e => STM.succeed("recovered from " + e))
+   * // commit returns "recovered from boom"
+   * }}}
    */
   def catchAll[R1 <: R, E2, A1 >: A](h: E => ZSTM[R1, E2, A1])(implicit ev: CanFail[E]): ZSTM[R1, E2, A1] =
     OnFailure(self, h)
@@ -160,26 +197,34 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     catchAll(pf.applyOrElse(_, (e: E) => ZSTM.fail(e)))
 
   /**
-   * Simultaneously filters and maps the value produced by this effect.
+   * Simultaneously filters and maps the value produced by this effect. When
+   * `pf` is not defined for the value, the transaction retries.
    */
   def collect[B](pf: PartialFunction[A, B]): ZSTM[R, E, B] =
     collectSTM(pf.andThen(ZSTM.succeedNow(_)))
 
   /**
    * Simultaneously filters and flatMaps the value produced by this effect.
-   * Continues on the effect returned from pf.
+   * Continues on the effect returned from `pf`. When `pf` is not defined for
+   * the value, the transaction retries.
    */
   def collectSTM[R1 <: R, E1 >: E, B](pf: PartialFunction[A, ZSTM[R1, E1, B]]): ZSTM[R1, E1, B] =
     foldSTM(ZSTM.fail(_), (a: A) => if (pf.isDefinedAt(a)) pf(a) else ZSTM.retry)
 
   /**
-   * Commits this transaction atomically.
+   * Returns a `ZIO` that runs this transaction and commits its writes together,
+   * the same as `STM.atomically(this)`. When the transaction fails or dies,
+   * none of its writes are committed. When it retries, the fiber waits until
+   * one of the `TRef`s it has read changes, then runs it again. After `orElse`
+   * runs its alternative, the writes made before the `orElse` can be left out
+   * of the commit: see `orElse`.
    */
   def commit(implicit trace: Trace): ZIO[R, E, A] = ZSTM.atomically(self)
 
   /**
    * Commits this transaction atomically, regardless of whether the transaction
-   * is a success or a failure.
+   * is a success or a failure. Unlike `commit`, the writes made before a
+   * failure are committed, and then the returned `ZIO` fails with the error.
    */
   def commitEither(implicit trace: Trace): ZIO[R, E, A] =
     either.commit.absolve
@@ -218,22 +263,27 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     flatMap(a => if (f(a)) repeatWhile(f) else ZSTM.succeedNow(a))
 
   /**
-   * Converts the failure channel into an `Either`.
+   * Converts the failure channel into an `Either`: a failure `e` becomes
+   * `Left(e)` and a success `a` becomes `Right(a)`. `STM.retry` and defects are
+   * not converted.
    */
   def either(implicit ev: CanFail[E]): URSTM[R, Either[E, A]] =
     fold(Left(_), Right(_))
 
   /**
-   * Executes the specified finalization transaction whether or not this effect
-   * succeeds. Note that as with all STM transactions, if the full transaction
-   * fails, everything will be rolled back.
+   * Runs the specified finalization transaction after this effect succeeds or
+   * fails. It does not run when this effect retries or dies. As with every STM
+   * transaction, when the whole transaction ends in a failure, `commit`
+   * discards all of its writes, including those of the finalizer.
    */
   def ensuring[R1 <: R](finalizer: ZSTM[R1, Nothing, Any]): ZSTM[R1, E, A] =
     foldSTM(e => finalizer *> ZSTM.fail(e), a => finalizer *> ZSTM.succeedNow(a))
 
   /**
    * Returns an effect that ignores errors and runs repeatedly until it
-   * eventually succeeds.
+   * eventually succeeds. The repeats happen inside the same transaction without
+   * waiting, and the writes made by a failed run are kept. `STM.retry` is not
+   * caught.
    */
   def eventually(implicit ev: CanFail[E]): URSTM[R, A] =
     foldSTM(_ => eventually, ZSTM.succeedNow)
@@ -271,7 +321,17 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Feeds the value produced by this effect to the specified function, and then
-   * runs the returned effect as well to produce its results.
+   * runs the returned effect as well to produce its results. A failure or retry
+   * of this effect skips `f`.
+   *
+   * {{{
+   * def withdraw(account: TRef[Int], amount: Int): STM[String, Int] =
+   *   account.get.flatMap { balance =>
+   *     if (balance >= amount) account.update(_ - amount).as(balance - amount)
+   *     else STM.fail("insufficient funds")
+   *   }
+   * // with 50 in the account, withdraw(account, 20).commit returns 30
+   * }}}
    */
   def flatMap[R1 <: R, E1 >: E, B](f: A => ZSTM[R1, E1, B]): ZSTM[R1, E1, B] =
     OnSuccess(self, f)
@@ -305,20 +365,22 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Swaps the error/value parameters, applies the function `f` and flips the
-   * parameters back
+   * parameters back.
    */
   def flipWith[R1, A1, E1](f: ZSTM[R, A, E] => ZSTM[R1, A1, E1]): ZSTM[R1, E1, A1] =
     f(flip).flip
 
   /**
    * Folds over the `STM` effect, handling both failure and success, but not
-   * retry.
+   * retry. The result is `f(e)` for a failure `e` and `g(a)` for a success `a`;
+   * `STM.retry` and defects pass through.
    */
   def fold[B](f: E => B, g: A => B)(implicit ev: CanFail[E]): URSTM[R, B] =
     foldSTM(f andThen ZSTM.succeedNow, g andThen ZSTM.succeedNow)
 
   /**
-   * Effectfully folds over the `STM` effect, handling both failure and success.
+   * Effectfully folds over the `STM` effect, handling both failure and success,
+   * but not retry.
    */
   def foldSTM[R1 <: R, E1, B](f: E => ZSTM[R1, E1, B], g: A => ZSTM[R1, E1, B])(implicit
     ev: CanFail[E]
@@ -369,14 +431,15 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     )
 
   /**
-   * Maps the value produced by the effect.
+   * Maps the value produced by the effect with `f`. Failures and retries pass
+   * through unchanged. An exception thrown by `f` makes the transaction die.
    */
   def map[B](f: A => B): ZSTM[R, E, B] = flatMap(f andThen ZSTM.succeedNow)
 
   /**
    * Maps the value produced by the effect with the specified function that may
-   * throw exceptions but is otherwise pure, translating any thrown exceptions
-   * into typed failed effects.
+   * throw exceptions but is otherwise pure, translating non-fatal thrown
+   * exceptions into typed failed effects.
    */
   def mapAttempt[B](f: A => B)(implicit ev: E IsSubtypeOfError Throwable): ZSTM[R, Throwable, B] =
     foldSTM(e => ZSTM.fail(ev(e)), a => ZSTM.attempt(f(a)))
@@ -432,7 +495,27 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     mapError(f).catchAll(ZSTM.die(_))
 
   /**
-   * Named alias for `<>`.
+   * Runs this transaction, and runs `that` instead when this one fails or
+   * retries. The writes this transaction made are discarded first, so `that`
+   * starts from the same state. When `that` also fails or retries, so does the
+   * result. When this transaction retries and `that` then fails, `that` runs a
+   * second time before the failure is returned. Named alias for `<>`.
+   *
+   * After `that` starts, the writes that the transaction made before this
+   * `orElse` are not committed unless a `TRef` is later set to a value that is
+   * not the same object (`eq`) as the value it holds, and nothing signals that
+   * they were left out. This happens when the transaction reads or writes two
+   * or more `TRef`s, or when it commits after the fiber waited on a retry for a
+   * `TRef` to change. A transaction with a single `TRef` that commits without
+   * having waited keeps the writes. For example, with an empty `TQueue` `queue`
+   * and a `TRef` `c` holding 0, `(c.set(5) *>
+   * queue.take.orElseSucceed(-1)).commit` returns -1 and leaves `c` at 0.
+   *
+   * {{{
+   * def takeEither(first: TQueue[Int], second: TQueue[Int]): USTM[Int] =
+   *   first.take orElse second.take
+   * // with `first` empty and 7 in `second`, commit returns 7
+   * }}}
    */
   def orElse[R1 <: R, E1, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
     Effect[Any, Nothing, () => Unit]((journal, _, _) => journal.resetFn()).flatMap { reset =>
@@ -442,14 +525,16 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   /**
    * Returns a transactional effect that will produce the value of this effect
    * in left side, unless it fails or retries, in which case, it will produce
-   * the value of the specified effect in right side.
+   * the value of the specified effect in right side. It is built on `orElse`,
+   * which describes when the writes made before it are not committed.
    */
   def orElseEither[R1 <: R, E1, B](that: => ZSTM[R1, E1, B]): ZSTM[R1, E1, Either[A, B]] =
     (self map (Left[A, B](_))) orElse (that map (Right[A, B](_)))
 
   /**
    * Tries this effect first, and if it fails or retries, fails with the
-   * specified error.
+   * specified error. It is built on `orElse`, which describes when the writes
+   * made before it are not committed.
    */
   def orElseFail[E1](e1: => E1): ZSTM[R, E1, A] =
     orElse(ZSTM.fail(e1))
@@ -466,12 +551,18 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Tries this effect first, and if it fails or retries, succeeds with the
-   * specified value.
+   * specified value. It is built on `orElse`, which describes when the writes
+   * made before it are not committed.
    */
   def orElseSucceed[A1 >: A](a1: => A1): URSTM[R, A1] =
     orElse(ZSTM.succeedNow(a1))
 
   /**
+   * Runs this transaction, and runs `that` instead when this one retries. A
+   * failure of this transaction is not caught. The writes this transaction made
+   * before it retried are kept: `that` sees them, and they are committed when
+   * `that` succeeds. When `that` also retries, the result retries. For example,
+   * `(STM.retry orTry STM.succeed("fallback")).commit` returns `"fallback"`.
    * Named alias for `<|>`.
    */
   def orTry[R1 <: R, E1 >: E, A1 >: A](that: => ZSTM[R1, E1, A1]): ZSTM[R1, E1, A1] =
@@ -526,7 +617,13 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Filters the value produced by this effect, retrying the transaction until
-   * the predicate returns true for the value.
+   * the predicate returns true for the value. Each time the predicate returns
+   * false, the transaction retries (see `ZSTM.retry`).
+   *
+   * {{{
+   * def awaitAtLeast(counter: TRef[Int], n: Int): USTM[Int] =
+   *   counter.get.retryUntil(_ >= n)
+   * }}}
    */
   def retryUntil(f: A => Boolean): ZSTM[R, E, A] =
     collect {
@@ -535,7 +632,8 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Filters the value produced by this effect, retrying the transaction while
-   * the predicate returns true for the value.
+   * the predicate returns true for the value. The result is the first value for
+   * which the predicate returns false.
    */
   def retryWhile(f: A => Boolean): ZSTM[R, E, A] =
     collect {
@@ -607,7 +705,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
 
   /**
    * Extracts the optional value, or fails with a
-   * [[java.util.NoSuchElementException]]
+   * [[java.util.NoSuchElementException]].
    */
   def someOrFailException[B, E1 >: E](implicit
     ev: A <:< Option[B],
@@ -630,6 +728,10 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
       end   <- summary
     } yield (f(start, end), value)
 
+  /**
+   * Returns the internal number that identifies the kind of node this
+   * transaction is built from. Deprecated: match on the type instead.
+   */
   @deprecated("use pattern-matching on types instead", "2.1.8")
   def tag: Int
 
@@ -640,7 +742,7 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     flatMap(a => f(a).as(a))
 
   /**
-   * "Peeks" at both sides of an transactional effect.
+   * "Peeks" at both sides of a transactional effect.
    */
   def tapBoth[R1 <: R, E1 >: E](f: E => ZSTM[R1, E1, Any], g: A => ZSTM[R1, E1, Any])(implicit
     ev: CanFail[E]
@@ -659,13 +761,17 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   def unit: ZSTM[R, E, Unit] = as(())
 
   /**
-   * The moral equivalent of `if (!p) exp`
+   * The moral equivalent of `if (!b) exp`: runs this effect only when `b` is
+   * false and returns its result in `Some`, or returns `None` without running
+   * it when `b` is true.
    */
   def unless(b: => Boolean): ZSTM[R, E, Option[A]] =
     ZSTM.unless(b)(self)
 
   /**
-   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   * The moral equivalent of `if (!b) exp` when `b` is a transaction: runs `b`
+   * first, then runs this effect only when `b` returned false, returning its
+   * result in `Some`, or `None` otherwise.
    */
   def unlessSTM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
     ZSTM.unlessSTM(b)(self)
@@ -712,19 +818,24 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
     new ZSTM.UpdateServiceAt[R, E, A, Service](self)
 
   /**
-   * The moral equivalent of `if (p) exp`
+   * The moral equivalent of `if (b) exp`: runs this effect only when `b` is
+   * true and returns its result in `Some`, or returns `None` without running it
+   * when `b` is false.
    */
   def when(b: => Boolean): ZSTM[R, E, Option[A]] =
     ZSTM.when(b)(self)
 
   /**
-   * The moral equivalent of `if (p) exp` when `p` has side-effects
+   * The moral equivalent of `if (b) exp` when `b` is a transaction: runs `b`
+   * first, then runs this effect only when `b` returned true, returning its
+   * result in `Some`, or `None` otherwise.
    */
   def whenSTM[R1 <: R, E1 >: E](b: ZSTM[R1, E1, Boolean]): ZSTM[R1, E1, Option[A]] =
     ZSTM.whenSTM(b)(self)
 
   /**
-   * Same as [[retryUntil]].
+   * Same as [[retryUntil]]. It makes an `if` guard in a for-comprehension retry
+   * the transaction while the guard is false.
    */
   def withFilter(f: A => Boolean): ZSTM[R, E, A] = retryUntil(f)
 
@@ -872,27 +983,73 @@ sealed trait ZSTM[-R, +E, +A] extends Serializable { self =>
   }
 }
 
+/**
+ * Constructors and combinators for [[ZSTM]] transactions: lifting values,
+ * errors and defects into a transaction, retrying, running transactions over
+ * collections, reading the environment, and committing a transaction with
+ * `atomically`. `STM` has versions of most of them with an `Any` environment.
+ *
+ * @see
+ *   [[https://zio.dev/reference/stm/ Software Transactional Memory]]
+ */
 object ZSTM {
   import internal._
 
   /**
-   * Submerges the error case of an `Either` into the `STM`. The inverse
-   * operation of `STM.either`.
+   * Submerges the error case of an `Either` into the transaction: a `Left(e)`
+   * result fails with `e` and a `Right(a)` result succeeds with `a`. The
+   * inverse of `ZSTM#either`.
    */
   def absolve[R, E, A](z: ZSTM[R, E, Either[E, A]]): ZSTM[R, E, A] =
     z.flatMap(fromEither(_))
 
   /**
-   * Treats the specified `acquire` transaction as the acquisition of a
-   * resource. The `acquire` transaction will be executed interruptibly. If it
-   * is a success and is committed the specified `release` workflow will be
-   * executed uninterruptibly as soon as the `use` workflow completes execution.
+   * Treats the `acquire` transaction as the acquisition of a resource, and
+   * returns a `ZSTM.Acquire` that takes the `release` workflow and then the
+   * `use` workflow: `acquireReleaseWith(acquire)(release)(use)`.
+   *
+   * The `acquire` transaction is committed interruptibly, so a fiber waiting on
+   * its retry can be interrupted. When `acquire` commits successfully, `use`
+   * runs interruptibly, and `release` runs uninterruptibly after `use`
+   * succeeds, fails or is interrupted. When `acquire` fails, or the fiber is
+   * interrupted while `acquire` waits, `release` does not run.
+   *
+   * {{{
+   * import zio._
+   *
+   * def withPermit[A](permits: TRef[Int])(work: UIO[A]): UIO[A] =
+   *   ZSTM.acquireReleaseWith(
+   *     permits.get.flatMap(n => ZSTM.check(n > 0) *> permits.set(n - 1))
+   *   )(_ => permits.update(_ + 1).commit)(_ => work)
+   * }}}
    */
   def acquireReleaseWith[R, E, A](acquire: ZSTM[R, E, A]): ZSTM.Acquire[R, E, A] =
     new ZSTM.Acquire[R, E, A](() => acquire)
 
   /**
-   * Atomically performs a batch of operations in a single transaction.
+   * Commits the transaction: returns a `ZIO` effect that runs it. The changes
+   * the transaction makes to `TRef`s become visible to other fibers together
+   * when it succeeds, and none of them are committed when it fails or dies.
+   * When the alternative of an `orElse` runs and no `TRef` is later set to a
+   * value that is not the same object (`eq`) as its current value, the writes
+   * made before the `orElse` can be left out of the commit (see `ZSTM#orElse`).
+   * When the transaction retries, the fiber waits until one of the `TRef`s it
+   * read changes, then runs it again. The transaction can run several times
+   * before it commits, so it should not perform side effects. `stm.commit` is
+   * the same operation.
+   *
+   * {{{
+   * import zio._
+   *
+   * val balances: UIO[(Int, Int)] =
+   *   for {
+   *     from <- TRef.makeCommit(100)
+   *     to   <- TRef.makeCommit(0)
+   *     _    <- ZSTM.atomically(from.update(_ - 30) *> to.update(_ + 30))
+   *     both <- ZSTM.atomically(from.get.zip(to.get))
+   *   } yield both
+   * // (70,30)
+   * }}}
    */
   def atomically[R, E, A](stm: ZSTM[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     unsafeAtomically(stm)(_ => (), () => ())
@@ -949,20 +1106,35 @@ object ZSTM {
     }
 
   /**
-   * Creates an `STM` value from a partial (but pure) function.
+   * Returns a transaction that evaluates `a` each time it runs, and succeeds
+   * with its value or fails with the non-fatal exception it throws (caught with
+   * `scala.util.Try`). `a` should not have side effects.
    */
   def attempt[A](a: => A): STM[Throwable, A] =
     fromTry(Try(a))
 
   /**
-   * Checks the condition, and if it's true, returns unit, otherwise, retries.
+   * Succeeds with `Unit` when `p` is `true`, and retries the transaction
+   * otherwise (see `retry`). `p` is evaluated each time the transaction runs,
+   * so the fiber that commits the transaction waits until a `TRef` it read
+   * changes and `p` becomes `true`.
+   *
+   * {{{
+   * def withdraw(balance: TRef[Int], amount: Int): USTM[Unit] =
+   *   for {
+   *     current <- balance.get
+   *     _       <- ZSTM.check(current >= amount)
+   *     _       <- balance.set(current - amount)
+   *   } yield ()
+   * }}}
    */
   def check[R](p: => Boolean): URSTM[R, Unit] =
     suspend(if (p) STM.unit else retry)
 
   /**
-   * Evaluate each effect in the structure from left to right, collecting the
-   * successful values and discarding the empty cases.
+   * Applies `f` to each element from left to right and collects the results of
+   * the elements where `f` succeeds, skipping the elements where `f` fails with
+   * `None`. When `f` fails with `Some(e)`, the transaction fails with `e`.
    */
   def collect[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
@@ -970,8 +1142,20 @@ object ZSTM {
     foreach[R, E, A, Option[B], Iterable](in)(a => f(a).unsome).map(_.flatten).map(bf.fromSpecific(in))
 
   /**
-   * Collects all the transactional effects in a collection, returning a single
-   * transactional effect that produces a collection of values.
+   * Runs the transactions in the collection from left to right and collects
+   * their results into a collection of the same type.
+   *
+   * {{{
+   * import zio._
+   *
+   * val values: UIO[List[Int]] =
+   *   for {
+   *     a   <- TRef.makeCommit(1)
+   *     b   <- TRef.makeCommit(2)
+   *     all <- ZSTM.collectAll(List(a.get, b.get, a.get)).commit
+   *   } yield all
+   * // List(1, 2, 1)
+   * }}}
    */
   def collectAll[R, E, A, Collection[+Element] <: Iterable[Element]](
     in: Collection[ZSTM[R, E, A]]
@@ -979,25 +1163,34 @@ object ZSTM {
     foreach(in)(ZIO.identityFn)
 
   /**
-   * Collects all the transactional effects in a set, returning a single
-   * transactional effect that produces a set of values.
+   * Runs the transactions in the set and collects their results into a `Set`,
+   * so equal results appear once.
    */
   def collectAll[R, E, A](in: Set[ZSTM[R, E, A]]): ZSTM[R, E, Set[A]] =
     foreach(in)(ZIO.identityFn)
 
   /**
-   * Collects all the transactional effects, returning a single transactional
-   * effect that produces `Unit`.
+   * Runs the transactions from left to right and discards their results,
+   * without the cost of building the collection of results.
    *
-   * Equivalent to `collectAll(i).unit`, but without the cost of building the
-   * list of results.
+   * Like `foreachDiscard`, it creates its iterator over `in` when it is called,
+   * and every run of the transaction shares it: a run after a retry or a
+   * conflict, or a second commit of the same value, goes on from where the
+   * previous run stopped. `collectAll(in).unit` starts from the first
+   * transaction on every run.
    */
   def collectAllDiscard[R, E, A](in: Iterable[ZSTM[R, E, A]]): ZSTM[R, E, Unit] =
     foreachDiscard(in)(ZIO.identityFn)
 
   /**
-   * Collects the first element of the `Iterable[A]` for which the effectual
-   * function `f` returns `Some`.
+   * Applies `f` to the elements from left to right and succeeds with the first
+   * `Some` it returns, without applying `f` to the remaining elements. Succeeds
+   * with `None` when `f` returns `None` for every element or `as` is empty.
+   *
+   * The iterator over `as` is created when `collectFirst` is called and every
+   * run of the transaction shares it: a run after a retry or a conflict, or a
+   * second commit of the same value, goes on from where the previous run
+   * stopped, not from the first element.
    */
   def collectFirst[R, E, A, B](as: Iterable[A])(f: A => ZSTM[R, E, Option[B]]): ZSTM[R, E, Option[B]] =
     succeedNow(as.iterator).flatMap { iterator =>
@@ -1008,51 +1201,66 @@ object ZSTM {
     }
 
   /**
-   * Similar to Either.cond, evaluate the predicate, return the given A as
-   * success if predicate returns true, and the given E as error otherwise
+   * Like `Either.cond`: succeeds with `result` when `predicate` is `true`, and
+   * fails with `error` otherwise. `result` and `error` are evaluated when the
+   * transaction runs.
    */
   def cond[E, A](predicate: Boolean, result: => A, error: => E): STM[E, A] =
     if (predicate) succeed(result) else fail(error)
 
   /**
-   * Kills the fiber running the effect.
+   * Returns a transaction that dies with the defect `t`. Committing it gives an
+   * effect that dies with `t`, and none of the transaction's changes are
+   * committed. `orElse`, `catchAll` and `either` do not recover from it.
    */
   def die(t: => Throwable): USTM[Nothing] =
     Effect((_, _, _) => throw DieException(t))
 
   /**
-   * Kills the fiber running the effect with a `RuntimeException` that contains
-   * the specified message.
+   * Returns a transaction that dies with a `java.lang.RuntimeException` whose
+   * message is `m` (see `die`).
    */
   def dieMessage(m: => String): USTM[Nothing] =
     die(new RuntimeException(m))
 
   /**
-   * Returns a value modelled on provided exit status.
+   * Returns a transaction for the given exit value. `TExit` is private to the
+   * `zio.stm` package. Committing the transaction does not complete: it builds
+   * itself again each time it runs, so the committing fiber keeps its thread
+   * busy, and `timeout` does not stop it.
    */
   def done[R, E, A](exit: => TExit[E, A]): ZSTM[R, E, A] =
     suspend(done(exit))
 
   /**
-   * Retrieves the environment inside an stm.
+   * Returns a transaction that succeeds with the environment it runs in.
    */
   def environment[R]: URSTM[R, ZEnvironment[R]] = Effect((_, _, r) => r)
 
   /**
-   * Accesses the environment of the transaction to perform a transaction.
+   * Accesses the environment of the transaction and applies the function `f` to
+   * it: `ZSTM.environmentWith[R](f)`.
    */
   def environmentWith[R]: EnvironmentWithPartiallyApplied[R] =
     new EnvironmentWithPartiallyApplied
 
   /**
-   * Accesses the environment of the transaction to perform a transaction.
+   * Accesses the environment of the transaction and runs the transaction that
+   * `f` returns for it: `ZSTM.environmentWithSTM[R](f)`.
    */
   def environmentWithSTM[R]: EnvironmentWithSTMPartiallyApplied[R] =
     new EnvironmentWithSTMPartiallyApplied
 
   /**
-   * Determines whether any element of the `Iterable[A]` satisfies the effectual
-   * predicate `f`.
+   * Determines whether any element of `as` satisfies the transactional
+   * predicate `f`. Applies `f` from left to right and stops at the first
+   * element for which it returns `true`. Succeeds with `false` when `as` is
+   * empty.
+   *
+   * The iterator over `as` is created when `exists` is called and every run of
+   * the transaction shares it: a run after a retry or a conflict, or a second
+   * commit of the same value, goes on from where the previous run stopped, not
+   * from the first element.
    */
   def exists[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, Boolean] =
     succeedNow(as.iterator).flatMap { iterator =>
@@ -1063,12 +1271,27 @@ object ZSTM {
     }
 
   /**
-   * Returns a value that models failure in the transaction.
+   * Returns a transaction that fails with the error `e`. When the error reaches
+   * the end of the transaction, none of the transaction's changes are
+   * committed. `orElse` runs its alternative with the changes of the failed
+   * side undone, while `catchAll` keeps the changes made before the failure.
+   *
+   * {{{
+   * import zio._
+   *
+   * val result: UIO[(Either[String, Unit], Int)] =
+   *   for {
+   *     ref <- TRef.makeCommit(5)
+   *     res <- (ref.set(0) *> ZSTM.fail("invalid")).commit.either
+   *     now <- ref.get.commit
+   *   } yield (res, now)
+   * // (Left(invalid),5)
+   * }}}
    */
   def fail[E](e: => E): STM[E, Nothing] = Effect((_, _, _) => throw FailException(e))
 
   /**
-   * Returns the fiber id of the fiber committing the transaction.
+   * Returns the id of the fiber that commits the transaction.
    */
   val fiberId: USTM[FiberId] = Effect((_, fiberId, _) => fiberId)
 
@@ -1117,8 +1340,8 @@ object ZSTM {
     tx.flatMap(ZIO.identityFn)
 
   /**
-   * Folds an Iterable[A] using an effectual function f, working sequentially
-   * from left to right.
+   * Folds `in` with the transactional function `f`, starting from `zero` and
+   * working sequentially from left to right.
    */
   def foldLeft[R, E, S, A](
     in: Iterable[A]
@@ -1134,8 +1357,8 @@ object ZSTM {
     }
 
   /**
-   * Folds an Iterable[A] using an effectual function f, working sequentially
-   * from right to left.
+   * Folds `in` with the transactional function `f`, starting from `zero` and
+   * working sequentially from right to left (the last element first).
    */
   def foldRight[R, E, S, A](
     in: Iterable[A]
@@ -1143,8 +1366,14 @@ object ZSTM {
     foldLeft(in.toSeq.reverse)(zero)((s, a) => f(a, s))
 
   /**
-   * Determines whether all elements of the `Iterable[A]` satisfy the effectual
-   * predicate `f`.
+   * Determines whether all elements of `as` satisfy the transactional predicate
+   * `f`. Applies `f` from left to right and stops at the first element for
+   * which it returns `false`. Succeeds with `true` when `as` is empty.
+   *
+   * The iterator over `as` is created when `forall` is called and every run of
+   * the transaction shares it: a run after a retry or a conflict, or a second
+   * commit of the same value, goes on from where the previous run stopped, not
+   * from the first element.
    */
   def forall[R, E, A](as: Iterable[A])(f: A => ZSTM[R, E, Boolean]): ZSTM[R, E, Boolean] =
     succeedNow(as.iterator).flatMap { iterator =>
@@ -1155,8 +1384,15 @@ object ZSTM {
     }
 
   /**
-   * Applies the function `f` to each element of the `Collection[A]` and returns
-   * a transactional effect that produces a new `Collection[B]`.
+   * Applies the function `f` to each element of the `Collection[A]` from left
+   * to right and returns a transactional effect that produces a new
+   * `Collection[B]`.
+   *
+   * {{{
+   * def depositAll(account: TRef[Int], amounts: List[Int]): USTM[List[Int]] =
+   *   ZSTM.foreach(amounts)(amount => account.updateAndGet(_ + amount))
+   * // with the account at 0 and List(10, 20, 30): List(10, 30, 60)
+   * }}}
    */
   def foreach[R, E, A, B, Collection[+Element] <: Iterable[Element]](
     in: Collection[A]
@@ -1174,17 +1410,22 @@ object ZSTM {
 
   /**
    * Applies the function `f` to each element of the `Set[A]` and returns a
-   * transactional effect that produces a new `Set[B]`.
+   * transactional effect that produces a new `Set[B]`, so equal results appear
+   * once.
    */
   def foreach[R, E, A, B](in: Set[A])(f: A => ZSTM[R, E, B]): ZSTM[R, E, Set[B]] =
     foreach[R, E, A, B, Iterable](in)(f).map(_.toSet)
 
   /**
-   * Applies the function `f` to each element of the `Iterable[A]` and returns a
-   * transactional effect that produces `Unit`.
+   * Applies the function `f` to each element of the `Iterable[A]` from left to
+   * right and returns a transactional effect that produces `Unit`, without the
+   * cost of building the collection of results.
    *
-   * Equivalent to `foreach(as)(f).unit`, but without the cost of building the
-   * list of results.
+   * The iterator over `in` is created when `foreachDiscard` is called and every
+   * run of the transaction shares it: a run after a retry or a conflict, or a
+   * second commit of the same value, goes on from where the previous run
+   * stopped, not from the first element. `foreach` starts from the first
+   * element on every run.
    */
   def foreachDiscard[R, E, A](in: Iterable[A])(f: A => ZSTM[R, E, Any]): ZSTM[R, E, Unit] =
     ZSTM.succeedNow(in.iterator).flatMap[R, E, Unit] { it =>
@@ -1195,7 +1436,8 @@ object ZSTM {
     }
 
   /**
-   * Lifts an `Either` into a `STM`.
+   * Lifts an `Either` into a `STM`: fails with `e` for `Left(e)` and succeeds
+   * with `a` for `Right(a)`. `e` is evaluated when the transaction runs.
    */
   def fromEither[E, A](e: => Either[E, A]): STM[E, A] =
     STM.suspend {
@@ -1206,13 +1448,15 @@ object ZSTM {
     }
 
   /**
-   * Lifts an `Option` into a `STM`.
+   * Lifts an `Option` into a `STM`: succeeds with the value of a `Some` and
+   * fails with `None` for `None`.
    */
   def fromOption[A](v: => Option[A]): STM[Option[Nothing], A] =
     STM.suspend(v.fold[STM[Option[Nothing], A]](STM.fail(None))(STM.succeedNow))
 
   /**
-   * Lifts a `Try` into a `STM`.
+   * Lifts a `Try` into a `STM`: succeeds with the value of a `Success` and
+   * fails with the exception of a `Failure`.
    */
   def fromTry[A](a: => Try[A]): TaskSTM[A] =
     STM.suspend {
@@ -1223,35 +1467,44 @@ object ZSTM {
     }
 
   /**
-   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise.
+   * Runs `onTrue` if the result of `b` is `true` and `onFalse` otherwise:
+   * `ZSTM.ifSTM(b)(onTrue, onFalse)`.
    */
   def ifSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.IfSTM[R, E] =
     new ZSTM.IfSTM(b)
 
   /**
-   * Interrupts the fiber running the effect.
+   * Returns a transaction that ends as interrupted by the fiber that commits
+   * it. Committing it gives an effect that fails with an interruption cause
+   * carrying that fiber's id, and none of the transaction's changes are
+   * committed. `orElse` does not recover from it.
    */
   val interrupt: USTM[Nothing] =
     ZSTM.fiberId.flatMap(fiberId => interruptAs(fiberId))
 
   /**
-   * Interrupts the fiber running the effect with the specified fiber id.
+   * Returns a transaction that ends as interrupted by the fiber with the id
+   * `fiberId` (see `interrupt`).
    */
   def interruptAs(fiberId: => FiberId): USTM[Nothing] =
     Effect((_, _, _) => throw InterruptException(fiberId))
 
   /**
-   * Iterates with the specified transactional function. The moral equivalent
-   * of:
+   * Iterates with the specified transactional function: starting from
+   * `initial`, runs `body` on the state while `cont` holds, and succeeds with
+   * the final state. The moral equivalent of a `while` loop:
    *
    * {{{
-   * var s = initial
-   *
-   * while (cont(s)) {
-   *   s = body(s)
+   * val powerOfTwo: USTM[Int] =
+   *   ZSTM.iterate(1)(_ < 100)(s => ZSTM.succeed(s * 2))
+   * // commits to 128, the same result as:
+   * def powerOfTwoLoop(): Int = {
+   *   var s = 1
+   *   while (s < 100) {
+   *     s = s * 2
+   *   }
+   *   s
    * }
-   *
-   * s
    * }}}
    */
   def iterate[R, E, S](initial: S)(cont: S => Boolean)(body: S => ZSTM[R, E, S]): ZSTM[R, E, S] =
@@ -1259,25 +1512,30 @@ object ZSTM {
     else ZSTM.succeedNow(initial)
 
   /**
-   * Returns an effect with the value on the left part.
+   * Returns a transaction that succeeds with `Left(a)`.
    */
   def left[A](a: => A): USTM[Either[A, Nothing]] =
     succeed(Left(a))
 
   /**
-   * Loops with the specified transactional function, collecting the results
-   * into a list. The moral equivalent of:
+   * Loops with the specified transactional function: starting from `initial`,
+   * runs `body` on the state while `cont` holds, moving to the next state with
+   * `inc`, and collects the results of `body` into a list, in order. The moral
+   * equivalent of a `while` loop:
    *
    * {{{
-   * var s  = initial
-   * var as = List.empty[A]
-   *
-   * while (cont(s)) {
-   *   as = body(s) :: as
-   *   s  = inc(s)
+   * val tens: USTM[List[Int]] =
+   *   ZSTM.loop(1)(_ <= 3, _ + 1)(s => ZSTM.succeed(s * 10))
+   * // commits to List(10, 20, 30), the same result as:
+   * def tensLoop(): List[Int] = {
+   *   var s  = 1
+   *   var as = List.empty[Int]
+   *   while (s <= 3) {
+   *     as = (s * 10) :: as
+   *     s = s + 1
+   *   }
+   *   as.reverse
    * }
-   *
-   * as.reverse
    * }}}
    */
   def loop[R, E, A, S](initial: S)(cont: S => Boolean, inc: S => S)(body: S => ZSTM[R, E, A]): ZSTM[R, E, List[A]] =
@@ -1288,14 +1546,22 @@ object ZSTM {
 
   /**
    * Loops with the specified transactional function purely for its
-   * transactional effects. The moral equivalent of:
+   * transactional effects: starting from `initial`, runs `body` on the state
+   * while `cont` holds, moving to the next state with `inc`. The moral
+   * equivalent of a `while` loop:
    *
    * {{{
-   * var s = initial
-   *
-   * while (cont(s)) {
-   *   body(s)
-   *   s = inc(s)
+   * def addUpTo4(total: TRef[Int]): USTM[Unit] =
+   *   ZSTM.loopDiscard(1)(_ <= 4, _ + 1)(s => total.update(_ + s))
+   * // adds 1 + 2 + 3 + 4 = 10 to total, like:
+   * def addUpTo4Loop(start: Int): Int = {
+   *   var total = start
+   *   var s     = 1
+   *   while (s <= 4) {
+   *     total = total + s
+   *     s = s + 1
+   *   }
+   *   total
    * }
    * }}}
    */
@@ -1304,7 +1570,9 @@ object ZSTM {
     else ZSTM.unit
 
   /**
-   * Merges an `Iterable[ZSTM]` to a single ZSTM, working sequentially.
+   * Merges an `Iterable[ZSTM]` to a single `ZSTM`, working sequentially: runs
+   * the transactions from left to right and combines their results with `f`,
+   * starting from `zero`.
    */
   def mergeAll[R, E, A, B](
     in: Iterable[ZSTM[R, E, A]]
@@ -1312,19 +1580,28 @@ object ZSTM {
     ZSTM.foldLeft(in)(zero)((b, stm) => stm.map(a => f(b, a)))
 
   /**
-   * Returns an effect with the empty value.
+   * Returns a transaction that succeeds with `None`.
    */
   val none: USTM[Option[Nothing]] = succeedNow(None)
 
   /**
-   * Executes the specified workflow when this transaction is committed.
+   * Registers the workflow `zio` to run after the transaction ends, before the
+   * committing effect returns. Workflows registered in one transaction run in
+   * the order they were registered.
+   *
+   * A registered workflow also runs when the transaction ends with a failure
+   * (`fail`), a defect (`die`) or `interrupt`, and when it was registered on a
+   * side of `orElse` that retried or on a side whose failure `catchAll`
+   * handled. It does not run, whatever the outcome, when the transaction
+   * retried and waited for a `TRef` to change before it ended.
    */
   def onCommit[R](zio: ZIO[R, Nothing, Any])(implicit trace: Trace): ZSTM[R, Nothing, Unit] =
     ZSTM.OnCommit(zio, trace)
 
   /**
-   * Feeds elements of type `A` to a function `f` that returns an effect.
-   * Collects all successes and failures in a tupled fashion.
+   * Feeds elements of type `A` to a function `f` that returns an effect, from
+   * left to right. Collects all failures and successes as a pair `(failures,
+   * successes)`; the transaction itself does not fail.
    */
   def partition[R, E, A, B](
     in: Iterable[A]
@@ -1332,7 +1609,9 @@ object ZSTM {
     ZSTM.foreach(in)(f(_).either).map(ZIO.partitionMap(_)(ZIO.identityFn))
 
   /**
-   * Reduces an `Iterable[ZSTM]` to a single `ZSTM`, working sequentially.
+   * Reduces an `Iterable[ZSTM]` to a single `ZSTM`, working sequentially: runs
+   * `a` and then the transactions in `as` from left to right, combining the
+   * results with `f`. Succeeds with the result of `a` when `as` is empty.
    */
   def reduceAll[R, R1 <: R, E, A](a: ZSTM[R, E, A], as: Iterable[ZSTM[R1, E, A]])(
     f: (A, A) => A
@@ -1340,8 +1619,8 @@ object ZSTM {
     a.flatMap(ZSTM.mergeAll(as)(_)(f))
 
   /**
-   * Replicates the given effect n times. If 0 or negative numbers are given, an
-   * empty `Iterable` will return.
+   * Returns an `Iterable` that holds the transaction `tx` `n` times, without
+   * running it. The `Iterable` is empty when `n` is 0 or negative.
    */
   def replicate[R, E, A](n: Int)(tx: ZSTM[R, E, A]): Iterable[ZSTM[R, E, A]] =
     new Iterable[ZSTM[R, E, A]] {
@@ -1349,70 +1628,117 @@ object ZSTM {
     }
 
   /**
-   * Performs this transaction the specified number of times and collects the
-   * results.
+   * Performs the transaction `n` times and collects the results. Succeeds with
+   * an empty `Iterable` when `n` is 0 or negative.
    */
   def replicateSTM[R, E, A](n: Int)(transaction: ZSTM[R, E, A]): ZSTM[R, E, Iterable[A]] =
     ZSTM.collectAll(ZSTM.replicate(n)(transaction))
 
   /**
-   * Performs this transaction the specified number of times, discarding the
-   * results.
+   * Performs the transaction `n` times, discarding the results. Does nothing
+   * when `n` is 0 or negative.
+   *
+   * Like `foreachDiscard`, every run of the transaction shares one iterator
+   * over the `n` repetitions: a run after a retry or a conflict, or a second
+   * commit of the same value, goes on from where the previous run stopped.
    */
   def replicateSTMDiscard[R, E, A](n: Int)(transaction: ZSTM[R, E, A]): ZSTM[R, E, Unit] =
     ZSTM.collectAllDiscard(ZSTM.replicate(n)(transaction))
 
   /**
-   * Abort and retry the whole transaction when any of the underlying
-   * transactional variables have changed.
+   * Signals that the transaction cannot go on yet. When the retry reaches the
+   * top of the transaction, none of the transaction's changes are committed,
+   * and the committing fiber waits until one of the `TRef`s the transaction
+   * read changes, then runs the transaction again. A transaction that read no
+   * `TRef` keeps waiting until the fiber is interrupted.
+   *
+   * `orElse` and `orElseEither` catch a retry and run their alternative with
+   * the changes of the retried side undone. `orTry` also runs its alternative,
+   * but keeps the changes the retried side made. When the alternative of
+   * `orElse` runs and no `TRef` is later set to a value that is not the same
+   * object (`eq`) as its current value, the writes made before the `orElse` can
+   * be left out of the commit (see `ZSTM#orElse`).
+   *
+   * {{{
+   * def takePositive(ref: TRef[Int]): USTM[Int] =
+   *   ref.get.flatMap(n => if (n > 0) ZSTM.succeed(n) else ZSTM.retry)
+   *
+   * // succeeds with -1 instead of waiting when ref holds 0 or less
+   * def takePositiveOrDefault(ref: TRef[Int]): USTM[Int] =
+   *   takePositive(ref) orElse ZSTM.succeed(-1)
+   * }}}
    */
   val retry: USTM[Nothing] = Effect((_, _, _) => throw RetryException)
 
   /**
-   * Returns an effect with the value on the right part.
+   * Returns a transaction that succeeds with `Right(a)`.
    */
   def right[A](a: => A): USTM[Either[Nothing, A]] =
     succeed(Right(a))
 
   /**
-   * Accesses the specified service in the environment of the effect.
+   * Accesses the service of type `A` in the environment of the transaction.
    */
   def service[A: Tag]: ZSTM[A, Nothing, A] =
     ZSTM.environmentWith(_.get[A])
 
   /**
-   * Accesses the service corresponding to the specified key in the environment.
+   * Accesses the service corresponding to the specified key in the `Map[Key,
+   * Service]` of the environment: `ZSTM.serviceAt[Service](key)`. Succeeds with
+   * `None` when the map has no entry for the key.
    */
   def serviceAt[Service]: ZSTM.ServiceAtPartiallyApplied[Service] =
     new ZSTM.ServiceAtPartiallyApplied[Service]
 
   /**
-   * Effectfully accesses the specified service in the environment of the
-   * effect.
+   * Accesses the specified service in the environment of the transaction and
+   * applies the function `f` to it: `ZSTM.serviceWith[Service](f)`.
    */
   def serviceWith[Service]: ServiceWithPartiallyApplied[Service] =
     new ServiceWithPartiallyApplied[Service]
 
   /**
-   * Effectfully accesses the specified service in the environment of the
-   * effect.
+   * Accesses the specified service in the environment of the transaction and
+   * runs the transaction that `f` returns for it:
+   * `ZSTM.serviceWithSTM[Service](f)`.
    */
   def serviceWithSTM[Service]: ServiceWithSTMPartiallyApplied[Service] =
     new ServiceWithSTMPartiallyApplied[Service]
 
   /**
-   * Returns an effect with the optional value.
+   * Returns a transaction that succeeds with `Some(a)`.
    */
   def some[A](a: => A): USTM[Option[A]] =
     succeed(Some(a))
 
   /**
-   * Returns an `STM` effect that succeeds with the specified value.
+   * Returns an `STM` effect that succeeds with the specified value. `a` is
+   * evaluated each time the transaction runs, which can be more than once when
+   * the transaction retries or conflicts with another fiber, so it should not
+   * have side effects. An exception thrown by `a` makes the transaction die.
+   *
+   * {{{
+   * import zio._
+   *
+   * val total: UIO[Int] = ZSTM.succeed(List(1, 2, 3)).map(_.sum).commit
+   * // 6
+   * }}}
    */
   def succeed[A](a: => A): USTM[A] = Succeed(() => a)
 
   /**
-   * Suspends creation of the specified transaction lazily.
+   * Suspends creation of the specified transaction lazily: `stm` is built when
+   * the transaction runs, and built again each time it runs, for example after
+   * a retry. Useful for recursive transactions.
+   *
+   * {{{
+   * def countdown(ref: TRef[Int]): USTM[Unit] =
+   *   ZSTM.suspend {
+   *     ref.get.flatMap { n =>
+   *       if (n <= 0) ZSTM.unit else ref.set(n - 1) *> countdown(ref)
+   *     }
+   *   }
+   * }}}
    */
   def suspend[R, E, A](stm: => ZSTM[R, E, A]): ZSTM[R, E, A] =
     STM.succeed(stm).flatten
@@ -1423,20 +1749,24 @@ object ZSTM {
   val unit: USTM[Unit] = succeedNow(())
 
   /**
-   * The moral equivalent of `if (!p) exp`
+   * The moral equivalent of `if (!b) stm`: runs `stm` and wraps its result in
+   * `Some` when `b` is `false`, and succeeds with `None` without running `stm`
+   * when `b` is `true`. `b` is evaluated when the transaction runs.
    */
   def unless[R, E, A](b: => Boolean)(stm: => ZSTM[R, E, A]): ZSTM[R, E, Option[A]] =
     suspend(if (b) none else stm.asSome)
 
   /**
-   * The moral equivalent of `if (!p) exp` when `p` has side-effects
+   * The moral equivalent of `if (!b) stm` when `b` is a transaction:
+   * `ZSTM.unlessSTM(b)(stm)` runs `b`, then runs `stm` and wraps its result in
+   * `Some` when `b` succeeds with `false`, and succeeds with `None` otherwise.
    */
   def unlessSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.UnlessSTM[R, E] =
     new ZSTM.UnlessSTM(b)
 
   /**
-   * Feeds elements of type `A` to `f` and accumulates all errors in error
-   * channel or successes in success channel.
+   * Feeds elements of type `A` to `f` from left to right and accumulates all
+   * errors in error channel, in element order, or successes in success channel.
    *
    * This combinator is lossy meaning that if there are errors all successes
    * will be lost. To retain all information please use [[partition]].
@@ -1450,8 +1780,8 @@ object ZSTM {
     }
 
   /**
-   * Feeds elements of type `A` to `f` and accumulates all errors in error
-   * channel or successes in success channel.
+   * Feeds elements of type `A` to `f` from left to right and accumulates all
+   * errors in error channel, in element order, or successes in success channel.
    *
    * This combinator is lossy meaning that if there are errors all successes
    * will be lost. To retain all information please use [[partition]].
@@ -1465,8 +1795,9 @@ object ZSTM {
     }
 
   /**
-   * Feeds elements of type `A` to `f` until it succeeds. Returns first success
-   * or the accumulation of all errors.
+   * Feeds elements of type `A` to `f`, from left to right, until it succeeds.
+   * Returns first success, without feeding the remaining elements, or the
+   * accumulation of all errors when `f` fails for every element.
    */
   def validateFirst[R, E, A, B, Collection[+Element] <: Iterable[Element]](in: Collection[A])(
     f: A => ZSTM[R, E, B]
@@ -1474,36 +1805,61 @@ object ZSTM {
     ZSTM.foreach(in)(f(_).flip).flip
 
   /**
-   * The moral equivalent of `if (p) exp`
+   * The moral equivalent of `if (b) stm`: runs `stm` and wraps its result in
+   * `Some` when `b` is `true`, and succeeds with `None` without running `stm`
+   * when `b` is `false`. `b` is evaluated when the transaction runs.
    */
   def when[R, E, A](b: => Boolean)(stm: => ZSTM[R, E, A]): ZSTM[R, E, Option[A]] =
     suspend(if (b) stm.asSome else none)
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given
-   * value, otherwise does nothing.
+   * value and wraps its result in `Some`; otherwise succeeds with `None`.
    */
   def whenCase[R, E, A, B](a: => A)(pf: PartialFunction[A, ZSTM[R, E, B]]): ZSTM[R, E, Option[B]] =
     suspend(pf.andThen(_.asSome).applyOrElse(a, (_: A) => none))
 
   /**
    * Runs an effect when the supplied `PartialFunction` matches for the given
-   * effectful value, otherwise does nothing.
+   * effectful value and wraps its result in `Some`; otherwise succeeds with
+   * `None`.
    */
   def whenCaseSTM[R, E, A, B](a: ZSTM[R, E, A])(pf: PartialFunction[A, ZSTM[R, E, B]]): ZSTM[R, E, Option[B]] =
     a.flatMap(whenCase(_)(pf))
 
   /**
-   * The moral equivalent of `if (p) exp` when `p` has side-effects
+   * The moral equivalent of `if (b) stm` when `b` is a transaction:
+   * `ZSTM.whenSTM(b)(stm)` runs `b`, then runs `stm` and wraps its result in
+   * `Some` when `b` succeeds with `true`, and succeeds with `None` otherwise.
    */
   def whenSTM[R, E](b: ZSTM[R, E, Boolean]): ZSTM.WhenSTM[R, E] =
     new ZSTM.WhenSTM(b)
 
+  /**
+   * The first step of `ZSTM.acquireReleaseWith`: holds the `acquire`
+   * transaction and takes the `release` workflow.
+   */
   final class Acquire[-R, +E, +A](private val acquire: () => ZSTM[R, E, A]) extends AnyVal {
+
+    /**
+     * Sets the workflow that releases the acquired value, and returns a
+     * `ZSTM.Release` that takes the `use` workflow.
+     */
     def apply[R1](release: A => URIO[R1, Any]): Release[R with R1, E, A] =
       new Release[R with R1, E, A](acquire, release)
   }
+
+  /**
+   * The second step of `ZSTM.acquireReleaseWith`: holds the `acquire`
+   * transaction and the `release` workflow, and takes the `use` workflow.
+   */
   final class Release[-R, +E, +A](acquire: () => ZSTM[R, E, A], release: A => URIO[R, Any]) {
+
+    /**
+     * Commits `acquire`, runs `use` with the acquired value, then runs
+     * `release`. See `ZSTM.acquireReleaseWith` for what is interruptible and
+     * when `release` runs.
+     */
     def apply[R1 <: R, E1 >: E, B](use: A => ZIO[R1, E1, B])(implicit trace: Trace): ZIO[R1, E1, B] =
       ZIO.uninterruptibleMask { restore =>
         var state: State[E, A] = State.Running
@@ -1535,60 +1891,144 @@ object ZSTM {
       }
   }
 
+  /**
+   * Returned by `ZSTM.environmentWith`: fixes the environment type `R` so that
+   * `apply` takes only the function.
+   */
   final class EnvironmentWithPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+
+    /** Accesses the environment of the transaction and applies `f` to it. */
     def apply[A](f: ZEnvironment[R] => A): ZSTM[R, Nothing, A] =
       ZSTM.environment.map(f)
   }
 
+  /**
+   * Returned by `ZSTM.environmentWithSTM`: fixes the environment type `R` so
+   * that `apply` takes only the function.
+   */
   final class EnvironmentWithSTMPartiallyApplied[R](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Accesses the environment of the transaction and runs the transaction that
+     * `f` returns for it.
+     */
     def apply[R1 <: R, E, A](f: ZEnvironment[R] => ZSTM[R1, E, A]): ZSTM[R with R1, E, A] =
       ZSTM.environment.flatMap(f)
   }
 
+  /**
+   * Returned by `ZSTM.serviceAt`: fixes the service type so that `apply` takes
+   * only the key.
+   */
   final class ServiceAtPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Accesses the service at `key` in the `Map[Key, Service]` of the
+     * environment, or `None` when the map has no entry for `key`.
+     */
     def apply[Key](
       key: => Key
     )(implicit tag: EnvironmentTag[Map[Key, Service]]): ZSTM[Map[Key, Service], Nothing, Option[Service]] =
       ZSTM.environmentWith(_.getAt(key))
   }
 
+  /**
+   * Returned by `ZSTM.serviceWith`: fixes the service type so that `apply`
+   * takes only the function.
+   */
   final class ServiceWithPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+
+    /** Accesses the service in the environment and applies `f` to it. */
     def apply[A](f: Service => A)(implicit
       tag: Tag[Service]
     ): ZSTM[Service, Nothing, A] =
       ZSTM.service[Service].map(f)
   }
 
+  /**
+   * Returned by `ZSTM.serviceWithSTM`: fixes the service type so that `apply`
+   * takes only the function.
+   */
   final class ServiceWithSTMPartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Accesses the service in the environment and runs the transaction that `f`
+     * returns for it.
+     */
     def apply[R <: Service, E, A](f: Service => ZSTM[R, E, A])(implicit
       tag: Tag[Service]
     ): ZSTM[R with Service, E, A] =
       ZSTM.service[Service].flatMap(f)
   }
 
+  /**
+   * Returned by `ZSTM.ifSTM`: holds the condition `b` and takes the two
+   * branches.
+   */
   final class IfSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
+
+    /**
+     * Runs the condition, then `onTrue` if it succeeds with `true` and
+     * `onFalse` otherwise.
+     */
     def apply[R1 <: R, E1 >: E, A](onTrue: => ZSTM[R1, E1, A], onFalse: => ZSTM[R1, E1, A]): ZSTM[R1, E1, A] =
       b.flatMap(b => if (b) onTrue else onFalse)
   }
 
+  /**
+   * Returned by `ZSTM.unlessSTM`: holds the condition `b` and takes the
+   * transaction to run.
+   */
   final class UnlessSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
+
+    /**
+     * Runs the condition, then runs `stm` and wraps its result in `Some` when
+     * the condition succeeds with `false`; succeeds with `None` otherwise.
+     */
     def apply[R1 <: R, E1 >: E, A](stm: => ZSTM[R1, E1, A]): ZSTM[R1, E1, Option[A]] =
       b.flatMap(b => if (b) none else stm.asSome)
   }
 
+  /**
+   * Returned by `ZSTM#updateService`: holds the transaction and takes the
+   * function that updates the service of type `M`.
+   */
   final class UpdateService[-R, +E, +A, M](private val self: ZSTM[R, E, A]) {
+
+    /**
+     * Runs the transaction with the service of type `M` in its environment
+     * replaced by the result of `f`.
+     */
     def apply[R1 <: R with M](f: M => M)(implicit tag: Tag[M]): ZSTM[R1, E, A] =
       self.provideSomeEnvironment(_.update(f))
   }
 
+  /**
+   * Returned by `ZSTM#updateServiceAt`: holds the transaction and takes the key
+   * and the function that updates the service at that key.
+   */
   final class UpdateServiceAt[-R, +E, +A, Service](private val self: ZSTM[R, E, A]) extends AnyVal {
+
+    /**
+     * Runs the transaction with the entry for `key` in the `Map[Key, Service]`
+     * of its environment replaced by the result of `f`.
+     */
     def apply[R1 <: R with Map[Key, Service], Key](key: => Key)(
       f: Service => Service
     )(implicit tag: Tag[Map[Key, Service]]): ZSTM[R1, E, A] =
       self.provideSomeEnvironment(_.updateAt(key)(f))
   }
 
+  /**
+   * Returned by `ZSTM.whenSTM`: holds the condition `b` and takes the
+   * transaction to run.
+   */
   final class WhenSTM[R, E](private val b: ZSTM[R, E, Boolean]) {
+
+    /**
+     * Runs the condition, then runs `stm` and wraps its result in `Some` when
+     * the condition succeeds with `true`; succeeds with `None` otherwise.
+     */
     def apply[R1 <: R, E1 >: E, A](stm: => ZSTM[R1, E1, A]): ZSTM[R1, E1, Option[A]] =
       b.flatMap(b => if (b) stm.asSome else none)
   }
@@ -1832,8 +2272,8 @@ object ZSTM {
       }
 
       /**
-       * For the given transaction id, adds the specified todo effect to all
-       * `TRef` values.
+       * For the given transaction id, adds the specified todo effect to every
+       * `TRef` in the journal that has no todo for that id yet.
        *
        * '''NOTE''': This method MUST be invoked while we hold the lock on the
        * journal
@@ -1874,8 +2314,9 @@ object ZSTM {
 
       /**
        * Checks that the value is a success, and commits the changes if the
-       * journal is valid and values have changed. Returns whether the
-       * transaction is valid.
+       * journal is valid and values have changed. When the journal is valid and
+       * the value is not a retry, also submits the todos of the journal's
+       * `TRef`s to the executor. Returns whether the journal is valid.
        *
        * '''NOTE''': This method MUST be invoked while we hold the lock on the
        * journal
@@ -2050,13 +2491,16 @@ object ZSTM {
       def isInvalid: Boolean = !isValid
 
       /**
-       * Determines if the entry is valid. That is, if the version of the `TRef`
-       * is equal to the expected version.
+       * Determines if the entry is valid. That is, if the current value of the
+       * `TRef` is the same reference (`eq`) as the expected value read when the
+       * entry was created.
        */
       def isValid: Boolean = tref.versioned.get.asInstanceOf[AnyRef] eq expected
 
       /**
-       * Determines if the variable has been set in a transaction.
+       * Determines if the variable has been set to a value that is not the same
+       * reference as its previous new value since the entry was created or last
+       * reset by `orElse`.
        */
       def isChanged: Boolean = _isChanged
 
@@ -2067,8 +2511,8 @@ object ZSTM {
     object Entry {
 
       /**
-       * Creates an entry for the journal, given the `TRef` being untracked, the
-       * new value of the `TRef`, and the expected version of the `TRef`.
+       * Creates an entry for the journal for the given `TRef`. The expected
+       * value and the new value both start as the `TRef`'s current value.
        */
       private[stm] def apply[A0 <: AnyRef](tref0: TRef[A0]): Entry =
         new Entry {
