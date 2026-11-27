@@ -22,10 +22,19 @@ import java.util.concurrent.{AbstractExecutorService, TimeUnit}
 import java.{util => ju}
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutorService}
 
+/**
+ * The platform-specific members of `Executor`:
+ * `asExecutionContextExecutorService` on the JVM and Scala Native, and none on
+ * Scala.js.
+ */
 private[zio] trait ExecutorPlatformSpecific { this: Executor =>
 
   /**
-   * Views this `Executor` as a Scala `ExecutionContextExecutorService`.
+   * Views this `Executor` as a Scala `ExecutionContextExecutorService`. Tasks
+   * submitted to the service run on this executor. `shutdown` does nothing and
+   * `shutdownNow` returns an empty list; `isShutdown` and `isTerminated` return
+   * `false` and `awaitTermination` returns `false`, and the service keeps
+   * running tasks after `shutdown`. Every call returns the same instance.
    */
   lazy val asExecutionContextExecutorService: ExecutionContextExecutorService =
     new AbstractExecutorService with ExecutionContextExecutorService {

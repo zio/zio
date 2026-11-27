@@ -26,10 +26,10 @@ import scala.reflect.ClassTag
 /**
  * `ChunkLike` represents the capability for a `Chunk` to extend Scala's
  * collection library. Because of changes to Scala's collection library in 2.13,
- * separate versions of this trait are implemented for 2.12 and 2.13 / Dotty.
- * This allows code in `Chunk` to be written without concern for the
- * implementation details of Scala's collection library to the maximum extent
- * possible.
+ * separate versions of this trait are implemented for Scala 2.12, and for
+ * Scala 2.13 and Scala 3. This allows code in `Chunk` to be written without
+ * concern for the implementation details of Scala's collection library to the
+ * maximum extent possible.
  *
  * Note that `IndexedSeq` is not a referentially transparent interface in that
  * it exposes methods that are partial (e.g. `apply`), allocate mutable state
@@ -42,14 +42,37 @@ private[zio] trait ChunkLike[+A]
     with IndexedSeqLike[A, Chunk[A]]
     with GenericTraversableTemplate[A, Chunk] { self: Chunk[A] =>
 
+  /**
+   * Appends `a1` to the end of this chunk, with `bf` building the result. When
+   * `bf` is not a `ChunkCanBuildFrom` or the reusable builder factory of
+   * `immutable.IndexedSeq`, `immutable.Seq` or `collection.Seq` (for example
+   * `collection.breakOut`, or a `Chunk` whose static type is
+   * `collection.IndexedSeq`), the result has `a1` at the beginning instead.
+   */
   override final def :+[A1 >: A, That](a1: A1)(implicit bf: CanBuildFrom[Chunk[A], A1, That]): That =
     if (isChunkCanBuildFrom[A, A1, That](bf)) append(a1).asInstanceOf[That]
     else super.+:(a1)
 
+  /**
+   * Prepends `a1` to the beginning of this chunk, with `bf` building the
+   * result. When `bf` is not a `ChunkCanBuildFrom` or the reusable builder
+   * factory of `immutable.IndexedSeq`, `immutable.Seq` or `collection.Seq`
+   * (for example `collection.breakOut`, or a `Chunk` whose static type is
+   * `collection.IndexedSeq`), the result has `a1` at the end instead.
+   */
   override final def +:[A1 >: A, That](a1: A1)(implicit bf: CanBuildFrom[Chunk[A], A1, That]): That =
     if (isChunkCanBuildFrom[A, A1, That](bf)) prepend(a1).asInstanceOf[That]
     else super.:+(a1)
 
+  /**
+   * Copies up to `length` elements of this chunk, starting from its first
+   * element, into `dest` at `destPos`, stopping at the end of `dest`. It
+   * copies nothing when `length` is zero or negative, or when `destPos` is at
+   * or past the end of `dest`. It throws a
+   * `java.lang.ArrayIndexOutOfBoundsException` when `destPos` is negative and
+   * there are elements to copy. On Scala 2.13 and Scala 3, it returns the
+   * number of elements copied.
+   */
   override def copyToArray[A1 >: A](dest: Array[A1], destPos: Int, length: Int): Unit = {
     val n = math.max(math.min(math.min(length, self.length), dest.length - destPos), 0)
     if (n > 0) {
@@ -58,12 +81,21 @@ private[zio] trait ChunkLike[+A]
   }
 
   /**
-   * Returns a filtered, mapped subset of the elements of this chunk.
+   * Returns a filtered, mapped subset of the elements of this chunk. Elements
+   * for which `pf` returns `null` are left out of the result. On Scala 2.12,
+   * when the builder factory is not a `ChunkCanBuildFrom` or the reusable one
+   * of `immutable.IndexedSeq`, `immutable.Seq` or `collection.Seq` (for
+   * example `collection.breakOut` to a `Vector`, or a `Chunk` whose static type
+   * is `collection.IndexedSeq`), they are kept.
    */
   override final def collect[B, That](pf: PartialFunction[A, B])(implicit bf: CanBuildFrom[Chunk[A], B, That]): That =
     if (isChunkCanBuildFrom[A, B, That](bf)) collectChunk(pf).asInstanceOf[That]
     else super.collect(pf)
 
+  /**
+   * Returns the `Chunk` companion object, which the Scala 2.12 collection
+   * library uses to create builders for `Chunk`.
+   */
   override def companion: GenericCompanion[Chunk] =
     Chunk
 
@@ -84,7 +116,8 @@ private[zio] trait ChunkLike[+A]
     flatMap(ev(_))
 
   /**
-   * Returns the first index for which the given predicate is satisfied.
+   * Returns the first index for which the given predicate is satisfied, or
+   * `-1` when no element satisfies it.
    */
   override final def indexWhere(f: A => Boolean): Int =
     indexWhere(f, 0)
@@ -99,6 +132,7 @@ private[zio] trait ChunkLike[+A]
   /**
    * Generates a readable string representation of this chunk using the
    * specified start, separator, and end strings.
+   * Throws a `java.lang.NullPointerException` when an element is `null`.
    */
   override final def mkString(start: String, sep: String, end: String): String = {
     val iterator = self.chunkIterator
@@ -125,12 +159,14 @@ private[zio] trait ChunkLike[+A]
   /**
    * Generates a readable string representation of this chunk using the
    * specified separator string.
+   * Throws a `java.lang.NullPointerException` when an element is `null`.
    */
   override final def mkString(sep: String): String =
     mkString("", sep, "")
 
   /**
    * Generates a readable string representation of this chunk.
+   * Throws a `java.lang.NullPointerException` when an element is `null`.
    */
   override final def mkString: String =
     mkString("")
@@ -153,6 +189,13 @@ private[zio] trait ChunkLike[+A]
   override final def size: Int =
     length
 
+  /**
+   * Returns a chunk with the element at `index` replaced by `elem`. Throws a
+   * `java.lang.IndexOutOfBoundsException` when `index` is negative or not less
+   * than the length of the chunk. When `elem` is `null`, index access on the
+   * result does not return it: on `Chunk("a", "b").updated(0, null)`,
+   * `apply(0)` returns `"a"`, while `toList` gives `List(null, "b")`.
+   */
   override final def updated[B >: A, That](index: Int, elem: B)(implicit
     bf: scala.collection.generic.CanBuildFrom[zio.Chunk[A], B, That]
   ): That =
@@ -196,6 +239,12 @@ private[zio] trait ChunkLike[+A]
     }
   }
 
+  /**
+   * Returns the elements sorted with `ord`. With the natural ordering of
+   * `Byte`, `Char`, `Double`, `Float`, `Int`, `Long` or `Short` on a chunk of
+   * that primitive type, it sorts the unboxed values with
+   * `java.util.Arrays.sort`, which puts `-0.0` before `0.0` and `NaN` last.
+   */
   override def sorted[A1 >: A](implicit ord: Ordering[A1]): Chunk[A] = {
     implicit val classTag = Chunk.classTagOf(self)
     (ord, classTag) match {
@@ -249,8 +298,9 @@ private[zio] trait ChunkLike[+A]
     ChunkBuilder.make()
 
   /**
-   * Returns whether the specified `CanBuildFrom` is a `ChunkCanBuildFrom` or a
-   * `CanBuildFrom` of one of the supertypes of `Chunk`.
+   * Returns whether the specified `CanBuildFrom` is a `ChunkCanBuildFrom` or
+   * the reusable `CanBuildFrom` of `immutable.IndexedSeq`, `immutable.Seq` or
+   * `collection.Seq`.
    */
   @inline
   private[this] def isChunkCanBuildFrom[A, B, That](bf: CanBuildFrom[Chunk[A], B, That]): Boolean =
@@ -259,11 +309,14 @@ private[zio] trait ChunkLike[+A]
     ] || (bf eq IndexedSeq.ReusableCBF) || (bf eq collection.immutable.Seq.ReusableCBF) || (bf eq collection.Seq.ReusableCBF)
 }
 
+/**
+ * Implicit `CanBuildFrom` evidence for `Chunk` on Scala 2.12.
+ */
 object ChunkLike {
 
   /**
-   * Provides implicit evidence that that a collection of type `Chunk[A]` can be
-   * build from elements of type `A`.
+   * Provides implicit evidence that a collection of type `Chunk[A]` can be
+   * built from elements of type `A`.
    */
   implicit def chunkCanBuildFrom[A](implicit bf: ChunkCanBuildFrom[A]): ChunkCanBuildFrom[A] =
     bf

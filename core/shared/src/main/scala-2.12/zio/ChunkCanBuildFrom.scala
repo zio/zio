@@ -29,10 +29,22 @@ import scala.collection.generic.CanBuildFrom
  * implementations of transformation operations for chunks.
  */
 sealed abstract class ChunkCanBuildFrom[A] extends CanBuildFrom[Chunk[Any], A, Chunk[A]] {
+  /**
+   * Returns a new `ChunkBuilder` for the target chunk. The instances in
+   * `ChunkCanBuildFrom` ignore `from`.
+   */
   override def apply(from: Chunk[Any]): ChunkBuilder[A]
+  /**
+   * Returns a new `ChunkBuilder` for the target chunk.
+   */
   override def apply(): ChunkBuilder[A]
 }
 
+/**
+ * The `ChunkCanBuildFrom` instances: a generic one for any element type, and
+ * one for each primitive type, whose builder is the matching specialized
+ * [[ChunkBuilder]].
+ */
 object ChunkCanBuildFrom {
 
   /**

@@ -70,6 +70,16 @@ test('Scaladoc runs at the newest Scala 3 the classpath was built with', () => {
   assert.throws(() => scaladocVersion(cp.slice(3)), /no scala3-library_3/);
 });
 
+// zio-direct 1.0.0-RC7 is built with Scala 3.2.1, whose Scaladoc writes no dynamicSideMenu.json (it predates
+// -dynamic-side-menu), so the side menu and the theme have nothing to work with. A newer Scaladoc reads older TASTy.
+test('a library built with a Scala older than 3.3 gets the 3.3 LTS Scaladoc, which writes the dynamic side menu', () => {
+  const lib = (v) => [`/c/org/scala-lang/scala3-library_3/${v}/scala3-library_3-${v}.jar`];
+  assert.equal(scaladocVersion(lib('3.2.1')), '3.3.9');
+  assert.equal(scaladocVersion(lib('3.1.3')), '3.3.9');
+  assert.equal(scaladocVersion(lib('3.3.4')), '3.3.4');
+  assert.equal(scaladocVersion(lib('3.9.0')), '3.9.0');
+});
+
 test('types of zio link to /api, of other libraries built here to theirs, of anything else nowhere', () => {
   const libs = [
     { name: 'zio-json', modules: ['zio-json'] },

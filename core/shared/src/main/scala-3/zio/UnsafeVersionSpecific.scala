@@ -15,11 +15,33 @@
  */
 package zio
 
+/**
+ * Provides the Scala-version-specific members of the `Unsafe` object. It has no
+ * members on Scala 2; Scala 3 adds `unsafely`.
+ */
 private[zio] transparent trait UnsafeVersionSpecific {
 
+  /**
+   * Calls `f` with the `Unsafe` capability in scope and returns its result.
+   *
+   * {{{
+   * // scala-3-only
+   * val answer: Exit[Nothing, Int] =
+   *   Unsafe.unsafely {
+   *     Runtime.default.unsafe.run(ZIO.succeed(42))
+   *   }
+   * // Success(42)
+   * }}}
+   */
   def unsafely[A](f: Unsafe ?=> A): A =
     f(using Unsafe)
 
+  /**
+   * Converts a context function `Unsafe ?=> A` into a function `Unsafe => A`.
+   * The resulting function ignores its argument and calls `f` with the `Unsafe`
+   * value, so a context-function block can be passed where an `Unsafe => A` is
+   * expected.
+   */
   implicit def implicitFunctionIsFunction[A](f: Unsafe ?=> A): Unsafe => A =
     _ => f(using Unsafe)
 }

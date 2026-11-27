@@ -18,15 +18,39 @@ package zio.metrics
 import zio._
 
 /**
- * A `PollingMetric[Type, Out]` is a combination of a metric and an effect that
- * polls for updates to the metric.
+ * A `PollingMetric[R, E, Out]` is a combination of a metric and an effect that
+ * polls for updates to the metric. The poll effect needs an `R`, can fail with
+ * an `E`, and produces values of type `In`; the metric's state has type `Out`.
+ *
+ * {{{
+ * import zio._
+ *
+ * def queueSize(queue: Queue[Int]): PollingMetric[Any, Nothing, MetricState.Gauge] =
+ *   PollingMetric(Metric.gauge("queue_size").contramap[Int](_.toDouble), queue.size)
+ *
+ * val program: ZIO[Scope, Nothing, Unit] =
+ *   for {
+ *     queue <- Queue.unbounded[Int]
+ *     _     <- queueSize(queue).launch(Schedule.fixed(5.seconds))
+ *     _     <- queue.offerAll(List(1, 2, 3))
+ *   } yield ()
+ * }}}
  */
 trait PollingMetric[-R, +E, +Out] { self =>
+
+  /**
+   * The type of the underlying primitive metric.
+   */
   type Type
+
+  /**
+   * The type of the values that `poll` produces and that update the metric.
+   */
   type In
 
   /**
-   * Create a new `PollingMetric` that will poll on the blocking thread pool.
+   * Create a new `PollingMetric` that will poll on the blocking thread pool,
+   * using `ZIO.blocking`.
    */
   final def blocking: PollingMetric.Full[Type, In, R, E, Out] =
     new PollingMetric[R, E, Out] {
@@ -45,7 +69,11 @@ trait PollingMetric[-R, +E, +Out] { self =>
 
   /**
    * Returns an effect that will launch the polling metric in a background
-   * fiber, using the specified schedule.
+   * fiber, using the specified schedule. Each recurrence polls and updates the
+   * metric; the first poll happens after the first delay of the schedule. The
+   * fiber is interrupted when the scope closes, ends with the output of the
+   * schedule when the schedule is done, and fails with the error of the first
+   * poll that fails.
    */
   final def launch[R1 <: R, B](schedule: Schedule[R1, Any, B])(implicit
     trace: Trace
@@ -97,7 +125,15 @@ trait PollingMetric[-R, +E, +Out] { self =>
         self.poll.zip(that.poll)
     }
 }
+
+/**
+ * Constructors for [[PollingMetric]] values.
+ */
 object PollingMetric {
+
+  /**
+   * A `PollingMetric` whose `Type` and `In` type members are known.
+   */
   type Full[Type0, In0, -R, +E, +Out] =
     PollingMetric[R, E, Out] { type Type = Type0; type In = In0 }
 

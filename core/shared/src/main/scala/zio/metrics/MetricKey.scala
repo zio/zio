@@ -23,10 +23,11 @@ import scala.runtime.ScalaRunTime
 
 /**
  * A `MetricKey` is a unique key associated with each metric. The key is based
- * on a combination of the metric type, the name and tags associated with the
- * metric, and any other information to describe a a metric, such as the
- * boundaries of a histogram. In this way, it is impossible to ever create
- * different metrics with conflicting keys.
+ * on a combination of the metric type, the name, tags and description
+ * associated with the metric, and any other information to describe a metric,
+ * such as the boundaries of a histogram. In this way, two metrics with the same
+ * name but a different type, description, tags or histogram boundaries have
+ * different keys, and so separate states.
  */
 sealed case class MetricKey[+Type] private (
   name: String,
@@ -34,8 +35,16 @@ sealed case class MetricKey[+Type] private (
   tags: Set[MetricLabel] = Set.empty
 ) { self =>
 
+  /**
+   * The description given to the constructor of this key, if any. It is part of
+   * the identity of the key.
+   */
   def description: Option[String] = None
 
+  /**
+   * Returns a copy of this key with the specified name, key type and tags,
+   * keeping the description of this key.
+   */
   def copy[Type2](name: String = name, keyType: Type2 = keyType, tags: Set[MetricLabel] = tags): MetricKey[Type2] =
     new MetricKey(name, keyType, tags) {
       override def description: Option[String] = self.description
@@ -69,18 +78,47 @@ sealed case class MetricKey[+Type] private (
     tagged(Set(extraTag) ++ extraTags.toSet)
 
   /**
-   * Returns a new `MetricKey` with the specified tags appended.
+   * Returns a new `MetricKey` with the specified tags appended. With an empty
+   * set it returns this key.
    */
   def tagged(extraTags: Set[MetricLabel]): MetricKey[Type] =
     if (extraTags.isEmpty) self else copy(tags = tags ++ extraTags)
 }
+
+/**
+ * Constructors for the metric keys of the five primitive metric types, and type
+ * aliases for them.
+ */
 object MetricKey {
+
+  /**
+   * A metric key whose metric type is not known statically.
+   */
   type Untyped = MetricKey[Any]
 
-  type Counter   = MetricKey[MetricKeyType.Counter]
-  type Gauge     = MetricKey[MetricKeyType.Gauge]
+  /**
+   * The key of a counter.
+   */
+  type Counter = MetricKey[MetricKeyType.Counter]
+
+  /**
+   * The key of a gauge.
+   */
+  type Gauge = MetricKey[MetricKeyType.Gauge]
+
+  /**
+   * The key of a histogram.
+   */
   type Histogram = MetricKey[MetricKeyType.Histogram]
-  type Summary   = MetricKey[MetricKeyType.Summary]
+
+  /**
+   * The key of a summary.
+   */
+  type Summary = MetricKey[MetricKeyType.Summary]
+
+  /**
+   * The key of a frequency.
+   */
   type Frequency = MetricKey[MetricKeyType.Frequency]
 
   import MetricKeyType.Histogram.Boundaries

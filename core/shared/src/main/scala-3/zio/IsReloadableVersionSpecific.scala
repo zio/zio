@@ -19,20 +19,21 @@ package zio
 import scala.annotation.experimental
 import scala.quoted.*
 
+/**
+ * Provides the derivation of `IsReloadable` instances: a macro on Scala 2 and
+ * an inline given on Scala 3.
+ */
 private[zio] transparent trait IsReloadableVersionSpecific {
 
   /**
-   * Generates a proxy instance of the specified service.
+   * Derives an `IsReloadable[A]` at compile time. The `reloadable` method of
+   * the instance returns a proxy of `A`: each ZIO method or val of the proxy,
+   * when its effect runs, reads the current service from the `ScopedRef` and
+   * forwards the call to it. The proxy therefore follows the changes made with
+   * `ScopedRef#set`. On Scala 3 the instance is marked `@experimental`.
    *
    * @tparam A
    *   The type of the service.
-   * @param service
-   *   The [[zio.ScopedRef]] containing the service for which a proxy is to be
-   *   generated.
-   * @return
-   *   A proxy instance of the service that forwards ZIO method calls to the
-   *   underlying service and allows the service to change its behavior at
-   *   runtime.
    */
   @experimental
   inline given derived[A]: IsReloadable[A] = ${ IsReloadableMacros.derive[A] }

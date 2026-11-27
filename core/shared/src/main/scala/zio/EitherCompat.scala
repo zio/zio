@@ -18,4 +18,8 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * An empty trait that the `zio` and `zio.stm` package objects extend. It has no
+ * members.
+ */
 private[zio] trait EitherCompat {}

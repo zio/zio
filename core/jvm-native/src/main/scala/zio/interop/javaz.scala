@@ -83,8 +83,14 @@ private[zio] object javaz {
       }
 
   /**
-   * WARNING: this uses the blocking Future#get, consider using
-   * `fromCompletionStage`
+   * Imports a `java.util.concurrent.Future` into a `Task`. When the future is
+   * already done, its result is returned without blocking, and a failure is
+   * unwrapped from an `ExecutionException`. A future that is a
+   * `CompletionStage` is handled like `fromCompletionStage`, without blocking.
+   * For any other future, the effect blocks a thread of the blocking pool in
+   * `Future#get` until the future completes, and interrupting the fiber takes
+   * effect after `get` returns. A cancelled future interrupts the fiber. Prefer
+   * `fromCompletionStage` when the source is a `CompletionStage`.
    */
   def fromFutureJava[A](thunk: => Future[A])(implicit trace: Trace): Task[A] =
     ZIO.uninterruptibleMask { restore =>

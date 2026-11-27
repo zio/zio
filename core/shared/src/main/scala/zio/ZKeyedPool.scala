@@ -18,6 +18,30 @@ package zio
 
 import zio.internal.Platform
 
+/**
+ * A `ZKeyedPool[Err, Key, Item]` holds a separate `ZPool` of items for each
+ * key, such as one pool of connections per host. The pool of a key is created
+ * the first time `get` is called with that key.
+ *
+ * {{{
+ * val hosts: UIO[List[String]] =
+ *   ZIO.scoped {
+ *     for {
+ *       counter <- Ref.make(0)
+ *       pool <- ZKeyedPool.make(
+ *                 (host: String) => counter.updateAndGet(_ + 1).map(n => s"\$host#\$n"),
+ *                 2
+ *               )
+ *       first  <- ZIO.scoped(pool.get("db.example.com"))
+ *       second <- ZIO.scoped(pool.get("cache.example.com"))
+ *     } yield List(first, second)
+ *   }
+ * // List(db.example.com#1, cache.example.com#3)
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/resource/zkeyedpool/ ZKeyedPool]]
+ */
 sealed trait ZKeyedPool[+Err, -Key, Item] {
 
   /**
@@ -25,18 +49,30 @@ sealed trait ZKeyedPool[+Err, -Key, Item] {
    * effect. Note that if acquisition fails, then the returned effect will fail
    * for that same reason. Retrying a failed acquisition attempt will repeat the
    * acquisition attempt.
+   *
+   * The first `get` for a key creates the pool of that key. When every item of
+   * the key is in use and its pool has reached its maximum size, `get` waits
+   * until an item of that key is returned.
    */
   def get(key: Key)(implicit trace: Trace): ZIO[Scope, Err, Item]
 
   /**
-   * Invalidates the specified item. This will cause the pool to eventually
-   * reallocate the item, although this reallocation may occur lazily rather
-   * than eagerly.
+   * Invalidates the specified item in the pools of all keys created so far, so
+   * it affects the pool of each key that holds an item equal to it. Such a pool
+   * does not release the item at once: it releases the item when the item is
+   * returned, or when a later `get` for that key takes it from the pool. It
+   * then acquires a replacement when the pool of that key held no more than its
+   * minimum number of items or a `get` for that key is waiting; otherwise that
+   * pool shrinks by one item.
    */
   def invalidate(item: Item)(implicit trace: Trace): UIO[Unit]
 
 }
 
+/**
+ * Constructors of keyed pools, with a fixed size or a size range and time to
+ * live, either the same for every key or computed per key.
+ */
 object ZKeyedPool {
 
   /**
@@ -44,6 +80,9 @@ object ZKeyedPool {
    * `Scope`, which governs the lifetime of the pool. When the pool is shutdown
    * because the `Scope` is closed, the individual items allocated by the pool
    * will be released in some unspecified order.
+   *
+   * The size applies to each key: the first `get` for a key creates a pool of
+   * `size` items for that key.
    */
   def make[Key, Env: EnvironmentTag, Err, Item](get: Key => ZIO[Env, Err, Item], size: => Int)(implicit
     trace: Trace
@@ -57,6 +96,8 @@ object ZKeyedPool {
    * will be released in some unspecified order.
    *
    * The size of the underlying pools can be configured per key.
+   *
+   * The first `get` for a key creates a pool of `size(key)` items for that key.
    */
   def make[Key, Env: EnvironmentTag, Err, Item](get: Key => ZIO[Env, Err, Item], size: Key => Int)(implicit
     trace: Trace
@@ -68,8 +109,12 @@ object ZKeyedPool {
    * live before a pool whose excess items are not being used will be shrunk
    * down to the minimum size. The pool is returned in a `Scope`, which governs
    * the lifetime of the pool. When the pool is shutdown because the `Scope` is
-   * used, the individual items allocated by the pool will be released in some
+   * closed, the individual items allocated by the pool will be released in some
    * unspecified order.
+   *
+   * The range and time to live apply to each key: the first `get` for a key
+   * creates a pool for that key, which shrinks the way `ZPool.make` with a
+   * range and a time to live does.
    */
   def make[Key, Env: EnvironmentTag, Err, Item](
     get: Key => ZIO[Env, Err, Item],
@@ -85,10 +130,14 @@ object ZKeyedPool {
    * live before a pool whose excess items are not being used will be shrunk
    * down to the minimum size. The pool is returned in a `Scope`, which governs
    * the lifetime of the pool. When the pool is shutdown because the `Scope` is
-   * used, the individual items allocated by the pool will be released in some
+   * closed, the individual items allocated by the pool will be released in some
    * unspecified order.
    *
    * The size of the underlying pools can be configured per key.
+   *
+   * The first `get` for a key creates a pool for that key with `range(key)` and
+   * `timeToLive(key)`, which shrinks the way `ZPool.make` with a range and a
+   * time to live does.
    */
   def make[Key, Env: EnvironmentTag, Err, Item](
     get: Key => ZIO[Env, Err, Item],

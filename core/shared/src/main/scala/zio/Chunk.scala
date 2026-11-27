@@ -27,25 +27,50 @@ import scala.reflect.{ClassTag, classTag}
 import scala.util.hashing.MurmurHash3
 
 /**
- * A `Chunk[A]` represents a chunk of values of type `A`. Chunks are usually
- * backed by arrays, but expose a purely functional, safe interface to the
+ * A `Chunk[A]` is an immutable, indexed sequence of values of type `A`. Chunks
+ * are usually backed by arrays, but expose an immutable interface to the
  * underlying elements, and they become lazy on operations that would be costly
  * with arrays, such as repeated concatenation.
+ *
+ * Chunks built from primitive values, for example with
+ * `Chunk.fromArray(Array(1, 2, 3))`, keep them in a primitive array without
+ * boxing. A chunk can also mix primitive types, as in `Chunk[AnyVal](1, 2.0)`.
+ * On the JVM, a `null` that follows a primitive first element becomes that
+ * primitive's zero value: `Chunk[Any](1, null)` is `Chunk(1, 0)`. Besides the
+ * Scala collection operations, a chunk has effectful variants such as `mapZIO`,
+ * `filterZIO` and `foldZIO`.
+ *
+ * {{{
+ * val numbers: Chunk[Int] = Chunk(1, 2, 3) ++ Chunk.fromIterable(List(4, 5))
+ * val evens: Chunk[Int]   = numbers.filter(_ % 2 == 0).map(_ * 10)
+ * val second: Int         = numbers(1)
+ * val asList: List[Int]   = evens.toList
+ * // evens  == Chunk(20, 40)
+ * // second == 2
+ * // asList == List(20, 40)
+ * }}}
  *
  * The implementation of balanced concatenation is based on the one for
  * Conc-Trees in "Conc-Trees for Functional and Parallel Programming" by
  * Aleksandar Prokopec and Martin Odersky.
  * [[http://aleksandar-prokopec.com/resources/docs/lcpc-conc-trees.pdf]]
  *
- * NOTE: For performance reasons `Chunk` does not box primitive types. As a
- * result, it is not safe to construct chunks from heterogeneous primitive
- * types.
+ * @see
+ *   [[https://zio.dev/reference/stream/chunk/ Chunk]]
  */
 sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
+
+  /**
+   * Returns a `Chunk.ChunkIterator` over the elements of this chunk. The caller
+   * passes the index of the next element to each `hasNextAt` and `nextAt` call,
+   * starting at `0`.
+   */
   def chunkIterator: Chunk.ChunkIterator[A]
 
   /**
-   * Returns the concatenation of this chunk with the specified chunk.
+   * Concatenates this chunk with the specified chunk: the result holds the
+   * elements of this chunk followed by those of `that`, so `Chunk(1, 2) ++
+   * Chunk(3)` is `Chunk(1, 2, 3)`.
    */
   final def ++[A1 >: A](that: Chunk[A1]): Chunk[A1] =
     (self, that) match {
@@ -92,31 +117,37 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     }
 
   /**
-   * Returns the concatenation of this chunk with the specified chunk.
+   * Concatenates this chunk with the specified non-empty chunk, and returns the
+   * result as a `NonEmptyChunk`.
    */
   final def ++[A1 >: A](that: NonEmptyChunk[A1]): NonEmptyChunk[A1] =
     that.prepend(self)
 
   /**
-   * Returns the bitwise AND of this chunk and the specified chunk.
+   * Returns the bitwise AND of this chunk of booleans and the specified chunk,
+   * element by element. The result has the length of the shorter chunk.
    */
   def &(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunkByte =
     Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ & _)
 
   /**
-   * Returns the bitwise OR of this chunk and the specified chunk.
+   * Returns the bitwise OR of this chunk of booleans and the specified chunk,
+   * element by element. The result has the length of the shorter chunk.
    */
   def |(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunkByte =
     Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ | _)
 
   /**
-   * Returns the bitwise XOR of this chunk and the specified chunk.
+   * Returns the bitwise XOR (exclusive or) of this chunk of booleans and the
+   * specified chunk, element by element. The result has the length of the
+   * shorter chunk.
    */
   def ^(that: Chunk[Boolean])(implicit ev: A <:< Boolean): Chunk.BitChunkByte =
     Chunk.bitwise(self.asInstanceOf[Chunk[Boolean]], that, _ ^ _)
 
   /**
-   * Returns the bitwise NOT of this chunk.
+   * Returns the bitwise NOT of this chunk of booleans: each `true` becomes
+   * `false` and each `false` becomes `true`.
    */
   def negate(implicit ev: A <:< Boolean): Chunk.BitChunkByte = {
     val bits      = self.length
@@ -148,7 +179,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Crates a base64 encoded string based on the chunk's data.
+   * Encodes this chunk as a Base64 string. A chunk of bytes is encoded as it
+   * is. A chunk of chars is encoded from the low 8 bits of each char, so chars
+   * above U+00FF lose their high bits. A chunk of strings is concatenated and
+   * encoded with the platform's default charset.
    */
   def asBase64String(implicit ev: Chunk.IsText[A]): String = {
     val encoder = java.util.Base64.getEncoder
@@ -163,44 +197,80 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Converts a chunk of ints to a chunk of bits.
+   * Converts a chunk of ints to a chunk of bits, 32 bits per int. With
+   * `BigEndian` the bits of each int start at its most significant bit; with
+   * `LittleEndian` they start at its least significant bit. An empty chunk
+   * gives an empty chunk.
    */
   final def asBitsInt(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Int): Chunk[Boolean] =
     if (self.isEmpty) Chunk.empty
     else Chunk.BitChunkInt(self.asInstanceOf[Chunk[Int]], endianness, 0, length << 5)
 
   /**
-   * Converts a chunk of longs to a chunk of bits.
+   * Converts a chunk of longs to a chunk of bits, 64 bits per long. With
+   * `BigEndian` the bits of each long start at its most significant bit; with
+   * `LittleEndian` they start at its least significant bit. An empty chunk
+   * gives an empty chunk.
    */
   final def asBitsLong(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Long): Chunk[Boolean] =
     if (self.isEmpty) Chunk.empty
     else Chunk.BitChunkLong(self.asInstanceOf[Chunk[Long]], endianness, 0, length << 6)
 
   /**
-   * Converts a chunk of bytes to a chunk of bits.
+   * Converts a chunk of bytes to a chunk of bits, 8 bits per byte, starting at
+   * the most significant bit of each byte. An empty chunk gives an empty chunk.
+   *
+   * {{{
+   * val bits: Chunk[Boolean] = Chunk(5.toByte).asBitsByte
+   * // bits.toBinaryString == "00000101"
+   * }}}
    */
   final def asBitsByte(implicit ev: A <:< Byte): Chunk[Boolean] =
     if (self.isEmpty) Chunk.empty
     else Chunk.BitChunkByte(self.map(ev), 0, length << 3)
 
+  /**
+   * Packs this chunk of booleans into bytes, 8 booleans per byte, the first
+   * boolean of each group in the most significant bit. When the length is not a
+   * multiple of 8, the last byte holds the remaining booleans in its low bits:
+   * `Chunk(true, false, true).toPackedByte` is `Chunk(5)`. It reverses
+   * `asBitsByte`.
+   */
   def toPackedByte(implicit ev: A <:< Boolean): Chunk[Byte] =
     if (self.isEmpty) Chunk.empty
     else Chunk.ChunkPackedBoolean[Byte](self.asInstanceOf[Chunk[Boolean]], 8, Chunk.BitChunk.Endianness.BigEndian)
+
+  /**
+   * Packs this chunk of booleans into ints, 32 booleans per int. With
+   * `BigEndian` the first boolean of each group goes to the most significant
+   * bit, and a last, shorter group fills the low bits. With `LittleEndian` each
+   * int is the bit-reversed `BigEndian` value. It reverses `asBitsInt` with the
+   * same endianness.
+   */
   def toPackedInt(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Boolean): Chunk[Int] =
     if (self.isEmpty) Chunk.empty
     else Chunk.ChunkPackedBoolean[Int](self.asInstanceOf[Chunk[Boolean]], 32, endianness)
+
+  /**
+   * Packs this chunk of booleans into longs, 64 booleans per long. With
+   * `BigEndian` the first boolean of each group goes to the most significant
+   * bit, and a last, shorter group fills the low bits. With `LittleEndian` each
+   * long is the bit-reversed `BigEndian` value. It reverses `asBitsLong` with
+   * the same endianness.
+   */
   def toPackedLong(endianness: Chunk.BitChunk.Endianness)(implicit ev: A <:< Boolean): Chunk[Long] =
     if (self.isEmpty) Chunk.empty
     else Chunk.ChunkPackedBoolean[Long](self.asInstanceOf[Chunk[Boolean]], 64, endianness)
 
   /**
-   * Crates a new String based on this chunks data.
+   * Converts this chunk to a string. A chunk of bytes is decoded with the
+   * platform's default charset, a chunk of chars gives the string of those
+   * chars, and a chunk of strings is concatenated.
    */
   final def asString(implicit ev: Chunk.IsText[A]): String = ev.convert(self)
 
   /**
-   * Crates a new String based on this chunk of bytes and using the given
-   * charset.
+   * Decodes this chunk of bytes into a string with the given charset.
    */
   final def asString(charset: Charset)(implicit ev: A <:< Byte): String = {
     implicit val cls: ClassTag[A] = classTag[Byte].asInstanceOf[ClassTag[A]]
@@ -208,38 +278,51 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Get the element at the specified index.
+   * Returns the element at the specified index as a `Boolean`. On a chunk
+   * backed by an array of `Boolean` values it reads the array without boxing.
    */
   def boolean(index: Int)(implicit ev: A <:< Boolean): Boolean =
     ev(apply(index))
 
   /**
-   * Get the element at the specified index.
+   * Returns the element at the specified index as a `Byte`. On a chunk backed
+   * by an array of `Byte` values it reads the array without boxing.
    */
   def byte(index: Int)(implicit ev: A <:< Byte): Byte =
     ev(apply(index))
 
   /**
-   * Get the element at the specified index.
+   * Returns the element at the specified index as a `Char`. On a chunk backed
+   * by an array of `Char` values it reads the array without boxing.
    */
   def char(index: Int)(implicit ev: A <:< Char): Char =
     ev(apply(index))
 
   /**
-   * Transforms all elements of the chunk for as long as the specified partial
-   * function is defined.
+   * Transforms the elements of the chunk with the specified partial function,
+   * from the first element, for as long as the function is defined, and stops
+   * at the first element where it is not. A `null` result of `pf` also stops
+   * the transformation.
    */
   def collectWhile[B](pf: PartialFunction[A, B]): Chunk[B] =
     if (isEmpty) Chunk.empty else self.materialize.collectWhile(pf)
 
+  /**
+   * Runs the effects that `pf` returns, one element at a time from the first,
+   * for as long as `pf` is defined, and collects their results. Stops at the
+   * first element where `pf` is not defined or whose effect succeeds with
+   * `null`, and fails with the first failure.
+   */
   def collectWhileZIO[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]])(implicit
     trace: Trace
   ): ZIO[R, E, Chunk[B]] =
     if (isEmpty) ZIO.succeed(Chunk.empty) else self.materialize.collectWhileZIO(pf)
 
   /**
-   * Returns a filtered, mapped subset of the elements of this chunk based on a
-   * .
+   * Runs the effect that `pf` returns for each element where `pf` is defined,
+   * one element at a time from the first, and collects the results. Elements
+   * where `pf` is not defined, and effects that succeed with `null`, add
+   * nothing to the result. Fails with the first failure.
    */
   def collectZIO[R, E, B](pf: PartialFunction[A, ZIO[R, E, B]])(implicit trace: Trace): ZIO[R, E, Chunk[B]] =
     if (isEmpty) ZIO.succeed(Chunk.empty) else self.materialize.collectZIO(pf)
@@ -266,7 +349,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     }
 
   /**
-   * Deduplicates adjacent elements that are identical.
+   * Removes adjacent duplicates, compared with `==`, keeping the first element
+   * of each run: `Chunk(1, 1, 2, 2, 1).dedupe` is `Chunk(1, 2, 1)`. `null`
+   * elements at the start of the chunk are removed as well.
    */
   def dedupe: Chunk[A] = {
     val builder = ChunkBuilder.make[A]()
@@ -283,13 +368,18 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Get the element at the specified index.
+   * Returns the element at the specified index as a `Double`. On a chunk backed
+   * by an array of `Double` values it reads the array without boxing.
    */
   def double(index: Int)(implicit ev: A <:< Double): Double =
     ev(apply(index))
 
   /**
-   * Drops the first `n` elements of the chunk.
+   * Drops the first `n` elements of the chunk. Returns the chunk unchanged when
+   * `n <= 0`, and an empty chunk when `n` is at least the length. On the chunks
+   * of booleans that `asBitsByte`, `asBitsInt`, `asBitsLong`, `&`, `|`, `^`,
+   * `negate` and `ChunkBuilder.Boolean` return, a negative `n` gives a chunk
+   * with more elements than the original instead.
    */
   override def drop(n: Int): Chunk[A] = {
     val len = self.length
@@ -309,7 +399,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Drops the last `n` elements of the chunk.
+   * Drops the last `n` elements of the chunk. Returns the chunk unchanged when
+   * `n <= 0`, and an empty chunk when `n` is at least the length.
    */
   override def dropRight(n: Int): Chunk[A] = {
     val len = self.length
@@ -329,7 +420,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Drops all elements until the predicate returns true.
+   * Drops the elements up to and including the first one that satisfies `f`:
+   * `Chunk(1, 2, 3, 4).dropUntil(_ == 2)` is `Chunk(3, 4)`. Returns an empty
+   * chunk when no element satisfies `f`.
    */
   def dropUntil(f: A => Boolean): Chunk[A] = {
     val iterator = self.chunkIterator
@@ -344,7 +437,11 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Drops all elements until the effectful predicate returns true.
+   * Drops the elements up to and including the first one for which the
+   * effectful predicate succeeds with `true`. The predicate runs one element at
+   * a time from the first, and does not run on the elements after that one.
+   * Returns an empty chunk when no element matches, and fails with the first
+   * failure of the predicate.
    */
   def dropUntilZIO[R, E](p: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Chunk[A]] =
     ZIO.suspendSucceed {
@@ -360,7 +457,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     }
 
   /**
-   * Drops all elements so long as the predicate returns true.
+   * Drops the elements at the start of the chunk for as long as the predicate
+   * returns `true`.
    */
   override def dropWhile(f: A => Boolean): Chunk[A] = {
     val iterator = self.chunkIterator
@@ -378,7 +476,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Drops all elements so long as the effectful predicate returns true.
+   * Drops the elements at the start of the chunk for as long as the effectful
+   * predicate succeeds with `true`. The predicate runs one element at a time
+   * from the first, and does not run on the elements after the first `false`.
+   * Fails with the first failure of the predicate.
    */
   def dropWhileZIO[R, E](p: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Chunk[A]] =
     ZIO.suspendSucceed {
@@ -393,6 +494,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       loop(0)
     }
 
+  /**
+   * Returns `true` when `that` is a `Seq` with the same elements in the same
+   * order, compared with `==`, so `Chunk(1, 2) == List(1, 2)` is `true`.
+   */
   override def equals(that: Any): Boolean =
     (self eq that.asInstanceOf[AnyRef]) || (that match {
       case that: Seq[_] => self.corresponds(that)(_ == _)
@@ -416,7 +521,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Returns a filtered subset of this chunk.
+   * Returns the elements of this chunk that satisfy the predicate, in their
+   * original order.
    */
   override def filter(f: A => Boolean): Chunk[A] = {
     val iterator = self.chunkIterator
@@ -435,13 +541,16 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
 
   /**
    * Filters this chunk by the specified effectful predicate, retaining all
-   * elements for which the predicate evaluates to true.
+   * elements for which the predicate evaluates to true. The predicate runs one
+   * element at a time from the first, and the result fails with the first
+   * failure.
    */
   final def filterZIO[R, E](f: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Chunk[A]] =
     ZIO.filter(self)(f)
 
   /**
-   * Returns the first element that satisfies the predicate.
+   * Returns the first element that satisfies the predicate, or `None` when no
+   * element does.
    */
   override final def find(f: A => Boolean): Option[A] = {
     val iterator          = self.chunkIterator
@@ -458,7 +567,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Returns the first element that satisfies the effectful predicate.
+   * Returns the first element that satisfies the effectful predicate, or `None`
+   * when no element does. The predicate runs one element at a time from the
+   * first, and does not run on the elements after the first match.
    */
   final def findZIO[R, E](f: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Option[A]] =
     if (self.isEmpty) ZIO.none
@@ -482,7 +593,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       }
 
   /**
-   * Get the element at the specified index.
+   * Returns the element at the specified index as a `Float`. On a chunk backed
+   * by an array of `Float` values it reads the array without boxing.
    */
   def float(index: Int)(implicit ev: A <:< Float): Float =
     ev(apply(index))
@@ -503,7 +615,15 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Effectfully folds over the elements in this chunk from the left.
+   * Effectfully folds over the elements in this chunk from the left, one
+   * element at a time. Fails with the first failure of `f`, without running it
+   * on the remaining elements.
+   *
+   * {{{
+   * val total: UIO[Int] =
+   *   Chunk(1, 2, 3).foldZIO(0)((sum, n) => ZIO.succeed(sum + n))
+   * // succeeds with 6
+   * }}}
    */
   final def foldZIO[R, E, S](s: S)(f: (S, A) => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] =
     ZIO.foldLeft(self)(s)(f)
@@ -523,7 +643,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
 
   /**
    * Folds over the elements in this chunk from the left. Stops the fold early
-   * when the condition is not fulfilled.
+   * when the condition is not fulfilled: `pred` is checked on the initial state
+   * and after each step, and the fold returns the current state as soon as it
+   * is `false`.
    */
   final def foldWhile[S](s0: S)(pred: S => Boolean)(f: (S, A) => S): S = {
     val iterator = self.chunkIterator
@@ -539,6 +661,12 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     s
   }
 
+  /**
+   * Effectfully folds over the elements in this chunk from the left, for as
+   * long as `pred` holds for the current state. `pred` is checked before each
+   * element; when it is `false`, the fold succeeds with the current state.
+   * Fails with the first failure of `f`.
+   */
   final def foldWhileZIO[R, E, S](
     z: S
   )(pred: S => Boolean)(f: (S, A) => ZIO[R, E, S])(implicit trace: Trace): ZIO[R, E, S] = {
@@ -570,6 +698,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     exists
   }
 
+  /**
+   * Returns a hash code computed from the elements in order. A chunk has the
+   * same hash code as a `List` or a `Vector` with the same elements.
+   */
   override final def hashCode: Int =
     toArrayOrNull match {
       case null  => Vector.empty[AnyRef].hashCode()
@@ -577,11 +709,12 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     }
 
   /**
-   * Returns the first element of this chunk. Note that this method is partial
-   * in that it will throw an exception if the chunk is empty. Consider using
-   * `headOption` to explicitly handle the possibility that the chunk is empty
-   * or iterating over the elements of the chunk in lower level, performance
-   * sensitive code unless you really only need the first element of the chunk.
+   * Returns the first element of this chunk. Note that this method is partial:
+   * it throws an `IndexOutOfBoundsException` if the chunk is empty. Consider
+   * using `headOption` to explicitly handle the possibility that the chunk is
+   * empty, or iterating over the elements of the chunk in lower level,
+   * performance sensitive code unless you really only need the first element of
+   * the chunk.
    */
   override def head: A =
     self(0)
@@ -594,7 +727,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
 
   /**
    * Returns the first index for which the given predicate is satisfied after or
-   * at some given index.
+   * at some given index, or `-1` when there is none. A negative `from` searches
+   * from index `0`.
    */
   override final def indexWhere(f: A => Boolean, from: Int): Int = {
     val iterator = self.chunkIterator
@@ -611,7 +745,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Get the element at the specified index.
+   * Returns the element at the specified index as an `Int`. On a chunk backed
+   * by an array of `Int` values it reads the array without boxing.
    */
   def int(index: Int)(implicit ev: A <:< Int): Int =
     ev(apply(index))
@@ -629,13 +764,15 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     if (isEmpty) None else Some(self(self.length - 1))
 
   /**
-   * Get the element at the specified index.
+   * Returns the element at the specified index as a `Long`. On a chunk backed
+   * by an array of `Long` values it reads the array without boxing.
    */
   def long(index: Int)(implicit ev: A <:< Long): Long =
     ev(apply(index))
 
   /**
-   * Statefully maps over the chunk, producing new elements of type `B`.
+   * Statefully maps over the chunk, producing new elements of type `B`. Returns
+   * the final state and the new elements.
    */
   final def mapAccum[S1, B](s1: S1)(f1: (S1, A) => (S1, B)): (S1, Chunk[B]) = {
     val iterator = self.chunkIterator
@@ -655,7 +792,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
 
   /**
    * Statefully and effectfully maps over the elements of this chunk to produce
-   * new elements.
+   * new elements, one element at a time from the first. Succeeds with the final
+   * state and the new elements, or fails with the first failure.
    */
   final def mapAccumZIO[R, E, S1, B](
     s1: S1
@@ -680,33 +818,46 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     }
 
   /**
-   * Effectfully maps the elements of this chunk.
+   * Effectfully maps the elements of this chunk, one element at a time from the
+   * first. Fails with the first failure of `f`, without running it on the
+   * remaining elements.
+   *
+   * {{{
+   * val doubled: UIO[Chunk[Int]] =
+   *   Chunk(1, 2, 3).mapZIO(n => ZIO.succeed(n * 2))
+   * // succeeds with Chunk(2, 4, 6)
+   * }}}
    */
   final def mapZIO[R, E, B](f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, Chunk[B]] =
     ZIO.foreach(self)(f)
 
   /**
-   * Effectfully maps the elements of this chunk purely for the effects.
+   * Effectfully maps the elements of this chunk purely for the effects, one
+   * element at a time from the first. Fails with the first failure of `f`.
    */
   final def mapZIODiscard[R, E](f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
     ZIO.foreachDiscard(self)(f)
 
   /**
-   * Effectfully maps the elements of this chunk in parallel.
+   * Effectfully maps the elements of this chunk in parallel. The results keep
+   * the order of the elements. When one effect fails, the others are
+   * interrupted and the result fails.
    */
   final def mapZIOPar[R, E, B](f: A => ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, Chunk[B]] =
     ZIO.foreachPar(self)(f)
 
   /**
    * Effectfully maps the elements of this chunk in parallel purely for the
-   * effects.
+   * effects. When one effect fails, the others are interrupted and the result
+   * fails.
    */
   final def mapZIOParDiscard[R, E](f: A => ZIO[R, E, Any])(implicit trace: Trace): ZIO[R, E, Unit] =
     ZIO.foreachParDiscard(self)(f)
 
   /**
    * Materializes a chunk into a chunk backed by an array. This method can
-   * improve the performance of bulk operations.
+   * improve the performance of bulk operations. A chunk that is already backed
+   * by an array is returned as it is, and an empty chunk gives an empty chunk.
    */
   def materialize[A1 >: A]: Chunk[A1] =
     self.toArrayOrNull[A1] match {
@@ -715,7 +866,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     }
 
   /**
-   * Runs `fn` if a `chunk` is not empty or returns default value
+   * Returns `ifEmpty` when this chunk is empty; otherwise applies `fn` to this
+   * chunk as a `NonEmptyChunk`.
    */
   def nonEmptyOrElse[B](ifEmpty: => B)(fn: NonEmptyChunk[A] => B): B =
     if (isEmpty) ifEmpty else fn(NonEmptyChunk.nonEmpty(self))
@@ -737,11 +889,18 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Get the element at the specified index.
+   * Returns the element at the specified index as a `Short`. On a chunk backed
+   * by an array of `Short` values it reads the array without boxing.
    */
   def short(index: Int)(implicit ev: A <:< Short): Short =
     ev(apply(index))
 
+  /**
+   * Returns the elements from index `from` (inclusive) to index `until`
+   * (exclusive). Both indices are clamped to the bounds of the chunk, so
+   * `Chunk(1, 2, 3, 4).slice(-2, 2)` is `Chunk(1, 2)`, and `until <= from`
+   * gives an empty chunk.
+   */
   override def slice(from: Int, until: Int): Chunk[A] = {
     val start = if (from < 0) 0 else if (from > length) length else from
     val end   = if (until < start) start else if (until > length) length else until
@@ -749,11 +908,22 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     else Chunk.Slice(self, start, end - start)
   }
 
+  /**
+   * Splits this chunk into the longest prefix whose elements satisfy `f`, and
+   * the remaining elements.
+   */
   override def span(f: A => Boolean): (Chunk[A], Chunk[A]) =
     splitWhere(!f(_))
 
   /**
-   * Splits this chunk into `n` equally sized chunks.
+   * Splits this chunk into `n` chunks whose sizes differ by at most one, the
+   * longer ones first: `Chunk(1, 2, 3, 4, 5, 6, 7).split(3)` is `Chunk(Chunk(1,
+   * 2, 3), Chunk(4, 5), Chunk(6, 7))`. A chunk with fewer than `n` elements
+   * gives one chunk per element. `split(0)` throws an `ArithmeticException`. A
+   * negative `n` does not split the chunk into `n` parts: `Chunk(1,
+   * 2).split(-5)` is `Chunk(Chunk(1), Chunk(2))`, `Chunk(1, 2, 3, 4,
+   * 5).split(-2)` is `Chunk(Chunk())` and `Chunk(1, 2, 3, 4, 5).split(-3)` is
+   * `Chunk(Chunk(), Chunk())`.
    */
   final def split(n: Int): Chunk[Chunk[A]] = {
     val length    = self.length
@@ -791,13 +961,17 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Returns two splits of this chunk at the specified index.
+   * Returns two splits of this chunk at the specified index: `(take(n),
+   * drop(n))`, the first `n` elements and the rest. A negative `n` gives an
+   * empty first chunk, and an `n` past the end an empty second chunk.
    */
   override final def splitAt(n: Int): (Chunk[A], Chunk[A]) =
     (take(n), drop(n))
 
   /**
-   * Splits this chunk on the first element that matches this predicate.
+   * Splits this chunk on the first element that matches this predicate. That
+   * element starts the second chunk; when no element matches, the second chunk
+   * is empty.
    */
   final def splitWhere(f: A => Boolean): (Chunk[A], Chunk[A]) = {
     val iterator = self.chunkIterator
@@ -815,7 +989,11 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Takes the first `n` elements of the chunk.
+   * Takes the first `n` elements of the chunk. Returns an empty chunk when `n
+   * <= 0`, and the chunk unchanged when `n` is at least the length. On the
+   * chunks of booleans that `asBitsByte`, `asBitsInt`, `asBitsLong`, `&`, `|`,
+   * `^`, `negate` and `ChunkBuilder.Boolean` return, a negative `n` gives a
+   * chunk with a negative length instead.
    */
   override def take(n: Int): Chunk[A] =
     if (n <= 0) Chunk.Empty
@@ -832,7 +1010,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
       }
 
   /**
-   * Takes the last `n` elements of the chunk.
+   * Takes the last `n` elements of the chunk. Returns an empty chunk when `n <=
+   * 0`, and the chunk unchanged when `n` is at least the length.
    */
   override def takeRight(n: Int): Chunk[A] =
     if (n <= 0) Chunk.Empty
@@ -867,7 +1046,10 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Takes all elements so long as the effectual predicate returns true.
+   * Takes all elements so long as the effectual predicate returns true. The
+   * predicate runs one element at a time from the first, and does not run on
+   * the elements after the first `false`. Fails with the first failure of the
+   * predicate.
    */
   def takeWhileZIO[R, E](p: A => ZIO[R, E, Boolean])(implicit trace: Trace): ZIO[R, E, Chunk[A]] =
     ZIO.suspendSucceed {
@@ -883,7 +1065,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     }
 
   /**
-   * Converts the chunk into an array.
+   * Converts the chunk into a new array. A chunk of primitive values gives a
+   * primitive array: `Chunk(1, 2).toArray` is an `Array[Int]`.
    */
   override def toArray[A1 >: A: ClassTag]: Array[A1] = {
     val dest = Array.ofDim[A1](self.length)
@@ -900,7 +1083,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Renders this chunk of bits as a binary string.
+   * Renders this chunk of bits as a binary string, with `1` for `true` and `0`
+   * for `false`.
    */
   final def toBinaryString(implicit ev: A <:< Boolean): String = {
     val bits    = self.asInstanceOf[Chunk[Boolean]]
@@ -909,16 +1093,26 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     builder.toString
   }
 
+  /**
+   * Returns the elements of this chunk as a `List`.
+   */
   override final def toList: List[A] = {
     val listBuilder = List.newBuilder[A]
     fromBuilder(listBuilder)
   }
 
+  /**
+   * Returns the elements of this chunk as a `Vector`.
+   */
   override final def toVector: Vector[A] = {
     val vectorBuilder = Vector.newBuilder[A]
     fromBuilder(vectorBuilder)
   }
 
+  /**
+   * Renders this chunk as `Chunk(` followed by its elements separated by commas
+   * without spaces and `)`, for example `Chunk(1,2,3)`.
+   */
   override final def toString: String =
     toArrayOrNull match {
       case null  => "Chunk()"
@@ -928,7 +1122,9 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   /**
    * Zips this chunk with the specified chunk to produce a new chunk with pairs
    * of elements from each chunk. The returned chunk will have the length of the
-   * shorter chunk.
+   * shorter chunk. Elements are combined with `Zippable`, so tuples are
+   * flattened (`Chunk((1, 2)).zip(Chunk(3))` is `Chunk((1, 2, 3))`) and zipping
+   * with a chunk of `Unit` keeps the elements of this chunk.
    */
   final def zip[B](that: Chunk[B])(implicit zippable: Zippable[A, B]): Chunk[zippable.Out] =
     zipWith(that)(zippable.zip(_, _))
@@ -943,10 +1139,11 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     zipAllWith(that)(a => (Some(a), None), b => (None, Some(b)))((a, b) => (Some(a), Some(b)))
 
   /**
-   * Zips with chunk with the specified chunk to produce a new chunk with pairs
+   * Zips this chunk with the specified chunk to produce a new chunk with pairs
    * of elements from each chunk combined using the specified function `both`.
    * If one chunk is shorter than the other uses the specified function `left`
-   * or `right` to map the element that does exist to the result type.
+   * or `right` to map the element that does exist to the result type. The
+   * returned chunk has the length of the longer chunk.
    */
   final def zipAllWith[B, C](
     that: Chunk[B]
@@ -983,7 +1180,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Zips this chunk with the specified chunk using the specified combiner.
+   * Zips this chunk with the specified chunk using the specified combiner. The
+   * returned chunk has the length of the shorter chunk.
    */
   final def zipWith[B, C](that: Chunk[B])(f: (A, B) => C): Chunk[C] = {
     val length = self.length.min(that.length)
@@ -1042,7 +1240,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * Returns a filtered, mapped subset of the elements of this chunk.
+   * Returns a filtered, mapped subset of the elements of this chunk. A `null`
+   * result of `pf` adds nothing to the result.
    */
   protected def collectChunk[B](pf: PartialFunction[A, B]): Chunk[B] =
     if (isEmpty) Chunk.empty else self.materialize.collectChunk(pf)
@@ -1084,7 +1283,8 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
     Chunk.empty
 
   /**
-   * Updates an element at the specified index of the chunk.
+   * Returns a chunk with the element at the specified index replaced by `a1`.
+   * Throws an `IndexOutOfBoundsException` when the index is out of range.
    */
   protected def update[A1 >: A](index: Int, a1: A1): Chunk[A1] =
     if (index < 0 || index >= length) throw new IndexOutOfBoundsException(s"Update chunk access to $index")
@@ -1111,17 +1311,24 @@ sealed abstract class Chunk[+A] extends ChunkLike[A] with Serializable { self =>
   }
 
   /**
-   * A helper function that converts the chunk into an array if it is not empty.
+   * A helper function that converts the chunk into an array, or returns `null`
+   * for the `Empty` chunk.
    */
   private final def toArrayOrNull[A1 >: A]: Array[A1] =
     if (self eq Chunk.Empty) null
     else self.toArray(Chunk.classTagOf(self))
 }
 
+/**
+ * Creates chunks: from values (`Chunk(1, 2, 3)`), from Scala and Java
+ * collections, iterators, arrays and NIO buffers, or by repeating or unfolding
+ * a function. It also holds the array-backed chunk types and
+ * `Chunk.ChunkIterator`.
+ */
 object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
   /**
-   * Returns a chunk from a number of values.
+   * Returns a chunk from a number of values. `Chunk()` is the empty chunk.
    */
   override def apply[A](as: A*): Chunk[A] =
     if (as.size == 1) single(as.head) else fromIterable(as)
@@ -1172,12 +1379,13 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     Empty
 
   /**
-   * Returns a chunk backed by an array.
+   * Returns a chunk backed by an array. The array is not copied, so later
+   * writes to it change the chunk.
    *
    * '''WARNING''': The array must not be mutated after creating the chunk. If
    * you're unsure whether the array will be mutated, prefer
-   * `Chunk.fromIterable` or `Chunk.from` which create a copy of the provided
-   * array.
+   * `Chunk.fromIterable`, or `Chunk.from` on Scala 2.13 and 3, which create a
+   * copy of the provided array.
    */
   def fromArray[A](array: Array[A]): Chunk[A] =
     (if (array.isEmpty) Empty
@@ -1195,7 +1403,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
        }).asInstanceOf[Chunk[A]]
 
   /**
-   * Returns a chunk backed by a [[java.nio.ByteBuffer]].
+   * Returns a chunk with a copy of the remaining bytes of a
+   * [[java.nio.ByteBuffer]], from its position to its limit. The position of
+   * the buffer is left unchanged.
    */
   def fromByteBuffer(buffer: ByteBuffer): Chunk[Byte] = {
     val dest = Array.ofDim[Byte](buffer.remaining())
@@ -1206,7 +1416,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   }
 
   /**
-   * Returns a chunk backed by a [[java.nio.CharBuffer]].
+   * Returns a chunk with a copy of the remaining chars of a
+   * [[java.nio.CharBuffer]], from its position to its limit. The position of
+   * the buffer is left unchanged.
    */
   def fromCharBuffer(buffer: CharBuffer): Chunk[Char] = {
     val dest = Array.ofDim[Char](buffer.remaining())
@@ -1217,7 +1429,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   }
 
   /**
-   * Returns a chunk backed by a [[java.nio.DoubleBuffer]].
+   * Returns a chunk with a copy of the remaining doubles of a
+   * [[java.nio.DoubleBuffer]], from its position to its limit. The position of
+   * the buffer is left unchanged.
    */
   def fromDoubleBuffer(buffer: DoubleBuffer): Chunk[Double] = {
     val dest = Array.ofDim[Double](buffer.remaining())
@@ -1228,7 +1442,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   }
 
   /**
-   * Returns a chunk backed by a [[java.nio.FloatBuffer]].
+   * Returns a chunk with a copy of the remaining floats of a
+   * [[java.nio.FloatBuffer]], from its position to its limit. The position of
+   * the buffer is left unchanged.
    */
   def fromFloatBuffer(buffer: FloatBuffer): Chunk[Float] = {
     val dest = Array.ofDim[Float](buffer.remaining())
@@ -1239,7 +1455,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   }
 
   /**
-   * Returns a chunk backed by a [[java.nio.IntBuffer]].
+   * Returns a chunk with a copy of the remaining ints of a
+   * [[java.nio.IntBuffer]], from its position to its limit. The position of the
+   * buffer is left unchanged.
    */
   def fromIntBuffer(buffer: IntBuffer): Chunk[Int] = {
     val dest = Array.ofDim[Int](buffer.remaining())
@@ -1250,7 +1468,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   }
 
   /**
-   * Returns a chunk backed by a [[java.nio.LongBuffer]].
+   * Returns a chunk with a copy of the remaining longs of a
+   * [[java.nio.LongBuffer]], from its position to its limit. The position of
+   * the buffer is left unchanged.
    */
   def fromLongBuffer(buffer: LongBuffer): Chunk[Long] = {
     val dest = Array.ofDim[Long](buffer.remaining())
@@ -1261,7 +1481,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   }
 
   /**
-   * Returns a chunk backed by a [[java.nio.ShortBuffer]].
+   * Returns a chunk with a copy of the remaining shorts of a
+   * [[java.nio.ShortBuffer]], from its position to its limit. The position of
+   * the buffer is left unchanged.
    */
   def fromShortBuffer(buffer: ShortBuffer): Chunk[Short] = {
     val dest = Array.ofDim[Short](buffer.remaining())
@@ -1272,7 +1494,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   }
 
   /**
-   * Returns a chunk backed by an iterable.
+   * Returns a chunk with the elements of an iterable. A `Chunk` is returned as
+   * it is and a `Vector` is wrapped without copying; other collections,
+   * including arrays, are copied, so later writes to a mutable source do not
+   * change the chunk.
    */
   def fromIterable[A](it: Iterable[A]): Chunk[A] =
     it match {
@@ -1298,7 +1523,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     } else Empty
 
   /**
-   * Returns a chunk backed by a Java iterable.
+   * Returns a chunk with a copy of the elements of a Java iterable, in
+   * iteration order.
    */
   def fromJavaIterable[A](iterable: java.lang.Iterable[A]): Chunk[A] = {
     val builder = ChunkBuilder.make[A]()
@@ -1324,6 +1550,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     builder.result()
   }
 
+  /**
+   * Returns a chunk of `n` elements, evaluating `elem` once for each element.
+   * Returns an empty chunk when `n <= 0`.
+   */
   override def fill[A](n: Int)(elem: => A): Chunk[A] =
     if (n <= 0) Chunk.empty
     else {
@@ -1338,6 +1568,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       builder.result()
     }
 
+  /**
+   * Returns a chunk of `len` elements: `start`, `f(start)`, `f(f(start))` and
+   * so on. Returns an empty chunk when `len <= 0`.
+   */
   override def iterate[A](start: A, len: Int)(f: A => A): Chunk[A] =
     if (len <= 0) Chunk.empty
     else {
@@ -1354,11 +1588,15 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       builder.result()
     }
 
+  /**
+   * Returns a new, empty `ChunkBuilder` that builds a chunk element by element.
+   */
   def newBuilder[A]: ChunkBuilder[A] =
     ChunkBuilder.make()
 
   /**
-   * Returns a singleton chunk, eagerly evaluated.
+   * Returns a chunk with the single element `a`, which is evaluated before the
+   * call.
    */
   def single[A](a: A): Chunk[A] =
     Singleton(a)
@@ -1387,7 +1625,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
   /**
    * Constructs a `Chunk` by repeatedly applying the effectual function `f` as
-   * long as it returns `Some`.
+   * long as it returns `Some`. Fails with the first failure of `f`.
    */
   def unfoldZIO[R, E, A, S](
     s: S
@@ -1404,7 +1642,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
 
   /**
-   * The unit chunk
+   * A chunk with the single element `()`.
    */
   val unit: Chunk[Unit] = single(())
 
@@ -1426,14 +1664,39 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       case _: BitChunk[_]           => ClassTag.Boolean.asInstanceOf[ClassTag[A]]
     }
 
+  /**
+   * Evidence that a chunk of `T` can be converted to text, used by
+   * `Chunk#asString` and `Chunk#asBase64String`. Instances exist for `Byte`,
+   * `Char` and `String`.
+   */
   sealed trait IsText[-T] {
+
+    /**
+     * Converts a chunk of `T` to a string.
+     */
     def convert(chunk: Chunk[T]): String
   }
+
+  /**
+   * The `IsText` instances for `Byte`, `Char` and `String`.
+   */
   object IsText {
+
+    /**
+     * Decodes a chunk of bytes with the platform's default charset.
+     */
     implicit val byteIsText: IsText[Byte] =
       new IsText[Byte] { def convert(chunk: Chunk[Byte]): String = new String(chunk.toArray) }
+
+    /**
+     * Returns the string made of the chars of the chunk.
+     */
     implicit val charIsText: IsText[Char] =
       new IsText[Char] { def convert(chunk: Chunk[Char]): String = new String(chunk.toArray) }
+
+    /**
+     * Concatenates the strings of the chunk.
+     */
     implicit val strIsText: IsText[String] =
       new IsText[String] { def convert(chunk: Chunk[String]): String = chunk.toArray.mkString }
   }
@@ -1903,16 +2166,43 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       vector.drop(srcPos).copyToArray(dest, destPos, length)
   }
 
+  /**
+   * Bit operations on a primitive type `T` (`Byte`, `Int` or `Long`), used to
+   * pack chunks of booleans.
+   */
   private[zio] trait BitOps[T] {
+
+    /** The value with no bit set. */
     def zero: T
+
+    /** The value `1`. */
     def one: T
+
+    /**
+     * Reverses the order of the bits of `a`. The `Byte` instance throws an
+     * `UnsupportedOperationException`.
+     */
     def reverse(a: T): T
+
+    /** Shifts `x` left by `n` bits. */
     def <<(x: T, n: Int): T
+
+    /** Shifts `x` right by `n` bits, keeping the sign bit. */
     def >>(x: T, n: Int): T
+
+    /** Returns the bitwise OR of `x` and `y`. */
     def |(x: T, y: T): T
+
+    /** Returns the bitwise AND of `x` and `y`. */
     def &(x: T, y: T): T
+
+    /** Returns the bitwise XOR (exclusive or) of `x` and `y`. */
     def ^(x: T, y: T): T
+
+    /** Returns the bitwise NOT of `x`. */
     def invert(x: T): T
+
+    /** The `ClassTag` of `T`. */
     def classTag: ClassTag[T]
   }
 
@@ -2063,10 +2353,30 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
   }
 
+  /**
+   * Holds the `Endianness` type used by `Chunk#asBitsInt`, `Chunk#asBitsLong`,
+   * `Chunk#toPackedInt` and `Chunk#toPackedLong`.
+   */
   object BitChunk {
+
+    /**
+     * The bit order used to convert between ints or longs and their bits.
+     */
     sealed trait Endianness
+
+    /**
+     * The two bit orders, `BigEndian` and `LittleEndian`.
+     */
     object Endianness {
-      case object BigEndian    extends Endianness
+
+      /**
+       * The bits of each int or long start at its most significant bit.
+       */
+      case object BigEndian extends Endianness
+
+      /**
+       * The bits of each int or long start at its least significant bit.
+       */
       case object LittleEndian extends Endianness
     }
 
@@ -2474,8 +2784,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
 
     /**
-     * Materializes a chunk into a chunk backed by an array. This method can
-     * improve the performance of bulk operations.
+     * Returns the empty chunk itself: an empty chunk needs no backing array.
      */
     override def materialize[A1]: Chunk[A1] =
       Empty
@@ -2484,30 +2793,79 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       Array.empty
   }
 
+  /**
+   * A chunk backed by an array of references. It holds the `length` elements of
+   * `array` that start at index `offset`, without copying them.
+   * `Chunk.fromArray` creates it with offset `0` and the full length of the
+   * array. With another offset or length, some operations still read the whole
+   * array: for example `foreach`, `iterator` and `foldRight` visit every
+   * element of the array, and `toArray` copies from index `0`.
+   */
   final case class AnyRefArray[A <: AnyRef](array: Array[A], offset: Int, override val length: Int)
       extends Arr[A]
       with ChunkIterator[A] { self =>
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)` without
+     * checking `index` against `length`.
+     */
     def apply(index: Int): A =
       array(index + offset)
+
+    /**
+     * Returns this chunk, which is its own `ChunkIterator`.
+     */
     def chunkIterator: ChunkIterator[A] =
       self
+
+    /**
+     * Returns `true` when `index` is less than `length`.
+     */
     def hasNextAt(index: Int): Boolean =
       index < length
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)`.
+     */
     def nextAt(index: Int): A =
       array(index + offset)
+
+    /**
+     * Returns an iterator over at most `length` elements starting at `offset`,
+     * sharing the array. Returns this chunk when the slice covers all of it,
+     * and an empty iterator when `offset` is at least the length of this chunk
+     * or `length <= 0`.
+     */
     def sliceIterator(offset: Int, length: Int): ChunkIterator[A] =
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
       else AnyRefArray(array, self.offset + offset, self.length - offset min length)
   }
 
+  /**
+   * A chunk backed by an array of `Byte` values. It holds the `length` elements
+   * of `array` that start at index `offset`, without copying them.
+   * `Chunk.fromArray` creates it with offset `0` and the full length of the
+   * array. With another offset or length, some operations still read the whole
+   * array: for example `foreach`, `iterator` and `foldRight` visit every
+   * element of the array, and `toArray` copies from index `0`.
+   */
   final case class ByteArray(array: Array[Byte], offset: Int, override val length: Int)
       extends Arr[Byte]
       with ChunkIterator[Byte] { self =>
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)` without
+     * checking `index` against `length`.
+     */
     def apply(index: Int): Byte =
       array(index + offset)
     override def byte(index: Int)(implicit ev: Byte <:< Byte): Byte =
       array(index + offset)
+
+    /**
+     * Returns this chunk, which is its own `ChunkIterator`.
+     */
     def chunkIterator: ChunkIterator[Byte] =
       self
     override def filter(f: Byte => Boolean): Chunk[Byte] = {
@@ -2528,6 +2886,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
       builder.result()
     }
+
+    /**
+     * Returns `true` when `index` is less than `length`.
+     */
     def hasNextAt(index: Int): Boolean =
       index < length
     override protected def mapChunk[B](f: Byte => B): Chunk[B] = {
@@ -2559,8 +2921,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)`.
+     */
     def nextAt(index: Int): Byte =
       array(index + offset)
+
+    /**
+     * Returns an iterator over at most `length` elements starting at `offset`,
+     * sharing the array. Returns this chunk when the slice covers all of it,
+     * and an empty iterator when `offset` is at least the length of this chunk
+     * or `length <= 0`.
+     */
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Byte] =
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
@@ -2578,13 +2951,30 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
   }
 
+  /**
+   * A chunk backed by an array of `Char` values. It holds the `length` elements
+   * of `array` that start at index `offset`, without copying them.
+   * `Chunk.fromArray` creates it with offset `0` and the full length of the
+   * array. With another offset or length, some operations still read the whole
+   * array: for example `foreach`, `iterator` and `foldRight` visit every
+   * element of the array, and `toArray` copies from index `0`.
+   */
   final case class CharArray(array: Array[Char], offset: Int, override val length: Int)
       extends Arr[Char]
       with ChunkIterator[Char] { self =>
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)` without
+     * checking `index` against `length`.
+     */
     def apply(index: Int): Char =
       array(index + offset)
     override def char(index: Int)(implicit ev: Char <:< Char): Char =
       array(index + offset)
+
+    /**
+     * Returns this chunk, which is its own `ChunkIterator`.
+     */
     def chunkIterator: ChunkIterator[Char] =
       self
     override def filter(f: Char => Boolean): Chunk[Char] = {
@@ -2605,6 +2995,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
       builder.result()
     }
+
+    /**
+     * Returns `true` when `index` is less than `length`.
+     */
     def hasNextAt(index: Int): Boolean =
       index < length
     override protected def mapChunk[B](f: Char => B): Chunk[B] = {
@@ -2636,8 +3030,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)`.
+     */
     def nextAt(index: Int): Char =
       array(index + offset)
+
+    /**
+     * Returns an iterator over at most `length` elements starting at `offset`,
+     * sharing the array. Returns this chunk when the slice covers all of it,
+     * and an empty iterator when `offset` is at least the length of this chunk
+     * or `length <= 0`.
+     */
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Char] =
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
@@ -2655,11 +3060,28 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
   }
 
+  /**
+   * A chunk backed by an array of `Int` values. It holds the `length` elements
+   * of `array` that start at index `offset`, without copying them.
+   * `Chunk.fromArray` creates it with offset `0` and the full length of the
+   * array. With another offset or length, some operations still read the whole
+   * array: for example `foreach`, `iterator` and `foldRight` visit every
+   * element of the array, and `toArray` copies from index `0`.
+   */
   final case class IntArray(array: Array[Int], offset: Int, override val length: Int)
       extends Arr[Int]
       with ChunkIterator[Int] { self =>
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)` without
+     * checking `index` against `length`.
+     */
     def apply(index: Int): Int =
       array(index + offset)
+
+    /**
+     * Returns this chunk, which is its own `ChunkIterator`.
+     */
     def chunkIterator: ChunkIterator[Int] =
       self
     override def filter(f: Int => Boolean): Chunk[Int] = {
@@ -2680,6 +3102,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
       builder.result()
     }
+
+    /**
+     * Returns `true` when `index` is less than `length`.
+     */
     def hasNextAt(index: Int): Boolean =
       index < length
     override def int(index: Int)(implicit ev: Int <:< Int): Int =
@@ -2713,8 +3139,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)`.
+     */
     def nextAt(index: Int): Int =
       array(index + offset)
+
+    /**
+     * Returns an iterator over at most `length` elements starting at `offset`,
+     * sharing the array. Returns this chunk when the slice covers all of it,
+     * and an empty iterator when `offset` is at least the length of this chunk
+     * or `length <= 0`.
+     */
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Int] =
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
@@ -2732,11 +3169,28 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
   }
 
+  /**
+   * A chunk backed by an array of `Long` values. It holds the `length` elements
+   * of `array` that start at index `offset`, without copying them.
+   * `Chunk.fromArray` creates it with offset `0` and the full length of the
+   * array. With another offset or length, some operations still read the whole
+   * array: for example `foreach`, `iterator` and `foldRight` visit every
+   * element of the array, and `toArray` copies from index `0`.
+   */
   final case class LongArray(array: Array[Long], offset: Int, override val length: Int)
       extends Arr[Long]
       with ChunkIterator[Long] { self =>
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)` without
+     * checking `index` against `length`.
+     */
     def apply(index: Int): Long =
       array(index + offset)
+
+    /**
+     * Returns this chunk, which is its own `ChunkIterator`.
+     */
     def chunkIterator: ChunkIterator[Long] =
       self
     override def filter(f: Long => Boolean): Chunk[Long] = {
@@ -2757,6 +3211,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
       builder.result()
     }
+
+    /**
+     * Returns `true` when `index` is less than `length`.
+     */
     def hasNextAt(index: Int): Boolean =
       index < length
     override def long(index: Int)(implicit ev: Long <:< Long): Long =
@@ -2790,8 +3248,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)`.
+     */
     def nextAt(index: Int): Long =
       array(index + offset)
+
+    /**
+     * Returns an iterator over at most `length` elements starting at `offset`,
+     * sharing the array. Returns this chunk when the slice covers all of it,
+     * and an empty iterator when `offset` is at least the length of this chunk
+     * or `length <= 0`.
+     */
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Long] =
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
@@ -2809,11 +3278,28 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
   }
 
+  /**
+   * A chunk backed by an array of `Double` values. It holds the `length`
+   * elements of `array` that start at index `offset`, without copying them.
+   * `Chunk.fromArray` creates it with offset `0` and the full length of the
+   * array. With another offset or length, some operations still read the whole
+   * array: for example `foreach`, `iterator` and `foldRight` visit every
+   * element of the array, and `toArray` copies from index `0`.
+   */
   final case class DoubleArray(array: Array[Double], offset: Int, override val length: Int)
       extends Arr[Double]
       with ChunkIterator[Double] { self =>
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)` without
+     * checking `index` against `length`.
+     */
     def apply(index: Int): Double =
       array(index + offset)
+
+    /**
+     * Returns this chunk, which is its own `ChunkIterator`.
+     */
     def chunkIterator: ChunkIterator[Double] =
       self
     override def double(index: Int)(implicit ev: Double <:< Double): Double =
@@ -2836,6 +3322,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
       builder.result()
     }
+
+    /**
+     * Returns `true` when `index` is less than `length`.
+     */
     def hasNextAt(index: Int): Boolean =
       index < length
     override protected def mapChunk[B](f: Double => B): Chunk[B] = {
@@ -2867,8 +3357,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)`.
+     */
     def nextAt(index: Int): Double =
       array(index + offset)
+
+    /**
+     * Returns an iterator over at most `length` elements starting at `offset`,
+     * sharing the array. Returns this chunk when the slice covers all of it,
+     * and an empty iterator when `offset` is at least the length of this chunk
+     * or `length <= 0`.
+     */
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Double] =
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
@@ -2886,11 +3387,28 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
   }
 
+  /**
+   * A chunk backed by an array of `Float` values. It holds the `length`
+   * elements of `array` that start at index `offset`, without copying them.
+   * `Chunk.fromArray` creates it with offset `0` and the full length of the
+   * array. With another offset or length, some operations still read the whole
+   * array: for example `foreach`, `iterator` and `foldRight` visit every
+   * element of the array, and `toArray` copies from index `0`.
+   */
   final case class FloatArray(array: Array[Float], offset: Int, override val length: Int)
       extends Arr[Float]
       with ChunkIterator[Float] { self =>
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)` without
+     * checking `index` against `length`.
+     */
     def apply(index: Int): Float =
       array(index + offset)
+
+    /**
+     * Returns this chunk, which is its own `ChunkIterator`.
+     */
     def chunkIterator: ChunkIterator[Float] =
       self
     override def filter(f: Float => Boolean): Chunk[Float] = {
@@ -2913,6 +3431,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
     override def float(index: Int)(implicit ev: Float <:< Float): Float =
       array(index + offset)
+
+    /**
+     * Returns `true` when `index` is less than `length`.
+     */
     def hasNextAt(index: Int): Boolean =
       index < length
     override protected def mapChunk[B](f: Float => B): Chunk[B] = {
@@ -2944,8 +3466,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)`.
+     */
     def nextAt(index: Int): Float =
       array(index + offset)
+
+    /**
+     * Returns an iterator over at most `length` elements starting at `offset`,
+     * sharing the array. Returns this chunk when the slice covers all of it,
+     * and an empty iterator when `offset` is at least the length of this chunk
+     * or `length <= 0`.
+     */
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Float] =
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
@@ -2963,11 +3496,28 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
   }
 
+  /**
+   * A chunk backed by an array of `Short` values. It holds the `length`
+   * elements of `array` that start at index `offset`, without copying them.
+   * `Chunk.fromArray` creates it with offset `0` and the full length of the
+   * array. With another offset or length, some operations still read the whole
+   * array: for example `foreach`, `iterator` and `foldRight` visit every
+   * element of the array, and `toArray` copies from index `0`.
+   */
   final case class ShortArray(array: Array[Short], offset: Int, override val length: Int)
       extends Arr[Short]
       with ChunkIterator[Short] { self =>
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)` without
+     * checking `index` against `length`.
+     */
     def apply(index: Int): Short =
       array(index + offset)
+
+    /**
+     * Returns this chunk, which is its own `ChunkIterator`.
+     */
     def chunkIterator: ChunkIterator[Short] =
       self
     override def filter(f: Short => Boolean): Chunk[Short] = {
@@ -2988,6 +3538,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
       builder.result()
     }
+
+    /**
+     * Returns `true` when `index` is less than `length`.
+     */
     def hasNextAt(index: Int): Boolean =
       index < length
     override protected def mapChunk[B](f: Short => B): Chunk[B] = {
@@ -3019,10 +3573,21 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)`.
+     */
     def nextAt(index: Int): Short =
       array(index + offset)
     override def short(index: Int)(implicit ev: Short <:< Short): Short =
       array(index + offset)
+
+    /**
+     * Returns an iterator over at most `length` elements starting at `offset`,
+     * sharing the array. Returns this chunk when the slice covers all of it,
+     * and an empty iterator when `offset` is at least the length of this chunk
+     * or `length <= 0`.
+     */
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Short] =
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
@@ -3040,13 +3605,30 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     }
   }
 
+  /**
+   * A chunk backed by an array of `Boolean` values. It holds the `length`
+   * elements of `array` that start at index `offset`, without copying them.
+   * `Chunk.fromArray` creates it with offset `0` and the full length of the
+   * array. With another offset or length, some operations still read the whole
+   * array: for example `foreach`, `iterator` and `foldRight` visit every
+   * element of the array, and `toArray` copies from index `0`.
+   */
   final case class BooleanArray(array: Array[Boolean], offset: Int, length: Int)
       extends Arr[Boolean]
       with ChunkIterator[Boolean] { self =>
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)` without
+     * checking `index` against `length`.
+     */
     def apply(index: Int): Boolean =
       array(index + offset)
     override def boolean(index: Int)(implicit ev: Boolean <:< Boolean): Boolean =
       array(index + offset)
+
+    /**
+     * Returns this chunk, which is its own `ChunkIterator`.
+     */
     def chunkIterator: ChunkIterator[Boolean] =
       self
     override def filter(f: Boolean => Boolean): Chunk[Boolean] = {
@@ -3067,6 +3649,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
 
       builder.result()
     }
+
+    /**
+     * Returns `true` when `index` is less than `length`.
+     */
     def hasNextAt(index: Int): Boolean =
       index < length
     override protected def mapChunk[B](f: Boolean => B): Chunk[B] = {
@@ -3098,8 +3684,19 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
         Chunk.fromArray(newArr)
       }
     }
+
+    /**
+     * Returns the element at `index`, read from `array(index + offset)`.
+     */
     def nextAt(index: Int): Boolean =
       array(index + offset)
+
+    /**
+     * Returns an iterator over at most `length` elements starting at `offset`,
+     * sharing the array. Returns this chunk when the slice covers all of it,
+     * and an empty iterator when `offset` is at least the length of this chunk
+     * or `length <= 0`.
+     */
     def sliceIterator(offset: Int, length: Int): ChunkIterator[Boolean] =
       if (offset <= 0 && length >= self.length) self
       else if (offset >= self.length || length <= 0) ChunkIterator.empty
@@ -3129,7 +3726,7 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
   sealed trait ChunkIterator[+A] { self =>
 
     /**
-     * Checks if the chunk iterator has another element.
+     * Checks if the chunk iterator has an element at `index`.
      */
     def hasNextAt(index: Int): Boolean
 
@@ -3144,7 +3741,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
     def nextAt(index: Int): A
 
     /**
-     * Returns a new iterator that is a slice of this iterator.
+     * Returns an iterator over at most `length` elements of this iterator,
+     * starting at `offset`. It can be this iterator itself when the slice
+     * covers all of it.
      */
     def sliceIterator(offset: Int, length: Int): ChunkIterator[A]
 
@@ -3155,6 +3754,9 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       ChunkIterator.Concat(self, that)
   }
 
+  /**
+   * Constructors for `ChunkIterator`.
+   */
   object ChunkIterator {
 
     /**
@@ -3164,7 +3766,8 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       Empty
 
     /**
-     * Constructs an iterator from an array of arbitrary values.
+     * Constructs an iterator from an array of arbitrary values. The array is
+     * not copied.
      */
     def fromArray[A](array: Array[A]): ChunkIterator[A] =
       array match {
@@ -3180,7 +3783,10 @@ object Chunk extends ChunkFactory with ChunkPlatformSpecific {
       }
 
     /**
-     * Constructs an iterator from a `Vector`.
+     * Constructs an iterator from a `Vector`. It reads the vector through a
+     * Scala `Iterator`, so it can be traversed once. `hasNextAt` and `nextAt`
+     * ignore the index: `hasNextAt` is `true` while elements remain, and
+     * `nextAt` returns the next element.
      */
     def fromVector[A](vector: Vector[A]): ChunkIterator[A] =
       if (vector.length <= 0) Empty

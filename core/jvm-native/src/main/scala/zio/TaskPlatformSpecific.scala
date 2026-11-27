@@ -22,18 +22,37 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import java.nio.channels.CompletionHandler
 import java.util.concurrent.{CompletableFuture, CompletionStage}
 
+/**
+ * JVM and Scala Native constructors of `Task` for Java interop. No object mixes
+ * this trait in; the `ZIO` object defines the same methods.
+ */
 private[zio] trait TaskPlatformSpecific {
 
+  /**
+   * Imports a callback-style API that takes a `CompletionHandler` into a
+   * `Task`. `op` is called each time the effect runs and receives the handler:
+   * `completed` succeeds the task with the result, and `failed` fails it with
+   * the exception (a `VirtualMachineError` becomes a defect instead). An
+   * exception thrown by `op` fails the task. The fiber can be interrupted while
+   * it waits for the handler.
+   */
   def asyncWithCompletionHandler[T](op: CompletionHandler[T, Any] => Any)(implicit trace: Trace): Task[T] =
     javaz.asyncWithCompletionHandler(op)
 
   /**
-   * Alias for `formCompletionStage` for a concrete implementation of
-   * CompletionStage
+   * Alias for `fromCompletionStage` that takes a `CompletableFuture`.
    */
   def fromCompletableFuture[A](cs: => CompletableFuture[A])(implicit trace: Trace): Task[A] =
     fromCompletionStage(cs)
 
+  /**
+   * Imports a `CompletionStage` into a `Task`. The `cs` thunk is evaluated each
+   * time the effect runs, and an exception that it throws fails the task. When
+   * the stage completes with a failure, the task fails with the exception,
+   * unwrapped from a `CompletionException` or `ExecutionException`; a cancelled
+   * stage interrupts the fiber. Interrupting the fiber while it waits cancels
+   * the `CompletableFuture` of the stage.
+   */
   def fromCompletionStage[A](cs: => CompletionStage[A])(implicit trace: Trace): Task[A] =
     javaz.fromCompletionStage(cs)
 

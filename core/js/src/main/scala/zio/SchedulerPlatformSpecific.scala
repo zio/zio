@@ -18,4 +18,8 @@ package zio
 
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * The platform-specific members of `Scheduler`: `asScheduledExecutorService` on
+ * the JVM and Scala Native, and none on Scala.js.
+ */
 private[zio] abstract class SchedulerPlatformSpecific

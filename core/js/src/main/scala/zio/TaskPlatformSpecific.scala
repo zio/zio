@@ -20,10 +20,17 @@ import scala.scalajs.js
 import scala.scalajs.js.{Function1, Promise => JSPromise, Thenable, |}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * Scala.js constructors of `Task`: `fromPromiseJS`. No object mixes this trait
+ * in; the `ZIO` object defines the same method.
+ */
 private[zio] trait TaskPlatformSpecific { self: ZIO.type =>
 
   /**
-   * Imports a Scala.js promise into a `Task`.
+   * Imports a Scala.js promise into a `Task`. The effect succeeds with the
+   * promise's value; a rejection with a `Throwable` fails with it, and a
+   * rejection with any other value fails with a `js.JavaScriptException` that
+   * wraps the value.
    */
   def fromPromiseJS[A](promise: => JSPromise[A])(implicit trace: Trace): Task[A] =
     self.async { callback =>
