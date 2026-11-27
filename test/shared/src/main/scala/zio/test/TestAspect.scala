@@ -304,8 +304,9 @@ object TestAspect extends TimeoutVariants {
   /**
    * Constructs an aspect that evaluates all tests between two effects, `before`
    * and `after`, where the result of `before` can be used in `after`. `before`
-   * runs once before the first test and `after` once after the last; when
-   * `before` fails, none of the tests run.
+   * runs once before the first test and `after` once after the last. When
+   * `before` fails, none of the tests run, and its error is reported as a
+   * runtime failure of the spec rather than as a failure of each test.
    */
   def aroundAllWith[R0, E0, A0](
     before: ZIO[R0, E0, A0]
@@ -318,8 +319,8 @@ object TestAspect extends TimeoutVariants {
     }
 
   /**
-   * A less powerful variant of `aroundAll` where the result of `before` is not
-   * required by `after`.
+   * A variant of `aroundAllWith` for an `after` effect that does not need the
+   * result of `before`.
    */
   def aroundAll[R0, E0](before: ZIO[R0, E0, Any], after: ZIO[R0, Nothing, Any]): TestAspect[Nothing, R0, E0, Any] =
     aroundAllWith(before)(_ => after)
@@ -328,7 +329,7 @@ object TestAspect extends TimeoutVariants {
    * Constructs an aspect that runs each test inside a scope. For each test,
    * `scoped` runs first and returns a function; the test runs, and the function
    * is applied to its success, giving the final result. Resources that `scoped`
-   * acquires are released when the test finishes.
+   * acquires are released after the test and the function have run.
    */
   def aroundTest[R0, E0](
     scoped: ZIO[Scope with R0, TestFailure[E0], TestSuccess => ZIO[R0, TestFailure[E0], TestSuccess]]
@@ -375,7 +376,7 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that runs each test on the blocking threadpool. Useful for tests
-   * that contain blocking code
+   * that contain blocking code.
    */
   val blocking: TestAspectPoly =
     new PerTest.Poly {
@@ -684,8 +685,8 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that retries a test until success, with the specified limit, for
    * use with flaky tests. A test that keeps failing runs `n + 1` times, or
-   * twice when `n` is 0. The state of the test services is restored after each
-   * attempt.
+   * twice when `n` is 0 or less. The state of the test services is restored
+   * after each attempt.
    */
   def flaky(n: Int): TestAspectPoly = {
     val flaky = new PerTest.Poly {
@@ -715,7 +716,9 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that provides each test with the specified layer that does not
-   * produce any services. The layer is built once for each test.
+   * produce any services. The layer is built once for each test, and once more
+   * for each scoped part of the spec (such as one that `provideLayerShared`
+   * creates).
    */
   def fromLayer[R0, E0](layer: ZLayer[R0, E0, Any]): TestAspect[Nothing, R0, E0, Any] =
     new TestAspect[Nothing, R0, E0, Any] {
@@ -750,7 +753,8 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs a test if the specified environment variable
    * satisfies the specified assertion. The variable is read from the live
-   * `System`, not from `TestSystem`; when it is not set, the test is ignored.
+   * `System`, not from `TestSystem`. When the variable is not set or the
+   * assertion does not hold, the aspect acts as `ignore`.
    */
   def ifEnv(env: String)(assertion: String => Boolean): TestAspectPoly =
     ifEnvOption(env)(_.fold(false)(assertion))
@@ -765,8 +769,10 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs a test if the specified optional environment
    * variable satisfies the specified assertion. The variable is read from the
-   * live `System`, not from `TestSystem`. Tests that do not run are reported as
-   * ignored.
+   * live `System`, not from `TestSystem`. When the assertion does not hold,
+   * the aspect acts as `ignore`: tests are reported as ignored, and a scoped
+   * part of the spec (such as one that `provideLayerShared` creates) is dropped
+   * without reporting its tests.
    */
   def ifEnvOption(env: String)(assertion: Option[String] => Boolean): TestAspectPoly =
     new TestAspectPoly {
@@ -784,7 +790,8 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs a test if the specified Java property satisfies
    * the specified assertion. The property is read from the live `System`, not
-   * from `TestSystem`; when it is not set, the test is ignored.
+   * from `TestSystem`. When the property is not set or the assertion does not
+   * hold, the aspect acts as `ignore`.
    */
   def ifProp(prop: String)(assertion: String => Boolean): TestAspectPoly =
     ifPropOption(prop)(_.fold(false)(assertion))
@@ -799,8 +806,10 @@ object TestAspect extends TimeoutVariants {
   /**
    * An aspect that only runs a test if the specified optional Java property
    * satisfies the specified assertion. The property is read from the live
-   * `System`, not from `TestSystem`. Tests that do not run are reported as
-   * ignored.
+   * `System`, not from `TestSystem`. When the assertion does not hold, the
+   * aspect acts as `ignore`: tests are reported as ignored, and a scoped part
+   * of the spec (such as one that `provideLayerShared` creates) is dropped
+   * without reporting its tests.
    */
   def ifPropOption(prop: String)(assertion: Option[String] => Boolean): TestAspectPoly =
     new TestAspectPoly {
@@ -845,14 +854,15 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that runs only on operating systems accepted by the specified
-   * predicate, given `System.os`. On other systems, the tests are ignored.
+   * predicate, given `System.os`. On other systems, it acts as `ignore`.
    */
   def os(f: System.OS => Boolean): TestAspectPoly =
     if (f(System.os)) identity else ignore
 
   /**
    * An aspect that runs tests only on Mac operating systems (`System.OS.Mac`).
-   * On other systems, the tests are ignored.
+   * On other systems, and on Scala.js, where `System.os` is `OS.Unknown`, it
+   * acts as `ignore`.
    */
   val mac: TestAspectPoly = os(_.isMac)
 
@@ -931,9 +941,9 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * An aspect that repeats the test a specified number of times, ensuring it is
-   * stable ("non-flaky"). Stops at the first failure. A passing test runs `n +
-   * 1` times, or twice when `n` is 0. The state of the test services is
-   * restored after each run.
+   * stable ("non-flaky"). Stops at the first failure. A passing test runs
+   * `n + 1` times, or twice when `n` is 0 or less. The state of the test
+   * services is restored after each run.
    */
   def nonFlaky(n: Int): TestAspectPoly = {
     val nonFlaky = new PerTest.Poly {
@@ -1088,9 +1098,10 @@ object TestAspect extends TimeoutVariants {
   }
 
   /**
-   * An aspect that runs each test with the number of sufficient samples to
-   * check for a random variable set to the specified value: each `check` in the
-   * test runs its assertion on `n` generated samples.
+   * An aspect that sets the number of samples that `check` and `checkPar` draw
+   * from a generator to `n`. Each such check in the test runs its assertion on
+   * up to `n` samples, stopping at the first failure. `checkN` and `checkAll`
+   * do not read this setting.
    */
   def samples(n: Int): TestAspectPoly =
     new PerTest.Poly {
@@ -1241,9 +1252,9 @@ object TestAspect extends TimeoutVariants {
     size(n)
 
   /**
-   * An aspect that converts ignored tests into test failures. It sees only the
-   * tests that are ignored when it is applied, so apply it after `ignore` or a
-   * conditional aspect.
+   * An aspect that converts ignored tests into test failures. It converts only
+   * the tests that aspects applied before it have ignored, so `success` must
+   * come after `ignore` or a conditional aspect in the chain.
    */
   val success: TestAspectPoly =
     new PerTest.Poly {
@@ -1335,14 +1346,15 @@ object TestAspect extends TimeoutVariants {
 
   /**
    * Runs only on operating systems that `System.os` reports as `OS.Unix`: those
-   * whose `os.name` contains "nix", "nux" or "aix", such as Linux. On other
-   * systems, including macOS, the tests are ignored.
+   * whose `os.name`, in lower case, contains "nix", "nux" or "aix" and neither
+   * "win" nor "mac", such as Linux. On other systems, including macOS, and on
+   * Scala.js, where `System.os` is `OS.Unknown`, it acts as `ignore`.
    */
   val unix: TestAspectPoly = os(_.isUnix)
 
   /**
-   * Runs only on Windows operating systems. On other systems, the tests are
-   * ignored.
+   * Runs only on Windows operating systems. On other systems, and on
+   * Scala.js, where `System.os` is `OS.Unknown`, it acts as `ignore`.
    */
   val windows: TestAspectPoly = os(_.isWindows)
 
