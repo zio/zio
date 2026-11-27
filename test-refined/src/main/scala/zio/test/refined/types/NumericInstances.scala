@@ -140,36 +140,28 @@ trait NumericInstances {
   val nonPosBigIntGen: Gen[Any, NonPosBigInt] = Gen.bigInt(Long.MinValue, 0).map(Refined.unsafeApply)
 
   /**
-   * A generator of `PosFloat` built with `Gen.double(1,
-   * Float.MaxValue.toDouble)` and converts them to `Float`: from 1 (inclusive)
-   * to Float.MaxValue (exclusive).
+   * A generator of `PosFloat` built with `Gen.double(1, Float.MaxValue.toDouble)` and converted to `Float`: from 1 to Float.MaxValue.
    */
   val posFloatGen: Gen[Any, PosFloat] = Gen
     .double(1, Float.MaxValue.toDouble)
     .map(v => Refined.unsafeApply(v.toFloat))
 
   /**
-   * A generator of `NonNegFloat` built with `Gen.double(0,
-   * Float.MaxValue.toDouble)` and converts them to `Float`: from 0 (inclusive)
-   * to Float.MaxValue (exclusive).
+   * A generator of `NonNegFloat` built with `Gen.double(0, Float.MaxValue.toDouble)` and converted to `Float`: from 0 to Float.MaxValue.
    */
   val nonNegFloatGen: Gen[Any, NonNegFloat] = Gen
     .double(0, Float.MaxValue.toDouble)
     .map(v => Refined.unsafeApply(v.toFloat))
 
   /**
-   * A generator of `NegFloat` built with `Gen.double(Float.MinValue.toDouble,
-   * -1)` and converts them to `Float`: from Float.MinValue (inclusive) to -1
-   * (exclusive).
+   * A generator of `NegFloat` built with `Gen.double(Float.MinValue.toDouble, -1)` and converted to `Float`: from Float.MinValue to -1.
    */
   val negFloatGen: Gen[Any, NegFloat] = Gen
     .double(Float.MinValue.toDouble, -1)
     .map(v => Refined.unsafeApply(v.toFloat))
 
   /**
-   * A generator of `NonPosFloat` built with
-   * `Gen.double(Float.MinValue.toDouble, 0)` and converts them to `Float`: from
-   * Float.MinValue (inclusive) to 0 (exclusive).
+   * A generator of `NonPosFloat` built with `Gen.double(Float.MinValue.toDouble, 0)` and converted to `Float`: from Float.MinValue to 0.
    */
   val nonPosFloatGen: Gen[Any, NonPosFloat] = Gen
     .double(Float.MinValue.toDouble, 0)
