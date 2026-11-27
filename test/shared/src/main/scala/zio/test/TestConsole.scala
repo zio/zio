@@ -29,9 +29,11 @@ import java.io.{EOFException, IOException}
  *
  * All calls to `print` and `printLine` using the `TestConsole` will write the
  * string to the output buffer and all calls to `readLine` will take a string
- * from the input buffer. To facilitate debugging, by default output will also
- * be rendered to standard output. You can enable or disable this for a scope
- * using `debug`, `silent`, or the corresponding test aspects.
+ * from the input buffer; `printError` and `printLineError` write to a separate
+ * error buffer. To facilitate debugging, by default output will also be written
+ * to the live console (standard output, or standard error for `printError` and
+ * `printLineError`). You can enable or disable this for a scope using `debug`,
+ * `silent`, or the corresponding test aspects.
  *
  * `TestConsole` has several methods to access and manipulate the content of
  * these buffers including `feedLines` to feed strings to the input buffer that
@@ -39,8 +41,8 @@ import java.io.{EOFException, IOException}
  * the output buffer from calls to `print` and `printLine`, and `clearInput` and
  * `clearOutput` to clear the respective buffers.
  *
- * Together, these functions make it easy to test programs interacting with the
- * console.
+ * Together, these functions let a test feed input to a program that interacts
+ * with the console and check what it printed.
  *
  * {{{
  * import zio.Console._
@@ -58,20 +60,62 @@ import java.io.{EOFException, IOException}
  *   result <- TestConsole.output
  * } yield result == Vector("Hello, John!\n", "Hello, Jane!\n", "Hello, Sally!\n")
  * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/test/services/console/ TestConsole]]
+ * @see
+ *   [[https://zio.dev/reference/test/aspects/restoring-state-of-test-services/ Restoring State of Test Services]]
  */
 trait TestConsole extends Console with Restorable {
+
+  /** Clears the contents of the input buffer. */
   def clearInput(implicit trace: Trace): UIO[Unit]
+
+  /** Clears the contents of the output buffer; the error buffer is kept. */
   def clearOutput(implicit trace: Trace): UIO[Unit]
+
+  /** Clears the contents of the error output buffer. */
   def clearOutputErr(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Runs `zio` with the `TestConsole` in debug mode, so that console output is
+   * written to the live console as well as to the buffers.
+   */
   def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
+
+  /**
+   * Writes `lines` to the front of the input buffer, so that `readLine` returns
+   * them in order before any lines that were already there.
+   */
   def feedLines(lines: String*)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Returns the contents of the output buffer, written by `print` and
+   * `printLine`, oldest first.
+   */
   def output(implicit trace: Trace): UIO[Vector[String]]
+
+  /**
+   * Returns the contents of the error output buffer, written by `printError`
+   * and `printLineError`, oldest first.
+   */
   def outputErr(implicit trace: Trace): UIO[Vector[String]]
+
+  /**
+   * Runs `zio` with the `TestConsole` in silent mode, so that console output is
+   * written only to the buffers and not to the live console.
+   */
   def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A]
 }
 
+/**
+ * The `TestConsole` service: its `Test` implementation, the layers that build
+ * it, and accessors that run a `TestConsole` method on the current
+ * `TestConsole`.
+ */
 object TestConsole extends Serializable {
 
+  /** The `Tag` of `TestConsole`, used to find it in a `ZEnvironment`. */
   implicit val tag: Tag[TestConsole] = Tag(EnvironmentTag.tagFromTagMacro[TestConsole])
 
   private[test] object unsafe {
@@ -79,6 +123,13 @@ object TestConsole extends Serializable {
       Test(Ref.unsafe.make(data), live, annotations, FiberRef.unsafe.make(debug))
   }
 
+  /**
+   * The `TestConsole` implementation that the test environment installs. It
+   * keeps the input, output and error output buffers in `consoleState`, writes
+   * to the live console through `live` while `debugState` is `true`, and
+   * records the lines read by `readLine` and written by `printLine` as
+   * annotations of the current test.
+   */
   case class Test(
     consoleState: Ref.Atomic[TestConsole.Data],
     live: Live,
@@ -106,8 +157,8 @@ object TestConsole extends Serializable {
 
     /**
      * Runs the specified effect with the `TestConsole` set to debug mode, so
-     * that console output is rendered to standard output in addition to being
-     * written to the output buffer.
+     * that console output is written to the live console in addition to being
+     * written to the output buffers.
      */
     def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       debugState.locally(true)(zio)
@@ -175,8 +226,9 @@ object TestConsole extends Serializable {
         live.provide(Console.printLineError(line)).whenZIO(debugState.get).unit
 
     /**
-     * Saves the `TestConsole`'s current state in an effect which, when run,
-     * will restore the `TestConsole` state to the saved state.
+     * Saves the `TestConsole`'s current state (input, output and error output
+     * buffers) in an effect which, when run, will restore the `TestConsole`
+     * state to the saved state.
      */
     def save(implicit trace: Trace): UIO[UIO[Unit]] =
       for {
@@ -185,8 +237,8 @@ object TestConsole extends Serializable {
 
     /**
      * Runs the specified effect with the `TestConsole` set to silent mode, so
-     * that console output is only written to the output buffer and not rendered
-     * to standard output.
+     * that console output is only written to the output buffers and not to the
+     * live console.
      */
     def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
       debugState.locally(false)(zio)
@@ -227,8 +279,10 @@ object TestConsole extends Serializable {
   }
 
   /**
-   * Constructs a new `Test` object that implements the `TestConsole` interface.
-   * This can be useful for mixing in with implementations of other interfaces.
+   * Returns a layer that constructs a new `Test` object from `data`, installs
+   * it as the `Console` service for the layer's scope, and provides it as the
+   * `TestConsole`. With `debug = true` (the default) output is also written to
+   * the live console.
    */
   def make(data: Data, debug: Boolean = true)(implicit
     trace: Trace
@@ -240,80 +294,99 @@ object TestConsole extends Serializable {
       }
     }
 
+  /** A layer that passes on the `TestConsole` that its input already holds. */
   val any: ZLayer[TestConsole, Nothing, TestConsole] =
     ZLayer.environment[TestConsole](Tracer.newTrace)
 
   private[test] val DefaultData: Data =
     Data(Nil, Vector())
 
+  /**
+   * A layer built with `make` that starts with empty buffers in debug mode, so
+   * output is also written to the live console.
+   */
   val debug: ZLayer[Live with Annotations, Nothing, TestConsole] =
     make(DefaultData, true)(Tracer.newTrace)
 
+  /**
+   * A layer built with `make` that starts with empty buffers in silent mode, so
+   * output is written only to the buffers.
+   */
   val silent: ZLayer[Live with Annotations, Nothing, TestConsole] =
     make(Data(Nil, Vector()), false)(Tracer.newTrace)
 
   /**
-   * Accesses a `TestConsole` instance in the environment and clears the input
-   * buffer.
+   * Accesses the current `TestConsole` and clears the input buffer.
    */
   def clearInput(implicit trace: Trace): UIO[Unit] =
     testConsoleWith(_.clearInput)
 
   /**
-   * Accesses a `TestConsole` instance in the environment and clears the output
-   * buffer.
+   * Accesses the current `TestConsole` and clears the output buffer.
    */
   def clearOutput(implicit trace: Trace): UIO[Unit] =
     testConsoleWith(_.clearOutput)
 
   /**
-   * Accesses a `TestConsole` instance in the environment and runs the specified
-   * effect with the `TestConsole` set to debug mode, so that console output is
-   * rendered to standard output in addition to being written to the output
-   * buffer.
+   * Accesses the current `TestConsole` and runs the specified effect with the
+   * `TestConsole` set to debug mode, so that console output is written to the
+   * live console in addition to being written to the output buffers.
    */
   def debug[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     testConsoleWith(_.debug(zio))
 
   /**
-   * Accesses a `TestConsole` instance in the environment and writes the
-   * specified sequence of strings to the input buffer.
+   * Accesses the current `TestConsole` and writes the specified sequence of
+   * strings to the input buffer, ahead of any strings already there.
+   *
+   * {{{
+   * import zio._
+   * import zio.test._
+   *
+   * for {
+   *   _      <- TestConsole.feedLines("Alice", "42")
+   *   name   <- Console.readLine
+   *   age    <- Console.readLine
+   *   _      <- Console.printLine(name + " is " + age)
+   *   output <- TestConsole.output
+   * } yield assertTrue(output == Vector("Alice is 42\n"))
+   * }}}
    */
   def feedLines(lines: String*)(implicit trace: Trace): UIO[Unit] =
     testConsoleWith(_.feedLines(lines: _*))
 
   /**
-   * Accesses a `TestConsole` instance in the environment and returns the
-   * contents of the output buffer.
+   * Accesses the current `TestConsole` and returns the contents of the output
+   * buffer.
    */
   def output(implicit trace: Trace): UIO[Vector[String]] =
     testConsoleWith(_.output)
 
   /**
-   * Accesses a `TestConsole` instance in the environment and returns the
-   * contents of the error buffer.
+   * Accesses the current `TestConsole` and returns the contents of the error
+   * buffer.
    */
   def outputErr(implicit trace: Trace): UIO[Vector[String]] =
     testConsoleWith(_.outputErr)
 
   /**
-   * Accesses a `TestConsole` instance in the environment and saves the console
-   * state in an effect which, when run, will restore the `TestConsole` to the
-   * saved state.
+   * Accesses the current `TestConsole` and saves the console state in an effect
+   * which, when run, will restore the `TestConsole` to the saved state.
    */
   def save(implicit trace: Trace): UIO[UIO[Unit]] =
     testConsoleWith(_.save)
 
   /**
-   * Accesses a `TestConsole` instance in the environment and runs the specified
-   * effect with the `TestConsole` set to silent mode, so that console output is
-   * only written to the output buffer and not rendered to standard output.
+   * Accesses the current `TestConsole` and runs the specified effect with the
+   * `TestConsole` set to silent mode, so that console output is only written to
+   * the output buffers and not to the live console.
    */
   def silent[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): ZIO[R, E, A] =
     testConsoleWith(_.silent(zio))
 
   /**
-   * The state of the `TestConsole`.
+   * The state of the `TestConsole`: the lines left to read, the output buffer
+   * and the error output buffer.
    */
   final case class Data(
     input: List[String] = List.empty,

@@ -21,32 +21,87 @@ import zio.internal.stacktracer.Tracer
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * `TestSystem` supports deterministic testing of effects involving system
- * properties. Internally, `TestSystem` maintains mappings of environment
+ * `TestSystem` lets a test check effects that read environment variables and
+ * system properties. Internally, `TestSystem` maintains mappings of environment
  * variables and system properties that can be set and accessed. No actual
  * environment variables or system properties will be accessed or set as a
  * result of these actions.
  *
- * {{{
- * import zio.system
- * import zio.test.TestSystem
+ * ZIO Test gives each test its own `TestSystem`, created from
+ * [[TestSystem.DefaultData]], so every test starts with no environment
+ * variables, no system properties and `"\n"` as the line separator. The
+ * accessors on the companion object use the `TestSystem` of the current fiber;
+ * outside a test, where `System` is the live service, they die with a
+ * `java.lang.Error` saying that `TestSystem` could not be found.
  *
- * for {
- *   _      <- TestSystem.putProperty("java.vm.name", "VM")
- *   result <- system.property("java.vm.name")
- * } yield result == Some("VM")
+ * {{{
+ * import zio._
+ * import zio.test.{test, _}
+ *
+ * test("reads a property set by the test") {
+ *   for {
+ *     _      <- TestSystem.putProperty("java.vm.name", "VM")
+ *     result <- System.property("java.vm.name")
+ *   } yield assertTrue(result == Some("VM"))
+ * }
+ *
+ * test("reads an environment variable set by the test") {
+ *   for {
+ *     _      <- TestSystem.putEnv("APP_PORT", "8080")
+ *     port   <- System.env("APP_PORT")
+ *     _      <- TestSystem.clearEnv("APP_PORT")
+ *     absent <- System.env("APP_PORT")
+ *   } yield assertTrue(port == Some("8080"), absent.isEmpty)
+ * }
  * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/test/services/system/ TestSystem]]
+ * @see
+ *   [[https://zio.dev/reference/test/aspects/restoring-state-of-test-services/ Restoring State of Test Services]]
  */
 trait TestSystem extends System with Restorable {
+
+  /**
+   * Adds the specified name and value to the mapping of environment variables,
+   * replacing any value already mapped to that name.
+   */
   def putEnv(name: String, value: String)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Adds the specified name and value to the mapping of system properties,
+   * replacing any value already mapped to that name.
+   */
   def putProperty(name: String, value: String)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Sets the line separator that `lineSeparator` returns.
+   */
   def setLineSeparator(lineSep: String)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Removes the specified environment variable from the mapping of environment
+   * variables. Other variables are kept.
+   */
   def clearEnv(variable: String)(implicit trace: Trace): UIO[Unit]
+
+  /**
+   * Removes the specified property from the mapping of system properties. Other
+   * properties are kept.
+   */
   def clearProperty(prop: String)(implicit trace: Trace): UIO[Unit]
 }
 
+/**
+ * Constructors, layers and accessors for [[TestSystem]]. The accessors such as
+ * `putEnv` and `putProperty` use the `TestSystem` of the current fiber, which
+ * ZIO Test installs for each test.
+ */
 object TestSystem extends Serializable {
 
+  /**
+   * The `Tag` that identifies the `TestSystem` service in a `ZEnvironment`.
+   */
   implicit val tag: Tag[TestSystem] = Tag(EnvironmentTag.tagFromTagMacro[TestSystem])
 
   private[test] object unsafe {
@@ -54,6 +109,10 @@ object TestSystem extends Serializable {
       Test(Ref.unsafe.make(data))
   }
 
+  /**
+   * The implementation of [[TestSystem]], which keeps the environment
+   * variables, system properties and line separator in `systemState`.
+   */
   final case class Test(systemState: Ref.Atomic[TestSystem.Data]) extends TestSystem {
 
     /**
@@ -78,15 +137,23 @@ object TestSystem extends Serializable {
     ): IO[SecurityException, Option[String]] =
       ZIO.succeed(unsafe.envOrOption(variable, alt)(Unsafe.unsafe))
 
+    /**
+     * Returns the mapping of environment variables maintained by this
+     * `TestSystem`.
+     */
     def envs(implicit trace: Trace): ZIO[Any, SecurityException, Map[String, String]] =
       ZIO.succeed(unsafe.envs()(Unsafe.unsafe))
 
     /**
-     * Returns the system line separator.
+     * Returns the line separator maintained by this `TestSystem` (`"\n"` in the
+     * test environment unless `setLineSeparator` changed it).
      */
     def lineSeparator(implicit trace: Trace): UIO[String] =
       ZIO.succeed(unsafe.lineSeparator()(Unsafe.unsafe))
 
+    /**
+     * Returns the mapping of system properties maintained by this `TestSystem`.
+     */
     def properties(implicit trace: Trace): ZIO[Any, Throwable, Map[String, String]] =
       ZIO.succeed(unsafe.properties()(Unsafe.unsafe))
 
@@ -134,20 +201,23 @@ object TestSystem extends Serializable {
       systemState.update(_.copy(lineSeparator = lineSep))
 
     /**
-     * Clears the mapping of environment variables.
+     * Removes the specified environment variable from the mapping of
+     * environment variables. Other variables are kept.
      */
     def clearEnv(variable: String)(implicit trace: Trace): UIO[Unit] =
       systemState.update(data => data.copy(envs = data.envs - variable))
 
     /**
-     * Clears the mapping of system properties.
+     * Removes the specified property from the mapping of system properties.
+     * Other properties are kept.
      */
     def clearProperty(prop: String)(implicit trace: Trace): UIO[Unit] =
       systemState.update(data => data.copy(properties = data.properties - prop))
 
     /**
-     * Saves the `TestSystem``'s current state in an effect which, when run,
-     * will restore the `TestSystem` state to the saved state.
+     * Saves the `TestSystem`'s current state in an effect which, when run, will
+     * restore the `TestSystem` state to the saved state. The saved state holds
+     * the environment variables, the system properties and the line separator.
      */
     def save(implicit trace: Trace): UIO[UIO[Unit]] =
       for {
@@ -197,7 +267,8 @@ object TestSystem extends Serializable {
   /**
    * Constructs a new `TestSystem` with the specified initial state. This can be
    * useful for providing the required environment to an effect that requires a
-   * `Console`, such as with `ZIO#provide`.
+   * `System`, such as with `ZIO#provideLayer`. While the layer is in scope,
+   * `System` methods and the `TestSystem` accessors use the new service.
    */
   def live(data: Data): Layer[Nothing, TestSystem] = {
     implicit val trace: Trace = Tracer.newTrace
@@ -207,51 +278,56 @@ object TestSystem extends Serializable {
     }
   }
 
+  /**
+   * A layer that passes on the `TestSystem` already in its input environment.
+   */
   val any: ZLayer[TestSystem, Nothing, TestSystem] =
     ZLayer.environment[TestSystem](Tracer.newTrace)
 
+  /**
+   * A layer that constructs a `TestSystem` from [[TestSystem.DefaultData]].
+   */
   val default: Layer[Nothing, TestSystem] =
     live(DefaultData)
 
   /**
-   * Accesses a `TestSystem` instance in the environment and adds the specified
-   * name and value to the mapping of environment variables.
+   * Accesses the current `TestSystem` and adds the specified name and value to
+   * the mapping of environment variables.
    */
   def putEnv(name: => String, value: => String)(implicit trace: Trace): UIO[Unit] =
     testSystemWith(_.putEnv(name, value))
 
   /**
-   * Accesses a `TestSystem` instance in the environment and adds the specified
-   * name and value to the mapping of system properties.
+   * Accesses the current `TestSystem` and adds the specified name and value to
+   * the mapping of system properties.
    */
   def putProperty(name: => String, value: => String)(implicit trace: Trace): UIO[Unit] =
     testSystemWith(_.putProperty(name, value))
 
   /**
-   * Accesses a `TestSystem` instance in the environment and saves the system
-   * state in an effect which, when run, will restore the `TestSystem` to the
-   * saved state
+   * Accesses the current `TestSystem` and saves the system state in an effect
+   * which, when run, will restore the `TestSystem` to the saved state.
    */
   def save(implicit trace: Trace): UIO[UIO[Unit]] =
     testSystemWith(_.save)
 
   /**
-   * Accesses a `TestSystem` instance in the environment and sets the line
-   * separator to the specified value.
+   * Accesses the current `TestSystem` and sets the line separator to the
+   * specified value.
    */
   def setLineSeparator(lineSep: => String)(implicit trace: Trace): UIO[Unit] =
     testSystemWith(_.setLineSeparator(lineSep))
 
   /**
-   * Accesses a `TestSystem` instance in the environment and clears the mapping
-   * of environment variables.
+   * Accesses the current `TestSystem` and removes the specified environment
+   * variable from its mapping of environment variables.
    */
   def clearEnv(variable: => String)(implicit trace: Trace): UIO[Unit] =
     testSystemWith(_.clearEnv(variable))
 
   /**
-   * Accesses a `TestSystem` instance in the environment and clears the mapping
-   * of system properties.
+   * Accesses the current `TestSystem` and removes the specified property from
+   * its mapping of system properties.
    */
   def clearProperty(prop: => String)(implicit trace: Trace): UIO[Unit] =
     testSystemWith(_.clearProperty(prop))

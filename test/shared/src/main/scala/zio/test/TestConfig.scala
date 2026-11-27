@@ -25,6 +25,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * they are stable, the number of times to retry flaky tests, the sufficient
  * number of samples to check from a random variable, and the maximum number of
  * shrinkings to minimize large failures.
+ *
+ * @see
+ *   [[https://zio.dev/reference/test/services/config/ TestConfig]]
  */
 trait TestConfig extends Serializable {
 
@@ -57,13 +60,26 @@ trait TestConfig extends Serializable {
   def checkAspect: TestAspect.CheckAspect = ZIOAspect.identity
 }
 
+/**
+ * Constructors and accessors for the [[TestConfig]] service.
+ */
 object TestConfig {
 
+  /**
+   * The `Tag` of the `TestConfig` service.
+   */
   implicit val tag: Tag[TestConfig] = Tag(EnvironmentTag.tagFromTagMacro[TestConfig])
 
+  /**
+   * A `TestConfig` with the given settings and an identity `checkAspect`.
+   */
   @deprecated("use TestV2", "2.1.8")
   final case class Test(repeats: Int, retries: Int, samples: Int, shrinks: Int) extends TestConfig
 
+  /**
+   * A `TestConfig` with the given settings, including the aspect applied to
+   * each `check` sample.
+   */
   final case class TestV2(
     repeats: Int,
     retries: Int,
@@ -73,7 +89,8 @@ object TestConfig {
   ) extends TestConfig
 
   /**
-   * Constructs a new `TestConfig` with the default settings.
+   * Constructs a new `TestConfig` with the default settings: 100 repeats, 100
+   * retries, 200 samples, 1000 shrinks and an identity `checkAspect`.
    */
   val default: ZLayer[Any, Nothing, TestConfig] =
     live(100, 100, 200, 1000, ZIOAspect.identity)(Trace.empty)
@@ -139,7 +156,7 @@ object TestConfig {
     testConfigWith(testConfig => Exit.succeed(testConfig.shrinks))
 
   /**
-   * Action that should be performed on each check sample.
+   * The aspect that `check` and its variants apply to each sample.
    */
   def checkAspect(implicit trace: Trace): URIO[Any, TestAspect.CheckAspect] =
     testConfigWith(testConfig => Exit.succeed(testConfig.checkAspect))

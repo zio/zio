@@ -20,7 +20,15 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 import java.util.concurrent.{ConcurrentHashMap => JConcurrentHashMap}
 
+/**
+ * A wrapper around `java.util.concurrent.ConcurrentHashMap` with a fold and a
+ * get-or-update operation.
+ */
 private[test] final case class ConcurrentHashMap[K, V] private (private val map: JConcurrentHashMap[K, V]) {
+
+  /**
+   * Folds over the entries in the map's iteration order, starting with `z`.
+   */
   def foldLeft[B](z: B)(op: (B, (K, V)) => B): B = {
     var result = z
     val it     = map.entrySet.iterator
@@ -30,11 +38,20 @@ private[test] final case class ConcurrentHashMap[K, V] private (private val map:
     }
     result
   }
+
+  /**
+   * Returns the value for `key`. When the key is absent, evaluates `op`, stores
+   * its result and returns it; a `null` result is returned but not stored.
+   */
   def getOrElseUpdate(key: K, op: => V): V =
     map.computeIfAbsent(key, _ => op)
 }
 
 private[test] object ConcurrentHashMap {
+
+  /**
+   * Creates an empty map.
+   */
   def empty[K, V]: ConcurrentHashMap[K, V] =
     new ConcurrentHashMap[K, V](new JConcurrentHashMap[K, V]())
 }

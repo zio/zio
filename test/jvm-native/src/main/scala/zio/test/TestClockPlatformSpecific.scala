@@ -25,8 +25,21 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.{Collections, List}
 import scala.annotation.tailrec
 
+/**
+ * The members of `TestClock.Test` whose implementation differs by platform.
+ */
 trait TestClockPlatformSpecific { self: TestClock.Test =>
 
+  /**
+   * Returns a `Scheduler` driven by this `TestClock`. A task scheduled with a
+   * delay runs on a forked fiber once `adjust` or `setTime` moves the clock
+   * time to or past the clock time at scheduling plus the delay; a zero or
+   * negative delay runs it without an adjustment. The cancel token interrupts
+   * that fiber and returns `true` when the task had not run yet, and `false`
+   * after it ran. On the JVM and Scala Native, the scheduler's
+   * `asScheduledExecutorService` also runs its tasks on this clock; on Scala.js
+   * a `Scheduler` has no `asScheduledExecutorService`.
+   */
   def scheduler(implicit trace: Trace): UIO[Scheduler] =
     (ZIO.executor <*> ZIO.runtime[Any]).map { case (executor, runtime) =>
       new Scheduler.Internal {

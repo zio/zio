@@ -44,10 +44,26 @@ private[test] final case class TestArgs(
     }
 }
 
+/**
+ * Parses the command-line arguments of a ZIO Test run.
+ */
 object TestArgs {
-  val reportsParentDefault: String = "target"
-  val jsonResultPath: String       = "test-reports-zio/output.json"
 
+  /**
+   * The directory under which test reports are written when `-reports` is not
+   * given: `target`.
+   */
+  val reportsParentDefault: String = "target"
+
+  /**
+   * The path of the JSON results file, relative to the reports directory.
+   */
+  val jsonResultPath: String = "test-reports-zio/output.json"
+
+  /**
+   * The arguments of a run with no command-line arguments: no filters, the
+   * console renderer, the summary printed and reports under `target`.
+   */
   def empty: TestArgs =
     TestArgs(
       List.empty[String],
@@ -59,6 +75,10 @@ object TestArgs {
       reportsParentDefault
     )
 
+  /**
+   * Parses the flags `-t`, `-tags`, `-ignore-tags`, `-policy`, `-renderer`,
+   * `-summary` and `-reports`, each followed by its value.
+   */
   def parse(args: Array[String]): TestArgs = {
     // TODO: Add a proper command-line parser
     val parsedArgs = args
