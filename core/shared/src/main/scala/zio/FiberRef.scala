@@ -24,34 +24,57 @@ import zio.metrics.MetricLabel
  * `FiberRef` is automatically propagated to child fibers when they are forked
  * and merged back in to the value of the parent fiber after they are joined.
  *
+ * Each fiber has its own value: a fiber reads the `initial` value until it, or
+ * a parent before forking it, sets one. A forked child starts with its parent's
+ * value, and the changes a fiber makes are not seen by other fibers that run at
+ * the same time. When the parent holds a value for the `FiberRef` (it set or
+ * inherited one, or created the `FiberRef` with `FiberRef.make`), the `fork`
+ * function of `FiberRef.make` transforms it for the child; otherwise the child
+ * reads the `initial` value unchanged. `Fiber#join` merges the child's value
+ * back into the joining fiber; `Fiber#await` does not.
+ *
  * {{{
- * for {
- *   fiberRef <- FiberRef.make("Hello world!")
- *   child    <- fiberRef.set("Hi!").fork
- *   _        <- child.join
- *   result   <- fiberRef.get
- * } yield result
+ * val program: UIO[(String, String, String)] =
+ *   ZIO.scoped {
+ *     for {
+ *       user       <- FiberRef.make("anonymous")
+ *       _          <- user.set("alice")
+ *       child      <- user.getAndSet("bob").fork
+ *       _          <- child.await
+ *       afterAwait <- user.get
+ *       inherited  <- child.join
+ *       afterJoin  <- user.get
+ *     } yield (inherited, afterAwait, afterJoin)
+ *   }
+ * // succeeds with (alice,alice,bob)
  * }}}
  *
- * Here `result` will be equal to "Hi!" since changes made by a child fiber are
- * merged back in to the value of the parent fiber on join.
+ * Here the child sees "alice" when it starts, the parent still sees "alice"
+ * after `await`, and the parent sees "bob" once it has joined the child.
  *
  * By default the value of the child fiber will replace the value of the parent
  * fiber on join but you can specify your own logic for how values should be
  * merged.
  *
  * {{{
- * for {
- *   fiberRef <- FiberRef.make(0, identity[Int], math.max)
- *   child    <- fiberRef.update(_ + 1).fork
- *   _        <- fiberRef.update(_ + 2)
- *   _        <- child.join
- *   value    <- fiberRef.get
- * } yield value
+ * val merged: UIO[Int] =
+ *   ZIO.scoped {
+ *     for {
+ *       fiberRef <- FiberRef.make(0, identity[Int], math.max)
+ *       child    <- fiberRef.update(_ + 1).fork
+ *       _        <- fiberRef.update(_ + 2)
+ *       _        <- child.join
+ *       value    <- fiberRef.get
+ *     } yield value
+ *   }
+ * // succeeds with 2
  * }}}
  *
  * Here `value` will be 2 as the value in the joined fiber is lower and we
  * specified `max` as our combining function.
+ *
+ * @see
+ *   [[https://zio.dev/reference/state-management/fiberref/ FiberRef]]
  */
 sealed trait FiberRef[A] extends Serializable { self =>
 
@@ -97,12 +120,23 @@ sealed trait FiberRef[A] extends Serializable { self =>
 
   /**
    * The initial patch that is applied to the value of the `FiberRef` when a new
-   * fiber is forked.
+   * fiber is forked. It is applied only when the forking fiber holds a value
+   * for the `FiberRef`; the child of a fiber that holds none reads the
+   * `initial` value unchanged.
    */
   def fork: Patch
 
+  /**
+   * Combines the joining fiber's value (`oldValue`) with the value that the
+   * joined fiber's changes produce (`newValue`) when a fiber is joined. The
+   * default of `FiberRef.make` keeps `newValue`.
+   */
   def join(oldValue: Value, newValue: Value): Value
 
+  /**
+   * Removes the value of this `FiberRef` from the current fiber, so that `get`
+   * returns the `initial` value again.
+   */
   def delete(implicit trace: Trace): UIO[Unit] =
     ZIO.withFiberRuntime[Any, Nothing, Unit] { (fiberState, _) =>
       fiberState.deleteFiberRef(self)
@@ -156,23 +190,40 @@ sealed trait FiberRef[A] extends Serializable { self =>
     get.flatMap(f)
 
   /**
-   * Returns a `ZIO` that runs with `value` bound to the current fiber.
+   * Returns a `ZIO` that runs with `newValue` bound to the current fiber.
    *
-   * Guarantees that fiber data is properly restored via `acquireRelease`.
+   * After `zio` ends, whether it succeeds, fails or is interrupted, the
+   * `FiberRef` is restored to the value it had before, which also discards the
+   * changes `zio` made to it.
+   *
+   * For a `FiberRef` created with `FiberRef.make`, `FiberRef.unsafe.make` or
+   * the other constructors of `FiberRef`, when the current fiber already holds
+   * `newValue` (the same reference, or an equal boxed number), `zio` runs
+   * without the restore, and the changes it makes to the `FiberRef` are kept. A
+   * fiber holds a value once it has set or inherited one, or has created the
+   * `FiberRef` with `FiberRef.make`.
    */
   def locally[R, E, B](newValue: A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
     ZIO.acquireReleaseWith(getAndSet(newValue))(set)(_ => zio)
 
   /**
-   * Returns a `ZIO` that runs with `f` applied to the current fiber.
+   * Returns a `ZIO` that runs with `f` applied to the value of the current
+   * fiber.
    *
-   * Guarantees that fiber data is properly restored via `acquireRelease`.
+   * After `zio` ends, whether it succeeds, fails or is interrupted, the
+   * `FiberRef` is restored to the value it had before.
+   *
+   * For a `FiberRef` created with `FiberRef.make`, `FiberRef.unsafe.make` or
+   * the other constructors of `FiberRef`, when `f` returns the value the
+   * current fiber already holds (the same reference, or an equal boxed number),
+   * `zio` runs without the restore, and the changes it makes to the `FiberRef`
+   * are kept.
    */
   def locallyWith[R, E, B](f: A => A)(zio: ZIO[R, E, B])(implicit trace: Trace): ZIO[R, E, B] =
     getWith(a => locally(f(a))(zio))
 
   /**
-   * Returns a scoped workflow that sets the value associated with the curent
+   * Returns a scoped workflow that sets the value associated with the current
    * fiber to the specified value and restores it to its original value when the
    * scope is closed.
    */
@@ -212,6 +263,9 @@ sealed trait FiberRef[A] extends Serializable { self =>
       pf.applyOrElse[A, (B, A)](v, _ => (default, v))
     }
 
+  /**
+   * Sets the value associated with the current fiber to the `initial` value.
+   */
   final def reset(implicit trace: Trace): UIO[Unit] =
     set(initial)
 
@@ -314,7 +368,8 @@ sealed trait FiberRef[A] extends Serializable { self =>
   private[zio] def hasIdentityFork: Boolean = false
 
   /**
-   * Flag used to determine whether join method returns
+   * Flag used to determine whether the join method returns its second argument
+   * (the value of the joined fiber) unchanged.
    *
    * '''NOTE FOR ZIO LIBRARIES''' This method is package-private only so that it
    * can be accessed from `FiberRefs`. Do not use it
@@ -322,6 +377,15 @@ sealed trait FiberRef[A] extends Serializable { self =>
   private[zio] def hasSecondFnJoin: Boolean = false
 }
 
+/**
+ * Constructors for [[FiberRef]] values, and the `FiberRef`s that ZIO itself
+ * uses for logging and metrics.
+ *
+ * The constructors that return `ZIO[Scope, Nothing, ...]` set the initial value
+ * in the current fiber and delete the value from the fiber that closes the
+ * scope. The constructors in `FiberRef.unsafe` create a `FiberRef` directly,
+ * outside of any effect and scope.
+ */
 object FiberRef {
   import Differ._
 
@@ -349,22 +413,65 @@ object FiberRef {
     override def hasSecondFnJoin: Boolean = delegate.hasSecondFnJoin
   }
 
+  /**
+   * A `FiberRef` whose `Patch` type is known to be `Patch0`.
+   */
   type WithPatch[Value0, Patch0] = FiberRef[Value0] { type Patch = Patch0 }
 
+  /**
+   * The log level of the current fiber, `LogLevel.Info` by default. It is set
+   * by `ZIO.logLevel`, and `ZIO.log` logs at this level.
+   */
   val currentLogLevel: FiberRef[LogLevel] =
     FiberRef.unsafe.make(LogLevel.Info)(Unsafe.unsafe)
 
+  /**
+   * The log spans of the current fiber, most recent first, empty by default.
+   * `ZIO.logSpan` adds a span for the duration of an effect.
+   */
   val currentLogSpan: FiberRef[List[LogSpan]] =
     FiberRef.unsafe.make[List[LogSpan]](Nil)(Unsafe.unsafe)
 
+  /**
+   * The log annotations of the current fiber, empty by default.
+   * `ZIO.logAnnotate` adds annotations for the duration of an effect.
+   */
   val currentLogAnnotations: FiberRef[Map[String, String]] =
     FiberRef.unsafe.make[Map[String, String]](Map.empty)(Unsafe.unsafe)
 
+  /**
+   * The metric labels (tags) of the current fiber, empty by default.
+   * `ZIO.tagged` adds labels for the duration of an effect. Changes made by
+   * joined fibers are merged as set additions and removals.
+   */
   val currentTags: FiberRef.WithPatch[Set[MetricLabel], SetPatch[MetricLabel]] =
     FiberRef.unsafe.makeSet(Set.empty)(Unsafe.unsafe)
 
   /**
    * Creates a new `FiberRef` with given initial value.
+   *
+   * `fork` computes a child fiber's value from its parent's value when the
+   * child is forked and the parent holds a value (unchanged by default). `join`
+   * combines the joining fiber's value with the joined fiber's value when a
+   * fiber is joined (the joined fiber's value wins by default). The value is
+   * deleted from the fiber that closes the scope.
+   *
+   * {{{
+   * val program: UIO[(Int, Int)] =
+   *   ZIO.scoped {
+   *     for {
+   *       depth <- FiberRef.make(
+   *                  0,
+   *                  fork = (n: Int) => n + 1,
+   *                  join = (parent: Int, _: Int) => parent
+   *                )
+   *       child <- depth.get.fork
+   *       inner <- child.join
+   *       outer <- depth.get
+   *     } yield (inner, outer)
+   *   }
+   * // succeeds with (1,0)
+   * }}}
    */
   def make[A](
     initial: => A,
@@ -406,17 +513,47 @@ object FiberRef {
   )(implicit trace: Trace): ZIO[Scope, Nothing, FiberRef.WithPatch[Value, Patch]] =
     makeWith(unsafe.makePatch(initial, differ, fork)(Unsafe.unsafe))
 
+  /**
+   * Creates a new `FiberRef` of `RuntimeFlags`, using `RuntimeFlags.Patch` to
+   * combine updates to the flags in a compositional way.
+   */
   def makeRuntimeFlags(initial: RuntimeFlags)(implicit
     trace: Trace
   ): ZIO[Scope, Nothing, FiberRef.WithPatch[RuntimeFlags, RuntimeFlags.Patch]] =
     makeWith(unsafe.makeRuntimeFlags(initial)(Unsafe.unsafe))
 
+  /**
+   * Creates a new `FiberRef` of a `Set`, which merges the elements that a
+   * joined fiber added or removed into the joining fiber's set, instead of
+   * replacing the set.
+   *
+   * {{{
+   * val program: UIO[Set[String]] =
+   *   ZIO.scoped {
+   *     for {
+   *       features <- FiberRef.makeSet(Set("search"))
+   *       child    <- features.update(_ + "export").fork
+   *       _        <- features.update(_ + "billing")
+   *       _        <- child.join
+   *       merged   <- features.get
+   *     } yield merged
+   *   }
+   * // succeeds with Set(search, billing, export)
+   * }}}
+   */
   def makeSet[A](initial: => Set[A])(implicit
     trace: Trace
   ): ZIO[Scope, Nothing, FiberRef.WithPatch[Set[A], SetPatch[A]]] =
     makeWith(unsafe.makeSet(initial)(Unsafe.unsafe))
 
+  /**
+   * Constructors that create a `FiberRef` directly, outside of any effect. The
+   * `FiberRef` is not tied to a scope: no scope deletes its values when it
+   * closes.
+   */
   object unsafe {
+
+    /** Creates a new `FiberRef`, as `FiberRef.make` does, without a scope. */
     def make[A](
       initial: A,
       fork: A => A = ZIO.identityFn[A],
@@ -429,6 +566,10 @@ object FiberRef {
         join
       )
 
+    /**
+     * Creates a new `FiberRef` of a [[ZEnvironment]], as
+     * `FiberRef.makeEnvironment` does, without a scope.
+     */
     def makeEnvironment[A](
       initial: ZEnvironment[A]
     )(implicit unsafe: Unsafe): FiberRef.WithPatch[ZEnvironment[A], ZEnvironment.Patch[A, A]] =
@@ -448,6 +589,11 @@ object FiberRef {
         IsFatal.Patch.empty
       )
 
+    /**
+     * Creates a new `FiberRef` of a `Map`, whose values are combined with the
+     * specified `differ`, so that the changes joined fibers make to different
+     * keys are merged.
+     */
     def makeMap[A, B, Patch](
       initial: Map[A, B],
       differ: Differ[B, Patch]
@@ -458,6 +604,11 @@ object FiberRef {
         MapPatch.empty
       )
 
+    /**
+     * Creates a new `FiberRef` with the specified initial value, using the
+     * specified `differ` to combine updates, `fork0` as the patch applied when
+     * a fiber is forked, and `join0` to combine values on join.
+     */
     def makePatch[Value0, Patch0](
       initialValue0: Value0,
       differ: Differ[Value0, Patch0],
@@ -466,6 +617,10 @@ object FiberRef {
     )(implicit unsafe: Unsafe): FiberRef.WithPatch[Value0, Patch0] =
       new PatchFiber(initialValue0, differ, fork0, join0)
 
+    /**
+     * Creates a new `FiberRef` of `RuntimeFlags`, as
+     * `FiberRef.makeRuntimeFlags` does, without a scope.
+     */
     def makeRuntimeFlags(
       initial: RuntimeFlags
     )(implicit unsafe: Unsafe): FiberRef.WithPatch[RuntimeFlags, RuntimeFlags.Patch] =
@@ -475,6 +630,10 @@ object FiberRef {
         RuntimeFlags.Patch.empty
       )
 
+    /**
+     * Creates a new `FiberRef` of a `Set`, as `FiberRef.makeSet` does, without
+     * a scope.
+     */
     def makeSet[A](
       initial: Set[A]
     )(implicit unsafe: Unsafe): FiberRef.WithPatch[Set[A], SetPatch[A]] =
@@ -484,6 +643,10 @@ object FiberRef {
         SetPatch.empty
       )
 
+    /**
+     * Creates a new `FiberRef` of a [[Supervisor]], using `Supervisor.Patch` to
+     * combine updates. The type parameter `A` is not used.
+     */
     def makeSupervisor[A](
       initial: Supervisor[Any]
     )(implicit unsafe: Unsafe): FiberRef.WithPatch[Supervisor[Any], Supervisor.Patch] =
