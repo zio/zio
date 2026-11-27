@@ -7,11 +7,15 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * A `ZTestLogger` is an implementation of a `ZLogger` that writes all log
  * messages to an internal data structure. The contents of this data structure
- * can be accessed using the `logOutput` operator. This makes it easy to write
- * tests to verify that expected messages are being logged.
+ * can be accessed using the `logOutput` operator, so a test can check which
+ * messages were logged. The ZIO Test runner installs a new `ZTestLogger` for
+ * each test.
  *
  * {{{
- * test("logging works") {
+ * import zio.{LogLevel, ZIO}
+ * import zio.test._
+ *
+ * val loggingTest = test("logging works") {
  *   for {
  *     _      <- ZIO.logDebug("It's alive!")
  *     output <- ZTestLogger.logOutput
@@ -24,16 +28,19 @@ import java.util.concurrent.atomic.AtomicReference
 sealed trait ZTestLogger[-Message, +Output] extends ZLogger[Message, Output] {
 
   /**
-   * Returns the contents of the log.
+   * Returns the contents of the log, oldest entry first.
    */
   def logOutput: UIO[Chunk[ZTestLogger.LogEntry]]
 }
 
+/**
+ * Constructors and accessors for [[ZTestLogger]].
+ */
 object ZTestLogger {
 
   /**
    * A layer which constructs a new `ZTestLogger` and runs the effect it is
-   * provided to with the `Runtime` updated to add the `ZTestLogger`.
+   * provided to with the `ZTestLogger` added to its loggers.
    */
   val default: ZLayer[Any, Nothing, Unit] =
     ZLayer.scoped {
@@ -44,7 +51,8 @@ object ZTestLogger {
     }
 
   /**
-   * Accesses the contents of the current test logger.
+   * Accesses the contents of the current test logger. Dies with a
+   * `RuntimeException` when no `ZTestLogger` is installed.
    */
   val logOutput: UIO[Chunk[ZTestLogger.LogEntry]] =
     ZIO.loggersWith { loggers =>
@@ -69,6 +77,10 @@ object ZTestLogger {
     spans: List[LogSpan],
     annotations: Map[String, String]
   ) {
+
+    /**
+     * Passes the contents of this entry to `zlogger` and returns its result.
+     */
     def call[A](zlogger: ZLogger[String, A]): A =
       zlogger(trace, fiberId, logLevel, message, cause, context, spans, annotations)
   }

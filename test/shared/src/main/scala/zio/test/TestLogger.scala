@@ -19,12 +19,27 @@ package zio.test
 import zio.{Console, UIO, URIO, ZIO, ZLayer, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * A service that writes the test runner's output lines. The test runner prints
+ * its rendered execution events through it.
+ */
 trait TestLogger extends Serializable {
+
+  /**
+   * Writes `line` to the logger's destination.
+   */
   def logLine(line: String)(implicit trace: Trace): UIO[Unit]
 }
 
+/**
+ * Constructors and accessors for [[TestLogger]].
+ */
 object TestLogger {
 
+  /**
+   * A `TestLogger` that writes each line to `console` with `printLine`, and
+   * dies when the console fails.
+   */
   def fromConsole(console: Console)(implicit trace: Trace): ZLayer[Any, Nothing, TestLogger] =
     ZLayer.succeed {
       new TestLogger {
@@ -32,6 +47,9 @@ object TestLogger {
       }
     }
 
+  /**
+   * Writes `line` with the `TestLogger` in the environment.
+   */
   def logLine(line: String)(implicit trace: Trace): URIO[TestLogger, Unit] =
     ZIO.serviceWithZIO(_.logLine(line))
 }
