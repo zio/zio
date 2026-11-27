@@ -9,18 +9,33 @@ import zio.test.render.LogLine.Message
 
 import scala.annotation.tailrec
 
+/**
+ * The outcome of one step of an assertion: `Succeed` with a value, `Fail` when
+ * the step did not hold, or `Die` when it threw an exception.
+ */
 sealed trait Result[+A] { self =>
+  /**
+   * Returns `true` for `Fail` and `Die`.
+   */
   def isFailOrDie: Boolean = self match {
     case Result.Fail       => true
     case Result.Die(_)     => true
     case Result.Succeed(_) => false
   }
 
+  /**
+   * Returns `true` for `Die`.
+   */
   def isDie: Boolean = self match {
     case Result.Die(_) => true
     case _             => false
   }
 
+  /**
+   * Combines two `Succeed` values with `f`. Otherwise the combination is `Fail`
+   * when either side is `Fail`, and `Die` when neither side is `Fail` and one
+   * is `Die`.
+   */
   def zipWith[B, C](that: Result[B])(f: (A, B) => C): Result[C] =
     (self, that) match {
       case (Result.Succeed(a), Result.Succeed(b)) => Result.succeed(f(a, b))
@@ -31,18 +46,44 @@ sealed trait Result[+A] { self =>
     }
 }
 
+/**
+ * Constructors and cases of [[Result]].
+ */
 object Result {
+  /**
+   * A successful result holding `value`.
+   */
   def succeed[A](value: A): Result[A] = Succeed(value)
 
+  /**
+   * A failed result.
+   */
   def fail: Result[Nothing] = Fail
 
+  /**
+   * A result for a step that threw `throwable`.
+   */
   def die(throwable: Throwable): Result[Nothing] = Die(throwable)
 
+  /**
+   * The result of a step that did not hold.
+   */
   case object Fail                 extends Result[Nothing]
+  /**
+   * The result of a step that threw `err`.
+   */
   case class Die(err: Throwable)   extends Result[Nothing]
+  /**
+   * The result of a step that produced `value`.
+   */
   case class Succeed[+A](value: A) extends Result[A]
 }
 
+/**
+ * One failure of an assertion, collected from its trace for the test report:
+ * the message, the code that failed and where it is, the steps that led to it,
+ * nested failures, the result and the custom label.
+ */
 case class FailureCase(
   errorMessage: Message,
   codeString: String,
@@ -54,7 +95,14 @@ case class FailureCase(
   customLabel: Option[String]
 )
 
+/**
+ * Builds [[FailureCase]] values from a [[TestTrace]].
+ */
 object FailureCase {
+  /**
+   * Formats `string` for the test report, marking the part in `span`, and the
+   * enclosing part in `parentSpan` when it contains `span`.
+   */
   def highlight(
     string: String,
     span: Span,
@@ -76,6 +124,10 @@ object FailureCase {
         )
     }
 
+  /**
+   * Returns the last node of `trace`, following the right side of `>>>`, `&&`
+   * and `||`.
+   */
   @tailrec
   def rightmostNode(trace: TestTrace[Boolean]): TestTrace.Node[Boolean] = trace match {
     case node: TestTrace.Node[Boolean] => node
@@ -85,6 +137,10 @@ object FailureCase {
     case TestTrace.Not(trace)          => rightmostNode(trace)
   }
 
+  /**
+   * Returns the code and the value of each node along the `>>>` chain of
+   * `trace`.
+   */
   def getPath(trace: TestTrace[_]): Chunk[(String, String)] =
     trace match {
       case node: TestTrace.Node[_] =>
@@ -94,6 +150,11 @@ object FailureCase {
       case _ => Chunk.empty
     }
 
+  /**
+   * Returns the failure cases described by `trace`, one for each node at the
+   * end of a `>>>` chain in its `&&`, `||` and `!` tree. `path` holds the steps
+   * that led to `trace`.
+   */
   def fromTrace(trace: TestTrace[Boolean], path: Chunk[(String, String)]): Chunk[FailureCase] =
     trace match {
       case node: TestTrace.Node[Boolean] =>
