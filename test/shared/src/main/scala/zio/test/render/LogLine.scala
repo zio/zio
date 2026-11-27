@@ -43,7 +43,8 @@ object LogLine {
     def +:(line: Line) = Message(line +: lines)
 
     /**
-     * Adds `fragment` to this message. On an empty message, returns a message with one line that holds `fragment`.
+     * Adds `fragment` to this message. On an empty message, returns a message
+     * with one line that holds `fragment`.
      */
     def :+(fragment: Fragment): Message = Message(lines match {
       case line +: lines => (fragment +: line) +: lines

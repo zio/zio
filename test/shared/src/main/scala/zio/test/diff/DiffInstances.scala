@@ -22,7 +22,10 @@ trait DiffInstances extends LowPriDiff {
    *   - Equal strings give `Identical`, and a `null` against a non-`null`
    *     string gives a `Different` with no custom rendering.
    *   - Two single-line strings give a `Different` with no custom rendering
-   *     when either is shorter than 20 characters. Otherwise they are diffed word by word when each of them has more than one word (splitting on whitespace) and its length divided by its number of words is less than 12, and character by character otherwise.
+   *     when either is shorter than 20 characters. Otherwise they are diffed
+   *     word by word when each of them has more than one word (splitting on
+   *     whitespace) and its length divided by its number of words is less than
+   *     12, and character by character otherwise.
    *   - When either string has more than one line, they are diffed line by
    *     line.
    */

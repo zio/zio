@@ -35,7 +35,9 @@ import zio.{Cause, _}
  * [[IntelliJRenderer]], and any other value or no argument selects
  * [[ConsoleRenderer]].
  *
- * Rendering has two steps: `renderEvent` turns a [[zio.test.ExecutionEvent]] into [[ExecutionResult]]s built from [[LogLine]] values, and `render` runs `renderEvent` and turns its results into strings.
+ * Rendering has two steps: `renderEvent` turns a [[zio.test.ExecutionEvent]]
+ * into [[ExecutionResult]]s built from [[LogLine]] values, and `render` runs
+ * `renderEvent` and turns its results into strings.
  */
 trait TestRenderer {
 
@@ -218,7 +220,8 @@ trait TestRenderer {
     }
 
   /**
-   * Renders one [[zio.test.FailureCase]] and its nested failure cases as lines. The lines of the case itself get the offset `offset + 1`.
+   * Renders one [[zio.test.FailureCase]] and its nested failure cases as lines.
+   * The lines of the case itself get the offset `offset + 1`.
    *
    * @param testLabel
    *   a label shown with the assertion code, when defined

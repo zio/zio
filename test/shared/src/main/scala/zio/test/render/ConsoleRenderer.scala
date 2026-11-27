@@ -148,9 +148,10 @@ trait ConsoleRenderer extends TestRenderer {
 
   /**
    * Renders `results` for the summary at the end of a run, one string per
-   * result. Each `Passed`, `Failed` or `Ignored` test or suite result gets its summary lines, its annotations
-   * rendered with `testAnnotationRenderer` and the console output recorded for
-   * the test; an `Other` result gets its streaming lines.
+   * result. Each `Passed`, `Failed` or `Ignored` test or suite result gets its
+   * summary lines, its annotations rendered with `testAnnotationRenderer` and
+   * the console output recorded for the test; an `Other` result gets its
+   * streaming lines.
    */
   def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
     results.map { result =>

@@ -51,13 +51,17 @@ import scala.annotation.tailrec
 trait GenOrderingPoly extends GenPoly {
 
   /**
-   * The `Ordering[T]` member of this instance. `GenOrderingPoly.apply` sets it to its `ord` argument.
+   * The `Ordering[T]` member of this instance. `GenOrderingPoly.apply` sets it
+   * to its `ord` argument.
    */
   val ordT: Ordering[T]
 }
 
 /**
- * Constructors of [[GenOrderingPoly]] instances for `Boolean`, `Byte`, `Char`, `Double`, `Float`, `Int`, `Long`, `String` and `Unit` (its `short` also gives `Long` values) and for `List`, `Option` and `Vector` of another `GenOrderingPoly`, and `genOrderingPoly`, a generator that picks among them.
+ * Constructors of [[GenOrderingPoly]] instances for `Boolean`, `Byte`, `Char`,
+ * `Double`, `Float`, `Int`, `Long`, `String` and `Unit` (its `short` also gives
+ * `Long` values) and for `List`, `Option` and `Vector` of another
+ * `GenOrderingPoly`, and `genOrderingPoly`, a generator that picks among them.
  *
  * @see
  *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]

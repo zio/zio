@@ -167,7 +167,9 @@ trait IntelliJRenderer extends TestRenderer {
 object IntelliJRenderer extends IntelliJRenderer {
 
   /**
-   * Renders the first entry of the source-location trace recorded for a test, which [[IntelliJRenderer]] gives the IDE as the location of the test. Renders nothing when the recorded trace is empty.
+   * Renders the first entry of the source-location trace recorded for a test,
+   * which [[IntelliJRenderer]] gives the IDE as the location of the test.
+   * Renders nothing when the recorded trace is empty.
    */
   val locationRenderer: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.trace) { case child :: _ =>

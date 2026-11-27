@@ -32,7 +32,10 @@ import zio.test.render.LogLine.Line
  * @param resultType
  *   whether the result describes a test, a suite or other output
  * @param label
- *   the label of the test or suite; for a finished test, [[IntelliJRenderer]] stores the test's own label and [[ConsoleRenderer]] the outermost label of its path, and for a runtime failure with a non-empty path both store its last label
+ *   the label of the test or suite; for a finished test, [[IntelliJRenderer]]
+ *   stores the test's own label and [[ConsoleRenderer]] the outermost label of
+ *   its path, and for a runtime failure with a non-empty path both store its
+ *   last label
  * @param status
  *   the state of the test or suite
  * @param offset
@@ -61,7 +64,8 @@ case class ExecutionResult(
    *
    *   - this result is `Started` or `Ignored`: returns `that`
    *   - `that` is `Ignored`: returns this result
-   *   - both are `Failed`: returns this result with the streaming lines of `that`, except its first line, appended
+   *   - both are `Failed`: returns this result with the streaming lines of
+   *     `that`, except its first line, appended
    *   - this result is `Passed`: returns `that`
    *   - `that` is `Passed`: returns this result
    */
@@ -81,7 +85,8 @@ case class ExecutionResult(
    *
    *   - this result is `Started` or `Ignored`: returns `that`
    *   - `that` is `Ignored`: returns this result
-   *   - both are `Failed`: returns this result with the streaming lines of `that`, except its first line, appended
+   *   - both are `Failed`: returns this result with the streaming lines of
+   *     `that`, except its first line, appended
    *   - this result is `Passed`: returns this result
    *   - `that` is `Passed`: returns `that`
    */
