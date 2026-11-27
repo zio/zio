@@ -40,7 +40,7 @@ import scala.annotation.tailrec
  * }}}
  *
  * This encoding of a pipeline with a type alias is not used because it does not
- * infer well. In its place, this trait captures the polymorphism inherent to
+ * infer well. In its place, this class captures the polymorphism inherent to
  * many pipelines, which can therefore be more flexible about the environment
  * and error types of the streams they transform.
  *
@@ -51,10 +51,27 @@ import scala.annotation.tailrec
  * values, creating, storing, and passing around reusable transformation
  * pipelines that can be applied to many different streams.
  *
- * The most common way to create a pipeline is to convert a sink into a pipeline
- * (in general, transforming elements of a stream requires the power of a sink).
- * However, the companion object has lots of other pipeline constructors based
- * on the methods of stream.
+ * A pipeline wraps a [[ZChannel]] (see `toChannel`). The companion object
+ * builds pipelines from functions (`map`, `mapZIO`, `filter`), from a sink
+ * (`fromSink`), from a channel (`fromChannel`), from a push function
+ * (`fromPush`) or from a stream transformation (`fromFunction`), and has many
+ * constructors that mirror methods of [[ZStream]]. Pipelines compose with `>>>`
+ * and are applied to a stream with `ZStream#via` or `apply`.
+ *
+ * {{{
+ * import zio._
+ * import java.nio.charset.CharacterCodingException
+ *
+ * val lines: ZPipeline[Any, CharacterCodingException, Byte, String] =
+ *   ZPipeline.utf8Decode >>> ZPipeline.splitLines
+ *
+ * val result: IO[CharacterCodingException, Chunk[String]] =
+ *   ZStream.fromChunk(Chunk.fromArray("one\r\ntwo\n".getBytes("UTF-8"))).via(lines).runCollect
+ * // Chunk(one,two)
+ * }}}
+ *
+ * @see
+ *   [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
  */
 final class ZPipeline[-Env, +Err, -In, +Out] private (
   val channel: ZChannel[Env, ZNothing, Chunk[In], Any, Err, Chunk[Out], Any]
@@ -133,8 +150,10 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
    * on another. Elements will be aggregated by the sink until the downstream
    * fiber pulls the aggregated value, or until the schedule's delay has passed.
    *
-   * Aggregated elements will be fed into the schedule to determine the delays
-   * between pulls.
+   * The schedule receives the last aggregate (`None` before the first one).
+   * When the schedule's delay ends an aggregate, the stream emits the aggregate
+   * as `Right` and then the schedule's output as `Left`; when the sink
+   * completes first, it emits only the `Right`.
    */
   def aggregateAsyncWithinEither[Env1 <: Env, Err1 >: Err, Out1 >: Out, Out2, Out3](
     sink: ZSink[Env1, Err1, Out1, Out1, Out2],
@@ -159,17 +178,20 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.changes
 
   /**
-   * Returns a new pipeline that only emits elements that are not equal to the
-   * previous element emitted, using the specified function to determine whether
-   * two elements are equal.
+   * Returns a new pipeline that emits an element only when it differs from the
+   * element immediately before it in the input, using `f` to decide whether two
+   * elements are equal. The first element is always emitted. Each element is
+   * compared with its input predecessor, also when that predecessor was not
+   * emitted.
    */
   def changesWith(f: (Out, Out) => Boolean)(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     self >>> ZPipeline.changesWith(f)
 
   /**
-   * Returns a new pipeline that only emits elements that are not equal to the
-   * previous element emitted, using the specified effectual function to
-   * determine whether two elements are equal.
+   * Returns a new pipeline that emits an element only when it differs from the
+   * element immediately before it in the input, using the effectful function
+   * `f` to decide whether two elements are equal. The first element is always
+   * emitted.
    */
   def changesWithZIO(f: (Out, Out) => UIO[Boolean])(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     self >>> ZPipeline.changesWithZIO(f)
@@ -188,19 +210,20 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.collect(pf)
 
   /**
-   * Filters any `Right` values.
+   * Emits the values inside `Left` elements and drops `Right` elements.
    */
   def collectLeft[A, B](implicit ev: Out <:< Either[A, B], trace: Trace): ZPipeline[Env, Err, In, A] =
     self.asInstanceOf[ZPipeline[Env, Err, In, Either[A, B]]] >>> ZPipeline.collectLeft[Err, A, B]
 
   /**
-   * Filters any 'None' values.
+   * Emits the values inside `Some` elements and drops `None` elements.
    */
   def collectSome[Out2](implicit ev: Out <:< Option[Out2], trace: Trace): ZPipeline[Env, Err, In, Out2] =
     self.asInstanceOf[ZPipeline[Env, Err, In, Option[Out2]]] >>> ZPipeline.collectSome[Err, Out2]
 
   /**
-   * Filters any `Exit.Failure` values.
+   * Emits the values of `Exit.Success` elements and drops `Exit.Failure`
+   * elements.
    */
   def collectSuccess[Out2, L1](implicit
     ev: Out <:< Exit[L1, Out2],
@@ -209,7 +232,7 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self.asInstanceOf[ZPipeline[Env, Err, In, Exit[L1, Out2]]] >>> ZPipeline.collectSuccess
 
   /**
-   * Filters any `Left` values.
+   * Emits the values inside `Right` elements and drops `Left` elements.
    */
   def collectRight[A, B](implicit ev: Out <:< Either[A, B], trace: Trace): ZPipeline[Env, Err, In, B] =
     self.asInstanceOf[ZPipeline[Env, Err, In, Either[A, B]]] >>> ZPipeline.collectRight[Err, A, B]
@@ -222,25 +245,29 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.collectWhile(pf)
 
   /**
-   * Terminates the pipeline when encountering the first `Right`.
+   * Emits the values inside `Left` elements and ends the stream at the first
+   * `Right`.
    */
   def collectWhileLeft[A, B](implicit ev: Out <:< Either[A, B], trace: Trace): ZPipeline[Env, Err, In, A] =
     self.asInstanceOf[ZPipeline[Env, Err, In, Either[A, B]]] >>> ZPipeline.collectWhileLeft
 
   /**
-   * Terminates the pipeline when encountering the first `Left`.
+   * Emits the values inside `Right` elements and ends the stream at the first
+   * `Left`.
    */
   def collectWhileRight[A, B](implicit ev: Out <:< Either[A, B], trace: Trace): ZPipeline[Env, Err, In, B] =
     self.asInstanceOf[ZPipeline[Env, Err, In, Either[A, B]]] >>> ZPipeline.collectWhileRight
 
   /**
-   * Terminates the pipeline when encountering the first `None`.
+   * Emits the values inside `Some` elements and ends the stream at the first
+   * `None`.
    */
   def collectWhileSome[Out2](implicit ev: Out <:< Option[Out2], trace: Trace): ZPipeline[Env, Err, In, Out2] =
     self.asInstanceOf[ZPipeline[Env, Err, In, Option[Out2]]] >>> ZPipeline.collectWhileSome
 
   /**
-   * Terminates the pipeline when encountering the first `Exit.Failure`.
+   * Emits the values of `Exit.Success` elements and ends the stream at the
+   * first `Exit.Failure`, without failing.
    */
   def collectWhileSuccess[Err2, Out2](implicit
     ev: Out <:< Exit[Err2, Out2],
@@ -274,12 +301,16 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
 
   /**
    * Converts this pipeline to a pipeline that executes its effects but emits no
-   * elements. Useful for sequencing effects using pipeline:
+   * elements. Useful for running a pipeline only for its effects:
    *
    * {{{
-   * (Stream(1, 2, 3).tap(i => ZIO(println(i))) ++
-   *   (Stream.fromZIO(ZIO(println("Done!"))) >>> ZPipeline.drain) ++
-   *   Stream(4, 5, 6).tap(i => ZIO(println(i)))).run(Sink.drain)
+   * import zio._
+   *
+   * val logOnly: ZPipeline[Any, Nothing, Int, Nothing] =
+   *   ZPipeline.tap[Any, Nothing, Int](i => Console.printLine(s"got \$i").orDie).drain
+   *
+   * val result: UIO[Chunk[Nothing]] = ZStream(1, 2, 3).via(logOnly).runCollect
+   * // prints got 1, got 2, got 3; result is Chunk()
    * }}}
    */
   def drain(implicit trace: Trace): ZPipeline[Env, Err, In, Nothing] =
@@ -299,14 +330,15 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.drop(n)
 
   /**
-   * Drops all elements of the pipeline until the specified predicate evaluates
-   * to `true`.
+   * Drops elements up to and including the first element for which the
+   * predicate is `true`, then emits the rest.
    */
   def dropUntil(f: Out => Boolean)(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     self >>> ZPipeline.dropUntil(f)
 
   /**
-   * Drops incoming elements until the effectful predicate `p` is satisfied.
+   * Drops elements up to and including the first element for which the
+   * effectful predicate `f` returns `true`, then emits the rest.
    */
   def dropUntilZIO[Env1 <: Env, Err1 >: Err](f: Out => ZIO[Env1, Err1, Boolean])(implicit
     trace: Trace
@@ -331,8 +363,8 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.dropWhile(f)
 
   /**
-   * Drops incoming elements as long as the effectful predicate `p` is
-   * satisfied.
+   * Drops elements for as long as the effectful predicate `f` returns `true`,
+   * then emits the rest.
    */
   def dropWhileZIO[Env1 <: Env, Err1 >: Err](f: Out => ZIO[Env1, Err1, Boolean])(implicit
     trace: Trace
@@ -354,8 +386,7 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.filterZIO(f)
 
   /**
-   * Submerges the chunks carried by this pipeline into the pipeline's
-   * structure, while still preserving them.
+   * Flattens the chunks emitted by this pipeline into their elements.
    */
   def flattenChunks[Out2](implicit ev: Out <:< Chunk[Out2], trace: Trace): ZPipeline[Env, Err, In, Out2] =
     self.asInstanceOf[ZPipeline[Env, Err, In, Chunk[Out2]]] >>> ZPipeline.flattenChunks[Out2]
@@ -368,14 +399,15 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self.asInstanceOf[ZPipeline[Env, Err2, In, Exit[Err2, Out2]]] >>> ZPipeline.flattenExit[Err2, Out2]
 
   /**
-   * Submerges the iterables carried by this pipeline into the pipeline's
-   * structure, while still preserving them.
+   * Flattens the iterables emitted by this pipeline into their elements.
    */
   def flattenIterables[Out2](implicit ev: Out <:< Iterable[Out2], trace: Trace): ZPipeline[Env, Err, In, Out2] =
     self.asInstanceOf[ZPipeline[Env, Err, In, Iterable[Out2]]] >>> ZPipeline.flattenIterables[Out2]
 
   /**
-   * Flattens take values.
+   * Flattens the `Take` values emitted by this pipeline: emits the elements of
+   * each successful `Take`, fails with the cause of a failed `Take` and ends
+   * the stream at `Take.end`.
    */
   def flattenTake[Err1 >: Err, Out2](implicit
     ev: Out <:< Take[Err1, Out2],
@@ -384,7 +416,9 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self.asInstanceOf[ZPipeline[Env, Err1, In, Take[Err1, Out2]]] >>> ZPipeline.flattenTake
 
   /**
-   * Partitions the pipeline with specified chunkSize
+   * Groups the elements emitted by this pipeline into chunks of `chunkSize`
+   * elements; the last chunk can be smaller. A `chunkSize` less than 1 is
+   * treated as 1.
    *
    * @param chunkSize
    *   size of the chunk
@@ -506,6 +540,12 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
   ): ZPipeline[Env2, Err2, In, Out2] =
     mapZIOPar[Env2, Err2, Out2](n, 16)(f)
 
+  /**
+   * Maps over elements of the stream with the specified effectful function,
+   * executing up to `n` invocations of `f` concurrently. Transformed elements
+   * are emitted in the original order, each in its own chunk. `bufferSize` is
+   * the number of elements that can be buffered downstream.
+   */
   def mapZIOPar[Env2 <: Env, Err2 >: Err, Out2](n: => Int, bufferSize: => Int = 16)(f: Out => ZIO[Env2, Err2, Out2])(
     implicit trace: Trace
   ): ZPipeline[Env2, Err2, In, Out2] =
@@ -540,8 +580,8 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     new ZPipeline(self.channel.mapError(f))
 
   /**
-   * A more powerful version of [[mapError]] which also surfaces the [[Cause]]
-   * of the channel failure
+   * Transforms the full [[Cause]] of this pipeline's failures using `f`, so
+   * that defects and interruptions can be seen and changed as well.
    */
   def mapErrorCause[Err2](
     f: Cause[Err] => Cause[Err2]
@@ -549,7 +589,8 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     new ZPipeline(self.channel.mapErrorCause(f))
 
   /**
-   * Transforms the errors emitted by this pipeline using `f`.
+   * Transforms the errors emitted by this pipeline using the effectful function
+   * `f`.
    */
   def mapErrorZIO[Env1 <: Env, Err2](
     f: Err => URIO[Env1, Err2]
@@ -567,8 +608,8 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     orDieWith(ev)
 
   /**
-   * Keeps none of the errors, and terminates the fiber with them, using the
-   * specified function to convert the `E` into a `Throwable`.
+   * Converts the failure of this pipeline into a defect, using `f` to turn the
+   * `Err` value into a `Throwable`.
    */
   def orDieWith(f: Err => Throwable)(implicit trace: Trace): ZPipeline[Env, Nothing, In, Out] =
     new ZPipeline(self.channel.orDieWith(f))
@@ -580,15 +621,15 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self >>> ZPipeline.take(n)
 
   /**
-   * Takes all elements of the pipeline until the specified predicate evaluates
-   * to `true`.
+   * Emits elements up to and including the first element for which the
+   * predicate is `true`, then ends the stream.
    */
   def takeUntil(f: Out => Boolean)(implicit trace: Trace): ZPipeline[Env, Err, In, Out] =
     self >>> ZPipeline.takeUntil(f)
 
   /**
-   * Takes all elements of the pipeline until the specified effectual predicate
-   * evaluates to `true`.
+   * Emits elements up to and including the first element for which the
+   * effectful predicate returns `true`, then ends the stream.
    */
   def takeUntilZIO[Env1 <: Env, Err1 >: Err](f: Out => ZIO[Env1, Err1, Boolean])(implicit
     trace: Trace
@@ -674,22 +715,41 @@ final class ZPipeline[-Env, +Err, -In, +Out] private (
     self.channel
 
   /**
-   * Zips this pipeline together with the index of elements.
+   * Pairs each element emitted by this pipeline with its index, starting at 0.
    */
   def zipWithIndex(implicit trace: Trace): ZPipeline[Env, Err, In, (Out, Long)] =
     self >>> ZPipeline.zipWithIndex
 
+  /**
+   * Pairs each element emitted by this pipeline with the next one, or with
+   * `None` for the last element.
+   */
   def zipWithNext(implicit trace: Trace): ZPipeline[Env, Err, In, (Out, Option[Out])] =
     self >>> ZPipeline.zipWithNext
 
+  /**
+   * Pairs each element emitted by this pipeline with the previous one, or with
+   * `None` for the first element.
+   */
   def zipWithPrevious(implicit trace: Trace): ZPipeline[Env, Err, In, (Option[Out], Out)] =
     self >>> ZPipeline.zipWithPrevious
 
+  /**
+   * Pairs each element emitted by this pipeline with the previous and the next
+   * element, using `None` where there is no such element.
+   */
   def zipWithPreviousAndNext(implicit trace: Trace): ZPipeline[Env, Err, In, (Option[Out], Out, Option[Out])] =
     self >>> ZPipeline.zipWithPreviousAndNext
 
 }
 
+/**
+ * Constructors for [[ZPipeline]]: from functions and effects (`map`, `mapZIO`,
+ * `filter`), from a sink, channel, push function or stream transformation
+ * (`fromSink`, `fromChannel`, `fromPush`, `fromFunction`), text decoders,
+ * encoders and line splitting (`utf8Decode`, `utf8Encode`, `splitLines`), and
+ * pipelines that mirror methods of [[ZStream]].
+ */
 object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
@@ -728,8 +788,10 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * on another. Elements will be aggregated by the sink until the downstream
    * fiber pulls the aggregated value, or until the schedule's delay has passed.
    *
-   * Aggregated elements will be fed into the schedule to determine the delays
-   * between pulls.
+   * The schedule receives the last aggregate (`None` before the first one).
+   * When the schedule's delay ends an aggregate, the stream emits the aggregate
+   * as `Right` and then the schedule's output as `Left`; when the sink
+   * completes first, it emits only the `Right`.
    */
   def aggregateAsyncWithinEither[Env, Err, In, Out, Out2](
     sink: => ZSink[Env, Err, In, In, Out],
@@ -742,19 +804,26 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * compact definition of pipelines.
    *
    * {{{
-   * ZPipeline[Int] >>> ZPipeline.filter(_ % 2 != 0)
+   * val odd: ZPipeline[Any, Nothing, Int, Int] =
+   *   ZPipeline[Int] >>> ZPipeline.filter[Int](_ % 2 != 0)
    * }}}
    */
   def apply[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     identity[In]
 
+  /**
+   * Creates a pipeline that emits all elements of the stream, then the provided
+   * chunk. The chunk is emitted only when the stream ends without failing.
+   */
   def append[In](values: => Chunk[In])(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any] *> ZChannel.write(values))
 
   /**
    * A dynamic pipeline that first collects `n` elements from the stream, then
    * creates another pipeline with the function `f` and sends all the following
-   * elements through that.
+   * elements through that. The collected elements are only passed to `f`, not
+   * through the new pipeline. When the stream ends before `n` elements arrive,
+   * `f` receives the elements collected so far.
    */
   def branchAfter[Env, Err, In, Out](
     n: => Int
@@ -789,9 +858,20 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       ZPipeline.fromChannel(bufferring(Chunk.empty))
     }
 
+  /**
+   * Creates a pipeline that emits an element only when it is not equal (`==`)
+   * to the element immediately before it. The first element is always emitted.
+   */
   def changes[Err, In](implicit trace: Trace): ZPipeline[Any, Err, In, In] =
     changesWith(_ == _)
 
+  /**
+   * Creates a pipeline that emits an element only when it differs from the
+   * element immediately before it in the input, using `f` to decide whether two
+   * elements are equal. The first element is always emitted. Each element is
+   * compared with its input predecessor, also when that predecessor was not
+   * emitted.
+   */
   def changesWith[Err, In](f: (In, In) => Boolean)(implicit trace: Trace): ZPipeline[Any, Err, In, In] = {
     def writer(last: Option[In]): ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[In], Unit] =
       ZChannel.readWithCause(
@@ -811,6 +891,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(writer(None))
   }
 
+  /**
+   * Creates a pipeline that emits an element only when it differs from the
+   * element immediately before it in the input, using the effectful function
+   * `f` to decide whether two elements are equal. The first element is always
+   * emitted.
+   */
   def changesWithZIO[Env, Err, In](
     f: (In, In) => ZIO[Env, Err, Boolean]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
@@ -851,18 +937,39 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def collect[In, Out](f: PartialFunction[In, Out])(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(_.collect(f)))
 
+  /**
+   * Creates a pipeline that emits the values inside `Left` elements and drops
+   * `Right` elements.
+   */
   def collectLeft[Err, A, B](implicit trace: Trace): ZPipeline[Any, Err, Either[A, B], A] =
     collect { case Left(a) => a }
 
+  /**
+   * Creates a pipeline that emits the values inside `Some` elements and drops
+   * `None` elements.
+   */
   def collectSome[Err, A](implicit trace: Trace): ZPipeline[Any, Err, Option[A], A] =
     collect { case Some(a) => a }
 
+  /**
+   * Creates a pipeline that emits the values of `Exit.Success` elements and
+   * drops `Exit.Failure` elements.
+   */
   def collectSuccess[A, B](implicit trace: Trace): ZPipeline[Any, Nothing, Exit[B, A], A] =
     collect { case Exit.Success(a) => a }
 
+  /**
+   * Creates a pipeline that emits the values inside `Right` elements and drops
+   * `Left` elements.
+   */
   def collectRight[Err, A, B](implicit trace: Trace): ZPipeline[Any, Err, Either[A, B], B] =
     collect { case Right(b) => b }
 
+  /**
+   * Creates a pipeline that maps elements with the partial function `pf` for as
+   * long as it is defined, and ends the stream at the first element for which
+   * it is not.
+   */
   def collectWhile[Err, In, Out](pf: PartialFunction[In, Out])(implicit trace: Trace): ZPipeline[Any, Err, In, Out] = {
     lazy val loop: ZChannel[Any, Err, Chunk[In], Any, Err, Chunk[Out], Any] =
       ZChannel.readWith[Any, Err, Chunk[In], Any, Err, Chunk[Out], Any](
@@ -880,18 +987,39 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(loop)
   }
 
+  /**
+   * Creates a pipeline that emits the values inside `Left` elements and ends
+   * the stream at the first `Right`.
+   */
   def collectWhileLeft[Err, A, B](implicit trace: Trace): ZPipeline[Any, Err, Either[A, B], A] =
     collectWhile { case Left(a) => a }
 
+  /**
+   * Creates a pipeline that emits the values inside `Right` elements and ends
+   * the stream at the first `Left`.
+   */
   def collectWhileRight[Err, A, B](implicit trace: Trace): ZPipeline[Any, Err, Either[A, B], B] =
     collectWhile { case Right(b) => b }
 
+  /**
+   * Creates a pipeline that emits the values inside `Some` elements and ends
+   * the stream at the first `None`.
+   */
   def collectWhileSome[Err, A](implicit trace: Trace): ZPipeline[Any, Err, Option[A], A] =
     collectWhile { case Some(a) => a }
 
+  /**
+   * Creates a pipeline that emits the values of `Exit.Success` elements and
+   * ends the stream at the first `Exit.Failure`, without failing.
+   */
   def collectWhileSuccess[Err, A](implicit trace: Trace): ZPipeline[Any, Nothing, Exit[Err, A], A] =
     collectWhile { case Exit.Success(a) => a }
 
+  /**
+   * Creates a pipeline that runs the effect returned by the partial function
+   * `pf` for each element and emits its result, for as long as `pf` is defined,
+   * and ends the stream at the first element for which it is not.
+   */
   def collectWhileZIO[Env, Err, In, Out](
     pf: PartialFunction[In, ZIO[Env, Err, Out]]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, Out] = {
@@ -915,6 +1043,10 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(loop(Chunk.ChunkIterator.empty, 0))
   }
 
+  /**
+   * Creates a pipeline that consumes all elements and emits none. Upstream
+   * effects still run.
+   */
   def drain[Err](implicit trace: Trace): ZPipeline[Any, Err, Any, Nothing] =
     new ZPipeline(ZChannel.identity[Err, Any, Any].drain)
 
@@ -962,7 +1094,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
    * Creates a pipeline that decodes a stream of bytes into a stream of strings
-   * using the given charset
+   * using the given charset. It fails with a
+   * `java.nio.charset.CharacterCodingException` when the input is not valid in
+   * the charset.
    */
   def decodeStringWith(
     charset: => Charset
@@ -971,7 +1105,10 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
    * Creates a pipeline that decodes a stream of bytes into a stream of
-   * characters using the given charset
+   * characters using the given charset. A character whose bytes are split
+   * across chunks is decoded once all its bytes arrive. Malformed input,
+   * including a stream that ends in the middle of a character, fails with a
+   * `java.nio.charset.MalformedInputException`.
    */
   def decodeCharsWith(
     charset: => Charset,
@@ -981,7 +1118,10 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
    * Creates a pipeline that decodes a stream of bytes into a stream of
-   * characters using the given charset decoder.
+   * characters using the given charset decoder. The decoder's actions for
+   * malformed input and unmappable characters apply, so a decoder configured
+   * with `CodingErrorAction.REPLACE` emits replacement characters instead of
+   * failing.
    */
   def decodeCharsWithDecoder(
     charsetDecoder: => CharsetDecoder,
@@ -1087,7 +1227,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     }
 
   /**
-   * Creates a pipeline that drops n elements.
+   * Creates a pipeline that drops the first `n` elements. A non-positive `n`
+   * drops nothing.
    */
   def drop[In](n: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     ZPipeline.suspend {
@@ -1110,8 +1251,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     }
 
   /**
-   * Creates a pipeline that drops elements until the specified predicate
-   * evaluates to true.
+   * Creates a pipeline that drops elements up to and including the first
+   * element for which the predicate is `true`, then emits the rest.
    *
    * {{{
    * ZPipeline.dropUntil[Int](_ > 100)
@@ -1121,7 +1262,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     ZPipeline.dropWhile[In](!f(_)) >>> ZPipeline.drop(1)
 
   /**
-   * Drops incoming elements until the effectful predicate `p` is satisfied.
+   * Drops elements up to and including the first element for which the
+   * effectful predicate `p` returns `true`, then emits the rest.
    */
   def dropUntilZIO[Env, Err, In](
     p: In => ZIO[Env, Err, Boolean]
@@ -1176,7 +1318,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
    * Creates a pipeline that converts a stream of strings into a stream of bytes
-   * using the given charset
+   * using the given charset. When `bom` is not empty, it is emitted first, also
+   * for an empty stream.
    */
   def encodeStringWith(
     charset: => Charset,
@@ -1317,6 +1460,10 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def filter[In](f: In => Boolean)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline(ZChannel.identity[Nothing, Chunk[In], Any].mapOut(_.filter(f)))
 
+  /**
+   * Creates a pipeline that keeps the elements for which the effectful
+   * predicate `f` returns `true`.
+   */
   def filterZIO[Env, Err, In](f: In => ZIO[Env, Err, Boolean])(implicit trace: Trace): ZPipeline[Env, Err, In, In] =
     ZPipeline.mapChunksZIO(_.filterZIO(f))
 
@@ -1342,8 +1489,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
    * Creates a pipeline that flattens a stream of streams into a single stream
-   * of values. The streams are merged in parallel up to the specified maximum
-   * concurrency and will buffer up to output buffer size elements.
+   * of values. Up to `n` streams run at the same time, their elements are
+   * interleaved as they arrive, and up to `outputBuffer` chunks are buffered.
    */
   def flattenStreamsPar[Env, Err, Out](n: => Int, outputBuffer: => Int = 16)(implicit
     trace: Trace
@@ -1356,7 +1503,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     )
 
   /**
-   * Creates a pipeline that flattens a stream of takes.
+   * Creates a pipeline that flattens a stream of takes: it emits the elements
+   * of each successful `Take`, fails with the cause of a failed `Take` and ends
+   * the stream at `Take.end`.
    */
   def flattenTake[Err, Out](implicit trace: Trace): ZPipeline[Any, Err, Take[Err, Out], Out] = {
 
@@ -1482,6 +1631,19 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     ZPipeline.fromChannel(groupAdjacentBy(None))
   }
 
+  /**
+   * Creates a pipeline that groups elements into chunks of `chunkSize`
+   * elements; the last chunk can be smaller. A `chunkSize` less than 1 is
+   * treated as 1.
+   *
+   * {{{
+   * import zio.Chunk
+   *
+   * val pairs: ZStream[Any, Nothing, Chunk[Int]] =
+   *   ZStream(1, 2, 3, 4, 5).via(ZPipeline.grouped[Int](2))
+   * // Chunk(1,2), Chunk(3,4), Chunk(5)
+   * }}}
+   */
   def grouped[In](chunkSize: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, Chunk[In]] =
     rechunk(chunkSize).chunks
 
@@ -1520,7 +1682,10 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   }
 
   /**
-   * Creates a pipeline from a chunk processing function.
+   * Creates a pipeline from a chunk processing function. The scoped effect
+   * `push` creates the function once per run; the function receives
+   * `Some(chunk)` for each input chunk and `None` when the input ends, and its
+   * outputs are emitted. The scope closes when the pipeline completes.
    */
   def fromPush[Env, Err, In, Out](
     push: => ZIO[Scope with Env, Nothing, Option[Chunk[In]] => ZIO[Env, Err, Chunk[Out]]]
@@ -1546,7 +1711,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
    * Creates a pipeline that repeatedly sends all elements through the given
-   * sink.
+   * sink. Each time the sink completes, its result is emitted and a new run of
+   * the sink starts with its leftovers. An empty stream emits one result, the
+   * sink's result for no input.
    */
   def fromSink[Env, Err, In, Out](
     sink: => ZSink[Env, Err, In, In, Out]
@@ -1597,7 +1764,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
    * Decode each pair of hex digit input characters (both lower or upper case
-   * letters are allowed) as one output byte.
+   * letters are allowed) as one output byte. Fails with an
+   * [[zio.stream.encoding.EncodingException]] when a character is not a hex
+   * digit or when the input ends after an odd number of characters.
    */
   def hexDecode(implicit trace: Trace): ZPipeline[Any, EncodingException, Char, Byte] = {
     def digitValue(c: Char): Int = c match {
@@ -1668,8 +1837,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   }
 
   /**
-   * Encode each input byte as two output bytes as the hex representation of the
-   * input byte.
+   * Encode each input byte as two output characters, the lowercase hex digits
+   * of the byte.
    */
   def hexEncode(implicit trace: Trace): ZPipeline[Any, Nothing, Byte, Char] = {
     val DIGITS: Array[Char] = Array(
@@ -1699,6 +1868,10 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   def identity[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     identityAny.asInstanceOf[ZPipeline[Any, Nothing, In, In]]
 
+  /**
+   * Creates a pipeline that emits `middle` between every two elements, like
+   * `List.mkString` with a separator.
+   */
   def intersperse[Err, In](middle: => In)(implicit trace: Trace): ZPipeline[Any, Err, In, In] =
     new ZPipeline(
       ZChannel.suspend[Any, Err, Chunk[In], Any, Err, Chunk[In], Any] {
@@ -1728,6 +1901,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       }
     )
 
+  /**
+   * Creates a pipeline that emits `start`, then the elements with `middle`
+   * between every two of them, then `end` when the stream ends without failing.
+   * An empty stream emits `start` and `end`.
+   */
   def intersperse[In](start: => In, middle: => In, end: => In)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     ZPipeline.intersperse(middle) >>> ZPipeline.prepend(Chunk.single(start)) >>> ZPipeline.append(Chunk.single(end))
 
@@ -1816,7 +1994,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
    * Creates a pipeline that maps chunks of elements with the specified
    * function.
    *
-   * Will stop on the first Left found
+   * Fails with the error of the first `Left`; the chunk that produced it is not
+   * emitted.
    */
   def mapChunksEither[Env, Err, In, Out](
     f: Chunk[In] => Either[Err, Chunk[Out]]
@@ -1855,7 +2034,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   /**
    * Creates a pipeline that maps elements with the specified function.
    *
-   * Will stop on the first Left found
+   * Fails with the error of the first `Left`; the elements mapped before it are
+   * emitted.
    */
   def mapEitherChunked[Env, Err, In, Out](
     f: In => Either[Err, Out]
@@ -2032,13 +2212,15 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     )
 
   /**
-   * Emits the provided chunk before emitting any other value.
+   * Emits the provided chunk before emitting any other value, also for an empty
+   * stream.
    */
   def prepend[In](values: => Chunk[In])(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline(ZChannel.write(values) *> ZChannel.identity)
 
   /**
-   * A pipeline that rechunks the stream into chunks of the specified size.
+   * A pipeline that rechunks the stream into chunks of the specified size; the
+   * last chunk can be smaller. A size less than 1 is treated as 1.
    */
   def rechunk[In](n: => Int)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     new ZPipeline(ZChannel.succeed(new ZStream.Rechunker[In](scala.math.max(n, 1))).flatMap { rechunker =>
@@ -2057,8 +2239,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     })
 
   /**
-   * Creates a pipeline that randomly samples elements according to the
-   * specified percentage.
+   * Creates a pipeline that keeps each element with probability `p`, using the
+   * `Random` service. `p` is clamped to the range 0 to 1, and `NaN` keeps no
+   * element.
    */
   def sample[In](p: => Double)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
     val clamped = if (p.isNaN || p < 0.0d) 0.0d else if (p > 1.0d) 1.0d else p
@@ -2069,13 +2252,16 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   }
 
   /**
-   * Creates a pipeline that scans elements with the specified function.
+   * Creates a pipeline that scans elements with the specified function. It
+   * emits the initial state `s` first, then the state after each element.
    */
   def scan[In, Out](s: => Out)(f: (Out, In) => Out)(implicit trace: Trace): ZPipeline[Any, Nothing, In, Out] =
     scanZIO(s)((out, in) => ZIO.succeed(f(out, in)))
 
   /**
-   * Creates a pipeline that scans elements with the specified function.
+   * Creates a pipeline that scans elements with the specified effectful
+   * function. It emits the initial state `s` first, then the state after each
+   * element.
    */
   def scanZIO[Env, Err, In, Out](
     s: => Out
@@ -2239,7 +2425,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(ZChannel.suspend(pipeline.channel))
 
   /**
-   * Creates a pipeline that takes n elements.
+   * Creates a pipeline that takes the first `n` elements and then ends the
+   * stream. A non-positive `n` emits nothing.
    */
   def take[In](n: => Long)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] =
     ZPipeline.suspend {
@@ -2269,8 +2456,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     }
 
   /**
-   * Creates a pipeline that takes elements until the specified predicate
-   * evaluates to true.
+   * Creates a pipeline that emits elements up to and including the first
+   * element for which the predicate is `true`, then ends the stream.
    */
   def takeUntil[In](f: In => Boolean)(implicit trace: Trace): ZPipeline[Any, Nothing, In, In] = {
     lazy val loop: ZChannel[Any, ZNothing, Chunk[In], Any, Nothing, Chunk[In], Any] =
@@ -2290,6 +2477,11 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(loop)
   }
 
+  /**
+   * Creates a pipeline that emits elements up to and including the first
+   * element for which the effectful predicate `f` returns `true`, then ends the
+   * stream.
+   */
   def takeUntilZIO[Env, Err, In](
     f: In => ZIO[Env, Err, Boolean]
   )(implicit trace: Trace): ZPipeline[Env, Err, In, In] = {
@@ -2501,7 +2693,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(ZChannel.unwrap(zio.map(_.channel)))
 
   /**
-   * Created a pipeline produced from a scoped effect.
+   * Creates a pipeline produced from a scoped effect. The scope closes when the
+   * pipeline completes.
    */
   def unwrapScoped[Env]: UnwrapScopedPartiallyApplied[Env] =
     new UnwrapScopedPartiallyApplied[Env]
@@ -2514,10 +2707,12 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     decodeStringWith(StandardCharsets.US_ASCII)
 
   /**
-   * utfDecode determines the right encoder to use based on the Byte Order Mark
-   * (BOM). If it doesn't detect one, it defaults to utf8Decode. In the case of
-   * utf16 and utf32 without BOM, `utf16Decode` and `utf32Decode` should be used
-   * instead as both default to their own default decoder respectively.
+   * utfDecode determines the right decoder to use based on the Byte Order Mark
+   * (BOM): UTF-32BE or UTF-32LE (when the platform supports them), UTF-8,
+   * UTF-16BE or UTF-16LE. The BOM is not part of the output. If it doesn't
+   * detect one, it defaults to utf8Decode. In the case of utf16 and utf32
+   * without BOM, `utf16Decode` and `utf32Decode` should be used instead as both
+   * default to their own default decoder respectively.
    */
   def utfDecode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     utfDecodeDetectingBom(
@@ -2540,7 +2735,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
    * Creates a pipeline that converts a stream of bytes into a stream of strings
-   * using the UTF_8 charset
+   * using the UTF_8 charset. A UTF-8 BOM at the start of the stream is dropped.
    */
   def utf8Decode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     utfDecodeDetectingBom(
@@ -2555,7 +2750,9 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
    * Creates a pipeline that converts a stream of bytes into a stream of strings
-   * using the UTF_16 charset
+   * using the UTF_16 charset: little-endian after a UTF-16LE BOM, big-endian
+   * after a UTF-16BE BOM or when there is no BOM. The BOM is not part of the
+   * output.
    */
   def utf16Decode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     utfDecodeDetectingBom(
@@ -2586,7 +2783,8 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
 
   /**
    * Creates a pipeline that converts a stream of bytes into a stream of strings
-   * using the UTF_32 charset
+   * using the UTF_32 charset: little-endian after a UTF-32LE BOM, big-endian
+   * otherwise. The BOM is not part of the output.
    */
   def utf32Decode(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     utfDecodeDetectingBom(
@@ -2731,7 +2929,7 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     utf32BEWithBomEncode
 
   /**
-   * Zips this pipeline together with the index of elements.
+   * Creates a pipeline that pairs each element with its index, starting at 0.
    */
   def zipWithIndex[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, (In, Long)] =
     ZPipeline.mapAccum(0L)((index, a) => (index + 1, (a, index)))
@@ -2760,9 +2958,17 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
     new ZPipeline(process(None))
   }
 
+  /**
+   * Creates a pipeline that pairs each element with the previous one, or with
+   * `None` for the first element.
+   */
   def zipWithPrevious[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, (Option[In], In)] =
     mapAccum[In, Option[In], (Option[In], In)](None)((prev, curr) => (Some(curr), (prev, curr)))
 
+  /**
+   * Creates a pipeline that pairs each element with the previous and the next
+   * element, using `None` where there is no such element.
+   */
   def zipWithPreviousAndNext[In](implicit trace: Trace): ZPipeline[Any, Nothing, In, (Option[In], In, Option[In])] =
     (zipWithPrevious[In].zipWithNext).map { case ((prev, curr), next) => (prev, curr, next.map(_._2)) }
 
@@ -2808,14 +3014,32 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
   private def utf8DecodeNoBom(implicit trace: Trace): ZPipeline[Any, CharacterCodingException, Byte, String] =
     decodeStringWith(StandardCharsets.UTF_8)
 
+  /**
+   * Partially applied form of `ZPipeline.environmentWithPipeline`, which fixes
+   * the environment type `Env`.
+   */
   final class EnvironmentWithPipelinePartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Creates a pipeline that reads the environment and runs the pipeline that
+     * `f` builds from it.
+     */
     def apply[Env1 <: Env, Err, In, Out](f: ZEnvironment[Env] => ZPipeline[Env1, Err, In, Out])(implicit
       trace: Trace
     ): ZPipeline[Env with Env1, Err, In, Out] =
       ZPipeline.unwrap(ZIO.environmentWith(f))
   }
 
+  /**
+   * Partially applied form of `ZPipeline.serviceWithPipeline`, which fixes the
+   * service type `Service`.
+   */
   final class ServiceWithPipelinePartiallyApplied[Service](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Creates a pipeline that reads the `Service` from the environment and runs
+     * the pipeline that `f` builds from it.
+     */
     def apply[Env <: Service, Err, In, Out](f: Service => ZPipeline[Env, Err, In, Out])(implicit
       tag: Tag[Service],
       trace: Trace
@@ -2823,7 +3047,16 @@ object ZPipeline extends ZPipelinePlatformSpecificConstructors {
       ZPipeline.unwrap(ZIO.serviceWith[Service](f))
   }
 
+  /**
+   * Partially applied form of `ZPipeline.unwrapScoped`, which fixes the
+   * environment type `Env`.
+   */
   final class UnwrapScopedPartiallyApplied[Env](private val dummy: Boolean = true) extends AnyVal {
+
+    /**
+     * Creates a pipeline from the scoped effect `scoped`. The scope closes when
+     * the pipeline completes.
+     */
     def apply[Err, In, Out](scoped: => ZIO[Scope with Env, Err, ZPipeline[Env, Err, In, Out]])(implicit
       trace: Trace
     ): ZPipeline[Env, Err, In, Out] =
