@@ -24,12 +24,12 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * chunk of values (`Take.chunk`, `Take.single`), a failure (`Take.fail`,
  * `Take.failCause`, `Take.die`) or the end-of-stream marker (`Take.end`).
  *
- * It wraps an `Exit[Option[E], Chunk[A]]`: a success holds the chunk, a
- * failure with `Some(e)` is an error, and a failure with `None` is the end of
- * the stream. `ZStream#runIntoQueue` and `ZStream#toQueue` write a stream
- * into a queue as takes, ending with `Take.end`; `ZStream.fromQueue` followed
- * by `ZStream#flattenTake` turns such a queue back into a stream. Inspect a
- * single take with `fold`, `foldZIO`, `isSuccess`, `isFailure` and `isDone`.
+ * It wraps an `Exit[Option[E], Chunk[A]]`: a success holds the chunk, a failure
+ * with `Some(e)` is an error, and a failure with `None` is the end of the
+ * stream. `ZStream#runIntoQueue` and `ZStream#toQueue` write a stream into a
+ * queue as takes, ending with `Take.end`; `ZStream.fromQueue` followed by
+ * `ZStream#flattenTake` turns such a queue back into a stream. Inspect a single
+ * take with `fold`, `foldZIO`, `isSuccess`, `isFailure` and `isDone`.
  *
  * {{{
  * import zio._
@@ -166,8 +166,8 @@ object Take {
     Take(Exit.die(t))
 
   /**
-   * Creates a `Take[Nothing, Nothing]` that dies with a `RuntimeException`
-   * with the specified message.
+   * Creates a `Take[Nothing, Nothing]` that dies with a `RuntimeException` with
+   * the specified message.
    */
   def dieMessage(msg: String): Take[Nothing, Nothing] =
     Take(Exit.die(new RuntimeException(msg)))

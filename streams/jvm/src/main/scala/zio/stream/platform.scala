@@ -71,7 +71,8 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
    * // numbers.runCollect succeeds with Chunk(1, 2, 3)
    * }}}
    *
-   * @see [[https://zio.dev/reference/stream/zstream/creating-zio-streams/ Creating ZIO Streams]]
+   * @see
+   *   [[https://zio.dev/reference/stream/zstream/creating-zio-streams/ Creating ZIO Streams]]
    */
   def async[R, E, A](
     register: ZStream.Emit[R, E, A, Unit] => Unit,
@@ -326,7 +327,8 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
    *     .via(ZPipeline.utf8Decode >>> ZPipeline.splitLines)
    * }}}
    *
-   * @see [[https://zio.dev/reference/stream/zstream/creating-zio-streams/ Creating ZIO Streams]]
+   * @see
+   *   [[https://zio.dev/reference/stream/zstream/creating-zio-streams/ Creating ZIO Streams]]
    */
   final def fromPath(path: => Path, chunkSize: => Int = ZStream.DefaultChunkSize)(implicit
     trace: Trace
@@ -846,7 +848,8 @@ private[stream] trait ZSinkPlatformSpecificConstructors {
    * // written succeeds with 5
    * }}}
    *
-   * @see [[https://zio.dev/reference/stream/zsink/creating-sinks/ Creating Sinks]]
+   * @see
+   *   [[https://zio.dev/reference/stream/zsink/creating-sinks/ Creating Sinks]]
    */
   final def fromPath(
     path: => Path,
@@ -944,13 +947,15 @@ private[stream] trait ZSinkPlatformSpecificConstructors {
 }
 
 private[stream] trait ZPipelinePlatformSpecificConstructors {
+
   /**
    * Compresses a stream of bytes with `java.util.zip.Deflater`. The output is
    * in the zlib format, or raw deflate data when `noWrap` is `true`.
    * `bufferSize` is the size in bytes of the buffer that compressed output is
    * read into; `level`, `strategy` and `flushMode` configure the `Deflater`.
    *
-   * @see [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
+   * @see
+   *   [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
    */
   def deflate(
     bufferSize: => Int = 64 * 1024,
@@ -975,7 +980,8 @@ private[stream] trait ZPipelinePlatformSpecificConstructors {
    * `noWrap` is `true`. Input that is not in that format fails the stream with
    * a `CompressionException`.
    *
-   * @see [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
+   * @see
+   *   [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
    */
   def inflate(
     bufferSize: => Int = 64 * 1024,
@@ -1004,7 +1010,8 @@ private[stream] trait ZPipelinePlatformSpecificConstructors {
    * // roundTrip succeeds with the bytes of text
    * }}}
    *
-   * @see [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
+   * @see
+   *   [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
    */
   def gzip(
     bufferSize: => Int = 64 * 1024,
@@ -1022,7 +1029,8 @@ private[stream] trait ZPipelinePlatformSpecificConstructors {
    * empty output. Input that is not gzip data, or that ends inside the gzip
    * data, fails the stream with a `CompressionException`.
    *
-   * @see [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
+   * @see
+   *   [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
    */
   def gunzip[Env](bufferSize: => Int = 64 * 1024)(implicit
     trace: Trace
@@ -1036,7 +1044,8 @@ private[stream] trait ZPipelinePlatformSpecificConstructors {
    * magic bytes `0x1f 0x8b`, and passes it through unchanged otherwise, also
    * when it has fewer than two bytes.
    *
-   * @see [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
+   * @see
+   *   [[https://zio.dev/reference/stream/zpipeline/ ZPipeline]]
    */
   def gunzipAuto[Env](
     bufferSize: => Int = 64 * 1024

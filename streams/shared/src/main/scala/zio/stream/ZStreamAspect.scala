@@ -6,10 +6,10 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
  * A `ZStreamAspect` transforms a stream into a stream with the same
- * environment, error and element types. Apply one with `stream @@ aspect`.
- * The type parameters bound the environment (`LowerR`, `UpperR`), error
- * (`LowerE`, `UpperE`) and element (`LowerA`, `UpperA`) types of the streams
- * that the aspect accepts.
+ * environment, error and element types. Apply one with `stream @@ aspect`. The
+ * type parameters bound the environment (`LowerR`, `UpperR`), error (`LowerE`,
+ * `UpperE`) and element (`LowerA`, `UpperA`) types of the streams that the
+ * aspect accepts.
  *
  * The companion object has aspects that rechunk a stream (`rechunk`) and that
  * add log annotations (`annotated`) or metric tags (`tagged`) while it runs.
@@ -25,7 +25,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * // chunkSizes succeeds with Chunk(3, 3, 1)
  * }}}
  *
- * @see [[https://zio.dev/reference/stream/zstream/ ZStream]]
+ * @see
+ *   [[https://zio.dev/reference/stream/zstream/ ZStream]]
  */
 trait ZStreamAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self =>
 
@@ -94,8 +95,8 @@ trait ZStreamAspect[+LowerR, -UpperR, +LowerE, -UpperE, +LowerA, -UpperA] { self
 }
 
 /**
- * Predefined aspects: `annotated`, `rechunk` and `tagged`. Each accepts
- * streams of any environment, error and element type.
+ * Predefined aspects: `annotated`, `rechunk` and `tagged`. Each accepts streams
+ * of any environment, error and element type.
  */
 object ZStreamAspect {
 
@@ -114,8 +115,8 @@ object ZStreamAspect {
   /**
    * An aspect that adds the specified log annotations while the stream runs.
    * Logs from the stream, and from operators applied after the aspect (for
-   * example a later `mapZIO`), carry the annotations; they are removed when
-   * the stream ends.
+   * example a later `mapZIO`), carry the annotations; they are removed when the
+   * stream ends.
    */
   def annotated(annotations: (String, String)*): ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] {
@@ -135,10 +136,10 @@ object ZStreamAspect {
     }
 
   /**
-   * An aspect that adds the specified metric tag while the stream runs.
-   * Metrics updated by the stream, and by operators applied after the aspect
-   * (for example a later `mapZIO`), carry the tag; it is removed when the
-   * stream ends.
+   * An aspect that adds the specified metric tag while the stream runs. Metrics
+   * updated by the stream, and by operators applied after the aspect (for
+   * example a later `mapZIO`), carry the tag; it is removed when the stream
+   * ends.
    */
   def tagged(key: String, value: String): ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] =
     new ZStreamAspect[Nothing, Any, Nothing, Any, Nothing, Any] {

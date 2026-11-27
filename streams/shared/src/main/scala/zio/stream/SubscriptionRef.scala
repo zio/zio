@@ -26,9 +26,9 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  *
  * Read and update it with the usual `Ref` operations (`get`, `set`, `update`,
  * `modify`, `updateZIO`, ...). Each run of `changes` emits the value current
- * when the run starts, followed by the value written by every later update,
- * in order. Every update publishes the value it writes, even when it equals
- * the previous value; an update whose effect fails publishes nothing.
+ * when the run starts, followed by the value written by every later update, in
+ * order. Every update publishes the value it writes, even when it equals the
+ * previous value; an update whose effect fails publishes nothing.
  *
  * {{{
  * import zio._
@@ -50,15 +50,15 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * // program succeeds with Chunk(0, 1, 2)
  * }}}
  *
- * @see [[https://zio.dev/reference/stream/subscription-ref/ SubscriptionRef]]
+ * @see
+ *   [[https://zio.dev/reference/stream/subscription-ref/ SubscriptionRef]]
  */
 sealed trait SubscriptionRef[A] extends Ref.Synchronized.Internal[A] {
 
   /**
    * A stream containing the current value of the `Ref` as well as all changes
    * to that value. Each run emits the value current when the run starts, then
-   * the value written by each later update. The stream does not end on its
-   * own.
+   * the value written by each later update. The stream does not end on its own.
    */
   def changes: ZStream[Any, Nothing, A]
 }

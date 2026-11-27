@@ -55,7 +55,8 @@ private[stream] trait ZStreamPlatformSpecificConstructors {
    * // numbers.runCollect succeeds with Chunk(1, 2, 3)
    * }}}
    *
-   * @see [[https://zio.dev/reference/stream/zstream/creating-zio-streams/ Creating ZIO Streams]]
+   * @see
+   *   [[https://zio.dev/reference/stream/zstream/creating-zio-streams/ Creating ZIO Streams]]
    */
   def async[R, E, A](
     register: ZStream.Emit[R, E, A, Future[Boolean]] => Unit,
