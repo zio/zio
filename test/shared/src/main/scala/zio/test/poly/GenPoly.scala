@@ -109,9 +109,7 @@ trait GenPoly {
 }
 
 /**
- * Constructors of [[GenPoly]] instances for primitive types and for `List`,
- * `Option` and `Vector` of another `GenPoly`, and `genPoly`, a generator that
- * picks among them.
+ * Constructors of [[GenPoly]] instances for `Boolean`, `Byte`, `Char`, `Double`, `Float`, `Int`, `Long`, `String` and `Unit` (its `short` also gives `Long` values) and for `List`, `Option` and `Vector` of another `GenPoly`, and `genPoly`, a generator that picks among them.
  *
  * @see
  *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]

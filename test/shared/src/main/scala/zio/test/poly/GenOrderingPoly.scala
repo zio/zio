@@ -62,9 +62,7 @@ trait GenOrderingPoly extends GenPoly {
 }
 
 /**
- * Constructors of [[GenOrderingPoly]] instances for primitive types and for
- * `List`, `Option` and `Vector` of another `GenOrderingPoly`, and
- * `genOrderingPoly`, a generator that picks among them.
+ * Constructors of [[GenOrderingPoly]] instances for `Boolean`, `Byte`, `Char`, `Double`, `Float`, `Int`, `Long`, `String` and `Unit` (its `short` also gives `Long` values) and for `List`, `Option` and `Vector` of another `GenOrderingPoly`, and `genOrderingPoly`, a generator that picks among them.
  *
  * @see
  *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]

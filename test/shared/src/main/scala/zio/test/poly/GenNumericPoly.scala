@@ -61,8 +61,7 @@ trait GenNumericPoly extends GenOrderingPoly {
 }
 
 /**
- * Constructors of [[GenNumericPoly]] instances for the primitive numeric types,
- * and `genNumericPoly`, a generator that picks among them.
+ * Constructors of [[GenNumericPoly]] instances for `Byte`, `Char`, `Double`, `Float`, `Int` and `Long` (its `short` also gives `Long` values), and `genNumericPoly`, a generator that picks among them.
  *
  * @see
  *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
