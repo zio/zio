@@ -79,7 +79,10 @@ sealed trait Dequeue[+A] extends Serializable {
 
   /**
    * Takes up to `max` values from the queue, oldest first. It does not wait: it
-   * returns an empty `Chunk` when the queue is empty or `max` is 0 or less.
+   * returns an empty `Chunk` when the queue is empty or `max` is 0. With a
+   * negative `max`, it returns an empty `Chunk` on a `Queue` and on a
+   * subscription to a bounded, dropping or sliding hub, and every waiting
+   * message on a subscription to an unbounded hub.
    */
   def takeUpTo(max: Int)(implicit trace: Trace): UIO[Chunk[A]]
 
@@ -99,7 +102,9 @@ sealed trait Dequeue[+A] extends Serializable {
    * Takes a number of elements from the queue between the specified minimum and
    * maximum. If there are fewer than the minimum number of elements available,
    * suspends until at least the minimum number of elements have been collected.
-   * Returns an empty `Chunk` right away when `max` is less than `min`.
+   * Returns an empty `Chunk` right away when `max` is less than `min`. When
+   * `min` is 0 or less, it does not wait and returns what `takeUpTo(max)`
+   * returns.
    */
   final def takeBetween(min: Int, max: Int)(implicit trace: Trace): UIO[Chunk[A]] = {
     def takeRemainder(min: Int, max: Int, acc: Chunk[A]): UIO[Chunk[A]] =
@@ -119,7 +124,8 @@ sealed trait Dequeue[+A] extends Serializable {
   /**
    * Takes the specified number of elements from the queue. If there are fewer
    * than the specified number of elements available, it suspends until they
-   * become available.
+   * become available. When `n` is 0 or less, it does not wait and returns what
+   * `takeUpTo(n)` returns.
    */
   final def takeN(n: Int)(implicit trace: Trace): UIO[Chunk[A]] =
     takeBetween(n, n)
