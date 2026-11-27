@@ -30,9 +30,14 @@ import zio.test.render.ExecutionResult.Status.Failed
 import zio.test.render.LogLine.Message
 
 /**
- * A JUnit 4 runner for ZIO Test specs. A spec class that extends [[zio.test.ZIOSpecAbstract]] (such as `ZIOSpecDefault`) and is annotated with `@RunWith(classOf[ZTestJUnitRunner])` runs in IDEs and build tools that run JUnit 4 tests, such as Maven and Gradle. A spec class can also extend [[JUnitRunnableSpec]], which carries the annotation.
+ * A JUnit 4 runner for ZIO Test specs. A spec class that extends
+ * [[zio.test.ZIOSpecAbstract]] (such as `ZIOSpecDefault`) and is annotated with
+ * `@RunWith(classOf[ZTestJUnitRunner])` runs in IDEs and build tools that run
+ * JUnit 4 tests, such as Maven and Gradle. A spec class can also extend
+ * [[JUnitRunnableSpec]], which carries the annotation.
  *
- * The runner creates the spec with its public no-argument constructor, so the spec must be a class: a Scala object can't be run this way.
+ * The runner creates the spec with its public no-argument constructor, so the
+ * spec must be a class: a Scala object can't be run this way.
  *
  * {{{
  * import org.junit.runner.RunWith
@@ -46,11 +51,14 @@ import zio.test.render.LogLine.Message
  * }
  * }}}
  *
- * To show the structure of the spec to JUnit, `getDescription` runs the effects that build suites (for example, a suite built from a ZIO effect). `run` runs these effects again, so they run twice.
+ * To show the structure of the spec to JUnit, `getDescription` runs the effects
+ * that build suites (for example, a suite built from a ZIO effect). `run` runs
+ * these effects again, so they run twice.
  *
  * The module is available on the JVM only.
  *
- * @see [[https://zio.dev/reference/test/junit-integration/ JUnit Integration]]
+ * @see
+ *   [[https://zio.dev/reference/test/junit-integration/ JUnit Integration]]
  */
 class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
 
@@ -65,9 +73,14 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   private var filter = Filter.ALL
 
   /**
-   * Returns the JUnit description of the spec: a suite named after the spec class, with a child suite for each suite of the spec and a child test for each test, whose method name is the test label.
+   * Returns the JUnit description of the spec: a suite named after the spec
+   * class, with a child suite for each suite of the spec and a child test for
+   * each test, whose method name is the test label.
    *
-   * It is computed the first time it is used, with the live environment, the test environment and the `bootstrap` layer of the spec, and it runs the effects that build suites. Tests that the filter (see `filter`) removes are left out.
+   * It is computed the first time it is used, with the live environment, the
+   * test environment and the `bootstrap` layer of the spec, and it runs the
+   * effects that build suites. Tests that the filter (see `filter`) removes are
+   * left out.
    */
   lazy val getDescription: Description = {
     val description = Description.createSuiteDescription(className)
@@ -106,9 +119,13 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
   }
 
   /**
-   * Runs the spec and reports each test to `notifier`. A passed test is reported as started and finished, and a failed test as started, failed and finished; the failure of a test that dies has the defect as its cause. An ignored test is reported as ignored.
+   * Runs the spec and reports each test to `notifier`. A passed test is
+   * reported as started and finished, and a failed test as started, failed and
+   * finished; the failure of a test that dies has the defect as its cause. An
+   * ignored test is reported as ignored.
    *
-   * The spec runs with the live environment, the test environment and its `bootstrap` layer. Tests that the filter (see `filter`) removes don't run.
+   * The spec runs with the live environment, the test environment and its
+   * `bootstrap` layer. Tests that the filter (see `filter`) removes don't run.
    */
   override def run(notifier: RunNotifier): Unit = {
     val _ = zio.Runtime.default.unsafe.run {
@@ -214,7 +231,11 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
       .getOrElse(spec.spec)
 
   /**
-   * Sets the filter that selects the tests to describe and run. Each label of the spec is passed to `filter` as a test description whose class is the spec class and whose method name is the label. A test is kept when its label or the label of an enclosing suite is accepted. When the filter accepts no label, the whole spec is kept.
+   * Sets the filter that selects the tests to describe and run. Each label of
+   * the spec is passed to `filter` as a test description whose class is the
+   * spec class and whose method name is the label. A test is kept when its
+   * label or the label of an enclosing suite is accepted. When the filter
+   * accepts no label, the whole spec is kept.
    */
   override def filter(filter: Filter): Unit =
     this.filter = filter
@@ -252,15 +273,19 @@ class ZTestJUnitRunner(klass: Class[_]) extends Runner with Filterable {
 }
 
 /**
- * The exception that a JUnit failure of a ZIO test carries: its message is the rendered failure, and its cause is the defect when the test died.
+ * The exception that a JUnit failure of a ZIO test carries: its message is the
+ * rendered failure, and its cause is the defect when the test died.
  */
 private[junit] class TestFailed(message: String, cause: Throwable = null)
     extends Throwable(message, cause, false, false)
 
 /**
- * A `ZIOSpecDefault` annotated with `@RunWith(classOf[ZTestJUnitRunner])`, so that JUnit 4 runs the classes that extend it with [[ZTestJUnitRunner]].
+ * A `ZIOSpecDefault` annotated with `@RunWith(classOf[ZTestJUnitRunner])`, so
+ * that JUnit 4 runs the classes that extend it with [[ZTestJUnitRunner]].
  *
- * Extend it with a class: JUnit 4 can't run an object with this runner. An object that extends it is still a ZIO Test spec, which the ZIO Test sbt framework runs.
+ * Extend it with a class: JUnit 4 can't run an object with this runner. An
+ * object that extends it is still a ZIO Test spec, which the ZIO Test sbt
+ * framework runs.
  *
  * {{{
  * import zio.test._
@@ -272,7 +297,8 @@ private[junit] class TestFailed(message: String, cause: Throwable = null)
  * }
  * }}}
  *
- * @see [[https://zio.dev/reference/test/junit-integration/ JUnit Integration]]
+ * @see
+ *   [[https://zio.dev/reference/test/junit-integration/ JUnit Integration]]
  */
 @RunWith(classOf[ZTestJUnitRunner])
 abstract class JUnitRunnableSpec extends ZIOSpecDefault

@@ -8,7 +8,12 @@ import zio.test.{Summary, TestArgs, TestEnvironment, TestOutput, ZIOSpecAbstract
 /**
  * The base of [[ZTestTask]]: an sbt task that runs one spec.
  *
- * Before it runs the spec, the task installs the fiber dump signal handlers of [[SignalHandlers]]. When every selector of its `TaskDef` is a `TestSelector` or a `TestWildcardSelector`, the selector names are added to the `-t` search terms, so only the matching tests run; with any other selector, the spec runs with the test arguments unchanged. Test results are reported to sbt through [[ZTestEventHandlerSbt]].
+ * Before it runs the spec, the task installs the fiber dump signal handlers of
+ * [[SignalHandlers]]. When every selector of its `TaskDef` is a `TestSelector`
+ * or a `TestWildcardSelector`, the selector names are added to the `-t` search
+ * terms, so only the matching tests run; with any other selector, the spec runs
+ * with the test arguments unchanged. Test results are reported to sbt through
+ * [[ZTestEventHandlerSbt]].
  */
 abstract class TestTask(
   // attempt to do `final override val taskDef: TaskDef`
@@ -21,6 +26,7 @@ abstract class TestTask(
   testArgs: TestArgs,
   sharedRuntime: Option[zio.Runtime.Scoped[TestOutput]]
 ) extends Task {
+
   /** Returns the task definition that names the spec. */
   final override def taskDef(): TaskDef = taskDef0
 
@@ -28,7 +34,8 @@ abstract class TestTask(
   final override def tags(): Array[String] = Array.empty
 
   /**
-   * Returns the unsafe API of the shared runtime of this task, or of `Runtime.default` when the task has no shared runtime.
+   * Returns the unsafe API of the shared runtime of this task, or of
+   * `Runtime.default` when the task has no shared runtime.
    */
   final protected def unsafeAPI: zio.Runtime[Any]#UnsafeAPI = sharedRuntime.getOrElse(zio.Runtime.default).unsafe
 

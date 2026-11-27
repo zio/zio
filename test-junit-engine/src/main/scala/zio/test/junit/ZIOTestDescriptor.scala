@@ -24,7 +24,10 @@ import java.util
 import scala.jdk.CollectionConverters._
 
 /**
- * The JUnit Platform descriptor of one ZIO test, whose display name is the test label. Its tags are the `TestAnnotation.tagged` tags of the test. Its source is the file and line where the test is defined (from `TestAnnotation.trace`), or the spec class when that location is missing.
+ * The JUnit Platform descriptor of one ZIO test, whose display name is the test
+ * label. Its tags are the `TestAnnotation.tagged` tags of the test. Its source
+ * is the file and line where the test is defined (from `TestAnnotation.trace`),
+ * or the spec class when that location is missing.
  *
  * @param parent
  *   the parent descriptor

@@ -20,7 +20,8 @@ import org.junit.platform.engine.support.descriptor.AbstractTestDescriptor
 import org.junit.platform.engine.{TestDescriptor, UniqueId}
 
 /**
- * The JUnit Platform descriptor of a ZIO Test suite: a container whose display name is the suite label and whose source is the spec class.
+ * The JUnit Platform descriptor of a ZIO Test suite: a container whose display
+ * name is the suite label and whose source is the spec class.
  *
  * @param parent
  *   the parent descriptor

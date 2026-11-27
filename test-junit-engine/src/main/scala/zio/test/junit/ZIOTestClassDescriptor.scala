@@ -23,11 +23,20 @@ import zio.test._
 import zio.test.junit.ReflectionUtils._
 
 /**
- * The JUnit Platform descriptor of one ZIO Test spec class: a container whose display name is the class name without a trailing `\$`.
+ * The JUnit Platform descriptor of one ZIO Test spec class: a container whose
+ * display name is the class name without a trailing `\$`.
  *
- * Creating it loads the spec and builds the child descriptors: a [[ZIOSuiteTestDescriptor]] for each suite and a [[ZIOTestDescriptor]] for each test. Building them runs the effects that build suites, with the live environment, the test environment and the `bootstrap` layer of the spec; when they fail, the constructor throws.
+ * Creating it loads the spec and builds the child descriptors: a
+ * [[ZIOSuiteTestDescriptor]] for each suite and a [[ZIOTestDescriptor]] for
+ * each test. Building them runs the effects that build suites, with the live
+ * environment, the test environment and the `bootstrap` layer of the spec; when
+ * they fail, the constructor throws.
  *
- * The spec is the Scala object of `testClass` when there is one (`testClass` is the class of an object, or has a companion object), and a new instance created with the no-argument constructor otherwise. When the companion object of `testClass` isn't a spec, the constructor throws a `java.lang.ClassCastException`.
+ * The spec is the Scala object of `testClass` when there is one (`testClass` is
+ * the class of an object, or has a companion object), and a new instance
+ * created with the no-argument constructor otherwise. When the companion object
+ * of `testClass` isn't a spec, the constructor throws a
+ * `java.lang.ClassCastException`.
  *
  * @param parent
  *   the parent descriptor
@@ -40,7 +49,11 @@ class ZIOTestClassDescriptor(parent: TestDescriptor, uniqueId: UniqueId, val tes
     extends AbstractTestDescriptor(uniqueId, testClass.getName.stripSuffix("$"), ZIOTestSource(testClass)) {
 
   setParent(parent)
-  /** The JVM name of `testClass`, which ends with `\$` for the class of an object. */
+
+  /**
+   * The JVM name of `testClass`, which ends with `\$` for the class of an
+   * object.
+   */
   val className: String = testClass.getName
 
   // reflection to get the spec implementation
@@ -52,7 +65,10 @@ class ZIOTestClassDescriptor(parent: TestDescriptor, uniqueId: UniqueId, val tes
     .asInstanceOf[ZIOSpecAbstract]
 
   /**
-   * Returns an effect that adds a [[ZIOSuiteTestDescriptor]] under `description` for each suite of `spec` and a [[ZIOTestDescriptor]] for each test, running the effects that build suites. `path` is the list of labels above `spec`.
+   * Returns an effect that adds a [[ZIOSuiteTestDescriptor]] under
+   * `description` for each suite of `spec` and a [[ZIOTestDescriptor]] for each
+   * test, running the effects that build suites. `path` is the list of labels
+   * above `spec`.
    */
   def traverse[R, E](
     spec: Spec[R, E],
@@ -87,7 +103,10 @@ class ZIOTestClassDescriptor(parent: TestDescriptor, uniqueId: UniqueId, val tes
         )
     }
 
-  /** The effect that builds the child descriptors of this descriptor from the spec. */
+  /**
+   * The effect that builds the child descriptors of this descriptor from the
+   * spec.
+   */
   lazy val scoped: ZIO[spec.Environment with TestEnvironment, Any, Unit] =
     ZIO.scoped[spec.Environment with TestEnvironment](
       traverse(spec.spec, this)

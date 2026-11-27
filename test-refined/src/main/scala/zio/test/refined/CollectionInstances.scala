@@ -24,19 +24,24 @@ import zio.test.Gen
 import zio.{Chunk, NonEmptyChunk}
 
 /**
- * Brings the instances of `CollectionInstances` into scope: `import zio.test.refined.collection._`.
+ * Brings the instances of `CollectionInstances` into scope: `import
+ * zio.test.refined.collection._`.
  */
 object collection extends CollectionInstances
 
 /**
- * Instances for refined `Chunk`, `NonEmptyChunk`, `List` and `Vector` values: the `NonEmpty` predicate and the `Size[P]` predicate.
+ * Instances for refined `Chunk`, `NonEmptyChunk`, `List` and `Vector` values:
+ * the `NonEmpty` predicate and the `Size[P]` predicate.
  *
- * The `Size[P]` instances draw the collection size from the generator of `Int Refined P`, so a size generator without a small upper bound, such as the one for `Greater[N]` (up to `Int.MaxValue`), gives very large collections.
+ * The `Size[P]` instances draw the collection size from the generator of `Int
+ * Refined P`, so a size generator without a small upper bound, such as the one
+ * for `Greater[N]` (up to `Int.MaxValue`), gives very large collections.
  */
 trait CollectionInstances {
 
   /**
-   * A generator of `NonEmptyChunk[T] Refined NonEmpty` built with `Gen.chunkOf1`: at least one element, taken from `genT`.
+   * A generator of `NonEmptyChunk[T] Refined NonEmpty` built with
+   * `Gen.chunkOf1`: at least one element, taken from `genT`.
    */
   def nonEmptyChunkRefinedGen[R, T](implicit
     genT: Gen[R, T]
@@ -44,21 +49,25 @@ trait CollectionInstances {
     Gen.chunkOf1(genT).map(Refined.unsafeApply)
 
   /**
-   * A generator of `List[T] Refined NonEmpty` built with `Gen.listOf1`: at least one element, taken from `genT`.
+   * A generator of `List[T] Refined NonEmpty` built with `Gen.listOf1`: at
+   * least one element, taken from `genT`.
    */
   def nonEmptyListRefinedGen[R, T](implicit
     genT: Gen[R, T]
   ): Gen[R, Refined[List[T], NonEmpty]] = Gen.listOf1(genT).map(Refined.unsafeApply)
 
   /**
-   * A generator of `Vector[T] Refined NonEmpty` built with `Gen.vectorOf1`: at least one element, taken from `genT`.
+   * A generator of `Vector[T] Refined NonEmpty` built with `Gen.vectorOf1`: at
+   * least one element, taken from `genT`.
    */
   def nonEmptyVectorRefinedGen[R, T](implicit
     genT: Gen[R, T]
   ): Gen[R, Refined[Vector[T], NonEmpty]] = Gen.vectorOf1(genT).map(Refined.unsafeApply)
 
   /**
-   * A generator of `Chunk[T] Refined Size[P]`. The collection has exactly the size drawn from `sizeGen`, and the elements come from `genT`. The result satisfies `Size[P]` when the values of `sizeGen` satisfy `P`.
+   * A generator of `Chunk[T] Refined Size[P]`. The collection has exactly the
+   * size drawn from `sizeGen`, and the elements come from `genT`. The result
+   * satisfies `Size[P]` when the values of `sizeGen` satisfy `P`.
    */
   def sizedChunkRefinedGen[R, T, P](implicit
     genT: Gen[R, T],
@@ -69,7 +78,9 @@ trait CollectionInstances {
     }.map(r => Refined.unsafeApply(r))
 
   /**
-   * A generator of `List[T] Refined Size[P]`. The collection has exactly the size drawn from `sizeGen`, and the elements come from `genT`. The result satisfies `Size[P]` when the values of `sizeGen` satisfy `P`.
+   * A generator of `List[T] Refined Size[P]`. The collection has exactly the
+   * size drawn from `sizeGen`, and the elements come from `genT`. The result
+   * satisfies `Size[P]` when the values of `sizeGen` satisfy `P`.
    */
   def listSizeRefinedGen[R, T, P](implicit
     genT: Gen[R, T],
@@ -80,7 +91,9 @@ trait CollectionInstances {
     }.map(Refined.unsafeApply)
 
   /**
-   * A generator of `Vector[T] Refined Size[P]`. The collection has exactly the size drawn from `sizeGen`, and the elements come from `genT`. The result satisfies `Size[P]` when the values of `sizeGen` satisfy `P`.
+   * A generator of `Vector[T] Refined Size[P]`. The collection has exactly the
+   * size drawn from `sizeGen`, and the elements come from `genT`. The result
+   * satisfies `Size[P]` when the values of `sizeGen` satisfy `P`.
    */
   def vectorSizeRefinedGen[R, T, P](implicit
     genT: Gen[R, T],
@@ -90,7 +103,8 @@ trait CollectionInstances {
   }.map(Refined.unsafeApply)
 
   /**
-   * The implicit `DeriveGen` for `NonEmptyChunk[T] Refined NonEmpty`; it wraps `nonEmptyChunkRefinedGen`. The elements come from the `DeriveGen` of `T`.
+   * The implicit `DeriveGen` for `NonEmptyChunk[T] Refined NonEmpty`; it wraps
+   * `nonEmptyChunkRefinedGen`. The elements come from the `DeriveGen` of `T`.
    */
   implicit def nonEmptyChunkRefinedDeriveGen[C, T](implicit
     deriveGenT: DeriveGen[T]
@@ -100,7 +114,8 @@ trait CollectionInstances {
     )
 
   /**
-   * The implicit `DeriveGen` for `List[T] Refined NonEmpty`; it wraps `nonEmptyListRefinedGen`. The elements come from the `DeriveGen` of `T`.
+   * The implicit `DeriveGen` for `List[T] Refined NonEmpty`; it wraps
+   * `nonEmptyListRefinedGen`. The elements come from the `DeriveGen` of `T`.
    */
   implicit def nonEmptyListRefinedDeriveGen[T](implicit
     deriveGenT: DeriveGen[T]
@@ -109,7 +124,8 @@ trait CollectionInstances {
   )
 
   /**
-   * The implicit `DeriveGen` for `Vector[T] Refined NonEmpty`; it wraps `nonEmptyVectorRefinedGen`. The elements come from the `DeriveGen` of `T`.
+   * The implicit `DeriveGen` for `Vector[T] Refined NonEmpty`; it wraps
+   * `nonEmptyVectorRefinedGen`. The elements come from the `DeriveGen` of `T`.
    */
   implicit def nonEmptyVectorRefinedDeriveGen[T](implicit
     deriveGenT: DeriveGen[T]
@@ -119,7 +135,9 @@ trait CollectionInstances {
     )
 
   /**
-   * The implicit `DeriveGen` for `Chunk[T] Refined Size[P]`; it wraps `sizedChunkRefinedGen`. The elements come from the `DeriveGen` of `T` and the size from the `DeriveGen` of `Int Refined P`.
+   * The implicit `DeriveGen` for `Chunk[T] Refined Size[P]`; it wraps
+   * `sizedChunkRefinedGen`. The elements come from the `DeriveGen` of `T` and
+   * the size from the `DeriveGen` of `Int Refined P`.
    */
   implicit def sizedChunkRefinedDeriveGen[T, P](implicit
     deriveGenT: DeriveGen[T],
@@ -130,7 +148,9 @@ trait CollectionInstances {
     )
 
   /**
-   * The implicit `DeriveGen` for `List[T] Refined Size[P]`; it wraps `listSizeRefinedGen`. The elements come from the `DeriveGen` of `T` and the size from the `DeriveGen` of `Int Refined P`.
+   * The implicit `DeriveGen` for `List[T] Refined Size[P]`; it wraps
+   * `listSizeRefinedGen`. The elements come from the `DeriveGen` of `T` and the
+   * size from the `DeriveGen` of `Int Refined P`.
    */
   implicit def listSizeRefinedDeriveGen[T, P](implicit
     deriveGenT: DeriveGen[T],
@@ -141,7 +161,9 @@ trait CollectionInstances {
     )
 
   /**
-   * The implicit `DeriveGen` for `Vector[T] Refined Size[P]`; it wraps `vectorSizeRefinedGen`. The elements come from the `DeriveGen` of `T` and the size from the `DeriveGen` of `Int Refined P`.
+   * The implicit `DeriveGen` for `Vector[T] Refined Size[P]`; it wraps
+   * `vectorSizeRefinedGen`. The elements come from the `DeriveGen` of `T` and
+   * the size from the `DeriveGen` of `Int Refined P`.
    */
   implicit def vectorSizeRefinedDeriveGen[T, P](implicit
     deriveGenT: DeriveGen[T],

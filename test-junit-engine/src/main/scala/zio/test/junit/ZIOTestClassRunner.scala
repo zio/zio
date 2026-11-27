@@ -27,7 +27,8 @@ import zio._
 import scala.jdk.OptionConverters._
 
 /**
- * Runs the spec of one ZIO Test spec class and reports its tests to a JUnit Platform `EngineExecutionListener`.
+ * Runs the spec of one ZIO Test spec class and reports its tests to a JUnit
+ * Platform `EngineExecutionListener`.
  *
  * @param descriptor
  *   the descriptor of the spec class
@@ -36,9 +37,16 @@ class ZIOTestClassRunner(descriptor: ZIOTestClassDescriptor) {
   private val spec = descriptor.spec
 
   /**
-   * Returns an effect that runs the spec and reports each test of `descriptor` to `notifier`, and that succeeds with the summary of the run.
+   * Returns an effect that runs the spec and reports each test of `descriptor`
+   * to `notifier`, and that succeeds with the summary of the run.
    *
-   * A test is reported as started, and then as finished when it passes or fails. The failure is a [[TestFailed]] for a failed assertion or an error that isn't a `Throwable`, and the defect or the `Throwable` error itself otherwise. An ignored test is reported as started and then as skipped, with the reason `Test skipped`. Tests and suites that aren't in `descriptor` (because a filter removed them) don't run. The spec runs with the live environment, the test environment and its `bootstrap` layer.
+   * A test is reported as started, and then as finished when it passes or
+   * fails. The failure is a [[TestFailed]] for a failed assertion or an error
+   * that isn't a `Throwable`, and the defect or the `Throwable` error itself
+   * otherwise. An ignored test is reported as started and then as skipped, with
+   * the reason `Test skipped`. Tests and suites that aren't in `descriptor`
+   * (because a filter removed them) don't run. The spec runs with the live
+   * environment, the test environment and its `bootstrap` layer.
    */
   def run(notifier: EngineExecutionListener): IO[Any, Summary] = {
     def instrumentedSpec[R, E](zspec: Spec[R, E]) = {

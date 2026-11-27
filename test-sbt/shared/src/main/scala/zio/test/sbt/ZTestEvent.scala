@@ -41,7 +41,10 @@ final case class ZTestEvent(
   /** Returns the result of the test. */
   def status(): Status = status0
 
-  /** Returns `maybeThrowable` as an sbt `OptionalThrowable`, which is empty when `maybeThrowable` is `None`. */
+  /**
+   * Returns `maybeThrowable` as an sbt `OptionalThrowable`, which is empty when
+   * `maybeThrowable` is `None`.
+   */
   def throwable(): OptionalThrowable = maybeThrowable.fold(new OptionalThrowable())(new OptionalThrowable(_))
 }
 
@@ -51,9 +54,16 @@ final case class ZTestEvent(
 object ZTestEvent {
 
   /**
-   * Converts the result of one test to an sbt event for the spec that `taskDef` names.
+   * Converts the result of one test to an sbt event for the spec that `taskDef`
+   * names.
    *
-   * The status is `Status.Success` for a passed test, `Status.Ignored` for an ignored test and `Status.Failure` for a failed test. The event of a failed test carries an `Exception` whose message is the result rendered by `renderer`, with its cause. The selector is a `TestSelector` whose name is the labels of the test, outermost first, joined with `" - "` (for example `outer - inner - my test`). The duration is the run time recorded in `test`.
+   * The status is `Status.Success` for a passed test, `Status.Ignored` for an
+   * ignored test and `Status.Failure` for a failed test. The event of a failed
+   * test carries an `Exception` whose message is the result rendered by
+   * `renderer`, with its cause. The selector is a `TestSelector` whose name is
+   * the labels of the test, outermost first, joined with `" - "` (for example
+   * `outer - inner - my test`). The duration is the run time recorded in
+   * `test`.
    */
   def convertTestEvent(test: ExecutionEvent.Test[_], taskDef: TaskDef, renderer: TestRenderer): Event = {
     val status: Status = test.test match {
@@ -85,9 +95,14 @@ object ZTestEvent {
   }
 
   /**
-   * Converts a runtime failure that isn't the result of one test (for example, a suite whose effect dies) to an sbt event with `Status.Failure`.
+   * Converts a runtime failure that isn't the result of one test (for example,
+   * a suite whose effect dies) to an sbt event with `Status.Failure`.
    *
-   * The selector is the first selector of `taskDef`, and the duration is the `TestAnnotation.timing` annotation of `failure` in milliseconds. The event carries the defect when the cause of `failure` contains one (`Cause.dieOption`), and no throwable otherwise. Throws a `java.util.NoSuchElementException` when `taskDef` has no selectors.
+   * The selector is the first selector of `taskDef`, and the duration is the
+   * `TestAnnotation.timing` annotation of `failure` in milliseconds. The event
+   * carries the defect when the cause of `failure` contains one
+   * (`Cause.dieOption`), and no throwable otherwise. Throws a
+   * `java.util.NoSuchElementException` when `taskDef` has no selectors.
    */
   def convertRuntimeFailure(failure: TestFailure.Runtime[_], taskDef: TaskDef) =
     ZTestEvent(

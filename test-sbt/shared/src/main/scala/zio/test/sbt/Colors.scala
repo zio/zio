@@ -8,7 +8,8 @@ import scala.annotation.tailrec
 object Colors {
 
   /**
-   * Returns `str` preceded by the ANSI code `code` and followed by the ANSI reset code.
+   * Returns `str` preceded by the ANSI code `code` and followed by the ANSI
+   * reset code.
    */
   def colored(code: String)(str: String): String = s"$code$str${Console.RESET}"
 
@@ -31,7 +32,10 @@ object Colors {
   def reset(str: String): String = s"${Console.RESET}$str"
 
   /**
-   * Inserts the ANSI code of the current color at the beginning of each line of `s`, so that each line of colored text keeps its color when the lines are printed one by one. The current color is the last red, green, cyan, blue or yellow code before the line break that no reset code has ended.
+   * Inserts the ANSI code of the current color at the beginning of each line of
+   * `s`, so that each line of colored text keeps its color when the lines are
+   * printed one by one. The current color is the last red, green, cyan, blue or
+   * yellow code before the line break that no reset code has ended.
    */
   def coloredLines(s: String): String = {
     @tailrec

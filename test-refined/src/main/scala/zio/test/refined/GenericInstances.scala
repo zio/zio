@@ -23,7 +23,8 @@ import zio.test.magnolia.DeriveGen
 import zio.test.Gen
 
 /**
- * Brings the instances of `GenericInstances` into scope: `import zio.test.refined.generic._`.
+ * Brings the instances of `GenericInstances` into scope: `import
+ * zio.test.refined.generic._`.
  */
 object generic extends GenericInstances
 
@@ -33,7 +34,8 @@ object generic extends GenericInstances
 trait GenericInstances {
 
   /**
-   * A generator of `Refined[T, Equal[U]]` that always produces the value of the witness `U`.
+   * A generator of `Refined[T, Equal[U]]` that always produces the value of the
+   * witness `U`.
    */
   def equalArbitraryGen[T, U <: T](implicit
     wu: Witness.Aux[U]
@@ -41,7 +43,8 @@ trait GenericInstances {
     Gen.const(wu.value).map(Refined.unsafeApply)
 
   /**
-   * The implicit `DeriveGen` for `Refined[T, Equal[U]]`; it wraps `equalArbitraryGen`.
+   * The implicit `DeriveGen` for `Refined[T, Equal[U]]`; it wraps
+   * `equalArbitraryGen`.
    */
   implicit def equalArbitrary[T, U <: T](implicit
     wu: Witness.Aux[U]

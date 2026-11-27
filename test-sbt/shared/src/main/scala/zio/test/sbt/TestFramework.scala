@@ -3,7 +3,9 @@ package zio.test.sbt
 import sbt.testing.{Fingerprint, Framework}
 
 /**
- * The sbt test framework definition that the platform versions of [[ZTestFramework]] share. Its name is ZIO Test and its only fingerprint is [[ZioSpecFingerprint]].
+ * The sbt test framework definition that the platform versions of
+ * [[ZTestFramework]] share. Its name is ZIO Test and its only fingerprint is
+ * [[ZioSpecFingerprint]].
  */
 trait TestFramework extends Framework {
 
@@ -33,7 +35,9 @@ trait TestFramework extends Framework {
 
   // Note: strangely, backend-specific class loader seems to not be available elsewhere in ZIO...
   /**
-   * Returns the class loader that this framework uses to load specs when no test class loader is given: the framework's own class loader on the JVM, and `null` on Scala.js and Scala Native.
+   * Returns the class loader that this framework uses to load specs when no
+   * test class loader is given: the framework's own class loader on the JVM,
+   * and `null` on Scala.js and Scala Native.
    */
   protected def getClassLoader: ClassLoader
 }

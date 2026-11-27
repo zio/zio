@@ -6,21 +6,26 @@ import zio.test.Gen
 import zio.test.magnolia.DeriveGen
 
 /**
- * Brings the instances of `CharInstances` into scope: `import zio.test.refined.types.char._`.
+ * Brings the instances of `CharInstances` into scope: `import
+ * zio.test.refined.types.char._`.
  */
 object char extends CharInstances
 
 /**
- * Instances for the `LowerCaseChar` and `UpperCaseChar` aliases of `eu.timepit.refined.types.char`.
+ * Instances for the `LowerCaseChar` and `UpperCaseChar` aliases of
+ * `eu.timepit.refined.types.char`.
  */
 trait CharInstances {
+
   /**
-   * A generator of `LowerCaseChar` built with `Gen.alphaChar` and `toLower`: the characters 'a' to 'z'.
+   * A generator of `LowerCaseChar` built with `Gen.alphaChar` and `toLower`:
+   * the characters 'a' to 'z'.
    */
   val lowerCaseCharGen: Gen[Any, LowerCaseChar] = Gen.alphaChar.map(v => Refined.unsafeApply(v.toLower))
 
   /**
-   * A generator of `UpperCaseChar` built with `Gen.alphaChar` and `toUpper`: the characters 'A' to 'Z'.
+   * A generator of `UpperCaseChar` built with `Gen.alphaChar` and `toUpper`:
+   * the characters 'A' to 'Z'.
    */
   val upperCaseCharGen: Gen[Any, UpperCaseChar] = Gen.alphaChar.map(v => Refined.unsafeApply(v.toUpper))
 

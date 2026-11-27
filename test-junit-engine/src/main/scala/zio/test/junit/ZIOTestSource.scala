@@ -23,12 +23,15 @@ import org.junit.platform.engine.TestSource
 import org.junit.platform.engine.support.descriptor.{ClassSource, FilePosition, FileSource}
 
 /**
- * Creates the JUnit `TestSource` of a ZIO Test descriptor from the spec class and, for a test, its annotations.
+ * Creates the JUnit `TestSource` of a ZIO Test descriptor from the spec class
+ * and, for a test, its annotations.
  */
 object ZIOTestSource {
 
   /**
-   * Returns a `FileSource` for the file and line of the first location in the `TestAnnotation.trace` annotation of `annotations`, or a `ClassSource` for `testClass` when `annotations` is `None` or has no location.
+   * Returns a `FileSource` for the file and line of the first location in the
+   * `TestAnnotation.trace` annotation of `annotations`, or a `ClassSource` for
+   * `testClass` when `annotations` is `None` or has no location.
    */
   def apply(testClass: Class[_], annotations: Option[TestAnnotationMap]): TestSource =
     annotations
@@ -42,7 +45,9 @@ object ZIOTestSource {
   def apply(testClass: Class[_]): TestSource = ZIOTestSource(testClass, None)
 
   /**
-   * Returns a `FileSource` for the file and line of the first location in the `TestAnnotation.trace` annotation of `annotations`, or a `ClassSource` for `testClass` when there is no location.
+   * Returns a `FileSource` for the file and line of the first location in the
+   * `TestAnnotation.trace` annotation of `annotations`, or a `ClassSource` for
+   * `testClass` when there is no location.
    */
   def apply(testClass: Class[_], annotations: TestAnnotationMap): TestSource =
     ZIOTestSource(testClass, Some(annotations))
