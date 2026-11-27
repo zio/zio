@@ -21,14 +21,24 @@ import zio.test.{Gen, TestResult, check}
 import zio.{URIO, ZIO, Trace}
 
 /**
- * Laws for parameterized types. `ZLawsF.Covariant[CapsF, Caps, R]`, `ZLawsF.Contravariant[CapsF, Caps, R]` and `ZLawsF.Invariant[CapsF, Caps, R]` describe a set of laws that a parameterized type `F[A]` with capabilities `CapsF` is expected to satisfy with respect to all types `A` that have capabilities `Caps`. Laws can be run by providing a `GenF` that is capable of generating `F[A]` values given a generator of `A` values and a generator of values of some type `A`. Laws can be combined using `+` to produce a set of laws that require both sets of laws to be satisfied.
+ * Laws for parameterized types. `ZLawsF.Covariant[CapsF, Caps, R]`,
+ * `ZLawsF.Contravariant[CapsF, Caps, R]` and `ZLawsF.Invariant[CapsF, Caps, R]`
+ * describe a set of laws that a parameterized type `F[A]` with capabilities
+ * `CapsF` is expected to satisfy with respect to all types `A` that have
+ * capabilities `Caps`. Laws can be run by providing a `GenF` that is capable of
+ * generating `F[A]` values given a generator of `A` values and a generator of
+ * values of some type `A`. Laws can be combined using `+` to produce a set of
+ * laws that require both sets of laws to be satisfied.
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 object ZLawsF {
 
   /**
-   * `ZLawsF` for covariant type constructors `F[+_]`, such as `Option` or `List`. Single laws are written by extending a constructor in the companion object.
+   * `ZLawsF` for covariant type constructors `F[+_]`, such as `Option` or
+   * `List`. Single laws are written by extending a constructor in the companion
+   * object.
    *
    * {{{
    * import zio.UIO
@@ -75,9 +85,14 @@ object ZLawsF {
   abstract class Covariant[-CapsF[_[+_]], -Caps[_], -R] { self =>
 
     /**
-     * Test that values of type `F[A]`, for a type constructor `F[+_]`, satisfy the laws, using `genF` to construct a generator of `F[A]` values from the generator `gen` of `A` values.
+     * Test that values of type `F[A]`, for a type constructor `F[+_]`, satisfy
+     * the laws, using `genF` to construct a generator of `F[A]` values from the
+     * generator `gen` of `A` values.
      *
-     * The constructors in the companion object implement it with `check`: each law draws its own values, 200 samples by default, and stops at its first failing sample. The effect itself does not fail; a failed law gives a failed `TestResult` labelled with the law's name.
+     * The constructors in the companion object implement it with `check`: each
+     * law draws its own values, 200 samples by default, and stops at its first
+     * failing sample. The effect itself does not fail; a failed law gives a
+     * failed `TestResult` labelled with the law's name.
      */
     def run[R1 <: R, F[+_]: CapsF, A: Caps](
       genF: GenF[R1, F],
@@ -85,9 +100,11 @@ object ZLawsF {
     )(implicit trace: Trace): ZIO[R1, Nothing, TestResult]
 
     /**
-     * Combine these laws with the specified laws to produce a set of laws that require both sets of laws to be satisfied.
+     * Combine these laws with the specified laws to produce a set of laws that
+     * require both sets of laws to be satisfied.
      *
-     * `run` on the result runs these laws, then `that`, and joins the two results with `&&`. The laws of `that` still run when these laws fail.
+     * `run` on the result runs these laws, then `that`, and joins the two
+     * results with `&&`. The laws of `that` still run when these laws fail.
      */
     def +[CapsF1[x[+_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
       that: Covariant[CapsF1, Caps1, R1]
@@ -96,7 +113,9 @@ object ZLawsF {
   }
 
   /**
-   * Constructors of single `ZLawsF.Covariant` laws. Extend one of them and define its `apply` method; the `label` given to the constructor names the law in test results.
+   * Constructors of single `ZLawsF.Covariant` laws. Extend one of them and
+   * define its `apply` method; the `label` given to the constructor names the
+   * law in test results.
    */
   object Covariant {
 
@@ -118,12 +137,16 @@ object ZLawsF {
     abstract class ComposeLaw[-CapsF[_[+_]], -Caps[_]](label: String) extends Covariant[CapsF, Caps, Any] { self =>
 
       /**
-       * Checks the law for `fa` and the functions `f` and `g`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa` and the functions `f` and `g`, returning a
+       * successful `TestResult` when the law holds.
        */
       def apply[F[+_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], f: A => B, g: B => C): TestResult
 
       /**
-       * Checks this law with `check`, drawing `fa` from `genF(gen)` and `f` and `g` from `Gen.function(gen)` for each sample (200 samples by default), so both functions return values drawn from `gen`. The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa` from `genF(gen)` and `f` and
+       * `g` from `Gen.function(gen)` for each sample (200 samples by default),
+       * so both functions return values drawn from `gen`. The result is
+       * labelled with the law's name.
        */
       final def run[R, F[+_]: CapsF, A: Caps](
         genF: GenF[R, F],
@@ -139,12 +162,14 @@ object ZLawsF {
     abstract class FlattenLaw[-CapsF[_[+_]], -Caps[_]](label: String) extends Covariant[CapsF, Caps, Any] { self =>
 
       /**
-       * Checks the law for `fffa`, a value nested three levels deep in `F`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fffa`, a value nested three levels deep in `F`,
+       * returning a successful `TestResult` when the law holds.
        */
       def apply[F[+_]: CapsF, A: Caps](fffa: F[F[F[A]]]): TestResult
 
       /**
-       * Checks this law with `check` for values from `genF(genF(genF(gen)))` (200 samples by default). The result is labelled with the law's name.
+       * Checks this law with `check` for values from `genF(genF(genF(gen)))`
+       * (200 samples by default). The result is labelled with the law's name.
        */
       final def run[R, F[+_]: CapsF, A: Caps](
         genF: GenF[R, F],
@@ -159,12 +184,14 @@ object ZLawsF {
     abstract class Law1[-CapsF[_[+_]], -Caps[_]](label: String) extends Covariant[CapsF, Caps, Any] { self =>
 
       /**
-       * Checks the law for `fa`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa`, returning a successful `TestResult` when the
+       * law holds.
        */
       def apply[F[+_]: CapsF, A: Caps](fa: F[A]): TestResult
 
       /**
-       * Checks this law with `check` for values from `genF(gen)` (200 samples by default). The result is labelled with the law's name.
+       * Checks this law with `check` for values from `genF(gen)` (200 samples
+       * by default). The result is labelled with the law's name.
        */
       final def run[R, F[+_]: CapsF, A: Caps](
         genF: GenF[R, F],
@@ -179,12 +206,15 @@ object ZLawsF {
     abstract class Law1ZIO[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
 
       /**
-       * Checks the law for `fa` with an effect that needs an `R`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa` with an effect that needs an `R`, returning a
+       * successful `TestResult` when the law holds.
        */
       def apply[F[+_]: CapsF, A: Caps](fa: F[A]): URIO[R, TestResult]
 
       /**
-       * Checks this law with `check` for values from `genF(gen)` (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+       * Checks this law with `check` for values from `genF(gen)` (200 samples
+       * by default). It runs the effect returned by `apply` once per sample.
+       * The result is labelled with the law's name.
        */
       final def run[R1 <: R, F[+_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -199,12 +229,15 @@ object ZLawsF {
     abstract class Law2[-CapsF[_[+_]], -Caps[_]](label: String) extends Covariant[CapsF, Caps, Any] { self =>
 
       /**
-       * Checks the law for `fa` and `fb`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa` and `fb`, returning a successful `TestResult`
+       * when the law holds.
        */
       def apply[F[+_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): TestResult
 
       /**
-       * Checks this law with `check`, drawing `fa` and `fb` separately from `genF(gen)` for each sample (200 samples by default). The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa` and `fb` separately from
+       * `genF(gen)` for each sample (200 samples by default). The result is
+       * labelled with the law's name.
        */
       final def run[R, F[+_]: CapsF, A: Caps](
         genF: GenF[R, F],
@@ -219,12 +252,16 @@ object ZLawsF {
     abstract class Law2ZIO[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
 
       /**
-       * Checks the law for `fa` and `fb` with an effect that needs an `R`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa` and `fb` with an effect that needs an `R`,
+       * returning a successful `TestResult` when the law holds.
        */
       def apply[F[+_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): URIO[R, TestResult]
 
       /**
-       * Checks this law with `check`, drawing `fa` and `fb` separately from `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa` and `fb` separately from
+       * `genF(gen)` for each sample (200 samples by default). It runs the
+       * effect returned by `apply` once per sample. The result is labelled with
+       * the law's name.
        */
       final def run[R1 <: R, F[+_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -239,12 +276,15 @@ object ZLawsF {
     abstract class Law3[-CapsF[_[+_]], -Caps[_]](label: String) extends Covariant[CapsF, Caps, Any] { self =>
 
       /**
-       * Checks the law for `fa`, `fb` and `fc`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa`, `fb` and `fc`, returning a successful
+       * `TestResult` when the law holds.
        */
       def apply[F[+_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): TestResult
 
       /**
-       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately from `genF(gen)` for each sample (200 samples by default). The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately
+       * from `genF(gen)` for each sample (200 samples by default). The result
+       * is labelled with the law's name.
        */
       final def run[R, F[+_]: CapsF, A: Caps](
         genF: GenF[R, F],
@@ -259,12 +299,16 @@ object ZLawsF {
     abstract class Law3ZIO[-CapsF[_[+_]], -Caps[_], -R](label: String) extends Covariant[CapsF, Caps, R] { self =>
 
       /**
-       * Checks the law for `fa`, `fb` and `fc` with an effect that needs an `R`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa`, `fb` and `fc` with an effect that needs an
+       * `R`, returning a successful `TestResult` when the law holds.
        */
       def apply[F[+_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): URIO[R, TestResult]
 
       /**
-       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately from `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately
+       * from `genF(gen)` for each sample (200 samples by default). It runs the
+       * effect returned by `apply` once per sample. The result is labelled with
+       * the law's name.
        */
       final def run[R1 <: R, F[+_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -275,14 +319,21 @@ object ZLawsF {
   }
 
   /**
-   * `ZLawsF` for contravariant type constructors `F[-_]`, such as a type of functions from `A` to a fixed result. Single laws are written by extending a constructor in the companion object.
+   * `ZLawsF` for contravariant type constructors `F[-_]`, such as a type of
+   * functions from `A` to a fixed result. Single laws are written by extending
+   * a constructor in the companion object.
    */
   abstract class Contravariant[-CapsF[_[-_]], -Caps[_], -R] { self =>
 
     /**
-     * Test that values of type `F[A]`, for a type constructor `F[-_]`, satisfy the laws, using `genF` to construct a generator of `F[A]` values from the generator `gen` of `A` values.
+     * Test that values of type `F[A]`, for a type constructor `F[-_]`, satisfy
+     * the laws, using `genF` to construct a generator of `F[A]` values from the
+     * generator `gen` of `A` values.
      *
-     * The constructors in the companion object implement it with `check`: each law draws its own values, 200 samples by default, and stops at its first failing sample. The effect itself does not fail; a failed law gives a failed `TestResult` labelled with the law's name.
+     * The constructors in the companion object implement it with `check`: each
+     * law draws its own values, 200 samples by default, and stops at its first
+     * failing sample. The effect itself does not fail; a failed law gives a
+     * failed `TestResult` labelled with the law's name.
      */
     def run[R1 <: R, F[-_]: CapsF, A: Caps](
       genF: GenF[R1, F],
@@ -290,9 +341,11 @@ object ZLawsF {
     )(implicit trace: Trace): ZIO[R1, Nothing, TestResult]
 
     /**
-     * Combine these laws with the specified laws to produce a set of laws that require both sets of laws to be satisfied.
+     * Combine these laws with the specified laws to produce a set of laws that
+     * require both sets of laws to be satisfied.
      *
-     * `run` on the result runs these laws, then `that`, and joins the two results with `&&`. The laws of `that` still run when these laws fail.
+     * `run` on the result runs these laws, then `that`, and joins the two
+     * results with `&&`. The laws of `that` still run when these laws fail.
      */
     def +[CapsF1[x[-_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
       that: Contravariant[CapsF1, Caps1, R1]
@@ -301,7 +354,9 @@ object ZLawsF {
   }
 
   /**
-   * Constructors of single `ZLawsF.Contravariant` laws. Extend one of them and define its `apply` method; the `label` given to the constructor names the law in test results.
+   * Constructors of single `ZLawsF.Contravariant` laws. Extend one of them and
+   * define its `apply` method; the `label` given to the constructor names the
+   * law in test results.
    */
   object Contravariant {
 
@@ -311,7 +366,10 @@ object ZLawsF {
     ) extends Contravariant[CapsF, Caps, R] {
 
       /**
-       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately from `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately
+       * from `genF(gen)` for each sample (200 samples by default). It runs the
+       * effect returned by `apply` once per sample. The result is labelled with
+       * the law's name.
        */
       final def run[R1 <: R, F[-_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -326,13 +384,18 @@ object ZLawsF {
      */
     abstract class ComposeLaw[-CapsF[_[-_]], -Caps[_]](label: String) extends Contravariant[CapsF, Caps, Any] {
       self =>
+
       /**
-       * Checks the law for `fa` and the functions `f` and `g`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa` and the functions `f` and `g`, returning a
+       * successful `TestResult` when the law holds.
        */
       def apply[F[-_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], f: B => A, g: C => B): TestResult
 
       /**
-       * Checks this law with `check`, drawing `fa` from `genF(gen)` and `f` and `g` as functions from `A` to `A` built with `Gen.function(gen)` for each sample (200 samples by default). The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa` from `genF(gen)` and `f` and
+       * `g` as functions from `A` to `A` built with `Gen.function(gen)` for
+       * each sample (200 samples by default). The result is labelled with the
+       * law's name.
        */
       final def run[R, F[-_]: CapsF, A: Caps](
         genF: GenF[R, F],
@@ -347,12 +410,14 @@ object ZLawsF {
     abstract class Law1[-CapsF[_[-_]], -Caps[_]](label: String) extends Contravariant[CapsF, Caps, Any] { self =>
 
       /**
-       * Checks the law for `fa`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa`, returning a successful `TestResult` when the
+       * law holds.
        */
       def apply[F[-_]: CapsF, A: Caps](fa: F[A]): TestResult
 
       /**
-       * Checks this law with `check` for values from `genF(gen)` (200 samples by default). The result is labelled with the law's name.
+       * Checks this law with `check` for values from `genF(gen)` (200 samples
+       * by default). The result is labelled with the law's name.
        */
       final def run[R, F[-_]: CapsF, A: Caps](
         genF: GenF[R, F],
@@ -367,12 +432,15 @@ object ZLawsF {
     abstract class Law1ZIO[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
 
       /**
-       * Checks the law for `fa` with an effect that needs an `R`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa` with an effect that needs an `R`, returning a
+       * successful `TestResult` when the law holds.
        */
       def apply[F[-_]: CapsF, A: Caps](fa: F[A]): URIO[R, TestResult]
 
       /**
-       * Checks this law with `check` for values from `genF(gen)` (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+       * Checks this law with `check` for values from `genF(gen)` (200 samples
+       * by default). It runs the effect returned by `apply` once per sample.
+       * The result is labelled with the law's name.
        */
       final def run[R1 <: R, F[-_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -387,12 +455,15 @@ object ZLawsF {
     abstract class Law2[-CapsF[_[-_]], -Caps[_]](label: String) extends Contravariant[CapsF, Caps, Any] { self =>
 
       /**
-       * Checks the law for `fa` and `fb`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa` and `fb`, returning a successful `TestResult`
+       * when the law holds.
        */
       def apply[F[-_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): TestResult
 
       /**
-       * Checks this law with `check`, drawing `fa` and `fb` separately from `genF(gen)` for each sample (200 samples by default). The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa` and `fb` separately from
+       * `genF(gen)` for each sample (200 samples by default). The result is
+       * labelled with the law's name.
        */
       final def run[R, F[-_]: CapsF, A: Caps](
         genF: GenF[R, F],
@@ -407,12 +478,16 @@ object ZLawsF {
     abstract class Law2ZIO[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
 
       /**
-       * Checks the law for `fa` and `fb` with an effect that needs an `R`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa` and `fb` with an effect that needs an `R`,
+       * returning a successful `TestResult` when the law holds.
        */
       def apply[F[-_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): URIO[R, TestResult]
 
       /**
-       * Checks this law with `check`, drawing `fa` and `fb` separately from `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa` and `fb` separately from
+       * `genF(gen)` for each sample (200 samples by default). It runs the
+       * effect returned by `apply` once per sample. The result is labelled with
+       * the law's name.
        */
       final def run[R1 <: R, F[-_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -427,12 +502,15 @@ object ZLawsF {
     abstract class Law3[-CapsF[_[-_]], -Caps[_]](label: String) extends Contravariant[CapsF, Caps, Any] { self =>
 
       /**
-       * Checks the law for `fa`, `fb` and `fc`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa`, `fb` and `fc`, returning a successful
+       * `TestResult` when the law holds.
        */
       def apply[F[-_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): TestResult
 
       /**
-       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately from `genF(gen)` for each sample (200 samples by default). The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately
+       * from `genF(gen)` for each sample (200 samples by default). The result
+       * is labelled with the law's name.
        */
       final def run[R, F[-_]: CapsF, A: Caps](
         genF: GenF[R, F],
@@ -447,12 +525,16 @@ object ZLawsF {
     abstract class Law3ZIO[-CapsF[_[-_]], -Caps[_], -R](label: String) extends Contravariant[CapsF, Caps, R] { self =>
 
       /**
-       * Checks the law for `fa`, `fb` and `fc` with an effect that needs an `R`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa`, `fb` and `fc` with an effect that needs an
+       * `R`, returning a successful `TestResult` when the law holds.
        */
       def apply[F[-_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): URIO[R, TestResult]
 
       /**
-       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately from `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately
+       * from `genF(gen)` for each sample (200 samples by default). It runs the
+       * effect returned by `apply` once per sample. The result is labelled with
+       * the law's name.
        */
       final def run[R1 <: R, F[-_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -463,14 +545,20 @@ object ZLawsF {
   }
 
   /**
-   * `ZLawsF` for invariant type constructors `F[_]`. Single laws are written by extending a constructor in the companion object.
+   * `ZLawsF` for invariant type constructors `F[_]`. Single laws are written by
+   * extending a constructor in the companion object.
    */
   abstract class Invariant[-CapsF[_[_]], -Caps[_], -R] { self =>
 
     /**
-     * Test that values of type `F[A]`, for a type constructor `F[_]`, satisfy the laws, using `genF` to construct a generator of `F[A]` values from the generator `gen` of `A` values.
+     * Test that values of type `F[A]`, for a type constructor `F[_]`, satisfy
+     * the laws, using `genF` to construct a generator of `F[A]` values from the
+     * generator `gen` of `A` values.
      *
-     * The constructors in the companion object implement it with `check`: each law draws its own values, 200 samples by default, and stops at its first failing sample. The effect itself does not fail; a failed law gives a failed `TestResult` labelled with the law's name.
+     * The constructors in the companion object implement it with `check`: each
+     * law draws its own values, 200 samples by default, and stops at its first
+     * failing sample. The effect itself does not fail; a failed law gives a
+     * failed `TestResult` labelled with the law's name.
      */
     def run[R1 <: R, F[_]: CapsF, A: Caps](
       genF: GenF[R1, F],
@@ -478,9 +566,11 @@ object ZLawsF {
     )(implicit trace: Trace): ZIO[R1, Nothing, TestResult]
 
     /**
-     * Combine these laws with the specified laws to produce a set of laws that require both sets of laws to be satisfied.
+     * Combine these laws with the specified laws to produce a set of laws that
+     * require both sets of laws to be satisfied.
      *
-     * `run` on the result runs these laws, then `that`, and joins the two results with `&&`. The laws of `that` still run when these laws fail.
+     * `run` on the result runs these laws, then `that`, and joins the two
+     * results with `&&`. The laws of `that` still run when these laws fail.
      */
     def +[CapsF1[x[_]] <: CapsF[x], Caps1[x] <: Caps[x], R1 <: R](
       that: Invariant[CapsF1, Caps1, R1]
@@ -489,7 +579,9 @@ object ZLawsF {
   }
 
   /**
-   * Constructors of single `ZLawsF.Invariant` laws. Extend one of them and define its `apply` method; the `label` given to the constructor names the law in test results.
+   * Constructors of single `ZLawsF.Invariant` laws. Extend one of them and
+   * define its `apply` method; the `label` given to the constructor names the
+   * law in test results.
    */
   object Invariant {
 
@@ -499,7 +591,10 @@ object ZLawsF {
     ) extends Invariant[CapsF, Caps, R] {
 
       /**
-       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately from `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately
+       * from `genF(gen)` for each sample (200 samples by default). It runs the
+       * effect returned by `apply` once per sample. The result is labelled with
+       * the law's name.
        */
       final def run[R1 <: R, F[_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -514,12 +609,14 @@ object ZLawsF {
     abstract class Law1[-CapsF[_[_]], -Caps[_]](label: String) extends Invariant[CapsF, Caps, Any] { self =>
 
       /**
-       * Checks the law for `fa`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa`, returning a successful `TestResult` when the
+       * law holds.
        */
       def apply[F[_]: CapsF, A: Caps](fa: F[A]): TestResult
 
       /**
-       * Checks this law with `check` for values from `genF(gen)` (200 samples by default). The result is labelled with the law's name.
+       * Checks this law with `check` for values from `genF(gen)` (200 samples
+       * by default). The result is labelled with the law's name.
        */
       final def run[R, F[_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A])(implicit
         trace: Trace
@@ -533,12 +630,15 @@ object ZLawsF {
     abstract class Law1ZIO[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
 
       /**
-       * Checks the law for `fa` with an effect that needs an `R`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa` with an effect that needs an `R`, returning a
+       * successful `TestResult` when the law holds.
        */
       def apply[F[_]: CapsF, A: Caps](fa: F[A]): URIO[R, TestResult]
 
       /**
-       * Checks this law with `check` for values from `genF(gen)` (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+       * Checks this law with `check` for values from `genF(gen)` (200 samples
+       * by default). It runs the effect returned by `apply` once per sample.
+       * The result is labelled with the law's name.
        */
       final def run[R1 <: R, F[_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -553,12 +653,15 @@ object ZLawsF {
     abstract class Law2[-CapsF[_[_]], -Caps[_]](label: String) extends Invariant[CapsF, Caps, Any] { self =>
 
       /**
-       * Checks the law for `fa` and `fb`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa` and `fb`, returning a successful `TestResult`
+       * when the law holds.
        */
       def apply[F[_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): TestResult
 
       /**
-       * Checks this law with `check`, drawing `fa` and `fb` separately from `genF(gen)` for each sample (200 samples by default). The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa` and `fb` separately from
+       * `genF(gen)` for each sample (200 samples by default). The result is
+       * labelled with the law's name.
        */
       final def run[R, F[_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A])(implicit
         trace: Trace
@@ -572,12 +675,16 @@ object ZLawsF {
     abstract class Law2ZIO[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
 
       /**
-       * Checks the law for `fa` and `fb` with an effect that needs an `R`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa` and `fb` with an effect that needs an `R`,
+       * returning a successful `TestResult` when the law holds.
        */
       def apply[F[_]: CapsF, A: Caps, B: Caps](fa: F[A], fb: F[B]): URIO[R, TestResult]
 
       /**
-       * Checks this law with `check`, drawing `fa` and `fb` separately from `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa` and `fb` separately from
+       * `genF(gen)` for each sample (200 samples by default). It runs the
+       * effect returned by `apply` once per sample. The result is labelled with
+       * the law's name.
        */
       final def run[R1 <: R, F[_]: CapsF, A: Caps](
         genF: GenF[R1, F],
@@ -592,12 +699,15 @@ object ZLawsF {
     abstract class Law3[-CapsF[_[_]], -Caps[_]](label: String) extends Invariant[CapsF, Caps, Any] { self =>
 
       /**
-       * Checks the law for `fa`, `fb` and `fc`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa`, `fb` and `fc`, returning a successful
+       * `TestResult` when the law holds.
        */
       def apply[F[_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): TestResult
 
       /**
-       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately from `genF(gen)` for each sample (200 samples by default). The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately
+       * from `genF(gen)` for each sample (200 samples by default). The result
+       * is labelled with the law's name.
        */
       final def run[R, F[_]: CapsF, A: Caps](genF: GenF[R, F], gen: Gen[R, A])(implicit
         trace: Trace
@@ -611,12 +721,16 @@ object ZLawsF {
     abstract class Law3ZIO[-CapsF[_[_]], -Caps[_], -R](label: String) extends Invariant[CapsF, Caps, R] { self =>
 
       /**
-       * Checks the law for `fa`, `fb` and `fc` with an effect that needs an `R`, returning a successful `TestResult` when the law holds.
+       * Checks the law for `fa`, `fb` and `fc` with an effect that needs an
+       * `R`, returning a successful `TestResult` when the law holds.
        */
       def apply[F[_]: CapsF, A: Caps, B: Caps, C: Caps](fa: F[A], fb: F[B], fc: F[C]): URIO[R, TestResult]
 
       /**
-       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately from `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+       * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately
+       * from `genF(gen)` for each sample (200 samples by default). It runs the
+       * effect returned by `apply` once per sample. The result is labelled with
+       * the law's name.
        */
       final def run[R1 <: R, F[_]: CapsF, A: Caps](
         genF: GenF[R1, F],

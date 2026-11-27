@@ -19,9 +19,14 @@ package zio.test.laws
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * `ZLawful[Caps, R]` describes a capability that is expected to satisfy a set of laws. Lawful instances can be combined using `+` to describe a set of capabilities and all of the laws that those capabilities are expected to satisfy.
+ * `ZLawful[Caps, R]` describes a capability that is expected to satisfy a set
+ * of laws. Lawful instances can be combined using `+` to describe a set of
+ * capabilities and all of the laws that those capabilities are expected to
+ * satisfy.
  *
- * The companion object of a capability usually extends it (through the `Lawful` alias when the laws need no environment), so that `checkAllLaws` can check an instance against all of its laws.
+ * The companion object of a capability usually extends it (through the `Lawful`
+ * alias when the laws need no environment), so that `checkAllLaws` can check an
+ * instance against all of its laws.
  *
  * {{{
  * import zio.UIO
@@ -48,7 +53,8 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
  * val result: UIO[TestResult] = checkAllLaws(Equal)(Gen.alphaNumericString)
  * }}}
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 trait ZLawful[-Caps[_], -R] { self =>
 
@@ -58,7 +64,9 @@ trait ZLawful[-Caps[_], -R] { self =>
   def laws: ZLaws[Caps, R]
 
   /**
-   * Combines this lawful instance with `that`, giving a lawful instance whose laws are `laws + that.laws`. Checking the result needs one instance that has both capabilities.
+   * Combines this lawful instance with `that`, giving a lawful instance whose
+   * laws are `laws + that.laws`. Checking the result needs one instance that
+   * has both capabilities.
    */
   def +[Caps1[x] <: Caps[x], R1 <: R](that: ZLawful[Caps1, R1]): ZLawful[Caps1, R1] =
     new ZLawful[Caps1, R1] {

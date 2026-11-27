@@ -21,7 +21,13 @@ import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.Trace
 
 /**
- * The `laws` package provides functionality for describing laws as values. The fundamental abstraction is a set of `ZLaws[Caps, R]`. These laws model the laws that instances having a capability of type `Caps` are expected to satisfy. A capability `Caps[_]` is an abstraction describing some functionality that is common across different data types and obeys certain laws. For example, we can model the capability of two values of a type being compared for equality as follows:
+ * The `laws` package provides functionality for describing laws as values. The
+ * fundamental abstraction is a set of `ZLaws[Caps, R]`. These laws model the
+ * laws that instances having a capability of type `Caps` are expected to
+ * satisfy. A capability `Caps[_]` is an abstraction describing some
+ * functionality that is common across different data types and obeys certain
+ * laws. For example, we can model the capability of two values of a type being
+ * compared for equality as follows:
  *
  * {{{
  * trait Equal[-A] {
@@ -34,9 +40,13 @@ import zio.Trace
  *   1. Symmetry - `a1 === a2 ==> a2 === a1`
  *   1. Transitivity - `(a1 === a2) && (a2 === a3) ==> (a1 === a3)`
  *
- * These laws define what the capabilities mean and ensure that it is safe to abstract across different instances with the same capability.
+ * These laws define what the capabilities mean and ensure that it is safe to
+ * abstract across different instances with the same capability.
  *
- * Using ZIO Test, we can represent these laws as values. To do so, we define each law by extending one of the `Laws` constructors (`Laws.Law1`, `Laws.Law2` and `Laws.Law3` take one, two and three values), and we combine laws using the `+` operator:
+ * Using ZIO Test, we can represent these laws as values. To do so, we define
+ * each law by extending one of the `Laws` constructors (`Laws.Law1`,
+ * `Laws.Law2` and `Laws.Law3` take one, two and three values), and we combine
+ * laws using the `+` operator:
  *
  * {{{
  * import zio.test._
@@ -71,7 +81,10 @@ import zio.Trace
  * val equalLaws: Laws[Equal] = reflexivityLaw + symmetryLaw + transitivityLaw
  * }}}
  *
- * Laws have a `run` method that takes a generator of values of type `A` and checks that those values satisfy the laws. In addition, objects can extend `ZLawful` to provide an even more convenient syntax for users to check that instances satisfy certain laws.
+ * Laws have a `run` method that takes a generator of values of type `A` and
+ * checks that those values satisfy the laws. In addition, objects can extend
+ * `ZLawful` to provide an even more convenient syntax for users to check that
+ * instances satisfy certain laws.
  *
  * {{{
  * import zio.UIO
@@ -112,16 +125,21 @@ import zio.Trace
  * val result: UIO[TestResult] = checkAllLaws(Equal + Hash)(Gen.int)
  * }}}
  *
- * Capabilities compose because laws are contravariant in the capability type. Combining laws describing different capabilities gives a set of laws that require an instance having all of the capabilities to satisfy each of the laws, so `checkAllLaws` then needs one instance that has every capability, such as `intHash`.
+ * Capabilities compose because laws are contravariant in the capability type.
+ * Combining laws describing different capabilities gives a set of laws that
+ * require an instance having all of the capabilities to satisfy each of the
+ * laws, so `checkAllLaws` then needs one instance that has every capability,
+ * such as `intHash`.
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 package object laws {
 
   /**
    * A `ZLawful` whose laws need no environment (`R = Any`).
    */
-  type Lawful[-Caps[_]]                                      = ZLawful[Caps, Any]
+  type Lawful[-Caps[_]] = ZLawful[Caps, Any]
 
   /**
    * A `ZLawful2` whose laws need no environment (`R = Any`).
@@ -131,21 +149,23 @@ package object laws {
   /**
    * A set of `ZLaws` that needs no environment (`R = Any`).
    */
-  type Laws[-Caps[_]]                                        = ZLaws[Caps, Any]
+  type Laws[-Caps[_]] = ZLaws[Caps, Any]
 
   /**
    * A set of `ZLaws2` that needs no environment (`R = Any`).
    */
-  type Laws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]]   = ZLaws2[CapsBoth, CapsLeft, CapsRight, Any]
+  type Laws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]] = ZLaws2[CapsBoth, CapsLeft, CapsRight, Any]
 
   /**
-   * Aliases of the `ZLawfulF` lawful instances whose laws need no environment (`R = Any`).
+   * Aliases of the `ZLawfulF` lawful instances whose laws need no environment
+   * (`R = Any`).
    */
   object LawfulF {
+
     /**
      * `ZLawfulF.Covariant` with no environment (`R = Any`).
      */
-    type Covariant[-CapsF[_[+_]], -Caps[_]]     = ZLawfulF.Covariant[CapsF, Caps, Any]
+    type Covariant[-CapsF[_[+_]], -Caps[_]] = ZLawfulF.Covariant[CapsF, Caps, Any]
 
     /**
      * `ZLawfulF.Contravariant` with no environment (`R = Any`).
@@ -155,13 +175,15 @@ package object laws {
     /**
      * `ZLawfulF.Invariant` with no environment (`R = Any`).
      */
-    type Invariant[-CapsF[_[_]], -Caps[_]]      = ZLawfulF.Invariant[CapsF, Caps, Any]
+    type Invariant[-CapsF[_[_]], -Caps[_]] = ZLawfulF.Invariant[CapsF, Caps, Any]
   }
 
   /**
-   * Aliases of the `ZLawfulF2` lawful instances whose laws need no environment (`R = Any`).
+   * Aliases of the `ZLawfulF2` lawful instances whose laws need no environment
+   * (`R = Any`).
    */
   object LawfulF2 {
+
     /**
      * `ZLawfulF2.Divariant` with no environment (`R = Any`).
      */
@@ -170,36 +192,41 @@ package object laws {
   }
 
   /**
-   * Aliases of the `ZLaws` law constructors. The effectual ones (`Law1ZIO`, `Law2ZIO`, `Law3ZIO`) need no environment (`R = Any`).
+   * Aliases of the `ZLaws` law constructors. The effectual ones (`Law1ZIO`,
+   * `Law2ZIO`, `Law3ZIO`) need no environment (`R = Any`).
    */
   object Laws {
+
     /**
      * `ZLaws.Law1`: extend it to write a law.
      */
-    type Law1[-Caps[_]]    = ZLaws.Law1[Caps]
+    type Law1[-Caps[_]] = ZLaws.Law1[Caps]
 
     /**
-     * `ZLaws.Law1ZIO` with no environment (`R = Any`): extend it to write an effectual law.
+     * `ZLaws.Law1ZIO` with no environment (`R = Any`): extend it to write an
+     * effectual law.
      */
     type Law1ZIO[-Caps[_]] = ZLaws.Law1ZIO[Caps, Any]
 
     /**
      * `ZLaws.Law2`: extend it to write a law.
      */
-    type Law2[-Caps[_]]    = ZLaws.Law2[Caps]
+    type Law2[-Caps[_]] = ZLaws.Law2[Caps]
 
     /**
-     * `ZLaws.Law2ZIO` with no environment (`R = Any`): extend it to write an effectual law.
+     * `ZLaws.Law2ZIO` with no environment (`R = Any`): extend it to write an
+     * effectual law.
      */
     type Law2ZIO[-Caps[_]] = ZLaws.Law2ZIO[Caps, Any]
 
     /**
      * `ZLaws.Law3`: extend it to write a law.
      */
-    type Law3[-Caps[_]]    = ZLaws.Law3[Caps]
+    type Law3[-Caps[_]] = ZLaws.Law3[Caps]
 
     /**
-     * `ZLaws.Law3ZIO` with no environment (`R = Any`): extend it to write an effectual law.
+     * `ZLaws.Law3ZIO` with no environment (`R = Any`): extend it to write an
+     * effectual law.
      */
     type Law3ZIO[-Caps[_]] = ZLaws.Law3ZIO[Caps, Any]
   }
@@ -208,10 +235,11 @@ package object laws {
    * Aliases of the `ZLaws2` law constructors.
    */
   object Laws2 {
+
     /**
      * `ZLaws2.Law1Left`: extend it to write a law.
      */
-    type Law1Left[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]]  = ZLaws2.Law1Left[CapsBoth, CapsLeft, CapsRight]
+    type Law1Left[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]] = ZLaws2.Law1Left[CapsBoth, CapsLeft, CapsRight]
 
     /**
      * `ZLaws2.Law1Right`: extend it to write a law.
@@ -220,14 +248,15 @@ package object laws {
   }
 
   /**
-   * Aliases of the `ZLawsF` laws and law constructors whose laws need no environment (`R = Any`).
+   * Aliases of the `ZLawsF` laws and law constructors whose laws need no
+   * environment (`R = Any`).
    */
   object LawsF {
 
     /**
      * `ZLawsF.Covariant` with no environment (`R = Any`).
      */
-    type Covariant[-CapsF[_[+_]], -Caps[_]]     = ZLawsF.Covariant[CapsF, Caps, Any]
+    type Covariant[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant[CapsF, Caps, Any]
 
     /**
      * `ZLawsF.Contravariant` with no environment (`R = Any`).
@@ -237,12 +266,13 @@ package object laws {
     /**
      * `ZLawsF.Invariant` with no environment (`R = Any`).
      */
-    type Invariant[-CapsF[_[_]], -Caps[_]]      = ZLawsF.Invariant[CapsF, Caps, Any]
+    type Invariant[-CapsF[_[_]], -Caps[_]] = ZLawsF.Invariant[CapsF, Caps, Any]
 
     /**
      * Aliases of the `ZLawsF.Covariant` law constructors.
      */
     object Covariant {
+
       /**
        * `ZLawsF.Covariant.ComposeLaw`: extend it to write a law.
        */
@@ -256,38 +286,42 @@ package object laws {
       /**
        * `ZLawsF.Covariant.Law1`: extend it to write a law.
        */
-      type Law1[-CapsF[_[+_]], -Caps[_]]       = ZLawsF.Covariant.Law1[CapsF, Caps]
+      type Law1[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant.Law1[CapsF, Caps]
 
       /**
-       * `ZLawsF.Covariant.Law1ZIO` with no environment (`R = Any`): extend it to write an effectual law.
+       * `ZLawsF.Covariant.Law1ZIO` with no environment (`R = Any`): extend it
+       * to write an effectual law.
        */
-      type Law1ZIO[-CapsF[_[+_]], -Caps[_]]    = ZLawsF.Covariant.Law1ZIO[CapsF, Caps, Any]
+      type Law1ZIO[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant.Law1ZIO[CapsF, Caps, Any]
 
       /**
        * `ZLawsF.Covariant.Law2`: extend it to write a law.
        */
-      type Law2[-CapsF[_[+_]], -Caps[_]]       = ZLawsF.Covariant.Law2[CapsF, Caps]
+      type Law2[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant.Law2[CapsF, Caps]
 
       /**
-       * `ZLawsF.Covariant.Law2ZIO` with no environment (`R = Any`): extend it to write an effectual law.
+       * `ZLawsF.Covariant.Law2ZIO` with no environment (`R = Any`): extend it
+       * to write an effectual law.
        */
-      type Law2ZIO[-CapsF[_[+_]], -Caps[_]]    = ZLawsF.Covariant.Law2ZIO[CapsF, Caps, Any]
+      type Law2ZIO[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant.Law2ZIO[CapsF, Caps, Any]
 
       /**
        * `ZLawsF.Covariant.Law3`: extend it to write a law.
        */
-      type Law3[-CapsF[_[+_]], -Caps[_]]       = ZLawsF.Covariant.Law3[CapsF, Caps]
+      type Law3[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant.Law3[CapsF, Caps]
 
       /**
-       * `ZLawsF.Covariant.Law3ZIO` with no environment (`R = Any`): extend it to write an effectual law.
+       * `ZLawsF.Covariant.Law3ZIO` with no environment (`R = Any`): extend it
+       * to write an effectual law.
        */
-      type Law3ZIO[-CapsF[_[+_]], -Caps[_]]    = ZLawsF.Covariant.Law3ZIO[CapsF, Caps, Any]
+      type Law3ZIO[-CapsF[_[+_]], -Caps[_]] = ZLawsF.Covariant.Law3ZIO[CapsF, Caps, Any]
     }
 
     /**
      * Aliases of the `ZLawsF.Contravariant` law constructors.
      */
     object Contravariant {
+
       /**
        * `ZLawsF.Contravariant.ComposeLaw`: extend it to write a law.
        */
@@ -296,74 +330,83 @@ package object laws {
       /**
        * `ZLawsF.Contravariant.Law1`: extend it to write a law.
        */
-      type Law1[-CapsF[_[-_]], -Caps[_]]       = ZLawsF.Contravariant.Law1[CapsF, Caps]
+      type Law1[-CapsF[_[-_]], -Caps[_]] = ZLawsF.Contravariant.Law1[CapsF, Caps]
 
       /**
-       * `ZLawsF.Contravariant.Law1ZIO` with no environment (`R = Any`): extend it to write an effectual law.
+       * `ZLawsF.Contravariant.Law1ZIO` with no environment (`R = Any`): extend
+       * it to write an effectual law.
        */
-      type Law1ZIO[-CapsF[_[-_]], -Caps[_]]    = ZLawsF.Contravariant.Law1ZIO[CapsF, Caps, Any]
+      type Law1ZIO[-CapsF[_[-_]], -Caps[_]] = ZLawsF.Contravariant.Law1ZIO[CapsF, Caps, Any]
 
       /**
        * `ZLawsF.Contravariant.Law2`: extend it to write a law.
        */
-      type Law2[-CapsF[_[-_]], -Caps[_]]       = ZLawsF.Contravariant.Law2[CapsF, Caps]
+      type Law2[-CapsF[_[-_]], -Caps[_]] = ZLawsF.Contravariant.Law2[CapsF, Caps]
 
       /**
-       * `ZLawsF.Contravariant.Law2ZIO` with no environment (`R = Any`): extend it to write an effectual law.
+       * `ZLawsF.Contravariant.Law2ZIO` with no environment (`R = Any`): extend
+       * it to write an effectual law.
        */
-      type Law2ZIO[-CapsF[_[-_]], -Caps[_]]    = ZLawsF.Contravariant.Law2ZIO[CapsF, Caps, Any]
+      type Law2ZIO[-CapsF[_[-_]], -Caps[_]] = ZLawsF.Contravariant.Law2ZIO[CapsF, Caps, Any]
 
       /**
        * `ZLawsF.Contravariant.Law3`: extend it to write a law.
        */
-      type Law3[-CapsF[_[-_]], -Caps[_]]       = ZLawsF.Contravariant.Law3[CapsF, Caps]
+      type Law3[-CapsF[_[-_]], -Caps[_]] = ZLawsF.Contravariant.Law3[CapsF, Caps]
 
       /**
-       * `ZLawsF.Contravariant.Law3ZIO` with no environment (`R = Any`): extend it to write an effectual law.
+       * `ZLawsF.Contravariant.Law3ZIO` with no environment (`R = Any`): extend
+       * it to write an effectual law.
        */
-      type Law3ZIO[-CapsF[_[-_]], -Caps[_]]    = ZLawsF.Contravariant.Law3ZIO[CapsF, Caps, Any]
+      type Law3ZIO[-CapsF[_[-_]], -Caps[_]] = ZLawsF.Contravariant.Law3ZIO[CapsF, Caps, Any]
     }
 
     /**
      * Aliases of the `ZLawsF.Invariant` law constructors.
      */
     object Invariant {
+
       /**
        * `ZLawsF.Invariant.Law1`: extend it to write a law.
        */
-      type Law1[-CapsF[_[_]], -Caps[_]]    = ZLawsF.Invariant.Law1[CapsF, Caps]
+      type Law1[-CapsF[_[_]], -Caps[_]] = ZLawsF.Invariant.Law1[CapsF, Caps]
 
       /**
-       * `ZLawsF.Invariant.Law1ZIO` with no environment (`R = Any`): extend it to write an effectual law.
+       * `ZLawsF.Invariant.Law1ZIO` with no environment (`R = Any`): extend it
+       * to write an effectual law.
        */
       type Law1ZIO[-CapsF[_[_]], -Caps[_]] = ZLawsF.Invariant.Law1ZIO[CapsF, Caps, Any]
 
       /**
        * `ZLawsF.Invariant.Law2`: extend it to write a law.
        */
-      type Law2[-CapsF[_[_]], -Caps[_]]    = ZLawsF.Invariant.Law2[CapsF, Caps]
+      type Law2[-CapsF[_[_]], -Caps[_]] = ZLawsF.Invariant.Law2[CapsF, Caps]
 
       /**
-       * `ZLawsF.Invariant.Law2ZIO` with no environment (`R = Any`): extend it to write an effectual law.
+       * `ZLawsF.Invariant.Law2ZIO` with no environment (`R = Any`): extend it
+       * to write an effectual law.
        */
       type Law2ZIO[-CapsF[_[_]], -Caps[_]] = ZLawsF.Invariant.Law2ZIO[CapsF, Caps, Any]
 
       /**
        * `ZLawsF.Invariant.Law3`: extend it to write a law.
        */
-      type Law3[-CapsF[_[_]], -Caps[_]]    = ZLawsF.Invariant.Law3[CapsF, Caps]
+      type Law3[-CapsF[_[_]], -Caps[_]] = ZLawsF.Invariant.Law3[CapsF, Caps]
 
       /**
-       * `ZLawsF.Invariant.Law3ZIO` with no environment (`R = Any`): extend it to write an effectual law.
+       * `ZLawsF.Invariant.Law3ZIO` with no environment (`R = Any`): extend it
+       * to write an effectual law.
        */
       type Law3ZIO[-CapsF[_[_]], -Caps[_]] = ZLawsF.Invariant.Law3ZIO[CapsF, Caps, Any]
     }
   }
 
   /**
-   * Aliases of the `ZLawsF2` laws and law constructors whose laws need no environment (`R = Any`).
+   * Aliases of the `ZLawsF2` laws and law constructors whose laws need no
+   * environment (`R = Any`).
    */
   object LawsF2 {
+
     /**
      * `ZLawsF2.Divariant` with no environment (`R = Any`).
      */
@@ -374,6 +417,7 @@ package object laws {
      * Aliases of the `ZLawsF2.Divariant` law constructors.
      */
     object Divariant {
+
       /**
        * `ZLawsF2.Divariant.ComposeLaw`: extend it to write a law.
        */
@@ -388,7 +432,12 @@ package object laws {
   }
 
   /**
-   * Checks that values generated by the specified generator satisfy the laws of the lawful instance, using the `Caps[A]` instance in implicit scope. It runs `lawful.laws.run(gen)`: with laws built from the `ZLaws` constructors, each law checks its own samples (200 by default) and stops at its first failing sample. The effect does not fail; a failed law gives a failed `TestResult`.
+   * Checks that values generated by the specified generator satisfy the laws of
+   * the lawful instance, using the `Caps[A]` instance in implicit scope. It
+   * runs `lawful.laws.run(gen)`: with laws built from the `ZLaws` constructors,
+   * each law checks its own samples (200 by default) and stops at its first
+   * failing sample. The effect does not fail; a failed law gives a failed
+   * `TestResult`.
    *
    * {{{
    * import zio.test._
@@ -421,7 +470,8 @@ package object laws {
    * }
    * }}}
    *
-   * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+   * @see
+   *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
    */
   def checkAllLaws[Caps[_], R, R1 <: R, A: Caps](
     lawful: ZLawful[Caps, R]
@@ -429,7 +479,11 @@ package object laws {
     lawful.laws.run(gen)
 
   /**
-   * Checks that pairs of values generated by `a` and `b` satisfy the laws of the lawful instance, using the `CapsBoth[A, B]`, `CapsLeft[A]` and `CapsRight[B]` instances in implicit scope. It runs `lawful.laws.run(a, b)`; the effect does not fail, and a failed law gives a failed `TestResult`.
+   * Checks that pairs of values generated by `a` and `b` satisfy the laws of
+   * the lawful instance, using the `CapsBoth[A, B]`, `CapsLeft[A]` and
+   * `CapsRight[B]` instances in implicit scope. It runs `lawful.laws.run(a,
+   * b)`; the effect does not fail, and a failed law gives a failed
+   * `TestResult`.
    */
   def checkAllLaws[CapsBoth[_, _], CapsLeft[_], CapsRight[_], R, R1 <: R, A: CapsLeft, B: CapsRight](
     lawful: ZLawful2[CapsBoth, CapsLeft, CapsRight, R]
@@ -440,7 +494,10 @@ package object laws {
     lawful.laws.run(a, b)
 
   /**
-   * Checks that `F[A]` values, built by `genF` from the generator `gen` of `A` values, satisfy the laws of the lawful instance for the covariant type constructor `F[+_]`. It runs `lawful.laws.run(genF, gen)`; the effect does not fail, and a failed law gives a failed `TestResult`.
+   * Checks that `F[A]` values, built by `genF` from the generator `gen` of `A`
+   * values, satisfy the laws of the lawful instance for the covariant type
+   * constructor `F[+_]`. It runs `lawful.laws.run(genF, gen)`; the effect does
+   * not fail, and a failed law gives a failed `TestResult`.
    */
   def checkAllLaws[CapsF[_[+_]], Caps[_], R, R1 <: R, F[+_]: CapsF, A: Caps](
     lawful: ZLawfulF.Covariant[CapsF, Caps, R]
@@ -448,7 +505,10 @@ package object laws {
     lawful.laws.run(genF, gen)
 
   /**
-   * Checks that `F[A]` values, built by `genF` from the generator `gen` of `A` values, satisfy the laws of the lawful instance for the contravariant type constructor `F[-_]`. It runs `lawful.laws.run(genF, gen)`; the effect does not fail, and a failed law gives a failed `TestResult`.
+   * Checks that `F[A]` values, built by `genF` from the generator `gen` of `A`
+   * values, satisfy the laws of the lawful instance for the contravariant type
+   * constructor `F[-_]`. It runs `lawful.laws.run(genF, gen)`; the effect does
+   * not fail, and a failed law gives a failed `TestResult`.
    */
   def checkAllLaws[CapsF[_[-_]], Caps[_], R, R1 <: R, F[-_]: CapsF, A: Caps](
     lawful: ZLawfulF.Contravariant[CapsF, Caps, R]
@@ -456,7 +516,10 @@ package object laws {
     lawful.laws.run(genF, gen)
 
   /**
-   * Checks that `F[A]` values, built by `genF` from the generator `gen` of `A` values, satisfy the laws of the lawful instance for the invariant type constructor `F[_]`. It runs `lawful.laws.run(genF, gen)`; the effect does not fail, and a failed law gives a failed `TestResult`.
+   * Checks that `F[A]` values, built by `genF` from the generator `gen` of `A`
+   * values, satisfy the laws of the lawful instance for the invariant type
+   * constructor `F[_]`. It runs `lawful.laws.run(genF, gen)`; the effect does
+   * not fail, and a failed law gives a failed `TestResult`.
    */
   def checkAllLaws[CapsF[_[_]], Caps[_], R, R1 <: R, F[_]: CapsF, A: Caps](
     lawful: ZLawfulF.Invariant[CapsF, Caps, R]

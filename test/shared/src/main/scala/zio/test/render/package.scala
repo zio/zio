@@ -21,7 +21,9 @@ import zio.test.render.LogLine.Fragment.Style
 import zio.test.render.LogLine.{Fragment, Line}
 
 /**
- * Rendering of test results: the [[zio.test.render.TestRenderer]] implementations, the [[zio.test.render.LogLine]] values they build, and helpers that create styled fragments.
+ * Rendering of test results: the [[zio.test.render.TestRenderer]]
+ * implementations, the [[zio.test.render.LogLine]] values they build, and
+ * helpers that create styled fragments.
  */
 package object render {
 
@@ -46,13 +48,22 @@ package object render {
   /** Creates a fragment with `s` in the `Dimmed` style. */
   def dim(s: String): Fragment = Fragment(s, Style.Dimmed)
 
-  /** Creates a fragment with `s` in the `Bold` style, wrapping the `Default` style. */
+  /**
+   * Creates a fragment with `s` in the `Bold` style, wrapping the `Default`
+   * style.
+   */
   def bold(s: String): Fragment = fr(s).bold
 
-  /** Creates a fragment with `s` in the `Underlined` style, wrapping the `Default` style. */
+  /**
+   * Creates a fragment with `s` in the `Underlined` style, wrapping the
+   * `Default` style.
+   */
   def underlined(s: String): Fragment = fr(s).underlined
 
-  /** Creates a fragment with `s` in the `Ansi` style with `ansiColor`, wrapping the `Default` style. */
+  /**
+   * Creates a fragment with `s` in the `Ansi` style with `ansiColor`, wrapping
+   * the `Default` style.
+   */
   def ansi(s: String, ansiColor: String): Fragment = fr(s).ansi(ansiColor)
 
   /** A fragment that holds a single space in the `Default` style. */

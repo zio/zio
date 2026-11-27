@@ -21,7 +21,12 @@ import zio.test.Gen
 import zio.Trace
 
 /**
- * `GenFractionalPoly` provides evidence that instances of `Gen[T]` and `Fractional[T]` exist for some concrete but unknown type `T`. Use it for properties that divide generated values of a type that changes from sample to sample. The instances built by `GenFractionalPoly.apply`, which include the predefined ones of the companion, have a `null` `ordT` (see [[GenNumericPoly]]); `numT` holds the ordering.
+ * `GenFractionalPoly` provides evidence that instances of `Gen[T]` and
+ * `Fractional[T]` exist for some concrete but unknown type `T`. Use it for
+ * properties that divide generated values of a type that changes from sample to
+ * sample. The instances built by `GenFractionalPoly.apply`, which include the
+ * predefined ones of the companion, have a `null` `ordT` (see
+ * [[GenNumericPoly]]); `numT` holds the ordering.
  *
  * {{{
  * import zio.test._
@@ -38,16 +43,19 @@ import zio.Trace
  *   }
  * }}}
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 trait GenFractionalPoly extends GenNumericPoly {
   override val numT: Fractional[T]
 }
 
 /**
- * Constructors of [[GenFractionalPoly]] instances for `Double` and `Float`, and `genFractionalPoly`, a generator that picks between them.
+ * Constructors of [[GenFractionalPoly]] instances for `Double` and `Float`, and
+ * `genFractionalPoly`, a generator that picks between them.
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 object GenFractionalPoly {
 

@@ -21,7 +21,12 @@ import zio.test.Gen
 import zio.Trace
 
 /**
- * `GenIntegralPoly` provides evidence that instances of `Gen[T]` and `Integral[T]` exist for some concrete but unknown type `T`. Use it for properties of integer arithmetic, such as division with remainder, on a type that changes from sample to sample. The instances built by `GenIntegralPoly.apply`, which include the predefined ones of the companion, have a `null` `ordT` (see [[GenNumericPoly]]); `numT` holds the ordering.
+ * `GenIntegralPoly` provides evidence that instances of `Gen[T]` and
+ * `Integral[T]` exist for some concrete but unknown type `T`. Use it for
+ * properties of integer arithmetic, such as division with remainder, on a type
+ * that changes from sample to sample. The instances built by
+ * `GenIntegralPoly.apply`, which include the predefined ones of the companion,
+ * have a `null` `ordT` (see [[GenNumericPoly]]); `numT` holds the ordering.
  *
  * {{{
  * import zio.test._
@@ -38,16 +43,19 @@ import zio.Trace
  *   }
  * }}}
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 trait GenIntegralPoly extends GenNumericPoly {
   override val numT: Integral[T]
 }
 
 /**
- * Constructors of [[GenIntegralPoly]] instances for `Byte`, `Char`, `Int`, `Long` and `Short`, and `genIntegralPoly`, a generator that picks among them.
+ * Constructors of [[GenIntegralPoly]] instances for `Byte`, `Char`, `Int`,
+ * `Long` and `Short`, and `genIntegralPoly`, a generator that picks among them.
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 object GenIntegralPoly {
 

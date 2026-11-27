@@ -26,16 +26,23 @@ import zio.{Cause, Trace}
 import zio.internal.ansi.AnsiStringOps
 
 /**
- * A [[TestRenderer]] that renders test results as styled text for a terminal. It is the default renderer. The failure details of a run's [[zio.test.Summary]] are built with its `renderForSummary`, whichever renderer is selected.
+ * A [[TestRenderer]] that renders test results as styled text for a terminal.
+ * It is the default renderer. The failure details of a run's
+ * [[zio.test.Summary]] are built with its `renderForSummary`, whichever
+ * renderer is selected.
  */
 trait ConsoleRenderer extends TestRenderer {
   private val tabSize = 2
 
   /**
-   * Returns one result when a suite with a label starts, when a test finishes and for a runtime failure, and no results for the other events. A suite result has the status `Passed`, because the outcome of the suite is not known when it starts.
+   * Returns one result when a suite with a label starts, when a test finishes
+   * and for a runtime failure, and no results for the other events. A suite
+   * result has the status `Passed`, because the outcome of the suite is not
+   * known when it starts.
    *
    * @param includeCause
-   *   whether the result for a runtime failure (an error rather than a failed assertion) includes the rendered cause
+   *   whether the result for a runtime failure (an error rather than a failed
+   *   assertion) includes the rendered cause
    */
   override def renderEvent(event: ExecutionEvent, includeCause: Boolean)(implicit
     trace: Trace
@@ -140,9 +147,13 @@ trait ConsoleRenderer extends TestRenderer {
     }
 
   /**
-   * Renders `results` for the summary at the end of a run, one string per result. Each test or suite result gets its summary lines, its annotations rendered with `testAnnotationRenderer` and the console output recorded for the test; an `Other` result gets its streaming lines.
+   * Renders `results` for the summary at the end of a run, one string per
+   * result. Each test or suite result gets its summary lines, its annotations
+   * rendered with `testAnnotationRenderer` and the console output recorded for
+   * the test; an `Other` result gets its streaming lines.
    *
-   * Throws a `scala.MatchError` for a test or suite result with the status `Started`.
+   * Throws a `scala.MatchError` for a test or suite result with the status
+   * `Started`.
    */
   def renderForSummary(results: Seq[ExecutionResult], testAnnotationRenderer: TestAnnotationRenderer): Seq[String] =
     results.map { result =>
@@ -189,7 +200,10 @@ trait ConsoleRenderer extends TestRenderer {
       case Status.Failed  => message
     }
 
-  /** Turns `message` into one string per line, indented by the line's offset and with the style of each fragment applied. */
+  /**
+   * Turns `message` into one string per line, indented by the line's offset and
+   * with the style of each fragment applied.
+   */
   def renderToStringLines(message: Message): Seq[String] = {
     def renderFragment(f: Fragment): String =
       f.style match {
@@ -230,7 +244,10 @@ trait ConsoleRenderer extends TestRenderer {
 
   import zio.duration2DurationOps
 
-  /** Returns the text for `summary`, which the test runner prints at the end of a run. */
+  /**
+   * Returns the text for `summary`, which the test runner prints at the end of
+   * a run.
+   */
   def renderSummary(summary: Summary): String =
     s"""${summary.success} tests passed. ${summary.fail} tests failed. ${summary.ignore} tests ignored.
        |${summary.failureDetails}
@@ -238,7 +255,9 @@ trait ConsoleRenderer extends TestRenderer {
        |""".stripMargin
 
   /**
-   * Returns a text that reports an interruption of the test named by `labels` when `cause` is a `Cause.Interrupt`, and `None` for other causes, including composite causes that contain an interruption.
+   * Returns a text that reports an interruption of the test named by `labels`
+   * when `cause` is a `Cause.Interrupt`, and `None` for other causes, including
+   * composite causes that contain an interruption.
    */
   def render(cause: Cause[_], labels: List[String]): Option[String] =
     cause match {
@@ -252,5 +271,6 @@ trait ConsoleRenderer extends TestRenderer {
       case _ => None
     }
 }
+
 /** The [[ConsoleRenderer]] instance that ZIO Test uses. */
 object ConsoleRenderer extends ConsoleRenderer

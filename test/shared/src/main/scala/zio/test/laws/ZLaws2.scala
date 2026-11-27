@@ -21,7 +21,11 @@ import zio.test.{Gen, TestResult, check}
 import zio.{URIO, ZIO, Trace}
 
 /**
- * `ZLaws2[CapsBoth, CapsLeft, CapsRight, R]` represents a set of laws about a pair of types `A` and `B`: `CapsBoth[A, B]` is a capability relating the two types (for example an equivalence between them), and `CapsLeft` and `CapsRight` are the capabilities required of `A` and `B`. Laws are run by providing a generator for each type, and can be combined using `+`.
+ * `ZLaws2[CapsBoth, CapsLeft, CapsRight, R]` represents a set of laws about a
+ * pair of types `A` and `B`: `CapsBoth[A, B]` is a capability relating the two
+ * types (for example an equivalence between them), and `CapsLeft` and
+ * `CapsRight` are the capabilities required of `A` and `B`. Laws are run by
+ * providing a generator for each type, and can be combined using `+`.
  *
  * {{{
  * import zio.UIO
@@ -60,14 +64,19 @@ import zio.{URIO, ZIO, Trace}
  *   equivalenceLaws.run(Gen.listOf(Gen.char), Gen.string)
  * }}}
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 abstract class ZLaws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =>
 
   /**
-   * Test that pairs of values drawn from `left` and `right` satisfy the laws, given the `CapsBoth[A, B]` instance that relates the two types.
+   * Test that pairs of values drawn from `left` and `right` satisfy the laws,
+   * given the `CapsBoth[A, B]` instance that relates the two types.
    *
-   * The constructors in `ZLaws2` implement it with `check`, which draws a value from each generator for each sample (200 samples by default) and stops a law at its first failing sample. The effect itself does not fail; a failed law gives a failed `TestResult` labelled with the law's name.
+   * The constructors in `ZLaws2` implement it with `check`, which draws a value
+   * from each generator for each sample (200 samples by default) and stops a
+   * law at its first failing sample. The effect itself does not fail; a failed
+   * law gives a failed `TestResult` labelled with the law's name.
    */
   def run[R1 <: R, A: CapsLeft, B: CapsRight](left: Gen[R1, A], right: Gen[R1, B])(implicit
     CapsBoth: CapsBoth[A, B],
@@ -75,9 +84,11 @@ abstract class ZLaws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =
   ): ZIO[R1, Nothing, TestResult]
 
   /**
-   * Combine these laws with the specified laws to produce a set of laws that require both sets of laws to be satisfied.
+   * Combine these laws with the specified laws to produce a set of laws that
+   * require both sets of laws to be satisfied.
    *
-   * `run` on the result runs these laws, then `that`, and joins the two results with `&&`. The laws of `that` still run when these laws fail.
+   * `run` on the result runs these laws, then `that`, and joins the two results
+   * with `&&`. The laws of `that` still run when these laws fail.
    */
   def +[CapsBoth1[x, y] <: CapsBoth[x, y], CapsLeft1[x] <: CapsLeft[x], CapsRight1[x] <: CapsRight[x], R1 <: R](
     that: ZLaws2[CapsBoth1, CapsLeft1, CapsRight1, R1]
@@ -86,7 +97,9 @@ abstract class ZLaws2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =
 }
 
 /**
- * Constructors of single laws about a pair of types. Extend one of them and define its `apply` method; the `label` given to the constructor names the law in test results.
+ * Constructors of single laws about a pair of types. Extend one of them and
+ * define its `apply` method; the `label` given to the constructor names the law
+ * in test results.
  */
 object ZLaws2 {
 
@@ -102,18 +115,22 @@ object ZLaws2 {
   }
 
   /**
-   * Constructs a law from a pure function taking a single value of the left type `A`.
+   * Constructs a law from a pure function taking a single value of the left
+   * type `A`.
    */
   abstract class Law1Left[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]](label: String)
       extends ZLaws2[CapsBoth, CapsLeft, CapsRight, Any] { self =>
 
     /**
-     * Checks the law for `a1`, using the `CapsBoth[A, B]` instance, and returns a successful `TestResult` when the law holds.
+     * Checks the law for `a1`, using the `CapsBoth[A, B]` instance, and returns
+     * a successful `TestResult` when the law holds.
      */
     def apply[A: CapsLeft, B: CapsRight](a1: A)(implicit CapsBoth: CapsBoth[A, B]): TestResult
 
     /**
-     * Checks this law with `check` for values from `a` (200 samples by default). It also draws a value from `b` for each sample and does not use it. The result is labelled with the law's name.
+     * Checks this law with `check` for values from `a` (200 samples by
+     * default). It also draws a value from `b` for each sample and does not use
+     * it. The result is labelled with the law's name.
      */
     final def run[R, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(implicit
       CapsBoth: CapsBoth[A, B],
@@ -123,18 +140,22 @@ object ZLaws2 {
   }
 
   /**
-   * Constructs a law from a pure function taking a single value of the right type `B`.
+   * Constructs a law from a pure function taking a single value of the right
+   * type `B`.
    */
   abstract class Law1Right[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_]](label: String)
       extends ZLaws2[CapsBoth, CapsLeft, CapsRight, Any] { self =>
 
     /**
-     * Checks the law for `b1`, using the `CapsBoth[A, B]` instance, and returns a successful `TestResult` when the law holds.
+     * Checks the law for `b1`, using the `CapsBoth[A, B]` instance, and returns
+     * a successful `TestResult` when the law holds.
      */
     def apply[A: CapsLeft, B: CapsRight](b1: B)(implicit CapsBoth: CapsBoth[A, B]): TestResult
 
     /**
-     * Checks this law with `check` for values from `b` (200 samples by default). It also draws a value from `a` for each sample and does not use it. The result is labelled with the law's name.
+     * Checks this law with `check` for values from `b` (200 samples by
+     * default). It also draws a value from `a` for each sample and does not use
+     * it. The result is labelled with the law's name.
      */
     final def run[R, A: CapsLeft, B: CapsRight](a: Gen[R, A], b: Gen[R, B])(implicit
       CapsBoth: CapsBoth[A, B],

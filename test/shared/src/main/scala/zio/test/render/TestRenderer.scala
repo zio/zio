@@ -28,14 +28,22 @@ import zio.{Cause, _}
 /**
  * Turns the events of a test run into text.
  *
- * ZIO Test has two implementations: [[ConsoleRenderer]], the default, which renders styled text for a terminal, and [[IntelliJRenderer]], which renders messages for the test runner of IntelliJ IDEA. The test runner picks one from the `-renderer` test argument: `intellij`, in any letter case, selects [[IntelliJRenderer]], and any other value or no argument selects [[ConsoleRenderer]].
+ * ZIO Test has two implementations: [[ConsoleRenderer]], the default, which
+ * renders styled text for a terminal, and [[IntelliJRenderer]], which renders
+ * messages for the test runner of IntelliJ IDEA. The test runner picks one from
+ * the `-renderer` test argument: `intellij`, in any letter case, selects
+ * [[IntelliJRenderer]], and any other value or no argument selects
+ * [[ConsoleRenderer]].
  *
- * Rendering has two steps: `renderEvent` turns a [[zio.test.ExecutionEvent]] into [[ExecutionResult]]s built from [[LogLine]] values, and `render` turns those results into strings.
+ * Rendering has two steps: `renderEvent` turns a [[zio.test.ExecutionEvent]]
+ * into [[ExecutionResult]]s built from [[LogLine]] values, and `render` turns
+ * those results into strings.
  */
 trait TestRenderer {
 
   /**
-   * Renders `reporterEvent` as strings: `renderEvent` builds the results, and this renderer's output step turns them into text.
+   * Renders `reporterEvent` as strings: `renderEvent` builds the results, and
+   * this renderer's output step turns them into text.
    *
    * @param includeCause
    *   whether the output for a runtime failure includes the rendered cause
@@ -47,16 +55,21 @@ trait TestRenderer {
    * Turns `event` into zero or more results.
    *
    * @param includeCause
-   *   whether the result for a runtime failure (an error rather than a failed assertion) includes the rendered cause
+   *   whether the result for a runtime failure (an error rather than a failed
+   *   assertion) includes the rendered cause
    */
   def renderEvent(event: ExecutionEvent, includeCause: Boolean)(implicit trace: Trace): Seq[ExecutionResult]
 
-  /** Returns the text for `summary`, which the test runner prints at the end of a run. */
+  /**
+   * Returns the text for `summary`, which the test runner prints at the end of
+   * a run.
+   */
   def renderSummary(summary: Summary): String
   protected def renderOutput(results: Seq[ExecutionResult])(implicit trace: Trace): Seq[String]
 
   /**
-   * Renders the outcome of one test as a pair of streaming lines and summary lines (see [[ExecutionResult]]).
+   * Renders the outcome of one test as a pair of streaming lines and summary
+   * lines (see [[ExecutionResult]]).
    *
    * Throws a `java.util.NoSuchElementException` when `labels` is empty.
    *
@@ -124,7 +137,10 @@ trait TestRenderer {
   }
 
   /**
-   * Builds a `Failed` test result for the failed assertion in `result`. The streaming lines use the last of `labels`, and the summary lines use the whole label path. With no labels, the streaming lines use a fixed label that names a top-level defect.
+   * Builds a `Failed` test result for the failed assertion in `result`. The
+   * streaming lines use the last of `labels`, and the summary lines use the
+   * whole label path. With no labels, the streaming lines use a fixed label
+   * that names a top-level defect.
    */
   def renderAssertFailure(
     result: TestResult,
@@ -147,10 +163,14 @@ trait TestRenderer {
   }
 
   /**
-   * Builds a `Failed` test result for a test that failed with `cause`. The streaming lines use the last of `labels`, and the summary lines use the whole label path. With no labels, the streaming lines use a fixed label that names a top-level defect.
+   * Builds a `Failed` test result for a test that failed with `cause`. The
+   * streaming lines use the last of `labels`, and the summary lines use the
+   * whole label path. With no labels, the streaming lines use a fixed label
+   * that names a top-level defect.
    *
    * @param includeCause
-   *   whether the result includes the rendered cause; when false, it only names the test
+   *   whether the result includes the rendered cause; when false, it only names
+   *   the test
    */
   def renderRuntimeCause[E](cause: Cause[E], labels: List[String], depth: Int, includeCause: Boolean)(implicit
     trace: Trace
@@ -179,7 +199,11 @@ trait TestRenderer {
   }
 
   /**
-   * Renders the failures in `assertionResult` as a message, with lines at the offset `offset + 1` or deeper. For a failed property test it also includes the generated input that made it fail. When rendering throws a `Throwable` other than a `java.lang.VirtualMachineError`, that throwable is rendered as a defect instead.
+   * Renders the failures in `assertionResult` as a message, with lines at the
+   * offset `offset + 1` or deeper. For a failed property test it also includes
+   * the generated input that made it fail. When rendering throws a `Throwable`
+   * other than a `java.lang.VirtualMachineError`, that throwable is rendered as
+   * a defect instead.
    */
   def renderAssertionResult(assertionResult: TestTrace[Boolean], offset: Int): Message =
     try {
@@ -196,7 +220,9 @@ trait TestRenderer {
     }
 
   /**
-   * Renders one [[zio.test.FailureCase]] and its nested failure cases as lines. The lines of the case itself get the offset `offset + 1`, and the lines of a directly nested case get `2 * offset + 3`.
+   * Renders one [[zio.test.FailureCase]] and its nested failure cases as lines.
+   * The lines of the case itself get the offset `offset + 1`, and the lines of
+   * a directly nested case get `2 * offset + 3`.
    *
    * @param testLabel
    *   a label shown with the assertion code, when defined
@@ -231,7 +257,10 @@ trait TestRenderer {
     }
 
   /**
-   * Renders `cause` as a message. Defects of type [[zio.test.TestTimeoutException]] come first and show only their message; the rest of the cause follows, pretty-printed one level deeper than `offset`.
+   * Renders `cause` as a message. Defects of type
+   * [[zio.test.TestTimeoutException]] come first and show only their message;
+   * the rest of the cause follows, pretty-printed one level deeper than
+   * `offset`.
    */
   def renderCause(cause: Cause[Any], offset: Int)(implicit trace: Trace): Message = {
     val defects = cause.defects
@@ -306,7 +335,8 @@ trait TestRenderer {
     }
 
   /**
-   * Builds a result that uses `lines` as both its streaming lines and its summary lines, with no annotations and no duration.
+   * Builds a result that uses `lines` as both its streaming lines and its
+   * summary lines, with no annotations and no duration.
    */
   def rendered(
     caseType: ResultType,
@@ -318,7 +348,8 @@ trait TestRenderer {
     ExecutionResult(caseType, label, result, offset, Nil, lines.toList, lines.toList, None)
 
   /**
-   * Builds a result with separate streaming lines (`lines`) and `summaryLines`, with no annotations and no duration.
+   * Builds a result with separate streaming lines (`lines`) and `summaryLines`,
+   * with no annotations and no duration.
    */
   def renderedWithSummary(
     caseType: ResultType,

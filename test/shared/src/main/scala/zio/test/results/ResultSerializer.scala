@@ -4,7 +4,8 @@ import zio._
 import zio.test._
 
 /**
- * Turns the result of a finished test into the text that is written to the test results file. `ResultPrinter.json` uses [[ResultSerializer.Json]].
+ * Turns the result of a finished test into the text that is written to the test
+ * results file. `ResultPrinter.json` uses [[ResultSerializer.Json]].
  */
 trait ResultSerializer {
 
@@ -21,7 +22,10 @@ object ResultSerializer {
   /** The [[ResultSerializer]] for the JSON results file. */
   object Json extends ResultSerializer {
 
-    /** Turns one finished test event into the text written to the JSON results file, used by `ResultPrinter.json`. */
+    /**
+     * Turns one finished test event into the text written to the JSON results
+     * file, used by `ResultPrinter.json`.
+     */
     def render[E](executionEvent: ExecutionEvent.Test[E]): String =
       executionEvent match {
         case ExecutionEvent.Test(labelsReversed, test, annotations, _, duration, _, fullyQualifiedName) =>

@@ -21,9 +21,13 @@ import zio.test.{FunctionVariants, Gen}
 import zio.Trace
 
 /**
- * A `GenF2` knows how to construct a generator of `F[A, B]` values given a generator of `B` values, for any `A` and `B`. For example, a `GenF2` of `Function1` values knows how to generate functions `A => B` given a generator of their results of type `B`.
+ * A `GenF2` knows how to construct a generator of `F[A, B]` values given a
+ * generator of `B` values, for any `A` and `B`. For example, a `GenF2` of
+ * `Function1` values knows how to generate functions `A => B` given a generator
+ * of their results of type `B`.
  *
- * The laws in `ZLawsF2` take a `GenF2` to build the `F[A, B]` values they check.
+ * The laws in `ZLawsF2` take a `GenF2` to build the `F[A, B]` values they
+ * check.
  *
  * {{{
  * import zio.test._
@@ -32,7 +36,8 @@ import zio.Trace
  *   GenF2.function1[Any, String, Int](Gen.int(0, 100))
  * }}}
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 trait GenF2[-R, F[_, _]] {
 
@@ -43,12 +48,16 @@ trait GenF2[-R, F[_, _]] {
 }
 
 /**
- * `GenF2` instances. It also inherits the function generators of `FunctionVariants`, such as `function` and `functionWith`.
+ * `GenF2` instances. It also inherits the function generators of
+ * `FunctionVariants`, such as `function` and `functionWith`.
  */
 object GenF2 extends FunctionVariants {
 
   /**
-   * A `GenF2` of `Function1` values: it builds a generator of functions `A => B` with `function`, whose results are drawn from the given generator of `B` values. A generated function returns the same result for two inputs with the same `hashCode`.
+   * A `GenF2` of `Function1` values: it builds a generator of functions `A =>
+   * B` with `function`, whose results are drawn from the given generator of `B`
+   * values. A generated function returns the same result for two inputs with
+   * the same `hashCode`.
    */
   val function1: GenF2[Any, Function1] =
     new GenF2[Any, Function1] {

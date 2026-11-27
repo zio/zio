@@ -9,16 +9,22 @@ import zio.test.render.LogLine.Message
 import zio.test._
 
 /**
- * A [[TestRenderer]] that renders test events as messages for the test runner of IntelliJ IDEA, so that the IDE can show the suites and tests of a run. The test runner selects it with the `-renderer intellij` test argument.
+ * A [[TestRenderer]] that renders test events as messages for the test runner
+ * of IntelliJ IDEA, so that the IDE can show the suites and tests of a run. The
+ * test runner selects it with the `-renderer intellij` test argument.
  */
 trait IntelliJRenderer extends TestRenderer {
   import IntelliJRenderer._
 
   /**
-   * Returns a `Started` suite result when a suite with a label starts, a `Passed` suite result when it ends, one result when a test finishes (with its duration) and one for a runtime failure, and no results for the other events.
+   * Returns a `Started` suite result when a suite with a label starts, a
+   * `Passed` suite result when it ends, one result when a test finishes (with
+   * its duration) and one for a runtime failure, and no results for the other
+   * events.
    *
    * @param includeCause
-   *   whether the result for a runtime failure (an error rather than a failed assertion) includes the rendered cause
+   *   whether the result for a runtime failure (an error rather than a failed
+   *   assertion) includes the rendered cause
    */
   override def renderEvent(event: ExecutionEvent, includeCause: Boolean)(implicit
     trace: Trace
@@ -161,7 +167,9 @@ trait IntelliJRenderer extends TestRenderer {
 object IntelliJRenderer extends IntelliJRenderer {
 
   /**
-   * Renders the first source location recorded for a test, which [[IntelliJRenderer]] gives the IDE as the location of the test. Renders nothing when no location is recorded.
+   * Renders the first source location recorded for a test, which
+   * [[IntelliJRenderer]] gives the IDE as the location of the test. Renders
+   * nothing when no location is recorded.
    */
   val locationRenderer: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.trace) { case child :: _ =>

@@ -21,9 +21,16 @@ import zio.test.{Gen, TestResult, check}
 import zio.{URIO, ZIO, Trace}
 
 /**
- * `ZLaws[Caps, R]` represents a set of laws that values with capabilities `Caps` are expected to satisfy. Laws can be run by providing a generator of values of a type `A` with the required capabilities to return a test result. Laws can be combined using `+` to produce a set of laws that require both sets of laws to be satisfied.
+ * `ZLaws[Caps, R]` represents a set of laws that values with capabilities
+ * `Caps` are expected to satisfy. Laws can be run by providing a generator of
+ * values of a type `A` with the required capabilities to return a test result.
+ * Laws can be combined using `+` to produce a set of laws that require both
+ * sets of laws to be satisfied.
  *
- * A single law is written by extending one of the constructors in the companion object (`ZLaws.Law1`, `ZLaws.Law2`, `ZLaws.Law3` and their effectual `ZIO` variants), or their aliases in `Laws`. `R` is the environment the laws need, `Any` for pure laws.
+ * A single law is written by extending one of the constructors in the companion
+ * object (`ZLaws.Law1`, `ZLaws.Law2`, `ZLaws.Law3` and their effectual `ZIO`
+ * variants), or their aliases in `Laws`. `R` is the environment the laws need,
+ * `Any` for pure laws.
  *
  * {{{
  * import zio.UIO
@@ -56,30 +63,45 @@ import zio.{URIO, ZIO, Trace}
  * val result: UIO[TestResult] = equalLaws.run(Gen.int)
  * }}}
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 abstract class ZLaws[-Caps[_], -R] { self =>
 
   /**
-   * Test that values of type `A` satisfy the laws using the specified generator.
+   * Test that values of type `A` satisfy the laws using the specified
+   * generator.
    *
-   * The constructors in `ZLaws` implement it with `check`: each law draws its own values from `gen`, so two combined laws do not see the same values. By default each law checks 200 samples (the `samples` setting of `TestConfig`), and a law with two or three parameters draws each of them separately. A law stops at its first failing sample, which is shrunk and reported in the returned failed `TestResult`, labelled with the law's name. The effect itself does not fail.
+   * The constructors in `ZLaws` implement it with `check`: each law draws its
+   * own values from `gen`, so two combined laws do not see the same values. By
+   * default each law checks 200 samples (the `samples` setting of
+   * `TestConfig`), and a law with two or three parameters draws each of them
+   * separately. A law stops at its first failing sample, which is shrunk and
+   * reported in the returned failed `TestResult`, labelled with the law's name.
+   * The effect itself does not fail.
    */
   def run[R1 <: R, A: Caps](gen: Gen[R1, A])(implicit
     trace: Trace
   ): ZIO[R1, Nothing, TestResult]
 
   /**
-   * Combine these laws with the specified laws to produce a set of laws that require both sets of laws to be satisfied.
+   * Combine these laws with the specified laws to produce a set of laws that
+   * require both sets of laws to be satisfied.
    *
-   * `run` on the result runs these laws, then `that`, and joins the two results with `&&`. The laws of `that` still run when these laws fail. The capability of the result is `Caps1`, a subtype of both capabilities: combining laws for two unrelated capabilities needs one instance that has both.
+   * `run` on the result runs these laws, then `that`, and joins the two results
+   * with `&&`. The laws of `that` still run when these laws fail. The
+   * capability of the result is `Caps1`, a subtype of both capabilities:
+   * combining laws for two unrelated capabilities needs one instance that has
+   * both.
    */
   def +[Caps1[x] <: Caps[x], R1 <: R](that: ZLaws[Caps1, R1]): ZLaws[Caps1, R1] =
     ZLaws.Both(self, that)
 }
 
 /**
- * Constructors of single laws. Extend one of them and define its `apply` method, which checks the law for the given values and returns a `TestResult`. The `label` given to the constructor names the law in test results.
+ * Constructors of single laws. Extend one of them and define its `apply`
+ * method, which checks the law for the given values and returns a `TestResult`.
+ * The `label` given to the constructor names the law in test results.
  */
 object ZLaws {
 
@@ -96,12 +118,14 @@ object ZLaws {
   abstract class Law1[-Caps[_]](label: String) extends ZLaws[Caps, Any] { self =>
 
     /**
-     * Checks the law for `a1`, returning a successful `TestResult` when the law holds.
+     * Checks the law for `a1`, returning a successful `TestResult` when the law
+     * holds.
      */
     def apply[A: Caps](a1: A): TestResult
 
     /**
-     * Checks this law with `check` for values from `gen` (200 samples by default). The result is labelled with the law's name.
+     * Checks this law with `check` for values from `gen` (200 samples by
+     * default). The result is labelled with the law's name.
      */
     final def run[R, A: Caps](gen: Gen[R, A])(implicit trace: Trace): URIO[R, TestResult] =
       check(gen)(apply(_).??(label))
@@ -113,12 +137,15 @@ object ZLaws {
   abstract class Law1ZIO[-Caps[_], -R](label: String) extends ZLaws[Caps, R] { self =>
 
     /**
-     * Checks the law for `a1` with an effect that needs an `R`, returning a successful `TestResult` when the law holds.
+     * Checks the law for `a1` with an effect that needs an `R`, returning a
+     * successful `TestResult` when the law holds.
      */
     def apply[A: Caps](a1: A): URIO[R, TestResult]
 
     /**
-     * Checks this law with `check` for values from `gen` (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+     * Checks this law with `check` for values from `gen` (200 samples by
+     * default). It runs the effect returned by `apply` once per sample. The
+     * result is labelled with the law's name.
      */
     final def run[R1 <: R, A: Caps](gen: Gen[R1, A])(implicit
       trace: Trace
@@ -132,12 +159,15 @@ object ZLaws {
   abstract class Law2[-Caps[_]](label: String) extends ZLaws[Caps, Any] { self =>
 
     /**
-     * Checks the law for `a1` and `a2`, returning a successful `TestResult` when the law holds.
+     * Checks the law for `a1` and `a2`, returning a successful `TestResult`
+     * when the law holds.
      */
     def apply[A: Caps](a1: A, a2: A): TestResult
 
     /**
-     * Checks this law with `check`, drawing `a1` and `a2` separately from `gen` for each sample (200 samples by default). The result is labelled with the law's name.
+     * Checks this law with `check`, drawing `a1` and `a2` separately from `gen`
+     * for each sample (200 samples by default). The result is labelled with the
+     * law's name.
      */
     final def run[R, A: Caps](gen: Gen[R, A])(implicit trace: Trace): URIO[R, TestResult] =
       check(gen, gen)(apply(_, _).label(label))
@@ -149,12 +179,15 @@ object ZLaws {
   abstract class Law2ZIO[-Caps[_], -R](label: String) extends ZLaws[Caps, R] { self =>
 
     /**
-     * Checks the law for `a1` and `a2` with an effect that needs an `R`, returning a successful `TestResult` when the law holds.
+     * Checks the law for `a1` and `a2` with an effect that needs an `R`,
+     * returning a successful `TestResult` when the law holds.
      */
     def apply[A: Caps](a1: A, a2: A): URIO[R, TestResult]
 
     /**
-     * Checks this law with `check`, drawing `a1` and `a2` separately from `gen` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+     * Checks this law with `check`, drawing `a1` and `a2` separately from `gen`
+     * for each sample (200 samples by default). It runs the effect returned by
+     * `apply` once per sample. The result is labelled with the law's name.
      */
     final def run[R1 <: R, A: Caps](gen: Gen[R1, A])(implicit
       trace: Trace
@@ -168,12 +201,15 @@ object ZLaws {
   abstract class Law3[-Caps[_]](label: String) extends ZLaws[Caps, Any] { self =>
 
     /**
-     * Checks the law for `a1`, `a2` and `a3`, returning a successful `TestResult` when the law holds.
+     * Checks the law for `a1`, `a2` and `a3`, returning a successful
+     * `TestResult` when the law holds.
      */
     def apply[A: Caps](a1: A, a2: A, a3: A): TestResult
 
     /**
-     * Checks this law with `check`, drawing `a1`, `a2` and `a3` separately from `gen` for each sample (200 samples by default). The result is labelled with the law's name.
+     * Checks this law with `check`, drawing `a1`, `a2` and `a3` separately from
+     * `gen` for each sample (200 samples by default). The result is labelled
+     * with the law's name.
      */
     final def run[R, A: Caps](gen: Gen[R, A])(implicit trace: Trace): URIO[R, TestResult] =
       check(gen, gen, gen)(apply(_, _, _).label(label))
@@ -185,12 +221,16 @@ object ZLaws {
   abstract class Law3ZIO[-Caps[_], -R](label: String) extends ZLaws[Caps, R] { self =>
 
     /**
-     * Checks the law for `a1`, `a2` and `a3` with an effect that needs an `R`, returning a successful `TestResult` when the law holds.
+     * Checks the law for `a1`, `a2` and `a3` with an effect that needs an `R`,
+     * returning a successful `TestResult` when the law holds.
      */
     def apply[A: Caps](a1: A, a2: A, a3: A): URIO[R, TestResult]
 
     /**
-     * Checks this law with `check`, drawing `a1`, `a2` and `a3` separately from `gen` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample. The result is labelled with the law's name.
+     * Checks this law with `check`, drawing `a1`, `a2` and `a3` separately from
+     * `gen` for each sample (200 samples by default). It runs the effect
+     * returned by `apply` once per sample. The result is labelled with the
+     * law's name.
      */
     final def run[R1 <: R, A: Caps](gen: Gen[R1, A])(implicit
       trace: Trace

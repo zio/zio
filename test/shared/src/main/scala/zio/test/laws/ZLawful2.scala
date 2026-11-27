@@ -19,19 +19,25 @@ package zio.test.laws
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
 /**
- * `ZLawful2[CapsBoth, CapsLeft, CapsRight, R]` describes a capability `CapsBoth[A, B]` relating two types that is expected to satisfy a set of `ZLaws2` laws. Pass it to `checkAllLaws` with a generator for each type, and combine lawful instances using `+`.
+ * `ZLawful2[CapsBoth, CapsLeft, CapsRight, R]` describes a capability
+ * `CapsBoth[A, B]` relating two types that is expected to satisfy a set of
+ * `ZLaws2` laws. Pass it to `checkAllLaws` with a generator for each type, and
+ * combine lawful instances using `+`.
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 trait ZLawful2[-CapsBoth[_, _], -CapsLeft[_], -CapsRight[_], -R] { self =>
 
   /**
-   * The laws that instances with the capability `CapsBoth` are expected to satisfy.
+   * The laws that instances with the capability `CapsBoth` are expected to
+   * satisfy.
    */
   def laws: ZLaws2[CapsBoth, CapsLeft, CapsRight, R]
 
   /**
-   * Combines this lawful instance with `that`, giving a lawful instance whose laws are `laws + that.laws`.
+   * Combines this lawful instance with `that`, giving a lawful instance whose
+   * laws are `laws + that.laws`.
    */
   def +[CapsBoth1[x, y] <: CapsBoth[x, y], CapsLeft1[x] <: CapsLeft[x], CapsRight1[x] <: CapsRight[x], R1 <: R](
     that: ZLawful2[CapsBoth1, CapsLeft1, CapsRight1, R1]

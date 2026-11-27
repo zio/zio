@@ -22,9 +22,15 @@ import zio.Chunk
 import zio.Trace
 
 /**
- * A `GenF` knows how to construct a generator of `F[A]` values given a generator of `A` values for any `A`. For example, a `GenF` of `List` values knows how to generate lists with elements given a generator of elements of that type. You can think of `GenF` as a "recipe" for building generators for parameterized types.
+ * A `GenF` knows how to construct a generator of `F[A]` values given a
+ * generator of `A` values for any `A`. For example, a `GenF` of `List` values
+ * knows how to generate lists with elements given a generator of elements of
+ * that type. You can think of `GenF` as a "recipe" for building generators for
+ * parameterized types.
  *
- * The laws in `ZLawsF` take a `GenF` to build the `F[A]` values they check. The companion object has instances for `Chunk`, `Either`, `List`, `Map`, `Option`, `Set` and `Vector`.
+ * The laws in `ZLawsF` take a `GenF` to build the `F[A]` values they check. The
+ * companion object has instances for `Chunk`, `Either`, `List`, `Map`,
+ * `Option`, `Set` and `Vector`.
  *
  * {{{
  * import zio.Trace
@@ -40,7 +46,8 @@ import zio.Trace
  * val names: Gen[Any, List[String]] = nonEmptyList(Gen.alphaNumericString)
  * }}}
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 trait GenF[-R, F[_]] {
 
@@ -56,7 +63,8 @@ trait GenF[-R, F[_]] {
 object GenF {
 
   /**
-   * A `GenF` of `Chunk` values: it builds a generator of chunks with the sized generator `Gen.chunkOf`.
+   * A `GenF` of `Chunk` values: it builds a generator of chunks with the sized
+   * generator `Gen.chunkOf`.
    */
   val chunk: GenF[Any, Chunk] =
     new GenF[Any, Chunk] {
@@ -67,7 +75,9 @@ object GenF {
     }
 
   /**
-   * A `GenF` of `Either` values with left values drawn from `a`: given a generator `b` of right values, it builds a generator of `Either[A, B]` with `Gen.either(a, b)`.
+   * A `GenF` of `Either` values with left values drawn from `a`: given a
+   * generator `b` of right values, it builds a generator of `Either[A, B]` with
+   * `Gen.either(a, b)`.
    */
   def either[R, A](a: Gen[R, A]): GenF[R, ({ type lambda[+x] = Either[A, x] })#lambda] =
     new GenF[R, ({ type lambda[+x] = Either[A, x] })#lambda] {
@@ -76,7 +86,8 @@ object GenF {
     }
 
   /**
-   * A `GenF` of `List` values: it builds a generator of lists with the sized generator `Gen.listOf`.
+   * A `GenF` of `List` values: it builds a generator of lists with the sized
+   * generator `Gen.listOf`.
    */
   val list: GenF[Any, List] =
     new GenF[Any, List] {
@@ -87,7 +98,9 @@ object GenF {
     }
 
   /**
-   * A `GenF` of `Map` values with keys drawn from `a`: given a generator `b` of values, it builds a generator of `Map[A, B]` with the sized generator `Gen.mapOf(a, b)`.
+   * A `GenF` of `Map` values with keys drawn from `a`: given a generator `b` of
+   * values, it builds a generator of `Map[A, B]` with the sized generator
+   * `Gen.mapOf(a, b)`.
    */
   def map[R, A](a: Gen[R, A]): GenF[R, ({ type lambda[+x] = Map[A, x] })#lambda] =
     new GenF[R, ({ type lambda[+x] = Map[A, x] })#lambda] {
@@ -96,7 +109,8 @@ object GenF {
     }
 
   /**
-   * A `GenF` of `Option` values: it builds a generator of `Option[A]` with `Gen.option`, which generates both `None` and `Some` values.
+   * A `GenF` of `Option` values: it builds a generator of `Option[A]` with
+   * `Gen.option`, which generates both `None` and `Some` values.
    */
   val option: GenF[Any, Option] =
     new GenF[Any, Option] {
@@ -105,7 +119,8 @@ object GenF {
     }
 
   /**
-   * A `GenF` of `Set` values: it builds a generator of sets with the sized generator `Gen.setOf`.
+   * A `GenF` of `Set` values: it builds a generator of sets with the sized
+   * generator `Gen.setOf`.
    */
   val set: GenF[Any, Set] =
     new GenF[Any, Set] {
@@ -114,7 +129,8 @@ object GenF {
     }
 
   /**
-   * A `GenF` of `Vector` values: it builds a generator of vectors with the sized generator `Gen.vectorOf`.
+   * A `GenF` of `Vector` values: it builds a generator of vectors with the
+   * sized generator `Gen.vectorOf`.
    */
   val vector: GenF[Any, Vector] =
     new GenF[Any, Vector] {

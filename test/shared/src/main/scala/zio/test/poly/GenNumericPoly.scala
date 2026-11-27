@@ -21,9 +21,16 @@ import zio.test.Gen
 import zio.Trace
 
 /**
- * `GenNumericPoly` provides evidence that instances of `Gen[T]` and `Numeric[T]` exist for some concrete but unknown type `T`. Use it for properties that do arithmetic on generated values of a type that changes from sample to sample.
+ * `GenNumericPoly` provides evidence that instances of `Gen[T]` and
+ * `Numeric[T]` exist for some concrete but unknown type `T`. Use it for
+ * properties that do arithmetic on generated values of a type that changes from
+ * sample to sample.
  *
- * The trait defines `ordT` as `numT`, but it sets `ordT` while the trait initializes, before the instances built by `GenNumericPoly.apply`, `GenIntegralPoly.apply` and `GenFractionalPoly.apply` set `numT`. On those instances `ordT` is `null`; `numT` is a `Numeric[T]`, which is also an `Ordering[T]`.
+ * The trait defines `ordT` as `numT`, but it sets `ordT` while the trait
+ * initializes, before the instances built by `GenNumericPoly.apply`,
+ * `GenIntegralPoly.apply` and `GenFractionalPoly.apply` set `numT`. On those
+ * instances `ordT` is `null`; `numT` is a `Numeric[T]`, which is also an
+ * `Ordering[T]`.
  *
  * {{{
  * import zio.test._
@@ -41,7 +48,8 @@ import zio.Trace
  *   }
  * }}}
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 trait GenNumericPoly extends GenOrderingPoly {
 
@@ -53,14 +61,18 @@ trait GenNumericPoly extends GenOrderingPoly {
 }
 
 /**
- * Constructors of [[GenNumericPoly]] instances for the primitive numeric types, and `genNumericPoly`, a generator that picks among them.
+ * Constructors of [[GenNumericPoly]] instances for the primitive numeric types,
+ * and `genNumericPoly`, a generator that picks among them.
  *
- * @see [[https://zio.dev/reference/test/property-testing/ Property Testing]]
+ * @see
+ *   [[https://zio.dev/reference/test/property-testing/ Property Testing]]
  */
 object GenNumericPoly {
 
   /**
-   * Constructs an instance of `GenNumericPoly` using the specified `Gen` and `Numeric` instances, existentially hiding the underlying type. The instance's `ordT` is `null`; `numT` holds the ordering.
+   * Constructs an instance of `GenNumericPoly` using the specified `Gen` and
+   * `Numeric` instances, existentially hiding the underlying type. The
+   * instance's `ordT` is `null`; `numT` holds the ordering.
    */
   def apply[A](gen: Gen[Any, A], num: Numeric[A]): GenNumericPoly =
     new GenNumericPoly {
@@ -70,31 +82,38 @@ object GenNumericPoly {
     }
 
   /**
-   * Provides evidence that instances of `Gen` and `Numeric` exist for bytes, using `GenIntegralPoly.byte`.
+   * Provides evidence that instances of `Gen` and `Numeric` exist for bytes,
+   * using `GenIntegralPoly.byte`.
    */
   def byte(implicit trace: Trace): GenNumericPoly =
     GenIntegralPoly.byte
 
   /**
-   * Provides evidence that instances of `Gen` and `Numeric` exist for characters, using `GenIntegralPoly.char`.
+   * Provides evidence that instances of `Gen` and `Numeric` exist for
+   * characters, using `GenIntegralPoly.char`.
    */
   def char(implicit trace: Trace): GenNumericPoly =
     GenIntegralPoly.char
 
   /**
-   * Provides evidence that instances of `Gen` and `Numeric` exist for doubles, using `GenFractionalPoly.double`.
+   * Provides evidence that instances of `Gen` and `Numeric` exist for doubles,
+   * using `GenFractionalPoly.double`.
    */
   def double(implicit trace: Trace): GenNumericPoly =
     GenFractionalPoly.double
 
   /**
-   * Provides evidence that instances of `Gen` and `Numeric` exist for floats, using `GenFractionalPoly.float`.
+   * Provides evidence that instances of `Gen` and `Numeric` exist for floats,
+   * using `GenFractionalPoly.float`.
    */
   def float(implicit trace: Trace): GenNumericPoly =
     GenFractionalPoly.float
 
   /**
-   * A generator of polymorphic values constrained to have a `Numeric` instance. It picks one of `byte`, `char`, `double`, `float`, `int`, `long` and `short` with equal weight. Since `short` generates `Long` values, `Long` is the value type about twice as often as each of the others.
+   * A generator of polymorphic values constrained to have a `Numeric` instance.
+   * It picks one of `byte`, `char`, `double`, `float`, `int`, `long` and
+   * `short` with equal weight. Since `short` generates `Long` values, `Long` is
+   * the value type about twice as often as each of the others.
    */
   def genNumericPoly(implicit trace: Trace): Gen[Any, GenNumericPoly] =
     Gen.elements(
@@ -108,19 +127,23 @@ object GenNumericPoly {
     )
 
   /**
-   * Provides evidence that instances of `Gen` and `Numeric` exist for integers, using `GenIntegralPoly.int`.
+   * Provides evidence that instances of `Gen` and `Numeric` exist for integers,
+   * using `GenIntegralPoly.int`.
    */
   def int(implicit trace: Trace): GenNumericPoly =
     GenIntegralPoly.int
 
   /**
-   * Provides evidence that instances of `Gen` and `Numeric` exist for longs, using `GenIntegralPoly.long`.
+   * Provides evidence that instances of `Gen` and `Numeric` exist for longs,
+   * using `GenIntegralPoly.long`.
    */
   def long(implicit trace: Trace): GenNumericPoly =
     GenIntegralPoly.long
 
   /**
-   * Returns a `GenNumericPoly` whose values are `Long`s, generated by `Gen.long` with `Numeric.LongIsIntegral`: like `long`, it is built by `GenIntegralPoly.long`.
+   * Returns a `GenNumericPoly` whose values are `Long`s, generated by
+   * `Gen.long` with `Numeric.LongIsIntegral`: like `long`, it is built by
+   * `GenIntegralPoly.long`.
    */
   def short(implicit trace: Trace): GenNumericPoly =
     GenIntegralPoly.long
