@@ -64,7 +64,7 @@
       "kind": "official",
       "category": "data",
       "description": "Simple, type-safe, and efficient access to AWS DynamoDB.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Query",
@@ -88,7 +88,7 @@
       "kind": "official",
       "category": "data",
       "description": "A type-safe and performant ZIO-native Redis client.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Rocksdb",
@@ -96,7 +96,7 @@
       "kind": "official",
       "category": "data",
       "description": "A ZIO-based interface to RocksDB.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO AMQP",
@@ -104,7 +104,7 @@
       "kind": "official",
       "category": "streaming",
       "description": "A ZIO-based wrapper around the RabbitMQ client with a streaming interface to AMQP queues.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Kafka",
@@ -112,7 +112,7 @@
       "kind": "official",
       "category": "streaming",
       "description": "A purely functional, streams-based Kafka client for ZIO.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO SQS",
@@ -120,7 +120,7 @@
       "kind": "official",
       "category": "streaming",
       "description": "A ZIO-powered client for AWS SQS, built on top of ZIO AWS.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO BSON",
@@ -128,7 +128,7 @@
       "kind": "official",
       "category": "serialization",
       "description": "A BSON library with tight ZIO integration and native support for BSON types.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO JSON",
@@ -144,7 +144,7 @@
       "kind": "official",
       "category": "serialization",
       "description": "A library for constructing parsers and pretty printers from invertible syntax descriptions.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Schema",
@@ -160,7 +160,7 @@
       "kind": "official",
       "category": "serialization",
       "description": "A library that integrates compression algorithms and archive formats with ZIO Streams.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Logging",
@@ -168,7 +168,7 @@
       "kind": "official",
       "category": "observability",
       "description": "Simple logging for ZIO applications, with correlation, context, and pluggable backends.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Metrics Connectors",
@@ -176,7 +176,7 @@
       "kind": "official",
       "category": "observability",
       "description": "Integrations between ZIO metrics and monitoring systems such as Prometheus and Datadog.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Profiling",
@@ -184,7 +184,7 @@
       "kind": "official",
       "category": "observability",
       "description": "A collection of profilers for understanding the runtime behavior of ZIO programs.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Telemetry",
@@ -192,7 +192,7 @@
       "kind": "official",
       "category": "observability",
       "description": "Purely functional and type-safe clients for OpenTracing, OpenCensus, and OpenTelemetry.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Cli",
@@ -200,7 +200,7 @@
       "kind": "official",
       "category": "config",
       "description": "A library for rapidly building powerful command-line applications powered by ZIO.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Config",
@@ -208,7 +208,7 @@
       "kind": "official",
       "category": "config",
       "description": "A ZIO-based library that extends ZIO's `Config` with support for various sources and automatic derivation.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Process",
@@ -216,7 +216,7 @@
       "kind": "official",
       "category": "config",
       "description": "A library for interacting with external processes and command-line programs, backed by ZIO Streams.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Cache",
@@ -224,7 +224,7 @@
       "kind": "official",
       "category": "concurrency",
       "description": "A library for optimizing the performance of an application by caching values.",
-      "api": false
+      "api": true
     },
     {
       "name": "Izumi Reflect",
@@ -256,7 +256,7 @@
       "kind": "official",
       "category": "types",
       "description": "A library for building programs as descriptions with maximum polymorphism and modularity, and zero abstraction leakage.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Direct Style",
@@ -264,7 +264,7 @@
       "kind": "official",
       "category": "types",
       "description": "A library for writing ZIO programs in a direct, imperative style, based on the Monadless paradigm.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Prelude",
@@ -272,7 +272,7 @@
       "kind": "official",
       "category": "types",
       "description": "A lightweight, distinctly Scala take on functional abstractions, with tight ZIO integration.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO AWS",
@@ -288,7 +288,7 @@
       "kind": "official",
       "category": "cloud",
       "description": "A thin wrapper over (s)FTP clients for ZIO.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO Lambda",
@@ -296,7 +296,7 @@
       "kind": "official",
       "category": "cloud",
       "description": "A ZIO-based AWS Custom Runtime compatible with GraalVM Native Image.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO S3",
@@ -304,7 +304,7 @@
       "kind": "official",
       "category": "cloud",
       "description": "A thin wrapper over the S3 async client for ZIO.",
-      "api": false
+      "api": true
     },
     {
       "name": "ZIO IntelliJ",
