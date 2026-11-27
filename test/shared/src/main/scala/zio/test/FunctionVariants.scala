@@ -20,6 +20,12 @@ import zio.{Semaphore, ZIO, Trace}
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 import zio.stream.ZStream.BufferedPull
 
+/**
+ * Generators of functions, mixed into the [[Gen]] companion object. A generated
+ * function draws its result for a new input from the given generator and
+ * remembers it, so it returns the same result each time it is called with an
+ * input that has the same hash.
+ */
 trait FunctionVariants {
 
   /**
@@ -56,8 +62,8 @@ trait FunctionVariants {
    * Constructs a generator of functions from `A` to `B` given a generator of
    * `B` values and a hashing function for `A` values. Two `A` values will be
    * considered to be equal, and thus will be guaranteed to generate the same
-   * `B` value, if they have have the same hash. This is useful when `A` does
-   * not implement `hashCode` in a way that is consistent with equality.
+   * `B` value, if they have the same hash. This is useful when `A` does not
+   * implement `hashCode` in a way that is consistent with equality.
    */
   final def functionWith[R, A, B](gen: Gen[R, B])(hash: A => Int)(implicit trace: Trace): Gen[R, A => B] =
     Gen.fromZIO {

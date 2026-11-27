@@ -24,17 +24,45 @@ import java.util.concurrent.ThreadLocalRandom
 
 import scala.annotation.nowarn
 
+/**
+ * The base type of the specs that ZIO Test runs as applications.
+ * `ZIOSpecDefault` and `ZIOSpec` extend it. It holds the spec to run, the
+ * `bootstrap` layer that builds its `Environment`, and the aspects applied to
+ * the whole spec.
+ *
+ * @see
+ *   [[https://zio.dev/reference/test/ ZIO Test]]
+ */
 @EnableReflectiveInstantiation
 abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecific {
   self =>
 
+  /**
+   * The spec that this object runs. Its tests can use `Environment`, the
+   * services of `TestEnvironment` and a `Scope`.
+   */
   def spec: Spec[Environment with TestEnvironment with Scope, Any]
 
+  /**
+   * The layer that builds `Environment` before the tests run. Its services are
+   * shared by all tests of the spec.
+   */
   def bootstrap: ZLayer[Any, Any, Environment]
 
+  /**
+   * The aspects applied to the whole spec when it runs, in order. The default
+   * is `TestAspect.timeoutWarning(60.seconds)`, which prints a warning for each
+   * test that runs longer than 60 seconds.
+   */
   def aspects: Chunk[TestAspectAtLeastR[Environment with TestEnvironment]] =
     Chunk.single(TestAspect.timeoutWarning(60.seconds))
 
+  /**
+   * Runs the spec as an application, with the test arguments taken from the
+   * command line, and succeeds with the summary of the run. When a test fails,
+   * the effect fails with a `RuntimeException` instead, so the application
+   * exits with a non-zero code; with the IntelliJ test renderer it succeeds.
+   */
   final def run: ZIO[Environment with ZIOAppArgs with Scope, Any, Summary] = {
     implicit val trace: Trace = Trace.empty
 
@@ -44,6 +72,11 @@ abstract class ZIOSpecAbstract extends ZIOApp with ZIOSpecAbstractVersionSpecifi
     )
   }
 
+  /**
+   * Combines this object and `that` into one that runs both specs, each with
+   * its own `aspects`, in an environment built from both `bootstrap` layers.
+   * The combined object has no aspects of its own.
+   */
   final def <>(that: ZIOSpecAbstract)(implicit trace: Trace): ZIOSpecAbstract =
     new ZIOSpecAbstract {
       type Environment = self.Environment with that.Environment

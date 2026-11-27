@@ -19,11 +19,16 @@ package zio.test
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * The `timeoutWarning` aspect, which [[TestAspect]] inherits.
+ */
 trait TimeoutVariants {
 
   /**
    * A test aspect that prints a warning to the console when a test takes longer
-   * than the specified duration.
+   * than the specified duration. The duration is measured in real time, and the
+   * test keeps running. By default, spec objects apply it to every test with a
+   * duration of 60 seconds through `ZIOSpecAbstract#aspects`.
    */
   def timeoutWarning(
     duration: Duration

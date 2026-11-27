@@ -19,10 +19,16 @@ package zio.test
 import zio._
 import zio.stacktracer.TracingImplicits.disableAutoTrace
 
+/**
+ * Generators of `ZIO` effects and `Cause` values, mixed into the [[Gen]]
+ * companion object.
+ */
 trait GenZIO {
 
   /**
-   * A generator of `Cause` values
+   * A generator of `Cause` values built from failures of `e`, defects of `t`,
+   * interruptions and empty causes, combined sequentially and in parallel.
+   * Their size is drawn as in `Gen.small`.
    */
   final def causes[R, E](e: Gen[R, E], t: Gen[R, Throwable])(implicit
     trace: Trace
@@ -62,8 +68,9 @@ trait GenZIO {
   }
 
   /**
-   * A generator of effects that are the result of chaining the specified effect
-   * with itself a random number of times.
+   * Calls `chainedN` with a count drawn as in `Gen.small`, which can be 0. For
+   * a count of 0 the generator dies with an `UnsupportedOperationException`,
+   * and for any other count it generates one effect of `gen`, not a chain.
    */
   final def chained[R, Env, E, A](gen: Gen[R, ZIO[Env, E, A]])(implicit
     trace: Trace
@@ -71,8 +78,9 @@ trait GenZIO {
     Gen.small(chainedN(_)(gen))
 
   /**
-   * A generator of effects that are the result of chaining the specified effect
-   * with itself a given number of times.
+   * A generator of effects of `zio`. For `n` of 1 or more it generates one
+   * effect of `zio`, not a chain of `n` effects. For `n` of 0 or less the
+   * generator dies with an `UnsupportedOperationException`.
    */
   final def chainedN[R, Env, E, A](n: Int)(zio: Gen[R, ZIO[Env, E, A]])(implicit
     trace: Trace
@@ -80,9 +88,9 @@ trait GenZIO {
     Gen.listOfN(n min 1)(zio).map(_.reduce(_ *> _))
 
   /**
-   * A generator of effects that are the result of applying concurrency
-   * combinators to the specified effect that are guaranteed not to change its
-   * value.
+   * A generator of the specified effect raced with `ZIO.never`. When the effect
+   * succeeds the result is the same as the effect's. When the effect fails or
+   * dies, the race waits for `ZIO.never`, so the result does not complete.
    */
   final def concurrent[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): Gen[Any, ZIO[R, E, A]] =
     Gen.const(zio.race(ZIO.never))
@@ -100,9 +108,9 @@ trait GenZIO {
     gen.map(ZIO.fail(_))
 
   /**
-   * A generator of effects that are the result of applying parallelism
-   * combinators to the specified effect that are guaranteed not to change its
-   * value.
+   * A generator of the specified effect run in parallel with an effect that
+   * succeeds with `()`, keeping the result of the specified effect, including
+   * its failure.
    */
   final def parallel[R, E, A](zio: ZIO[R, E, A])(implicit trace: Trace): Gen[Any, ZIO[R, E, A]] =
     successes(Gen.unit).map(_.zipParRight(zio))
