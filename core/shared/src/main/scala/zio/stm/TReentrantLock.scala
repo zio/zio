@@ -96,7 +96,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
   /**
    * Acquires a write lock in a scoped context, for applications that only need
    * a reentrant lock, without a distinction between readers and writers. The
-   * same as `writeLock`, so the wait for the lock cannot be interrupted.
+   * same as `writeLock`.
    */
   def lock(implicit trace: Trace): ZIO[Scope, Nothing, Int] = writeLock
 
@@ -109,8 +109,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
   /**
    * Obtains a read lock in a scoped context, waiting while another fiber holds
    * a write lock, and releases it when the scope is closed. Succeeds with the
-   * number of read locks the fiber holds. The wait cannot be interrupted: an
-   * interruption takes effect only after the lock is acquired.
+   * number of read locks the fiber holds.
    */
   def readLock(implicit trace: Trace): ZIO[Scope, Nothing, Int] =
     ZIO.acquireRelease(acquireRead.commit)(_ => releaseRead.commit)
@@ -141,11 +140,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
 
   /**
    * Releases a read lock held by the fiber that commits the transaction.
-   * Succeeds with the number of read locks that fiber still holds. When the
-   * fiber holds no read lock, the transaction dies with a
-   * `java.lang.RuntimeException`, except while another fiber holds a write
-   * lock: then it retries, so the fiber suspends until that write lock is
-   * released.
+   * Succeeds with the number of read locks that fiber still holds.
    */
   lazy val releaseRead: USTM[Int] = adjustRead(-1)
 
@@ -194,8 +189,7 @@ final class TReentrantLock private (data: TRef[LockState]) {
   /**
    * Obtains a write lock in a scoped context, waiting while another fiber holds
    * a read or write lock, and releases it when the scope is closed. Succeeds
-   * with the number of write locks the fiber holds. The wait cannot be
-   * interrupted: an interruption takes effect only after the lock is acquired.
+   * with the number of write locks the fiber holds.
    */
   def writeLock(implicit trace: Trace): ZIO[Scope, Nothing, Int] =
     ZIO.acquireRelease(acquireWrite.commit)(_ => releaseWrite.commit)

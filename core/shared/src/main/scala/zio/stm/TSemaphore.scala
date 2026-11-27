@@ -70,8 +70,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
   /**
    * Acquires `n` permits. When fewer than `n` are available, the transaction
    * retries without acquiring any, so the fiber suspends until enough permits
-   * are released. `acquireN(0)` succeeds at once unless the count of available
-   * permits is negative. A negative `n` dies with a
+   * are released. A negative `n` dies with a
    * `java.lang.IllegalArgumentException`.
    */
   def acquireN(n: Long): USTM[Unit] =
@@ -101,17 +100,14 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
 
   /**
    * Acquires as many available permits as possible, at most `max`, and succeeds
-   * with the number acquired, which is 0 when none are available. It does not
-   * wait, unless the count of available permits is negative. A negative `max`
-   * dies with a `java.lang.IllegalArgumentException`.
+   * with the number acquired, which is 0 when none are available. A negative
+   * `max` dies with a `java.lang.IllegalArgumentException`.
    */
   def acquireUpTo(max: Long): USTM[Long] =
     acquireBetween(0, max)
 
   /**
-   * Returns the number of available permits. It is negative when the semaphore
-   * was made with a negative number of permits and not enough permits have been
-   * released since.
+   * Returns the number of available permits.
    */
   def available: USTM[Long] =
     permits.get
@@ -123,10 +119,8 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
     releaseN(1L)
 
   /**
-   * Releases `n` permits, adding them to the available permits. Nothing checks
-   * that they were acquired, so releasing more permits than were acquired
-   * raises the count above the number the semaphore was made with. A negative
-   * `n` dies with a `java.lang.IllegalArgumentException`.
+   * Releases `n` permits, adding them to the available permits. A negative `n`
+   * dies with a `java.lang.IllegalArgumentException`.
    */
   def releaseN(n: Long): USTM[Unit] =
     ZSTM.Effect { (journal, _, _) =>
@@ -253,9 +247,7 @@ final class TSemaphore private (val permits: TRef[Long]) extends Serializable {
 object TSemaphore {
 
   /**
-   * Constructs a new `TSemaphore` with the specified number of permits. The
-   * number is not checked: with a negative number, `acquire` waits until enough
-   * permits are released to make the count positive.
+   * Constructs a new `TSemaphore` with the specified number of permits.
    */
   def make(permits: => Long)(implicit trace: Trace): USTM[TSemaphore] =
     ZSTM.succeed(unsafe.make(permits)(Unsafe.unsafe))
