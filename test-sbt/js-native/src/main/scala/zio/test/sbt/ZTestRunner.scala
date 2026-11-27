@@ -45,7 +45,7 @@ sealed abstract class ZTestRunner(
 
   final override protected def returnSummary: Boolean = true
 
-  /** Serializes `task` as its task definition. */
+  /** Returns the string that `serializer` makes from the task definition of `task`. */
   final override def serializeTask(task: Task, serializer: TaskDef => String): String =
     serializer(task.taskDef())
 

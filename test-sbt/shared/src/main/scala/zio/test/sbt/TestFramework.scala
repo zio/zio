@@ -9,7 +9,7 @@ import sbt.testing.{Fingerprint, Framework}
  */
 trait TestFramework extends Framework {
 
-  /** Returns the framework name, ZIO Test, underlined with ANSI codes. */
+  /** Returns the framework name, ZIO Test. */
   final override def name(): String = s"${Console.UNDERLINED}ZIO Test${Console.RESET}"
 
   /** Returns [[ZioSpecFingerprint]] as the only fingerprint. */
