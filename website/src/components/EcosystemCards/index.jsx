@@ -10,7 +10,7 @@ import styles from './styles.module.css';
 // The data is ecosystem.json, which scripts/generate-ecosystem-libraries.js writes.
 
 const ORDER_KEY = 'eco-cards-order';
-const KIND_LABEL = { official: 'Official', community: 'Community', compatible: 'Compatible' };
+const KIND_LABEL = { official: 'Official', community: 'Community', compatible: 'ZIO Compatible' };
 const isBlock = (card) => card.family === 'zio-blocks';
 const isExternal = (href) => /^https?:/.test(href);
 const isApiPage = (href) => /\/api\/$/.test(href);
@@ -22,11 +22,11 @@ const FILTERS = [
   { id: 'official', label: 'Official', test: (c) => c.kind === 'official' },
   { id: 'blocks', label: 'Official: ZIO Blocks only', test: isBlock },
   { id: 'community', label: 'Community', test: (c) => c.kind === 'community' },
-  { id: 'compatible', label: 'Compatible', test: (c) => c.kind === 'compatible' },
+  { id: 'compatible', label: 'ZIO Compatible', test: (c) => c.kind === 'compatible' },
   { id: 'api', label: 'Has API reference', test: (c) => c.api },
 ];
 
-const GROUPS = [...data.categories, { id: 'compatible', label: 'Compatible libraries' }];
+const GROUPS = [...data.categories, { id: 'compatible', label: 'ZIO Compatible libraries' }];
 
 function matches(card, words) {
   const text = [card.name, card.description, card.artifact || '', label(card.category), isBlock(card) ? 'zio blocks' : '']
@@ -83,7 +83,7 @@ function Card({ card, first }) {
         {block && <img className={styles.blockIcon} src="/img/ecosystem/zio-blocks-icon.svg" alt="" />}
         <CardLink className={styles.name} href={card.href}>
           <Name name={card.name} />
-          {isExternal(card.href) && !block && <span className={styles.external} aria-label="(external site)"> ↗</span>}
+          {isExternal(card.href) && <span className={styles.external} aria-label="(external site)"> ↗</span>}
         </CardLink>
         <span className={styles.tags}>
           {first ? (
