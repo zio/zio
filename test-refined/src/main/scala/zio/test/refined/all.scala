@@ -18,6 +18,23 @@ package zio.test.refined
 
 import zio.test.refined.types.AllTypesInstances
 
+/**
+ * Brings the implicit `DeriveGen` instances of this module into scope. `import zio.test.refined.all._` lets `DeriveGen` derive generators for refined types such as `Int Refined Greater[N]`, `Char Refined Digit`, `List[A] Refined NonEmpty`, `String Refined StartsWith[S]`, `Refined[T, A Or B]`, `Refined[T, Equal[U]]` and the aliases of `eu.timepit.refined.types` (for example `PosInt`, `NonEmptyString`, `Month` and `MD5`). The `*Gen` members (for example `intGreaterThanGen`) return plain `Gen` values, and the implicit members wrap them as `DeriveGen`.
+ *
+ * The generators build the refined value with `Refined.unsafeApply`, so the predicate is not checked. The documentation of each member gives the range or shape it produces.
+ *
+ * {{{
+ * import eu.timepit.refined.types.numeric.PosInt
+ * import zio.test._
+ * import zio.test.magnolia.DeriveGen
+ * import zio.test.refined.all._
+ *
+ * val spec: Spec[Any, Nothing] =
+ *   test("a PosInt is positive") {
+ *     check(DeriveGen[PosInt])(n => assertTrue(n.value > 0))
+ *   }
+ * }}}
+ */
 object all
     extends BooleanInstances
     with CharInstances

@@ -22,9 +22,18 @@ import zio.test.magnolia.DeriveGen
 import zio.test.Gen
 import zio.Random
 
+/**
+ * Brings the instances of `BooleanInstances` into scope: `import zio.test.refined.boolean._`.
+ */
 object boolean extends BooleanInstances
 
+/**
+ * Instances for refined values whose predicate is `A Or B`.
+ */
 trait BooleanInstances {
+  /**
+   * The implicit `DeriveGen` for `Refined[T, A Or B]`. It takes the `DeriveGen` of `Refined[T, A]` and of `Refined[T, B]`, picks one of the two with equal probability for each value, and wraps the generated `T` as `Refined[T, A Or B]`.
+   */
   implicit def orDeriveGen[T, A, B](implicit
     raGen: DeriveGen[Refined[T, A]],
     rbGen: DeriveGen[Refined[T, B]]
@@ -36,6 +45,9 @@ trait BooleanInstances {
     )
   }
 
+  /**
+   * A generator of `Refined[T, A Or B]` that picks `genA` or `genB` with equal probability for each value and wraps the generated `T` without checking the predicate. `genA` and `genB` are generators of the underlying `T`, not of refined values, and have the same type, so pass them explicitly.
+   */
   def orGen[R <: Random, T, A, B](implicit
     genA: Gen[R, T],
     genB: Gen[R, T]
