@@ -8,9 +8,24 @@ import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Message
 import zio.test._
 
+/**
+ * A [[TestRenderer]] that renders test events as messages for the test runner
+ * of IntelliJ IDEA, so that the IDE can show the suites and tests of a run. The
+ * test runner selects it with the `-renderer intellij` test argument.
+ */
 trait IntelliJRenderer extends TestRenderer {
   import IntelliJRenderer._
 
+  /**
+   * Returns a `Started` suite result when a suite with a label starts, a
+   * `Passed` suite result when it ends, one result when a test finishes (with
+   * its duration) and one for a runtime failure, and no results for the other
+   * events.
+   *
+   * @param includeCause
+   *   whether the result for a runtime failure (an error rather than a failed
+   *   assertion) includes the rendered cause
+   */
   override def renderEvent(event: ExecutionEvent, includeCause: Boolean)(implicit
     trace: Trace
   ): Seq[ExecutionResult] =
@@ -144,9 +159,18 @@ trait IntelliJRenderer extends TestRenderer {
       case Nil              => ""
     }
 
+  /** Returns an empty string. */
   def renderSummary(summary: Summary): String = ""
 }
+
+/** The [[IntelliJRenderer]] instance that ZIO Test uses. */
 object IntelliJRenderer extends IntelliJRenderer {
+
+  /**
+   * Renders the first entry of the source-location trace recorded for a test,
+   * which [[IntelliJRenderer]] gives the IDE as the location of the test.
+   * Renders nothing when the recorded trace is empty.
+   */
   val locationRenderer: TestAnnotationRenderer =
     LeafRenderer(TestAnnotation.trace) { case child :: _ =>
       child.headOption.collect { case SourceLocation(path, line) =>

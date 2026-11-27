@@ -22,6 +22,30 @@ import zio.test.render.ExecutionResult.Status._
 import zio.test.render.ExecutionResult.{ResultType, Status}
 import zio.test.render.LogLine.Line
 
+/**
+ * The output of a [[TestRenderer]] for one suite or test event, before it is
+ * turned into text.
+ *
+ * `streamingLines` are shown while the tests run, and `summaryLines` are used
+ * for the summary at the end of the run.
+ *
+ * @param resultType
+ *   whether the result describes a test, a suite or other output
+ * @param label
+ *   the label of the test or suite; for a finished test, [[IntelliJRenderer]]
+ *   stores the test's own label and [[ConsoleRenderer]] the outermost label of
+ *   its path, and for a runtime failure with a non-empty path both store its
+ *   last label
+ * @param status
+ *   the state of the test or suite
+ * @param offset
+ *   the indentation level, taken from the nesting depth of the test or suite
+ * @param annotations
+ *   the annotations of the test, used for the summary and for the source
+ *   location
+ * @param duration
+ *   the run time of the test in milliseconds, when the renderer records it
+ */
 case class ExecutionResult(
   resultType: ResultType,
   label: String,
@@ -34,6 +58,17 @@ case class ExecutionResult(
 ) {
   self =>
 
+  /**
+   * Combines two results, keeping a failure over a pass. The cases are checked
+   * in this order:
+   *
+   *   - this result is `Started` or `Ignored`: returns `that`
+   *   - `that` is `Ignored`: returns this result
+   *   - both are `Failed`: returns this result with the streaming lines of
+   *     `that`, except its first line, appended
+   *   - this result is `Passed`: returns `that`
+   *   - `that` is `Passed`: returns this result
+   */
   def &&(that: ExecutionResult): ExecutionResult =
     (self.status, that.status) match {
       case (Started, _)     => that
@@ -44,6 +79,17 @@ case class ExecutionResult(
       case (_, Passed)      => self
     }
 
+  /**
+   * Combines two results, keeping a pass over a failure. The cases are checked
+   * in this order:
+   *
+   *   - this result is `Started` or `Ignored`: returns `that`
+   *   - `that` is `Ignored`: returns this result
+   *   - both are `Failed`: returns this result with the streaming lines of
+   *     `that`, except its first line, appended
+   *   - this result is `Passed`: returns this result
+   *   - `that` is `Passed`: returns `that`
+   */
   def ||(that: ExecutionResult): ExecutionResult =
     (self.status, that.status) match {
       case (Started, _)     => that
@@ -54,6 +100,10 @@ case class ExecutionResult(
       case (_, Passed)      => that
     }
 
+  /**
+   * Swaps `Passed` and `Failed`, and returns `Started` and `Ignored` results
+   * unchanged. Only the status changes; the lines stay the same.
+   */
   def unary_! : ExecutionResult =
     self.status match {
       case Started => self
@@ -62,10 +112,24 @@ case class ExecutionResult(
       case Passed  => self.copy(status = Failed)
     }
 
+  /**
+   * Returns a copy of this result with its annotations replaced by
+   * `annotations`.
+   */
   def withAnnotations(annotations: List[TestAnnotationMap]): ExecutionResult =
     self.copy(annotations = annotations)
 }
+
+/**
+ * A constructor for [[ExecutionResult]], and its [[ExecutionResult.Status]] and
+ * [[ExecutionResult.ResultType]] cases.
+ */
 object ExecutionResult {
+
+  /**
+   * Creates a result that uses the same `lines` as both its streaming lines and
+   * its summary lines.
+   */
   def withoutSummarySpecificOutput(
     resultType: ResultType,
     label: String,
@@ -86,18 +150,46 @@ object ExecutionResult {
       duration
     )
 
+  /** The state of a test or suite in an [[ExecutionResult]]. */
   sealed abstract class Status
+
+  /** The cases of [[ExecutionResult.Status]]. */
   object Status {
+
+    /**
+     * The suite has started. [[IntelliJRenderer]] uses it for the start of a
+     * suite; [[ConsoleRenderer]] does not produce it.
+     */
     case object Started extends Status
-    case object Failed  extends Status
-    case object Passed  extends Status
+
+    /** The test failed, by a failed assertion or by an error. */
+    case object Failed extends Status
+
+    /**
+     * The test passed. [[ConsoleRenderer]] also uses it for every suite it
+     * shows.
+     */
+    case object Passed extends Status
+
+    /** The test was ignored, for example with `TestAspect.ignore`. */
     case object Ignored extends Status
   }
 
+  /** What an [[ExecutionResult]] describes. */
   sealed abstract class ResultType
+
+  /** The cases of [[ExecutionResult.ResultType]]. */
   object ResultType {
-    case object Test  extends ResultType
+
+    /** A single test. */
+    case object Test extends ResultType
+
+    /** A suite of tests. */
     case object Suite extends ResultType
+
+    /**
+     * Other output. [[ConsoleRenderer]] shows its streaming lines as they are.
+     */
     case object Other extends ResultType
   }
 }

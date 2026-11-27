@@ -3,14 +3,30 @@ package zio.test.results
 import zio._
 import zio.test._
 
+/**
+ * Turns the result of a finished test into the text for the test results file,
+ * which is written on the JVM and Scala Native. `ResultPrinter.json` uses
+ * [[ResultSerializer.Json]].
+ */
 trait ResultSerializer {
+
+  /** Returns the text for the finished test `executionEvent`. */
   def render[E](executionEvent: ExecutionEvent.Test[E]): String
 }
 
+/** The [[ResultSerializer]] implementations. */
 object ResultSerializer {
+
+  /** A layer that provides [[ResultSerializer.Json]]. */
   val live: ULayer[ResultSerializer] = ZLayer.succeed(Json)
 
+  /** The [[ResultSerializer]] for the JSON results file. */
   object Json extends ResultSerializer {
+
+    /**
+     * Turns one test event into the text for the JSON results file, used by
+     * `ResultPrinter.json`.
+     */
     def render[E](executionEvent: ExecutionEvent.Test[E]): String =
       executionEvent match {
         case ExecutionEvent.Test(labelsReversed, test, annotations, _, duration, _, fullyQualifiedName) =>
