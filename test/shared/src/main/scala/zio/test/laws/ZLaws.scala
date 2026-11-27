@@ -98,9 +98,7 @@ abstract class ZLaws[-Caps[_], -R] { self =>
 }
 
 /**
- * Constructors of single laws. Extend one of them and define its `apply`
- * method, which checks the law for the given values and returns a `TestResult`.
- * The `label` given to the constructor names the law in test results.
+ * Constructors of single laws. Extend one of them and define its `apply` method, which checks the law for the given values and returns a `TestResult`, or for the `ZIO` variants an effect that produces one. The `label` given to the constructor names the law in test results.
  */
 object ZLaws {
 
@@ -143,7 +141,7 @@ object ZLaws {
 
     /**
      * Checks this law with `check` for values from `gen` (200 samples by
-     * default). It runs the effect returned by `apply` once per sample. The
+     * default). It runs the effect returned by `apply` once per sample, and again for each smaller value tried while shrinking a failing sample. The
      * result is labelled with the law's name.
      */
     final def run[R1 <: R, A: Caps](gen: Gen[R1, A])(implicit
@@ -185,8 +183,7 @@ object ZLaws {
 
     /**
      * Checks this law with `check`, drawing `a1` and `a2` separately from `gen`
-     * for each sample (200 samples by default). It runs the effect returned by
-     * `apply` once per sample. The result is labelled with the law's name.
+     * for each sample (200 samples by default). It runs the effect returned by `apply` once per sample, and again for each smaller value tried while shrinking a failing sample. The result is labelled with the law's name.
      */
     final def run[R1 <: R, A: Caps](gen: Gen[R1, A])(implicit
       trace: Trace
@@ -227,8 +224,7 @@ object ZLaws {
 
     /**
      * Checks this law with `check`, drawing `a1`, `a2` and `a3` separately from
-     * `gen` for each sample (200 samples by default). It runs the effect
-     * returned by `apply` once per sample. The result is labelled with the
+     * `gen` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample, and again for each smaller value tried while shrinking a failing sample. The result is labelled with the
      * law's name.
      */
     final def run[R1 <: R, A: Caps](gen: Gen[R1, A])(implicit

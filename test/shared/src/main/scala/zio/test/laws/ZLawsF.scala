@@ -211,7 +211,7 @@ object ZLawsF {
 
       /**
        * Checks this law with `check` for values from `genF(gen)` (200 samples
-       * by default). It runs the effect returned by `apply` once per sample.
+       * by default). It runs the effect returned by `apply` once per sample, and again for each smaller value tried while shrinking a failing sample.
        * The result is labelled with the law's name.
        */
       final def run[R1 <: R, F[+_]: CapsF, A: Caps](
@@ -257,8 +257,7 @@ object ZLawsF {
 
       /**
        * Checks this law with `check`, drawing `fa` and `fb` separately from
-       * `genF(gen)` for each sample (200 samples by default). It runs the
-       * effect returned by `apply` once per sample. The result is labelled with
+       * `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample, and again for each smaller value tried while shrinking a failing sample. The result is labelled with
        * the law's name.
        */
       final def run[R1 <: R, F[+_]: CapsF, A: Caps](
@@ -304,8 +303,7 @@ object ZLawsF {
 
       /**
        * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately
-       * from `genF(gen)` for each sample (200 samples by default). It runs the
-       * effect returned by `apply` once per sample. The result is labelled with
+       * from `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample, and again for each smaller value tried while shrinking a failing sample. The result is labelled with
        * the law's name.
        */
       final def run[R1 <: R, F[+_]: CapsF, A: Caps](
@@ -428,7 +426,7 @@ object ZLawsF {
 
       /**
        * Checks this law with `check` for values from `genF(gen)` (200 samples
-       * by default). It runs the effect returned by `apply` once per sample.
+       * by default). It runs the effect returned by `apply` once per sample, and again for each smaller value tried while shrinking a failing sample.
        * The result is labelled with the law's name.
        */
       final def run[R1 <: R, F[-_]: CapsF, A: Caps](
@@ -474,8 +472,7 @@ object ZLawsF {
 
       /**
        * Checks this law with `check`, drawing `fa` and `fb` separately from
-       * `genF(gen)` for each sample (200 samples by default). It runs the
-       * effect returned by `apply` once per sample. The result is labelled with
+       * `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample, and again for each smaller value tried while shrinking a failing sample. The result is labelled with
        * the law's name.
        */
       final def run[R1 <: R, F[-_]: CapsF, A: Caps](
@@ -521,8 +518,7 @@ object ZLawsF {
 
       /**
        * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately
-       * from `genF(gen)` for each sample (200 samples by default). It runs the
-       * effect returned by `apply` once per sample. The result is labelled with
+       * from `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample, and again for each smaller value tried while shrinking a failing sample. The result is labelled with
        * the law's name.
        */
       final def run[R1 <: R, F[-_]: CapsF, A: Caps](
@@ -617,7 +613,7 @@ object ZLawsF {
 
       /**
        * Checks this law with `check` for values from `genF(gen)` (200 samples
-       * by default). It runs the effect returned by `apply` once per sample.
+       * by default). It runs the effect returned by `apply` once per sample, and again for each smaller value tried while shrinking a failing sample.
        * The result is labelled with the law's name.
        */
       final def run[R1 <: R, F[_]: CapsF, A: Caps](
@@ -662,8 +658,7 @@ object ZLawsF {
 
       /**
        * Checks this law with `check`, drawing `fa` and `fb` separately from
-       * `genF(gen)` for each sample (200 samples by default). It runs the
-       * effect returned by `apply` once per sample. The result is labelled with
+       * `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample, and again for each smaller value tried while shrinking a failing sample. The result is labelled with
        * the law's name.
        */
       final def run[R1 <: R, F[_]: CapsF, A: Caps](
@@ -708,8 +703,7 @@ object ZLawsF {
 
       /**
        * Checks this law with `check`, drawing `fa`, `fb` and `fc` separately
-       * from `genF(gen)` for each sample (200 samples by default). It runs the
-       * effect returned by `apply` once per sample. The result is labelled with
+       * from `genF(gen)` for each sample (200 samples by default). It runs the effect returned by `apply` once per sample, and again for each smaller value tried while shrinking a failing sample. The result is labelled with
        * the law's name.
        */
       final def run[R1 <: R, F[_]: CapsF, A: Caps](

@@ -128,9 +128,7 @@ object ZLawsF2 {
      * Constructs a law from a pure function taking one parameterized value and
      * two functions that can be composed.
      *
-     * Its `run` method takes four arguments and is an overload: the
-     * two-argument `run` declared by `Divariant`, which `+` calls, is not
-     * defined by `ComposeLaw`, so a subclass has to define it as well.
+     * Its `run` method takes four arguments and is an overload: the two-argument `run` declared by `Divariant`, which a call to `run(genF, gen)` uses and which `run` calls on laws combined with `+`, is not defined by `ComposeLaw`, so a subclass has to define it as well.
      */
     abstract class ComposeLaw[-CapsBothF[_[-_, +_]], -Caps[_]](label: String)
         extends Divariant[CapsBothF, Caps, Caps, Any] {
