@@ -3269,6 +3269,29 @@ object ZIOSpec extends ZIOBaseSpec {
       test("timeout of terminate") {
         val io: ZIO[Any, Nothing, Option[Int]] = ZIO.die(ExampleError).timeout(1.hour)
         assertZIO(Live.live(io).exit)(dies(equalTo(ExampleError)))
+      },
+      test("timeout elapses when the test clock is adjusted") {
+        for {
+          fiber  <- ZIO.never.timeout(10.seconds).fork
+          _      <- TestClock.adjust(10.seconds)
+          result <- fiber.join
+        } yield assert(result)(isNone)
+      },
+      test("timeout inherits fiber refs of the effect") {
+        for {
+          fiberRef <- FiberRef.make(0)
+          result   <- (fiberRef.set(42) *> ZIO.succeed("ok")).timeout(1.second)
+          value    <- fiberRef.get
+        } yield assert(result)(isSome(equalTo("ok"))) && assert(value)(equalTo(42))
+      },
+      test("timeout inherits fiber refs of the effect when the timeout elapses") {
+        for {
+          fiberRef <- FiberRef.make(0)
+          fiber    <- (fiberRef.set(42) *> ZIO.never).timeoutTo(0)(_ => 1)(1.second).fork
+          _        <- TestClock.adjust(1.second)
+          result   <- fiber.join
+          value    <- fiberRef.get
+        } yield assert(result)(equalTo(0)) && assert(value)(equalTo(42))
       }
     ),
     suite("RTS option tests")(
